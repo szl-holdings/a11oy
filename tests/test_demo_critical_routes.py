@@ -37,6 +37,9 @@ import serve  # noqa: E402
 # /api/a11oy/v1/compute-pool — see szl_backend_hardening.register(); either satisfies
 # the substring match.)
 DEMO_CRITICAL_ROUTES = [
+    "/anatomy-v6",                              # read-only A11oy evidence view, not Anatomy v7 replacement
+    "/api/a11oy/v1/anatomy/evidence",          # summary-only overlay replay, no mint on GET
+    "/api/a11oy/v1/anatomy/self-audit",        # demotion preview, never an overlay write
     "/civilian",                               # independent civilian evidence view
     "/api/a11oy/v1/civilian/health",            # GET-only, model-free runtime contract
     "/api/a11oy/v1/civilian/overview",          # public observations, no effectors
@@ -102,6 +105,7 @@ DEMO_CRITICAL_ROUTES = [
     "/nexus",                                  # NEXUS analog vanity path (not a flagship, not a landing door)
     "/api/a11oy/v1/nexus/status",              # honest BIND status — never fabricated LIVE
     "/.well-known/source.json",                # product source declaration (UNSIGNED-honest)
+    "/api/a11oy/v1/storage/status",            # ADR-0001 state store mode/lease/snapshot ages (no paths)
 ]
 
 
@@ -325,8 +329,8 @@ def test_command_centre_survives_real_product_middleware():
     assert 'id="turn-form"' in response.text
     assert 'id="study-models"' in response.text
     assert '</html>' in response.text
-    from routers.command_centre import ROOT
-    assert response.content == (ROOT / 'index.html').read_bytes()
+    from routers.command_centre import page_bytes
+    assert response.content == page_bytes()
     script = client.get("/command-centre/app.js")
     assert script.status_code == 200
     assert 'reasoning_effort' in script.text

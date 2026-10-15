@@ -171,14 +171,17 @@ class OwnRepositoryAuthentication(unittest.TestCase):
 
     def test_moved_main_before_publication_keeps_zero_effects(self) -> None:
         code, receipt, calls = self.run_selected([MOVED_REVISION])
-        self.assertEqual(code, 1)
+        # Superseded by a newer main: distinct exit, never complete, zero writes.
+        self.assertEqual(code, self.module.SUPERSEDED_EXIT_CODE)
         self.assertFalse(receipt["complete"])
+        self.assertTrue(receipt["superseded"])
         self.assertEqual(calls, [])
 
     def test_moved_main_after_publication_cannot_qualify_receipt(self) -> None:
         code, receipt, calls = self.run_selected([REVISION, MOVED_REVISION])
-        self.assertEqual(code, 1)
+        self.assertEqual(code, self.module.SUPERSEDED_EXIT_CODE)
         self.assertFalse(receipt["complete"])
+        self.assertTrue(receipt["superseded"])
         self.assertFalse(receipt["source_still_current"])
         self.assertEqual(len(calls), 1)
 

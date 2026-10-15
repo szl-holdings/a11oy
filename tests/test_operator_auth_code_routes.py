@@ -56,8 +56,10 @@ def _unsigned(payload):
 def _fake_sandbox(counter: list):
     def _run(code, lang="python", **_kw):
         counter.append(code)
+        # governed_turn reports a run as executed only on an explicit
+        # execution_attempted=True, so the double states that it reached the code.
         return {"ok": True, "stdout": "ran\n", "stderr": "", "exit": 0,
-                "elapsed_ms": 1.0, "isolation": "test double"}
+                "elapsed_ms": 1.0, "isolation": "test double", "execution_attempted": True}
     return _run
 
 
@@ -687,7 +689,6 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
     "/api/a11oy/v1/composer/run": "deterministic formula chain",
     "/api/a11oy/v1/dream/promote": "promotion always denied; compute only",
     "/api/a11oy/v1/edge/run": "deterministic demo",
-    "/api/a11oy/v1/eval/run": "model-only eval over a fixed suite",
     "/api/a11oy/v1/gdw/step": "own credential registry (gdw_auth, step:write scope)",
     "/api/a11oy/v1/govern/agentos/snapshot": "aggregate + unsigned digest; body ignored",
     "/api/a11oy/v1/kverify/run": "bounded deterministic benchmark",

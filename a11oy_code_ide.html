@@ -175,7 +175,7 @@ a{color:var(--acc2);text-decoration:none}
         <span>Output</span><div class="spacer"></div>
         <span id="runmeta" style="font-family:var(--mono)"></span>
       </div>
-      <pre id="output"><span class="lbl">Sandboxed runner — operator-only.</span> ▶ Run executes only with the operator credential plus a distinct second approver; anonymous runs answer BLOCKED and nothing executes. When authorized, Python runs in the Space's constrained sandbox (allow-listed binaries, no network, 30s, isolated dir).</pre>
+      <pre id="output"><span class="lbl">Unsandboxed runner — operator-only.</span> ▶ Run executes only with the operator credential plus a distinct second approver; anonymous runs answer BLOCKED and nothing executes. When authorized, Python or JavaScript runs as the server's own user with the workspace as its working directory, a minimal environment and an 8s timeout. It is NOT sandboxed: no resource limits, no network isolation and no filesystem isolation.</pre>
     </div>
     <div class="receipt">
       <div class="cell"><span class="k">Λ signal</span><span class="v lam" id="r-lambda">—</span></div>
@@ -222,7 +222,7 @@ const editor = CodeMirror.fromTextArea($("#editor"), {
   mode:"python", theme:"material-darker", lineNumbers:true, indentUnit:4,
   matchBrackets:true, autoCloseBrackets:true, lineWrapping:false,
 });
-editor.setValue('# a11oy.code editor — write or receive code here, then Run.\nprint("hello from the a11oy sandbox")\n');
+editor.setValue('# a11oy.code editor — write or receive code here, then Run.\nprint("hello from a11oy.code")\n');
 $("#langsel").addEventListener("change", e=>{
   const m = CM_MODE[e.target.value] || "python";
   editor.setOption("mode", m);
@@ -363,12 +363,12 @@ function updateReceiptDone(d){
 $("#send").addEventListener("click", send);
 $("#input").addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); }});
 
-// ---- run (sandboxed) ----
+// ---- run (operator-only, NOT sandboxed: see RUN_BOUNDARY) ----
 $("#run").addEventListener("click", async ()=>{
   const lang = $("#langsel").value;
   const code = editor.getValue();
   $("#run").disabled=true; $("#runmeta").textContent="running…";
-  $("#output").innerHTML='<span class="lbl">Executing in sandbox…</span>';
+  $("#output").innerHTML='<span class="lbl">Executing (not sandboxed)…</span>';
   try{
     const resp = await fetch(API+"/run", {method:"POST", headers:{"Content-Type":"application/json"},
       body:JSON.stringify({language:lang, code})});
@@ -409,7 +409,7 @@ async function checkHealth(){
   }catch(e){ $("#statustext").textContent="health unreachable"; }
 }
 checkHealth();
-addMsg("bot", "Welcome to **a11oy.code** — a governed coding assistant. Pick a tier (FAST / HEART / PRIME / FRONTIER), ask me to write or explain code, then send any code block to the editor. **▶ Run** is operator-only: it executes in the sandbox only with the operator credential plus a second approver, otherwise it answers BLOCKED. Every turn carries a PURIQ Λ-signal and a signed Khipu receipt.");
+addMsg("bot", "Welcome to **a11oy.code** — a governed coding assistant. Pick a tier (FAST / HEART / PRIME / FRONTIER), ask me to write or explain code, then send any code block to the editor. **▶ Run** is operator-only: it executes (unsandboxed, as the server's user) only with the operator credential plus a second approver, otherwise it answers BLOCKED. Every turn carries a PURIQ Λ-signal and a signed Khipu receipt.");
 </script>
 </body>
 </html>

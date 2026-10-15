@@ -96,6 +96,17 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 FRONTIER_NODE_ID = re.compile(r"^frontier:[0-9a-f]{32}$")
 CANONICAL_SIGNING_SECRET = "SZL_COSIGN_PRIVATE_PEM"
 CANONICAL_SERIES_A_BUCKET = "SZLHOLDINGS/szl-evidence"
+CANONICAL_STATE_ROOT = "/tmp/a11oy-state"
+STATE_STORE_STATUS_ROUTE = "/api/a11oy/v1/storage/status"
+STATE_STORE_KINDS = {
+    "gdw": "sqlite",
+    "series_a": "sqlite",
+    "khipu": "sqlite",
+    "khipu_council": "sqlite",
+    "unay": "sqlite",
+    "khipu_lmdb": "lmdb",
+    "khipu_repl": "lmdb",
+}
 SERIES_A_VARIABLES = {
     "A11OY_REQUIRE_PERSISTENT_SIGNING": "1",
     "A11OY_REQUIRE_PERSISTENT_STORAGE": "1",
@@ -666,6 +677,15 @@ def validate_verdict_evidence(
         or sum(counts[1:]) != endpoints
     ):
         raise RelockError("readiness verdict outcomes are incomplete")
+    required_not_probed = summary.get("requiredNotProbed", skipped)
+    if (
+        not isinstance(required_not_probed, int)
+        or isinstance(required_not_probed, bool)
+        or not 0 <= required_not_probed <= skipped
+    ):
+        raise RelockError("readiness verdict required-not-probed count is invalid")
+    if required_not_probed != 0:
+        raise RelockError("readiness verdict contains unprobed required endpoints")
     blocking_degraded = summary.get("blockingDegraded", summary["degraded"])
     if (
         not isinstance(blocking_degraded, int)
@@ -695,8 +715,64 @@ def validate_verdict_evidence(
         "checked_at": checked_at,
         "base": normalize_origin(expected_origin),
         "age_seconds": age_seconds,
-        "summary": dict(summary),
+        "summary": {**dict(summary), "requiredNotProbed": required_not_probed},
     }
+
+
+def validate_state_store_status(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Require observed ADR-0001 fencing and snapshots, not just a local path."""
+    def positive_integer(value: Any) -> bool:
+        return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+    def fresh_age(value: Any, limit: float) -> bool:
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            and 0 <= value <= limit
+        )
+
+    lease = payload.get("lease")
+    stores = payload.get("stores")
+    if (
+        payload.get("schema") != "szl.a11oy-storage-status/v2"
+        or payload.get("mode") != "FENCED"
+        or payload.get("role") != "WRITER"
+        or payload.get("writable") is not True
+        or payload.get("unfenced") is not False
+        or payload.get("alert") is not False
+        or payload.get("pending_publish") != []
+        or payload.get("last_error") is not None
+        or not positive_integer(payload.get("epoch"))
+        or not isinstance(lease, Mapping)
+        or lease.get("state") != "ACTIVE"
+        or not positive_integer(lease.get("sequence"))
+        or not fresh_age(lease.get("heartbeat_age_s"), 120)
+        or not isinstance(stores, Mapping)
+        or set(stores) != set(STATE_STORE_KINDS)
+    ):
+        raise RelockError("v2 storage lacks a healthy fenced writer and active lease")
+    for label, kind in STATE_STORE_KINDS.items():
+        store = stores[label]
+        integrity = {"lmdb_read"} if kind == "lmdb" else {"quick_check", "integrity_check"}
+        if (
+            not isinstance(store, Mapping)
+            or store.get("kind") != kind
+            or store.get("health") != "OK"
+            or store.get("blocked_code") is not None
+            or store.get("last_error_code") is not None
+            or type(store.get("snapshot_failures")) is not int
+            or store.get("snapshot_failures") != 0
+            or store.get("integrity") not in integrity
+            or re.fullmatch(r"[0-9a-f]{16}", str(store.get("sha16") or "")) is None
+            or not fresh_age(store.get("last_snapshot_age_s"), 900)
+            or (
+                store.get("unsnapshotted_change_age_s") is not None
+                and not fresh_age(store["unsnapshotted_change_age_s"], 900)
+            )
+        ):
+            raise RelockError(f"v2 storage snapshot contract is incomplete: {label}")
+    return dict(payload)
 
 
 def validate_route(
@@ -706,6 +782,7 @@ def validate_route(
     source_variable: str,
     origin: str,
     run_verdict: Mapping[str, Any] | None = None,
+    series_a_database: str = SERIES_A_VARIABLES["A11OY_SERIES_A_DB"],
 ) -> dict[str, Any]:
     evidence: dict[str, Any] = {
         "url": response.url,
@@ -811,6 +888,8 @@ def validate_route(
             expected_origin=origin,
             run_verdict=run_verdict,
         )
+    elif name == "storage_status":
+        evidence["storage_state"] = validate_state_store_status(payload)
     elif name == "series_a_status":
         storage = payload.get("storage")
         critical_failures = payload.get("critical_failures")
@@ -824,7 +903,7 @@ def validate_route(
             or payload.get("signing_key_source")
             != "persistent:env:SZL_COSIGN_PRIVATE_PEM"
             or payload.get("database")
-            != SERIES_A_VARIABLES["A11OY_SERIES_A_DB"]
+            != series_a_database
             or not isinstance(storage, Mapping)
             or storage.get("persistence_required") is not True
             or storage.get("required_mount") != "/data"
@@ -868,9 +947,17 @@ def probe_routes(
     source_sha: str,
     source_variable: str,
     run_verdict: Mapping[str, Any] | None = None,
+    state_store_v2: bool = False,
 ) -> dict[str, dict[str, Any]]:
     output: dict[str, dict[str, Any]] = {}
-    for name, path in ROUTES.items():
+    routes = dict(ROUTES)
+    if state_store_v2:
+        routes["storage_status"] = STATE_STORE_STATUS_ROUTE
+    series_a_database = (
+        CANONICAL_STATE_ROOT + "/series-a/control-plane-v2.sqlite3"
+        if state_store_v2 else SERIES_A_VARIABLES["A11OY_SERIES_A_DB"]
+    )
+    for name, path in routes.items():
         url = origin + path
         head = session.head(url, allow_redirects=False, timeout=45)
         get = session.get(url, allow_redirects=False, timeout=60)
@@ -885,6 +972,7 @@ def probe_routes(
             source_variable,
             origin,
             run_verdict,
+            series_a_database,
         )
         evidence["head_http_status"] = head.status_code
         output[name] = evidence
@@ -937,6 +1025,15 @@ def evaluate_once(
             "Series-A runtime variable drift: " + ",".join(sorted(variable_drift))
         )
 
+    state_store_mode = variable_value(variables.get("A11OY_STATE_STORE"))
+    state_store_v2 = state_store_mode == "v2"
+    if state_store_mode not in (None, "", "off", "v2"):
+        raise RelockError("unsupported A11OY_STATE_STORE configuration")
+    if state_store_v2 and variable_value(variables.get("A11OY_STATE_ROOT")) not in (
+        None, "", CANONICAL_STATE_ROOT,
+    ):
+        raise RelockError("v2 storage root differs from the canonical local root")
+
     secrets = api.get_space_secrets(contract["repo_id"])
     if (
         not isinstance(secrets, Mapping)
@@ -974,6 +1071,7 @@ def evaluate_once(
         contract["source_sha"],
         contract["variable"],
         run_verdict,
+        state_store_v2,
     )
     clones = {f"SZLHOLDINGS/a11oy-clone-{index}": False for index in range(1, 5)}
     for clone_id in tuple(clones):
@@ -1003,6 +1101,7 @@ def evaluate_once(
             },
             "volumes": volumes,
             "persistent_contract_matched": True,
+            "state_store_mode": "v2" if state_store_v2 else "legacy",
         },
         "hf_repository_sha": repository_sha,
         "hf_runtime_sha": runtime_sha,

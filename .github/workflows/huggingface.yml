@@ -18,8 +18,9 @@ on:
         required: true
         default: model
       expected_revision:
-        description: Exact current 40-character Hub parent revision reviewed by the operator
-        required: true
+        description: Optional operator-reviewed 40-character Hub parent. Empty binds the commit to the target's current Hub HEAD, read at run time (compare-and-swap).
+        required: false
+        default: ""
       apply:
         description: Apply the full additive payload after all existing evidence checks (false only plans)
         type: boolean
@@ -44,7 +45,7 @@ jobs:
           version: 10.33.3
 
       - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version: 22
           cache: pnpm
@@ -89,6 +90,7 @@ jobs:
           EXPECTED_REVISION: ${{ inputs.expected_revision }}
           APPLY_PAYLOAD: ${{ inputs.apply }}
         run: |
-          args=(--repo-id "$TARGET_REPO_ID" --repo-type "$TARGET_REPO_TYPE" --expected-revision "$EXPECTED_REVISION")
+          args=(--repo-id "$TARGET_REPO_ID" --repo-type "$TARGET_REPO_TYPE")
+          if [[ -n "$EXPECTED_REVISION" ]]; then args+=(--expected-revision "$EXPECTED_REVISION"); else args+=(--parent-from-hub); fi
           if [[ "$APPLY_PAYLOAD" == 'true' ]]; then args+=(--apply); fi
           python3 scripts/publish_huggingface_payload.py "${args[@]}"

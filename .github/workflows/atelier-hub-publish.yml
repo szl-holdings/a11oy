@@ -70,6 +70,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Refuse Hub repos owned by a kernel repo's own publisher
+        run: python3 a11oy-src/tests/test_atelier_hub_publish_contract.py
+
       - name: Install Hub client
         run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "numpy==2.2.6"
 
@@ -133,29 +136,15 @@ jobs:
               return np.asarray(x, dtype=np.float64)
 
           seed = np.int64(src["seed"])
-          m = src["miniEmbed"]
-          np.savez_compressed(wdir / "mini_embed.npz", table=arr(m["table"]), V=np.int64(m["V"]), d=np.int64(m["d"]), seed=np.int64(m["seed"]), retrievalHitAt2=np.float64(m["retrievalHitAt2"]))
-          mo = src["moons"]
-          np.savez_compressed(wdir / "moons.npz", w1=arr(mo["w1"]), b1=arr(mo["b1"]), w2=arr(mo["w2"]), b2=arr(mo["b2"]), holdoutAcc=np.float64(mo["holdoutAcc"]), silhouette=np.float64(mo["silhouette"]), seed=seed)
-          k = src["tinyKhipu"]
-          np.savez_compressed(wdir / "tiny_khipu.npz", w1=arr(k["w1"]), b1=arr(k["b1"]), w2=arr(k["w2"]), b2=arr(k["b2"]), holdoutAcc=np.float64(k["holdoutAcc"]), abstainRecall=np.float64(k["abstainRecall"]), navigateRecall=np.float64(k["navigateRecall"]), seed=seed)
-          r = src["receiptAgent"]
-          np.savez_compressed(wdir / "receipt_agent.npz", w1=arr(r["w1"]), b1=arr(r["b1"]), w2=arr(r["w2"]), b2=arr(r["b2"]), holdoutAcc=np.float64(r["holdoutAcc"]), seed=seed)
           g = src["lambdaGate"]
           np.savez_compressed(wdir / "lambda_gate.npz", w=np.float64(g["w"]), b=np.float64(g["b"]), lambdaStar=np.float64(g["lambdaStar"]), holdoutAcc=np.float64(g["holdoutAcc"]), falseOpenRate=np.float64(g["falseOpenRate"]), seed=seed)
 
-          # MEASURED / SYNTHETIC nanos — write card + npz. Never touch 1.5B safetensors.
-          nanos = [
-              ("SZLHOLDINGS/MiniEmbed-Nano", "cards/MiniEmbed-Nano.md", "mini_embed.npz"),
-              ("SZLHOLDINGS/Moons-Nano", "cards/Moons-Nano.md", "moons.npz"),
-              ("SZLHOLDINGS/TinyKhipu-Nano", "cards/TinyKhipu-Nano.md", "tiny_khipu.npz"),
-              ("SZLHOLDINGS/ReceiptAgent-Nano", "cards/ReceiptAgent-Nano.md", "receipt_agent.npz"),
-          ]
-          for repo, card, npz in nanos:
-              ensure_model(repo)
-              api.upload_file(path_or_fileobj=str(root / card), path_in_repo="README.md", repo_id=repo, repo_type="model", commit_message="card(atelier): MEASURED nano silhouette — not a 1.5B retrain")
-              api.upload_file(path_or_fileobj=str(wdir / npz), path_in_repo=npz, repo_id=repo, repo_type="model", commit_message="weights(atelier): CPU NumPy checkpoint seed=20260721")
-              print("published", repo, npz)
+          # The four nano repos (MiniEmbed-Nano, Moons-Nano, TinyKhipu-Nano,
+          # ReceiptAgent-Nano) are not written from here. Their .npz weights and
+          # TRAINING_RECEIPT.json come from szl-holdings/szl-khipu, whose receipt
+          # must describe the bytes its own publisher produced; the
+          # TinyKhipu/ReceiptAgent cards and banners come from szl-forge's native
+          # family profiles; the Moons/MiniEmbed cards from szl-khipu.
 
           # lambda silhouette rides the existing szl-khipu model id (do not clobber README)
           api.upload_file(path_or_fileobj=str(wdir / "lambda_gate.npz"), path_in_repo="lambda_gate.npz", repo_id="SZLHOLDINGS/szl-khipu", repo_type="model", commit_message="weights(atelier): 1-D lambda-gate silhouette — Conjecture 1 OPEN")
@@ -198,31 +187,14 @@ jobs:
                   api.upload_file(path_or_fileobj=str(pth), path_in_repo=f"kernels/{pth.name}", repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", commit_message=f"code(atelier): {pth.name} fail-closed organ")
               print("published SZLHOLDINGS/szl-khipu-kernels pack")
 
-              per = [
-                  ("SZLHOLDINGS/YARQA-ATTN", "yarqa.py"),
-                  ("SZLHOLDINGS/szl-maskmod", "maskmod.py"),
-                  ("SZLHOLDINGS/szl-receipt-attn", "receipt_attn.py"),
-                  ("SZLHOLDINGS/szl-ouroboros", "ouroboros.py"),
-                  ("SZLHOLDINGS/szl-block-kv", "block_kv.py"),
-                  ("SZLHOLDINGS/szl-lambda-gate", "lambda_gate.py"),
-                  ("SZLHOLDINGS/szl-governed-norm", "governed_norm.py"),
-              ]
-              for repo, name in per:
-                  srcp = kdir / name
-                  if srcp.exists():
-                      api.upload_file(path_or_fileobj=str(srcp), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} from szl-khipu — not a 1.5B retrain")
-                      print("published", repo, name)
-
-              # One-hop deps so per-organ imports resolve. Do not rewrite GitHub-canonical READMEs.
-              for repo, name in (
-                  ("SZLHOLDINGS/szl-block-kv", "chain.py"),
-                  ("SZLHOLDINGS/szl-governed-norm", "chain.py"),
-                  ("SZLHOLDINGS/szl-lambda-gate", "doctrine.py"),
-              ):
-                  srcp = kdir / name
-                  if srcp.exists():
-                      api.upload_file(path_or_fileobj=str(srcp), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} one-hop dep so the organ imports")
-                      print("published", repo, name, "(dep)")
+              # Converged kernels (YARQA-ATTN, szl-maskmod, szl-receipt-attn,
+              # szl-ouroboros, szl-block-kv, szl-lambda-gate, the governed-norm
+              # twin, ...) are written only by their owning repo's
+              # hf-kernel-publish.yml, which owns both kernels/SZLHOLDINGS/<n>
+              # and the pointer README on the model twin and prunes code files
+              # from it. Copying organ sources there from here would re-add what
+              # that publisher removed. Their code still ships in the
+              # szl-khipu-kernels pack above.
 
               api.upload_file(path_or_fileobj=str(kdir / "nemo_rules.py"), path_in_repo="szl_nemo/rules.py", repo_id="SZLHOLDINGS/szl-nemo", repo_type="model", commit_message="code(atelier): rule_check R1-R5 — joblib stays quarantined")
               print("published SZLHOLDINGS/szl-nemo szl_nemo/rules.py")

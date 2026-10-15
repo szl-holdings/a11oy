@@ -212,6 +212,8 @@ def run(output, premium_only=False):
                     page.evaluate("go('estate')")
                     page.wait_for_timeout(350)
                     check(f"premium estate {mode} evidence state", ("NO ENTRIES REPORTED" if mode == "empty" else "UNAVAILABLE") in page.locator("#szl-estate-full").inner_text())
+                if not page.locator(".szl-theme-toggle").is_visible():
+                    page.locator(".szl-more").click()
                 page.locator(".szl-theme-toggle").click()
                 check("theme control toggles and persists", page.evaluate("localStorage.getItem('szl.console.theme')===document.documentElement.dataset.surface"))
                 check("reduced motion respected", page.locator(".content").evaluate("e=>getComputedStyle(e).animationName==='none'"))

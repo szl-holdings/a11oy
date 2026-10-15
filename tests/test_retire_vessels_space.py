@@ -11,6 +11,37 @@ SCRIPT = ROOT / ".github" / "scripts" / "retire_vessels_space.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "retire-vessels-space.yml"
 
 
+def secret_access_violations(source: str) -> list[str]:
+    forbidden = {
+        "get_space_secrets", "get_space_variables", "list_secrets",
+        "secret_value", "token_value",
+    }
+    violations = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.alias):
+            for name in (*node.name.split("."), node.asname or ""):
+                if name.lower() in forbidden:
+                    violations.append(name)
+        identity = (node.id if isinstance(node, ast.Name) else
+                    node.attr if isinstance(node, ast.Attribute) else
+                    node.value if isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    else "")
+        if identity.lower() in forbidden:
+            violations.append(identity)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in {"print", "repr"} and any(
+                isinstance(child, ast.Name) and child.id == "token"
+                for child in ast.walk(node)
+            ):
+                violations.append("token output")
+        if isinstance(node, ast.Dict):
+            for key, value in zip(node.keys, node.values):
+                if isinstance(key, ast.Constant) and key.value == "secret_values_read":
+                    if not isinstance(value, ast.Constant) or value.value is not False:
+                        violations.append("secret_values_read must be false")
+    return violations
+
+
 class VesselsRetirementContract(unittest.TestCase):
     def setUp(self) -> None:
         self.script = SCRIPT.read_text(encoding="utf-8")
@@ -43,21 +74,25 @@ class VesselsRetirementContract(unittest.TestCase):
             self.assertIn(marker, self.script)
 
     def test_no_provider_secret_or_space_secret_value_is_read_or_recorded(self) -> None:
-        forbidden = (
-            "get_space_secrets",
-            "get_space_variables",
-            "list_secrets",
-            "secret_value",
-            "token_value",
-            "print(token",
-            "repr(token",
-        )
-        lowered = self.script.lower()
-        for marker in forbidden:
-            self.assertNotIn(marker.lower(), lowered)
+        self.assertEqual(secret_access_violations(self.script), [])
         self.assertIn('"token_recorded": False', self.script)
         self.assertIn('"secret_values_read": False', self.script)
         self.assertIn('text.replace(token, "<redacted>")', self.script)
+
+    def test_secret_access_guard_rejects_values_but_accepts_false_metadata(self) -> None:
+        self.assertEqual(secret_access_violations('{"secret_values_read": False}'), [])
+        for source in (
+            'api.get_space_secrets("fixture")', 'api.get_space_variables("fixture")',
+            'list_secrets()', 'secret_value', 'item.token_value',
+            '{"secret_value": "fixture"}', '{"secret_values_read": True}',
+            '{"secret_values_read": observed}', 'print(token)', 'repr(token)',
+            'print(f"value={token}")',
+            'from provider import get_space_secrets as read',
+            'import provider.get_space_secrets as read',
+            'from provider import safe as secret_value',
+        ):
+            with self.subTest(source=source):
+                self.assertTrue(secret_access_violations(source))
 
     def test_deletion_is_verified_and_receipted(self) -> None:
         self.assertGreaterEqual(self.script.count("repo_exists(TARGET"), 4)
@@ -79,7 +114,7 @@ class VesselsRetirementContract(unittest.TestCase):
         self.assertIn("HF_WRITE_TOKEN", self.workflow)
         self.assertIn("HF_TOKEN", self.workflow)
         self.assertIn("retire_vessels_space.py", self.workflow)
-        self.assertIn("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", self.workflow)
+        self.assertIn("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9", self.workflow)
         self.assertIn("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", self.workflow)
         self.assertIn("actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97", self.workflow)
         uses = re.findall(r"^\s*uses:\s*(\S+)", self.workflow, re.MULTILINE)

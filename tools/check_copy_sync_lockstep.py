@@ -806,7 +806,7 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 })
 
 
-REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "d76141f0fee870ce9f0eff6a32d5c08c603faebb7faf6f6905d4242e10786a7e"
+REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "4fdb91169b94ccf548612edcf5e58748532ffe32962cba51fde20a08838a22f9"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
 # The deploy path is source-admission -> preflight -> deploy -> runtime-config.
 # Preflight admits current main before any provider effect, reads the runtime
@@ -819,15 +819,16 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "946dea224d0eabc1a827835a1c6e996cdf4b0e205078c82bd14e04044ffc34fe"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "ffb6c15492bfe79393ae5bbb7f2fa99b6f33e325edc6329c753f954534318692"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "1d47071a0e9e50356e34d55528e7887fef145bf37c439cec5775068648f06e5f"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "3bd53226e383f4637f928d4706492d4d7f0823ea0b36b33ec389830afc6fc450"
 # This exact post-deploy readiness job has no provider credential, verifies the
-# candidate at both literal reviewed origins, and gates relock on success.
-REVIEWED_READINESS_VERDICT_JOB_SHA256 = "42325c1b54541f2dfb12ee5af91e30dbbbb07fc323e53dae22cedb3c2c9c22d5"
+# candidate at both literal reviewed origins, witnesses both routes in the
+# package-bound Chromium revision, and gates relock on success.
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "51a11ceb7542d9c1dbb31be23df1e919ba227844d33dde119ee429f26bca23d0"
 # The relock job holds the provider read credential and consumes the readiness
 # verdict.  Bind its complete job body so an extra step, secret, permission, or
 # failure bypass cannot inherit that authority unnoticed.
-REVIEWED_RELOCK_JOB_SHA256 = "d9cfd6e3594ebd2fb46867fc0d028cded6b2ddb8eee85dad37cc50fa14a13eb4"
+REVIEWED_RELOCK_JOB_SHA256 = "e6b4931eb5d19638f98043fdbed9ad4b8a620d532e9d5d29b27e261273438f78"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
@@ -843,13 +844,16 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # The runtime signer whose served public key the verifier checks.
     "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
     # Read-only exact-byte verifier used only by the least-privilege readiness job.
-    ".github/scripts/verify_platform_candidate_preview.py": "dcc2b94c2f1f26ebb6550974b1af3e548dedd2afd41f100c852a6f647ac1550e",
-    ".github/scripts/publish_readiness_verdict.py": "d745e6abbaf9247ddd254f2476363b7906a8c382e4100a0e8e3b614cad8d91a6",
-    "tools/readiness-harness/probe_runner.mjs": "faae5beacf0bb13c9b6ba2b21407e56cdd8bc7aaf916f3458c4256807cd55755",
+    ".github/scripts/verify_platform_candidate_preview.py": "a302acdf0cef193cde4c9438b76c4cabbf37e8132a2a6c8b464f7f4970dfb6e0",
+    # Read-only browser witness with fixed public origins and exact GET closure.
+    "scripts/witness_platform_candidate_preview.py": "292cbddfc9b603c3a17ca301f07270e9cef309a382548c0ec88fa89f60bb9604",
+    ".github/requirements/platform-candidate-browser.txt": "a676dfbac807caaccbcebd65d7dbf43101d2f9a1f3583f956d0743ba3e1b44fa",
+    ".github/scripts/publish_readiness_verdict.py": "fa090e802af847964ea9f66309c218f0b65bc8cbcbf84d9aa6c6976a56743e4c",
+    "tools/readiness-harness/probe_runner.mjs": "85936fa56b87d7269e4085b4ca0592df1f03516d5db0a5d2b1a6d054f772ab50",
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
-    "tools/readiness-harness/tabs.json": "99545ca863dfe3174e9b1074319dc7a09c6e65566d4323b0eb92e83c8155f2d3",
+    "tools/readiness-harness/tabs.json": "04c4fc6f6f9c38c580d1d10cb2ac418588cf47951fa275727eac296ef8ceeff1",
     # Read-only terminal verifier used by the exact relock job.
-    ".github/scripts/verify_canonical_a11oy.py": "d2a0081aed30f51760d4d56499606399666deb9fe93ca7d31943bf295c05d316",
+    ".github/scripts/verify_canonical_a11oy.py": "940238ec26a74e0efc74ef61ed2fa2e8531c59f5e40a0b3330c8477199de8925",
 }
 REVIEWED_DEPLOY_GATES = {
     "needs": "[source-admission, preflight]",

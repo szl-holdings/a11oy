@@ -137,8 +137,15 @@ def test_generated_application_serves_same_routes_and_denies_private_feeds(tmp_p
     ns={"__name__":"generated_finance_test"}
     exec(compile((output/"app.py").read_text(),"generated-app.py","exec"),ns)
     with TestClient(ns["app"]) as client:
-        for path in ("/","/panels","/healthz","/readyz"):
+        for path in ("/","/panels","/healthz"):
             assert client.get(path).status_code==200
+        # Without its canonical upstream the shell is alive but not ready.
+        with patch("socket.socket.connect", side_effect=OSError("network forbidden")):
+            ready=client.get("/readyz")
+            live=client.get("/api/live")
+        assert ready.status_code==503 and live.status_code==503
+        assert ready.json()["state"]=="UPSTREAM_UNAVAILABLE"
+        assert ready.json()["checks"]=={"landing_sha256":True,"panels_sha256":True,"upstream":False}
         assert client.get("/").content==(output/"index.html").read_bytes()
         assert client.get("/api/finance/observations/alpaca-quotes").status_code==403
         assert client.get("/api/finance/observations/fred-series").status_code==403
@@ -196,7 +203,12 @@ def test_sibling_generated_apps_retain_readiness_and_no_finance_routes(tmp_path,
     with TestClient(ns["app"]) as client:
         with patch("socket.socket.connect", side_effect=AssertionError("network forbidden")):
             assert client.get("/").content == panels
-            assert client.get("/readyz").json()["ready"] is True
+            # Local artifact readiness is retained; without a reachable upstream
+            # the shell reports UPSTREAM_UNAVAILABLE instead of ready.
+            ready = client.get("/readyz")
+            assert ready.status_code == 503
+            assert ready.json()["state"] == "UPSTREAM_UNAVAILABLE"
+            assert ready.json()["checks"] == {"landing_sha256": True, "panels_sha256": True, "upstream": False}
             assert client.get("/healthz").json()["domain"] == slug
             assert client.get("/api/finance/providers").status_code == 404
 

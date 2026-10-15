@@ -7,7 +7,10 @@ node_modules
 
 # VCS / CI metadata
 .git
-.github
+.github/*
+!.github/scripts/
+.github/scripts/*
+!.github/scripts/publish_readiness_verdict.py
 .devcontainer
 
 # Build outputs (the builder regenerates dist/)

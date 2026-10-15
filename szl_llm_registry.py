@@ -943,6 +943,13 @@ def sovereign_mesh_matrix(timeout: float | None = None) -> dict[str, Any]:
     }
 
 
+def _public_inference_receipt_state(state: dict[str, Any]) -> dict[str, Any]:
+    """Keep historical receipt counters without private model or diagnostics."""
+    return {key: state[key] for key in (
+        "inference_receipted", "successful_receipt_count", "total_receipt_count",
+        "chain_ok", "latest_receipt_hash") if key in state}
+
+
 def _public_sovereign_mesh(matrix: dict[str, Any]) -> dict[str, Any]:
     """Expose mesh status without local origins, model inventory, or probe errors.
 
@@ -2092,7 +2099,7 @@ def register(app: FastAPI) -> dict:
             "receipt_binding": "UNKNOWN",
             "operational": False,
             "state": label,
-            "receipt_state": receipt_state,
+            "receipt_state": _public_inference_receipt_state(receipt_state),
             # ── Mesh (multi-node) reachability matrix (Wave N, Dev 3) ──
             "sovereign_status": sovereign_status,   # mesh reachability is not ownership proof
             "mesh": public_mesh,
@@ -2220,7 +2227,7 @@ def register(app: FastAPI) -> dict:
                 "gpu_verified": False,
                 "weights_verified": False,
                 "ownership_proof": "UNAVAILABLE",
-                "receipt_state": _receipt,
+                "receipt_state": _public_inference_receipt_state(_receipt),
                 "served_models": [],
                 "note": "Public status projection; private probe diagnostics withheld.",
             }

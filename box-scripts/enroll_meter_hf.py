@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Owner-only, fail-closed meter2 reader enrollment. No effect without --apply.
 
 This is a proposed credential handoff, not a source or measurement attestation.

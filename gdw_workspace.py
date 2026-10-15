@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 import szl_dsse
+import a11oy_state_store
 import gdw_durable_runtime as durable_storage
 
 
@@ -468,8 +469,19 @@ class GDWWorkspace:
             if production is not None
             else os.environ.get("GDW_PRODUCTION_MODE", "").lower() in _TRUTHY
         )
-        explicit_path = path is not None or bool(os.environ.get("GDW_DB_PATH"))
-        configured = path or os.environ.get("GDW_DB_PATH", "output/gdw/gdw.sqlite3")
+        # With A11OY_STATE_STORE=v2 the live file is the state store's local
+        # copy; GDW_DB_PATH then names only the legacy bootstrap source.
+        state_path = None if path is not None else a11oy_state_store.local_path("gdw")
+        explicit_path = (
+            path is not None
+            or state_path is not None
+            or bool(os.environ.get("GDW_DB_PATH"))
+        )
+        configured = (
+            path
+            or (str(state_path) if state_path is not None else None)
+            or os.environ.get("GDW_DB_PATH", "output/gdw/gdw.sqlite3")
+        )
         self.path = Path(configured).resolve()
         if self.production and not explicit_path:
             raise GDWConfigurationError(

@@ -120,7 +120,9 @@ def test_landing_reads_matrix_and_probe_availability_separately() -> None:
     assert "optionalDegraded" in landing
     assert 'displayDegraded ? "DEGRADED" : "OBSERVED"' in landing
     assert "static contract; deployment probe pending" in landing
-    assert ".data-state.amber" in landing
+    assert 'href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell"' in landing
+    css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
+    assert ".data-state.amber { border-inline-start:3px solid var(--control-edge) !important" in css
     for state in ("CACHED", "STALE_CACHE", "SNAPSHOT", "MODELED", "OBSERVED", "AVAILABLE", "DEGRADED"):
         assert state in landing
 
@@ -206,6 +208,28 @@ def test_runtime_variable_requires_exact_source_and_canonical_origin(
     assert optional["verdict_summary"]["blockingDegraded"] == 0
 
     verdict["summary"].update(ok=5, degraded=0, blockingDegraded=0)
+    verdict["summary"].update(ok=4, skippedStateChanging=1)
+    for count in ("missing", 1, True, -1, 2, 1.5, "1", None):
+        if count != "missing":
+            verdict["summary"]["requiredNotProbed"] = count
+        monkeypatch.setenv("SZL_PROBE_VERDICT_JSON", json.dumps(verdict))
+        rejected = client.get(
+            "/api/a11oy/v1/readiness/tab-matrix?view=summary"
+        ).json()
+        assert rejected["probe_verdict_available"] is False, count
+        assert rejected["verdict_summary"] is None, count
+
+    verdict["summary"]["requiredNotProbed"] = 0
+    monkeypatch.setenv("SZL_PROBE_VERDICT_JSON", json.dumps(verdict))
+    optional = client.get(
+        "/api/a11oy/v1/readiness/tab-matrix?view=summary"
+    ).json()
+    assert optional["probe_verdict_available"] is True
+    assert optional["verdict_summary"]["ok"] == 4
+    assert optional["verdict_summary"]["skippedStateChanging"] == 1
+    assert optional["verdict_summary"]["requiredNotProbed"] == 0
+
+    verdict["summary"].update(ok=5, skippedStateChanging=0)
     verdict["base"] = "https://unrelated.example"
     monkeypatch.setenv(
         "SZL_PROBE_VERDICT_JSON",

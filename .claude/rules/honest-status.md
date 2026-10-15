@@ -21,7 +21,8 @@ buyer, not a liability.
   - **ROADMAP** — not built yet (carbon feed, persistent kernel, `execution_guard` wrapper, SBOM;
     SLSA L3 is ROADMAP, never claimed achieved; FedRAMP/CMMC/ATO likewise ROADMAP).
 - **Never inflate.** Locked formulas = 8. Λ = Conjecture 1. Khipu BFT = Conjecture 2. SLSA = L1
-  honest / L2 build-attested (L3 ROADMAP).
+  source-declared by `szl_provenance.SLSA_LEVEL`; L2/L3 are not established. Historical
+  signatures do not establish current-image or per-build coverage.
 - **Mirror status across surfaces.** README *Honest status*, `docs/architecture.md` matrix, and
   `/api/a11oy/v1/honest` must agree. If you change a claim, change it everywhere.
 - When in doubt, **downgrade the label** (MEASURED → SAMPLE → ROADMAP) rather than overclaim.

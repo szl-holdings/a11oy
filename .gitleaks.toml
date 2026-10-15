@@ -107,6 +107,38 @@ regexTarget = "line"
 paths = ['''(^|[\\/])tools[\\/]check_copy_sync_lockstep\.py$''']
 regexes = ['''^\s*"a11oy_signing_key\.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",\s*$''']
 
+# Public CSS checksum in the byte-exact, accepted KANCHAY SOURCE manifest at
+# szl-brand 4309f6fce89179331b0b3ed8c99494e76c5be256. The five installed copies
+# and the complete immutable digest row must both match. A different digest,
+# another path, or an adjacent credential remains subject to the default rule.
+[[rules.allowlists]]
+description = "Exact accepted KANCHAY token stylesheet checksum in five source manifests"
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^console/assets/szl/SOURCE\.json$''',
+  '''^docs/site/docs/public/szl/SOURCE\.json$''',
+  '''^landing/szl/SOURCE\.json$''',
+  '''^organs/amaru/web/public/szl/SOURCE\.json$''',
+  '''^routers/command_centre_web/szl/SOURCE\.json$''',
+]
+regexes = ['''^\s*"szl-tokens\.css": "81f7c9baeef0b435e6e3f9d0c4e0d70e40fa17df5d1f30697f623cd3ef5f8eab"\s*$''']
+
+# The governed-agent-bench projection embeds the exact same public KANCHAY
+# stylesheet checksum in one source verifier and one unchanged upstream
+# manifest. Both the complete literal row and one of these two exact paths must
+# match. A changed value, another path, or an adjacent credential remains under
+# the inherited generic-api-key rule.
+[[rules.allowlists]]
+description = "Exact accepted KANCHAY token stylesheet checksum in governed benchmark sources"
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^benchmarks/governed-agent-bench/huggingface/native_presentation\.py$''',
+  '''^benchmarks/governed-agent-bench/huggingface/szl/SOURCE\.json$''',
+]
+regexes = ['''^\s*"szl-tokens\.css"\s*:\s*"81f7c9baeef0b435e6e3f9d0c4e0d70e40fa17df5d1f30697f623cd3ef5f8eab"\s*,?\s*$''']
+
 # The exact public SHA-256 of the shared meter helper is source identity, not
 # an API credential. Both path and full row must match. The reciprocal payload
 # validator independently checks this digest against both source files.

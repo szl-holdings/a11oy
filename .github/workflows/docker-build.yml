@@ -158,7 +158,7 @@ jobs:
 
       - name: Retain full-image model feature checks, including failures
         if: always() && github.event_name == 'pull_request'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: model-pretraining-container-${{ github.run_id }}-${{ github.run_attempt }}
           path: artifacts/model-pretraining-container/
@@ -189,6 +189,97 @@ jobs:
           format: cyclonedx-json
           output-file: a11oy-image-sbom.cyclonedx.json
           upload-artifact: true
+
+      - name: Rehearse required POST contracts in isolated PR image
+        if: github.event_name == 'pull_request'
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
+          IMAGE_ID="$(docker image inspect --format '{{.Id}}' "${TAG}")"
+          SOURCE="${RUNNER_TEMP}/effect-acceptance-source-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git worktree add --detach "${SOURCE}" "${GITHUB_SHA}"
+          test "$(git -C "${SOURCE}" rev-parse HEAD)" = "${GITHUB_SHA}"
+          test -z "$(git -C "${SOURCE}" status --porcelain=v1)"
+          REPORT="${RUNNER_TEMP}/effect-acceptance.json"
+          status=0
+          python3 -B "${SOURCE}/tools/readiness-harness/effect_acceptance.py" \
+            --image "${IMAGE_ID}" --out "${REPORT}" || status=$?
+          # Exit 2 is the driver's honest diagnostic result: agent-loop effect
+          # execution remains unavailable even when the other four contracts pass.
+          if [ "${status}" -ne 2 ]; then
+            echo "::error::Effect rehearsal returned unexpected exit ${status}"
+            exit 1
+          fi
+          python3 - "${REPORT}" "${IMAGE_ID}" "${GITHUB_SHA}" <<'PY'
+          import json
+          import sys
+
+          path, image_id, source = sys.argv[1:]
+          with open(path, encoding="utf-8") as stream:
+              report = json.load(stream)
+          required = {
+              "schema": "szl.a11oy-effect-acceptance/v1",
+              "evidenceClass": "SIMULATED",
+              "scope": "one_shot_declared_source_isolated_container",
+              "sourceRevision": source,
+              "imageId": image_id,
+              "sourceBinding": "DECLARED_IMAGE_REVISION_LABEL",
+              "network": "docker_none",
+              "productionReadiness": "UNAVAILABLE",
+              "containerCleanupVerified": True,
+              "summary": {"total": 5, "pass": 4, "unavailable": 1},
+          }
+          for key, expected in required.items():
+              if report.get(key) != expected:
+                  raise SystemExit(f"Effect rehearsal {key} mismatch or unavailable")
+          with open(path + ".recovery.jsonl", encoding="utf-8") as stream:
+              recovery = [json.loads(line) for line in stream]
+          if ([event.get("phase") for event in recovery]
+                  != ["prepared", "cidfile", "cleanup"]
+                  or recovery[0].get("sourceRevision") != source
+                  or recovery[0].get("imageId") != image_id
+                  or recovery[2].get("containerCleanupVerified") is not True):
+              raise SystemExit("Effect rehearsal recovery identity or cleanup unavailable")
+          paths = (
+              "/api/a11oy/v1/policy/decide",
+              "/api/a11oy/v1/operator/ask",
+              "/api/a11oy/v1/eval/run",
+              "/api/a11oy/v1/agentloop/run",
+              "/api/a11oy/v1/policy/compliance",
+          )
+          rows = report.get("results")
+          if not isinstance(rows, list) or [row.get("path") for row in rows] != list(paths):
+              raise SystemExit("Effect rehearsal route inventory mismatch")
+          for index, row in enumerate(rows):
+              expected_result = "UNAVAILABLE" if index == 3 else "PASS"
+              expected_class = "UNAVAILABLE" if index == 3 else "SIMULATED"
+              if (row.get("result") != expected_result
+                      or row.get("evidenceClass") != expected_class
+                      or row.get("attempts") != 1
+                      or row.get("effectState") == "UNKNOWN"):
+                  raise SystemExit(f"Effect rehearsal contract mismatch: {paths[index]}")
+          agentloop = rows[3]
+          if (agentloop.get("reason") != "agentloop_effect_not_executed"
+                  or agentloop.get("effectState") != "REFUSED_BEFORE_ROUTE"
+                  or agentloop.get("statusCode") != 401
+                  or agentloop.get("semantic") != {"authorizationRefused": True}):
+              raise SystemExit("Agent-loop refusal boundary not observed")
+          print("SIMULATED isolated PR-image rehearsal: four contracts observed; "
+                "agent-loop effect and production readiness UNAVAILABLE.")
+          PY
+
+      - name: Retain isolated POST rehearsal receipt and recovery identity
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: effect-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/effect-acceptance.json
+            ${{ runner.temp }}/effect-acceptance.json.recovery.jsonl
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Install cosign (release only)
         if: github.event_name == 'release'

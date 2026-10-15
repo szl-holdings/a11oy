@@ -35,7 +35,7 @@ jobs:
   benchmark:
     name: Governed agent benchmark
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,6 +81,7 @@ jobs:
           python -m unittest
           benchmarks/governed-agent-bench/test_score.py
           benchmarks/governed-agent-bench/test_publication.py
+          benchmarks/governed-agent-bench/test_native_presentation.py
           -v
 
       - name: Validate benchmark registry
@@ -105,9 +106,38 @@ jobs:
           --source-revision "${{ steps.source.outputs.revision }}"
           --observed-at "${{ steps.source.outputs.timestamp }}"
 
+      - name: Set up frontend qualification runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Install pinned Gradio and local browser qualification tools
+        run: |
+          python -m pip install --disable-pip-version-check -r benchmarks/governed-agent-bench/huggingface/requirements.txt
+          npm install --prefix "$RUNNER_TEMP/bench-browser" --ignore-scripts --save-exact playwright@1.62.0
+          node "$RUNNER_TEMP/bench-browser/node_modules/playwright/cli.js" install --with-deps chromium
+
+      - name: Qualify the actual generated read-only Gradio presentation
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.revision }}
+        run: |
+          node benchmarks/governed-agent-bench/verify_native_browser.mjs \
+            --package reports/governed-agent-bench-publication/space \
+            --out "$RUNNER_TEMP/bench-observations" \
+            --module "$RUNNER_TEMP/bench-browser/node_modules/playwright/index.mjs"
+
+      - name: Retain unsigned local browser observations
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1; org-approved immutable revision
+        with:
+          name: governed-agent-bench-frontend-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/bench-observations/bench-native-*/*
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Upload prerelease publication evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1; org-approved immutable revision
         with:
           name: governed-agent-bench-prerelease-${{ github.run_id }}
           path: reports/governed-agent-bench-publication
@@ -190,7 +220,7 @@ jobs:
 
       - name: Upload complete or partial publication receipt
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1; org-approved immutable revision
         with:
           name: governed-agent-bench-publication-${{ github.run_id }}
           path: reports/governed-agent-bench-publication

@@ -8,12 +8,14 @@ on:
     paths:
       - pages/console.html
       - tests/test_console_source_runtime_evidence.mjs
+      - scripts/test_console_evidence.cjs
       - .github/workflows/console-source-evidence.yml
   push:
     branches: [main]
     paths:
       - pages/console.html
       - tests/test_console_source_runtime_evidence.mjs
+      - scripts/test_console_evidence.cjs
       - .github/workflows/console-source-evidence.yml
 
 permissions:
@@ -26,7 +28,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
       - name: Checkout exact candidate
@@ -35,8 +37,10 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - name: Set up Node.js 24
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
       - name: Run console source and runtime evidence tests
         run: node --test tests/test_console_source_runtime_evidence.mjs
+      - name: Verify shipped ledger, energy and sample-signature helpers offline
+        run: node scripts/test_console_evidence.cjs

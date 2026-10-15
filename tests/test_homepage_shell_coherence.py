@@ -3,9 +3,11 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Source contracts complement the browser-tested homepage shell behavior."""
 import re
+import tempfile
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,7 +27,22 @@ class HomepageShellCoherence(unittest.TestCase):
     def setUpClass(cls):
         cls.html = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
         cls.elements = Elements(cls.html).elements
-        cls.css = cls.html.split('<style id="szl-homepage-shell">', 1)[1].split('</style>', 1)[0]
+        cls.css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
+
+    def test_one_local_visual_owner_uses_the_canonical_surface_roles(self):
+        links = [attrs for tag, attrs in self.elements if tag == "link"]
+        owner = [a for a in links if a.get("id") == "szl-homepage-shell"]
+        self.assertEqual(owner, [{"rel": "stylesheet", "href": "/assets/a11oy-homepage.css?v=dab2353006c8", "id": "szl-homepage-shell"}])
+        hrefs = [a.get("href") for a in links]
+        self.assertLess(hrefs.index("/assets/szl/szl-design-system.css"), hrefs.index("/assets/a11oy-homepage.css?v=dab2353006c8"))
+        self.assertNotIn("/assets/apex-v2.css", hrefs)
+        self.assertNotIn("<style", self.html)
+        self.assertNotIn("@font-face", self.css)
+        self.assertIn('data-surface="light"', self.html)
+        for role in ("--action-bg", "--action-hover-bg", "--action-press-bg", "--holo-edge", "--text-sub", "--font-display"):
+            self.assertIn("var(" + role + ")", self.css)
+        self.assertIn('class="specimen-wrap" data-surface="dark"', self.html)
+        self.assertIn('class="deep-record" data-surface="dark"', self.html)
 
     def test_one_explicit_shell_owner_and_accessible_navigation(self):
         roots = [attrs for tag, attrs in self.elements if tag == "html"]
@@ -36,6 +53,51 @@ class HomepageShellCoherence(unittest.TestCase):
         self.assertEqual(toggles[0]["aria-controls"], "site-nav")
         self.assertEqual(toggles[0]["aria-expanded"], "false")
         self.assertIn(("nav", {"class": "nav-links", "id": "site-nav", "aria-label": "Primary navigation"}), self.elements)
+
+    def test_standalone_governed_frontdoor_serves_its_exact_stylesheet(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        import szl_governed_api
+        app = FastAPI()
+        szl_governed_api.register(app, public_pem="")
+        client = TestClient(app)
+        landing = client.get("/")
+        self.assertEqual(landing.status_code, 200)
+        self.assertEqual(landing.content, (ROOT / "a11oy_landing.html").read_bytes())
+        css = client.get("/assets/a11oy-homepage.css")
+        self.assertEqual(css.status_code, 200)
+        self.assertTrue(css.headers["content-type"].startswith("text/css"))
+        self.assertEqual(css.headers["x-content-type-options"], "nosniff")
+        self.assertEqual(css.content, (ROOT / "console/assets/a11oy-homepage.css").read_bytes())
+        self.assertEqual(client.post("/assets/a11oy-homepage.css").status_code, 405)
+        self.assertEqual(client.get("/assets/requirements-runtime.txt").status_code, 404)
+
+    def test_packaged_frontdoor_serves_exact_stylesheet_route(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        import szl_governed_api
+
+        with tempfile.TemporaryDirectory() as tmp:
+            package = Path(tmp)
+            assets = package / "static" / "assets"
+            assets.mkdir(parents=True)
+            expected = b"body { color: #123456; }\n"
+            (assets / "a11oy-homepage.css").write_bytes(expected)
+            app = FastAPI()
+            with patch.object(szl_governed_api, "__file__", str(package / "szl_governed_api.py")):
+                szl_governed_api.register(app, public_pem="")
+            client = TestClient(app)
+            css = client.get("/assets/a11oy-homepage.css")
+            self.assertEqual(css.status_code, 200)
+            self.assertTrue(css.headers["content-type"].startswith("text/css"))
+            self.assertEqual(css.headers["x-content-type-options"], "nosniff")
+            self.assertEqual(css.content, expected)
+            versioned = client.get("/assets/a11oy-homepage.css?v=dab2353006c8")
+            self.assertEqual(versioned.status_code, 200)
+            self.assertTrue(versioned.headers["content-type"].startswith("text/css"))
+            self.assertEqual(versioned.content, expected)
+            self.assertEqual(client.post("/assets/a11oy-homepage.css").status_code, 405)
+            self.assertEqual(client.get("/assets/requirements-runtime.txt").status_code, 404)
 
     def test_shared_enhancers_remain_bound_but_cannot_add_homepage_navigation(self):
         for script in ("szl-flow.js", "szl-holo-v2.js"):
@@ -56,10 +118,10 @@ class HomepageShellCoherence(unittest.TestCase):
         for selector in re.findall(r'([^{}]+)\{', css_without_comments):
             if not selector.strip().startswith("@"):
                 self.assertIn('html[data-szl-shell-owner="homepage"]', selector)
-        for contract in ("font-size:clamp(56px,6.5vw,96px)", "@media(max-width:760px)",
+        for contract in ("font-size:clamp(2.7rem,5.15vw,4.75rem)", "@media(max-width:760px)",
                          "@media(max-width:1100px)", "prefers-reduced-motion", "forced-colors",
-                         "--szl-paper:#F2F0E9", "--szl-graphite:#111419", "--szl-blue:#8CAFE3",
-                         ".hero::after {content:none!important}"):
+                         "--ink:var(--text)", "--sub:var(--text-sub)",
+                         "overflow:visible !important"):
             self.assertIn(contract, self.css)
 
     def test_disclosure_closes_on_escape_outside_focus_and_resize(self):

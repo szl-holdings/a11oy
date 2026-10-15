@@ -240,7 +240,7 @@ def collect(org: str, get: Callable[[str], Mapping[str, Any]] = public_get) -> d
         except Exception as exc:
             # Never serialize exception URLs, credentials or private item IDs.
             result['counts'][kind] = None
-            result['items'][kind] = []
+            result['items'][kind] = None
             result['errors'][kind] = str(exc) if isinstance(exc, InventoryError) else type(exc).__name__
         result['page_evidence'][kind] = pages
     result['observed'] = not result['errors']
@@ -260,7 +260,8 @@ Unknown, private, malformed, and equal-count/different-ID results stay blocked.
     delta: dict[str, Any] = {}
     if inventory.get('scope') != PREDICATE or inventory.get('scope_sha256') != digest(PREDICATE):
         reasons.append('HF_INVENTORY_SCOPE_MISMATCH')
-    if inventory.get('observed') is not True:
+    errors = inventory.get('errors')
+    if inventory.get('observed') is not True or not isinstance(errors, Mapping) or errors:
         reasons.append('HF_PUBLIC_INVENTORY_UNAVAILABLE')
     if not isinstance(manifest, Mapping):
         return {'aligned': False, 'blockers': sorted(set(reasons + ['HF_PUBLIC_MANIFEST_UNAVAILABLE'])), 'delta': delta}
@@ -329,6 +330,10 @@ Unknown, private, malformed, and equal-count/different-ID results stay blocked.
         reasons.append('HF_PROFILE_COUNTS_UNAVAILABLE')
     elif declared != inventory.get('counts') or declared != manifest_counts:
         reasons.append('HF_PUBLIC_COUNTS_DRIFT')
+    if not reasons:
+        membership = {kind: sorted(row['id'] for row in observed_items[kind]) for kind in KINDS}
+        if inventory.get('membership_sha256') != digest(membership):
+            reasons.append('HF_OBSERVED_MEMBERSHIP_DIGEST_MISMATCH')
     return {'aligned': not reasons, 'blockers': sorted(set(reasons)), 'delta': delta}
 
 

@@ -147,6 +147,22 @@ def _partition_date(ts: str) -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def receipt_write_metadata(receipt: dict) -> tuple[str, str, str, str]:
+    """Validate deterministic append inputs before opening storage.
+
+    The ingest boundary uses the same normalization as append. Invalid numeric
+    timestamps and unrepresentable partitions are provable pre-write rejection,
+    not evidence of a possibly persisted write. No filesystem access occurs.
+    """
+    if not isinstance(receipt, dict):
+        raise ValueError("receipt must be a JSON object")
+    organ = normalize_organ(receipt.get("organ", "unknown"))
+    json.dumps(receipt, allow_nan=False)
+    rid = receipt_identity(receipt)
+    ts = _receipt_ts(receipt)
+    return organ, rid, ts, _partition_date(ts)
+
+
 class _OrganState:
     """In-memory mirror of one organ's on-disk chain (rebuilt from disk)."""
 
@@ -237,11 +253,7 @@ class ReceiptLedger:
         Returns {accepted, duplicate, receipt_id, ledger_offset, chain_index,
         chain_head, organ}.
         """
-        if not isinstance(receipt, dict):
-            raise ValueError("receipt must be a JSON object")
-        organ = normalize_organ(receipt.get("organ", "unknown"))
-        rid = receipt_identity(receipt)
-        ts = _receipt_ts(receipt)
+        organ, rid, ts, date = receipt_write_metadata(receipt)
 
         with self._lock:
             st = self._state(organ)
@@ -281,14 +293,20 @@ class ReceiptLedger:
                 "receipt": receipt,
             }
 
-            date = _partition_date(ts)
             path = self._partition_path(organ, date)
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, "a", encoding="utf-8") as fh:
-                fh.write(json.dumps(envelope, sort_keys=True,
-                                    separators=(",", ":")) + "\n")
-                fh.flush()
-                os.fsync(fh.fileno())
+            serialized = json.dumps(envelope, sort_keys=True,
+                                    separators=(",", ":"), allow_nan=False) + "\n"
+            try:
+                with open(path, "a", encoding="utf-8") as fh:
+                    fh.write(serialized)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+            except Exception:
+                # A write/flush/fsync/close failure may follow persisted bytes.
+                # Never leave the pre-write cache authoritative for later calls.
+                self._states.pop(organ, None)
+                raise
 
             st.seen.add(rid)
             st.chain_index = chain_index
@@ -325,6 +343,56 @@ class ReceiptLedger:
         }
 
     # ---- read -----------------------------------------------------------
+    def lookup_receipt(self, receipt_id: str, organ: str, *,
+                       max_bytes: int = 16 * 1024 * 1024,
+                       max_partitions: int = 128) -> dict:
+        """Read one exact identity without appending, repairing or updating state.
+
+        Failure, absence and the scan bound all remain UNKNOWN. A readable
+        record is local evidence only; it cannot recover a lost fsync ack or
+        establish remote publication. Payload bytes are never returned.
+        """
+        organ = normalize_organ(organ)
+        if not isinstance(receipt_id, str) or not receipt_id or len(receipt_id) > 1024:
+            raise ValueError("receipt_id must be a non-empty bounded string")
+        result = {"state": "UNKNOWN", "receipt_id": receipt_id, "organ": organ,
+                  "local_fsync": "UNKNOWN", "remote_publication": "NOT_ACKNOWLEDGED"}
+        consumed = 0
+        try:
+            with self._lock:
+                paths = self._iter_partition_files(organ)
+                if len(paths) > max_partitions:
+                    return dict(result, reason="readback partition bound")
+                for path in paths:
+                    with open(path, "rb") as stream:
+                        while True:
+                            remaining = max_bytes - consumed
+                            if remaining <= 0:
+                                return dict(result, reason="readback byte bound")
+                            line = stream.readline(min(remaining + 1, 1024 * 1024 + 1))
+                            if not line:
+                                break
+                            consumed += len(line)
+                            if consumed > max_bytes or len(line) > 1024 * 1024:
+                                return dict(result, reason="readback byte bound")
+                            if not line.strip():
+                                continue
+                            if not line.endswith(b"\n"):
+                                return dict(result, reason="incomplete record")
+                            record = json.loads(line)
+                            if not isinstance(record, dict):
+                                return dict(result, reason="invalid record")
+                            if record.get("receipt_id") == receipt_id:
+                                receipt = record.get("receipt")
+                                if (record.get("organ") != organ
+                                        or not isinstance(receipt, dict)
+                                        or receipt_identity(receipt) != receipt_id):
+                                    return dict(result, reason="identity mismatch")
+                                return dict(result, state="LOCAL_PRESENT")
+        except Exception:
+            return dict(result, reason="readback unavailable")
+        return dict(result, reason="identity not observed within readback")
+
     def query(self, organ: str | None = None, since: str | None = None,
               limit: int = 100) -> list[dict]:
         """Return stored envelopes, newest-first, filtered by organ/since.

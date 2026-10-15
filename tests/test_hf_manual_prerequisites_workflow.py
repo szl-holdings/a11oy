@@ -69,7 +69,7 @@ def exact_step(actual, expected, diagnostic):
 
 CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
-UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 HF_CREDENTIAL = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
 CONTROL_CLIENT = 'python -I -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
 EXACT_CHECKOUT = {"name": "Checkout exact protected source", "uses": CHECKOUT,
@@ -198,9 +198,25 @@ python -I -B .github/scripts/verify_platform_candidate_preview.py \
   --base-url "https://a-11-oy.com" \
   --expected-contract-file serve.py \
   > "$PLATFORM_CANDIDATE_PRODUCT_REPORT"'''
+PLATFORM_CANDIDATE_BROWSER_INSTALL_RUN = r'''set -euo pipefail
+python -I -m pip install --disable-pip-version-check --no-cache-dir \
+  --only-binary=:all: --require-hashes \
+  -r .github/requirements/platform-candidate-browser.txt
+python -I -m playwright install --with-deps chromium'''
+PLATFORM_CANDIDATE_BROWSER_RUN = r'''set -euo pipefail
+unset PLAYWRIGHT_CHROMIUM_PATH
+python -I -B scripts/witness_platform_candidate_preview.py \
+  --origin "https://szlholdings-a11oy.hf.space" \
+  --origin "https://a-11-oy.com" \
+  --expected-contract-file serve.py \
+  --output "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
+PLATFORM_CANDIDATE_EVIDENCE_RUN = r'''set -euo pipefail
+test -s "$PLATFORM_CANDIDATE_ORIGIN_REPORT"
+test -s "$PLATFORM_CANDIDATE_PRODUCT_REPORT"
+test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
 RUN_VERDICT = "${{ needs.readiness-verdict.outputs.verdict }}"
 REVIEWED_DEPLOY_JOB_SHA256 = "a30a6a0ed116101c998635538465ef55c0b97d134f0a4381a5ea4b4fb97a19fb"
-REVIEWED_RELOCK_JOB_SHA256 = "d9cfd6e3594ebd2fb46867fc0d028cded6b2ddb8eee85dad37cc50fa14a13eb4"
+REVIEWED_RELOCK_JOB_SHA256 = "e6b4931eb5d19638f98043fdbed9ad4b8a620d532e9d5d29b27e261273438f78"
 
 
 def exact_job_digest(source: str, name: str) -> str:
@@ -340,16 +356,22 @@ def assert_deploy_path_contract(source):
     readiness_text = json.dumps(readiness)
     if (readiness.get("permissions") != {"contents": "read"}
             or readiness.get("env") != {
+                "GH_TOKEN": "",
+                "GITHUB_TOKEN": "",
                 "SOURCE_SHA": "${{ github.sha }}",
                 "VERDICT_PATH": "/tmp/readiness-verdict.json",
                 "PLATFORM_CANDIDATE_ORIGIN_REPORT": "/tmp/platform-candidate-origin.json",
                 "PLATFORM_CANDIDATE_PRODUCT_REPORT": "/tmp/platform-candidate-product.json",
+                "PLATFORM_CANDIDATE_BROWSER_REPORT": "/tmp/platform-candidate-browser.json",
             }
             or "HF_TOKEN" in readiness_text or "secrets." in readiness_text
             or [step.get("name") for step in readiness["steps"]] != [
                 "Checkout exact protected source", "Set up Node.js", "Set up Python",
                 "Verify the candidate on the canonical Space origin",
                 "Verify the candidate on the product domain",
+                "Install the exact Platform candidate browser witness runtime",
+                "Witness the candidate in Chromium on both fixed origins",
+                "Require complete Platform candidate evidence",
                 "Upload secret-free Platform candidate evidence",
                 "Probe the exact canonical deployment", "Upload immutable full probe evidence",
                 "Validate the source-bound verdict without a Space write"]):
@@ -364,11 +386,26 @@ def assert_deploy_path_contract(source):
         "run": PLATFORM_CANDIDATE_PRODUCT_RUN,
     }, "product Platform candidate verifier")
     exact_step(readiness["steps"][5], {
+        "name": "Install the exact Platform candidate browser witness runtime",
+        "if": "${{ always() }}", "shell": "bash",
+        "run": PLATFORM_CANDIDATE_BROWSER_INSTALL_RUN,
+    }, "Platform candidate browser runtime")
+    exact_step(readiness["steps"][6], {
+        "name": "Witness the candidate in Chromium on both fixed origins",
+        "if": "${{ always() }}", "shell": "bash",
+        "run": PLATFORM_CANDIDATE_BROWSER_RUN,
+    }, "Platform candidate browser witness")
+    exact_step(readiness["steps"][7], {
+        "name": "Require complete Platform candidate evidence",
+        "if": "${{ always() }}", "shell": "bash",
+        "run": PLATFORM_CANDIDATE_EVIDENCE_RUN,
+    }, "Platform candidate evidence completeness")
+    exact_step(readiness["steps"][8], {
         "name": "Upload secret-free Platform candidate evidence",
         "if": "${{ always() }}", "uses": UPLOAD,
         "with": {
             "name": "platform-candidate-${{ github.run_id }}-${{ github.run_attempt }}",
-            "path": "${{ env.PLATFORM_CANDIDATE_ORIGIN_REPORT }}\n${{ env.PLATFORM_CANDIDATE_PRODUCT_REPORT }}",
+            "path": "${{ env.PLATFORM_CANDIDATE_ORIGIN_REPORT }}\n${{ env.PLATFORM_CANDIDATE_PRODUCT_REPORT }}\n${{ env.PLATFORM_CANDIDATE_BROWSER_REPORT }}",
             "if-no-files-found": "error", "retention-days": "90",
         },
     }, "Platform candidate artifact allowlist")
@@ -662,6 +699,17 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def setUpClass(cls):
         cls.source = WORKFLOW.read_text(encoding="utf-8")
 
+    def test_browser_witness_policy_suites_are_in_the_required_test_workflow(self):
+        tests_workflow = (ROOT / ".github/workflows/tests.yml").read_text(
+            encoding="utf-8"
+        )
+        for path in (
+            "tests/test_platform_candidate_browser_witness.py",
+            "tests/test_platform_candidate_browser_witness_cli.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(tests_workflow.count(path), 1)
+
     def test_actual_deploy_path_contract(self):
         jobs = assert_deploy_path_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
@@ -678,7 +726,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
             self.assertTrue(launches, workflow)
             for command in launches:
                 with self.subTest(workflow=workflow.name, command=command):
-                    self.assertRegex(command, r"^python3? -I (?:-B|-m pip\b)")
+                    self.assertRegex(command, r"^python3? -I (?:-B|-m (?:pip|playwright)\b)")
 
     def test_post_deploy_jobs_cannot_restart_pause_or_write_variables(self):
         for job_name, marker in (
@@ -727,12 +775,42 @@ class DeployPathWorkflowTests(unittest.TestCase):
              "product Platform candidate verifier"),
             ("--expected-contract-file serve.py", "--expected-contract-file unreviewed.py",
              "canonical Platform candidate verifier"),
+            ("-r .github/requirements/platform-candidate-browser.txt",
+             "playwright>=1.62.0",
+             "Platform candidate browser runtime"),
+            ("--only-binary=:all: --require-hashes",
+             "--only-binary=:all:",
+             "Platform candidate browser runtime"),
+            ("python -I -m playwright install --with-deps chromium",
+             "python -I -m playwright install chromium",
+             "Platform candidate browser runtime"),
+            ("python -I -B scripts/witness_platform_candidate_preview.py",
+             "python -I -B scripts/unreviewed_browser_witness.py",
+             "Platform candidate browser witness"),
+            ("unset PLAYWRIGHT_CHROMIUM_PATH",
+             "export PLAYWRIGHT_CHROMIUM_PATH=/tmp/unreviewed-browser",
+             "Platform candidate browser witness"),
+            ('--output "$PLATFORM_CANDIDATE_BROWSER_REPORT"',
+             '--output /tmp/unreviewed-browser.json',
+             "Platform candidate browser witness"),
+            ('test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"',
+             'test -e "$PLATFORM_CANDIDATE_BROWSER_REPORT"',
+             "Platform candidate evidence completeness"),
             ("            ${{ env.PLATFORM_CANDIDATE_PRODUCT_REPORT }}\n",
+             "            ${{ env.VERDICT_PATH }}\n",
+             "Platform candidate artifact allowlist"),
+            ("            ${{ env.PLATFORM_CANDIDATE_BROWSER_REPORT }}\n",
              "            ${{ env.VERDICT_PATH }}\n",
              "Platform candidate artifact allowlist"),
             ("      PLATFORM_CANDIDATE_PRODUCT_REPORT: /tmp/platform-candidate-product.json\n",
              "      PLATFORM_CANDIDATE_PRODUCT_REPORT: /tmp/platform-candidate-product.json\n"
              "      HF_TOKEN: ${{ secrets.HF_TOKEN }}\n",
+             "readiness verdict must stay evidence-only"),
+            ('      GH_TOKEN: ""\n',
+             "      GH_TOKEN: ${{ github.token }}\n",
+             "readiness verdict must stay evidence-only"),
+            ('      GITHUB_TOKEN: ""\n',
+             "      GITHUB_TOKEN: ${{ github.token }}\n",
              "readiness verdict must stay evidence-only"),
         )
         for original, replacement, diagnostic in cases:

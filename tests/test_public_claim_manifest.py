@@ -568,7 +568,7 @@ def test_ci_covers_module_schemas_manifest_receipt_and_real_validation():
     assert "find artifacts/evidenceos/manifests -mindepth 1 -type l" in workflow
     assert "Draft202012Validator(report_schema).validate(report)" in workflow
     assert "--require-hashes -r .github/requirements/ci-core.txt" in workflow
-    assert "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" in workflow
+    assert "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" in workflow
     assert "branches: [main, agent/evidenceos-claim-wave36]" in workflow
     assert "branches: [main, agent/evidenceos-claim-wave36]" in compiler
     assert "actions: read" in workflow

@@ -1,9 +1,9 @@
 {
-  "artifact_sha256": "3970b3ac1065db1c531d141d3d0aa7ae1903546d6b10197b6f03794d72bca5c4",
-  "fleet_master_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
-  "generator": "szl-vertical-forge/0.2.2",
-  "source_pull_request": "https://github.com/szl-holdings/szl-vertical-forge/pull/3",
+  "artifact_sha256": "628b3e722af6a007903641ed822457b08547d761d89bd994bbbd225249c027bd",
+  "fleet_master_hash": "8aa52d124c5cf883ed2cfe9f0ecf476f010a5afd5d51a3f5d5ad7332038ea901",
+  "generator": "szl-vertical-forge/0.2.3",
+  "schema": "szl.vertical-shell.source-lock/v1",
+  "source_pull_request": "https://github.com/szl-holdings/szl-vertical-forge/pull/14",
   "source_repository": "szl-holdings/szl-vertical-forge",
-  "source_revision": "6a05a17004d245f929176e01e29b20a0ab0e8bb3",
-  "schema": "szl.vertical-shell.source-lock/v1"
+  "source_revision": "67a3cf2d6281035af237a6f97486069a345d496b"
 }

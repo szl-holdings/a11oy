@@ -842,3 +842,98 @@ def test_nvd_rest_observation_is_not_replaced_by_the_recent_feed(monkeypatch) ->
     monkeypatch.setattr(vertical, "_client", forbid_transport)
     observed = vertical.feed_nvd(12, keyword="financial")
     assert observed["value"]["items"][0]["id"] == "CVE-FROM-REST"
+
+
+# Required entries are the protected vert_finance_feed freshness paths; Yahoo
+# is an optional fallback and must not turn an observed official feed into 503.
+_REQUIRED_FINANCE_KEYS = (
+    "SPY", "AAPL", "MSFT", "NVDA", "BTC-USD", "ETH-USD", "SOL-USD", "fx", "fintech_cve",
+)
+
+
+def _finance_http_fixture(monkeypatch, *, changed=None, replacement=None, status="live"):
+    from starlette.testclient import TestClient
+    now_s = 1791984194.0
+    entries = {key: {"value": {"items": [], "symbol": key, "price": 0.0},
+                     "freshness": {"status": status, "fetched_at": now_s}}
+               for key in _REQUIRED_FINANCE_KEYS}
+    if changed is not None:
+        entries[changed] = copy.deepcopy(replacement)
+    monkeypatch.setattr(vertical.time, "time", lambda: now_s)
+    monkeypatch.setenv("A11OY_FEED_WARM_ENABLED", "0")
+    monkeypatch.setattr(vertical, "feed_yahoo", lambda symbol: _unavailable("optional source"))
+    monkeypatch.setattr(vertical, "feed_polygon", lambda symbol: copy.deepcopy(entries[symbol]))
+    monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: copy.deepcopy(entries[pair]))
+    monkeypatch.setattr(vertical, "feed_fx", lambda *a, **k: copy.deepcopy(entries["fx"]))
+    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: copy.deepcopy(entries["fintech_cve"]))
+    app = FastAPI()
+    vertical.register(app)
+    return TestClient(app).get("/api/a11oy/v1/vert/finance/feed")
+
+
+@pytest.mark.parametrize("required_key", _REQUIRED_FINANCE_KEYS)
+def test_finance_http_refuses_every_unavailable_required_source(monkeypatch, required_key):
+    unavailable = {"value": None, "freshness": {"status": "unavailable",
+                   "fetched_at": 1791984194.0, "error": "fixture provider unavailable"}}
+    response = _finance_http_fixture(monkeypatch, changed=required_key, replacement=unavailable)
+    assert response.status_code == 503
+    body = response.json()
+    source = (body["equities_official"][required_key] if required_key in ("SPY", "AAPL", "MSFT", "NVDA")
+              else body["crypto"][required_key] if required_key.endswith("-USD") else body[required_key])
+    assert source["value"] is None
+    assert source["freshness"]["status"] == "UNAVAILABLE"
+    assert source["freshness"]["fetched_at"] == 1791984194.0
+    assert source["freshness"]["error"] == "fixture provider unavailable"
+    assert body["vertical"] == "finance"
+    assert "doctrine" in body and "sources_cited" in body
+
+
+@pytest.mark.parametrize("status", ["live", "cached", "reference", "unofficial-fallback"])
+def test_finance_http_accepts_observed_required_sources_and_omits_optional_misses(monkeypatch, status):
+    response = _finance_http_fixture(monkeypatch, status=status)
+    assert response.status_code == 200
+    assert response.json()["equities"] == {}
+    assert response.json()["fintech_cve"]["value"]["price"] == 0.0
+    assert response.json()["fintech_cve"]["freshness"]["fetched_at"] == 1791984194.0
+
+
+@pytest.mark.parametrize("clock", [None, "1791984194", True, 0, -1, 1791984194.0 - 3601, 1791984194.0 + 301])
+def test_finance_http_refuses_invalid_stale_or_future_required_clock(monkeypatch, clock):
+    source = {"value": {"items": []}, "freshness": {"status": "live", "fetched_at": clock}}
+    response = _finance_http_fixture(monkeypatch, changed="fintech_cve", replacement=source)
+    assert response.status_code == 503
+
+
+def test_finance_http_accepts_recent_cached_evidence_without_retimestamping(monkeypatch):
+    source = {"value": {"items": []}, "freshness": {"status": "stale",
+              "fetched_at": 1791984094.0, "error": "fixture refresh failed"}}
+    response = _finance_http_fixture(monkeypatch, changed="fintech_cve", replacement=source)
+    assert response.status_code == 200
+    assert response.json()["fintech_cve"]["freshness"] == {
+        "status": "cached", "fetched_at": 1791984094.0, "error": "fixture refresh failed"}
+
+
+@pytest.mark.parametrize("clock", [float("nan"), float("inf"), -float("inf")])
+def test_finance_required_source_rejects_nonfinite_clocks(clock):
+    source = {"value": {"items": []}, "freshness": {"status": "live", "fetched_at": clock}}
+    assert not vertical._finance_required_source_usable(source, 1791984194.0)
+
+
+def test_finance_http_regressions_remain_in_native_route_boundary_ci():
+    import yaml
+    workflow = yaml.safe_load((_ROOT / ".github/workflows/deva-readiness-boundary.yml").read_text(encoding="utf-8"))
+    trigger = workflow.get("on", workflow.get(True))
+    path = "tests/test_finance_feed_readiness.py"
+    assert path in trigger["pull_request"]["paths"]
+    assert path in trigger["push"]["paths"]
+    assert "merge_group" in trigger
+    commands = [step.get("run", "") for step in workflow["jobs"]["route-boundary"]["steps"]]
+    assert any("python -m pytest" in command and path in command for command in commands)
+
+
+@pytest.mark.parametrize("status", [None, False, ["live"], {"state": "live"}])
+def test_finance_http_refuses_malformed_required_status_without_server_error(monkeypatch, status):
+    source = {"value": {"items": []}, "freshness": {"status": status, "fetched_at": 1791984194.0}}
+    response = _finance_http_fixture(monkeypatch, changed="fintech_cve", replacement=source)
+    assert response.status_code == 503
+    assert response.json()["fintech_cve"] == source
