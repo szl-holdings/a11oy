@@ -1098,14 +1098,19 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
                 return JSONResponse({"error": code}, status_code=422)
             strict_args["execution_budget"] = budget
 
+        from functools import partial
         from starlette.concurrency import run_in_threadpool
+        operation = partial(run_eval, suite_id, model_id, harness_profile_id,
+                            execution_mode=execution_mode,
+                            request_origin=str(request.base_url), **strict_args)
         try:
-            out = await run_in_threadpool(
-                run_eval, suite_id, model_id, harness_profile_id,
-                execution_mode=execution_mode,
-                request_origin=str(request.base_url),
-                **strict_args,
-            )
+            if strict_args:
+                from anyio import to_thread
+                # Let cancellation close the shared budget immediately; the
+                # pending provider call may finish, but cannot start later work.
+                out = await to_thread.run_sync(operation, abandon_on_cancel=True)
+            else:
+                out = await run_in_threadpool(operation)
         except BaseException:
             if strict_args:
                 budget.fail("EXECUTION_CANCELLED", ambiguous=True)

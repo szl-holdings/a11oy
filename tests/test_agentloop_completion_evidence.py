@@ -586,3 +586,64 @@ def test_strict_integration_cancelled_request_does_not_dispatch_next_case(strict
     assert state["signed"] == []
     assert state["eval_signed"] == []
     assert state["forums"] == []
+
+
+@pytest.mark.parametrize("middleware", [False, True])
+@pytest.mark.parametrize("blocked_request", [1, 2])
+def test_strict_cancel_reaches_budget_before_pending_provider_returns(
+        strict_app_boundary, monkeypatch, middleware, blocked_request):
+    import asyncio
+    import threading
+
+    api, state = strict_app_boundary
+    entered, release, finished = threading.Event(), threading.Event(), threading.Event()
+    if middleware:
+        @api.app.middleware("http")
+        async def pass_through(request, call_next):
+            return await call_next(request)
+
+    original = strict_loop.run_loop
+    def observed_run(*args, **kwargs):
+        try:
+            result = original(*args, **kwargs)
+            state["worker_result"] = result
+            return result
+        finally:
+            finished.set()
+    monkeypatch.setattr(strict_loop, "run_loop", observed_run)
+
+    def provider(request):
+        state["calls"].append(request)
+        if len(state["calls"]) == blocked_request:
+            entered.set()
+            assert release.wait(3)
+        return httpx.Response(200, json={"model": STRICT_MODEL, "choices": [{
+            "finish_reason": "stop", "message": {"role": "assistant", "content": "4"}}],
+            "usage": {"completion_tokens": 1}})
+    monkeypatch.setattr(httpx, "Client", lambda **kw: STRICT_ORIGINAL_CLIENT(
+        **{**kw, "transport": httpx.MockTransport(provider)}))
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api.app),
+                                     base_url="http://testserver") as client:
+            request = asyncio.create_task(client.post(STRICT_LOOP_PATH, headers=STRICT_HEADERS, json=STRICT_BODY))
+            try:
+                assert await asyncio.to_thread(entered.wait, 2)
+                signatures_before = len(state["signed"])
+                request.cancel()
+                done, _ = await asyncio.wait({request}, timeout=0.5)
+                # Release only after observing whether cancellation settled. A
+                # shielded worker must not make this control wait for its result.
+                cancelled_promptly = request in done
+            finally:
+                release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await request
+            assert await asyncio.to_thread(finished.wait, 2)
+            assert cancelled_promptly, "Strict dispatch shielded request cancellation"
+            assert len(state["calls"]) == blocked_request
+            assert len(state["signed"]) == signatures_before
+            assert state["eval_signed"] == [] and state["forums"] == []
+            assert state["worker_result"]["retry_policy"]["execution_limits"]["error"] == "EXECUTION_CANCELLED"
+            assert state["worker_result"]["completion"]["complete"] is False
+    asyncio.run(scenario())

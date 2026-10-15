@@ -1230,12 +1230,17 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
                    "consult_brain": consult_brain, "allocate_energy": allocate_energy,
                    "allow_exec": _exec_permitted(request) if execution_budget is None else False}
         if execution_budget is not None:
-            from starlette.concurrency import run_in_threadpool
+            from anyio import to_thread
+            from functools import partial
             try:
-                result = await run_in_threadpool(run_loop, task, sign_fn,
-                                                execution_budget=execution_budget, **options)
+                # Cancellation must reach this handler before an in-flight
+                # worker returns, including through AnyIO middleware scopes.
+                # The worker is cooperative; remote cancellation is not claimed.
+                result = await to_thread.run_sync(partial(run_loop, task, sign_fn,
+                                                execution_budget=execution_budget, **options),
+                                                abandon_on_cancel=True)
             except BaseException:
-                execution_budget.fail("STRICT_EXECUTION_INTERRUPTED", ambiguous=True)
+                execution_budget.fail("EXECUTION_CANCELLED", ambiguous=True)
                 raise
         else:
             result = run_loop(task, sign_fn, **options)

@@ -159,3 +159,76 @@ def test_strict_json_cannot_hide_ambiguous_or_extra_request_fields(isolated, ext
             + extra + '}')
     assert client.post(PATH, headers=HEADERS, content=body).status_code == 422
     run.assert_not_called()
+
+
+@pytest.mark.parametrize("middleware", [False, True])
+def test_strict_eval_cancel_stops_pending_worker_before_next_effect(monkeypatch, middleware):
+    import asyncio
+    import threading
+    import httpx
+    import a11oy_code_engine as engine
+    import a11oy_vertical_feeds as vertical
+
+    selected = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+    suite_id = "eval-cancellation-fixture"
+    monkeypatch.setenv(auth.OPERATOR_KEY_ENV, TOKEN)
+    monkeypatch.setattr(engine, "_MODEL_BASE_URL", "https://eval-cancel.example/v1")
+    monkeypatch.setattr(engine, "_LOCAL_MODEL_CMD", "")
+    monkeypatch.setattr(engine, "_HF_TOKEN", "eval-cancel-fixture-provider")
+    monkeypatch.setattr(vertical, "_HAS_KHIPU", False)
+    monkeypatch.setattr(vertical, "_HAS_DSSE", False)
+    monkeypatch.setitem(arena._SUITES, suite_id, {"title": "Cancellation fixture", "version": "1",
+        "description": "Isolated provider fixture", "cases": [{"id": case_id,
+            "input": "What is two plus two?", "expected": "4", "scorer": "exact",
+            "category": "correctness"} for case_id in ("first", "second")]})
+    signer, forum = Mock(), Mock()
+    signer.return_value = ({"signed": False, "signatures": []}, {"mode": "UNSIGNED-LOCAL"})
+    monkeypatch.setattr(arena, "_sign", signer)
+    monkeypatch.setattr(arena, "_ingest_forum", forum)
+    entered, release, finished = threading.Event(), threading.Event(), threading.Event()
+    calls, completed = [], []
+    original_client, original_run = httpx.Client, arena.run_eval
+    def provider(request):
+        calls.append(request)
+        entered.set()
+        assert release.wait(3)
+        return httpx.Response(200, json={"model": selected, "choices": [{"finish_reason": "stop",
+            "message": {"role": "assistant", "content": "4"}}], "usage": {"completion_tokens": 1}})
+    monkeypatch.setattr(httpx, "Client", lambda **kw: original_client(
+        **{**kw, "transport": httpx.MockTransport(provider)}))
+    def observed_run(*args, **kwargs):
+        try:
+            result = original_run(*args, **kwargs)
+            completed.append(result)
+            return result
+        finally:
+            finished.set()
+    monkeypatch.setattr(arena, "run_eval", observed_run)
+    app = FastAPI()
+    if middleware:
+        @app.middleware("http")
+        async def pass_through(request, call_next):
+            return await call_next(request)
+    arena.register(app)
+    body = {"model_id": selected, "suite": suite_id, "execution_mode": "live",
+            "execution_limits": {"max_model_requests": 2, "max_output_tokens": 100, "max_elapsed_seconds": 5}}
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as client:
+            request = asyncio.create_task(client.post(PATH, headers=HEADERS, json=body))
+            try:
+                assert await asyncio.to_thread(entered.wait, 2)
+                request.cancel()
+                done, _ = await asyncio.wait({request}, timeout=0.5)
+                cancelled_promptly = request in done
+            finally:
+                release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await request
+            assert await asyncio.to_thread(finished.wait, 2)
+            assert cancelled_promptly, "Strict eval shielded request cancellation"
+    asyncio.run(scenario())
+    assert len(calls) == 1
+    signer.assert_not_called()
+    forum.assert_not_called()
+    assert completed[0]["execution_budget"]["error"] == "EXECUTION_CANCELLED"
+    assert completed[0]["execution_complete"] is False
