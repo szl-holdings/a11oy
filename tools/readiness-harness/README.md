@@ -133,6 +133,9 @@ report write. Retain it for an orphan investigation; verify the container's
 name, nonce label, and image before touching that exact container. Do not
 remove other containers. The report hashes
 requests/responses; it never records the local operator key.
+File fsync covers the sidecar contents; durability of its directory entry
+across a sudden host power loss is UNKNOWN, so inspect the output directory
+and Docker labels before concluding that no orphan exists after a crash.
 
 An image revision label is a declared source binding, not independent image
 provenance. The report is local simulated evidence only; it is neither live
