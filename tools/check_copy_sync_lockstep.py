@@ -824,12 +824,21 @@ REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "3bd53226e383f4637f928d4706492d4d7f0823ea0b
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
 # package-bound Chromium revision, and gates relock on success.
-REVIEWED_READINESS_VERDICT_JOB_SHA256 = "51a11ceb7542d9c1dbb31be23df1e919ba227844d33dde119ee429f26bca23d0"
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "fa40f6f29bc71f7b3222645adbc6aa0d39bb3ff9660b49d3b67700e667f4f92b"
 # The relock job holds the provider read credential and consumes the readiness
 # verdict.  Bind its complete job body so an extra step, secret, permission, or
 # failure bypass cannot inherit that authority unnoticed.
-REVIEWED_RELOCK_JOB_SHA256 = "e6b4931eb5d19638f98043fdbed9ad4b8a620d532e9d5d29b27e261273438f78"
+REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c8762f3de244d5964f"
+# The separate collection job is authenticated only for the fixed GET export.
+REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "598dc56af57eafb9a27ed35c0051df14a0c07ad43868c20ce8b60b4c69af138a"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
+    # Reviewed GET-only collection, public authority materialization and crypto closure.
+    ".github/scripts/collect_execution_readiness.py": "e2ea59576b2533a2b397674568578d989a7018174cae891b4afff2697a76dc46",
+    ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
+    "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
+    "observer_adapters.py": "84b80c124c8e6e70c0292934f150873ea93340a8995795e48cab477628e90b66",
+    "tools/__init__.py": "977b49ccb946ca7e2517eca225e7601a9d0762a7edfea904b519c1cc29f68ab0",
+    "tools/execution_acceptance.py": "85bb391bf9d8423c35cc7043be5862e13a1e8b8c0540813b0e85123f2e6504d3",
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
     # Read-only wait for the deployed revision after a convergence write.
@@ -848,12 +857,12 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only browser witness with fixed public origins and exact GET closure.
     "scripts/witness_platform_candidate_preview.py": "292cbddfc9b603c3a17ca301f07270e9cef309a382548c0ec88fa89f60bb9604",
     ".github/requirements/platform-candidate-browser.txt": "a676dfbac807caaccbcebd65d7dbf43101d2f9a1f3583f956d0743ba3e1b44fa",
-    ".github/scripts/publish_readiness_verdict.py": "fa090e802af847964ea9f66309c218f0b65bc8cbcbf84d9aa6c6976a56743e4c",
+    ".github/scripts/publish_readiness_verdict.py": "e823c027fa3be4e440fdbbe99681fa903da70b86aecf785f3f7a795045f439a5",
     "tools/readiness-harness/probe_runner.mjs": "85936fa56b87d7269e4085b4ca0592df1f03516d5db0a5d2b1a6d054f772ab50",
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
     "tools/readiness-harness/tabs.json": "04c4fc6f6f9c38c580d1d10cb2ac418588cf47951fa275727eac296ef8ceeff1",
     # Read-only terminal verifier used by the exact relock job.
-    ".github/scripts/verify_canonical_a11oy.py": "940238ec26a74e0efc74ef61ed2fa2e8531c59f5e40a0b3330c8477199de8925",
+    ".github/scripts/verify_canonical_a11oy.py": "30285b3887cfde3043fd6ea189ca24741da11ebeeebc1345f50f3322cf1cdcad",
 }
 REVIEWED_DEPLOY_GATES = {
     "needs": "[source-admission, preflight]",
@@ -1068,6 +1077,16 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         and _job_body_sha256(readiness_jobs[0])
         == REVIEWED_READINESS_VERDICT_JOB_SHA256
     )
+    execution_jobs = [
+        (lines, indent) for job_id, lines, indent in jobs
+        if job_id == "execution-readiness"
+    ]
+    execution_verified = (
+        helpers_verified
+        and len(execution_jobs) == 1
+        and _job_body_sha256(execution_jobs[0][0]) == REVIEWED_EXECUTION_READINESS_JOB_SHA256
+        and job_requires_successful_needs(*execution_jobs[0], "readiness-verdict")
+    )
     relock_jobs = [
         (lines, indent) for job_id, lines, indent in jobs
         if job_id == "relock"
@@ -1077,7 +1096,7 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         and helpers_verified
         and _job_body_sha256(relock_jobs[0][0]) == REVIEWED_RELOCK_JOB_SHA256
         and job_requires_successful_needs(
-            *relock_jobs[0], "[runtime-config, readiness-verdict]"
+            *relock_jobs[0], "[runtime-config, execution-readiness]"
         )
     )
     deploys = [(lines, indent) for job_id, lines, indent in jobs if job_id == "deploy"]
@@ -1085,6 +1104,7 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
             and workflow_has_unfiltered_main_push(hf_sync_text)
             and workflow_has_reviewed_event_scope(hf_sync_text)
             and readiness_verified
+            and execution_verified
             and readiness_gates_relock
             and len(deploys) == 1
             and job_has_source_derived_deploy_contract(

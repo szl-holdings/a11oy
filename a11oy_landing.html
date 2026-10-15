@@ -217,7 +217,7 @@
   <div class="hero-stats">
         <div class="stat">
           <div class="k proof" id="hs-receipts">—</div>
-          <div class="l">SAMPLE hash-link records · not operational receipts <span id="hs-receipts-chip"></span><br><span class="stat-note">ledger depth — a mechanism check, not customer traction <span id="hs-receipts-hist"></span></span></div>
+          <div class="l"><span id="hs-receipts-label">Receipt source unavailable</span> <span id="hs-receipts-chip"></span><br><span class="stat-note">Returned records, not customer traction</span></div>
         </div>
         <div class="stat">
           <div class="k gray" id="hs-lambda">Conjecture 1</div>
@@ -560,19 +560,18 @@
   </div>
 </section>
 
-<!-- ====================== (6) ONE CHAIN — live receipts/ledger ====================== -->
+<!-- ====================== (6) RECEIPT LEDGER — source-labelled read ====================== -->
 <section class="band" id="chain">
   <div class="wrap">
-    <p class="kick">One chain · live ledger <span id="chain-src"></span></p>
-    <h2>One ledger. Every receipt record. Replayable to the byte.</h2>
-    <p class="intro">Every vertical emits into a single SHA3-256 hash-chain — append-only,
-      fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.
-      Record count is not a decision count: it includes legacy MODELED probe records, broken out
-      beneath the count when the runtime reports them.</p>
+    <p class="kick">Receipt ledger · read-only source <span id="chain-src"></span></p>
+    <h2>Inspect the returned receipt records.</h2>
+    <p class="intro">This is the current process’s returned ledger window, not the complete estate or a durability guarantee.
+      An empty operational ledger remains empty. SAMPLE records are excluded from operational receipt and ROI counts.
+      Hash-link structure and reported signer state do not establish independent signature verification.</p>
     <div class="chainrow">
-      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Source-labelled chain records · state pending<span class="stat-note" id="chain-split"></span></div></div>
-      <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
-      <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Chain depth (a11oy)</div></div>
+      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl"><span id="chain-receipts-label">Receipt source unavailable</span><span class="stat-note" id="chain-split"></span></div></div>
+      <div class="cstat"><div class="ck ink mono" id="chain-alg">UNAVAILABLE</div><div class="cl">Chain algorithm</div></div>
+      <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Records in returned window</div></div>
       <div class="cstat"><div class="ck ink mono" id="chain-head">—</div><div class="cl">Last receipt id</div></div>
     </div>
     <div class="cta-row">
@@ -1031,53 +1030,35 @@
     });
   }
 
+  function ledgerReading(d){
+    if(!d || typeof d !== "object" || Array.isArray(d) || !Number.isSafeInteger(d.count)
+       || d.count < 0 || !Array.isArray(d.receipts) || d.receipts.length !== d.count
+       || d.receipts.some(r => !r || typeof r !== "object" || Array.isArray(r))) return null;
+    const state = typeof d.state === "string" ? d.state.toLowerCase() : "";
+    const operational = d.operational === true && d.data_kind === "live" && state === "live";
+    const sample = d.operational === false && d.data_kind === "sample" && state === "sample";
+    if(!operational && !sample) return null;
+    const last = d.receipts[d.receipts.length-1];
+    const head = last && (last.digest || last.receipt_id || last.hash);
+    return {count:d.count, state:operational ? "OPERATIONAL" : "SAMPLE",
+      label:operational ? "Operational receipt records · returned window" : "SAMPLE hash-link records · not operational receipts",
+      algorithm:typeof d.hash_algorithm === "string" && /^[A-Za-z0-9_-]{1,48}$/.test(d.hash_algorithm) ? d.hash_algorithm : "UNAVAILABLE",
+      head:typeof head === "string" && /^[a-fA-F0-9]{32,128}$/.test(head) ? head : null,
+      signer:d.signature_state === "SIGNED" ? "Signature reported · not verified here" :
+        (d.signature_state === "UNSIGNED" ? "UNSIGNED · DIGEST ONLY" : "Signer state unavailable")};
+  }
   function setHeroReceiptsFromLedger(d){
-    // Same source as the runtime pulse card: GET /api/a11oy/v1/ledger (SAMPLE chain).
-    // Do not invent a third number. Lake/overview totals, if different, are SAMPLE/historical.
-    const n = (d && typeof d.count === "number") ? d.count : num(d && d.count);
-    const state = String((d && (d.state || d.data_kind)) || "SAMPLE").toUpperCase();
-    $("hs-receipts").textContent = (n===null) ? "—" : n.toLocaleString();
-    $("hs-receipts").dataset.liveCount = (n===null) ? "" : String(n);
-    $("hs-receipts-chip").innerHTML = (n===null) ? downChip("offline") : grayChip(state + " · ledger");
-    if(window.__lakeReceiptTotal != null) noteHistoricalReceipts(window.__lakeReceiptTotal, "lake");
-  }
-  function noteHistoricalReceipts(other, source){
-    const live = num($("hs-receipts").dataset && $("hs-receipts").dataset.liveCount);
-    const hist = num(other);
-    const el = $("hs-receipts-hist");
-    if(!el) return;
-    if(live!==null && hist!==null && live!==hist){
-      el.textContent = " · SAMPLE/historical " + source + " " + hist.toLocaleString();
-    }
-  }
-  function setChain(receipts, alg, depth, head){
-    window.__lakeReceiptTotal = num(receipts);
-    $("chain-receipts").textContent = (num(receipts)===null) ? "UNAVAILABLE" : receipts.toLocaleString();
-    // Hero figure is owned by the ledger read (same source as the runtime card).
-    if($("hs-receipts").dataset.liveCount){
-      noteHistoricalReceipts(receipts, "lake");
-    }
-    if(alg) $("chain-alg").textContent = alg;
-    $("chain-depth").textContent = (num(depth)===null) ? "N/A" : depth.toLocaleString();
-    // Normalize head to the receipt id STRING. Some feeds (e.g. org/overview)
-    // return last_receipt as an object ({receipt_id, ...}); passing that straight
-    // to String() rendered a literal "[object Object]" in the LAST RECEIPT ID slot.
-    const headId = (head && typeof head === "object")
-      ? (head.receipt_id || head.id || head.digest || "")
-      : head;
-    if(headId){ const h = String(headId); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
-    else { $("chain-head").textContent = "N/A"; }
-  }
-  // Split of the record count, measured server-side from stored envelopes. Omitted when the
-  // runtime does not report it; never derived from a signed:true flag.
-  function setChainSplit(dsseSigBytes, modeledProbe){
-    const el = $("chain-split");
-    if(!el) return;
-    const s = num(dsseSigBytes), p = num(modeledProbe);
-    const parts = [];
-    if(s!==null) parts.push(s.toLocaleString() + " records store DSSE signature bytes (not verified here)");
-    if(p!==null) parts.push(p.toLocaleString() + " records are legacy MODELED GET probes");
-    el.textContent = parts.join(" · ");
+    // This one ledger response owns every receipt count; overview/lake totals cannot replace it.
+    const view = ledgerReading(d);
+    const count = view ? view.count.toLocaleString() : "UNAVAILABLE";
+    const label = view ? view.label : "Receipt source unavailable";
+    ["hs-receipts","chain-receipts","chain-depth"].forEach(id => { if($(id)) $(id).textContent = count; });
+    ["hs-receipts-label","chain-receipts-label"].forEach(id => { if($(id)) $(id).textContent = label; });
+    ["hs-receipts-chip","chain-src"].forEach(id => { if($(id)) $(id).innerHTML = view ? grayChip(view.state+" · ledger read") : downChip("UNAVAILABLE"); });
+    if($("chain-alg")) $("chain-alg").textContent = view ? view.algorithm : "UNAVAILABLE";
+    if($("chain-split")) $("chain-split").textContent = view ? view.signer : "Signer state unavailable";
+    if($("chain-head")) $("chain-head").textContent = view && view.head ? view.head.slice(0,10)+"…"+view.head.slice(-4) : "UNAVAILABLE";
+    return view;
   }
 
   // ---- (A) try the ONE consolidated read (Dev 5) ----
@@ -1091,16 +1072,6 @@
         const vm = {}, vs = {};
         o.verticals.forEach(x => { if(x && x.name){ vm[x.name] = num(x.lambda); vs[x.name] = x.source; } });
         setVerticals(vm, vs); $("verticals-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
-      }
-      const ts = o.thesis_stats || {};
-      const ch = o.chain || {};
-      // receipt_records = hash-chained record count. Older runtimes named the same number
-      // signed_receipts; read it only as a record count, never as a signature count.
-      const records = (ts.receipt_records !== undefined) ? ts.receipt_records : ts.signed_receipts;
-      if(records !== undefined || ch.depth !== undefined){
-        setChain(num(records), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
-        setChainSplit(ts.dsse_sig_bytes_records, ts.modeled_probe_records);
-        $("chain-src").innerHTML = grayChip("REACHABLE · overview"); any = true;
       }
       if(o.org_lambda !== undefined && $("v-org")){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
       return any;
@@ -1141,16 +1112,6 @@
       if($("verticals-src")) $("verticals-src").innerHTML = downChip("UNAVAILABLE");
     }
   }
-  async function loadChain(){
-    let receipts=null, alg="sha3_256", depth=null, head=null, ok=false;
-    try{ const h = await getJSON("/api/lake/v1/health"); receipts = num(h.total_receipts); alg = h.chain_alg || alg; ok = true; }catch(e){}
-    try{ const l = await getJSON("/api/a11oy/v1/ledger"); depth = num(l.count);
-         if(Array.isArray(l.receipts) && l.receipts.length){ head = l.receipts[l.receipts.length-1].receipt_id; }
-         if(receipts === null) receipts = depth; ok = true; }catch(e){}
-    setChain(receipts, alg, depth, head);
-    $("chain-src").innerHTML = ok ? grayChip((alg || "sha3_256") + " · CHAIN") : downChip("UNAVAILABLE");
-  }
-
   // ---- live estate pulse: reachability is reported separately from correctness ----
   function pulseState(key, state, detail){
     const chip = $("pulse-"+key+"-state");
@@ -1203,9 +1164,10 @@
         pulseState("contract", ...readinessPulse(d));
       }).catch(() => pulseState("contract", "UNAVAILABLE", "Tab contract or probe evidence is unavailable for this deployment.")),
       pulseJSON("/api/a11oy/v1/ledger").then(d => {
-        setHeroReceiptsFromLedger(d);
-        pulseState("ledger", "REACHABLE", (typeof d.count === "number" ? d.count : "Current")+" receipts returned by the read; verify timestamp and chain state in the source.");
-      }).catch(() => pulseState("ledger", "UNAVAILABLE", "Receipt ledger did not answer this session.")),
+        const ledger = setHeroReceiptsFromLedger(d);
+        if(!ledger) throw new Error("ledger evidence unavailable");
+        pulseState("ledger", ledger.state === "SAMPLE" ? "SAMPLE" : "REACHABLE", ledger.count+" "+ledger.state.toLowerCase()+" records returned; this read does not independently verify signatures or durability.");
+      }).catch(() => { setHeroReceiptsFromLedger(null); pulseState("ledger", "UNAVAILABLE", "Receipt ledger or its evidence metadata is unavailable this session."); }),
       pulseJSON("/api/a11oy/v1/mesh/state").then(d => {
         pulseState("mesh", ...meshPulse(d));
       }).catch(() => pulseState("mesh", "UNAVAILABLE", "Mesh contract or receipt-node evidence unavailable this session."))
@@ -1249,12 +1211,10 @@
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",
       verts: $("verticals-src").innerHTML.trim() !== "",
-      chain: $("chain-src").innerHTML.trim() !== "",
     };
     const jobs = [];
     if(!filled.tiers) jobs.push(loadGenomeTiers());
     if(!filled.verts) jobs.push(loadLambdaOrg());
-    if(!filled.chain) jobs.push(loadChain());
     await Promise.allSettled(jobs);
   })();
 })();

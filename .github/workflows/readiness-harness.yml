@@ -15,6 +15,16 @@ on:
     branches: [main]
     paths:
       - 'tools/readiness-harness/**'
+      - 'observer_runtime.py'
+      - 'observer_adapters.py'
+      - 'native_readbacks.py'
+      - 'szl_execution_readiness.py'
+      - 'tools/execution_acceptance.py'
+      - '.github/scripts/collect_execution_readiness.py'
+      - '.github/scripts/materialize_execution_authority_pins.py'
+      - '.github/requirements/ci-execution.txt'
+      - 'tests/test_combined_consumers.py'
+      - 'tests/test_observer_adapters.py'
       - 'tools/verify_board.py'
       - 'a11oy_live_feeds.py'
       - 'a11oy_vertical_feeds.py'
@@ -39,6 +49,16 @@ on:
     branches: [main]
     paths:
       - 'tools/readiness-harness/**'
+      - 'observer_runtime.py'
+      - 'observer_adapters.py'
+      - 'native_readbacks.py'
+      - 'szl_execution_readiness.py'
+      - 'tools/execution_acceptance.py'
+      - '.github/scripts/collect_execution_readiness.py'
+      - '.github/scripts/materialize_execution_authority_pins.py'
+      - '.github/requirements/ci-execution.txt'
+      - 'tests/test_combined_consumers.py'
+      - 'tests/test_observer_adapters.py'
       - 'tools/verify_board.py'
       - 'a11oy_live_feeds.py'
       - 'a11oy_vertical_feeds.py'
@@ -89,7 +109,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install readiness regression dependencies
-        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+        run: python -m pip install --require-hashes -r .github/requirements/ci-execution.txt
       - name: Contract matrix drift gate (tabs.json == console)
         run: python3 "$HARNESS/gen_tabs_matrix.py" --check
       - name: Typo / link gate (szl-holdings, a-11-oy.com, github)

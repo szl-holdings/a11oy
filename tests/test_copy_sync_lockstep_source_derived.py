@@ -64,6 +64,12 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "tools/readiness-harness/canonical_unavailable.mjs",
             "tools/readiness-harness/tabs.json",
             ".github/scripts/verify_canonical_a11oy.py",
+            ".github/scripts/collect_execution_readiness.py",
+            ".github/scripts/materialize_execution_authority_pins.py",
+            "szl_execution_readiness.py",
+            "observer_adapters.py",
+            "tools/__init__.py",
+            "tools/execution_acceptance.py",
         )}
         cls.deploy_needs = "[source-admission, preflight]"
         cls.deploy_if = "${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}"
@@ -108,7 +114,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 workflow = workflow.replace("\njobs:\n", "\n" + inherited + "jobs:\n", 1)
             jobs = "".join(self.fixture_job(name) + "\n" for name in (
                 "source-admission", "preflight", "runtime-config",
-                "readiness-verdict", "relock"))
+                "readiness-verdict", "execution-readiness", "relock"))
             workflow = workflow.replace("\njobs:\n", "\njobs:\n" + jobs, 1)
             workflow = workflow.replace("\n  deploy:\n", "\n  deploy:\n"
                 + "    needs: " + self.deploy_needs + "\n"
@@ -358,12 +364,12 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
 
     def test_readiness_success_is_required_before_relock(self) -> None:
         job = self.fixture_job("relock")
-        exact = "    needs: [runtime-config, readiness-verdict]\n"
+        exact = "    needs: [runtime-config, execution-readiness]\n"
         self.assertIn(exact, job)
         replacements = (
             "    needs: runtime-config\n",
-            "    needs: readiness-verdict\n",
-            "    needs: [readiness-verdict, runtime-config]\n",
+            "    needs: execution-readiness\n",
+            "    needs: [execution-readiness, runtime-config]\n",
             exact + "    if: ${{ always() }}\n",
             exact + "    continue-on-error: true\n",
             exact + "    <<: *unreviewed\n",
@@ -374,6 +380,36 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             with self.subTest(replacement=replacement):
                 changed = self.reviewed_workflow.replace(
                     job, job.replace(exact, replacement, 1), 1)
+                self.assertFalse(self.strict_contract(changed))
+
+    def test_execution_collection_cannot_gain_effects_or_cross_job_credentials(self) -> None:
+        job = self.fixture_job("execution-readiness")
+        self.assertNotIn("HF_TOKEN", job)
+        mutations = (
+            ("    needs: readiness-verdict\n", "    needs: runtime-config\n"),
+            ("    needs: readiness-verdict\n", "    needs: readiness-verdict\n    if: ${{ always() }}\n"),
+            ("    env:\n", "    env:\n      A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n"),
+            ("      actions: read\n", "      actions: write\n"),
+            ("python -I -B .github/scripts/collect_execution_readiness.py",
+             "python -I -B scripts/execute_acceptance_plan.py"),
+            ("python -I -B .github/scripts/collect_execution_readiness.py",
+             "python -B .github/scripts/collect_execution_readiness.py"),
+            ("          A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n",
+             "          A11OY_CODE_ADMIN_KEY: ${{ secrets.HF_TOKEN }}\n"),
+            ("canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
+             "canonical-a11oy-passive-${{ github.run_id }}-1"),
+            ("            ${{ runner.temp }}/execution-evidence/execution-observations.json\n",
+             "            ${{ runner.temp }}/execution-evidence/**\n"),
+            ("      EXPECTED_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}\n",
+             "      EXPECTED_EXECUTION_BOOT_ID: ${{ steps.gate.outputs.boot_id }}\n"),
+            ("          --validate-only\n", ""),
+            ("          --expected-run-nonce \"$EXPECTED_EXECUTION_RUN_NONCE\"\n",
+             "          --expected-run-nonce \"$EXPECTED_EXECUTION_RUN_NONCE\" || true\n"),
+        )
+        for original, replacement in mutations:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, job)
+                changed = self.reviewed_workflow.replace(job, job.replace(original, replacement, 1), 1)
                 self.assertFalse(self.strict_contract(changed))
 
     def test_escaped_push_filter_keys_cannot_hide_from_the_guard(self) -> None:
@@ -401,7 +437,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
 
     def test_missing_duplicate_jobs_and_duplicate_controller_fields_fail(self) -> None:
         for name in ("source-admission", "preflight", "runtime-config",
-                     "readiness-verdict", "relock", "deploy"):
+                     "readiness-verdict", "execution-readiness", "relock", "deploy"):
             job = self.fixture_job(name)
             self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, "", 1)))
             self.assertFalse(self.strict_contract(self.reviewed_workflow + "\n" + job))

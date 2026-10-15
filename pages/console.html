@@ -4,16 +4,16 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>a11oy — Orchestration Platform · SZL Holdings</title>
-<meta name="description" content="a11oy is the orchestrating brain of the SZL governed-AI substrate: a full operator application — command center, governed decisions, signed receipts, the formula knowledge base, and the model router. Views distinguish observations, samples, local drafts and unavailable data."/>
+<meta name="description" content="a11oy provides an operator console for governed decisions, receipt inspection, formula knowledge and model routing. Evidence is observed, cached, modeled, demo, unsigned, or unavailable; signature verification is separate."/>
 <link rel="canonical" href="https://a-11-oy.com/console"/>
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="a11oy · SZL Holdings"/>
 <meta property="og:url" content="https://a-11-oy.com/console"/>
 <meta property="og:title" content="a11oy — Orchestration Platform · SZL Holdings"/>
-<meta property="og:description" content="The orchestrating brain of the SZL governed-AI substrate: command center, governed decisions, signed receipts, formula knowledge base, model router. Views distinguish observations, samples, local drafts and unavailable data."/>
+<meta property="og:description" content="Governed decisions, receipt inspection, formula knowledge and model routing. Evidence is observed, cached, modeled, demo, unsigned, or unavailable; signature verification is separate."/>
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="a11oy — Orchestration Platform · SZL Holdings"/>
-<meta name="twitter:description" content="The orchestrating brain of the SZL governed-AI substrate. Views distinguish observations, samples, local drafts and unavailable data."/>
+<meta name="twitter:description" content="An operator console with source-labelled evidence: observed, cached, modeled, demo, unsigned, or unavailable. Signature verification is separate."/>
 <style id="szl-vendored-fonts">
 /* Vendored Google Fonts (variable, latin) — self-hosted, ZERO runtime CDN.
    Space Grotesk (OFL-1.1) + JetBrains Mono (OFL-1.1). Attribution: /NOTICE.
@@ -1873,7 +1873,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="card"><div class="card-h"><span class="card-t">Live / shipping packs</span><span class="card-ep">reuse the a11oy core</span></div><div id="vp-live-host"><div class="row mono dim">loading\u2026</div></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Roadmap packs</span><span class="card-ep">scaffolded \u00b7 honest stub</span></div><div id="vp-stub-host"><div class="row mono dim">loading\u2026</div></div>
         <details class="raw"><summary>raw vertical-pack registry</summary><pre class="out" id="vp-raw">loading\u2026</pre></details></div>${HONEST}`;window.verticals_load();}},
-  ledger3d:{title:'Trust Ledger',badge:'ENTITY GRAPH + VERIFIED PROOF-CHAIN',sub:'Every decision, signed and explainable. A live entity-link graph of the platform\u2019s objects (capabilities, decisions, receipts) fused with a scrubable, cryptographically hash-chained proof timeline. Click any node to see its inputs, health, trust score (conjecture), and receipt chip. Builds on Palantir\u2019s Object Explorer + Quiver and Wiz\u2019s Security Graph \u2014 and adds a verifiable proof-chain neither ships.',
+  ledger3d:{title:'Trust Ledger',badge:'ENTITY GRAPH + VERIFIED PROOF-CHAIN',sub:'Receipt signing requires independent verification. An entity-link graph of the platform\u2019s objects (capabilities, decisions, receipts) fused with a scrubable, cryptographically hash-chained proof timeline. Click any node to see its inputs, health, trust score (conjecture), and receipt chip. Builds on Palantir\u2019s Object Explorer + Quiver and Wiz\u2019s Security Graph \u2014 and adds a verifiable proof-chain neither ships.',
     render:async(c)=>{c.innerHTML=`<div class="kpis">
       <div class="kpi"><div class="k">Chain depth</div><div class="v" id="tl-depth">\u2014</div><div class="d">real hash-chain</div></div>
       <div class="kpi"><div class="k">Receipts shown</div><div class="v teal" id="tl-count">\u2014</div><div class="d">live command-log</div></div>
@@ -1896,12 +1896,12 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
           <div class="legend"><span><i style="background:#5fb3a3"></i>proven (kernel-verified)</span><span><i style="background:#c9a05f"></i>conjecture (honest)</span><span><i style="background:#888"></i>axiom / defined</span></div></div>
         <div class="card"><div class="card-h"><span class="card-t">Selected claim</span><span class="card-ep">statement \u00b7 maturity \u00b7 citation</span></div><div class="detailbox" id="ln-detail"></div></div>
       </div>${HONEST}`;window.lineage_load();}},
-  mission:{title:'Mission Health',badge:'WORKLOADS HONEYCOMB \u00b7 BUSINESS OUTCOME',sub:'Is the whole platform doing its job \u2014 in one sentence? A New-Relic-style Workloads honeycomb where each capability is a typed entity with golden metrics, colored by live health (teal healthy / gold attention / red down \u2014 honest, never faked green), topped by a plain-English business-outcome banner and the signed trust floor. Builds on New Relic Workloads and Boss.Technology business observability.',
+  mission:{title:'Mission Health',badge:'WORKLOADS HONEYCOMB \u00b7 BUSINESS OUTCOME',sub:'Is the whole platform doing its job \u2014 in one sentence? A New-Relic-style Workloads honeycomb where each capability is a typed entity with golden metrics, colored by live health (teal healthy / gold attention / red down \u2014 honest, never faked green), topped by a plain-English business-outcome banner and the advisory trust posture. Builds on New Relic Workloads and Boss.Technology business observability.',
     render:async(c)=>{c.innerHTML=`<div class="bigsentence" id="mh-sentence">probing\u2026</div>
       <div class="kpis">
       <div class="kpi"><div class="k">Capabilities up</div><div class="v live" id="mh-up">\u2014</div><div class="d">live probe</div></div>
       <div class="kpi"><div class="k">Critical</div><div class="v" id="mh-crit">\u2014</div><div class="d">down / degraded</div></div>
-      <div class="kpi"><div class="k">Trust floor</div><div class="v teal" id="mh-floor">\u2014</div><div class="d">must clear before acting</div></div>
+      <div class="kpi"><div class="k">Trust floor</div><div class="v teal" id="mh-floor">\u2014</div><div class="d">advisory, never a gate</div></div>
       <div class="kpi"><div class="k">Build security</div><div class="v teal">SLSA L1</div><div class="d">L2/L3 not established · not L3</div></div></div>
       <div class="grid2">
         <div class="card"><div class="card-h"><span class="card-t">Workloads honeycomb \u2014 capability entities &amp; golden metrics</span><span class="card-ep">hover a cell for golden metrics</span></div><div class="honey" id="mh-honey"></div>
@@ -2054,9 +2054,13 @@ async function wh_one(key,out){try{setOut(out,'launching\u2026');const d=await p
 async function wh_all(){for(const k of ['cannonico','tychee','hangar2apps','cyber-rts','raven']){await wh_one(k,'o-'+k);}}
 
 // System health (a11oy public-URL probe)
-async function fleet_load(){try{const d=await getJSON(API+'/v1/observability/summary');const mr=d.mesh_reach||{};const keys=Object.keys(mr);let ok=0;setHTML('fl-reach-host','');
-  keys.forEach(k=>{const v=mr[k];const up=(v.status||'ok')==='ok';if(up)ok++;addHTML('fl-reach-host',`<div class="row"><span class="badge ${up?'b-live':'b-err'}">${up?'UP':'DOWN'}</span><span>${esc(v.name||k)}</span><span class="spacer mono dim">${v.latency_ms?Math.round(v.latency_ms)+'ms':''} ${esc(v.url||'in-image')}</span></div>`);});
-  setTxt('fl-reach',keys.length?ok+'/'+keys.length:'\u2014');}catch(e){setHTML('fl-reach-host','');CAPS.forEach(c=>addHTML('fl-reach-host',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span><span class="spacer mono dim">in-image</span></div>`));setTxt('fl-reach',(CAPS.length+1)+'/'+(CAPS.length+1));}}
+async function fleet_load(){try{
+  const d=await getJSON(API+'/v1/observability/summary');
+  const rows=window._meshRows(d.mesh_reach), observed=rows.filter(r=>r.observed);
+  setHTML('fl-reach-host','');
+  rows.forEach(r=>{const up=window._meshIsUp(r);addHTML('fl-reach-host',`<div class="row"><span class="badge ${r.observed?(up?'b-live':'b-err'):'b-gold'}">${r.observed?esc(r.status.toUpperCase()):'UNAVAILABLE'}</span><span>${esc(r.name)}</span><span class="spacer mono dim">${r.latency_ms==null?'health not observed':r.latency_ms+'ms'}</span></div>`);});
+  setTxt('fl-reach',observed.length?observed.filter(window._meshIsUp).length+' / '+observed.length+' observed':'UNAVAILABLE');
+}catch(e){setHTML('fl-reach-host','');CAPS.forEach(c=>addHTML('fl-reach-host',`<div class="row"><span class="badge b-err">UNAVAILABLE</span><span>${esc(c.name)}</span><span class="spacer mono dim">health not observed</span></div>`));setTxt('fl-reach','UNAVAILABLE');}}
 
 // Live system map (3D) — SELF-CONTAINED: a11oy GOLD core + internal capability
 // nodes from the in-image CAPS graph. Renders INSTANTLY (no network) so the
@@ -2075,7 +2079,7 @@ window._meshRows=function(raw){
     var status=typeof item.status==='string'?item.status.toLowerCase():'unavailable';
     var out=Object.assign({observed:false},item);
     if(!Object.prototype.hasOwnProperty.call(item,'observed'))out.observed=['ok','healthy','up','operational','degraded','down','error'].indexOf(status)>=0;
-    out.observed=out.observed===true;
+    out.observed=out.observed===true&&['ok','healthy','up','operational','degraded','down','error'].indexOf(status)>=0;
     out.id=identity?identity.trim():'unidentified-'+index;
     out.name=typeof item.name==='string'&&item.name.trim()?item.name:out.id;
     out.identity_state='identified';
@@ -2085,8 +2089,8 @@ window._meshRows=function(raw){
       out.observed=false;
     }
     out.status=out.observed?(['healthy','up','operational'].indexOf(status)>=0?'ok':status):'unavailable';
-    out.latency_ms=typeof item.latency_ms==='number'&&Number.isFinite(item.latency_ms)&&item.latency_ms>=0?item.latency_ms:null;
-    out.http_code=Number.isInteger(item.http_code)&&item.http_code>=100&&item.http_code<=599?item.http_code:null;
+    out.latency_ms=out.observed&&typeof item.latency_ms==='number'&&Number.isFinite(item.latency_ms)&&item.latency_ms>=0?item.latency_ms:null;
+    out.http_code=out.observed&&Number.isInteger(item.http_code)&&item.http_code>=100&&item.http_code<=599?item.http_code:null;
     return out;
   }
   if(Array.isArray(raw))return raw.map(function(v,i){return row(v,null,i);});
@@ -3016,10 +3020,21 @@ function liveDot(){ return '<span class="livedot" style="display:inline-block;wi
    Beats Palantir Explorer+Quiver + Wiz (adds a cryptographically-verifiable,
    scrubable proof-chain no entity-graph tool ships).
    ============================================================================ */
+async function observedOrgLambda(){
+  try{
+    const d=await getPublic('/api/a11oy/v1/lambda/org',8000);
+    const state=d&&d.inputs&&d.inputs.class;
+    if(!d||!['SAMPLE','SUPPLIED'].includes(state)||typeof d.lambda_org!=='number'||!Number.isFinite(d.lambda_org)||d.lambda_org<0||d.lambda_org>1)return null;
+    return {value:d.lambda_org,state:state,floor:typeof d.lambda_floor==='number'&&Number.isFinite(d.lambda_floor)&&d.lambda_floor>=0&&d.lambda_floor<=1?d.lambda_floor:null};
+  }catch(_){return null;}
+}
+function orgLambdaText(reading){return reading?reading.state+' '+reading.value.toFixed(3)+' · Conjecture 1 (advisory; not measured)':'UNAVAILABLE · Conjecture 1 (advisory)';}
+
 async function ledger3d_load(){
   try{
     const cl = await getPublic('/api/a11oy/v2/operator/command-log', 12000);
     const mesh = await getPublic('/api/a11oy/v1/capabilities/mesh', 12000);
+    const orgLambda=await observedOrgLambda();
     const recs = (cl.receipts||[]);
     setTxt('tl-depth', cl.depth!=null? cl.depth : '—');
     setTxt('tl-count', cl.count!=null? cl.count : recs.length);
@@ -3058,7 +3073,7 @@ async function ledger3d_load(){
           html = `<div class="row"><b>${esc(d.label||d.id)}</b></div>`
             + `<div class="row mono dim">entity type: ${esc(d.role||'capability')}</div>`
             + `<div class="row mono dim">health: ${d.ok===false?'<span style="color:#b06a5a">DOWN</span>':'<span style="color:#5fb3a3">OK</span>'}</div>`
-            + `<div class="row mono dim">trust score: 0.919 · <span style="color:#c9a05f">conjecture (not proven)</span></div>`;
+            + `<div class="row mono dim">${esc(orgLambdaText(orgLambda))}</div>`;
         }
         setHTML('tl-detail', html);
       });
@@ -3188,15 +3203,15 @@ async function mission_load(){
   try{
     const obs = await getPublic('/api/a11oy/v1/observability/summary', 12000);
     const biz = await getPublic('/api/a11oy/v1/observability/business', 12000);
-    const caps = obs.capabilities||[];
-    const up = caps.filter(c=>c.status==='ok').length, total=caps.length;
-    const crit = caps.filter(c=>c.status!=='ok').length;
+    const caps = window._meshRows(obs.capabilities), orgLambda=await observedOrgLambda();
+    const observed=caps.filter(c=>c.observed), up = observed.filter(window._meshIsUp).length, total=caps.length;
+    const crit = observed.filter(c=>!window._meshIsUp(c)).length;
     // Business-outcome sentence (Boss.Technology framing) — plain English, honest.
     setHTML('mh-sentence',
-      `${liveDot()}<b>All ${up} of ${total} capabilities online</b> · ${crit} critical · trust score <b>0.919</b> <span style="color:#c9a05f">(conjecture)</span> · build provenance <b>SLSA L1 source-declared; L2 not established · L3 roadmap</b>`);
-    setTxt('mh-up', up+'/'+total);
+      `<b>${up} reported OK of ${observed.length} observed; ${total} inventory entries</b> · ${crit} impaired observations · ${esc(orgLambdaText(orgLambda))} · attestation/signature not inferred`);
+    setTxt('mh-up', observed.length?up+'/'+observed.length:'UNAVAILABLE');
     setTxt('mh-crit', crit);
-    setTxt('mh-floor', '0.90');
+    setTxt('mh-floor', orgLambda&&orgLambda.floor!=null?orgLambda.floor+' (advisory)':'UNAVAILABLE');
 
     // Workload honeycomb: ECharts custom hex grid, each cell = capability golden metrics
     drawHoneycomb('mh-honey', caps);
@@ -3208,7 +3223,7 @@ async function mission_load(){
       +`<span style="flex:1"><b>${esc(d.name)}</b> <span class="dim mono" style="font-size:10px">— ${esc(d.measure||'')}</span></span>`
       +`<span class="mono teal" style="font-size:11px">${esc(d.value||'')}</span></div>`).join(''));
     // latency golden-metric bars
-    barH('mh-latency', caps.map(c=>c.name), caps.map(c=>c.latency_ms||0), caps.map(c=>c.status==='ok'?'#5fb3a3':'#b06a5a'));
+    barH('mh-latency', caps.map(c=>c.name), caps.map(c=>c.latency_ms), caps.map(c=>c.status==='ok'?'#5fb3a3':'#b06a5a'));
   }catch(e){
     setHTML('mh-sentence','<div class="row mono dim">live health unavailable: '+esc(e.message)+'</div>');
   }
@@ -3217,7 +3232,7 @@ function drawHoneycomb(id, caps){
   const host=el(id); if(!host) return;
   const inst = mkEchart(id, {
     tooltip:{ formatter:p=> p.data && p.data.cap ?
-      `<b>${p.data.cap.name}</b><br/>status: ${p.data.cap.status}<br/>latency: ${p.data.cap.latency_ms} ms<br/>type: capability entity<br/>trust floor: 0.90` : '' },
+      `<b>${p.data.cap.name}</b><br/>status: ${p.data.cap.status}<br/>latency: ${p.data.cap.latency_ms} ms<br/>type: capability entity<br/>trust posture: advisory; health requires observations` : '' },
     grid:{left:0,right:0,top:0,bottom:0},
     xAxis:{show:false,min:-1,max:6}, yAxis:{show:false,min:-2,max:2},
     series:[{
@@ -6084,8 +6099,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           var s=await gj('/api/a11oy/v1/observability/summary');
           if(!s || !Array.isArray(s.capabilities) || s.capabilities.some(function(cap){return !cap || typeof cap !== 'object';})) throw new Error('Service observations were not supplied.');
           if(!c.isConnected || !c.querySelector('#fl-grid')) return;
-          var caps=s.capabilities;
-          T('fl-n',caps.length); T('fl-up',caps.filter(function(x){return x.status==='ok';}).length);
+          var caps=window._meshRows(s.capabilities);
+          T('fl-n',caps.length); T('fl-up',caps.some(function(x){return x.observed;})?caps.filter(window._meshIsUp).length:'UNAVAILABLE');
           if(!caps.length){ H('fl-grid','<div role="status">EMPTY: no service observations returned.</div>'); return; }
           var html='<ul class="health-list">';
           caps.forEach(function(cap){
@@ -6116,15 +6131,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         var wires={}, reach=[], drewGraph=false;
         try{
           var s=await gj('/api/a11oy/v1/observability/summary'); var mesh=await gj('/api/a11oy/v1/mesh/state');
-          reach=(s.mesh_reach||[]); wires=mesh.wires||{};
+          reach=window._meshRows(s.mesh_reach); wires=mesh.wires||{};
           T('me-live',Object.keys(wires).filter(function(k){return /LIVE/.test(wires[k].status);}).length); T('me-doc',mesh.doctrine||'\u2014');
           if(!window.cytoscape){ H('me-note','Cytoscape unavailable'); }
           else {
           var els=[]; var coreId='core';
           // core hub node (always present)
-          els.push({data:{id:coreId,label:'a11oy core',st:'live'}});
+          els.push({data:{id:coreId,label:'a11oy core',st:'inventory'}});
           // organ nodes built from the REAL live mesh-reach probe (status straight from the probe)
-          reach.forEach(function(o){ var oid='org_'+(o.organ||''); if(!o.organ||o.organ===coreId) return; els.push({data:{id:oid,label:o.organ,st:o.status}}); els.push({data:{id:'e_'+oid,source:coreId,target:oid,st:(o.status==='ok'?'LIVE':o.status)}}); });
+          reach.forEach(function(o){ var oid='org_'+o.id; if(o.id===coreId) return; els.push({data:{id:oid,label:o.name,st:o.status}}); els.push({data:{id:'e_'+oid,source:coreId,target:oid,st:o.status}}); });
           Object.keys(wires).forEach(function(wk){ var w=wires[wk]; els.push({data:{id:'wn_'+wk,label:wk,st:w.status,wire:true}}); els.push({data:{id:'we_'+wk,source:coreId,target:'wn_'+wk,st:w.status}}); });
           var cy=cytoscape({container:E('me-cy'),elements:els,layout:{name:'cose',animate:true,idealEdgeLength:90,nodeRepulsion:8000},
             style:[
@@ -6336,45 +6351,48 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* =============== mission — ECharts gauge cluster (2x3 arc gauges) =============== */
-    V.mission={title:'Mission Health',badge:'GAUGE CLUSTER \u00b7 CONFORMAL COVERAGE',sub:'Is the platform doing its job \u2014 in six arc gauges? A 2\u00d73 ECharts gauge cluster of the mission KPIs (services reachable, \u039b trust, gate coverage, conformal coverage, mesh health, signed integrity), each colored by live health (never faked green). The conformal-coverage gauge is W5-3 distribution-free \u2014 never reports 100%. Distinct from the honeycomb workloads view.',
+    V.mission={title:'Mission Health',badge:'OBSERVATIONS · ADVISORY RESEARCH',sub:'Source-labelled observations and advisory research. Capability inventory does not establish health, policy coverage, signed integrity or production readiness.',
       render:async function(c){ c.innerHTML='<div class="kpis">'
         +'<div class="kpi"><div class="k">Gauges</div><div class="v teal">6</div></div>'
-        +'<div class="kpi"><div class="k">Trust floor</div><div class="v" id="ms-floor">\u2014</div></div>'
-        +'<div class="kpi"><div class="k">Conformal cov.</div><div class="v" id="ms-cov">\u2014</div><div class="d">W5-3 (NOT Hoeffding)</div></div>'
+        +'<div class="kpi"><div class="k">Org Λ (advisory)</div><div class="v" id="ms-floor">\u2014</div></div>'
+        +'<div class="kpi"><div class="k">Self-test coverage</div><div class="v" id="ms-cov">\u2014</div><div class="d">SELFTEST · not production coverage</div></div>'
         +'<div class="kpi"><div class="k">Health</div><div class="v" id="ms-h">\u2014</div></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">Mission KPI gauge cluster</span><span class="card-ep">ECharts gauge (Apache-2.0)</span></div>'
         +'<div class="echart tall" id="ms-g" style="height:440px"></div>'
-        +'<div class="brain-note" id="ms-note">Conformal coverage is distribution-free '+chip('W5-3 conformal','PROVEN')+' \u2014 it never claims 100%. \u039b gauge floor is 0.90 (Conjecture 1).</div></div>'+honest();
+        +'<div class="brain-note" id="ms-note">Capability lists are inventory, not health evidence. Gate coverage and signed integrity require separate observations. A self-test value is not production coverage. Λ is Conjecture 1, advisory and never a gate.</div></div>'+honest();
         try{
-          var s=await gj('/api/a11oy/v1/observability/summary'); var lam=await gj('/api/a11oy/v1/lambda'); var g=await gj('/api/a11oy/v1/policy/gates'); var ft=null; try{ft=await gj('/api/a11oy/v1/formulas/selftest');}catch(e){}
-          var caps=s.capabilities||[]; var up=caps.filter(function(x){return x.status==='ok';}).length;
-          var cov=(((ft||{}).reasoning||{}).conformal_interval||{}).coverage; cov=cov!=null?cov:0.9;
-          var mesh=(s.melt||{}).metrics||{}; var reach=mesh.organs_total?mesh.organs_reachable/mesh.organs_total:1;
-          T('ms-floor',Number(lam.lambda).toFixed(3)); T('ms-cov',(cov*100).toFixed(0)+'%'); T('ms-h',Math.round(up/(caps.length||1)*100)+'%');
-          if(!window.echarts){ H('ms-note','ECharts unavailable'); return; }
+          var s=await gj('/api/a11oy/v1/observability/summary'); var orgLambda=await observedOrgLambda(); var ft=null; try{ft=await gj('/api/a11oy/v1/formulas/selftest');}catch(e){}
+          var caps=window._meshRows(s.capabilities), observed=caps.filter(function(x){return x.observed;});
+          var health=caps.length&&observed.length===caps.length?100*observed.filter(window._meshIsUp).length/caps.length:null;
+          var cov=(((ft||{}).reasoning||{}).conformal_interval||{}).coverage;
+          cov=typeof cov==='number'&&Number.isFinite(cov)&&cov>=0&&cov<=1?cov:null;
+          var mesh=(s.melt||{}).metrics||{};
+          var reach=s.observed===true&&Number.isInteger(mesh.organs_total)&&mesh.organs_total>0&&Number.isInteger(mesh.organs_reachable)&&mesh.organs_reachable>=0&&mesh.organs_reachable<=mesh.organs_total?100*mesh.organs_reachable/mesh.organs_total:null;
+          T('ms-floor',orgLambdaText(orgLambda)); T('ms-cov',cov==null?'UNAVAILABLE':'SELFTEST '+(cov*100).toFixed(0)+'%'); T('ms-h',health==null?'UNAVAILABLE':Math.round(health)+'% observed');
+          if(!window.echarts){ H('ms-g','Chart unavailable; source labels remain above.'); return; }
           var gauges=[
-            {n:'Services',v:Math.round(up/(caps.length||1)*100)},
-            {n:'Trust \u039b',v:Math.round(Number(lam.lambda)*100)},
-            {n:'Gate coverage',v:Math.min(100,(g.gates||[]).length*8)},
-            {n:'Conformal cov.',v:Math.round(cov*100)},
-            {n:'Mesh reach',v:Math.round(reach*100)},
-            {n:'Signed integrity',v:((s.melt||{}).traces||{}).chain_verified?100:60}
+            {n:'Observed services',v:health},
+            {n:'Org Λ · '+(orgLambda?orgLambda.state:'UNAVAILABLE'),v:orgLambda?orgLambda.value*100:null,advisory:true},
+            {n:'Gate coverage',v:null},
+            {n:'Self-test coverage',v:cov==null?null:cov*100,advisory:true},
+            {n:'Observed mesh reach',v:reach},
+            {n:'Signed integrity',v:null}
           ];
           var ch=echarts.init(E('ms-g'),null,{renderer:'canvas'});
-          ch.setOption({backgroundColor:'transparent',series:gauges.map(function(gg,i){ var col=gg.v>=90?TEAL:(gg.v>=70?GOLD:RED); var cxp=(i%3)*33+17, cyp=(i<3)?28:72;
+          ch.setOption({backgroundColor:'transparent',series:gauges.map(function(gg,i){ var col=gg.v==null||gg.advisory?GRAY:(gg.v>=90?TEAL:(gg.v>=70?GOLD:RED)); var cxp=(i%3)*33+17, cyp=(i<3)?28:72;
             return {type:'gauge',center:[cxp+'%',cyp+'%'],radius:'30%',min:0,max:100,startAngle:210,endAngle:-30,
-              progress:{show:true,width:8,itemStyle:{color:col}},axisLine:{lineStyle:{width:8,color:[[1,'#222']]}},
+              progress:{show:gg.v!=null,width:8,itemStyle:{color:col}},axisLine:{lineStyle:{width:8,color:[[1,'#222']]}},
               axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},pointer:{show:false},
               anchor:{show:false},title:{offsetCenter:[0,'58%'],color:'#9aa0a8',fontSize:9},
-              detail:{valueAnimation:true,formatter:'{value}%',offsetCenter:[0,0],fontSize:15,color:col},
-              data:[{value:gg.v,name:gg.n}]}; })});
+              detail:{valueAnimation:true,formatter:function(value){return gg.v==null?'UNAVAILABLE':(gg.advisory?'RESEARCH ':'')+Math.round(value)+'%';},offsetCenter:[0,0],fontSize:15,color:col},
+              data:[{value:gg.v==null?'-':gg.v,name:gg.n}]}; })});
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
-          H('ms-note',(E('ms-note')||{}).innerHTML+srcline({data_kind:'live',source:'/observability/summary + /lambda + /policy/gates + /formulas/selftest'}));
-        }catch(e){ T('ms-floor',window._szlKpi(e)); }
+          H('ms-note',(E('ms-note')||{}).innerHTML+srcline({data_kind:'reported',source:'/observability/summary + /lambda/org + /formulas/selftest (research only)'}));
+        }catch(e){ ['ms-floor','ms-cov','ms-h'].forEach(function(id){T(id,'UNAVAILABLE');}); H('ms-g','Observations unavailable.'); }
       }};
 
     /* =============== melt — ECharts heatmap (capability x metric) =============== */
-    V.melt={title:'MELT Observability',badge:'METRIC HEATMAP \u00b7 SIGNED SPANS',sub:'The full MELT model as a capability\u00d7metric heatmap: each cell is a live golden metric (latency, status, signed-span density) per capability, colored by intensity. Every span is a DSSE-signed receipt on the hash-chained ledger; the audit walk provably terminates (F-G5). Distinct from the command bar-gauge \u2014 this is the 2-D metric heatmap.',
+    V.melt={title:'MELT Observability',badge:'OBSERVATIONS · PROVENANCE BOUNDARY',sub:'Reported capability observations. Missing latency, health or per-capability span observations stay unavailable. Hash-chain records do not establish span signatures.',
       render:async function(c){ c.innerHTML='<div class="kpis">'
         +'<div class="kpi"><div class="k">Capabilities</div><div class="v" id="mt-n">\u2014</div></div>'
         +'<div class="kpi"><div class="k">Chain verified</div><div class="v teal" id="mt-cv">\u2014</div></div>'
@@ -6382,29 +6400,30 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="kpi"><div class="k">Audit walk</div><div class="v teal">F-G5</div><div class="d">terminates</div></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">Capability \u00d7 metric \u2014 golden-metric heatmap</span><span class="card-ep">ECharts heatmap (Apache-2.0)</span></div>'
         +'<div class="echart tall" id="mt-hm" style="height:360px"></div>'
-        +'<div class="brain-note" id="mt-note">Cell intensity = live golden metric. '+chip('F-G5 audit terminates','CI-GREEN')+chip('W7-6 Doob envelope','CI-GREEN')+' Every span DSSE-signed on the Khipu DAG.</div></div>'+honest();
+        +'<div class="brain-note" id="mt-note">Cell intensity = source-reported metric (latency is scaled for this chart). '+chip('F-G5 audit terminates','CI-GREEN')+chip('W7-6 Doob envelope','CI-GREEN')+' Hash records; not span signatures. Empty cells are unavailable.</div></div>'+honest();
         try{
-          var s=await gj('/api/a11oy/v1/observability/summary'); var caps=s.capabilities||[];
-          T('mt-n',caps.length); T('mt-cv',((s.melt||{}).traces||{}).chain_verified?'true':'false'); T('mt-sp',((s.melt||{}).events||{}).signed_spans||0);
+          var s=await gj('/api/a11oy/v1/observability/summary'); var caps=window._meshRows(s.capabilities);
+          var traces=(s.melt||{}).traces||{}, spans=(s.melt||{}).events||{};
+          T('mt-n',caps.length); T('mt-cv',s.observed===true&&typeof traces.chain_verified==='boolean'?'REPORTED '+traces.chain_verified:'UNAVAILABLE'); T('mt-sp',s.observed===true&&Number.isInteger(spans.signed_spans)&&spans.signed_spans>=0?'REPORTED '+spans.signed_spans:'UNAVAILABLE');
           if(!window.echarts){ H('mt-note','ECharts unavailable'); return; }
-          var metrics=['latency (ms)','reachability','status health','span density'];
+          var metrics=['latency (scaled)','reported OK','reported health','span density unavailable'];
           var data=[]; // [metricIdx, capIdx, value 0..100]
           caps.forEach(function(cap,ci){
-            var lat=Math.min(100,(cap.latency_ms||0)*5); // ms scaled
-            var reach=cap.status==='ok'?100:(cap.status==='degraded'?60:20);
-            var health=statusColor(cap.status)===TEAL?100:(statusColor(cap.status)===GOLD?60:20);
-            var span=Math.min(100,(((s.melt||{}).events||{}).signed_spans||0)*10+(ci*3));
-            [lat,reach,health,span].forEach(function(val,mi){ data.push([mi,ci,Math.round(val)]); });
+            var lat=cap.latency_ms==null?null:Math.min(100,cap.latency_ms*5);
+            var reach=cap.observed?(window._meshIsUp(cap)?100:0):null;
+            var health=reach;
+            var span=null;
+            [lat,reach,health,span].forEach(function(val,mi){if(val!=null)data.push([mi,ci,Math.round(val)]);});
           });
           var ch=echarts.init(E('mt-hm'),null,{renderer:'canvas'});
           ch.setOption({backgroundColor:'transparent',grid:{left:150,right:30,top:14,bottom:50},
-            tooltip:{position:'top',formatter:function(p){return caps[p.value[1]].name+'<br/>'+metrics[p.value[0]]+': '+p.value[2];}},
+            tooltip:{position:'top',formatter:function(p){return esc(caps[p.value[1]].name)+'<br/>'+metrics[p.value[0]]+': '+p.value[2];}},
             xAxis:{type:'category',data:metrics,axisLabel:{color:'#9aa0a8',fontSize:9,rotate:18},axisLine:{lineStyle:{color:'#444'}},splitArea:{show:true,areaStyle:{color:['rgba(255,255,255,0.01)','transparent']}}},
             yAxis:{type:'category',data:caps.map(function(c0){return c0.name;}),axisLabel:{color:'#9aa0a8',fontSize:9},axisLine:{lineStyle:{color:'#444'}}},
             visualMap:{min:0,max:100,show:true,orient:'horizontal',left:'center',bottom:6,textStyle:{color:'#777',fontSize:8},inRange:{color:['#241a1a',GOLD,TEAL]}},
             series:[{type:'heatmap',data:data,label:{show:false},itemStyle:{borderColor:'#111',borderWidth:1}}]});
           window.addEventListener('resize',function(){ch.resize();},{passive:true});
-          H('mt-note',(E('mt-note')||{}).innerHTML+srcline({data_kind:'live',source:'/observability/summary'}));
+          H('mt-note',(E('mt-note')||{}).innerHTML+srcline({data_kind:'reported',source:'/observability/summary'}));
         }catch(e){ T('mt-n',window._szlKpi(e)); }
       }};
 
@@ -7474,39 +7493,36 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     };
 
     /* ============================================================================
-       NERVOUS / OTel — signed telemetry. MELT spans where each span is a signed receipt.
-       Live: /v1/observability/summary (melt metrics, signed spans, mesh_reach).
+       NERVOUS / OTel — source-labelled inventory and observations.
+       Reads /v1/observability/summary and /provenance without minting evidence.
        ============================================================================ */
-    V.organnervous={ title:'Nervous · OTel (signed spans)', badge:'LIVE · MELT · W3C TRACE',
-      sub:'The NERVOUS system is signed observability: New-Relic-but-signed. MELT (Metrics, Events, Logs, Traces) where every span is a DSSE-signable receipt on the Khipu DAG, and W3C traceparent ids are generated + propagated in-process on every request. Live from /v1/observability/summary.',
+    V.organnervous={ title:'Nervous · Observability posture', badge:'INVENTORY · PROVENANCE BOUNDARY',
+      sub:'Capabilities are inventory, not health evidence. Missing observations stay unavailable; attestation/signature not inferred. Hash-chain records are hash records; not span signatures.',
       render:async function(c){
         c.innerHTML='<div class="kpis">'
-          +kpi('Organs reachable','on-reach','live probe','teal')
-          +kpi('DAG depth','on-depth','signed spans','')
-          +kpi('Spans available','on-spans','OTel','teal')
-          +kpi('SLSA','on-slsa','build provenance','')
-          +'</div>'
+          +kpi('Reported OK','on-reach','observed services','')
+          +kpi('DAG depth','on-depth','reported observation','')
+          +kpi('Spans available','on-spans','reported observation','')
+          +kpi('SLSA','on-slsa','source declaration only','')+'</div>'
           +'<div class="grid2">'
-          +card('Mesh reachability (live probe)','live · <span id="on-stamp" class="mono dim" style="font-size:10px"></span>','<div id="on-reachlist"><div class="row mono dim">probing…</div></div>')
-          +card('MELT telemetry','live /v1/observability/summary','<pre class="out" id="on-melt" style="max-height:320px">loading…</pre>')
-          +'</div>'
-          +'<div class="brain-note" id="on-hon">Nodes are a11oy\'s own in-image capabilities, not external services (labeled honestly). Trace IDs are real W3C ids generated + propagated in-process; cross-Space distributed tracing is NOT yet wired (roadmap). SLSA L1 is source-declared by /api/a11oy/provenance; L2/L3 are not established. Signature verification is separate.</div>'
-          +HON;
+          +card('Capability observations','<span id="on-stamp" class="mono dim"></span>','<div id="on-reachlist">Loading observations…</div>')
+          +card('Reported telemetry','/v1/observability/summary','<pre class="out" id="on-melt">Loading observations…</pre>')+'</div>'
+          +'<div class="brain-note" id="on-hon">Missing status is deliberately UNAVAILABLE. A capability name or hash-chain flag is not runtime health or signature verification. SLSA is read from /api/a11oy/provenance; L2/L3 are not established.</div>'+HON;
         window.a11oyPoll(async function(){
+          ['on-reach','on-depth','on-spans','on-slsa'].forEach(function(id){T(id,'UNAVAILABLE');});
           try{ var d=await gj(API+'/v1/observability/summary');
-            var melt=d.melt||{}; var m=melt.metrics||{};
-            T('on-reach',(m.organs_reachable!=null?m.organs_reachable:'—')+' / '+(m.organs_total!=null?m.organs_total:'—'));
-            T('on-depth', m.dag_depth!=null?m.dag_depth:'—'); T('on-spans', d.spans_available?'YES':'no');
-            T('on-slsa','L1 source-declared; L2 not established');
-            // mesh_reach can be a list (live) — render rows
-            var mr=d.mesh_reach||[]; var rows=(Array.isArray(mr)?mr:Object.keys(mr).map(function(k){return mr[k];}));
-            var html=rows.map(function(p){ var up=p.status==='ok';
-              return '<div class="row"><span class="badge '+(up?'b-live':'b-err')+'">'+(up?'UP':'DOWN')+'</span><span style="color:'+CREAM+'">'+esc(window._honestOrgan(p.name||p.organ||''))+'</span><span class="spacer mono dim">'+(p.latency_ms!=null?Math.round(p.latency_ms)+'ms':'')+'</span></div>'; }).join('');
-            H('on-reachlist', html||'<div class="row mono dim">no probe data</div>');
-            var me=E('on-melt'); if(me) me.textContent=JSON.stringify(melt,null,2);
-            if(d.slsa) { var se=E('on-hon'); /* keep honesty text static */ }
-          }catch(e){ T('on-reach',window._szlKpi(e)); }
-        }, 'on-stamp');
+            var rows=window._meshRows(d.mesh_reach), observed=rows.filter(function(p){return p.observed;});
+            var melt=d.melt||{}, depth=(melt.metrics||{}).dag_depth;
+            T('on-reach',observed.length?observed.filter(window._meshIsUp).length+' / '+observed.length+' observed':'UNAVAILABLE');
+            T('on-depth',d.observed===true&&Number.isInteger(depth)&&depth>=0?depth:'UNAVAILABLE');
+            T('on-spans',d.observed===true&&typeof d.spans_available==='boolean'?(d.spans_available?'REPORTED YES':'REPORTED NO'):'UNAVAILABLE');
+            var html=rows.map(function(p){var up=window._meshIsUp(p);
+              return '<div class="row"><span class="badge '+(p.observed?(up?'b-live':'b-err'):'b-gold')+'">'+(p.observed?esc(p.status.toUpperCase()):'UNAVAILABLE')+'</span><span>'+esc(p.name)+'</span><span class="spacer mono dim">'+(p.latency_ms==null?'health not observed':p.latency_ms+'ms')+'</span></div>';}).join('');
+            H('on-reachlist',html||'No capability observations supplied.');
+            var me=E('on-melt');if(me)me.textContent=JSON.stringify(melt,null,2);
+          }catch(e){ H('on-reachlist','Health observations UNAVAILABLE.'); T('on-melt','UNAVAILABLE'); }
+          try{var provenance=await gj('/api/a11oy/provenance');T('on-slsa',provenance&&provenance.slsa==='L1'?'L1 source-declared; signature verification separate':'UNAVAILABLE');}catch(e){}
+        },'on-stamp');
       }
     };
 
@@ -16968,7 +16984,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     <section class="inv-hero">
       <p class="inv-eyebrow">Governed agent change management</p>
       <h2>AI that signs its work<br><span class="accent">and refuses to lie.</span></h2>
-      <p>Every AI decision arrives with a signed receipt you can verify yourself. The trust math is a
+      <p>Receipt signatures require independent verification; a reported record alone does not prove signing. The trust math is a
         machine-checked theorem. When the model is not sure, it refuses rather than guesses. It runs
         on your own hardware, air-gapped if you need it.</p>
       <span class="tag">The plain-English story. Every claim below links to the check that proves it.</span>
@@ -16977,7 +16993,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     <div class="inv-grid">
       <div class="inv-card">
         <div class="n">01 · Signed receipt</div>
-        <h3>Every AI decision ships a signed receipt you can verify yourself.</h3>
+        <h3>Inspect a receipt and verify its signature separately.</h3>
         <p>Each answer carries a cryptographic receipt (DSSE / ECDSA-P256). You re-check the signature
           in your own browser — no trust in us required.</p>
         <div class="row"><span class="inv-badge live">Live</span>
@@ -17108,7 +17124,9 @@ window.a11oyInvestor = (function(){
         }
         c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">Doctrine</span><span class="card-ep mono">v11 LOCKED</span></div>'
           +'<p>Every governed state change produces a hash-chained receipt. Signing is claimed only when persistent signer evidence is active and verification passes. Read paths never mint receipts.</p>'
-          +'<p class="szl-lambda mono">Λ = Conjecture 1 · advisory, never green, never a theorem, never a gate.</p></div>'
+          +'<p class="szl-lambda mono">Λ = Conjecture 1 · advisory, never green, never a theorem, never a gate.</p>'
+          +'<p>Commercial evidence: this view does not claim named customers, paid pilots, revenue, retention or independent production qualification.</p>'
+          +'<p>Compliance support: receipts can support review; they do not confer certification, accreditation, or legal compliance.</p></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">Locked-proven</span><span class="card-ep mono" id="inv-locked-ep">UNAVAILABLE</span></div>'
           +'<p class="mono" id="inv-locked-list">UNAVAILABLE</p>'
           +'<p class="muted">A proof of rigor, not a traction number. Count and IDs render only from the doctrine endpoint.</p></div>'

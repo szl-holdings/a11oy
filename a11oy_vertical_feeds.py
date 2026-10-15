@@ -143,7 +143,7 @@ _NVD_RATE_LOCK = threading.Lock()
 _NVD_NEXT_REQUEST_AT = 0.0
 _NVD_COOLDOWN_UNTIL = 0.0
 # Official NIST CVE 2.0 recent feed. It is the same corpus as the REST API and
-# is outside that API's request quota. Used only when the API has no row.
+# is outside that API's request quota. Used when the API has no current row.
 _NVD_RECENT_FEED_URL = (
     "https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-recent.json.gz"
 )
@@ -1792,14 +1792,25 @@ def feed_nvd(limit: int = 25, keyword: str | None = None) -> dict[str, Any]:
     # URL and cache key so it cannot leak through public freshness errors.
     api_key = (os.environ.get("NVD_API_KEY") or "").strip()
     headers = {"apiKey": api_key} if api_key else None
-    # A cold process has no last-good REST row, and the provider cooldown then
-    # rejects every later API call before transport. Read NIST's recent feed
-    # instead of presenting that cooldown as an observed CVE page.
+    # A failed REST refresh may leave an old row indefinitely. The existing
+    # official feed can recover both a cold cache and that stale-cache case;
+    # its own observation clock must actually be newer before replacing data.
     observed = _cached_fetch(key, url, ttl=240, parser=parse, headers=headers)
-    if isinstance(observed.get("value"), dict):
+    has_observation = isinstance(observed.get("value"), dict)
+    freshness = observed.get("freshness") or {}
+    if has_observation and freshness.get("status") != "stale":
         return observed
     fallback = _nvd_recent_feed_observation(limit, keyword)
-    if isinstance(fallback.get("value"), dict):
+    if not isinstance(fallback.get("value"), dict):
+        return observed
+    if not has_observation:
+        return fallback
+    observed_at = freshness.get("fetched_at")
+    fallback_at = (fallback.get("freshness") or {}).get("fetched_at")
+    if (all(not isinstance(clock, bool) and isinstance(clock, (int, float))
+            and math.isfinite(clock) and clock > 0
+            for clock in (observed_at, fallback_at))
+            and fallback_at > observed_at):
         return fallback
     return observed
 
