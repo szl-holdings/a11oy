@@ -112,6 +112,37 @@ jobs:
           provenance: false
           sbom: false
 
+      - name: Verify installed Python closure in the built image
+        if: github.event_name == 'pull_request'
+        run: |
+          TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
+          docker run --rm -i --network=none --entrypoint python "${TAG}" -I - <<'PY'
+          import importlib.metadata
+          import json
+          from pathlib import Path
+          import re
+          import subprocess
+          import sys
+          import hf_xet
+          from huggingface_hub import HfApi
+          installed = {}
+          for line in Path('/tmp/requirements-runtime.txt').read_text().splitlines():
+              if not line.strip() or line.lstrip().startswith('#'):
+                  continue
+              match = re.fullmatch(r'([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?==([^\s]+)', line.strip())
+              assert match, line
+              name, expected = match.groups()
+              actual = importlib.metadata.version(name)
+              assert actual == expected, (name, expected, actual)
+              installed[name] = actual
+          assert hf_xet.XetFileInfo('a' * 64, 1).file_size == 1
+          for method in ('batch_bucket_files', 'download_bucket_files', 'get_bucket_paths_info',
+                         'list_bucket_tree', 'create_commit', 'dataset_info', 'get_paths_info'):
+              assert callable(getattr(HfApi, method, None)), method
+          subprocess.run([sys.executable, '-m', 'pip', 'check'], check=True)
+          print(json.dumps({'installed_runtime_pins': installed, 'network': 'disabled'}, sort_keys=True))
+          PY
+
       - name: Smoke test image (PR builds — loaded into local daemon)
         if: github.event_name == 'pull_request'
         timeout-minutes: 12
