@@ -10,6 +10,8 @@ as `thesis_stats.signed_receipts`.
 
 import base64
 import json
+import shutil
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -105,6 +107,40 @@ def test_landing_reads_record_count_not_signed_count():
     landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
 
     assert "One ledger. Every decision." not in landing
-    assert "ts.receipt_records" in landing
-    assert "setChainSplit(ts.dsse_sig_bytes_records, ts.modeled_probe_records)" in landing
+    # Overview/lake totals cannot replace the ledger's own returned window.
+    assert "ts.receipt_records" not in landing
+    assert "ts.signed_receipts" not in landing
+    assert "__lakeReceiptTotal" not in landing
     assert 'id="chain-split"' in landing
+    node = shutil.which("node")
+    assert node, "Node is required to exercise the shipped landing receipt renderer"
+    result = subprocess.run(
+        [node, "-e", r'''
+const assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
+const source=fs.readFileSync(0,'utf8');
+const start=source.indexOf('  function ledgerReading(d){');
+const end=source.indexOf('  // ---- (A)',start);
+assert(start>=0 && end>start, 'The shipped ledger renderer must be present');
+const nodes=new Map();
+const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',innerHTML:''});return nodes.get(id);};
+const context=vm.createContext({$:node, grayChip:s=>s, downChip:s=>s});
+vm.runInContext(source.slice(start,end),context);
+const empty={count:0,receipts:[],state:'live',data_kind:'live',operational:true,signature_state:'UNSIGNED'};
+function counts(expected){for(const id of ['hs-receipts','chain-receipts','chain-depth'])assert.equal(node(id).textContent,expected);}
+const reading=context.setHeroReceiptsFromLedger(empty);
+assert.equal(reading.state,'OPERATIONAL'); counts('0');
+assert.match(node('chain-split').textContent,/UNSIGNED/);
+assert.match(node('hs-receipts-label').textContent,/Operational receipt records.*returned window/);
+context.setHeroReceiptsFromLedger({...empty,count:1,receipts:[{digest:'a'.repeat(64),signed:true}],state:'sample',data_kind:'sample',operational:false,signature_state:'SIGNED'});
+counts('1');
+assert.match(node('hs-receipts-label').textContent,/SAMPLE.*not operational receipts/);
+assert.equal(node('chain-split').textContent,'Signature reported · not verified here');
+for(const invalid of [null,{...empty,count:1},{...empty,operational:false}]){
+  assert.equal(context.setHeroReceiptsFromLedger(invalid),null); counts('UNAVAILABLE');
+  assert.equal(node('chain-head').textContent,'UNAVAILABLE');
+  assert.equal(node('chain-split').textContent,'Signer state unavailable');
+}
+'''],
+        input=landing, text=True, capture_output=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
