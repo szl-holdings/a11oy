@@ -293,11 +293,11 @@ def test_contract_suite_runs_on_every_publisher_input_change(conv):
         for path in conv.workflow_push_paths():
             assert any(fnmatch.fnmatchcase(path, pattern) for pattern in paths), (event, path)
         for suite in ("tests/test_hf_vertical_convergence.py", "tests/test_vertical_publication_scope.py",
-                      "tests/test_hf_publish_vertical_flagships_v3.py"):
+                      "tests/test_hf_publish_vertical_flagships_v3.py", "tests/test_sentra_upstream_backoff.py"):
             assert suite in paths, (event, suite)
     text = (ROOT / ".github/workflows/hf-vertical-services-v2-contract.yml").read_text(encoding="utf-8")
     for suite in ("tests/test_hf_vertical_convergence.py", "tests/test_vertical_publication_scope.py",
-                  "tests/test_hf_publish_vertical_flagships_v3.py"):
+                  "tests/test_hf_publish_vertical_flagships_v3.py", "tests/test_sentra_upstream_backoff.py"):
         assert suite in text.split("python -m pytest", 1)[1], suite
 
 

@@ -137,7 +137,9 @@ def _feed(slug, statuses):
     elif slug == "counsel":
         keys, vertical = ("federal_register", "court_filings"), "legal"
     else:
-        return {"valid": None, "detail": "POST a receipt to verify it"}
+        return {"schema": "szl.public-receipt-verifier/manifest/v1", "state": "LIVE",
+                "try": {"method": "POST", "endpoint": "/api/a11oy/v1/verify/receipt"},
+                "evidence": ["signature", "payload_digest", "hash_chain"]}
     body = {"vertical": vertical, "sources_cited": [], "doctrine": None}
     for key, status in zip(keys, statuses):
         body[key] = _source(status, value=status != "unavailable")
@@ -200,7 +202,11 @@ def test_live_and_readyz_are_200_only_for_an_accepted_upstream_payload(tmp_path,
     body = ready.json()
     assert body["ready"] is True and body["state"] == "MEASURED"
     assert body["checks"] == {"landing_sha256": True, "panels_sha256": True, "upstream": True}
-    assert body["upstream"]["state"] == "REACHABLE"
+    assert body["upstream"]["state"] == ("SNAPSHOT" if slug == "sentra" else "REACHABLE")
+    if slug == "sentra":
+        assert body["upstream"]["receipt_verified"] is False
+        assert body["upstream"]["observation"]["cached"] is True
+        assert body["upstream"]["observation"]["ttl_seconds"] == 120
 
 
 @pytest.mark.parametrize("slug", ["terra", "counsel"])

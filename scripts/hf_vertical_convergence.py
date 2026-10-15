@@ -99,6 +99,7 @@ SHARED_RENDER_INPUTS = (
     "scripts/hf_finance_signed_workspace.py",
     "scripts/hf_finance_workspace.py",
     "scripts/hf_flagship_runtime_contract.py",
+    "scripts/hf_sentra_upstream.py",
     "verticals/puriq-markets/runtime/components/finance_v2/source.json",
     "verticals/puriq-markets/runtime/components/puriq_verity/source.json",
 )
