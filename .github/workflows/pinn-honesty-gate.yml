@@ -16,7 +16,10 @@ on:
     - verifiable-ai/**
     - szl_pinn_nonlinear.py
     - szl_governed_ipinn.py
+    - szl_lake_ingest.py
+    - szl_lake_store.py
     - szl_pinn_inverse.py
+    - tests/test_ipinn_ledger_outcomes.py
     - .github/workflows/pinn-honesty-gate.yml
   push:
     branches:
@@ -29,7 +32,10 @@ on:
     - verifiable-ai/**
     - szl_pinn_nonlinear.py
     - szl_governed_ipinn.py
+    - szl_lake_ingest.py
+    - szl_lake_store.py
     - szl_pinn_inverse.py
+    - tests/test_ipinn_ledger_outcomes.py
     - .github/workflows/pinn-honesty-gate.yml
   workflow_dispatch: {}
   merge_group:
@@ -51,6 +57,8 @@ jobs:
         run: pip install pytest
       - name: verifiable-ai honesty core self-test (good path on the REAL artifact + overclaim negative fixtures)
         run: pytest verifiable-ai/tests/ -q
+      - name: Prove PINN ledger outcome claims against the shared append contract
+        run: python3 -m pytest -q tests/test_ipinn_ledger_outcomes.py
       - name: Honesty gate - the shipped PINN benchmark artifact must not overclaim
         run: python3 benchmarks/pinn/honesty_guard.py benchmarks/pinn/results.json
 
