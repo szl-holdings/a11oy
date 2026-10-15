@@ -1031,12 +1031,16 @@ def _ledger(receipt):
     identity_matches = (res.get("receipt_id") == rid
                         and res.get("organ") == expected_organ)
     if (accepted and not duplicate and not rejected and identity_matches
+            and ("write_attempted" not in res or res["write_attempted"] is True)
             and res.get("state") in (None, "LOCAL_ACKNOWLEDGED")):
         state, recorded = "LOCAL_ACKNOWLEDGED", True
     elif (duplicate and not accepted and not rejected and identity_matches
+            and ("write_attempted" not in res or type(res["write_attempted"]) is bool)
             and res.get("state") in (None, "LOCAL_DUPLICATE")):
         state, recorded = "LOCAL_DUPLICATE", True
-    elif rejected and not accepted and not duplicate:
+    elif (rejected and not accepted and not duplicate
+            and ("receipt_id" not in res or res["receipt_id"] == rid)
+            and ("organ" not in res or res["organ"] == expected_organ)):
         state, recorded = "REJECTED", False
     else:
         state, recorded = "UNKNOWN", None
@@ -1486,3 +1490,4 @@ if __name__ == "__main__":
         print(json.dumps({k: out.get(k) for k in (
             "verdict", "value_eV_atom", "interval95_eV_atom", "ood_score",
             "convex_hull_gate", "refusal")}, indent=2, default=float)[:1400])
+

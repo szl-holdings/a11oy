@@ -31,6 +31,7 @@ COUNT_FIELDS = (
     "degraded",
 )
 BLOCKING_DEGRADED_FIELD = "blockingDegraded"
+REQUIRED_NOT_PROBED_FIELD = "requiredNotProbed"
 
 
 class VerdictError(RuntimeError):
@@ -102,6 +103,15 @@ def compact_verdict(
     endpoints, _, skipped, *_ = counts
     if endpoints <= 0 or endpoints - skipped <= 0 or sum(counts[1:]) != endpoints:
         raise VerdictError("probe summary outcomes are inconsistent")
+    required_not_probed = summary.get(REQUIRED_NOT_PROBED_FIELD, skipped)
+    if (
+        not isinstance(required_not_probed, int)
+        or isinstance(required_not_probed, bool)
+        or not 0 <= required_not_probed <= skipped
+    ):
+        raise VerdictError("probe summary required-not-probed count is invalid")
+    if required_not_probed != 0:
+        raise VerdictError("probe summary contains unprobed required endpoints")
     blocking_degraded = summary.get(BLOCKING_DEGRADED_FIELD, summary["degraded"])
     if (
         not isinstance(blocking_degraded, int)
@@ -137,6 +147,7 @@ def compact_verdict(
         "summary": {
             **dict(zip(COUNT_FIELDS, counts, strict=True)),
             BLOCKING_DEGRADED_FIELD: blocking_degraded,
+            REQUIRED_NOT_PROBED_FIELD: required_not_probed,
             "p95_worst": p95_worst,
         },
     }
