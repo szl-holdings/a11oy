@@ -103,16 +103,29 @@ HEAD; the driver does not pull or build images:
 python tools/readiness-harness/effect_acceptance.py --image sha256:<local-image-id> --out C:\path\outside\repo\effect-acceptance.json
 ```
 
+Use a fresh output filename for every run; existing reports are never replaced.
 The container runs with `--network none`, read-only root, a disposable `/app/data`
-tmpfs, no inherited host credentials, and a generated local operator key. The
-driver checks response semantics and before/after in-process decision-feed and
+tmpfs, no inherited host credentials, and a generated local operator key. Its
+NVD CVSS warmer is disabled before importing `serve.py`; other import-time
+cache probes may still run inside that disposable, networkless container. The
+TestClient does not follow redirects, so a 3xx response cannot cause a second
+POST. The driver checks response semantics and before/after in-process decision-feed and
 forum counts. It can observe policy decision, cited formula answer,
 compliance lookup, and a **MODELED** eval with zero evaluated model responses.
+The public forum exposes only a count and a limited event projection: the
+increment is local correlation, not an independently verified eval receipt.
 The agent-loop route is sent one anonymous request to observe its 401 refusal;
 its execution effect remains **UNAVAILABLE**. Missing/mismatched images,
 unavailable routes, or ambiguous state readback produce `UNAVAILABLE` rows and
-exit code 2. The report hashes requests/responses; it never records the local
-operator key.
+exit code 2. A failed readback before a POST records zero attempts. A failed
+readback or response after a POST records an **UNKNOWN** effect and stops later
+POSTs. If the Docker invocation has begun but its child report cannot be
+validated, occurrence and attempt counts remain **UNKNOWN**. Every invocation
+uses a unique name, nonce label, and temporary CID file; the host checks for
+that exact container and verifies it is absent after a bounded stop/remove
+sequence before accepting the child report. Failed cleanup remains explicit in
+the host receipt. The report hashes
+requests/responses; it never records the local operator key.
 
 An image revision label is a declared source binding, not independent image
 provenance. The report is local simulated evidence only; it is neither live
