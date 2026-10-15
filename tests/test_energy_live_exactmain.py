@@ -3,9 +3,12 @@
 import json
 import secrets
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 
 import httpx
+import pytest
 
 import szl_energy_live as energy
 
@@ -168,6 +171,61 @@ def test_live_readback_names_selected_request_client_not_verifier(monkeypatch):
     assert live["joules_label"] == "UNAVAILABLE"
     monkeypatch.setattr(energy, "meter_snapshot", lambda: {"reachable": False})
     assert energy.build_live()["meter_request_client_id"] is None
+
+
+def test_http200_loopback_meter_preserves_authenticated_client_identity(monkeypatch):
+    """Use the real reader and HTTP transport against an inert local fixture."""
+    monkeypatch.delenv("SZL_METER_HMAC_TARGETS", raising=False)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    monkeypatch.setenv("A11OY_METER2_CF_ACCESS_CLIENT_ID", "remote-only-id")
+    monkeypatch.setenv("A11OY_METER2_CF_ACCESS_CLIENT_SECRET", "remote-only-secret")
+    requests = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            requests.append((self.path, dict(self.headers)))
+            body = b'{"gpus":[],"total_joules":null}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_args):
+            pass
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            origin = f"http://127.0.0.1:{server.server_port}"
+            monkeypatch.setenv("SZL_METER_HMAC_TARGETS", json.dumps({origin: {
+                "client_id": "loopback-reader", "key_hex": secrets.token_hex(32)}}))
+            monkeypatch.setattr(energy, "METER_URL", origin)
+            result = energy._fetch_meter()
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
+    assert result["reachable"] is True and result["status"] == "ok", result
+    assert result["meter_request_client_id"] == "loopback-reader"
+    assert result["total_joules"] is None
+    assert len(requests) == 1 and requests[0][0] == "/metrics"
+    assert requests[0][1]["X-SZL-Meter-Client"] == "loopback-reader"
+    assert not any(name.lower().startswith("cf-access-") for name in requests[0][1])
+
+
+@pytest.mark.parametrize("configuration", [None, "{}", "{", json.dumps({
+    "https://meter2.a-11-oy.com": {"client_id": "test-reader", "key_hex": "invalid"}})])
+@pytest.mark.parametrize("origin", ["https://meter2.a-11-oy.com", "http://127.0.0.1:9100"])
+def test_missing_or_invalid_meter_auth_denies_before_http(monkeypatch, configuration, origin):
+    monkeypatch.setattr(energy, "METER_URL", origin)
+    if configuration is None:
+        monkeypatch.delenv("SZL_METER_HMAC_TARGETS", raising=False)
+    else:
+        monkeypatch.setenv("SZL_METER_HMAC_TARGETS", configuration)
+    monkeypatch.setattr(httpx, "Client", lambda **_kwargs: pytest.fail("unauthenticated HTTP attempted"))
+    result = energy._fetch_meter()
+    assert result == {"reachable": False, "status": "offline:MeterAuthConfigurationError"}
 
 
 def test_structural_gate_nulls_fleet_totals(monkeypatch):
