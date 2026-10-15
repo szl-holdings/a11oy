@@ -2,9 +2,12 @@
 """Exercise registered HTTP routes, with only external feed functions replaced."""
 from __future__ import annotations
 
+import json
+import time
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -261,3 +264,170 @@ def test_ownership_rejects_required_source_contract_failures(
                 )
     assert sec == original_sec
     assert submissions == original_submissions
+
+
+@pytest.fixture
+def hpd_source(monkeypatch):
+    source = {"payload": [], "status": 200, "calls": []}
+
+    class SourceClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def get(self, url):
+            source["calls"].append(url)
+            return httpx.Response(
+                source["status"], request=httpx.Request("GET", url),
+                content=json.dumps(source["payload"]).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+
+    monkeypatch.setattr(deva, "_HAS_VF", False)
+    monkeypatch.setattr(deva, "_CACHE", {})
+    monkeypatch.setattr(deva, "_INFLIGHT", {})
+    monkeypatch.setattr(deva, "_client", lambda *_args, **_kwargs: SourceClient())
+    return source
+
+
+def _row(**values):
+    return {
+        "violationid": "12345", "inspectiondate": "2026-10-01T00:00:00.000",
+        "latitude": "40.7128", "longitude": "-74.0060", "class": "C",
+        **values,
+    }
+
+
+@pytest.mark.parametrize("payload", [
+    {"error": True, "message": "source query could not be evaluated"},
+    {"items": []}, "upstream proxy HTML", None, 17, True,
+])
+def test_non_array_hpd_payload_is_unavailable_not_live_empty(hpd_source, payload):
+    hpd_source["payload"] = payload
+    result = deva.feed_hpd_violations(1)
+    assert result["value"] is None
+    assert result["freshness"]["status"] == "unavailable"
+    assert "HPD source must return a JSON array" in result["freshness"]["error"]
+    assert not deva._CACHE
+
+
+@pytest.mark.parametrize("bad_row", [None, "bad row", 1, ["row"]])
+def test_non_object_hpd_rows_fail_closed(hpd_source, bad_row):
+    hpd_source["payload"] = [_row(), bad_row]
+    result = deva.feed_hpd_violations(2)
+    assert result["value"] is None
+    assert result["freshness"]["status"] == "unavailable"
+    assert "HPD source rows must be JSON objects" in result["freshness"]["error"]
+    assert not deva._CACHE
+
+
+def test_observed_empty_hpd_array_is_distinct_from_a_failed_source(hpd_source):
+    result = deva.feed_hpd_violations(1)
+    assert result["value"] == {"items": []}
+    assert result["freshness"]["status"] == "live"
+    assert datetime.fromisoformat(result["freshness"]["fetched_at"]).tzinfo is not None
+
+
+def test_malformed_refresh_keeps_last_good_rows_and_original_clock(hpd_source):
+    hpd_source["payload"] = [_row()]
+    original = deepcopy(deva.feed_hpd_violations(1))
+    for record in deva._CACHE.values():
+        record["fetched_at"] = time.time() - 1000
+    hpd_source["payload"] = {"error": "malformed upstream success response"}
+    raw = deva.feed_hpd_violations(1)
+    public = deva._readiness_public_source(raw)
+    assert raw["freshness"]["status"] == "stale"
+    assert public["freshness"]["status"] == "cached"
+    assert public["value"] == original["value"]
+    assert public["freshness"]["fetched_at"] == original["freshness"]["fetched_at"]
+    assert "HPD source must return a JSON array" in public["freshness"]["error"]
+    assert len(hpd_source["calls"]) == 2
+
+
+@pytest.mark.parametrize(("latitude", "longitude"), [
+    ("NaN", "-74"), ("Infinity", "-74"), ("40", "-Infinity"),
+    (float("nan"), -74), (40, float("inf")),
+    ("90.1", "-74"), ("40", "-180.1"),
+    (True, "-74"), ("40", False), ("not a location", "-74"),
+])
+def test_unmappable_coordinates_do_not_break_registered_pulse_json(
+    monkeypatch, hpd_source, latitude, longitude,
+):
+    hpd_source["payload"] = [_row(latitude=latitude, longitude=longitude)]
+    peer = {
+        "value": {"items": []},
+        "freshness": {"status": "live", "fetched_at": datetime.now(timezone.utc).isoformat()},
+    }
+    monkeypatch.setattr(deva, "feed_dob_violations", lambda *_args: peer)
+    monkeypatch.setattr(deva, "feed_treasury", lambda *_args: peer)
+    app = FastAPI()
+    deva.register(app)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/api/a11oy/v1/deva/re/pulse")
+    assert response.status_code == 200
+    payload = response.json()
+    json.dumps(payload, allow_nan=False)
+    envelope = payload["hpd"]
+    assert envelope["freshness"]["status"] == "live"
+    item = envelope["value"]["items"][0]
+    assert item["id"] == "12345"
+    assert item["lat"] is None and item["lng"] is None
+    assert payload["dob"] == peer
+    assert payload["rates"] == peer
+
+
+@pytest.mark.parametrize(("latitude", "longitude"), [
+    ("40.7128", "-74.0060"), ("0", "0"), (0, 0), ("90", "180"), ("-90", "-180"),
+])
+def test_valid_coordinates_are_preserved(hpd_source, latitude, longitude):
+    hpd_source["payload"] = [_row(latitude=latitude, longitude=longitude)]
+    result = deva.feed_hpd_violations(1)
+    item = result["value"]["items"][0]
+    assert item["lat"] == float(latitude)
+    assert item["lng"] == float(longitude)
+    assert result["freshness"]["status"] == "live"
+
+
+@pytest.mark.parametrize(("coordinates", "expected"), [
+    ({}, (None, None)),
+    ({"latitude": None, "longitude": None}, (None, None)),
+    ({"latitude": "", "longitude": ""}, (None, None)),
+    ({"latitude": None, "longitude": "-74"}, (None, -74.0)),
+    ({"latitude": "40", "longitude": ""}, (40.0, None)),
+])
+def test_missing_coordinates_remain_missing_without_discarding_source_row(
+    hpd_source, coordinates, expected,
+):
+    row = _row()
+    row.pop("latitude")
+    row.pop("longitude")
+    row.update(coordinates)
+    hpd_source["payload"] = [row]
+    result = deva.feed_hpd_violations(1)
+    item = result["value"]["items"][0]
+    assert item["id"] == "12345"
+    assert (item["lat"], item["lng"]) == expected
+    assert result["freshness"]["status"] == "live"
+
+
+@pytest.mark.parametrize("warm_cache", [False, True])
+def test_http_502_remains_an_upstream_failure(hpd_source, warm_cache):
+    original = None
+    if warm_cache:
+        hpd_source["payload"] = [_row()]
+        original = deepcopy(deva.feed_hpd_violations(1))
+        for record in deva._CACHE.values():
+            record["fetched_at"] = time.time() - 1000
+    hpd_source["status"] = 502
+    hpd_source["payload"] = {"error": "Bad Gateway"}
+    raw = deva.feed_hpd_violations(1)
+    public = deva._readiness_public_source(raw)
+    assert "502 Bad Gateway" in public["freshness"]["error"]
+    assert public["freshness"]["status"] == ("cached" if warm_cache else "UNAVAILABLE")
+    if original is None:
+        assert public["value"] is None
+    else:
+        assert public["value"] == original["value"]
+        assert public["freshness"]["fetched_at"] == original["freshness"]["fetched_at"]
