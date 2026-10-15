@@ -221,7 +221,7 @@ test -s "$PLATFORM_CANDIDATE_PRODUCT_REPORT"
 test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
 RUN_VERDICT = "${{ needs.execution-readiness.outputs.verdict }}"
 REVIEWED_DEPLOY_JOB_SHA256 = "a30a6a0ed116101c998635538465ef55c0b97d134f0a4381a5ea4b4fb97a19fb"
-REVIEWED_RELOCK_JOB_SHA256 = "be36c556370d071de1240774c62fad0e873aa9af36c45ae5dfb13d33f1fad8ed"
+REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c8762f3de244d5964f"
 
 
 def exact_job_digest(source: str, name: str) -> str:
@@ -246,6 +246,25 @@ def job_strings(value):
         yield value
 
 
+def assert_job_environment_contexts(jobs):
+    """Catch runtime-only references before GitHub rejects the whole workflow.
+
+    GitHub's contexts reference permits github/needs/strategy/matrix/vars/
+    secrets/inputs in jobs.<job_id>.env. The runner, job, steps and env objects
+    become available in step environments. This focused check covers those
+    invalid roots, including bracket syntax and whole-object function arguments;
+    it is not a substitute for a complete Actions expression validator.
+    """
+    for name, job in jobs.items():
+        for value in job_strings(job.get("env", {})):
+            for expression in re.findall(r"\$\{\{(.*?)\}\}", value, re.S):
+                # A quoted literal is not a context reference. Actions string
+                # literals escape a single quote by doubling it.
+                code = re.sub(r"'(?:[^']|'')*'", "''", expression)
+                if re.search(r"(?<![\w.])(?:runner|job|steps|env)\b", code, re.I):
+                    raise WorkflowContractError("unsupported job environment context: " + name)
+
+
 def assert_execution_evidence_contract(jobs, source):
     """Keep authenticated collection separate from browser/passive execution."""
     passive = jobs["readiness-verdict"]
@@ -266,8 +285,6 @@ def assert_execution_evidence_contract(jobs, source):
         "outputs": {"verdict": "${{ steps.gate.outputs.verdict }}"},
         "env": {
             "SOURCE_SHA": "${{ github.sha }}",
-            "VERDICT_PATH": "${{ runner.temp }}/passive-evidence/readiness-verdict.json",
-            "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence",
             "EXPECTED_EXECUTION_HF_REVISION": "${{ vars.A11OY_EXECUTION_HF_REVISION }}",
             "EXPECTED_EXECUTION_BOOT_ID": "${{ vars.A11OY_EXECUTION_BOOT_ID }}",
             "EXPECTED_EXECUTION_RUN_NONCE": "${{ vars.A11OY_EXECUTION_RUN_NONCE }}",
@@ -285,7 +302,8 @@ def assert_execution_evidence_contract(jobs, source):
          "run": 'python -I -m pip install --disable-pip-version-check '
                 '"huggingface_hub==1.23.0" "requests==2.32.5" "cryptography==50.0.2" "httpx==0.28.1"'},
         {"name": "Collect the independently admitted completed execution export",
-         "env": {"A11OY_EXECUTION_AUTHORITY_PINS_JSON": "${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}",
+         "env": {"EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence",
+                 "A11OY_EXECUTION_AUTHORITY_PINS_JSON": "${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}",
                  "A11OY_CODE_ADMIN_KEY": "${{ secrets.A11OY_CODE_ADMIN_KEY }}",
                  "A11OY_CODE_TENANT": "${{ secrets.A11OY_CODE_TENANT }}"},
          "run": 'python -I -B .github/scripts/collect_execution_readiness.py '
@@ -293,12 +311,16 @@ def assert_execution_evidence_contract(jobs, source):
                 '--boot-id "$EXPECTED_EXECUTION_BOOT_ID" --run-nonce "$EXPECTED_EXECUTION_RUN_NONCE" '
                 '--out-dir "$EXECUTION_EVIDENCE_DIR"'},
         {"name": "Stage unchanged passive evidence beside the execution export",
+         "env": {"VERDICT_PATH": "${{ runner.temp }}/passive-evidence/readiness-verdict.json",
+                 "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence"},
          "run": 'cp -- "$VERDICT_PATH" "$EXECUTION_EVIDENCE_DIR/readiness-verdict.json"'},
         {"name": "Upload immutable full probe evidence", "uses": UPLOAD,
          "with": {"name": "canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}",
-                  "path": "${{ env.EXECUTION_EVIDENCE_DIR }}/readiness-verdict.json\n${{ env.EXECUTION_EVIDENCE_DIR }}/execution-observations.json",
+                  "path": "${{ runner.temp }}/execution-evidence/readiness-verdict.json\n${{ runner.temp }}/execution-evidence/execution-observations.json",
                   "if-no-files-found": "error", "retention-days": "90"}},
         {"name": "Validate the source-bound verdict without a Space write", "id": "gate",
+         "env": {"VERDICT_PATH": "${{ runner.temp }}/passive-evidence/readiness-verdict.json",
+                 "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence"},
          "run": VERDICT_VALIDATE_RUN},
     ]
     if len(execution.get("steps", [])) != len(steps):
@@ -485,6 +507,7 @@ def assert_deploy_path_contract(source):
     evaluate_run = compact(evaluate.get("run", ""))
     if (relock.get("needs") != ["runtime-config", "execution-readiness"]
             or evaluate.get("env") != {"RUN_READINESS_VERDICT": RUN_VERDICT,
+                "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence",
                 "A11OY_CODE_ADMIN_KEY": "${{ secrets.A11OY_CODE_ADMIN_KEY }}",
                 "A11OY_CODE_TENANT": "${{ secrets.A11OY_CODE_TENANT }}"}
             or 'printf \'%s\' "$RUN_READINESS_VERDICT" > "$RUNNER_TEMP/run-readiness-verdict.json"' not in evaluate_run
@@ -945,8 +968,8 @@ class DeployPathWorkflowTests(unittest.TestCase):
              "          A11OY_CODE_ADMIN_KEY: ${{ secrets.HF_TOKEN }}\n"),
             ("canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
              "canonical-a11oy-passive-${{ github.run_id }}-1"),
-            ("            ${{ env.EXECUTION_EVIDENCE_DIR }}/execution-observations.json\n",
-             "            ${{ env.EXECUTION_EVIDENCE_DIR }}/execution-authority-pins.json\n"),
+            ("            ${{ runner.temp }}/execution-evidence/execution-observations.json\n",
+             "            ${{ runner.temp }}/execution-evidence/execution-authority-pins.json\n"),
             ("      EXPECTED_EXECUTION_RUN_NONCE: ${{ vars.A11OY_EXECUTION_RUN_NONCE }}\n",
              "      EXPECTED_EXECUTION_RUN_NONCE: ${{ steps.gate.outputs.run_nonce }}\n"),
         )
@@ -956,6 +979,44 @@ class DeployPathWorkflowTests(unittest.TestCase):
                 changed = self.source.replace(block, block.replace(original, replacement, 1), 1)
                 with self.assertRaisesRegex(WorkflowContractError, "execution collection"):
                     assert_deploy_path_contract(changed)
+
+    def test_runtime_paths_use_supported_step_contexts(self):
+        jobs = workflow_document(self.source)["jobs"]
+        assert_job_environment_contexts(jobs)
+        for job_id in ("execution-readiness", "relock"):
+            self.assertNotIn("EXECUTION_EVIDENCE_DIR", jobs[job_id]["env"])
+            self.assertNotIn("VERDICT_PATH", jobs[job_id]["env"])
+            for step in jobs[job_id]["steps"]:
+                shell = step.get("run", "")
+                for variable, expected in (
+                    ("EXECUTION_EVIDENCE_DIR", "${{ runner.temp }}/execution-evidence"),
+                    ("VERDICT_PATH", "${{ runner.temp }}/passive-evidence/readiness-verdict.json"),
+                ):
+                    if "$" + variable in shell:
+                        self.assertEqual(step.get("env", {}).get(variable), expected)
+
+    def test_job_environment_rejects_runtime_context_regressions(self):
+        jobs = workflow_document(self.source)["jobs"]
+        original_paths = (
+            ("execution-readiness", "VERDICT_PATH", "${{ runner.temp }}/passive-evidence/readiness-verdict.json"),
+            ("execution-readiness", "EXECUTION_EVIDENCE_DIR", "${{ runner.temp }}/execution-evidence"),
+            ("relock", "EXECUTION_EVIDENCE_DIR", "${{ runner.temp }}/execution-evidence"),
+        )
+        for job_id, key, value in original_paths:
+            with self.subTest(job_id=job_id, key=key):
+                changed = json.loads(json.dumps(jobs))
+                changed[job_id]["env"][key] = value
+                with self.assertRaisesRegex(WorkflowContractError, "unsupported job environment context"):
+                    assert_job_environment_contexts(changed)
+        for value in ("${{ runner['temp'] }}", "${{ toJSON(runner) }}", "${{ job.status }}",
+                      "${{ steps.collect.outputs.path }}", "${{ env.EXECUTION_EVIDENCE_DIR }}"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(WorkflowContractError, "unsupported job environment context"):
+                    assert_job_environment_contexts({"fixture": {"env": {"PATH": value}}})
+        assert_job_environment_contexts({"fixture": {"env": {
+            "literal": "${{ format('runner.temp/{0}', github.run_id) }}",
+            "source": "${{ needs.deploy.outputs.source }}",
+        }}})
 
     def test_superseded_relock_is_neutral_but_failed_verification_stays_red(self):
         cases = (

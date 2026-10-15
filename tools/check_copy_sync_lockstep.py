@@ -828,9 +828,9 @@ REVIEWED_READINESS_VERDICT_JOB_SHA256 = "fa40f6f29bc71f7b3222645adbc6aa0d39bb3ff
 # The relock job holds the provider read credential and consumes the readiness
 # verdict.  Bind its complete job body so an extra step, secret, permission, or
 # failure bypass cannot inherit that authority unnoticed.
-REVIEWED_RELOCK_JOB_SHA256 = "be36c556370d071de1240774c62fad0e873aa9af36c45ae5dfb13d33f1fad8ed"
+REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c8762f3de244d5964f"
 # The separate collection job is authenticated only for the fixed GET export.
-REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "0738ca396678c442aecf5a8f0e1f1f0f8ac34b0fd21970c24d6127881c4707dd"
+REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "598dc56af57eafb9a27ed35c0051df14a0c07ad43868c20ce8b60b4c69af138a"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only collection, public authority materialization and crypto closure.
     ".github/scripts/collect_execution_readiness.py": "e2ea59576b2533a2b397674568578d989a7018174cae891b4afff2697a76dc46",

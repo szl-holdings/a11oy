@@ -627,8 +627,6 @@ jobs:
       verdict: ${{ steps.gate.outputs.verdict }}
     env:
       SOURCE_SHA: ${{ github.sha }}
-      VERDICT_PATH: ${{ runner.temp }}/passive-evidence/readiness-verdict.json
-      EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
       # Independently selected context; evidence cannot select its own authority.
       EXPECTED_EXECUTION_HF_REVISION: ${{ vars.A11OY_EXECUTION_HF_REVISION }}
       EXPECTED_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}
@@ -662,6 +660,7 @@ jobs:
       # mint a signature, create credentials, change configuration or restart.
       - name: Collect the independently admitted completed execution export
         env:
+          EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
           A11OY_EXECUTION_AUTHORITY_PINS_JSON: ${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}
           A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}
           A11OY_CODE_TENANT: ${{ secrets.A11OY_CODE_TENANT }}
@@ -674,6 +673,9 @@ jobs:
           --out-dir "$EXECUTION_EVIDENCE_DIR"
 
       - name: Stage unchanged passive evidence beside the execution export
+        env:
+          VERDICT_PATH: ${{ runner.temp }}/passive-evidence/readiness-verdict.json
+          EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
         run: cp -- "$VERDICT_PATH" "$EXECUTION_EVIDENCE_DIR/readiness-verdict.json"
 
       - name: Upload immutable full probe evidence
@@ -681,8 +683,8 @@ jobs:
         with:
           name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            ${{ env.EXECUTION_EVIDENCE_DIR }}/readiness-verdict.json
-            ${{ env.EXECUTION_EVIDENCE_DIR }}/execution-observations.json
+            ${{ runner.temp }}/execution-evidence/readiness-verdict.json
+            ${{ runner.temp }}/execution-evidence/execution-observations.json
           if-no-files-found: error
           retention-days: 90
 
@@ -692,6 +694,9 @@ jobs:
       # compact verdict is handed to relock as a job output and re-validated.
       - name: Validate the source-bound verdict without a Space write
         id: gate
+        env:
+          VERDICT_PATH: ${{ runner.temp }}/passive-evidence/readiness-verdict.json
+          EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
         run: >-
           python -I -B .github/scripts/publish_readiness_verdict.py
           --validate-only
@@ -718,7 +723,6 @@ jobs:
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       SOURCE_SHA: ${{ github.sha }}
-      EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
       # Independent operator-selected context for an already completed run.
       # Empty/missing values fail closed; neither the plan nor export selects them.
       EXPECTED_EXECUTION_HF_REVISION: ${{ vars.A11OY_EXECUTION_HF_REVISION }}
@@ -748,7 +752,7 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.EXECUTION_EVIDENCE_DIR }}
+          path: ${{ runner.temp }}/execution-evidence
 
       - name: Materialize independently configured public authority pins
         env:
@@ -768,6 +772,7 @@ jobs:
         shell: bash
         env:
           RUN_READINESS_VERDICT: ${{ needs.execution-readiness.outputs.verdict }}
+          EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
           A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}
           A11OY_CODE_TENANT: ${{ secrets.A11OY_CODE_TENANT }}
         run: |
