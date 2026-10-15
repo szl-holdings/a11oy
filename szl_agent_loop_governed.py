@@ -72,6 +72,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
@@ -265,7 +266,7 @@ def _generation_evidence(value: Any) -> Optional[dict]:
     evidence = _fields(value, ("state", "answer", "refusal", "http_status", "source_revision",
                                "request_id", "source_binding", "signature_state", "receipt_kind",
                                "energy", "requested", "backend_id", "model_slug", "reachable",
-                               "live", "text_present", "api_style"))
+                               "live", "text_present", "api_style", "attempts", "execution_budget"))
     if "error" in value:
         evidence["error"] = _error_code(value["error"])
     if _nonfinite_evidence(value):
@@ -297,7 +298,8 @@ def _eval_evidence(value: Any) -> dict:
     if not isinstance(value, dict):
         return {"error": "SELF_EVAL_UNAVAILABLE"}
     evidence = _fields(value, ("status_code", "suite", "model_id", "execution_mode",
-                               "honesty_label", "aggregate", "receipt"))
+                               "honesty_label", "aggregate", "receipt", "execution_budget",
+                               "execution_complete"))
     if "error" in value:
         evidence["error"] = _error_code(value["error"])
     if _nonfinite_evidence(value):
@@ -324,6 +326,13 @@ def _eval_evidence(value: Any) -> dict:
 def _reported_eval_complete(evidence: dict, model_id: str, suite_id: str) -> bool:
     aggregate = evidence.get("aggregate")
     results = evidence.get("results")
+    if "execution_budget" in evidence:
+        final_budget = evidence["execution_budget"]
+        if (not isinstance(final_budget, dict) or final_budget.get("terminal") is not False
+                or final_budget.get("usage_complete") is not True
+                or final_budget.get("request_pending") is not False
+                or evidence.get("execution_complete") is not True):
+            return False
     if (not isinstance(aggregate, dict) or not isinstance(results, list)
             or evidence.get("error") is not None or evidence.get("status_code") != 200
             or evidence.get("model_id") != model_id
@@ -367,6 +376,34 @@ def _reported_eval_complete(evidence: dict, model_id: str, suite_id: str) -> boo
                     or row["answer"] != generation.get("answer")):
                 return False
             if generation["state"] == "REFUSED" and (
+                    row.get("refused") is not True or row.get("answer") != generation.get("refusal")):
+                return False
+        elif isinstance(generation.get("state"), str) and generation["state"] in {"CLIENT_COMPLETED", "CLIENT_REFUSED"}:
+            budget = generation.get("execution_budget")
+            if (generation.get("requested") != model_id
+                    or not isinstance(generation.get("model_slug"), str)
+                    or not generation["model_slug"]
+                    or generation.get("signature_state") != "UNSIGNED"
+                    or generation.get("receipt_kind") != "CLIENT_OBSERVATION_ONLY"
+                    or type(generation.get("attempts")) is not int or generation["attempts"] != 1
+                    or not isinstance(budget, dict) or budget.get("terminal") is not False
+                    or budget.get("usage_complete") is not True or budget.get("request_pending") is not False
+                    or budget.get("enforcement_scope") != "CLIENT_REQUESTS_ONLY"):
+                return False
+            limits = budget.get("limits")
+            if (not isinstance(limits, dict)
+                    or any(type(budget.get(key)) is not int or budget[key] < 0
+                           for key in ("model_requests", "output_tokens_reserved", "output_tokens_reported"))
+                    or type(limits.get("max_model_requests")) is not int
+                    or not 1 <= budget["model_requests"] <= limits["max_model_requests"]
+                    or type(limits.get("max_output_tokens")) is not int
+                    or not 0 <= budget["output_tokens_reported"] <= budget["output_tokens_reserved"] <= limits["max_output_tokens"]):
+                return False
+            if generation["state"] == "CLIENT_COMPLETED" and (
+                    not isinstance(row.get("answer"), str) or not row["answer"].strip()
+                    or row["answer"] != generation.get("answer")):
+                return False
+            if generation["state"] == "CLIENT_REFUSED" and (
                     row.get("refused") is not True or row.get("answer") != generation.get("refusal")):
                 return False
         elif not (generation.get("state") == "LIVE" and generation.get("requested") == model_id
@@ -434,7 +471,7 @@ def run_loop(task: str,
              sandbox: Optional[bool] = None,
              consult_brain: bool = False,
              allocate_energy: bool = False,
-             allow_exec: bool = False) -> dict:
+             allow_exec: bool = False, execution_budget=None, native_readbacks=None) -> dict:
     """Run ONE governed autonomous loop over a task.
 
     allow_exec (default False) is forwarded to the engine: a planned code step reaches
@@ -450,6 +487,47 @@ def run_loop(task: str,
     Returns a dict with: ok, run_id, plan, steps[], composite_receipt (signed),
     aggregate, forum_ingest, honest labels. Λ = Conjecture 1.
     """
+    strict_plan = None
+    strict_approval = None
+    if execution_budget is not None:
+        valid_budget = False
+        try:
+            from szl_router_client import ExecutionBudget, strict_governance_admission
+            valid_budget = isinstance(execution_budget, ExecutionBudget)
+            if (not valid_budget
+                    or mode != "chat" or type(max_retries) is not int or max_retries != 0
+                    or sandbox is not False or consult_brain is not False
+                    or allocate_energy is not False or allow_exec is not False
+                    or approval is not None or harness_profile_id
+                    or not isinstance(task, str) or not 0 < len(task.strip()) <= 32000
+                    or not _ENGINE_OK or not _ARENA_OK or not _APPROVAL_OK):
+                raise ValueError("STRICT_CHAT_SCOPE_REQUIRED")
+            execution_budget.check()
+            if os.environ.get("A11OY_APPROVAL_INTERRUPT") == "1":
+                check_action = getattr(_loop, "_is_state_changing", None)
+                if not callable(check_action) or check_action(task, True):
+                    raise ValueError("STRICT_APPROVAL_SCOPE_UNSUPPORTED")
+            strict_plan = _arena.prepare_strict_eval(eval_suite, model_id, execution_budget)
+            execution_budget.preflight(1 + strict_plan["n_cases"], 1 + strict_plan["n_cases"])
+            _engine.strict_transport_preflight(strict_plan["model_slug"])
+            from a11oy_vertical_feeds import governed_turn as strict_gate
+            admitted = strict_gate("agentloop", task, declared="PUBLIC",
+                                   action_kind="bounded-model-inference", emit_receipt=False)
+            strict_governance_admission(admitted)
+            strict_approval = _approval_interrupt(action="low:" + task[:60], severity="low",
+                                                  reversible=True, decision="ALLOW", grant=None)
+            if not isinstance(strict_approval, dict) or strict_approval.get("required") is not False:
+                raise ValueError("STRICT_APPROVAL_REQUIRED_OR_UNKNOWN")
+            execution_budget.check()
+        except Exception as exc:
+            code = str(exc)
+            if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", code) is None:
+                code = "STRICT_EXECUTION_ADMISSION_UNAVAILABLE"
+            if valid_budget:
+                execution_budget.fail(code)
+            return {"ok": False, "status_code": 422, "status": "BLOCKED", "error": code,
+                    "orchestration_complete": False, "completion": _completion([], model_id),
+                    "execution_limits": execution_budget.snapshot() if valid_budget else None}
     task = (task or "").strip()
     ns = ns or "a11oy"
     mode = (mode or "").lower()
@@ -462,7 +540,7 @@ def run_loop(task: str,
     # composite receipt. The per-step ACT still flows through the engine with
     # want_model=model_id; the sovereign block records the intended backend +
     # reachability so an offline run is honestly MODELED/UNAVAILABLE (no fabrication).
-    sovereign_requested = bool(_SOV_OK and _sov and _sov.is_sovereign(model_id))
+    sovereign_requested = bool(execution_budget is None and _SOV_OK and _sov and _sov.is_sovereign(model_id))
     sovereign_block = None
     sovereign_state = None
     if sovereign_requested:
@@ -507,7 +585,13 @@ def run_loop(task: str,
         }
 
     # ── PLAN — reuse the runloop's MODELED decomposition (single source of truth) ──
-    if _RUNLOOP_OK:
+    if execution_budget is not None:
+        plan_out = {"run_id": _mk_run_id(task), "task": task, "mode": "chat",
+                    "created_at": _now(), "plan": [{"n": 1,
+                        "title": "Answer the explicit bounded chat request", "mode": "chat",
+                        "prompt": task, "sandbox": False, "state_changing": False}],
+                    "label": "MODELED fixed one-step chat plan; execution is observed separately."}
+    elif _RUNLOOP_OK:
         plan_out = _runloop.plan(task, mode)
     else:  # additive fallback: minimal 1-step plan (still honest MODELED)
         eff_mode = mode if mode in ("chat", "code", "research") else "chat"
@@ -556,13 +640,22 @@ def run_loop(task: str,
             # engine itself applies the OPTIONAL harness profile for this step and
             # records its provenance in the step receipt (harness_profile_id passthrough). ──
             try:
+                bounded = {}
+                if execution_budget is not None:
+                    execution_budget.check()
+                    bounded = {"execution_budget": execution_budget,
+                               "selected_model_slug": strict_plan["model_slug"],
+                               "output_token_limit": min(700, execution_budget.remaining_output_tokens //
+                                                         (1 + strict_plan["n_cases"]))}
                 run = _engine.governed_turn(
                     step_mode, step_prompt, sign_fn, ns,
                     untrusted_input=step_untrusted,
                     run_chain=engine_chain, sandbox=step_sandbox,
                     want_model=model_id, harness_profile_id=harness_profile_id or "",
-                    allow_exec=bool(allow_exec))
+                    allow_exec=bool(allow_exec), **bounded)
             except Exception as e:  # never raise into the request
+                if execution_budget is not None:
+                    execution_budget.fail("STRICT_ENGINE_FAILED", ambiguous=True)
                 run = {"ok": False, "error": "engine error: %s" % type(e).__name__,
                        "decision": "DENY", "gate": {"severity": "high"},
                        "label": "engine raised; no run fabricated."}
@@ -598,8 +691,17 @@ def run_loop(task: str,
             eval_summary = None
             if _ARENA_OK:
                 try:
+                    eval_options = {}
+                    if execution_budget is not None:
+                        execution_budget.check()
+                        if run.get("decision") != "ALLOW" or run.get("emitted") is not True:
+                            execution_budget.fail("STRICT_ENGINE_NOT_COMPLETED")
+                            execution_budget.check()
+                        eval_options = {"execution_budget": execution_budget,
+                                        "selected_model_slug": strict_plan["model_slug"],
+                                        "native_readbacks": native_readbacks}
                     ev = _arena.run_eval(suite_id, model_id or "claude_opus_4_8",
-                                         harness_profile_id or None)
+                                         harness_profile_id or None, **eval_options)
                     agg = ev.get("aggregate") or {}
                     ev_receipt = (ev.get("receipt") or {})
                     ev_dsse = (ev_receipt.get("dsse") or {})
@@ -621,6 +723,8 @@ def run_loop(task: str,
                                   "Λ remains advisory (Conjecture 1)."),
                     }
                 except Exception as e:
+                    if execution_budget is not None:
+                        execution_budget.fail("STRICT_SELF_EVAL_FAILED")
                     eval_summary = {"suite_id": suite_id, "accuracy": None,
                                     "note": "eval-arena error: %s" % type(e).__name__,
                                     "evidence": {"error": "SELF_EVAL_FAILED"},
@@ -632,7 +736,9 @@ def run_loop(task: str,
                                 "label": "MODELED-OFF — eval-arena unavailable; no score fabricated."}
 
             # ── (d) GATE — durable HumanApprovalGate (deny-by-default, OFF unless env=1) ──
-            if _APPROVAL_OK:
+            if execution_budget is not None:
+                approval_res = strict_approval
+            elif _APPROVAL_OK:
                 try:
                     approval_res = _approval_interrupt(
                         action=(gate.get("severity", "") + ":" + (step_prompt or "")[:60]),
@@ -649,7 +755,7 @@ def run_loop(task: str,
                                          "(MODELED-OFF).")}
 
             inference = _fields(run.get("inference"), (
-                "mode", "model", "display", "license", "attempts", "rate_limited"))
+                "mode", "model", "upstream_model", "display", "license", "attempts", "rate_limited"))
             if isinstance(run.get("inference"), dict) and "error" in run["inference"]:
                 inference["error"] = _error_code(run["inference"]["error"])
             attempt = {
@@ -723,6 +829,12 @@ def run_loop(task: str,
     # ── whole-run aggregate (honest; Λ is advisory Conjecture 1) ──
     n_steps = len(steps_out)
     completion = _completion(steps_out, model_id)
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            completion.update(state="INCOMPLETE", complete=False)
+            completion["reasons"] = sorted(set(completion["reasons"] + ["EXECUTION_BUDGET_CLOSED"]))
     retry_policy = {
         "outer_max_retries": max_retries,
         "engine_internal_retries_bounded": False,
@@ -730,6 +842,12 @@ def run_loop(task: str,
         "budget_enforcement_asserted": False,
         "note": "Outer retries do not bound the legacy engine's internal retries or model fallback.",
     }
+    if execution_budget is not None:
+        retry_policy.update(engine_internal_retries_bounded=True,
+                            engine_model_fallback_disabled=True,
+                            budget_enforcement_asserted=True,
+                            execution_limits=execution_budget.snapshot(),
+                            note="Client dispatches and requested output are bounded; elapsed checks are cooperative. Remote retries and billed cost are not proven.")
     step_accs = [s["final"]["eval"].get("accuracy") for s in steps_out
                  if s.get("final") and s["final"].get("eval")
                  and _finite_number(s["final"]["eval"].get("accuracy"))
@@ -872,10 +990,44 @@ def run_loop(task: str,
     }
 
     # ── sign the ONE composite receipt (host signer: real ECDSA-P256 in-Space; UNSIGNED-LOCAL locally) ──
-    dsse, signing = _sign(receipt_body, sign_fn)
+    final_admitted = True
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            final_admitted = False
+    if final_admitted:
+        dsse, signing = _sign(receipt_body, sign_fn)
+    else:
+        dsse = {"signed": False, "signatures": [], "honesty": "Strict execution budget closed before composite signing."}
+        signing = {"available": False, "mode": "UNSIGNED-LOCAL"}
 
     # ── ingest the composite receipt to the shared /llm/forum ──
-    forum = _ingest_forum(receipt_body, dsse)
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            final_admitted = False
+    if execution_budget is not None and final_admitted and native_readbacks is not None:
+        try:
+            native_readbacks.record_agentloop({"body": receipt_body, "dsse": dsse, "signing": signing})
+            execution_budget.check()
+        except Exception:
+            execution_budget.fail("NATIVE_READBACK_PERSISTENCE_FAILED", ambiguous=True)
+            final_admitted = False
+    forum = (_ingest_forum(receipt_body, dsse) if final_admitted else
+             {"ingested": False, "note": "Strict execution budget closed; forum publication withheld."})
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            final_admitted = False
+        retry_policy = deepcopy(retry_policy)
+        retry_policy["execution_limits"] = execution_budget.snapshot()
+        if not final_admitted:
+            completion = deepcopy(completion)
+            completion.update(state="INCOMPLETE", complete=False)
+            completion["reasons"] = sorted(set(completion["reasons"] + ["EXECUTION_BUDGET_CLOSED"]))
 
     return {
         "ok": completion["complete"],
@@ -1030,6 +1182,30 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
             b = await request.json()
         except Exception:
             b = {}
+        if not isinstance(b, dict):
+            return JSONResponse({"ok": False, "error": "request body must be an object"}, status_code=400)
+        execution_budget = None
+        if "execution_limits" in b:
+            try:
+                from szl_router_client import ExecutionBudget, _unique_object
+                raw = await request.body()
+                if len(raw) > 128 * 1024:
+                    raise ValueError("STRICT_REQUEST_TOO_LARGE")
+                b = json.loads(raw, object_pairs_hook=_unique_object,
+                               parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+                if (set(b) != {"task", "mode", "model_id", "eval_suite", "max_retries",
+                               "sandbox", "consult_brain", "allocate_energy", "execution_limits"}
+                        or b.get("mode") != "chat" or b.get("sandbox") is not False
+                        or b.get("consult_brain") is not False or b.get("allocate_energy") is not False
+                        or type(b.get("max_retries")) is not int or b["max_retries"] != 0
+                        or not isinstance(b.get("task"), str) or not 0 < len(b["task"].strip()) <= 32000
+                        or any(not isinstance(b.get(key), str) or not b[key].strip()
+                               for key in ("model_id", "eval_suite"))):
+                    raise ValueError("STRICT_CHAT_SCOPE_REQUIRED")
+                execution_budget = ExecutionBudget(b["execution_limits"])
+            except Exception:
+                return JSONResponse({"ok": False, "status": "BLOCKED",
+                                     "error": "INVALID_STRICT_EXECUTION_REQUEST"}, status_code=422)
         task = b.get("task") or b.get("prompt") or b.get("query") or ""
         if not task:
             return JSONResponse({
@@ -1056,11 +1232,27 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
         consult_brain = bool(_BRAINFEED_OK) if consult_brain is None else bool(consult_brain)
         allocate_energy = b.get("allocate_energy", b.get("energy"))
         allocate_energy = bool(_BRAINFEED_OK) if allocate_energy is None else bool(allocate_energy)
-        result = run_loop(task, sign_fn, ns=ns, mode=mode, model_id=model_id,
-                          harness_profile_id=harness_profile_id, eval_suite=eval_suite,
-                          approval=approval, max_retries=max_retries, sandbox=sandbox,
-                          consult_brain=consult_brain, allocate_energy=allocate_energy,
-                          allow_exec=_exec_permitted(request))
+        options = {"ns": ns, "mode": mode, "model_id": model_id,
+                   "harness_profile_id": harness_profile_id, "eval_suite": eval_suite,
+                   "approval": approval, "max_retries": max_retries, "sandbox": sandbox,
+                   "consult_brain": consult_brain, "allocate_energy": allocate_energy,
+                   "allow_exec": _exec_permitted(request) if execution_budget is None else False}
+        if execution_budget is not None:
+            from anyio import to_thread
+            from functools import partial
+            try:
+                # Cancellation must reach this handler before an in-flight
+                # worker returns, including through AnyIO middleware scopes.
+                # The worker is cooperative; remote cancellation is not claimed.
+                result = await to_thread.run_sync(partial(run_loop, task, sign_fn,
+                                                execution_budget=execution_budget,
+                                                native_readbacks=getattr(app.state, "execution_native_readbacks", None),
+                                                **options), abandon_on_cancel=True)
+            except BaseException:
+                execution_budget.fail("EXECUTION_CANCELLED", ambiguous=True)
+                raise
+        else:
+            result = run_loop(task, sign_fn, **options)
         return JSONResponse(result, status_code=result.get("status_code", 200))
 
     async def _health(request):
@@ -1146,6 +1338,7 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
             "checked_at": _now(),
         })
 
+    _run.execution_native_readbacks_schema = "szl.native-execution-readbacks/v1"
     routes = [
         Route("/api/%s/v1/agentloop/run" % ns, _run, methods=["POST"],
               name="%s_agentloop_run" % ns),

@@ -57,11 +57,17 @@ def sample():
                 "runtime_boot_id": context.runtime_boot_id, "run_nonce": context.run_nonce}
     bodies = {case_id: {"fixture": "SYNTHETIC_NOT_EXECUTED"} for case_id in module.CONTRACTS}
     bodies["eval-run"] = {"model_id": "synthetic-model", "suite": "synthetic-suite",
-                          "execution_mode": "live"}
+                          "execution_mode": "live",
+                          "execution_limits": {"max_model_requests": 8,
+                                               "max_output_tokens": 1024,
+                                               "max_elapsed_seconds": 120}}
     bodies["agentloop-run"] = {"model_id": "synthetic-model", "eval_suite": "synthetic-suite",
                                "task": "Synthetic no-request fixture", "mode": "chat",
                                "sandbox": False, "max_retries": 0,
-                               "consult_brain": False, "allocate_energy": False}
+                               "consult_brain": False, "allocate_energy": False,
+                               "execution_limits": {"max_model_requests": 9,
+                                                    "max_output_tokens": 1152,
+                                                    "max_elapsed_seconds": 120}}
     plan = {"schema": "szl.execution-acceptance-plan/v1", **bindings,
             "issued_at": stamp(NOW - timedelta(minutes=2)),
             "expires_at": stamp(NOW + timedelta(minutes=2)),
@@ -112,6 +118,36 @@ def test_shared_plan_parser_preserves_full_five_observation_requirement(sample):
     evidence["observations"] = evidence["observations"][:3]
     with pytest.raises(module.EvidenceError, match="COMPLETE_EVIDENCE_REQUIRED"):
         module.validate(evidence, context, now=NOW)
+
+
+@pytest.mark.parametrize("case_id", ["eval-run", "agentloop-run"])
+@pytest.mark.parametrize("mutation", ["missing", "extra", "boolean", "zero", "requests", "tokens", "deadline"])
+def test_model_cases_require_explicit_bounded_client_requests(sample, case_id, mutation):
+    context, plan, _, bundle = sample
+    changed = copy.deepcopy(plan)
+    body = next(case["body"] for case in changed["cases"] if case["id"] == case_id)
+    limits = body["execution_limits"]
+    if mutation == "missing":
+        del body["execution_limits"]
+    elif mutation == "extra":
+        limits["retry"] = True
+    else:
+        key, value = {"boolean": ("max_model_requests", True),
+                      "zero": ("max_model_requests", 0),
+                      "requests": ("max_model_requests", 33),
+                      "tokens": ("max_output_tokens", 32769),
+                      "deadline": ("max_elapsed_seconds", 301)}[mutation]
+        limits[key] = value
+    with pytest.raises(module.EvidenceError, match="EXECUTION_LIMITS_"):
+        module.validate_plan(bundle(plan_override=changed)["plan"], context, now=NOW)
+
+
+def test_changed_approved_limits_do_not_reuse_old_observations(sample):
+    context, plan, _, bundle = sample
+    changed = copy.deepcopy(plan)
+    next(case for case in changed["cases"] if case["id"] == "eval-run")["body"]["execution_limits"]["max_model_requests"] = 9
+    with pytest.raises(module.EvidenceError, match="AUTHORITY_BINDING_MISMATCH"):
+        module.validate(bundle(plan_override=changed), context, now=NOW)
 
 
 @pytest.mark.parametrize("mutation", ["signature", "source", "runtime", "boot", "nonce",

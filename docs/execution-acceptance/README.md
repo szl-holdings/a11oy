@@ -149,6 +149,12 @@ The CLI requires a bundle plus `--source-revision`, `--runtime-revision`,
 prints a result to stdout and uses the current UTC time; there is no CLI time
 override, request executor or publication flag.
 
+The two model cases must explicitly bind `execution_limits` for client model
+requests, total requested output tokens and elapsed-time admission. See
+[bounded runtime requests](BOUNDED_RUNTIME.md) for the optional existing-route
+implementation and its limits. A signed plan with bounds still does not execute
+itself, grant credentials, or replace the independent five-case observations.
+
 ## Integration boundary
 
 The passive observer must continue to retain its five required `NOT_PROBED`

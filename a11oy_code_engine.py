@@ -1013,11 +1013,121 @@ def _model_configured() -> bool:
     return True
 
 
-def _hf_chat(messages, max_tokens=512, want_model=None):
+def strict_transport_preflight(model_slug):
+    """Validate the configured direct transport without networking or signing."""
+    from urllib.parse import urlsplit
+    import ipaddress
+    parsed = urlsplit(_MODEL_BASE_URL)
+    own_hosts = {"a-11-oy.com", "www.a-11-oy.com", "szlholdings-a11oy.hf.space",
+                 "localhost", "host.docker.internal"}
+    for name in ("A11OY_PUBLIC_ORIGIN", "PUBLIC_ORIGIN", "SPACE_HOST"):
+        origin = os.environ.get(name, "")
+        if origin:
+            own_hosts.add((urlsplit(origin if "://" in origin else "https://" + origin).hostname or "").lower().rstrip("."))
+    try:
+        address = ipaddress.ip_address(parsed.hostname or "")
+        mapped = getattr(address, "ipv4_mapped", None)
+        loopback = address.is_loopback or address.is_unspecified or bool(mapped and mapped.is_loopback)
+    except ValueError:
+        loopback = False
+    if (_LOCAL_MODEL_CMD or not _model_configured() or not isinstance(model_slug, str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,191}", model_slug) is None
+            or parsed.scheme != "https" or not parsed.hostname or parsed.username
+            or parsed.password or parsed.query or parsed.fragment
+            or parsed.path.rstrip("/") not in {"", "/v1"} or parsed.port not in {None, 443}
+            or parsed.hostname.lower().rstrip(".") in own_hosts or loopback):
+        raise ValueError("STRICT_MODEL_CONFIGURATION_REQUIRED")
+
+
+def _strict_hf_chat(messages, max_tokens, want_model, execution_budget):
+    """One selected-model HTTP dispatch; remote provider internals are unknown."""
+    import httpx
+    from szl_router_client import ExecutionBudget, ExecutionBudgetError, _unique_object
+
+    if not isinstance(execution_budget, ExecutionBudget):
+        return {"ok": False, "text": None, "model": None, "attempts": 0,
+                "rate_limited": False, "error": "INVALID_EXECUTION_BUDGET",
+                "execution_limits": None}
+
+    attempted = False
+    try:
+        execution_budget.check()
+        strict_transport_preflight(want_model)
+        if type(max_tokens) is not int or max_tokens < 1:
+            raise ValueError("STRICT_MODEL_CONFIGURATION_REQUIRED")
+        timeout = execution_budget.claim_attempt(max_tokens)
+        attempted = True
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if _HF_TOKEN:
+            headers["Authorization"] = "Bearer " + _HF_TOKEN
+        payload = {"model": want_model, "messages": messages, "max_tokens": max_tokens,
+                   "temperature": 0.0, "stream": False}
+        chunks, size = [], 0
+        with httpx.Client(timeout=httpx.Timeout(timeout), follow_redirects=False,
+                          trust_env=True) as client:
+            execution_budget.check()
+            with client.stream("POST", _MODEL_BASE_URL.rstrip("/") + "/chat/completions",
+                               headers=headers, json=payload) as response:
+                if response.status_code != 200:
+                    raise ValueError("STRICT_MODEL_HTTP_FAILURE")
+                if "application/json" not in response.headers.get("content-type", "").lower():
+                    raise ValueError("STRICT_MODEL_JSON_REQUIRED")
+                for chunk in response.iter_bytes():
+                    execution_budget.check()
+                    size += len(chunk)
+                    if size > 2_000_000:
+                        raise ValueError("STRICT_MODEL_RESPONSE_TOO_LARGE")
+                    chunks.append(chunk)
+        execution_budget.check()
+        data = json.loads(b"".join(chunks), object_pairs_hook=_unique_object,
+                          parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+        if not isinstance(data, dict) or data.get("model") != want_model or data.get("error"):
+            raise ValueError("STRICT_MODEL_IDENTITY_MISMATCH")
+        choices = data.get("choices")
+        if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
+            raise ValueError("STRICT_MODEL_CHOICE_INVALID")
+        choice, message = choices[0], choices[0].get("message")
+        if (not isinstance(message, dict) or message.get("role") != "assistant"
+                or message.get("tool_calls") or message.get("function_call")
+                or choice.get("finish_reason") not in {"stop", "content_filter"}):
+            raise ValueError("STRICT_MODEL_COMPLETION_INVALID")
+        refused = bool(message.get("refusal") or choice.get("finish_reason") == "content_filter")
+        content = message.get("refusal") if refused else message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("STRICT_MODEL_COMPLETION_EMPTY")
+        usage = data.get("usage")
+        if usage is not None and not isinstance(usage, dict):
+            raise ValueError("STRICT_MODEL_USAGE_INVALID")
+        output_tokens = usage.get("completion_tokens") if isinstance(usage, dict) else None
+        if isinstance(usage, dict) and any(key in usage for key in ("prompt_tokens", "total_tokens")):
+            if (any(type(usage.get(key)) is not int or usage[key] < 0
+                    for key in ("prompt_tokens", "completion_tokens", "total_tokens"))
+                    or usage["total_tokens"] != usage["prompt_tokens"] + usage["completion_tokens"]):
+                raise ValueError("STRICT_MODEL_USAGE_INVALID")
+        execution_budget.record_output(output_tokens)
+        execution_budget.check()
+        return {"ok": True, "text": content, "model": want_model, "display": want_model,
+                "license": "registry-declared", "attempts": 1, "rate_limited": False,
+                "refused": refused, "error": None, "execution_limits": execution_budget.snapshot()}
+    except Exception as exc:
+        known = str(exc) if isinstance(exc, (ValueError, ExecutionBudgetError)) else "STRICT_MODEL_TRANSPORT_FAILED"
+        code = known if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", known) else "STRICT_MODEL_RESPONSE_INVALID"
+        execution_budget.fail(code, ambiguous=attempted)
+        return {"ok": False, "text": None, "model": None, "attempts": int(attempted),
+                "rate_limited": False, "error": code,
+                "execution_limits": execution_budget.snapshot()}
+    except BaseException:
+        execution_budget.fail("STRICT_MODEL_INTERRUPTED", ambiguous=attempted)
+        raise
+
+
+def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None):
     """Call the OpenAI-compatible model endpoint server-side, with 2x retry and
     automatic fallback down the open-weight roster. Returns a dict:
       {ok, text, model, license, attempts, rate_limited, error}
     NEVER fabricates: on total failure ok=False and text=None."""
+    if execution_budget is not None:
+        return _strict_hf_chat(messages, max_tokens, want_model, execution_budget)
     import urllib.request, urllib.error, json as _json, time as _time
     # build the model try-order: requested model first (if open-weight), then roster
     order = []
@@ -1243,7 +1353,9 @@ def _resolve_harness(harness_profile_id: str, prompt: str, ns: str) -> dict:
 def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                   untrusted_input: str = "", run_chain=None,
                   sandbox: bool = False, want_model: str = "",
-                  harness_profile_id: str = "", allow_exec: bool = False) -> dict:
+                  harness_profile_id: str = "", allow_exec: bool = False,
+                  execution_budget=None, selected_model_slug=None,
+                  output_token_limit=None) -> dict:
     """One fully-governed a11oy Code turn (chat | code | research).
     P1 retrieve -> P2 quarantine untrusted -> P3 tool_call -> P4 policy_check ->
     P5 kernel_check -> P6 emit (+sign). Same 6-receipt chain as the proven loop.
@@ -1260,6 +1372,40 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     When set, the resolved profile system layer is injected as an extra system
     message and the harness apply-receipt {profile id+version+sha256, model_id,
     Λ axes, provenance} is folded into this step's signed receipt."""
+    strict_governance = None
+    if execution_budget is not None:
+        valid_budget = False
+        try:
+            from szl_router_client import ExecutionBudget, strict_model_slug, strict_governance_admission
+            valid_budget = isinstance(execution_budget, ExecutionBudget)
+            if not valid_budget:
+                raise ValueError("INVALID_EXECUTION_BUDGET")
+            execution_budget.check()
+            if (mode != "chat" or sandbox is not False or allow_exec is not False
+                    or harness_profile_id or untrusted_input or not isinstance(prompt, str)
+                    or not 0 < len(prompt.strip()) <= 32_000
+                    or type(output_token_limit) is not int or output_token_limit < 1
+                    or selected_model_slug != strict_model_slug(want_model)):
+                raise ValueError("STRICT_CHAT_SCOPE_REQUIRED")
+            strict_transport_preflight(selected_model_slug)
+            from a11oy_vertical_feeds import governed_turn as strict_gate
+            strict_governance = strict_gate("agentloop", prompt, declared="PUBLIC",
+                                           action_kind="bounded-model-inference", emit_receipt=False)
+            strict_governance_admission(strict_governance)
+        except Exception as exc:
+            code = str(exc)
+            if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", code) is None:
+                code = "STRICT_INFERENCE_ADMISSION_UNAVAILABLE"
+            if valid_budget:
+                execution_budget.fail(code)
+            denied = {"mode": mode, "decision": "DENY", "emitted": False,
+                      "error": code, "execution_limits": execution_budget.snapshot() if valid_budget else None}
+            try:
+                signature = sign_fn(denied)
+            except Exception:
+                signature = {"signed": False, "signatures": []}
+            return {**denied, "ok": False, "signed_receipt": signature,
+                    "executed": False, "execution_status": "NOT_REQUESTED"}
     run_chain = run_chain if run_chain is not None else []
 
     # ---- Wave G: OPTIONAL behavior-profile attach (governed persona) ----------
@@ -1289,6 +1435,9 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     # ---- routing (C20 + W7-5) -------------------------------------------------
     roster, roster_src = _roster()
     chosen, scored, envelope, route_reason = _route(mode, prompt, roster)
+    if execution_budget is not None:
+        chosen = {"id": want_model, "tier": "explicit", "model_slug": selected_model_slug}
+        route_reason = "Explicit registered model; no runtime model fallback."
 
     # ---- HOP 1: retrieve (RAG over in-image corpus) ---------------------------
     chunks, retrieval = _retrieve_with_identity(prompt, top_k=3)
@@ -1335,11 +1484,16 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         if ctx_note:
             msgs.append({"role": "system", "content": ctx_note})
         msgs.append({"role": "user", "content": prompt})
-        gen = _hf_chat(msgs, max_tokens=700, want_model=(want_model or None))
+        gen = (_hf_chat(msgs, max_tokens=output_token_limit, want_model=selected_model_slug,
+                        execution_budget=execution_budget)
+               if execution_budget is not None else
+               _hf_chat(msgs, max_tokens=700, want_model=(want_model or None)))
         if gen.get("ok"):
             inference = {"mode": "generative", "model": gen["model"], "display": gen.get("display"),
                          "license": gen.get("license"), "attempts": gen.get("attempts"),
                          "rate_limited": False, "error": None}
+            if execution_budget is not None:
+                inference.update(model=want_model, upstream_model=gen["model"])
         else:
             inference = {"mode": "unavailable", "model": None, "attempts": gen.get("attempts"),
                          "rate_limited": bool(gen.get("rate_limited")), "error": gen.get("error")}
@@ -1404,6 +1558,15 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     sev_rank = {"low": 1, "medium": 2, "high": 3, "critical": 4}.get(severity, 2)
     reasons = []
     gate_allow = True
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            gate_allow = False
+            reasons.append("strict execution budget closed or expired")
+    if execution_budget is not None and not (gen and gen.get("ok")):
+        gate_allow = False
+        reasons.append("strict selected-model inference unavailable")
     if sev_rank >= 3 and confidence < 0.6:
         gate_allow = False; reasons.append("high-severity action with low confidence (deny-by-default)")
     if sev_rank >= 4 and not reversible:
@@ -1518,6 +1681,11 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         "executed": executed, "execution_status": execution_status,
         "issued_at": datetime.now(timezone.utc).isoformat(),
     }
+    if execution_budget is not None:
+        decision_payload["execution_limits"] = execution_budget.snapshot()
+        decision_payload["pre_inference_governance"] = strict_governance
+        decision_payload["selected_model"] = {"model_id": want_model,
+                                              "upstream_model": selected_model_slug}
     # Wave G: fold the OPTIONAL harness profile provenance into the SIGNED payload
     # so the step's signature covers which behavior profile shaped it (id+version
     # +sha256, model_id, Λ axes, provenance). Body text is NEVER included.
@@ -1535,12 +1703,22 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
             "harness_signature": (_hr.get("signature") or {}).get("value"),
             "honesty_label": _hr.get("honesty_label"),
         }
-    try:
-        envelope_sig = sign_fn(decision_payload)
-    except Exception as e:
-        envelope_sig = {"signed": False, "signatures": [],
-                        "honesty": "UNSIGNED — signer raised: %s" % type(e).__name__,
-                        "payloadType": "application/vnd.szl.receipt+json"}
+    signing_admitted = True
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            signing_admitted = False
+    if signing_admitted:
+        try:
+            envelope_sig = sign_fn(decision_payload)
+        except Exception as e:
+            envelope_sig = {"signed": False, "signatures": [],
+                            "honesty": "UNSIGNED — signer raised: %s" % type(e).__name__,
+                            "payloadType": "application/vnd.szl.receipt+json"}
+    else:
+        envelope_sig = {"signed": False, "signatures": [], "state": "NOT_PRODUCED",
+                        "honesty": "Strict execution budget closed before signing."}
     _chain_receipt("emit", {"decision": decision, "emitted": effect["emitted"],
                             "signed": bool(envelope_sig.get("signed")),
                             "sandbox_exit": (sandbox_result or {}).get("exit") if sandbox_result else None,

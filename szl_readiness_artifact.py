@@ -127,7 +127,8 @@ def validate_archive(meta, archive, *, artifact_id, expected_digest, expected_na
 
 REPOSITORY_ID = 1225834126
 ORIGIN = "https://szlholdings-a11oy.hf.space"
-PRODUCER = "Probe and ingest exact post-deploy readiness verdict"
+PASSIVE_PRODUCER = "Probe and ingest exact post-deploy readiness verdict"
+PRODUCER = "Collect and verify admitted execution evidence"
 RELOCK = "Prove exact live source, runtime, routes, and singleton state"
 ROOT = Path(__file__).resolve().parent
 MATRIX = ROOT / "tools/readiness-harness/tabs.json"
@@ -244,8 +245,20 @@ def _main(transport, source):
             "PROTECTED_SOURCE_NO_LONGER_CURRENT")
 
 
-def validate_verdict(payload, matrix, *, source, now, job):
+def validate_verdict(payload, matrix, *, source, now, job, execution_bundle=None, execution_context=None):
     summary, rows, specs = payload.get("summary"), payload.get("results"), matrix.get("endpoints")
+    requires_execution = type(specs) is dict and any(spec.get("method", "GET") not in ("GET", "HEAD")
+        for spec in specs.values() if type(spec) is dict)
+    if requires_execution or (isinstance(summary, dict) and summary.get("requiredNotProbed") != 0):
+        checked = timestamp(payload.get("checkedAt"))
+        require(timestamp(job.get("started_at")) <= checked <= timestamp(job.get("completed_at")),
+                "READINESS_OBSERVATION_TIME_INVALID")
+        try:
+            return _validator().compact_verdict(
+                payload, expected_origin=ORIGIN, expected_source_sha=source, now=now,
+                matrix=matrix, execution_bundle=execution_bundle, execution_context=execution_context)
+        except Exception:
+            raise EvidenceBlocked("READINESS_EXECUTION_EVIDENCE_INVALID") from None
     require(type(summary) is dict and type(summary.get("requiredNotProbed")) is int
             and summary["requiredNotProbed"] == 0
             and type(summary.get("skippedStateChanging")) is int
@@ -294,7 +307,7 @@ def validate_verdict(payload, matrix, *, source, now, job):
     return compact
 
 
-def acquire(transport, source, matrix, *, now):
+def acquire(transport, source, matrix, *, now, execution_context_provider=None):
     require(digest(source, 40), "READINESS_SOURCE_INVALID")
     _main(transport, source)
     listing = transport.json(f"/actions/workflows/hf-sync.yml/runs?head_sha={source}&per_page=1")
@@ -315,8 +328,8 @@ def acquire(transport, source, matrix, *, now):
             and run.get("head_repository", {}).get("id") == REPOSITORY_ID,
             "READINESS_RUN_UNQUALIFIED")
     jobs = _complete(transport.json(f"/actions/runs/{run_id}/attempts/{attempt}/jobs?per_page=100"), "jobs")
-    producer = None
-    for name in (PRODUCER, RELOCK):
+    observed_jobs = {}
+    for name in (PASSIVE_PRODUCER, PRODUCER, RELOCK):
         matches = [job for job in jobs if job.get("name") == name]
         require(len(matches) == 1, "READINESS_JOB_UNAVAILABLE")
         job = matches[0]
@@ -325,8 +338,11 @@ def acquire(transport, source, matrix, *, now):
                 and job.get("conclusion") == "success", "READINESS_JOB_UNQUALIFIED")
         require(timestamp(run.get("run_started_at")) <= timestamp(job.get("started_at"))
                 <= timestamp(job.get("completed_at")) <= now, "READINESS_JOB_TIME_INVALID")
-        if name == PRODUCER:
-            producer = job
+        observed_jobs[name] = job
+    passive_job, producer, relock_job = (observed_jobs[name] for name in (PASSIVE_PRODUCER, PRODUCER, RELOCK))
+    require(timestamp(passive_job["completed_at"]) <= timestamp(producer["started_at"])
+            and timestamp(producer["completed_at"]) <= timestamp(relock_job["started_at"]),
+            "READINESS_JOB_DEPENDENCY_ORDER_INVALID")
     artifacts = _complete(transport.json(f"/actions/runs/{run_id}/artifacts?per_page=100"), "artifacts")
     name = f"canonical-a11oy-readiness-{run_id}-{attempt}"
     matches = [artifact for artifact in artifacts if artifact.get("name") == name]
@@ -342,15 +358,28 @@ def acquire(transport, source, matrix, *, now):
     members = validate_archive(meta, transport.archive(artifact_id), artifact_id=artifact_id,
                                expected_digest=declared[7:], expected_name=name,
                                source=source, run_id=run_id, repository_id=REPOSITORY_ID,
-                               members=frozenset({"readiness-verdict.json"}))
+                               members=(frozenset({"readiness-verdict.json", "execution-observations.json"})
+                                        if execution_context_provider is not None else
+                                        frozenset({"readiness-verdict.json"})))
+    bundle = context = None
+    if execution_context_provider is not None:
+        bundle = strict(members["execution-observations.json"])
+        gate = _validator().execution_validator()
+        bundle_digest = gate.acceptance.digest(gate.acceptance.canonical(bundle))
+        context = execution_context_provider(bundle_digest)
     verdict = validate_verdict(strict(members["readiness-verdict.json"]), matrix,
-                               source=source, now=now, job=producer)
+                               source=source, now=now, job=passive_job,
+                               execution_bundle=bundle, execution_context=context)
+    if execution_context_provider is not None:
+        require(execution_context_provider(bundle_digest) == context,
+                "READINESS_EXECUTION_CONTEXT_CHANGED")
     _main(transport, source)
     return {"verdict": verdict, "reason": None, "source": source,
+            "_execution_bundle": bundle,
             "evidence": {"repository": REPOSITORY, "workflow": WORKFLOW,
                          "run_id": run_id, "run_attempt": attempt, "artifact_id": artifact_id,
                          "artifact_sha256": declared[7:], "checked_at": verdict["checkedAt"],
-                         "retrieved_at": now.isoformat(), "signatures_verified": False}}
+                         "retrieved_at": now.isoformat(), "signatures_verified": context is not None}}
 
 
 class Reader:
@@ -360,11 +389,46 @@ class Reader:
         self.lock, self.lifecycle = threading.Lock(), threading.Lock()
         self.stop_event, self.thread = threading.Event(), None
         self.state = {"verdict": None, "reason": "NOT_OBSERVED", "evidence": None}
+        self.execution_context_provider = None
+
+    def bind_execution_observer(self, observer):
+        # Startup-only attachment to the application-owned observer. HTTP and
+        # artifact values cannot install a context provider.
+        from observer_runtime import Observer
+        require(isinstance(observer, Observer), "SERVICE_OWNED_OBSERVER_REQUIRED")
+        with self.lifecycle:
+            require(self.thread is None, "OBSERVER_BINDING_REQUIRES_STOPPED_READER")
+            self.execution_context_provider = observer.context_for_bundle_digest
+
+    def current_execution_coverage(self, verdict, *, now=None):
+        """Revalidate from the private retained bundle and current service context."""
+        with self.lock:
+            retained = copy.deepcopy(self.state)
+        require(retained.get("verdict") == verdict, "EXECUTION_VERDICT_NOT_RETAINED")
+        require(callable(self.execution_context_provider), "EXECUTION_CONTEXT_UNAVAILABLE")
+        bundle = retained.get("_execution_bundle")
+        gate = _validator().execution_validator()
+        bundle_digest = gate.acceptance.digest(gate.acceptance.canonical(bundle))
+        context = self.execution_context_provider(bundle_digest)
+        observed = gate.validate_execution(bundle, context, source=self.env.get("SZL_GIT_SHA"), now=now)
+        require(observed == verdict.get("executionCoverage"), "EXECUTION_COVERAGE_MISMATCH")
+        return observed
 
     def snapshot(self, *, now=None):
         with self.lock:
             state = copy.deepcopy(self.state)
+        bundle = state.pop("_execution_bundle", None)
         verdict = state.get("verdict")
+        if verdict and verdict.get("executionCoverage") is not None:
+            try:
+                require(callable(self.execution_context_provider), "EXECUTION_CONTEXT_UNAVAILABLE")
+                gate = _validator().execution_validator()
+                bundle_digest = gate.acceptance.digest(gate.acceptance.canonical(bundle))
+                context = self.execution_context_provider(bundle_digest)
+                observed = gate.validate_execution(bundle, context, source=self.env.get("SZL_GIT_SHA"), now=now)
+                require(observed == verdict["executionCoverage"], "EXECUTION_COVERAGE_MISMATCH")
+            except Exception:
+                return {"verdict": None, "reason": "CURRENT_EXECUTION_EVIDENCE_UNAVAILABLE", "evidence": None}
         if verdict:
             age = ((now or datetime.now(timezone.utc)) - timestamp(verdict["checkedAt"])).total_seconds()
             if (not hosted(self.env) or state.get("source") != self.env.get("SZL_GIT_SHA")
@@ -385,7 +449,8 @@ class Reader:
             transport = self.transport_factory(token, self.stop_event)
             with MATRIX.open("rb") as stream:
                 matrix = strict(stream.read(MAX_JSON + 1))
-            state = self.fetch(transport, source, matrix, now=datetime.now(timezone.utc))
+            options = {"execution_context_provider": self.execution_context_provider} if self.execution_context_provider else {}
+            state = self.fetch(transport, source, matrix, now=datetime.now(timezone.utc), **options)
             require(source == self.env.get("SZL_GIT_SHA") and hosted(self.env)
                     and self.env.get("SZL_READINESS_CANONICAL_ORIGIN", ORIGIN) == ORIGIN
                     and not self.stop_event.is_set(), "READINESS_IDENTITY_CHANGED")

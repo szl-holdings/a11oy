@@ -2255,6 +2255,8 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
     app.router.routes[:] = selected + [route for route in app.router.routes if id(route) not in selected_ids]
 
     app.state.szl_series_a_service = service
+    from observer_runtime import register_from_service
+    observation_registration = register_from_service(app)
     add_handler = getattr(app, "add_event_handler", None)
     if callable(add_handler):
         add_handler("startup", service.start)
@@ -2272,4 +2274,5 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
         "effectors": sorted(ALLOWED_ACTIONS),
         "max_attempts": 1,
         "private_reasoning_collected": False,
+        "execution_observer": observation_registration,
     }

@@ -166,8 +166,7 @@ COPY data/szl-lake/evidence-manifest.json ./data/szl-lake/evidence-manifest.json
 COPY szl_formal_conjecture_lab.py ./
 # M1 experimental model operational gate. Metadata and the status UI are
 # … (full rationale: docs/DOCKERFILE_NOTES.md §7)
-COPY szl_m1_model_gate.py ./
-COPY szl_m1_corpus_manifest.py ./
+COPY szl_m1_model_gate.py szl_m1_corpus_manifest.py ./
 COPY model_release/m1/ ./model_release/m1/
 # Canonical release identity and public Zenodo readback receipt. The readback
 # file ships in a PENDING state until a separately verified archive PR replaces
@@ -178,7 +177,7 @@ COPY model_release/m1/ ./model_release/m1/
 # Keep root-level sources explicit while batching them into one filesystem layer.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py ./
+COPY a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -234,6 +233,7 @@ COPY pages/ ./pages/
 # Post-deploy verdicts are injected separately through a bounded Space variable;
 # they are never baked into a self-referential source commit.
 COPY tools/readiness-harness/tabs.json ./tools/readiness-harness/tabs.json
+COPY tools/__init__.py tools/execution_acceptance.py ./tools/
 
 # ADDITIVE (Live 3D Wires / PURIQ Doctrine v12, Yachay): explicit per-file COPY.
 # … (full rationale: docs/DOCKERFILE_NOTES.md §18)

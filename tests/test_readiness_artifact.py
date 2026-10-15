@@ -18,6 +18,7 @@ import httpx
 import pytest
 
 import szl_readiness_artifact as subject
+from tests.test_combined_consumers import combined, world, stamp
 
 SOURCE = "a" * 40
 NOW = datetime(2026, 10, 13, 10, 5, tzinfo=timezone.utc)
@@ -49,11 +50,25 @@ def fixture():
 
 
 class FakeTransport:
-    def __init__(self):
-        self.payload, self.job, self.run = fixture()
+    def __init__(self, combined):
+        self.now = combined["now"]
+        self.payload = copy.deepcopy(combined["passive"])
+        self.payload["checkedAt"] = stamp(self.now-timedelta(seconds=30))
+        self.bundle = copy.deepcopy(combined["bundle"])
+        self.context = combined["context"]
+        self.matrix = combined["matrix"]
+        self.job = dict(name=subject.PRODUCER, run_id=7, run_attempt=2, head_sha=SOURCE,
+            status="completed", conclusion="success", started_at=stamp(self.now-timedelta(seconds=20)), completed_at=stamp(self.now-timedelta(seconds=5)))
+        self.run = dict(id=7, run_attempt=2, path=subject.WORKFLOW, event="push", head_sha=SOURCE,
+            head_branch="main", status="completed", conclusion="success", run_started_at=stamp(self.now-timedelta(minutes=1)),
+            repository=dict(id=subject.REPOSITORY_ID, full_name=subject.REPOSITORY), head_repository=dict(id=subject.REPOSITORY_ID))
         self.main = {"name": "main", "protected": True, "commit": {"sha": SOURCE}}
-        self.jobs = [self.job, {**self.job, "name": subject.RELOCK}]
-        self.jobs_count = 2
+        self.passive_job = {**self.job, "name": subject.PASSIVE_PRODUCER,
+            "started_at": stamp(self.now-timedelta(minutes=1)), "completed_at": self.job["started_at"]}
+        self.relock_job = {**self.job, "name": subject.RELOCK,
+            "started_at": self.job["completed_at"], "completed_at": stamp(self.now)}
+        self.jobs = [self.passive_job, self.job, self.relock_job]
+        self.jobs_count = 3
         self.name = "canonical-a11oy-readiness-7-2"
         self.extra_member = None
         self.meta_change = {}
@@ -70,6 +85,7 @@ class FakeTransport:
                 archive.writestr(info, content)
 
             write_member("readiness-verdict.json", self.raw or json.dumps(self.payload))
+            write_member("execution-observations.json", json.dumps(self.bundle))
             if self.extra_member:
                 write_member(self.extra_member, "{}")
         return output.getvalue()
@@ -78,7 +94,7 @@ class FakeTransport:
         archive = self.archive(9)
         return {"id": 9, "name": self.name, "expired": False,
                 "digest": "sha256:" + hashlib.sha256(archive).hexdigest(), "size_in_bytes": len(archive),
-                "created_at": "2026-10-13T10:03:00Z",
+                "created_at": stamp(self.now-timedelta(seconds=10)),
                 "workflow_run": dict(id=7, head_sha=SOURCE, head_branch="main",
                                      repository_id=subject.REPOSITORY_ID, head_repository_id=subject.REPOSITORY_ID),
                 **self.meta_change}
@@ -97,21 +113,28 @@ class FakeTransport:
             return self.run
         raise AssertionError(path)
 
+    def owner(self, digest):
+        from tests.test_combined_consumers import a
+        assert digest == a.digest(a.canonical(self.bundle))
+        return self.context
+
     def close(self):
         self.closed = True
 
 
-def observe(fake=None, now=NOW):
-    return subject.acquire(fake or FakeTransport(), SOURCE, MATRIX, now=now)
+def observe(fake, now=None):
+    return subject.acquire(fake, SOURCE, fake.matrix, now=now or fake.now,
+                           execution_context_provider=fake.owner)
 
 
-def test_exact_artifact_retains_original_clock_and_provenance():
-    fake = FakeTransport()
+def test_exact_artifact_retains_original_clock_and_provenance(combined):
+    fake = FakeTransport(combined)
     result = observe(fake)
-    assert result["verdict"]["checkedAt"] == CHECKED
-    assert result["verdict"]["summary"]["requiredNotProbed"] == 0
+    assert result["verdict"]["checkedAt"] == fake.payload["checkedAt"]
+    assert result["verdict"]["summary"]["requiredNotProbed"] == 5
     assert result["evidence"]["artifact_sha256"] == fake.meta()["digest"][7:]
-    assert result["evidence"]["signatures_verified"] is False
+    assert result["evidence"]["signatures_verified"] is True
+    assert result["verdict"]["executionCoverage"]["requiredExecutionCovered"] == 5
     assert fake.calls.count("/branches/main") == 2
 
 
@@ -122,8 +145,8 @@ def test_exact_artifact_retains_original_clock_and_provenance():
     ("repository", {"id": 2, "full_name": subject.REPOSITORY}),
     ("head_repository", {"id": 2}),
 ])
-def test_reject_foreign_or_failed_run_without_falling_back(field, value):
-    fake = FakeTransport()
+def test_reject_foreign_or_failed_run_without_falling_back(combined, field, value):
+    fake = FakeTransport(combined)
     fake.run[field] = value
     with pytest.raises(subject.EvidenceBlocked):
         observe(fake)
@@ -131,14 +154,14 @@ def test_reject_foreign_or_failed_run_without_falling_back(field, value):
 
 
 @pytest.mark.parametrize("mutation", ["skipped", "missing", "duplicate", "incomplete", "old-attempt", "future"])
-def test_job_attempt_and_complete_census(mutation):
-    fake = FakeTransport()
+def test_job_attempt_and_complete_census(combined, mutation):
+    fake = FakeTransport(combined)
     if mutation == "skipped": fake.job["conclusion"] = "skipped"
-    if mutation == "missing": fake.jobs.pop(); fake.jobs_count = 1
-    if mutation == "duplicate": fake.jobs.append(dict(fake.job)); fake.jobs_count = 3
+    if mutation == "missing": fake.jobs.pop(); fake.jobs_count = 2
+    if mutation == "duplicate": fake.jobs.append(dict(fake.job)); fake.jobs_count = 4
     if mutation == "incomplete": fake.jobs_count = 101
     if mutation == "old-attempt": fake.job["run_attempt"] = 1
-    if mutation == "future": fake.job["completed_at"] = "2026-10-14T10:00:00Z"
+    if mutation == "future": fake.job["completed_at"] = stamp(fake.now+timedelta(days=1))
     with pytest.raises(subject.EvidenceBlocked): observe(fake)
 
 
@@ -147,28 +170,28 @@ def test_job_attempt_and_complete_census(mutation):
     {"digest": "sha256:" + "b" * 64}, {"created_at": "2026-10-12T10:03:00Z"},
     {"workflow_run": {"id": 7, "head_sha": "b" * 40}},
 ])
-def test_archive_metadata_identity_and_digest(change):
-    fake = FakeTransport(); fake.meta_change = change
+def test_archive_metadata_identity_and_digest(combined, change):
+    fake = FakeTransport(combined); fake.meta_change = change
     with pytest.raises(subject.EvidenceBlocked): observe(fake)
 
 
 @pytest.mark.parametrize("member", ["../readiness-verdict.json", "unexpected.json", "dir/"])
-def test_archive_does_not_extract_unexpected_members(member):
-    fake = FakeTransport(); fake.extra_member = member
+def test_archive_does_not_extract_unexpected_members(combined, member):
+    fake = FakeTransport(combined); fake.extra_member = member
     with pytest.raises(subject.EvidenceBlocked): observe(fake)
 
 
 @pytest.mark.parametrize("raw", ['{"x":1,"x":2}', '{"x":NaN}', '{"x":1e999}', '[]'])
-def test_artifact_json_is_strict(raw):
-    fake = FakeTransport(); fake.raw = raw
+def test_artifact_json_is_strict(combined, raw):
+    fake = FakeTransport(combined); fake.raw = raw
     with pytest.raises(subject.EvidenceBlocked): observe(fake)
 
 
 @pytest.mark.parametrize("mutation", ["missing-required", "skipped", "required-bool", "wrong-origin", "wrong-bracket",
                                       "false-summary", "duplicate-row", "missing-row", "bad-schema", "unavailable",
                                       "bad-status", "unknown-freshness"])
-def test_unprobed_or_incomplete_verdict_fails_closed(mutation):
-    fake = FakeTransport(); body = fake.payload; row = body["results"][0]
+def test_unprobed_or_incomplete_verdict_fails_closed(combined, mutation):
+    fake = FakeTransport(combined); body = fake.payload; row = body["results"][0]
     if mutation == "missing-required": del body["summary"]["requiredNotProbed"]
     if mutation == "skipped": row["skipped"] = True
     if mutation == "required-bool": body["summary"]["requiredNotProbed"] = False
@@ -184,9 +207,10 @@ def test_unprobed_or_incomplete_verdict_fails_closed(mutation):
     with pytest.raises(subject.EvidenceBlocked): observe(fake)
 
 
-def test_ingest_expiry_and_observation_job_clock():
-    with pytest.raises(subject.EvidenceBlocked): observe(now=NOW + timedelta(hours=2))
-    fake = FakeTransport(); fake.payload["checkedAt"] = "2026-10-13T09:59:59Z"
+def test_ingest_expiry_and_observation_job_clock(combined):
+    fake = FakeTransport(combined)
+    with pytest.raises(subject.EvidenceBlocked): observe(fake, now=fake.now + timedelta(hours=2))
+    fake.payload["checkedAt"] = stamp(fake.now-timedelta(minutes=2))
     with pytest.raises(subject.EvidenceBlocked): observe(fake)
 
 
@@ -265,29 +289,31 @@ def test_no_credential_fails_without_constructing_http_client(monkeypatch):
     assert reader.snapshot()["reason"] == "GITHUB_READ_CREDENTIAL_REQUIRED"
 
 
-def test_new_failure_erases_previous_green_and_snapshot_does_no_work():
-    env = dict(ENV); fake = FakeTransport(); good = observe(fake)
+def test_new_failure_erases_previous_green_and_snapshot_does_no_work(combined):
+    env = dict(ENV); fake = FakeTransport(combined); good = observe(fake)
     reader = subject.Reader(environ=env, transport_factory=lambda *_: fake,
                             fetch=lambda *a, **k: copy.deepcopy(good))
+    reader.execution_context_provider = fake.owner
     reader.refresh()
-    assert reader.snapshot(now=NOW)["verdict"]["checkedAt"] == CHECKED
+    assert reader.snapshot(now=fake.now)["verdict"]["checkedAt"] == fake.payload["checkedAt"]
     def fail(*a, **k): raise subject.EvidenceBlocked("READINESS_RUN_UNQUALIFIED")
     reader.fetch = fail
-    assert reader.snapshot(now=NOW)["verdict"] is not None
+    assert reader.snapshot(now=fake.now)["verdict"] is not None
     reader.refresh()
-    assert reader.snapshot(now=NOW)["verdict"] is None
-    assert reader.snapshot(now=NOW)["reason"] == "READINESS_RUN_UNQUALIFIED"
+    assert reader.snapshot(now=fake.now)["verdict"] is None
+    assert reader.snapshot(now=fake.now)["reason"] == "READINESS_RUN_UNQUALIFIED"
 
 
-def test_source_change_during_fetch_and_serve_expiry():
-    env = dict(ENV); fake = FakeTransport(); good = observe(fake)
+def test_source_change_during_fetch_and_serve_expiry(combined):
+    env = dict(ENV); fake = FakeTransport(combined); good = observe(fake)
     def change(*a, **k): env["SZL_GIT_SHA"] = "b" * 40; return good
     reader = subject.Reader(environ=env, fetch=change, transport_factory=lambda *_: fake)
+    reader.execution_context_provider = fake.owner
     reader.refresh()
-    assert reader.snapshot(now=NOW)["reason"] == "READINESS_IDENTITY_CHANGED"
+    assert reader.snapshot(now=fake.now)["reason"] == "READINESS_IDENTITY_CHANGED"
     env["SZL_GIT_SHA"] = SOURCE; reader.state = good
-    assert reader.snapshot(now=NOW + timedelta(days=1))["verdict"] is None
-    assert reader.state["verdict"]["checkedAt"] == CHECKED
+    assert reader.snapshot(now=fake.now + timedelta(days=1))["verdict"] is None
+    assert reader.state["verdict"]["checkedAt"] == fake.payload["checkedAt"]
 
 
 def test_snapshot_expires_without_refresh_at_the_admission_horizon():
@@ -413,3 +439,17 @@ def test_dockerfile_ships_the_dependency_closure():
     for name in ("szl_readiness_artifact.py", ".github/scripts/publish_readiness_verdict.py"):
         assert any(name in line.split()[1:-1] for line in dockerfile.splitlines() if line.startswith("COPY "))
     assert "COPY .github/scripts/publish_readiness_verdict.py ./.github/scripts/" in dockerfile
+
+
+@pytest.mark.parametrize("mutation",["missing-passive","failed-passive","skipped-passive","duplicate-passive","old-passive-attempt","passive-overlap","relock-overlap"])
+def test_all_three_jobs_and_their_dependency_order_are_required(combined,mutation):
+    fake=FakeTransport(combined)
+    if mutation=="missing-passive":fake.jobs.remove(fake.passive_job);fake.jobs_count-=1
+    elif mutation=="failed-passive":fake.passive_job["conclusion"]="failure"
+    elif mutation=="skipped-passive":fake.passive_job["conclusion"]="skipped"
+    elif mutation=="duplicate-passive":fake.jobs.append(dict(fake.passive_job));fake.jobs_count+=1
+    elif mutation=="old-passive-attempt":fake.passive_job["run_attempt"]=1
+    elif mutation=="passive-overlap":fake.passive_job["completed_at"]=stamp(fake.now-timedelta(seconds=19))
+    else:fake.relock_job["started_at"]=stamp(fake.now-timedelta(seconds=6))
+    with pytest.raises(subject.EvidenceBlocked,match="READINESS_JOB_"):
+        observe(fake)

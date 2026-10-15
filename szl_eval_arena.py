@@ -82,6 +82,7 @@
 #   Nothing here touches the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}. Adds 0.
 # ─────────────────────────────────────────────────────────────────────────────
 import hashlib
+import copy
 import json
 import os
 import re
@@ -438,7 +439,9 @@ def _control_benign_answer(case: dict[str, Any]) -> str:
 
 def _solve_case(case: dict[str, Any], model_id: str, snap: dict[str, Any],
                 harness: dict[str, Any], sov_state: str | None = None,
-                execution_mode: str = "live", request_origin: str = "") -> dict[str, Any]:
+                execution_mode: str = "live", request_origin: str = "",
+                execution_budget=None, selected_model_slug=None,
+                output_token_limit=None) -> dict[str, Any]:
     """Only the prompt enters generation; expected/scorer remain local."""
     unavailable = {"answer": None, "label": "UNAVAILABLE"}
     if execution_mode == "modeled":
@@ -448,18 +451,48 @@ def _solve_case(case: dict[str, Any], model_id: str, snap: dict[str, Any],
     if harness.get("profile_id"):
         return {**unavailable, "error": "HARNESS_TRANSPORT_UNAVAILABLE"}
     entry = snap.get("models", {}).get(model_id)
-    if sov_state is None and not isinstance(entry, dict):
+    if execution_budget is None and sov_state is None and not isinstance(entry, dict):
         return {**unavailable, "error": "MODEL_NOT_REGISTERED"}
     prompt = case.get("input")
     if not isinstance(prompt, str) or not prompt.strip():
         return {**unavailable, "error": "INVALID_EVAL_PROMPT"}
     try:
+        if execution_budget is not None:
+            execution_budget.check()
         from a11oy_vertical_feeds import governed_turn
         governance = governed_turn("eval", prompt, declared="PUBLIC",
                                    action_kind="eval-model-inference")
         if not isinstance(governance, dict) or governance.get("decision") != "allow":
+            if execution_budget is not None:
+                execution_budget.fail("EVAL_GOVERNANCE_NOT_ALLOWED")
             return {**unavailable, "error": "EVAL_GOVERNANCE_NOT_ALLOWED",
                     "governance": governance}
+        if execution_budget is not None:
+            import a11oy_code_engine
+            from szl_router_client import strict_governance_admission
+            strict_governance_admission(governance)
+            generation = a11oy_code_engine._hf_chat(
+                [{"role": "user", "content": prompt}], max_tokens=output_token_limit,
+                want_model=selected_model_slug, execution_budget=execution_budget)
+            answer = generation.get("text")
+            if (generation.get("ok") is not True
+                    or generation.get("model") != selected_model_slug
+                    or not isinstance(answer, str) or not answer.strip()):
+                execution_budget.fail("STRICT_EVAL_MODEL_RESPONSE_UNAVAILABLE",
+                                      ambiguous=generation.get("ambiguous") is True)
+                return {**unavailable, "error": "STRICT_EVAL_MODEL_RESPONSE_UNAVAILABLE",
+                        "governance": governance, "generation": generation}
+            execution_budget.check()
+            refused = generation.get("refused") is True
+            observation = {"state": "CLIENT_REFUSED" if refused else "CLIENT_COMPLETED",
+                           "requested": model_id, "model_slug": selected_model_slug,
+                           "answer": None if refused else answer,
+                           "refusal": answer if refused else None,
+                           "signature_state": "UNSIGNED", "receipt_kind": "CLIENT_OBSERVATION_ONLY",
+                           "attempts": generation["attempts"], "error": None,
+                           "execution_budget": execution_budget.snapshot()}
+            return {"answer": answer, "label": "LIVE", "governance": governance,
+                    "model_execution": True, "generation": observation, "refused": refused}
         if sov_state is not None:
             if sov_state != "LIVE" or not _SOV_OK or not _sov:
                 return {**unavailable, "error": "SOVEREIGN_MODEL_UNAVAILABLE",
@@ -489,8 +522,62 @@ def _solve_case(case: dict[str, Any], model_id: str, snap: dict[str, Any],
                     "governance": governance, "generation": generation}
         return {"answer": answer, "label": "LIVE", "governance": governance,
                 "model_execution": True, "refused": refused, "generation": generation}
-    except Exception:
-        return {**unavailable, "error": "EVAL_TRANSPORT_OR_GOVERNANCE_UNAVAILABLE"}
+    except Exception as exc:
+        code = "EVAL_TRANSPORT_OR_GOVERNANCE_UNAVAILABLE"
+        if execution_budget is not None:
+            from szl_router_client import ExecutionBudgetError
+            if isinstance(exc, ExecutionBudgetError):
+                code = str(exc)
+            execution_budget.fail(code)
+        return {**unavailable, "error": code}
+
+
+def prepare_strict_eval(suite_id, model_id, execution_budget, *,
+                        harness_profile_id=None, execution_mode="live"):
+    """Validate the whole suite without provider, signing or ledger effects."""
+    from szl_router_client import (ExecutionBudget, ExecutionBudgetError, strict_model_slug,
+                                   strict_governance_admission)
+    if not isinstance(execution_budget, ExecutionBudget):
+        raise ExecutionBudgetError("INVALID_EXECUTION_BUDGET")
+    execution_budget.check()
+    if execution_mode != "live" or harness_profile_id is not None:
+        raise ExecutionBudgetError("STRICT_EVAL_LIVE_BARE_MODEL_REQUIRED")
+    if not isinstance(suite_id, str) or suite_id not in _SUITES:
+        raise ExecutionBudgetError("STRICT_EVAL_SUITE_REQUIRED")
+    suite = copy.deepcopy(_SUITES[suite_id])
+    cases = suite.get("cases")
+    if (not isinstance(cases, list) or not cases
+            or any(not isinstance(suite.get(key), str) for key in ("title", "version", "description"))):
+        raise ExecutionBudgetError("STRICT_EVAL_SUITE_INVALID")
+    execution_budget.preflight(len(cases), len(cases))
+    slug = strict_model_slug(model_id)
+    import a11oy_code_engine
+    a11oy_code_engine.strict_transport_preflight(slug)
+    ids = set()
+    for case in cases:
+        if (not isinstance(case, dict) or not isinstance(case.get("id"), str)
+                or not case["id"] or case["id"] in ids
+                or not isinstance(case.get("input"), str) or not case["input"].strip()
+                or len(case["input"]) > 32000
+                or not isinstance(case.get("expected"), str)
+                or not isinstance(case.get("category"), str)
+                or case.get("scorer") not in _SCORERS):
+            raise ExecutionBudgetError("STRICT_EVAL_CASE_INVALID")
+        ids.add(case["id"])
+        if case["scorer"] == "regex":
+            try:
+                re.compile(case["expected"])
+            except re.error as exc:
+                raise ExecutionBudgetError("STRICT_EVAL_SCORER_INVALID") from exc
+    from a11oy_vertical_feeds import governed_turn
+    for case in cases:
+        execution_budget.check()
+        governance = governed_turn("eval", case["input"], declared="PUBLIC",
+                                   action_kind="eval-model-inference", emit_receipt=False)
+        if not isinstance(governance, dict) or governance.get("decision") != "allow":
+            raise ExecutionBudgetError("STRICT_EVAL_SUITE_GOVERNANCE_DENIED")
+        strict_governance_admission(governance)
+    return {"suite": suite, "model_slug": slug, "n_cases": len(cases)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -550,14 +637,36 @@ def _resolve_harness(harness_profile_id: str | None) -> dict[str, Any]:
 # The eval RUN — deterministic, honest, governed.
 # ─────────────────────────────────────────────────────────────────────────────
 def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None,
-             *, execution_mode: str = "live", request_origin: str = "") -> dict[str, Any]:
+             *, execution_mode: str = "live", request_origin: str = "",
+             execution_limits=None, execution_budget=None,
+             selected_model_slug=None, native_readbacks=None) -> dict[str, Any]:
     """Run one governed eval suite over one routed model. Deterministic. Never raises."""
-    suite = _SUITES.get(suite_id)
+    suite = _SUITES.get(suite_id) if isinstance(suite_id, str) else None
     if not suite:
         return {"error": f"unknown suite '{suite_id}'", "known_suites": list(_SUITES.keys()),
                 "status_code": 404}
     if not isinstance(execution_mode, str) or execution_mode not in {"live", "modeled"}:
         return {"error": "execution_mode must be live or modeled", "status_code": 422}
+
+    strict = None
+    if execution_limits is not None or execution_budget is not None:
+        from szl_router_client import ExecutionBudget, ExecutionBudgetError
+        try:
+            if execution_limits is not None and execution_budget is not None:
+                raise ExecutionBudgetError("EXECUTION_BUDGET_CONFLICT")
+            if execution_budget is None:
+                execution_budget = ExecutionBudget(execution_limits)
+            strict = prepare_strict_eval(suite_id, model_id, execution_budget,
+                harness_profile_id=harness_profile_id, execution_mode=execution_mode)
+            if selected_model_slug is not None and strict["model_slug"] != selected_model_slug:
+                raise ExecutionBudgetError("STRICT_MODEL_SELECTION_CHANGED")
+            suite = strict["suite"]
+        except Exception as exc:
+            error = str(exc) if isinstance(exc, ExecutionBudgetError) else "STRICT_EVAL_PREFLIGHT_FAILED"
+            return {"error": error, "status_code": 422, "honesty_label": "UNAVAILABLE",
+                    "execution_complete": False,
+                    "execution_budget": execution_budget.snapshot()
+                        if isinstance(execution_budget, ExecutionBudget) else None}
 
     snap = _registry_snapshot()
     harness = _resolve_harness(harness_profile_id)
@@ -570,7 +679,7 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
     sov_requested = bool(_SOV_OK and _sov and _sov.is_sovereign(model_id))
     sov_state: str | None = None
     sov_receipt = None
-    if sov_requested and execution_mode == "live" and not harness_profile_id:
+    if sov_requested and execution_mode == "live" and not harness_profile_id and strict is None:
         sov_probe = _sov.run_on_sovereign("", requested_model_id=model_id,
                                           probe_only=True)
         sov_state = sov_probe.get("state")  # LIVE | MODELED | UNAVAILABLE
@@ -581,9 +690,23 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
     results: list[dict[str, Any]] = []
     by_cat: dict[str, dict[str, int]] = {}
 
-    for case in cases_in:
-        solved = _solve_case(case, model_id, snap, harness, sov_state=(sov_state or "UNAVAILABLE") if sov_requested else None,
-                             execution_mode=execution_mode, request_origin=request_origin)
+    strict_stopped = False
+    for index, case in enumerate(cases_in):
+        strict_args = {}
+        if strict is not None:
+            strict_args = {"execution_budget": execution_budget,
+                           "selected_model_slug": strict["model_slug"],
+                           "output_token_limit": min(512, execution_budget.remaining_output_tokens
+                                                      // (len(cases_in) - index))}
+        if strict_stopped:
+            solved = {"answer": None, "label": "UNAVAILABLE", "error": "STRICT_EVAL_STOPPED"}
+        else:
+            solved = _solve_case(case, model_id, snap, harness,
+                sov_state=(sov_state or "UNAVAILABLE") if sov_requested and strict is None else None,
+                execution_mode=execution_mode, request_origin=request_origin, **strict_args)
+        if strict is not None and solved.get("label") != "LIVE":
+            execution_budget.fail("STRICT_EVAL_STOPPED")
+            strict_stopped = True
         answer = solved["answer"]
         label = solved["label"]
         scorer_name = case.get("scorer", "exact")
@@ -649,12 +772,18 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
     }
     lam = _lambda_gm([value for value in axes.values() if value is not None]) if n_evaluated else None
 
+    if strict is not None:
+        try:
+            execution_budget.check()
+        except ExecutionBudgetError:
+            strict_stopped = True
+
     aggregate = {
         "n_cases": n,
         "n_passed": n_pass,
         "n_evaluated": n_evaluated,
         "n_unavailable": sum(r["honesty_label"] == "UNAVAILABLE" for r in results),
-        "execution_complete": n_evaluated == n and n > 0,
+        "execution_complete": n_evaluated == n and n > 0 and not strict_stopped,
         "score_basis": "MODEL_RESPONSES_ONLY" if n_evaluated else "NO_MODEL_RESPONSES",
         "pipeline_accuracy": (round(sum(r["pipeline_passed"] is True for r in results) / n, 4)
                               if execution_mode == "modeled" and n else None),
@@ -678,7 +807,7 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
 
     # ── build the receipt payload (signed below) ──
     honesty_label = ("MODELED" if execution_mode == "modeled" else
-                     "LIVE" if n_evaluated == n and n > 0 else
+                     "LIVE" if n_evaluated == n and n > 0 and not strict_stopped else
                      "DEGRADED" if n_evaluated else "UNAVAILABLE")
 
     receipt_body = {
@@ -691,7 +820,7 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
         "suite_version": suite["version"],
         "suite_sha256": suite_sha256,
         "model_id": model_id,
-        "model_known": (sov_requested or model_id in snap.get("models", {})),
+        "model_known": (strict is not None or sov_requested or model_id in snap.get("models", {})),
         "sovereign": sov_receipt,  # Wave M: intended sovereign backend (None when not requested)
         "harness_profile_id": harness_profile_id,
         "harness": {"applied": harness.get("applied"), "available": harness.get("available"),
@@ -716,14 +845,43 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
                "Model execution incomplete; unavailable cases are not scored. ")
             + "No live answer fabricated. Nothing touches the locked-8."),
     }
+    if strict is not None:
+        receipt_body["execution_budget"] = execution_budget.snapshot()
+        receipt_body["selected_model_slug"] = strict["model_slug"]
 
     # ── sign (real ECDSA-P256 in-Space; honest UNSIGNED-LOCAL locally) ──
-    dsse, signing = _sign(receipt_body)
+    signing_cancelled = False
+    if strict is not None:
+        try:
+            execution_budget.check()
+        except ExecutionBudgetError:
+            signing_cancelled = execution_budget.snapshot()["error"] in {
+                "EXECUTION_CANCELLED", "EXECUTION_DEADLINE_EXCEEDED"}
+    if signing_cancelled:
+        dsse = {"signed": False, "signatures": [], "state": "NOT_PRODUCED"}
+        signing = {"requested": False, "mode": "NOT_REQUESTED",
+                   "note": "No signature requested after cancellation or deadline."}
+    else:
+        dsse, signing = _sign(receipt_body)
 
     # ── ingest to the shared /llm/forum ──
-    forum = _ingest_forum(receipt_body, dsse, model_id)
+    forum_allowed = True
+    if strict is not None:
+        try:
+            execution_budget.check()
+        except ExecutionBudgetError:
+            forum_allowed = False
+    if strict is not None and forum_allowed and native_readbacks is not None:
+        try:
+            native_readbacks.record_eval({"body": receipt_body, "dsse": dsse, "signing": signing})
+            execution_budget.check()
+        except Exception:
+            execution_budget.fail("NATIVE_READBACK_PERSISTENCE_FAILED", ambiguous=True)
+            forum_allowed = False
+    forum = (_ingest_forum(receipt_body, dsse, model_id) if forum_allowed else
+             {"ingested": False, "error": "EXECUTION_BUDGET_TERMINAL"})
 
-    return {
+    result = {
         "status_code": 200,
         "arena": "szl_eval_arena",
         "suite": {"id": suite_id, "title": suite["title"], "version": suite["version"],
@@ -742,6 +900,22 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
         "doctrine": DOCTRINE,
         "kernel_commit": _KERNEL,
     }
+    if strict is not None:
+        try:
+            execution_budget.check()
+        except ExecutionBudgetError:
+            # Preserve the signed execution snapshot. A late result is a failed
+            # request even when its model responses were observed in time.
+            result["aggregate"] = {**aggregate, "execution_complete": False}
+            result["honesty_label"] = "DEGRADED" if n_evaluated else "UNAVAILABLE"
+            result["error"] = ("STRICT_EVAL_NOT_COMPLETED_WITHIN_LIMITS"
+                if execution_budget.snapshot()["error"] == "EXECUTION_DEADLINE_EXCEEDED"
+                else "STRICT_EVAL_INCOMPLETE")
+        result["execution_budget"] = execution_budget.snapshot()
+        result["selected_model_slug"] = strict["model_slug"]
+        result["execution_complete"] = result["aggregate"]["execution_complete"]
+        result["state"] = "COMPLETED" if result["execution_complete"] else "UNAVAILABLE"
+    return result
 
 
 def _sign(receipt_body: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -911,14 +1085,48 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
                 {"error": "harness_profile_id must be a non-empty string when supplied"},
                 status_code=422)
 
+        strict_args = {}
+        if "execution_limits" in body:
+            from szl_router_client import ExecutionBudget, ExecutionBudgetError, _unique_object
+            try:
+                raw = await request.body()
+                if len(raw) > 64000:
+                    raise ExecutionBudgetError("STRICT_EVAL_REQUEST_TOO_LARGE")
+                strict_body = json.loads(raw, object_pairs_hook=_unique_object,
+                    parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+                allowed = {"suite", "suite_id", "model_id", "execution_mode", "execution_limits"}
+                if set(strict_body) - allowed:
+                    raise ExecutionBudgetError("STRICT_EVAL_UNKNOWN_REQUEST_FIELD")
+                budget = ExecutionBudget(body["execution_limits"])
+                if execution_mode != "live" or harness_profile_id is not None:
+                    raise ExecutionBudgetError("STRICT_EVAL_LIVE_BARE_MODEL_REQUIRED")
+            except (ExecutionBudgetError, ValueError, TypeError) as exc:
+                code = str(exc) if isinstance(exc, ExecutionBudgetError) else "STRICT_EVAL_JSON_INVALID"
+                return JSONResponse({"error": code}, status_code=422)
+            strict_args["execution_budget"] = budget
+            strict_args["native_readbacks"] = getattr(app.state, "execution_native_readbacks", None)
+
+        from functools import partial
         from starlette.concurrency import run_in_threadpool
-        out = await run_in_threadpool(
-            run_eval, suite_id, model_id, harness_profile_id,
-            execution_mode=execution_mode,
-            request_origin=str(request.base_url),
-        )
+        operation = partial(run_eval, suite_id, model_id, harness_profile_id,
+                            execution_mode=execution_mode,
+                            request_origin=str(request.base_url), **strict_args)
+        try:
+            if strict_args:
+                from anyio import to_thread
+                # Let cancellation close the shared budget immediately; the
+                # pending provider call may finish, but cannot start later work.
+                out = await to_thread.run_sync(operation, abandon_on_cancel=True)
+            else:
+                out = await run_in_threadpool(operation)
+        except BaseException:
+            if strict_args:
+                budget.fail("EXECUTION_CANCELLED", ambiguous=True)
+            raise
         code = out.pop("status_code", 200)
         return JSONResponse(out, status_code=code)
+
+    eval_run.execution_native_readbacks_schema = "szl.native-execution-readbacks/v1"
 
     @app.get(base + "/health")
     async def eval_health() -> "JSONResponse":
