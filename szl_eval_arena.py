@@ -8,7 +8,8 @@
 # A deterministic, honest, GOVERNED evaluation + red-team arena for the models in
 # `szl_llm_registry`. A single endpoint
 #
-#     POST /api/a11oy/v1/eval/run  {suite, model_id, harness_profile_id?}
+#     POST /api/a11oy/v1/eval/run  {suite, model_id, execution_mode, harness_profile_id?}
+#     Authorization: Bearer <A11OY_CODE_ADMIN_KEY>
 #
 # runs a fixed eval SUITE over a routed model and returns:
 #   * per-case results  (input, expected, model output, score, honesty label)
@@ -87,6 +88,8 @@ import re
 import sys
 from datetime import datetime, timezone
 from typing import Any, Callable
+
+from szl_operator_auth import blocked_body, principal
 
 try:
     from fastapi import FastAPI, Request
@@ -856,7 +859,10 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
     async def eval_run(request: "Request") -> "JSONResponse":
         """Run a governed eval suite over a routed model. Returns per-case + aggregate + signed receipt.
 
+        Requires the operator Bearer, including for modeled runs (which also
+        sign and ingest receipts). Suite, model and execution mode are explicit.
         Body: {"suite": "core_honest_v1", "model_id": "claude_sonnet_4_6",
+               "execution_mode": "live" | "modeled",
                "harness_profile_id": "szl-honest-operator" (optional)}
 
         Wave M (Dev 2): model_id="szl-sovereign-local" evaluates SZL's OWN
@@ -864,10 +870,20 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
         endpoint is unreachable the run degrades to honest MODELED/UNAVAILABLE and
         the receipt records the intended sovereign backend — never fabricated.
         """
+        # Keep the guard at registration too: standalone/alternate-namespace
+        # apps must not depend on serve.py installing the central middleware.
+        try:
+            authorized = bool(principal(request)["operator"])
+        except Exception:
+            authorized = False
+        if not authorized:
+            return JSONResponse(
+                blocked_body("Evaluation and receipt publication"),
+                status_code=401, headers={"WWW-Authenticate": "Bearer"})
         try:
             body = await request.json()
         except Exception:
-            body = {}
+            return JSONResponse({"error": "request body must be valid JSON"}, status_code=400)
         # Wave J (Dev 3): honest 400 on a malformed (non-object) body instead of a
         # 500 crash on body.get(...) — closes the silent-degrade/422 class.
         if not isinstance(body, dict):
@@ -875,16 +891,30 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
                 {"error": "request body must be a JSON object",
                  "got_type": type(body).__name__},
                 status_code=400)
-        suite_id = str(body.get("suite") or body.get("suite_id") or "core_honest_v1")
-        model_id = str(body.get("model_id") or "claude_sonnet_4_6")
+        suite_id = body.get("suite", body.get("suite_id"))
+        model_id = body.get("model_id")
+        execution_mode = body.get("execution_mode")
+        for field, value in (("suite", suite_id), ("model_id", model_id)):
+            if not isinstance(value, str) or not value.strip():
+                return JSONResponse(
+                    {"error": f"{field} must be an explicit non-empty string"}, status_code=422)
+        if "suite" in body and "suite_id" in body and body["suite"] != body["suite_id"]:
+            return JSONResponse({"error": "suite and suite_id must agree"}, status_code=422)
+        if not isinstance(execution_mode, str) or execution_mode not in {"live", "modeled"}:
+            return JSONResponse(
+                {"error": "execution_mode must be explicitly live or modeled"}, status_code=422)
         harness_profile_id = body.get("harness_profile_id")
-        if harness_profile_id is not None:
-            harness_profile_id = str(harness_profile_id)
+        if harness_profile_id is not None and (
+            not isinstance(harness_profile_id, str) or not harness_profile_id.strip()
+        ):
+            return JSONResponse(
+                {"error": "harness_profile_id must be a non-empty string when supplied"},
+                status_code=422)
 
         from starlette.concurrency import run_in_threadpool
         out = await run_in_threadpool(
             run_eval, suite_id, model_id, harness_profile_id,
-            execution_mode=body.get("execution_mode", "live"),
+            execution_mode=execution_mode,
             request_origin=str(request.base_url),
         )
         code = out.pop("status_code", 200)
