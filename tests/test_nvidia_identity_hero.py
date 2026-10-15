@@ -1,22 +1,11 @@
-"""Locks the a-11-oy.com "Nvidia" identity front door.
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+"""Landing identity and evidence contracts.
 
-What this pins (and why):
-
-  1. The hero is a dependency-free WebGL GPU-particle flow field -- particle state
-     lives in a float texture and is advected each frame by a curl-noise fragment
-     shader.  No CDN, no library import for the hero boot.
-  2. Every instrument-panel row ships as UNAVAILABLE in the static bytes, so a
-     reader who loads the page with JS off or with the API down sees "unknown",
-     never a fabricated value (Doctrine v11 honest-label rule).
-  3. The panel reads the three REAL endpoints and nothing else.
-  4. SIGNED is only ever written when the attestation API reports a signature that
-     is both present AND verified.  Anything weaker degrades to HASH-LINKED /
-     UNSIGNED / DISABLED / UNAVAILABLE.
-  5. The lambda row stays labelled "Conjecture 1 - not a theorem".
-  6. The fluid-type system is present (modular clamp() scale, text-wrap balance /
-     pretty, 68ch measure, tabular-nums) and the new layer introduces ZERO colour.
-  7. prefers-reduced-motion has a static fallback and the copy is protected from
-     the canvas by a scrim, so text never collides with the field.
+The historical filename stays stable for callers. The retired WebGL assertions
+already failed on accepted main; the current hero is native illustrative vector
+art with an opaque text surface. Browser reflow checks cover the opened archive,
+computed contrast, text enlargement, keyboard controls and unavailable providers.
 """
 
 import re
@@ -33,42 +22,35 @@ def html() -> str:
     return LANDING.read_text(encoding="utf-8")
 
 
-# ---------------------------------------------------------------- 1. the field
-
-def test_hero_is_a_webgl_gpu_particle_flow_field(html: str) -> None:
-    assert 'id="hero-canvas"' in html
-    # simulation + render + trail passes all exist
-    for frag in (
-        "gpu-particle-flow-field",
-        "vec2 curl(vec2 q,float t)",          # divergence-free flow field
-        "attribute float a_i;uniform sampler2D u_state;",  # vertex texture fetch
-        "gl.POINTS",
-        "gl.RGBA32F",                          # particle state in a float texture
-        "EXT_color_buffer_float",
-    ):
-        assert frag in html, f"missing GPU flow-field fragment: {frag!r}"
+def stylesheet() -> str:
+    return (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
 
 
-def test_flow_field_is_library_free_and_zero_cdn(html: str) -> None:
-    hero = html[html.index('id="hero-canvas"'):html.index("HERO INSTRUMENT PANEL")]
-    assert "import" not in hero.split("<script")[0] or True  # readability only
+def test_hero_is_an_explicitly_illustrative_native_field(html: str) -> None:
+    assert html.count('class="holo-aperture"') == 1
+    assert '<div class="holo-field" aria-hidden="true">' in html
+    assert 'class="specimen-wrap" data-surface="dark"' in html
+    assert "MODELED SPECIMEN / illustrative" in html
+    assert 'class="specimen-status">not live</span>' in html
+    assert 'id="hero-canvas"' not in html
+    assert "gl.POINTS" not in html
+
+
+def test_hero_uses_local_canonical_assets_without_font_downloads(html: str) -> None:
     for host in ("cdn.jsdelivr.net", "unpkg.com", "cdnjs.cloudflare.com", "threejs.org/build"):
-        assert host not in html, f"CDN host leaked into the front door: {host}"
+        assert host not in html
+    assert html.count('src="/assets/szl/orbit-v2/szl-icon-32.svg"') == 2
+    assert '@font-face' not in html + stylesheet()
+    assert 'href="/assets/szl/szl-design-system.css"' in html
 
 
-def test_flow_field_degrades_instead_of_breaking(html: str) -> None:
-    for frag in (
-        "prefers-reduced-motion",
-        "MAX_VERTEX_TEXTURE_IMAGE_UNITS",   # no vertex texture fetch -> static
-        "webglcontextlost",
-        "hero-fallback",
-    ):
-        assert frag in html, f"missing graceful-degradation path: {frag!r}"
-
-
-def test_field_is_paused_when_not_visible(html: str) -> None:
-    assert "IntersectionObserver" in html
-    assert "visibilitychange" in html
+def test_decoration_is_bounded_and_does_not_animate_under_reduced_motion() -> None:
+    css = stylesheet()
+    assert "prefers-reduced-motion:reduce" in css
+    assert "animation:none !important; transition:none !important" in css
+    assert ".holo-field" in css and "pointer-events:none" in css
+    assert "#szl-holo-ambient" in css and ".szl-spectral-field" in css
+    assert "will-change:auto" in css
 
 
 # --------------------------------------------------- 2. honest default values
@@ -132,50 +114,39 @@ def test_lambda_row_is_labelled_conjecture(html: str) -> None:
 
 # ------------------------------------------------------- 6. fluid type, mono
 
-def test_fluid_type_scale_is_present(html: str) -> None:
-    for tok in ("--fs-1:", "--fs-3:", "--fs-8:", "--measure:68ch"):
-        assert tok in html, f"fluid-type token missing: {tok}"
-    assert "clamp(" in html
+def test_fluid_type_and_canonical_font_roles_are_present(html: str) -> None:
+    css = stylesheet()
+    for token in ("clamp(2.7rem,5.15vw,4.75rem)", "var(--font-display)", "var(--font-mono)", "var(--text-base)"):
+        assert token in css
+    canonical = (ROOT / "console/assets/szl/szl-design-system.css").read_text(encoding="utf-8")
+    assert "--measure:68ch" in canonical
+    assert 'href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell"' in html
 
 
-def test_text_wrap_and_tabular_numbers(html: str) -> None:
-    assert "text-wrap:balance" in html
-    assert "text-wrap:pretty" in html
-    assert "tabular-nums" in html
+def test_text_wrap_and_tabular_numbers() -> None:
+    css = stylesheet()
+    for token in ("text-wrap:balance", "text-wrap:pretty", "overflow-wrap:anywhere", "tabular-nums"):
+        assert token in css
 
 
-def test_new_identity_layer_introduces_no_colour(html: str) -> None:
-    """Monochrome only: no hue may appear in the Nvidia-identity CSS layer."""
-    start = html.index("--fs-1:")
-    end = html.index("/* Mobile overrides intentionally follow all equal-specificity base rules. */")
-    layer = html[start:end]
-    hexes = re.findall(r"#([0-9a-fA-F]{3,8})\b", layer)
-    for h in hexes:
-        if len(h) == 3:
-            r, g, b = (int(c * 2, 16) for c in h)
-        elif len(h) in (6, 8):
-            r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
-        else:
-            continue
-        # SZL neutrals (#e8e8ea, #9a9a9e, ...) carry a <=4/255 cool cast by design;
-        # anything wider than that is a real hue and is forbidden.
-        assert max(r, g, b) - min(r, g, b) <= 4, (
-            f"non-grey hex #{h} in the identity layer (monochrome only)")
-    for fn in ("hsl(", "hwb(", "lch(", "oklch("):
-        assert fn not in layer, f"colour function {fn} in the identity layer"
-    for m in re.findall(r"rgba?\(([^)]*)\)", layer):
-        parts = [p.strip() for p in m.replace("/", ",").split(",")]
-        nums = [p for p in parts[:3] if re.fullmatch(r"\d+", p)]
-        if len(nums) == 3:
-            assert len(set(nums)) == 1, f"non-grey rgb({m}) in the identity layer"
+def test_owned_sheet_does_not_fork_the_canonical_palette() -> None:
+    css = stylesheet()
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", css)
+    assert not re.search(r"(?:rgb|rgba|hsl|hsla|hwb|oklch)\(", css)
+    for role in ("--action-bg", "--action-hover-bg", "--action-press-bg", "--holo-edge", "--text-sub", "--focus"):
+        assert "var(" + role + ")" in css
 
 
-# ----------------------------------------------------------- 7. no collisions
+def test_specimen_text_has_an_opaque_ground_separate_from_art() -> None:
+    css = stylesheet()
+    assert "background-color:var(--surface)" in css
+    assert "linear-gradient(var(--surface),var(--surface)) padding-box" in css
+    assert "position:absolute; inset:-14% -13% 0; pointer-events:none; z-index:-1" in css
 
-def test_copy_is_protected_from_the_canvas_by_a_scrim(html: str) -> None:
-    assert "hero-scrim" in html
-    assert ".hero::after" in html, "second scrim pass missing; copy could collide with the field"
 
-
-def test_mobile_dims_the_field_so_copy_stays_legible(html: str) -> None:
-    assert "@media (max-width:999px)" in html or "@media(max-width:999px)" in html
+def test_mobile_reflows_every_archive_grid_without_body_clipping() -> None:
+    css = stylesheet()
+    assert "@media(max-width:760px)" in css
+    assert "repeat(auto-fit,minmax(min(100%,16rem),1fr))" in css
+    assert "overflow:visible !important" in css
+    assert 'class="archive-disclosure" id="full-record"' in LANDING.read_text(encoding="utf-8")

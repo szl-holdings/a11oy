@@ -7,8 +7,9 @@ The canonical A11oy runtime imports the offline verifier and modeled estimator
 byte-for-byte from [PURIQ 2ea8ea4](https://github.com/szl-holdings/puriq-live/commit/2ea8ea4bb9de2ca432f40c0c55ea5a5ed02786bf).
 `runtime/components/puriq_verity/source.json` binds the files, source revision and
 license. A11oy owns the fixed, bounded public HTTP reads. The Finance Space is a
-read projection of these canonical results, with exact source-revision and
-component checks. The existing publisher remains the only release path.
+read projection of these canonical results, with read-API contract and exact
+component checks ([READ_API_CONTRACT.md](READ_API_CONTRACT.md)). The existing
+publisher remains the only release path.
 
 | Surface | Route |
 |---|---|
@@ -38,7 +39,9 @@ correlated inputs. It is not empirical evidence of forecasting skill or a
 novelty claim. [Research and prior art](https://github.com/szl-holdings/puriq-live/blob/2ea8ea4bb9de2ca432f40c0c55ea5a5ed02786bf/docs/SIGNED_PRICE_RESEARCH_2026-10-07.md).
 
 Release sequence: qualify and merge the exact A11oy revision, let `hf-sync.yml`
-publish the canonical runtime, then dispatch `hf-publish-vertical-flagships.yml`
-on current main with `scope=finance`. The publisher checks live BTC verification,
+publish the canonical runtime, then `hf-publish-vertical-flagships.yml` republishes
+Finance once the canonical Space serves current main (it re-plans Finance when
+`hf-sync.yml` completes and hourly; dispatching it with `scope=finance` remains a
+targeted repair). The publisher checks live BTC verification,
 the synthetic reference result, existing Finance functions and the complete
 projection artifact manifest. A healthy landing page alone does not satisfy it.

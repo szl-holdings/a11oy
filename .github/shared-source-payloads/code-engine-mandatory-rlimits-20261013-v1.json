@@ -1,0 +1,9 @@
+{
+  "files": {
+    ".github/shared-source-payloads/org-rag-lexical-reference-20261013-v1.json": "65f404ffe7c235d6a549ccd608761e1f4ed0101d074590d1e50e6fb12e115b7a",
+    "a11oy_code_engine.py": "e515e66d812ed8f9be4cbd2cb042c9a99919d29f7e746df37b1532912a868493",
+    "tests/test_code_engine_mandatory_limits.py": "a9075737f895f9ee215f4c1fb7f74bfdb42a27e23a97b1b704a65876fea930e2"
+  },
+  "payload_id": "code-engine-mandatory-rlimits-20261013-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

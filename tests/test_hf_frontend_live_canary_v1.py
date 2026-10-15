@@ -564,11 +564,21 @@ def test_workflow_separates_pr_contract_from_trusted_live_authority() -> None:
     assert "if: ${{ always() && steps.evidence.outcome == 'success' }}" in workflow
 
 
+def _owned_landing_css() -> str:
+    landing = LANDING.read_text(encoding="utf-8")
+    binding = '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell" />'
+    assert landing.count(binding) == 1
+    assert landing.index('/assets/szl/szl-design-system.css') < landing.index(binding)
+    # Inspect the fixed shipped path, never an arbitrary URL extracted from HTML.
+    return (LANDING.parent / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
+
+
 def test_measured_frontdoor_targets_have_minimum_touch_height() -> None:
     landing = LANDING.read_text(encoding="utf-8")
-    # Floor is 44px; live computed rule is 48px. Keep the nav flex contract.
-    assert ".nav nav a{display:inline-flex;align-items:center" in landing
-    assert "min-height:48px" in landing or "min-height:44px" in landing
+    css = re.sub(r"\s+", "", _owned_landing_css())
+    nav = css.split('.navnava{', 1)[1].split('}', 1)[0]
+    for declaration in ("display:inline-flex", "align-items:center", "min-width:44px", "min-height:48px"):
+        assert declaration in nav
     assert 'id="fw-hash-btn"' in landing
 
 
@@ -586,18 +596,32 @@ def test_summary_is_fail_closed() -> None:
 
 
 def test_landing_mobile_controls_reserve_a_full_live_canary_hit_area() -> None:
-    source = LANDING.read_text(encoding="utf-8")
-    menu = re.search(r"\.menu-toggle\{[^}]+\}", source)
+    css = re.sub(r"\s+", "", _owned_landing_css())
+    menu = re.search(r"\.menu-toggle\{[^}]+\}", css)
     assert menu is not None
     contract = menu.group(0)
-    for token in (
-        "width:48px",
-        "height:48px",
-        "min-width:48px",
-        "min-height:48px",
-        "border-radius:6px",
-    ):
+    for token in ("width:48px", "min-width:48px", "min-height:48px", "border-radius:6px"):
         assert token in contract
+    # A minimum preserves enlargement; a fixed height would clip resized text.
     assert "width:44px" not in contract
     assert "height:44px" not in contract
-    assert ".hero .wrap{padding-top:32px;padding-bottom:44px}" in source
+    assert ".cta-row.btn{width:100%;min-height:52px;border-radius:6px;white-space:normal;text-align:center}" in css
+    assert "overflow:visible!important" in css
+    assert "env(safe-area-inset-left,0px)" in css
+    assert "env(safe-area-inset-right,0px)" in css
+
+
+def test_public_experience_gate_uses_the_stylesheets_actually_shipped() -> None:
+    import yaml
+
+    landing = LANDING.read_text(encoding="utf-8")
+    workflow = yaml.safe_load((LANDING.parent / ".github/workflows/public-experience-frontier-v4.yml").read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["public-experience-frontier"]["steps"]
+    command = next(step["run"] for step in steps if step.get("name") == "Enforce root mobile/accessibility contract")
+    stylesheets = re.findall(r'href="(/assets/[^\"?]+\.css)(?:\?[^\"]+)?"', landing)
+    assert len(stylesheets) == 5
+    for href in stylesheets:
+        assert "target/console" + href in command
+    assert "target/a11oy_landing.html" in command
+    assert "apex-v2.css" not in command
+    assert "--allow-no-skip-link" not in command

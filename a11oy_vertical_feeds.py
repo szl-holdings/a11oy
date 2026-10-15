@@ -111,7 +111,10 @@ _COURTLISTENER_MIN_INTERVAL_ENV = "A11OY_COURTLISTENER_MIN_INTERVAL_S"
 _COURTLISTENER_MIN_INTERVAL_DEFAULT_S = 13.0
 _COURTLISTENER_MIN_INTERVAL_MIN_S = 12.0
 _COURTLISTENER_MIN_INTERVAL_MAX_S = 3600.0
-_COURTLISTENER_CACHE_TTL_S = 86400.0
+# Legal routes promise a one-hour observation age. Refresh at that boundary;
+# provider-wide budgets/cooldowns below still decide whether a read is allowed.
+# A denied refresh retains last-good data and its original timestamp as stale.
+_COURTLISTENER_CACHE_TTL_S = 3600.0
 _COURTLISTENER_RATE_WINDOWS: tuple[tuple[float, int], ...] = (
     (60.0, 4),
     (3600.0, 40),
@@ -957,7 +960,8 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
         }}
     rec = _CACHE.get(key)
     now = time.time()
-    if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
+    if (rec and rec.get("status") == "live"
+            and (now - rec["fetched_at"]) < min(rec["ttl"], ttl)):
         return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
 
     flight, is_leader = _CACHE.claim_refresh(key)
@@ -974,7 +978,7 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     current = _CACHE.get(key)
     current_now = time.time()
     if (current and current.get("status") == "live"
-            and (current_now - current["fetched_at"]) < current["ttl"]):
+            and (current_now - current["fetched_at"]) < min(current["ttl"], ttl)):
         result = {"value": current["value"], "freshness": _CACHE.freshness(key)}
         _CACHE.finish_refresh(key, flight, result)
         return result
@@ -2535,6 +2539,25 @@ def _readiness_public_clocked_source(entry: Any) -> Any:
     return _readiness_public_source(entry)
 
 
+def _finance_required_source_usable(entry: Any, now_s: float) -> bool:
+    """Keep required-source loss out of HTTP 200 without inventing evidence."""
+    if not isinstance(entry, dict) or entry.get("value") is None:
+        return False
+    freshness = entry.get("freshness")
+    if not isinstance(freshness, dict):
+        return False
+    status = freshness.get("status")
+    if (not isinstance(status, str)
+            or status not in _READINESS_PUBLIC_FRESHNESS | {"reference", "unofficial-fallback"}):
+        return False
+    observed_at = freshness.get("fetched_at")
+    if (isinstance(observed_at, bool) or not isinstance(observed_at, (int, float))
+            or not math.isfinite(observed_at) or observed_at <= 0):
+        return False
+    # The protected finance contract allows one hour and five minutes of skew.
+    return -300 <= now_s - observed_at <= 3600
+
+
 def _defense_required_source_usable(entry: Any, now_s: float) -> bool:
     """Admit HTTP 200 only for the two observed, fresh defense sources."""
     if not isinstance(entry, dict):
@@ -2711,7 +2734,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         ))
         cursor += len(crypto_pairs)
         cve, fx = values[cursor:cursor + 2]
-        return JSONResponse({"vertical": "finance",
+        payload = {"vertical": "finance",
                              "equities_official": {symbol: _readiness_public_clocked_source(entry)
                                                    for symbol, entry in official.items()},
                              "equities": _finance_public_series(eq),
@@ -2722,7 +2745,16 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
                                         for pair, entry in crypto.items()},
                              "fx": _readiness_public_clocked_source(fx),
                              "fintech_cve": _readiness_public_clocked_source(cve),
-                             "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE})
+                             "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE}
+        required_sources = [
+            *(payload["equities_official"].get(symbol) for symbol in official_syms),
+            *(payload["crypto"].get(pair) for pair in crypto_pairs),
+            payload["fx"], payload["fintech_cve"],
+        ]
+        observed_at = time.time()
+        status_code = (200 if all(_finance_required_source_usable(source, observed_at)
+                                  for source in required_sources) else 503)
+        return JSONResponse(payload, status_code=status_code)
 
     # ---- LEGAL ----
     @app.get(base + "/legal/feed", include_in_schema=False)

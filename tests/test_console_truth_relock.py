@@ -31,7 +31,7 @@ def _energy_slice() -> str:
 def test_console_claims_fail_closed() -> None:
     console = _console()
 
-    assert "built for energy-evidence-aware sovereign compute" in console
+    assert "Inspect service health, energy readings, and the evidence behind every reported state." in console
     assert 'aria-label="platform evidence and runtime receipts"' in console
     assert "built on measured-energy sovereign compute" not in console
     assert 'aria-label="live measured platform receipts"' not in console
@@ -209,7 +209,7 @@ global.window = {
         locked_formula_ids: ['F1','F2','F3','F4','F5','F6','F7','F8','F9'],
       };
     }
-    if (url === '/api/a11oy/v1/wow/ledger?limit=1') {
+    if (url === '/api/a11oy/v1/wow/ledger?limit=1&advance=0') {
       return {receipts: [{receipt_id: '<img src=x onerror=alert(1)>', hash: 'reported'}]};
     }
     throw new Error('unexpected URL ' + url);

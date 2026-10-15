@@ -32,12 +32,38 @@ There is deliberately no release, direct-main, merge, or production-deploy
 endpoint. ORO can nominate or refuse work; protected delivery remains a separate
 authority.
 
+## Read-only evidence DAG integration
+
+`oro.source_adapters.project_source_snapshots` accepts an **existing** Wire F
+Khipu DAG reader and explicit Second Brain, Anatomy, and Hatun adapter
+snapshots. It does not fetch sources, start a DAG runner, checkpoint, sign,
+write, or feed the ORO barrier engine. This is a Python inspection seam, not a
+runtime route or evidence of cross-service deployment.
+
+The Khipu read is limited to 33 recent nodes and projects at most 32. A tail
+with a missing earlier parent is marked partial and exposes only the omitted
+parent digest; the projection does not fabricate that parent. Second Brain
+contributes at most 12 hash-shaped citation pointers only when the caller
+supplies an exact immutable source commit. This binding remains `DECLARED`;
+the pointer bytes and source revision match are not independently verified.
+Anatomy contributes one source binding for its modeled DAG snapshot, not one
+invented hash per topology node; failed observations contribute no node.
+Hatun's local `retrieve_handles` adapter has no digest or immutable revision,
+so its navigation, abstention, and refusal results contribute no evidence node.
+No cross-source edge or proof status is inferred. All projected nodes remain `UNVERIFIED`, with
+`execution_authority`, `promotion_authority`, and `signing_authority` false.
+
+The standalone ORO service does not own these other runtimes. An owner must
+supply already-read snapshots to this function; an absent source stays
+`UNKNOWN` or `UNAVAILABLE`. The projection SHA-256 is an inspection checksum,
+not a Khipu receipt, signature, or Lean proof.
+
 ## Local source verification
 
 ```bash
 python3 -m pip install --require-hashes -r .github/requirements/ci-core.txt
 python3 -m compileall -q oro tests/test_oro_operational_v3.py
-python3 -m pytest -q tests/test_oro_operational_v3.py
+python3 -m pytest -q oro/test_*.py tests/test_oro_operational_v3.py
 ```
 
 Run a real loopback process with an explicitly test-only ephemeral signer:

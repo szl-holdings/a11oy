@@ -98,10 +98,13 @@ def test_constellation_is_high_contrast_and_honors_reduced_motion():
 def test_mobile_nav_uses_a_bounded_short_cta_without_hiding_overflow_as_the_fix():
     landing = source(ROOT / "a11oy_landing.html")
 
-    assert '@media(max-width:1100px)' in landing
-    assert ".nav .wrap{position:relative;height:64px;padding-inline:14px;gap:10px}" in landing
-    assert ".nav nav{margin-left:0;flex:0 0 auto;flex-wrap:nowrap;gap:0}" in landing
-    assert ".nav nav .btn{padding:9px 12px;font-size:12px;max-width:154px;min-height:44px}" in landing
-    assert 'class="nav-cta-short"' in landing
-    assert '>Command center</span> →' in landing
+    assert 'href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell"' in landing
+    css = source(ROOT / "console/assets/a11oy-homepage.css")
+    assert '@media(max-width:1100px)' in css
+    assert '[data-szl-menu-ready="true"] .nav nav { display:none; }' in css
+    assert 'header.nav.nav-open nav { display:grid; }' in css
+    assert ':not([data-szl-menu-ready]) header.nav { position:static; }' in css
+    assert 'overflow:visible !important' in css
+    assert 'grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))' in css
+    assert 'class="nav-cta-short">Console</span>' in landing
     assert 'aria-label="Open the command center"' in landing

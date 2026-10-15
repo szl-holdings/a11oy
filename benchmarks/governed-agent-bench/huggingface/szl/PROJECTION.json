@@ -1,0 +1,32 @@
+{
+  "assets": [
+    {
+      "installed_path": "szl/szl-tokens.css",
+      "sha256": "81f7c9baeef0b435e6e3f9d0c4e0d70e40fa17df5d1f30697f623cd3ef5f8eab",
+      "source_path": "kanchay/szl-tokens.css"
+    },
+    {
+      "installed_path": "szl/SOURCE.json",
+      "sha256": "967a77235227f1d75852fb61873e46336e67403cbc0e7e12b141e31c83fbd93d",
+      "source_path": "kanchay/SOURCE.json"
+    },
+    {
+      "installed_path": "szl/szl-icon-32.svg",
+      "sha256": "6e2b7d72a3af3d9602b79de41df0194ede6496a9661f057108ec224c0efc92e6",
+      "source_path": "kit/logos/orbit-v2/suite/szl-icon-32.svg"
+    },
+    {
+      "installed_path": "szl/szl-orbit-holo.svg",
+      "sha256": "31702790da8f90125ff3f65eda459176e4c169aeef6eb2d9d7c8b0ea21d3a22c",
+      "source_path": "kit/logos/orbit-v2/suite/szl-orbit-holo.svg"
+    }
+  ],
+  "classification": "UNSIGNED_LOCAL_PROJECTION_METADATA",
+  "consumer": "SZLHOLDINGS/governed-agent-bench",
+  "orbit_revision": "fd62fe5856ed8e5f660eaae5a9c52957cd71b0a7",
+  "schema": "szl.native-presentation-projection/v1",
+  "scope": "Exact installed subset. SOURCE.json is the unchanged upstream full bundle manifest, not a claim that all upstream files are installed. This local record is not a signed runtime or publication receipt. Code is Apache-2.0; Orbit artwork is CC BY 4.0, Stephen P. Lutar / SZL Holdings.",
+  "source_repository": "szl-holdings/szl-brand",
+  "design_bundle_revision": "4309f6fce89179331b0b3ed8c99494e76c5be256",
+  "design_source_revision": "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070"
+}

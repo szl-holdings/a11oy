@@ -5,6 +5,7 @@ Set SZL_TEST_GITLEAKS_BINARY to the checksum-verified CI scanner executable.
 Only disposable generated credentials are used; scanner output is never printed.
 """
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -19,6 +20,31 @@ PUBLIC_DIGEST = "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2c
 
 
 CHECKER_PATH = "tools/check_copy_sync_lockstep.py"
+KANCHAY_MANIFEST_PATHS = (
+    "console/assets/szl/SOURCE.json",
+    "docs/site/docs/public/szl/SOURCE.json",
+    "landing/szl/SOURCE.json",
+    "organs/amaru/web/public/szl/SOURCE.json",
+    "routers/command_centre_web/szl/SOURCE.json",
+)
+BENCHMARK_STYLE_PATHS = (
+    "benchmarks/governed-agent-bench/huggingface/native_presentation.py",
+    "benchmarks/governed-agent-bench/huggingface/szl/SOURCE.json",
+)
+
+
+def kanchay_source_row():
+    # Preserve the accepted full upstream manifest even for installed subsets.
+    source = (ROOT / KANCHAY_MANIFEST_PATHS[0]).read_bytes()
+    assert hashlib.sha256(source).hexdigest() == "967a77235227f1d75852fb61873e46336e67403cbc0e7e12b141e31c83fbd93d"
+    digest = json.loads(source)["sha256"]["szl-tokens.css"]
+    return '    "szl-tokens.css": "' + digest + '"\n'
+
+
+def benchmark_style_row(path):
+    digest = json.loads((ROOT / KANCHAY_MANIFEST_PATHS[0]).read_bytes())["sha256"]["szl-tokens.css"]
+    suffix = "," if path.endswith(".py") else ""
+    return '    "szl-tokens.css": "' + digest + '"' + suffix + "\n"
 
 
 def signing_source_row():
@@ -32,7 +58,7 @@ class ExactSourceExceptionContract(unittest.TestCase):
         config = tomllib.loads((ROOT / ".gitleaks.toml").read_text())
         rule = next(rule for rule in config["rules"] if rule["id"] == "generic-api-key")
         self.assertEqual(set(rule), {"id", "allowlists"})
-        self.assertEqual(len(rule["allowlists"]), 1)
+        self.assertEqual(len(rule["allowlists"]), 3)
         allow = rule["allowlists"][0]
         self.assertEqual(set(allow), {"description", "condition", "regexTarget", "paths", "regexes"})
         self.assertEqual(allow["condition"], "AND")
@@ -45,6 +71,39 @@ class ExactSourceExceptionContract(unittest.TestCase):
         self.assertRegex(line, allow["regexes"][0])
         self.assertIsNone(re.search(allow["regexes"][0], line.rstrip() + ' "private_api_key": "' + disposable_credential() + '"'))
         self.assertIsNone(re.search(allow["regexes"][0], line.replace(hashlib.sha256((ROOT / "a11oy_signing_key.py").read_bytes()).hexdigest(), disposable_credential())))
+
+    def test_kanchay_exception_is_exact_checksum_row_and_five_source_paths(self):
+        config = tomllib.loads((ROOT / ".gitleaks.toml").read_text())
+        rule = next(rule for rule in config["rules"] if rule["id"] == "generic-api-key")
+        allow = rule["allowlists"][1]
+        self.assertEqual(set(allow), {"description", "condition", "regexTarget", "paths", "regexes"})
+        self.assertEqual(allow["condition"], "AND")
+        self.assertEqual(allow["regexTarget"], "line")
+        self.assertEqual(allow["paths"], ['^' + re.escape(path) + '$' for path in KANCHAY_MANIFEST_PATHS])
+        self.assertEqual(len(allow["regexes"]), 1)
+        row = kanchay_source_row()
+        self.assertRegex(row, allow["regexes"][0])
+        for path in KANCHAY_MANIFEST_PATHS:
+            self.assertIn(row, (ROOT / path).read_text())
+        self.assertIsNone(re.search(allow["regexes"][0], row.rstrip() + ' "private_api_key": "' + disposable_credential() + '"'))
+
+    def test_benchmark_style_exception_is_exact_row_and_two_paths(self):
+        config = tomllib.loads((ROOT / ".gitleaks.toml").read_text())
+        rule = next(rule for rule in config["rules"] if rule["id"] == "generic-api-key")
+        allow = rule["allowlists"][2]
+        self.assertEqual(set(allow), {"description", "condition", "regexTarget", "paths", "regexes"})
+        self.assertEqual(allow["condition"], "AND")
+        self.assertEqual(allow["regexTarget"], "line")
+        self.assertEqual(allow["paths"], ['^' + re.escape(path).replace(r"\-", "-") + '$' for path in BENCHMARK_STYLE_PATHS])
+        self.assertEqual(len(allow["regexes"]), 1)
+        for path in BENCHMARK_STYLE_PATHS:
+            row = benchmark_style_row(path)
+            self.assertIn(row, (ROOT / path).read_text())
+            self.assertRegex(row, allow["regexes"][0])
+            self.assertIsNone(re.search(
+                allow["regexes"][0],
+                row.rstrip() + ' "private_api_key": "' + disposable_credential() + '"',
+            ))
 
 
 def disposable_credential():
@@ -105,6 +164,61 @@ class PublicDigestScannerBoundary(unittest.TestCase):
     def test_same_line_credential_in_exact_checker_is_scanned(self):
         row = signing_source_row().rstrip() + ' "private_api_key": "' + disposable_credential() + '"\n'
         self.assertEqual(self.scan(row, CHECKER_PATH), 1)
+
+    def test_canonical_stylesheet_checksum_in_each_source_manifest_is_not_a_credential(self):
+        for path in KANCHAY_MANIFEST_PATHS:
+            with self.subTest(path=path):
+                self.assertEqual(self.scan(kanchay_source_row(), path), 0)
+
+    def test_stylesheet_row_in_another_path_is_scanned(self):
+        self.assertEqual(self.scan(kanchay_source_row(), "other/SOURCE.json"), 1)
+
+    def test_changed_value_in_each_source_manifest_remains_scanned(self):
+        row = '    "szl-tokens.css": "' + disposable_credential() + '"\n'
+        for path in KANCHAY_MANIFEST_PATHS:
+            with self.subTest(path=path):
+                self.assertEqual(self.scan(row, path), 1)
+
+    def test_adjacent_credential_in_each_source_manifest_remains_scanned(self):
+        row = kanchay_source_row() + '    "private_api_key": "' + disposable_credential() + '"\n'
+        for path in KANCHAY_MANIFEST_PATHS:
+            with self.subTest(path=path):
+                self.assertEqual(self.scan(row, path), 1)
+
+    def test_same_line_credential_in_each_source_manifest_remains_scanned(self):
+        row = kanchay_source_row().rstrip() + ' "private_api_key": "' + disposable_credential() + '"\n'
+        for path in KANCHAY_MANIFEST_PATHS:
+            with self.subTest(path=path):
+                self.assertEqual(self.scan(row, path), 1)
+
+    def test_benchmark_stylesheet_checksum_in_exact_sources_is_not_a_credential(self):
+        for path in BENCHMARK_STYLE_PATHS:
+            with self.subTest(path=path):
+                self.assertEqual(self.scan(benchmark_style_row(path), path), 0)
+
+    def test_benchmark_stylesheet_row_in_another_path_is_scanned(self):
+        self.assertEqual(self.scan(
+            benchmark_style_row(BENCHMARK_STYLE_PATHS[1]), "other/native_presentation.py"
+        ), 1)
+
+    def test_changed_benchmark_stylesheet_value_remains_scanned(self):
+        for path in BENCHMARK_STYLE_PATHS:
+            suffix = "," if path.endswith(".py") else ""
+            row = '    "szl-tokens.css": "' + disposable_credential() + '"' + suffix + "\n"
+            with self.subTest(path=path):
+                self.assertEqual(self.scan(row, path), 1)
+
+    def test_adjacent_credential_in_benchmark_style_sources_remains_scanned(self):
+        for path in BENCHMARK_STYLE_PATHS:
+            row = benchmark_style_row(path) + '    "private_api_key": "' + disposable_credential() + '"\n'
+            with self.subTest(path=path):
+                self.assertEqual(self.scan(row, path), 1)
+
+    def test_same_line_credential_in_benchmark_style_sources_remains_scanned(self):
+        for path in BENCHMARK_STYLE_PATHS:
+            row = benchmark_style_row(path).rstrip() + ' "private_api_key": "' + disposable_credential() + '"\n'
+            with self.subTest(path=path):
+                self.assertEqual(self.scan(row, path), 1)
 
 
 if __name__ == "__main__":

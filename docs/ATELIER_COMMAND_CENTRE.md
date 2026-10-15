@@ -23,7 +23,86 @@ The response owner sets `Cache-Control: no-store, no-transform`, the existing
 product contract that prevents legacy navigation/widget middleware from appending
 duplicate UI. This is not a request-header opt-out or an authorization bypass;
 API and action guards are unchanged. Full-product regression checks require the
-served page body to be byte-identical to its owning source asset.
+served page body to equal the Python owner's `page_bytes()` output at the exact
+source revision and presentation inputs, not a stale HTML asset.
+
+### Python-rendered product entry
+
+`routers/command_centre_view.py` now authors the page as escaped Python
+components, behind the same `/command-centre` and `/a11oy/atelier` routes.
+Existing navigation is rendered on the server and works without JavaScript.
+The existing three operator forms, their IDs, action endpoints and browser
+client remain; their submit buttons start disabled until the existing client
+observes its lane's readiness. This is a Python-rendered core UI with retained
+JavaScript interactions, not a claim that all frontend interaction logic has
+been migrated. Browsers still receive HTML and CSS. No frontend framework or
+new runtime dependency was added.
+
+`routers/command_centre_web/index.html` is a retained, **non-serving migration
+reference**. It is not loaded by the page route or counted as the rendered page
+owner. The existing `app.js`, stylesheet and byte-bound SZL design assets remain
+served at their existing paths.
+
+The Ownership section consumes only the local canonical
+`static/shared/public-estate-contract.v1.json`. It projects the fixed public
+origins and Ayllu's existing `INVENTORY_ONLY`, `governedKeep=false`, `FOLD`
+classification. It does not import or display a private inventory, create a new
+estate registry, choose a new publisher, or promote Ayllu into the keep-list.
+The link is discovery, not an admitted council action or backend integration.
+Full topology and keep-policy validation remains owned by
+`scripts/render_public_estate_alignment.py` and the existing release checks.
+This runtime consumer does not replace that authority.
+
+Bundled JSON is limited to 64 KiB and rejects duplicate keys, non-finite values,
+wrong schema/version/origins, changed authority, missing/duplicate Ayllu identity,
+non-regular files and topology promotion. Missing or inadmissible binding shows
+`Ownership binding unavailable`; it does not guess a fallback owner or surface
+the rejected input. Page rendering performs no network, inference, database,
+receipt or signing work. The retained browser refresh still uses its existing
+read-only routes; their behavior has not become execution evidence.
+
+The manifest's `presentation.sources` binds the Python route owner, Python view
+and four retained browser/style assets by SHA-256. `public_estate.sha256` binds
+the exact public contract bytes. `main[data-view-input-sha256]` binds the full
+canonical JSON presentation model. The model includes the process-declared
+`SZL_GIT_SHA` and local-preview flag; these must match the browser witness's
+inputs. A process declaration is not independent protected-source proof.
+`routers.command_centre.page_bytes()` is the reproducible byte owner used by
+route and browser verification. Full-product tests must compare those bytes
+through the real middleware without dropping the existing transformation guard.
+
+The image must include the canonical public-estate JSON as an explicit
+Dockerfile `COPY` input. Copying `routers/` includes the view but does not by
+itself include `static/shared/`. Publication continues through `hf-sync.yml`
+only. This UI slice creates no new credential, session/BFF, action route,
+provider adapter, scheduler or state store; production admission remains
+separate.
+
+### Local source presentation verification
+
+Install the hash-locked `.github/requirements/ci-rag.txt` and
+`.github/requirements/platform-candidate-browser.txt` dependencies, then install
+the associated Playwright Chromium. From a clean checkout, run:
+
+```bash
+python scripts/witness_python_command_centre.py \
+  --expected-source-sha "$(git rev-parse HEAD)" \
+  --require-clean-source --output-dir /tmp/python-command-centre-new-proof
+```
+
+The output directory must be new or empty. The witness starts and stops its own
+loopback presentation server; it does not import the operational runtime or
+call a model. Inventory and health dependencies are explicit unavailable fixtures.
+It checks both routes at 320, 390 and 1280 pixels with JavaScript enabled and
+disabled, exact owner bytes/security headers, retained navigation/forms,
+horizontal overflow and keyboard skip-link behavior. Foreign requests, non-GET
+requests and WebSockets are refused; service workers are blocked.
+
+The report binds the checkout, renderer inputs, public contract, source files,
+browser and screenshot hashes. CI retains it with screenshots as local
+presentation evidence only. This is not authenticated-action, live deployment,
+model, durability or production-readiness proof. See the
+[production roadmap](PYTHON_PRODUCTION_ROADMAP.md) for those separate gates.
 
 The manifest and public HF inventory projection are GET/HEAD-only. Inventory counts
 come from timestamped `a11oy.net/estate/hf-current.json`, never guessed; stale,

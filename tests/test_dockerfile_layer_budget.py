@@ -13,9 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 BUILD_WORKFLOW = ROOT / ".github" / "workflows" / "docker-build.yml"
 # Prior admitted af0026 has 110 COPY + 7 RUN instructions in runtime.
-# This ceiling preserves that measured source depth; the native image import
-# remains the authority for the base image plus actual filesystem layer limit.
-RUNTIME_LAYER_BUDGET = 117
+# The readiness verdict validator needs one dedicated COPY: relocating its
+# Python source fails the installed-source provenance guard. The native image
+# build passed with this additional instruction; keep its increase explicit.
+RUNTIME_LAYER_BUDGET = 118
 # Exact base 5ec5b66 has 579 explicit COPY sources with SHA-256
 # aa11d167572da80452e1247815b1a0e08bbd9ba206f4d859b0b26f8d84ffc48e.
 # Steward adds only its four named adapter/reader/projection/lock files, batched
@@ -32,6 +33,15 @@ RUNTIME_LAYER_BUDGET = 117
 # Historical baselines exclude it, so their counts and digests stay put.
 # Action identity is one module copied beside that journey witness.
 # Historical baselines exclude it, so their counts and digests stay put.
+# Org-RAG reference auth is one module batched beside szl_meter_access.py.
+# Historical baselines exclude it, so their counts and digests stay put.
+# The a11oy state store (ADR-0001) is one module copied into the existing GDW
+# COPY instruction; historical baselines exclude it and the budget is unchanged.
+# The Python command-centre projection adds only its canonical public binding,
+# batched with existing shared assets; historical counts and digests stay put.
+# Readiness artifact reading adds its one module and the canonical pure verdict
+# validator. The latter keeps its source path with a dedicated COPY instruction.
+# Historical baselines exclude these exact sources.
 # Preserve every prior source and the unchanged layer budget, not a broad COPY.
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
@@ -72,6 +82,12 @@ GDW_ORPHAN_REPAIR_COPY_ADDITIONS = {"gdw_sqlite_repair.py"}
 METER_ACCESS_COPY_ADDITIONS = {"szl_meter_access.py"}
 RUNLOOP_JOURNEY_COPY_ADDITIONS = {"a11oy_code_runloop_journey.py"}
 ACTION_IDENTITY_COPY_ADDITIONS = {"szl_action_identity.py"}
+RAG_REFERENCE_AUTH_COPY_ADDITIONS = {"a11oy_rag_reference_auth.py"}
+STATE_STORE_COPY_ADDITIONS = {"a11oy_state_store.py"}
+PUBLIC_ESTATE_COPY_ADDITIONS = {"static/shared/public-estate-contract.v1.json"}
+READINESS_READER_COPY_ADDITIONS = {
+    "szl_readiness_artifact.py", ".github/scripts/publish_readiness_verdict.py",
+}
 
 
 def _logical_instructions() -> list[tuple[int, str]]:
@@ -134,6 +150,10 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert METER_ACCESS_COPY_ADDITIONS <= copy_sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= copy_sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= copy_sources
+    assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= copy_sources
+    assert STATE_STORE_COPY_ADDITIONS <= copy_sources
+    assert PUBLIC_ESTATE_COPY_ADDITIONS <= copy_sources
+    assert READINESS_READER_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
@@ -141,6 +161,11 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | METER_ACCESS_COPY_ADDITIONS
         | RUNLOOP_JOURNEY_COPY_ADDITIONS
         | ACTION_IDENTITY_COPY_ADDITIONS
+        | RAG_REFERENCE_AUTH_COPY_ADDITIONS
+        | STATE_STORE_COPY_ADDITIONS
+        | PUBLIC_ESTATE_COPY_ADDITIONS
+        | READINESS_READER_COPY_ADDITIONS
+        | PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -163,11 +188,19 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert METER_ACCESS_COPY_ADDITIONS <= sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= sources
+    assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= sources
+    assert STATE_STORE_COPY_ADDITIONS <= sources
+    assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
+    assert READINESS_READER_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
-        - ACTION_IDENTITY_COPY_ADDITIONS
+        - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
+        - STATE_STORE_COPY_ADDITIONS
+        - PUBLIC_ESTATE_COPY_ADDITIONS
+        - READINESS_READER_COPY_ADDITIONS
+        - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -188,12 +221,41 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert METER_ACCESS_COPY_ADDITIONS <= sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= sources
+    assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= sources
+    assert STATE_STORE_COPY_ADDITIONS <= sources
+    assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
+    assert READINESS_READER_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
-        - ACTION_IDENTITY_COPY_ADDITIONS
+        - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
+        - STATE_STORE_COPY_ADDITIONS
+        - PUBLIC_ESTATE_COPY_ADDITIONS
+        - READINESS_READER_COPY_ADDITIONS
+        - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
     assert hashlib.sha256(encoded).hexdigest() == PRE_HF_DOCS_ALLOWLIST_SHA256
+
+
+def test_public_estate_binding_ships_at_the_runtime_reader_path() -> None:
+    """Local renderer tests cannot establish that the binding ships in the image."""
+    source = "static/shared/public-estate-contract.v1.json"
+    destinations = []
+    in_runtime = False
+    for _line, instruction in _logical_instructions():
+        if instruction.upper().startswith("FROM "):
+            in_runtime = instruction.upper().endswith(" AS RUNTIME")
+        if not in_runtime or not instruction.upper().startswith("COPY "):
+            continue
+        if source in _copy_sources(instruction):
+            payload = instruction.split(maxsplit=1)[1].strip()
+            destination = (json.loads(payload)[-1] if payload.startswith("[")
+                           else shlex.split(payload)[-1])
+            target = Path(destination)
+            if destination.endswith("/"):
+                target /= Path(source).name
+            destinations.append(target.as_posix())
+    assert destinations == [source]

@@ -39,11 +39,16 @@
   transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
 }
 .input::placeholder { color: var(--text-ghost); }
-.input:focus-visible, .select:focus-visible { outline: none; border-color: var(--focus); box-shadow: var(--shadow-focus); }
+.input:focus-visible, .select:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+  border-color: var(--focus); box-shadow: var(--shadow-focus);
+}
 .input:disabled, .select:disabled { opacity: .5; cursor: not-allowed; }
 .select option { background: var(--surface); color: var(--text); }
 .input--mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums lining-nums; }
-@media (pointer: coarse) { .input, .select { min-block-size: var(--target-size-coarse); } }
+@media (pointer: coarse) {
+  .input, .select { min-block-size: var(--target-size-coarse); font-size: var(--text-base); }
+}
 
 /* --- 2 · Sidebar navigation (operator shell) ------------------------------- */
 .sidebar {
@@ -92,7 +97,12 @@
 .sidebar__link[aria-current="page"] .sidebar__icon { color: var(--text); }
 .sidebar[data-collapsed="true"] .sidebar__link { justify-content: center; padding: var(--space-2); }
 .sidebar[data-collapsed="true"] .sidebar__link[aria-current="page"]::after { inset-inline-end: 4px; }
-@media (pointer: coarse) { .sidebar__link { min-block-size: var(--target-size-coarse); } }
+@media (pointer: coarse) {
+  .sidebar__link { min-block-size: var(--target-size-coarse); }
+  .sidebar__toggle {
+    min-inline-size: var(--target-size-coarse); min-block-size: var(--target-size-coarse);
+  }
+}
 
 /* --- 3 · Page header -------------------------------------------------------- */
 .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-6); margin-block-end: var(--space-6); }
@@ -100,7 +110,8 @@
 .page-head__lead { max-inline-size: var(--measure); margin: var(--space-2) 0 0; color: var(--text-sub); }
 
 /* --- 4 · Stat tiles (wrap a .metric) ---------------------------------------- */
-.stat-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+.stat-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+.stat-grid > * { min-inline-size: 0; }
 .stat {
   display: grid; gap: var(--space-1); padding: var(--space-4);
   background: var(--surface); border: var(--border-hairline) solid var(--border); border-radius: var(--radius-md);
@@ -183,24 +194,23 @@
 
 /* --- 8 · Status dot --------------------------------------------------------- */
 .dot { display: inline-block; inline-size: .5rem; block-size: .5rem; flex: none; border-radius: var(--radius-full); background: var(--text-ghost); }
-.dot--ok { background: var(--color-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 22%, transparent); }
-.dot--warn { background: var(--color-warning); }
-.dot--err { background: var(--color-error); }
+.dot--ok { background: var(--ink-good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-good) 22%, transparent); }
+.dot--warn { background: var(--ink-warn); }
+.dot--err { background: var(--ink-bad); }
 .dot--live { animation: szl-pulse 2.2s var(--ease-standard) infinite; }
 @keyframes szl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-@media (forced-colors: active) { .dot { border: 1px solid currentColor; } }
 
 /* --- 9 · Meter, sparkline, heat cell ---------------------------------------- */
 .meter { inline-size: 100%; block-size: 6px; overflow: hidden; border-radius: var(--radius-full); background: color-mix(in srgb, var(--text) 10%, transparent); }
-.meter__fill { block-size: 100%; border-radius: var(--radius-full); background: var(--_tone, var(--color-silver-300)); transition: inline-size var(--duration-base) var(--ease-standard); }
-.meter[data-tone="good"] { --_tone: var(--color-success); }
-.meter[data-tone="warn"] { --_tone: var(--color-warning); }
-.meter[data-tone="bad"] { --_tone: var(--color-error); }
+.meter__fill { block-size: 100%; border-radius: var(--radius-full); background: var(--_tone, var(--text-ghost)); transition: inline-size var(--duration-base) var(--ease-standard); }
+.meter[data-tone="good"] { --_tone: var(--ink-good); }
+.meter[data-tone="warn"] { --_tone: var(--ink-warn); }
+.meter[data-tone="bad"] { --_tone: var(--ink-bad); }
 .spark { display: block; overflow: visible; }
-.spark path { fill: none; stroke: var(--_tone, var(--color-silver-300)); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
-.spark[data-tone="good"] { --_tone: var(--color-success); }
-.spark[data-tone="warn"] { --_tone: var(--color-warning); }
-.spark[data-tone="bad"] { --_tone: var(--color-error); }
+.spark path { fill: none; stroke: var(--_tone, var(--text-ghost)); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.spark[data-tone="good"] { --_tone: var(--ink-good); }
+.spark[data-tone="warn"] { --_tone: var(--ink-warn); }
+.spark[data-tone="bad"] { --_tone: var(--ink-bad); }
 .heat {
   box-sizing: border-box; aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
   font: var(--weight-medium) var(--text-xs)/1 var(--font-mono); font-variant-numeric: tabular-nums;
@@ -219,6 +229,14 @@
 /* --- 11 · Focus (every console control) ------------------------------------- */
 :where(.sidebar__link, .sidebar__toggle, .close-btn, .sidebar__brand):focus-visible {
   outline: var(--border-focus) solid var(--focus); outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .dot { border: 1px solid currentColor; }
+  .meter { background: Canvas; border: 1px solid CanvasText; }
+  /* Keep the user's system highlight instead of collapsing both fills to Canvas. */
+  .meter__fill { background: Highlight; forced-color-adjust: none; }
+  .spark path { stroke: CanvasText; }
 }
 
 @media (prefers-reduced-motion: reduce) {

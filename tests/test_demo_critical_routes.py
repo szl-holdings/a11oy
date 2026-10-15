@@ -37,6 +37,9 @@ import serve  # noqa: E402
 # /api/a11oy/v1/compute-pool — see szl_backend_hardening.register(); either satisfies
 # the substring match.)
 DEMO_CRITICAL_ROUTES = [
+    "/anatomy-v6",                              # read-only A11oy evidence view, not Anatomy v7 replacement
+    "/api/a11oy/v1/anatomy/evidence",          # summary-only overlay replay, no mint on GET
+    "/api/a11oy/v1/anatomy/self-audit",        # demotion preview, never an overlay write
     "/civilian",                               # independent civilian evidence view
     "/api/a11oy/v1/civilian/health",            # GET-only, model-free runtime contract
     "/api/a11oy/v1/civilian/overview",          # public observations, no effectors
@@ -88,6 +91,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/atelier/turn",                # authenticated single-turn provider route
     "/api/a11oy/v1/frontier-now/summary",      # read-only estate proof projection
     "/frontier-now",                           # responsive Frontier Now PAGE
+    "/spectral",                               # product edge alias to the real holographic page
+    "/controller",                             # product edge alias to the honest doctrine JSON
     "/api/a11oy/v1/khipu/status",              # live CPU-lab pin + READY/FAILED (no sign on GET)
     "/api/a11oy/v1/khipu/chat",                # same-origin Try Khipu proxy (max_tokens<=32)
     "/immune",                                 # first-class IMMUNE product tab
@@ -100,6 +105,7 @@ DEMO_CRITICAL_ROUTES = [
     "/nexus",                                  # NEXUS analog vanity path (not a flagship, not a landing door)
     "/api/a11oy/v1/nexus/status",              # honest BIND status — never fabricated LIVE
     "/.well-known/source.json",                # product source declaration (UNSIGNED-honest)
+    "/api/a11oy/v1/storage/status",            # ADR-0001 state store mode/lease/snapshot ages (no paths)
 ]
 
 
@@ -264,6 +270,42 @@ def test_public_steward_routes_are_read_only_json_before_catchalls():
     assert unknown.json()["state"] == "NOT_FOUND"
 
 
+def test_product_origin_aliases_serve_canonical_targets(tmp_path, monkeypatch):
+    """Source fallbacks must resolve before the SPA and retain honest targets."""
+    from starlette.testclient import TestClient
+
+    paths = [getattr(route, "path", None) for route in serve.app.router.routes]
+    spa_index = paths.index("/{full_path:path}")
+    assert paths.index("/spectral") < spa_index
+    assert paths.index("/controller") < spa_index
+
+    client = TestClient(serve.app)
+    spectral = client.get("/spectral")
+    canonical_page = client.get("/static/3d/holographic.html")
+    assert spectral.status_code == canonical_page.status_code == 200
+    assert "text/html" in spectral.headers["content-type"]
+    # The HTML middleware adds route-specific tails; the underlying asset is
+    # the same document and must not turn into the SPA shell.
+    assert spectral.content.startswith(canonical_page.content[:8192])
+    assert b'data-szl-brain-frontier-v7="script"' in spectral.content
+    assert "x-szl-route-state" not in spectral.headers
+    assert client.head("/spectral").status_code == 200
+
+    controller = client.get("/controller")
+    honest = client.get("/api/a11oy/v1/honest")
+    assert controller.status_code == honest.status_code == 200
+    assert controller.json() == honest.json()
+    assert controller.json()["organ"] == "a11oy"
+    assert controller.json()["locked_formula_count"] == 8
+    assert client.head("/controller").status_code == 200
+
+    monkeypatch.setattr(serve, "_szl_doc", lambda _rel: tmp_path / "missing.html")
+    missing = client.get("/spectral")
+    assert missing.status_code == 503
+    assert missing.json()["status"] == "UNAVAILABLE"
+    assert missing.headers["cache-control"] == "no-store"
+
+
 def test_investor_alias_is_307_onto_console_view_not_404():
     """GET /investor must 307 onto the same chrome, not a stub or SPA soft-200."""
     from starlette.testclient import TestClient
@@ -287,8 +329,8 @@ def test_command_centre_survives_real_product_middleware():
     assert 'id="turn-form"' in response.text
     assert 'id="study-models"' in response.text
     assert '</html>' in response.text
-    from routers.command_centre import ROOT
-    assert response.content == (ROOT / 'index.html').read_bytes()
+    from routers.command_centre import page_bytes
+    assert response.content == page_bytes()
     script = client.get("/command-centre/app.js")
     assert script.status_code == 200
     assert 'reasoning_effort' in script.text

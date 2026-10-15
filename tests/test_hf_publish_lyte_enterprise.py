@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import ast
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -184,6 +186,44 @@ def test_estate_entrypoint_routes_lyte_away_from_generic_renderer() -> None:
         'flagship["delete_operations"] = 0',
     ):
         assert fragment in source
+
+
+def test_estate_entrypoint_loads_lyte_under_isolated_python(tmp_path: Path) -> None:
+    """The isolated workflow CLI keeps the exact adjacent release dependency."""
+    program = f"""
+import importlib.util
+import sys
+import types
+from pathlib import Path
+
+huggingface_hub = types.ModuleType("huggingface_hub")
+huggingface_hub.HfApi = type("HfApi", (), {{}})
+sys.modules["huggingface_hub"] = huggingface_hub
+
+ambient_guard = types.ModuleType("szl_release_guard")
+sys.modules["szl_release_guard"] = ambient_guard
+
+entrypoint = Path({str(ENTRYPOINT)!r})
+spec = importlib.util.spec_from_file_location("isolated_vertical_entrypoint", entrypoint)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+lyte = module.load_module("isolated_lyte_publisher", module.LYTE_IMPL)
+assert callable(lyte.guard_run_bounded)
+assert sys.modules["szl_release_guard"] is ambient_guard
+"""
+    (tmp_path / "argparse.py").write_text(
+        "raise RuntimeError('sibling import shadow executed')\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", program],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_source_owned_lyte_does_not_change_other_vertical_authority() -> None:

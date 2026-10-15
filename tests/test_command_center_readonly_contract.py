@@ -100,8 +100,10 @@ def test_companion_copies_remain_byte_identical():
 def test_readiness_runner_is_safe_by_default():
     source = (ROOT / "tools/readiness-harness/probe_runner.mjs").read_text(encoding="utf-8")
     assert 'new Set(["GET", "HEAD"])' in source
-    assert "A11OY_READINESS_MUTATION_AUTHORIZED" in source
-    assert "state-changing contract skipped" in source
+    assert "A11OY_READINESS_MUTATION_AUTHORIZED" not in source
+    assert "--allow-state-changing" not in source
+    assert "readiness is read-only" in source
+    assert "requiredNotProbed" in source
     assert "skippedStateChanging" in source
     assert "fetchBuildRevision" in source
     assert "sourceRevisionBefore" in source

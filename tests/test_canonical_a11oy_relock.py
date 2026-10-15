@@ -262,6 +262,35 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
     return FakeSession(responses)
 
 
+def v2_session(origin: str, source_sha: str):
+    api = FakeApi(source_sha)
+    api.variables["A11OY_STATE_STORE"] = SimpleNamespace(value="v2")
+    session = success_session(origin, source_sha)
+    series_a = session.responses[("GET", origin + relock.ROUTES["series_a_status"])]._payload
+    series_a["database"] = "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3"
+    status = {
+        "schema": "szl.a11oy-storage-status/v2",
+        "mode": "FENCED", "role": "WRITER", "writable": True,
+        "unfenced": False, "epoch": 1, "alert": False,
+        "lease": {"state": "ACTIVE", "sequence": 52, "heartbeat_age_s": 3.6},
+        "pending_publish": [], "last_error": None,
+        "stores": {
+            label: {
+                "kind": kind, "health": "OK", "blocked_code": None,
+                "last_error_code": None, "snapshot_failures": 0,
+                "sha16": "a" * 16,
+                "integrity": "lmdb_read" if kind == "lmdb" else "quick_check",
+                "last_snapshot_age_s": 120.0, "unsnapshotted_change_age_s": 30.0,
+            }
+            for label, kind in relock.STATE_STORE_KINDS.items()
+        },
+    }
+    url = origin + relock.STATE_STORE_STATUS_ROUTE
+    session.responses[("HEAD", url)] = FakeResponse(url, text="")
+    session.responses[("GET", url)] = FakeResponse(url, payload=status)
+    return api, session, status
+
+
 class CanonicalA11oyRelockTests(unittest.TestCase):
     def setUp(self) -> None:
         self.source = "a" * 40
@@ -313,6 +342,63 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             relock.SERIES_A_VARIABLES,
             runtime_config.SERIES_A_VARIABLES,
         )
+
+    def test_v2_local_database_requires_observed_fenced_storage(self) -> None:
+        api, session, _ = v2_session(self.origin, self.source)
+        report = relock.evaluate_once(api, session, self.contract)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["series_a_runtime"]["state_store_mode"], "v2")
+        self.assertEqual(report["routes"]["storage_status"]["storage_state"]["epoch"], 1)
+
+    def test_storage_mode_cannot_bypass_database_path_or_root(self) -> None:
+        for mode, database, root in (
+            (None, "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", None),
+            ("v2", "/data/a11oy/series-a/control-plane-v2.sqlite3", None),
+            ("v2", "/tmp/unrelated.sqlite3", None),
+            ("v2", "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", "/data/state"),
+            ("unknown", "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", None),
+        ):
+            with self.subTest(mode=mode, database=database, root=root):
+                api, session, _ = v2_session(self.origin, self.source)
+                api.variables["A11OY_STATE_STORE"] = SimpleNamespace(value=mode)
+                if root is not None:
+                    api.variables["A11OY_STATE_ROOT"] = SimpleNamespace(value=root)
+                session.responses[("GET", self.origin + relock.ROUTES["series_a_status"])]._payload["database"] = database
+                with self.assertRaises(relock.RelockError):
+                    relock.evaluate_once(api, session, self.contract)
+
+    def test_v2_rejects_missing_or_unavailable_status_route(self) -> None:
+        for http_status in (404, 503):
+            api, session, _ = v2_session(self.origin, self.source)
+            session.responses[("GET", self.origin + relock.STATE_STORE_STATUS_ROUTE)].status_code = http_status
+            with self.subTest(status=http_status), self.assertRaises(relock.RelockError):
+                relock.evaluate_once(api, session, self.contract)
+
+    def test_v2_rejects_unfenced_or_stale_lease_and_unhealthy_snapshots(self) -> None:
+        changes = (
+            (("schema",), "wrong"), (("mode",), "SNAPSHOT_ONLY_UNFENCED"),
+            (("role",), "FENCED"), (("writable",), False), (("unfenced",), True),
+            (("epoch",), 0), (("epoch",), True), (("alert",), True),
+            (("pending_publish",), ["series_a"]), (("last_error",), {"code": "FAILED"}),
+            (("lease", "state"), "RELEASED"), (("lease", "sequence"), 0),
+            (("lease", "heartbeat_age_s"), 121), (("lease", "heartbeat_age_s"), float("nan")),
+            (("stores", "series_a", "health"), "BLOCKED"),
+            (("stores", "gdw", "integrity"), None),
+            (("stores", "khipu_lmdb", "integrity"), "quick_check"),
+            (("stores", "series_a", "snapshot_failures"), 1),
+            (("stores", "series_a", "last_snapshot_age_s"), 901),
+            (("stores", "series_a", "unsnapshotted_change_age_s"), 901),
+            (("stores", "series_a", "sha16"), None), (("stores",), {}),
+        )
+        for path, value in changes:
+            with self.subTest(path=path, value=value):
+                api, session, status = v2_session(self.origin, self.source)
+                target = status
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = value
+                with self.assertRaises(relock.RelockError):
+                    relock.evaluate_once(api, session, self.contract)
 
     def test_relock_rejects_any_doctrine_lie(self) -> None:
         session = success_session(self.origin, self.source)
@@ -368,15 +454,31 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             1,
         )
 
-    def test_relock_allows_explicitly_skipped_state_changes_with_passing_reads(self) -> None:
+    def test_relock_allows_explicitly_optional_skips_with_passing_reads(self) -> None:
         session = success_session(self.origin, self.source)
         readiness_url = self.origin + relock.ROUTES["readiness"]
         readiness = session.responses[("GET", readiness_url)]._payload
-        readiness["verdict_summary"].update(ok=4, skippedStateChanging=1)
+        readiness["verdict_summary"].update(
+            ok=4, skippedStateChanging=1, requiredNotProbed=0
+        )
 
         report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
         self.assertTrue(report["ok"])
+
+    def test_relock_rejects_required_or_unclassified_skips(self) -> None:
+        for count in ("missing", 1, True, -1, 2, 1.5, "1", None):
+            with self.subTest(count=count):
+                session = success_session(self.origin, self.source)
+                readiness_url = self.origin + relock.ROUTES["readiness"]
+                summary = session.responses[("GET", readiness_url)]._payload["verdict_summary"]
+                summary.update(ok=4, skippedStateChanging=1)
+                if count != "missing":
+                    summary["requiredNotProbed"] = count
+                with self.assertRaisesRegex(
+                    relock.RelockError, "unprobed required endpoints|required-not-probed count"
+                ):
+                    relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_reviewed_markers_are_bound_to_the_deployed_holographic_source(self) -> None:
         self.assertEqual(relock.ROUTES["holographic"], "/holographic")
@@ -1155,7 +1257,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("add_space_variable", self.workflow)
         self.assertNotIn("python - <<'PY'", self.workflow)
         self.assertNotIn("def probe(", self.workflow)
-        self.assertIn("python .github/scripts/verify_canonical_a11oy.py", self.workflow)
+        self.assertIn("python -I -B .github/scripts/verify_canonical_a11oy.py", self.workflow)
 
     def test_post_deploy_probe_is_gated_before_relock_without_a_space_write(self) -> None:
         self.assertIn("readiness-verdict:", self.workflow)
@@ -1166,7 +1268,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         # The verdict gate still fails closed, but a Space-variable write would
         # restart the revision this run just started, so it only validates.
         self.assertIn(
-            "python .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
+            "python -I -B .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
             self.workflow,
         )
         self.assertEqual(self.workflow.count("publish_readiness_verdict.py"), 1)
@@ -1201,7 +1303,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertLess(
             self.workflow.index("Upload immutable full probe evidence"),
             self.workflow.index(
-                "python .github/scripts/publish_readiness_verdict.py"
+                "python -I -B .github/scripts/publish_readiness_verdict.py"
             ),
         )
         publisher = (
@@ -1228,7 +1330,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
                 step = drill.split(f"      - name: {name}\n", 1)[1].split(
                     "\n      - name:", 1
                 )[0]
-                self.assertIn(f"python -B scripts/{script}", step)
+                self.assertIn(f"python -I -B scripts/{script}", step)
                 self.assertIn('--origin "$CANONICAL_ORIGIN"', step)
                 self.assertIn('--source-sha "${{ github.sha }}"', step)
                 self.assertIn(f'--output "${output}"', step)

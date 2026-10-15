@@ -100,7 +100,9 @@ zero/suppression distinction, sign flag, input invalidation, literal-text render
 and export at four viewport widths.
 
 Use the canonical controller after protected-main merge, then the existing
-flagship publisher with explicit `scope=finance`. The publisher must observe the
-same source revision on canonical A11oy before writing Finance. Read back both
-revision identities and exercise the new audit endpoint before claiming the
+flagship publisher with explicit `scope=finance`. Before writing Finance the
+publisher must observe a canonical A11oy that serves a finance read-API contract
+version the projection supports (see [READ_API_CONTRACT.md](READ_API_CONTRACT.md));
+the A11oy revision it observed is recorded as evidence, not compared. Read back
+both revision identities and exercise the new audit endpoint before claiming the
 feature is published. Do not publish directly around these gates.

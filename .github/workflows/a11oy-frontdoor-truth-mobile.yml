@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
     - a11oy_landing.html
+    - console/assets/a11oy-homepage.css
     - web/living-anatomy.html
     - a11oy_command_center.py
     - a11oy_v4_hickok.py
@@ -23,6 +24,7 @@ on:
     - main
     paths:
     - a11oy_landing.html
+    - console/assets/a11oy-homepage.css
     - web/living-anatomy.html
     - a11oy_command_center.py
     - a11oy_v4_hickok.py

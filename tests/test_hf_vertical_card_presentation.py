@@ -21,7 +21,11 @@ def test_generated_cards_keep_exact_front_matter_and_original_body():
         assert preserved == original[boundary:]
         visible = actual[boundary:].split("<details>", 1)[0]
         assert "https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab" in visible
-        assert "width=\"112\"" in visible
+        assert 'width="40" height="40"' in visible
+        assert 'https://raw.githubusercontent.com/szl-holdings/szl-brand/27d12e77fc0f9f1a0e5fae8b34adf2380d51d070/kit/logos/orbit-v2/suite/szl-icon-32.svg' in visible
+        assert 'width="112"' not in visible
+        assert actual.count('Artwork: SZL Orbit') == 1
+        assert '[CC BY 4.0]' in actual and '[Trademark notice]' in actual
         assert "Capability-specific evidence required" in visible
         assert "This card grants no action authority" in visible
         assert "<table" not in visible and "width=\"100%\"" not in visible

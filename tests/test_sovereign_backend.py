@@ -105,6 +105,7 @@ def test_public_health_and_router_status_withhold_private_mesh_details(client, m
     monkeypatch.setattr(reg, "_inference_receipt_state", lambda _model: {
         "inference_receipted": False, "successful_receipt_count": 0,
         "total_receipt_count": 0, "chain_ok": True, "latest_receipt_hash": None,
+        "latest_model": private_model, "unexpected_diagnostic": auth_error,
     })
     monkeypatch.setattr(reg, "resolve_code_llm_key", lambda: {
         "wired": True, "provider": "fixture", "env_used": "A11OY_CODE_LLM_KEY",

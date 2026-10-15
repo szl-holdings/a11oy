@@ -1,0 +1,16 @@
+{
+  "schema": "szl.kanchay-vendored-subset/v1",
+  "scope": "STATIC_PRESENTATION_ASSETS_ONLY",
+  "upstream": {
+    "repository": "szl-holdings/szl-brand",
+    "revision": "4309f6fce89179331b0b3ed8c99494e76c5be256",
+    "manifest_path": "kanchay/SOURCE.json",
+    "manifest_sha256": "967a77235227f1d75852fb61873e46336e67403cbc0e7e12b141e31c83fbd93d"
+  },
+  "files": {
+    "logos/szl_favicon.svg": "4b154f0de21f71b111bde98bc564ddeef082d888d44f0b50b5a5247e3badf190",
+    "logos/szl_favicon_square.svg": "a8573d0c685637e6be29ec9c27b98294fec2ff4db4ba962c6d640ab12ba5ad52",
+    "szl-console.css": "df066d54d0b8b6bb2f5bf281cd990f65055b32bc71309bb2fc5868b6e40b6c6b",
+    "szl-design-system.css": "da310be5cbe23dfc4054d1bb07e5b37e1a62a510e43902171e217af5c1ff0ec7"
+  }
+}

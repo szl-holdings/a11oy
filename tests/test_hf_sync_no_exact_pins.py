@@ -218,7 +218,7 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
         # The guard must reject each historical livelock shape, so it cannot
         # rot into an always-pass check.
         sha = "f4a1a45f" + "0" * 32
-        anchor = '          python3 -B scripts/hf_exact_main_ownership.py \\\n'
+        anchor = '          python3 -I -B scripts/hf_exact_main_ownership.py \\\n'
         self.assertIn(anchor, self.text)
         preflight_if = "    if: ${{ needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}\n"
         self.assertIn(preflight_if, self.text)
@@ -247,7 +247,7 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
             "verdict output not written": self.text.replace(
                 '          --github-output "$GITHUB_OUTPUT"\n\n  relock:', "\n  relock:", 1),
             "convergence without wait": self.text.replace(
-                "          python -B .github/scripts/await_hf_runtime_serving.py\n", "          true\n", 1),
+                "          python -I -B .github/scripts/await_hf_runtime_serving.py\n", "          true\n", 1),
             "converge before admission": self.text.replace(
                 "        id: admit\n", "        id: late_owner\n", 1),
             "ungated deploy window": self.text.replace(

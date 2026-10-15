@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 HF_PATH = ROOT / ".github/workflows/hf-sync.yml"
 ESTATE_PATH = ROOT / ".github/workflows/estate-release-train.yml"
-UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 TITLE = "Preserve source-bound Lyte failure diagnostics"
 CONDITION = "${{ always() && hashFiles('hf-lyte-enterprise-manifest.failed.json') != '' }}"
 FILES = ("hf-lyte-enterprise-manifest.failed.json", "hf-lyte-enterprise-receipt.json")
@@ -39,7 +39,7 @@ def validate_retention(document):
     observed = step(document, TITLE)
     expected = (
         "        if: " + CONDITION + "\n"
-        "        uses: " + UPLOAD + " # v7.0.1\n"
+        "        uses: " + UPLOAD + " # v7.0.2\n"
         "        with:\n"
         "          name: hf-lyte-failure-${{ github.run_id }}-${{ github.run_attempt }}\n"
         "          path: |\n"
@@ -59,7 +59,7 @@ def validate_aggregate_retention(document):
     expected = (
         "        if: ${{ always() && steps.exact_main_owner.outputs.publish == 'true' && "
         "steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n"
-        "        uses: " + UPLOAD + " # v7.0.1\n"
+        "        uses: " + UPLOAD + " # v7.0.2\n"
         "        with:\n"
         "          name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}\n"
         "          path: |\n"
@@ -135,7 +135,7 @@ class LyteFailureEvidenceTests(unittest.TestCase):
         gate = step(self.hf, "Enforce complete explicitly requested vertical publication")
         self.assertIn("if: always()", gate)
         self.assertIn("VERTICAL_PUBLISH_OUTCOME: ${{ steps.vertical_publish.outcome }}", gate)
-        self.assertIn("run: python scripts/estate_child_completion.py", gate)
+        self.assertIn("run: python -I -B scripts/estate_child_completion.py", gate)
         self.assertLess(self.hf.index("name: Enforce complete explicitly"), self.hf.index("name: " + TITLE))
 
     def test_native_offline_step_executes_new_contract(self):

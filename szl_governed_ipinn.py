@@ -147,21 +147,52 @@ def _json_safe(obj):
 
 
 # ---------------------------------------------------------------------------
-# The no-op-safe ledger hook. Dev C wires this to szl_lake_ingest.record_receipt;
-# until then (and when running standalone) it degrades honestly to not-recorded.
+# The ledger hook reports an outcome only when the shared sink acknowledges it.
 # ---------------------------------------------------------------------------
 def record_pinn_receipt(receipt):
-    """Hook for Dev C. Signature: record_pinn_receipt(receipt: dict) -> dict.
-    Attempts an in-process ledger append via szl_lake_ingest.record_receipt with
-    organ="a11oy-pinn"; never raises, returns a status dict."""
+    """Append once and report only an acknowledged local ledger outcome."""
+    backend = "szl_lake_ingest.record_receipt"
     try:
         import szl_lake_ingest  # type: ignore
+        from szl_lake_store import receipt_identity
+        identity_input = dict(receipt)
+        identity_input.setdefault("organ", RECEIPT_ORGAN)
+        rid = receipt_identity(identity_input)
+    except Exception as exc:
+        return {"recorded": False, "state": "NOT_ATTEMPTED",
+                "backend": backend, "reason": type(exc).__name__,
+                "remote_publication": "NOT_ACKNOWLEDGED"}
+    common = {"backend": backend, "receipt_id": rid,
+              "remote_publication": "NOT_ACKNOWLEDGED", "retry_admitted": False}
+    try:
         res = szl_lake_ingest.record_receipt(receipt, organ=RECEIPT_ORGAN)
-        return {"recorded": True, "backend": "szl_lake_ingest.record_receipt",
-                "result": res if isinstance(res, dict) else str(res)}
-    except Exception as e:  # noqa: BLE001 — honest degrade, never fatal
-        return {"recorded": False, "reason": "ledger hook not wired (%r)" % e,
-                "note": "Dev C wires record_pinn_receipt -> szl_lake_ingest"}
+    except Exception as exc:
+        return dict(common, recorded=None, state="UNKNOWN",
+                    reason="ledger hook raised: " + type(exc).__name__)
+    if not isinstance(res, dict):
+        return dict(common, recorded=None, state="UNKNOWN",
+                    reason="ledger hook returned a non-object status")
+    try:
+        # Validate and detach the entire status before interpreting any claim.
+        res = json.loads(json.dumps(res, allow_nan=False))
+    except (TypeError, ValueError, OverflowError, RecursionError):
+        return dict(common, recorded=None, state="UNKNOWN",
+                    result={"serialization": "UNAVAILABLE"})
+    accepted = (res.get("state") == "LOCAL_ACKNOWLEDGED"
+                and res.get("accepted") is True and res.get("duplicate") is False
+                and res.get("receipt_id") == rid
+                and res.get("organ") == RECEIPT_ORGAN)
+    duplicate = (res.get("state") == "LOCAL_DUPLICATE"
+                 and res.get("accepted") is False and res.get("duplicate") is True
+                 and res.get("receipt_id") == rid
+                 and res.get("organ") == RECEIPT_ORGAN)
+    rejected = (res.get("state") == "REJECTED"
+                and res.get("write_attempted") is False
+                and res.get("accepted") is False and res.get("duplicate") is False)
+    state = ("LOCAL_ACKNOWLEDGED" if accepted else
+             "LOCAL_DUPLICATE" if duplicate else "REJECTED" if rejected else "UNKNOWN")
+    return dict(common, recorded=True if accepted or duplicate else
+                False if rejected else None, state=state, result=res)
 
 
 def build_ipinn_receipt(system, method, params_block, convergence, lambda_adv, sign=True):
