@@ -13,6 +13,7 @@ Additive; touches no locked-8 numbers; Λ = Conjecture 1 (advisory).
 """
 from __future__ import annotations
 import os
+from unittest.mock import patch
 
 # Force the honest-degradation path: no local sovereign endpoint in CI/cloud.
 os.environ.pop("SZL_LOCAL_LLM_URL", None)
@@ -74,10 +75,13 @@ def test_harness_apply_sovereign():
 
 def test_eval_run_sovereign():
     c = _build_client()
-    r = c.post(f"/api/{NS}/v1/eval/run", json={
-        "suite": "core_honest_v1",
-        "model_id": "szl-sovereign-local",
-    })
+    with patch.dict(os.environ, {"A11OY_CODE_ADMIN_KEY": "eval-flywheel-test-only"}):
+        r = c.post(f"/api/{NS}/v1/eval/run",
+                   headers={"Authorization": "Bearer eval-flywheel-test-only"}, json={
+            "suite": "core_honest_v1",
+            "model_id": "szl-sovereign-local",
+            "execution_mode": "live",
+        })
     assert r.status_code == 200, r.text
     j = r.json()
     sov = _sov_block(j)
@@ -124,7 +128,11 @@ def test_rag_query_sovereign():
 def test_non_sovereign_unaffected():
     """Requesting a normal model_id must NOT trigger the sovereign path."""
     c = _build_client()
-    r = c.post(f"/api/{NS}/v1/eval/run", json={"suite": "core_honest_v1", "model_id": "gpt-4o"})
+    with patch.dict(os.environ, {"A11OY_CODE_ADMIN_KEY": "eval-flywheel-test-only"}):
+        r = c.post(f"/api/{NS}/v1/eval/run",
+                   headers={"Authorization": "Bearer eval-flywheel-test-only"},
+                   json={"suite": "core_honest_v1", "model_id": "gpt-4o",
+                         "execution_mode": "modeled"})
     assert r.status_code == 200, r.text
     j = r.json()
     assert _sov_block(j) is None, "non-sovereign request must not record a sovereign block"

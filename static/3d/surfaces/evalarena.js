@@ -148,7 +148,7 @@ async function _runEvalOnce(){
   let token=String((tokenNode&&tokenNode.value)||"").trim();
   const suite=String((suiteNode&&suiteNode.value)||S.suiteId).slice(0,160);
   const model=String((modelNode&&modelNode.value)||S.modelId).slice(0,240);
-  const body=JSON.stringify({suite:suite,model_id:model});
+  const body=JSON.stringify({suite:suite,model_id:model,execution_mode:"live"});
   if(token.length<16||token.length>4096){ if(status) status.textContent="bounded one-shot operator credential required"; if(tokenNode) tokenNode.value=""; return; }
   if(body.length>16384){ if(status) status.textContent="request exceeds 16 KiB client boundary"; if(tokenNode) tokenNode.value=""; return; }
   const button=_overlay&&_overlay.querySelector("#ea-run-once");
