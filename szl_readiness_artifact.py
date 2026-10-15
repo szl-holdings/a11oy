@@ -133,7 +133,9 @@ ROOT = Path(__file__).resolve().parent
 MATRIX = ROOT / "tools/readiness-harness/tabs.json"
 INTERVAL = 240
 DEADLINE = 30
-SERVE_AGE = 86400
+# Serving cannot extend the publisher's one-hour observation admission horizon,
+# even if the lifecycle worker stalls before its next refresh.
+SERVE_AGE = 3600
 
 
 @lru_cache(maxsize=1)

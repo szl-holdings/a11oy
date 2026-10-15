@@ -38,13 +38,14 @@ polls every 240 seconds. A fetch has a 30-second budget checked between bounded
 stream chunks and a maximum five-second network read timeout; shutdown joins
 for at most six seconds and never replaces a still-stopping worker.
 
-Every acquisition applies the existing publisher's one-hour admission limit to
-the original `checkedAt`. Repeated retrieval never renews that timestamp. Thus an
-unchanged artifact becomes **UNAVAILABLE** on the first refresh after one hour;
-operational availability is at most one hour plus a poll interval. The existing
-24-hour serve limit remains an additional upper bound if refresh is delayed,
-not a promise of 24-hour cache continuity. Restart clears memory and requires a
-new admission. Any new failed acquisition clears previously accepted evidence.
+Every acquisition and canonical hosted GET applies the existing publisher's
+one-hour admission limit to the original `checkedAt`. Repeated retrieval never
+renews that timestamp. An unchanged artifact becomes **UNAVAILABLE** on GET once
+that hour expires, even if the background worker stalls or no refresh occurs.
+The reader snapshot and final hosted route validation both enforce this limit
+without provider access. Restart clears memory and requires a new admission.
+Any new failed acquisition clears previously accepted evidence. The legacy
+noncanonical local path retains its separate 24-hour limit.
 
 The five required effect contracts (`policy/decide`, `operator/ask`, `eval/run`,
 `agentloop/run`, `policy/compliance`) remain **BLOCKED** when unprobed. This reader
