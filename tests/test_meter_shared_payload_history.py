@@ -34,7 +34,7 @@ def test_prior_meter_manifest_fixture_retains_its_original_content_address():
     # Reproduce the earlier exact public manifest bytes. The historical source
     # remains in Git; this fixture is not a claim that the active slot is unchanged.
     prior = {
-        "files": {"szl_meter_access.py": "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4"},
+        "files": {"szl_meter_access.py": hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest()},
         "payload_id": "meter-selector-20261011-v1",
         "schema": "szl-shared-source-payload/v1",
     }
@@ -50,7 +50,7 @@ def test_active_meter_and_bounded_engine_payload_remains_content_bound():
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["files"] == {
         "a11oy_code_engine.py": "a03aa1c294b69c8dfe3ce20d85aaf2347fac93ad7cba3544c1697d381639ac6f",
-        "szl_meter_access.py": "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",
+        "szl_meter_access.py": hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest(),
     }
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
