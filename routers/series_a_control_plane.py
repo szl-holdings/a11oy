@@ -23,6 +23,7 @@ import sqlite3
 import threading
 import time
 import uuid
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -652,6 +653,94 @@ class Store:
                    ) VALUES(?,?,?,?)""",
                 (digest, "PENDING", runtime_boot_id, started_at),
             )
+
+    def reserve_execution_observation(self, *, source_revision: str, runtime_boot_id: str,
+                                      run_nonce: str, plan_sha256: str, case_id: str,
+                                      request_sha256: str, receipt_id: str,
+                                      started_at: str) -> dict[str, Any]:
+        """Consume one observation attempt in this existing registered store.
+
+        These isolated tables do not alter the passport, receipt or event chain.
+        The caller must acknowledge this exact row through the active v2 store
+        before dispatch; committing local SQLite alone is not that authority.
+        """
+        with self.lock, closing(self.connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("""CREATE TABLE IF NOT EXISTS execution_observation_plans(
+                run_nonce TEXT PRIMARY KEY, source_revision TEXT NOT NULL,
+                runtime_boot_id TEXT NOT NULL, plan_sha256 TEXT NOT NULL,
+                started_at TEXT NOT NULL)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS execution_observations(
+                run_nonce TEXT NOT NULL REFERENCES execution_observation_plans(run_nonce),
+                case_id TEXT NOT NULL, request_sha256 TEXT NOT NULL,
+                receipt_id TEXT NOT NULL UNIQUE,
+                state TEXT NOT NULL CHECK(state IN ('RESERVED','COMPLETED')),
+                observation_json TEXT, observation_sha256 TEXT,
+                PRIMARY KEY(run_nonce,case_id))""")
+            db.execute("""INSERT OR IGNORE INTO execution_observation_plans
+                (run_nonce,source_revision,runtime_boot_id,plan_sha256,started_at)
+                VALUES(?,?,?,?,?)""",
+                (run_nonce, source_revision, runtime_boot_id, plan_sha256, started_at))
+            existing = db.execute("""SELECT source_revision,runtime_boot_id,plan_sha256
+                FROM execution_observation_plans WHERE run_nonce=?""", (run_nonce,)).fetchone()
+            if tuple(existing) != (source_revision, runtime_boot_id, plan_sha256):
+                raise ValueError("OBSERVATION_NONCE_ALREADY_BOUND")
+            try:
+                db.execute("""INSERT INTO execution_observations
+                    (run_nonce,case_id,request_sha256,receipt_id,state)
+                    VALUES(?,?,?,?,'RESERVED')""",
+                    (run_nonce, case_id, request_sha256, receipt_id))
+            except sqlite3.IntegrityError:
+                raise ValueError("OBSERVATION_ATTEMPT_ALREADY_CONSUMED") from None
+            row = self._execution_observation_row(db, receipt_id)
+        return row
+
+    def complete_execution_observation(self, receipt_id: str,
+                                       observation: Mapping[str, Any]) -> dict[str, Any]:
+        """Persist exact response/readback/envelope bytes; does not export them."""
+        rendered = json.dumps(dict(observation), sort_keys=True, separators=(",", ":"),
+                              ensure_ascii=False, allow_nan=False)
+        digest = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+        with self.lock, closing(self.connect()) as db, db:
+            result = db.execute("""UPDATE execution_observations
+                SET state='COMPLETED',observation_json=?,observation_sha256=?
+                WHERE receipt_id=? AND state='RESERVED'""", (rendered, digest, receipt_id))
+            if result.rowcount != 1:
+                raise ValueError("OBSERVATION_RESERVATION_REQUIRED")
+            row = self._execution_observation_row(db, receipt_id)
+        return row
+
+    @staticmethod
+    def _execution_observation_row(db: sqlite3.Connection, receipt_id: str) -> dict[str, Any] | None:
+        row = db.execute("""SELECT p.run_nonce,p.source_revision,p.runtime_boot_id,
+            p.plan_sha256,p.started_at,o.case_id,o.request_sha256,o.receipt_id,o.state,
+            o.observation_json,o.observation_sha256
+            FROM execution_observations o JOIN execution_observation_plans p
+            ON p.run_nonce=o.run_nonce WHERE o.receipt_id=?""", (receipt_id,)).fetchone()
+        return dict(row) if row is not None else None
+
+    @staticmethod
+    def read_execution_observation_at(path: Path, receipt_id: str) -> dict[str, Any] | None:
+        """Read-only SQL without schema initialization or journal-mode changes.
+
+        SQLite may use coordination sidecars for a WAL database. This helper
+        alone does not establish an inert HTTP GET or export authorization.
+        """
+        with closing(sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)) as db:
+            db.row_factory = sqlite3.Row
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                          "AND name='execution_observations'").fetchone() is None:
+                return None
+            return Store._execution_observation_row(db, receipt_id)
+
+    @staticmethod
+    def execution_observation_matches(path: Path, expected: Mapping[str, Any]) -> bool:
+        """Fixed snapshot predicate: no caller SQL, table or relative path."""
+        observed = Store.read_execution_observation_at(path, expected["receipt_id"])
+        return observed is not None and observed == dict(expected)
+
+    def read_execution_observation(self, receipt_id: str) -> dict[str, Any] | None:
+        return self.read_execution_observation_at(Path(self.path), receipt_id)
 
     def execution_status(self, digest: str) -> dict[str, Any] | None:
         with self.lock, self.connect() as db:

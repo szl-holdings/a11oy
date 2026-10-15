@@ -4,7 +4,7 @@
 
   1. Landing hamburger at mobile breakpoints (44px targets).
   2. Console ENERGY uses paired operator aggregates with explicit source labels.
-  3. Hero receipts cite the same SAMPLE ledger source as the runtime card.
+  3. Hero receipts cite the same typed ledger source as the runtime card.
   4. /warhacker 307 Location keeps the #arena fragment.
   5. Public aliases /mesh /evidence /arena /router remain registered.
   6. Landing router health is STALE NOT_MEASURED · snapshot 2026-07-11.
@@ -73,17 +73,17 @@ def test_console_energy_requires_source_labels_and_a_paired_token_window() -> No
     assert "JOULES SAMPLE" in html
 
 
-def test_hero_receipts_share_ledger_source_and_label_historical() -> None:
+def test_hero_receipts_share_one_typed_ledger_source() -> None:
     html = FRONT_DOOR.read_text(encoding="utf-8")
     assert "function setHeroReceiptsFromLedger" in html
-    assert "SAMPLE/historical" in html
+    assert "function ledgerReading" in html
     assert "setHeroReceiptsFromLedger(d)" in html
-    assert 'id="hs-receipts-hist"' in html
-    # Hero no longer copies lake/overview totals unlabeled into hs-receipts.
-    assert (
-        '$("hs-receipts").textContent    = (num(receipts)===null) ? "—"           : receipts.toLocaleString();'
-        not in html
-    )
+    assert 'id="hs-receipts-label"' in html
+    assert "SAMPLE/historical" not in html
+    assert "__lakeReceiptTotal" not in html
+    assert "ts.signed_receipts" not in html
+    assert "Operational receipt records · returned window" in html
+    assert "Signature reported · not verified here" in html
 
 
 def test_warhacker_redirect_preserves_arena_fragment() -> None:

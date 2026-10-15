@@ -41,6 +41,8 @@ jobs:
           tests/test_energy_ledger_process_safety.py
           tests/test_energy_live_exactmain.py
           tests/test_energy_live_measurement_contract.py
+          tests/test_meter_hf_enroll.py
+          tests/test_meter_shared_payload_history.py
           tests/test_energy_projection_truth.py
           tests/test_omen_joule_exporter_access.py
           tests/test_omen_joule_exporter_liveness.py

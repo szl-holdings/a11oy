@@ -154,7 +154,10 @@ async function main() {
     }
     {
       const {page}=await pageAt();
-      await page.goto(`${origin}/#proof`);await page.waitForFunction(()=>document.querySelector('#full-record').open);
+      await page.goto(`${origin}/#proof`);
+      // Same-document navigation schedules focus on the next animation frame.
+      // Complete that navigation before testing the next keyboard action.
+      await page.waitForFunction(()=>document.querySelector('#full-record').open && document.querySelector('#proof').contains(document.activeElement));
       check('deep link reveals preserved archive target',await page.locator('#proof').isVisible());
       await page.locator('#fw-hash-btn').focus();const focus=await page.locator('#fw-hash-btn').evaluate(el=>({active:document.activeElement===el,style:getComputedStyle(el).outlineStyle,width:getComputedStyle(el).outlineWidth}));
       check('byte-hash action has visible keyboard focus',focus.active&&focus.style!=='none'&&parseFloat(focus.width)>=2,focus);

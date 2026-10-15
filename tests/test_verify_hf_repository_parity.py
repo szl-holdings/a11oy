@@ -621,8 +621,8 @@ class ImmutableRepositoryParityTests(unittest.TestCase):
                 mock.patch.object(MODULE, "verify_ancestry") as ancestry,
                 mock.patch.object(
                     MODULE,
-                    "verify_leading_dot_copy",
-                    return_value="d" * 64,
+                    "verify_docker_dot_copies",
+                    return_value={".well-known/security.txt": "d" * 64},
                 ) as leading_dot,
                 mock.patch.object(
                     MODULE,
@@ -665,6 +665,7 @@ class ImmutableRepositoryParityTests(unittest.TestCase):
             github_ref=base_ref,
             hf_repo=HF_REPO,
             hf_ref=hf_ref,
+            tree=base_tree,
         )
         self.assertEqual(
             [call.kwargs["github_ref"] for call in comparator.call_args_list],
@@ -813,6 +814,118 @@ class FailedParityReceiptTests(unittest.TestCase):
         value=self.exercise_failure(b'{"status":"ok"}',returncode=0)
         self.assertEqual(value['error_type'],'ParityError')
         self.assertEqual(value['comparators']['strict']['report'],{'status':'ok'})
+
+
+class DerivedDotCopyTests(unittest.TestCase):
+    SECURITY = ".well-known/security.txt"
+    PUBLISHER = ".github/scripts/publish_readiness_verdict.py"
+
+    @staticmethod
+    def oid(body):
+        return MODULE.hashlib.sha1(f"blob {len(body)}\0".encode() + body).hexdigest()
+
+    def fixture(self):
+        dockerfile = (f"COPY {self.SECURITY} ./security.txt\n"
+                      f"COPY {self.PUBLISHER} ./publisher.py\n").encode()
+        files = {"Dockerfile": dockerfile, self.SECURITY: b"security", self.PUBLISHER: b"publisher"}
+        return files, {path: self.oid(body) for path, body in files.items()}
+
+    def verify(self, files, tree, replacement=None):
+        urls = []
+        def opener(request, timeout):
+            self.assertEqual(timeout, 30)
+            url = request.full_url
+            urls.append(url)
+            gh_prefix = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{'a' * 40}/"
+            hf_prefix = f"https://huggingface.co/spaces/{HF_REPO}/resolve/{'b' * 40}/"
+            if url.startswith(gh_prefix):
+                body = files[url.removeprefix(gh_prefix)]
+            else:
+                self.assertTrue(url.startswith(hf_prefix), url)
+                path = url.removeprefix(hf_prefix)
+                body = replacement if path == self.PUBLISHER and replacement is not None else files[path]
+            return io.BytesIO(body)
+        result = MODULE.verify_docker_dot_copies(
+            github_repo=GITHUB_REPO, github_ref="a" * 40, hf_repo=HF_REPO, hf_ref="b" * 40,
+            tree=tree, opener=opener)
+        self.assertEqual(len(urls), 5)
+        return result
+
+    def test_both_real_sources_are_bound_to_exact_tree_and_hf_bytes(self):
+        files, tree = self.fixture()
+        proof = self.verify(files, tree)
+        self.assertEqual(set(proof), {self.SECURITY, self.PUBLISHER})
+        self.assertEqual(proof[self.PUBLISHER], MODULE.hashlib.sha256(files[self.PUBLISHER]).hexdigest())
+
+    def test_readiness_publisher_hf_drift_fails_even_when_comparator_misses_it(self):
+        files, tree = self.fixture()
+        with self.assertRaisesRegex(MODULE.ParityError, "dot-prefixed COPY source drift"):
+            self.verify(files, tree, replacement=b"altered publisher")
+
+    def test_dockerfile_and_hidden_bytes_must_match_exact_git_tree(self):
+        files, tree = self.fixture()
+        for path in ("Dockerfile", self.SECURITY, self.PUBLISHER):
+            altered = dict(files, **{path: files[path] + b"\n"})
+            with self.subTest(path=path), self.assertRaisesRegex(MODULE.ParityError, "do not match Git tree"):
+                self.verify(altered, tree)
+
+    def test_missing_hidden_source_and_unsupported_expansion_fail_closed(self):
+        files, tree = self.fixture()
+        for source in (".github/missing.py", ".github/", ".github/*.py", ".github/$FILE", "../escape", "."):
+            text = f"COPY {self.SECURITY} ./\nCOPY {source} ./\n"
+            with self.subTest(source=source), self.assertRaisesRegex(MODULE.ParityError, "literal tracked file"):
+                MODULE.docker_dot_copy_paths(text, tree)
+        with self.assertRaisesRegex(MODULE.ParityError, "required security source"):
+            MODULE.docker_dot_copy_paths(f"COPY {self.PUBLISHER} ./\n", tree)
+
+    def test_json_options_continuations_duplicates_and_stage_sources(self):
+        _, tree = self.fixture()
+        text = (f'COPY --chmod=444 ["{self.SECURITY}", "./"]\n'
+                f'COPY \\\n  ./{self.PUBLISHER} ./publisher.py\n'
+                f'ADD {self.SECURITY} ./again\n'
+                'COPY --from=builder .hidden-stage-file ./\n')
+        self.assertEqual(MODULE.docker_dot_copy_paths(text, tree), tuple(sorted((self.SECURITY, self.PUBLISHER))))
+
+    def test_current_dockerfile_has_both_derived_sources(self):
+        tree = {self.SECURITY: "a" * 40, self.PUBLISHER: "b" * 40}
+        self.assertEqual(MODULE.docker_dot_copy_paths((ROOT / "Dockerfile").read_text(), tree),
+                         tuple(sorted(tree)))
+
+    def test_extra_duplicate_or_wrong_warnings_are_never_admitted(self):
+        files, tree = self.fixture()
+        proof = self.verify(files, tree)
+        report = ImmutableRepositoryParityTests.candidate_report(
+            github_ref="a" * 40, hf_ref="b" * 40, findings=[])
+        report["findings"] = MODULE.dot_copy_warnings(tuple(proof))
+        report["warn_count"] = 2
+        arguments = dict(github_repo=GITHUB_REPO, github_ref="a" * 40,
+                         hf_repo=HF_REPO, hf_ref="b" * 40, guarded_dot_paths=tuple(proof))
+        MODULE.validate_report(report, **arguments)
+        for findings in (report["findings"][:1], report["findings"] * 2,
+                         [*report["findings"], {"kind": "missing-both", "severity": "warn", "path": "unrelated"}],
+                         [{**item, "kind": "missing-hf"} for item in report["findings"]]):
+            broken = {**report, "findings": findings, "warn_count": len(findings)}
+            with self.subTest(findings=findings), self.assertRaises(MODULE.ParityError):
+                MODULE.validate_report(broken, **arguments)
+        with self.assertRaisesRegex(MODULE.ParityError, "ambiguous"):
+            MODULE.dot_copy_warnings((".hidden", "..hidden"))
+
+    def test_candidate_cannot_hide_a_changed_publisher_behind_its_normalized_warning(self):
+        tree = {path: "a" * 40 for path in MODULE.PROTECTED_CANDIDATE_INPUTS}
+        tree[self.PUBLISHER] = "b" * 40
+        head = {**tree, self.PUBLISHER: "c" * 40}
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(MODULE, "resolve_stable_revision", return_value="d" * 40), \
+                mock.patch.object(MODULE, "github_blob_tree", side_effect=[head, tree]), \
+                mock.patch.object(MODULE, "verify_ancestry"), \
+                mock.patch.object(MODULE, "verify_docker_dot_copies", return_value={
+                    self.SECURITY: "e" * 64, self.PUBLISHER: "f" * 64}), \
+                mock.patch.object(MODULE, "run_comparator") as comparator:
+            with self.assertRaisesRegex(MODULE.ParityError, "changed a guarded"):
+                MODULE.main(["--tools-script", str(SCRIPT), "--github-repo", GITHUB_REPO,
+                             "--base-ref", "1" * 40, "--github-ref", "2" * 40,
+                             "--hf-repo", HF_REPO, "--report-out", str(Path(directory) / "report.json")])
+            comparator.assert_not_called()
 
 
 if __name__ == "__main__":

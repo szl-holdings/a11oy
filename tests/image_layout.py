@@ -116,19 +116,36 @@ def _ignore_regex(pattern):
 
 
 def dockerignore_matcher(text):
-    regexes = []
+    rules = []
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        if line.startswith("!") or "[" in line or "\\" in line:
+        include = line.startswith("!")
+        pattern = line[1:] if include else line
+        if not pattern or "[" in pattern or "\\" in pattern:
             raise LayoutError(".dockerignore construct is not modelled: " + line)
-        regexes.append(_ignore_regex(line))
+        if include:
+            # Only exact, previously excluded paths are needed by this image.
+            # Keep pattern exceptions unsupported until their Docker semantics
+            # are modelled and tested here.
+            if any(char in pattern for char in "*?") or not any(
+                excluded and regex.match(pattern.strip("/")) for regex, excluded in rules
+            ):
+                raise LayoutError(".dockerignore construct is not modelled: " + line)
+        rules.append((_ignore_regex(pattern), not include))
 
     def ignored(path):
         parts = path.split("/")
         prefixes = ["/".join(parts[:n]) for n in range(1, len(parts) + 1)]
-        return any(rx.match(p) for rx in regexes for p in prefixes)
+        for prefix in prefixes:
+            excluded = False
+            for regex, exclude in rules:
+                if regex.match(prefix):
+                    excluded = exclude  # Docker uses the last matching rule.
+            if excluded:
+                return True
+        return False
 
     return ignored
 
