@@ -48,6 +48,7 @@ jobs:
           tests/test_agent_synthesis_status.py
           tests/test_nexus_bind.py
           tests/test_nexus_readonly_evidence.py
+          tests/test_readiness_artifact.py
           tests/test_code_engine_isolation.py
           tests/test_code_engine_mandatory_limits.py
           tests/test_sandbox_fail_closed_followups.py
