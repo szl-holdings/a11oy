@@ -865,12 +865,24 @@ def feed_hpd_violations(limit: int = 200) -> dict[str, Any]:
     url = ("https://data.cityofnewyork.us/resource/wvxf-dwi5.json?%24limit=" + str(limit)
            + "&%24order=inspectiondate%20DESC")
     def parse(d):
+        if not isinstance(d, list):
+            raise ValueError("HPD source must return a JSON array")
         items = []
-        for r in (d if isinstance(d, list) else []):
+        for r in d:
+            if not isinstance(r, dict):
+                raise ValueError("HPD source rows must be JSON objects")
             try:
-                lat = float(r.get("latitude")) if r.get("latitude") else None
-                lng = float(r.get("longitude")) if r.get("longitude") else None
-            except Exception:
+                raw_lat, raw_lng = r.get("latitude"), r.get("longitude")
+                if isinstance(raw_lat, bool) or isinstance(raw_lng, bool):
+                    raise ValueError("boolean coordinates are not observed locations")
+                lat = float(raw_lat) if raw_lat not in (None, "") else None
+                lng = float(raw_lng) if raw_lng not in (None, "") else None
+                # A source record can remain useful without a mappable location.
+                # Nonfinite values also break JSON serialization for the entire route.
+                if (lat is not None and (not math.isfinite(lat) or not -90 <= lat <= 90)
+                        or lng is not None and (not math.isfinite(lng) or not -180 <= lng <= 180)):
+                    raise ValueError("coordinates are outside geographic bounds")
+            except (TypeError, ValueError, OverflowError):
                 lat = lng = None
             items.append({
                 "id": r.get("violationid"), "bbl": r.get("bbl"), "bin": r.get("bin"),

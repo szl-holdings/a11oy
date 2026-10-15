@@ -56,6 +56,7 @@ def test_compact_verdict_is_source_origin_and_freshness_bound() -> None:
     assert result["base"] == "https://szlholdings-a11oy.hf.space"
     assert result["summary"]["endpoints"] == 5
     assert result["summary"]["blockingDegraded"] == 0
+    assert result["summary"]["requiredNotProbed"] == 0
     assert "results" not in result
 
 
@@ -134,6 +135,33 @@ def test_compact_verdict_rejects_invalid_blocking_degraded_count() -> None:
         payload["summary"].update(ok=4, degraded=1, blockingDegraded=value)
         with pytest.raises(publisher.VerdictError, match="blocking degradation"):
             compact(payload, now)
+
+
+@pytest.mark.parametrize("value", [True, -1, 2, 1.5, "1", None])
+def test_compact_verdict_rejects_invalid_required_not_probed_count(value: object) -> None:
+    now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
+    payload = valid_verdict(now)
+    payload["summary"].update(ok=4, skippedStateChanging=1, requiredNotProbed=value)
+    with pytest.raises(publisher.VerdictError, match="required-not-probed count"):
+        compact(payload, now)
+
+
+def test_compact_verdict_blocks_required_or_unclassified_skips() -> None:
+    now = datetime(2026, 7, 26, 6, 0, tzinfo=timezone.utc)
+    payload = valid_verdict(now)
+    payload["summary"].update(ok=4, skippedStateChanging=1)
+    with pytest.raises(publisher.VerdictError, match="unprobed required endpoints"):
+        compact(payload, now)
+    payload["summary"]["requiredNotProbed"] = 1
+    with pytest.raises(publisher.VerdictError, match="unprobed required endpoints"):
+        compact(payload, now)
+
+    payload["summary"]["requiredNotProbed"] = 0
+    result = compact(payload, now)
+    assert result["summary"]["endpoints"] == 5
+    assert result["summary"]["ok"] == 4
+    assert result["summary"]["skippedStateChanging"] == 1
+    assert result["summary"]["requiredNotProbed"] == 0
 
 
 def test_compact_verdict_rejects_all_unreachable_release_evidence() -> None:

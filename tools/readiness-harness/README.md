@@ -1,9 +1,10 @@
 # a11oy readiness harness
 
-An automated harness that proves **every tab in the a11oy (and killinchu) console
-is real** — backed by a live endpoint, returning the contracted schema, fresh
-within its SLA, and citing its sources. Doctrine v11: *no mock theater*. A tab
-that is stale, mocked, or uncited is a **lie** and fails the build.
+A read-only observer for the a11oy and killinchu console contracts. It checks
+GET/HEAD responses, schemas, source clocks and citations. Required execution
+contracts remain in the denominator as `NOT_PROBED`; passive observation cannot
+establish an execution outcome. Stale, unsupported or uncited evidence fails its
+existing doctrine checks.
 
 ## Pieces
 
@@ -11,7 +12,7 @@ that is stale, mocked, or uncited is a **lie** and fails the build.
 |------|--------------|
 | `gen_tabs_matrix.py` | Reads the console source and generates `tabs.json` — the contract matrix (tab → route → endpoints → schema → freshnessSLA → citationsRequired → degradedRules). Single source of truth. `--check` mode fails on drift. Also emits `stress/stress-targets.json`. |
 | `tabs.json` | The generated contract matrix (committed; regenerate, don't hand-edit). |
-| `probe_runner.mjs` | Throttled API probe. For every endpoint: status, p50/p95 latency, schema validity, citations, freshness → a per-endpoint **"Lies?"** verdict in `readiness-verdict.json`. Exit ≠ 0 on any lie (unless `--soft`). |
+| `probe_runner.mjs` | Throttled GET/HEAD probe: status, p50/p95 latency, schemas, citations and freshness. Other methods are recorded without requests. Required unprobed, unreachable, throttled or degraded contracts and doctrine failures block release; `--report-only` retains diagnostic evidence. |
 | `link_check.mjs` | Typo gate (catches a dropped trailing **s** on the GitHub/HF org names, a truncated `.net` on the domain, and a missing **b** in `github`) plus optional external link reachability (`--reach`). |
 | `tab_sweeper.spec.ts` + `playwright.config.ts` | Playwright sweep that opens every tab in the live console and asserts it renders honestly (no unlabelled placeholder, citations present when required). |
 | `stress/warhacker.js` | k6 stress/soak suite over the GET contract endpoints with a `lies` counter threshold of zero. |
@@ -29,7 +30,7 @@ node link_check.mjs --reach            # + external link reachability
 
 # 3. throttled API probe -> readiness-verdict.json + "Lies?" verdict
 node probe_runner.mjs --base https://a-11-oy.com
-node probe_runner.mjs --base https://a-11-oy.com --soft   # report, never fail
+node probe_runner.mjs --base https://a-11-oy.com --report-only   # diagnostic artifact; cannot admit readiness
 
 # 4. live tab sweep (needs a running console)
 A11OY_BASE=https://a-11-oy.com npx playwright test tab_sweeper.spec.ts
@@ -72,6 +73,28 @@ still fail, and schema, citation, HTTP-status, and freshness checks remain
 independent. Nested optional-source and domain labels do not declare root
 availability; the existing schema-required unavailable-source map is unchanged.
 
+## Required execution coverage
+
+The observer never issues a state-changing request, including when legacy
+`--allow-state-changing` or `A11OY_READINESS_MUTATION_AUTHORIZED` settings are
+present. Those settings grant no authority. Each such contract retains its
+required/optional classification and contributes to `skippedStateChanging`;
+required ones also contribute to `requiredNotProbed` and block the release gate.
+
+The compact publisher, canonical relock verifier and served tab-matrix reject
+nonzero, malformed or unclassified required coverage gaps. Historical summaries
+without `requiredNotProbed` conservatively treat all skipped contracts as
+required. Explicit optional skips remain visible without counting as successful
+probes. No endpoint requirement or status allowlist is removed.
+
+The existing required execution contracts need a separately governed producer
+and source-bound acceptance evidence. This repair does not supply that producer
+or qualify a release. Explicit operator execution clients remain separate.
+
+`tools/verify_board.py` likewise reads only, records execution endpoints and
+HTTP 405 as `NOT_PROBED`, and never retries with POST. HTTP 503 is an unavailable
+observation and cannot establish a live image.
+
 ## Live serving
 
 The matrix is also served by the running console at:
@@ -80,13 +103,10 @@ The matrix is also served by the running console at:
 GET /api/a11oy/v1/readiness/tab-matrix
 ```
 
-(see `serve.py`). It returns `tabs.json` plus a compact post-deploy verdict only
-after `hf-sync.yml` probes the canonical deployment and publishes the verdict
-through `SZL_PROBE_VERDICT_JSON`. The server independently requires the exact
-source revision, canonical origin, complete outcomes, and a non-future
-observation no older than 24 hours. Missing or rejected evidence remains
-`available: false`; the full probe stays an immutable GitHub Actions artifact.
-
-> **Note:** a Space variable update restarts the canonical runtime. The relock
-> waits for that restarted runtime to expose the ingested verdict before it can
-> pass.
+(see `serve.py`). It returns the matrix and, when independently supplied,
+a compact verdict bound to the exact source revision, canonical origin, complete
+required coverage and a non-future observation no older than 24 hours. Missing
+or rejected verdicts remain `available: false`; matrix availability is separate.
+The current canonical workflow validates its run-local verdict and hands that
+evidence to relock without writing a Space variable or restarting the runtime.
+The full probe stays an immutable GitHub Actions artifact.
