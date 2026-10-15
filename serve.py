@@ -3740,7 +3740,9 @@ try:
                 and _checked_dt is not None
                 and _checked_dt.utcoffset() == _rd_tz.utc.utcoffset(None)
                 and _checked_dt <= _now_dt
-                and (_now_dt - _checked_dt).total_seconds() <= 86400
+                and (_now_dt - _checked_dt).total_seconds() <= (
+                    _rd_artifact.SERVE_AGE if _rd_artifact.hosted() else 86400
+                )
             )
             _source_bound = (
                 isinstance(_candidate_revision, str)

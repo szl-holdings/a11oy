@@ -290,6 +290,52 @@ def test_source_change_during_fetch_and_serve_expiry():
     assert reader.state["verdict"]["checkedAt"] == CHECKED
 
 
+def test_snapshot_expires_without_refresh_at_the_admission_horizon():
+    reader = subject.Reader(environ=dict(ENV))
+    reader.state = observe()
+    checked = subject.timestamp(CHECKED)
+    assert subject.SERVE_AGE == subject._validator().MAX_INGEST_AGE_SECONDS
+    assert reader.snapshot(now=checked + timedelta(seconds=3600))["verdict"] is not None
+    for elapsed in (3601, 3600 + subject.INTERVAL, 7200):
+        assert reader.snapshot(now=checked + timedelta(seconds=elapsed))["verdict"] is None
+    assert reader.thread is None
+    assert reader.state["verdict"]["checkedAt"] == CHECKED
+
+
+def test_hosted_route_independently_rejects_stale_cached_verdict(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    source = (subject.ROOT / "serve.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    block = next(node for node in tree.body if isinstance(node, ast.Try) and any(
+        isinstance(child, ast.AsyncFunctionDef) and child.name == "_a11oy_readiness_tab_matrix"
+        for child in node.body))
+    monkeypatch.setenv("SPACE_ID", ENV["SPACE_ID"])
+    monkeypatch.setenv("SZL_GIT_SHA", SOURCE)
+    monkeypatch.setenv("SZL_READINESS_CANONICAL_ORIGIN", subject.ORIGIN)
+    cached = observe()
+    cached["verdict"]["checkedAt"] = (
+        datetime.now(timezone.utc) - timedelta(minutes=30)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    reader = subject.Reader(environ=dict(ENV))
+    monkeypatch.setattr(subject, "reader", reader)
+    monkeypatch.setattr(reader, "snapshot", lambda: cached)
+    monkeypatch.setattr(reader, "refresh", lambda: pytest.fail("GET fetched"))
+    app = FastAPI()
+    scope = {"app": app, "__file__": str(subject.ROOT / "serve.py")}
+    exec(compile(ast.Module(body=[block], type_ignores=[]), "serve.py", "exec"), scope)
+    client = TestClient(app)
+    response = client.get("/api/a11oy/v1/readiness/tab-matrix?view=summary").json()
+    assert response["available"] is True
+    assert response["probe_verdict_available"] is True
+    cached["verdict"]["checkedAt"] = (
+        datetime.now(timezone.utc) - timedelta(hours=2)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    response = client.get("/api/a11oy/v1/readiness/tab-matrix?view=summary").json()
+    assert response["available"] is False
+    assert response["probe_verdict_available"] is False
+
+
 def test_lifecycle_single_worker_stop_restart_and_fresh_identity():
     calls = []; ready = threading.Event(); env = dict(ENV)
     reader = subject.Reader(environ=env, interval=60)
