@@ -163,7 +163,10 @@ _LIVE_UPSTREAM_BOUND = (
     '\n'
     'def upstream_verdict(result):\n'
     '    if not isinstance(result,dict) or result.get("status") not in UPSTREAM_ACCEPTED_STATES:\n'
-    '        return False,"UPSTREAM_UNAVAILABLE","UNAVAILABLE"\n'
+    '        reason=result.get("reason") if isinstance(result,dict) else None\n'
+    '        if reason not in ("UPSTREAM_NOT_JSON","UPSTREAM_PAYLOAD_INVALID","UPSTREAM_DATA_UNAVAILABLE"):\n'
+    '            reason="UPSTREAM_UNAVAILABLE"\n'
+    '        return False,reason,"UNAVAILABLE"\n'
     '    data=result.get("data")\n'
     '    if not isinstance(data,dict):\n'
     '        return False,"UPSTREAM_PAYLOAD_INVALID","UNAVAILABLE"\n'
@@ -214,6 +217,9 @@ _READYZ_UPSTREAM_BOUND = (
     '    status["checks"]=dict(status["checks"],upstream=accepted)\n'
     '    status["upstream"]={"route":"/api/live","source":CFG.get("upstream"),"accepted":accepted,'
     '"state":state,"status":upstream.get("status"),"http_status":upstream.get("http_status"),"reason":reason}\n'
+    '    if CFG.get("slug")=="sentra":\n'
+    '        status["upstream"].update({key:upstream.get(key) for key in '
+    '("observation","last_attempt","retry_after_seconds","receipt_verified")})\n'
     '    status["ready"]=bool(local_ready and accepted)\n'
     '    status["state"]="MEASURED" if status["ready"] else ("UPSTREAM_UNAVAILABLE" if local_ready else "INVALID")\n'
     '    return JSONResponse(status,status_code=200 if status["ready"] else 503,headers={"Cache-Control":"no-store"})\n'
@@ -299,6 +305,14 @@ APP = APP.replace(_LIVE_UNCONDITIONAL, _LIVE_UPSTREAM_BOUND, 1)
 if APP.count(_READYZ_LOCAL_ONLY) != 1:
     raise RuntimeError("flagship APP /readyz is not the expected local-integrity-only handler")
 APP = APP.replace(_READYZ_LOCAL_ONLY, _READYZ_UPSTREAM_BOUND, 1)
+_sentra_budget_spec = importlib.util.spec_from_file_location(
+    "szl_sentra_upstream_budget", Path(__file__).with_name("hf_sentra_upstream.py")
+)
+if _sentra_budget_spec is None or _sentra_budget_spec.loader is None:
+    raise RuntimeError("Sentra upstream request budget is unavailable")
+_sentra_budget_module = importlib.util.module_from_spec(_sentra_budget_spec)
+_sentra_budget_spec.loader.exec_module(_sentra_budget_module)
+APP = _sentra_budget_module.augment(APP)
 _BASE.APP = APP
 
 # Terra's landing is the szl-vertical-forge 0.2.3 artifact (szl-vertical-forge#14):

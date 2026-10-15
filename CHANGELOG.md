@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - bounded operator observations
+
+- Add a GET-only preflight and explicitly admitted three-case HTTP runner with
+  a durable intent journal, fixed payloads, no retries, and source checks.
+- Add an offline artifact/nonce/source/semantic verifier. Model execution stays
+  blocked; unsigned scoped observations do not clear the five required release
+  contracts or modify the passive readiness probe.
+
 ### Changed - Python command-centre presentation
 
 - Render the existing command-centre routes from escaped Python components
