@@ -507,8 +507,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-    outputs:
-      verdict: ${{ steps.gate.outputs.verdict }}
     env:
       GH_TOKEN: ""
       GITHUB_TOKEN: ""
@@ -609,11 +607,82 @@ jobs:
           --soft
           --out "$VERDICT_PATH"
 
+      - name: Upload immutable passive probe evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.VERDICT_PATH }}
+          if-no-files-found: error
+          retention-days: 90
+
+  execution-readiness:
+    name: Collect and verify admitted execution evidence
+    needs: readiness-verdict
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      verdict: ${{ steps.gate.outputs.verdict }}
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      VERDICT_PATH: ${{ runner.temp }}/passive-evidence/readiness-verdict.json
+      EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
+      # Independently selected context; evidence cannot select its own authority.
+      EXPECTED_EXECUTION_HF_REVISION: ${{ vars.A11OY_EXECUTION_HF_REVISION }}
+      EXPECTED_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}
+      EXPECTED_EXECUTION_RUN_NONCE: ${{ vars.A11OY_EXECUTION_RUN_NONCE }}
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Download this exact run and attempt's passive evidence
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/passive-evidence
+
+      - name: Install exact execution evidence verification clients
+        run: >-
+          python -I -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0" "requests==2.32.5"
+          "cryptography==50.0.2" "httpx==0.28.1"
+
+      # GET only: this does not issue a challenge, approve a plan, dispatch POSTs,
+      # mint a signature, create credentials, change configuration or restart.
+      - name: Collect the independently admitted completed execution export
+        env:
+          A11OY_EXECUTION_AUTHORITY_PINS_JSON: ${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}
+          A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}
+          A11OY_CODE_TENANT: ${{ secrets.A11OY_CODE_TENANT }}
+        run: >-
+          python -I -B .github/scripts/collect_execution_readiness.py
+          --source-sha "$SOURCE_SHA"
+          --runtime-sha "$EXPECTED_EXECUTION_HF_REVISION"
+          --boot-id "$EXPECTED_EXECUTION_BOOT_ID"
+          --run-nonce "$EXPECTED_EXECUTION_RUN_NONCE"
+          --out-dir "$EXECUTION_EVIDENCE_DIR"
+
+      - name: Stage unchanged passive evidence beside the execution export
+        run: cp -- "$VERDICT_PATH" "$EXECUTION_EVIDENCE_DIR/readiness-verdict.json"
+
       - name: Upload immutable full probe evidence
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.VERDICT_PATH }}
+          path: |
+            ${{ env.EXECUTION_EVIDENCE_DIR }}/readiness-verdict.json
+            ${{ env.EXECUTION_EVIDENCE_DIR }}/execution-observations.json
           if-no-files-found: error
           retention-days: 90
 
@@ -629,18 +698,32 @@ jobs:
           --input "$VERDICT_PATH"
           --expected-origin "$CANONICAL_ORIGIN"
           --expected-source-sha "$SOURCE_SHA"
+          --execution-bundle "$EXECUTION_EVIDENCE_DIR/execution-observations.json"
+          --authority-pins "$EXECUTION_EVIDENCE_DIR/execution-authority-pins.json"
+          --expected-runtime-sha "$EXPECTED_EXECUTION_HF_REVISION"
+          --expected-boot-id "$EXPECTED_EXECUTION_BOOT_ID"
+          --expected-run-nonce "$EXPECTED_EXECUTION_RUN_NONCE"
           --github-output "$GITHUB_OUTPUT"
 
   relock:
     name: Prove exact live source, runtime, routes, and singleton state
-    needs: [runtime-config, readiness-verdict]
+    needs: [runtime-config, execution-readiness]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
     outputs:
       current_main: ${{ steps.post_deploy_owner.outputs.publish }}
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       SOURCE_SHA: ${{ github.sha }}
+      EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
+      # Independent operator-selected context for an already completed run.
+      # Empty/missing values fail closed; neither the plan nor export selects them.
+      EXPECTED_EXECUTION_HF_REVISION: ${{ vars.A11OY_EXECUTION_HF_REVISION }}
+      EXPECTED_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}
+      EXPECTED_EXECUTION_RUN_NONCE: ${{ vars.A11OY_EXECUTION_RUN_NONCE }}
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -659,6 +742,24 @@ jobs:
           python -I -m pip install --disable-pip-version-check
           "huggingface_hub==1.23.0"
           "requests==2.32.5"
+          "cryptography==50.0.2" "httpx==0.28.1"
+
+      - name: Download this exact run and attempt's raw evidence
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.EXECUTION_EVIDENCE_DIR }}
+
+      - name: Materialize independently configured public authority pins
+        env:
+          A11OY_EXECUTION_AUTHORITY_PINS_JSON: ${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}
+        run: >-
+          python -I -B .github/scripts/materialize_execution_authority_pins.py
+          --source-sha "$SOURCE_SHA"
+          --runtime-sha "$EXPECTED_EXECUTION_HF_REVISION"
+          --boot-id "$EXPECTED_EXECUTION_BOOT_ID"
+          --run-nonce "$EXPECTED_EXECUTION_RUN_NONCE"
+          --output "$RUNNER_TEMP/execution-authority-pins.json"
 
       # The live route honestly serves no verdict (the deploy path never writes
       # one into the Space); relock re-validates this run's verdict instead.
@@ -666,7 +767,9 @@ jobs:
         id: verify
         shell: bash
         env:
-          RUN_READINESS_VERDICT: ${{ needs.readiness-verdict.outputs.verdict }}
+          RUN_READINESS_VERDICT: ${{ needs.execution-readiness.outputs.verdict }}
+          A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}
+          A11OY_CODE_TENANT: ${{ secrets.A11OY_CODE_TENANT }}
         run: |
           set +e
           printf '%s' "$RUN_READINESS_VERDICT" > "$RUNNER_TEMP/run-readiness-verdict.json"
@@ -676,6 +779,12 @@ jobs:
             --source-sha "$SOURCE_SHA" \
             --source-variable SZL_GIT_SHA \
             --readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json" \
+            --passive-verdict "$EXECUTION_EVIDENCE_DIR/readiness-verdict.json" \
+            --execution-bundle "$EXECUTION_EVIDENCE_DIR/execution-observations.json" \
+            --authority-pins "$RUNNER_TEMP/execution-authority-pins.json" \
+            --expected-runtime-sha "$EXPECTED_EXECUTION_HF_REVISION" \
+            --expected-boot-id "$EXPECTED_EXECUTION_BOOT_ID" \
+            --expected-run-nonce "$EXPECTED_EXECUTION_RUN_NONCE" \
             --output "$REPORT_PATH" \
             --attempts 60 \
             --retry-seconds 10

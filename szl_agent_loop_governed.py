@@ -471,7 +471,7 @@ def run_loop(task: str,
              sandbox: Optional[bool] = None,
              consult_brain: bool = False,
              allocate_energy: bool = False,
-             allow_exec: bool = False, execution_budget=None) -> dict:
+             allow_exec: bool = False, execution_budget=None, native_readbacks=None) -> dict:
     """Run ONE governed autonomous loop over a task.
 
     allow_exec (default False) is forwarded to the engine: a planned code step reaches
@@ -698,7 +698,8 @@ def run_loop(task: str,
                             execution_budget.fail("STRICT_ENGINE_NOT_COMPLETED")
                             execution_budget.check()
                         eval_options = {"execution_budget": execution_budget,
-                                        "selected_model_slug": strict_plan["model_slug"]}
+                                        "selected_model_slug": strict_plan["model_slug"],
+                                        "native_readbacks": native_readbacks}
                     ev = _arena.run_eval(suite_id, model_id or "claude_opus_4_8",
                                          harness_profile_id or None, **eval_options)
                     agg = ev.get("aggregate") or {}
@@ -1007,6 +1008,13 @@ def run_loop(task: str,
             execution_budget.check()
         except Exception:
             final_admitted = False
+    if execution_budget is not None and final_admitted and native_readbacks is not None:
+        try:
+            native_readbacks.record_agentloop({"body": receipt_body, "dsse": dsse, "signing": signing})
+            execution_budget.check()
+        except Exception:
+            execution_budget.fail("NATIVE_READBACK_PERSISTENCE_FAILED", ambiguous=True)
+            final_admitted = False
     forum = (_ingest_forum(receipt_body, dsse) if final_admitted else
              {"ingested": False, "note": "Strict execution budget closed; forum publication withheld."})
     if execution_budget is not None:
@@ -1237,8 +1245,9 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
                 # worker returns, including through AnyIO middleware scopes.
                 # The worker is cooperative; remote cancellation is not claimed.
                 result = await to_thread.run_sync(partial(run_loop, task, sign_fn,
-                                                execution_budget=execution_budget, **options),
-                                                abandon_on_cancel=True)
+                                                execution_budget=execution_budget,
+                                                native_readbacks=getattr(app.state, "execution_native_readbacks", None),
+                                                **options), abandon_on_cancel=True)
             except BaseException:
                 execution_budget.fail("EXECUTION_CANCELLED", ambiguous=True)
                 raise
@@ -1329,6 +1338,7 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
             "checked_at": _now(),
         })
 
+    _run.execution_native_readbacks_schema = "szl.native-execution-readbacks/v1"
     routes = [
         Route("/api/%s/v1/agentloop/run" % ns, _run, methods=["POST"],
               name="%s_agentloop_run" % ns),

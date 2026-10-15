@@ -1,7 +1,7 @@
 """Livelock-free hf-sync supersession and dependency contract (stdlib only).
 
 The canonical deploy graph is source-admission -> preflight -> deploy ->
-runtime-config -> readiness-verdict -> relock -> post-deployment-parity ->
+runtime-config -> readiness-verdict -> execution-readiness -> relock -> post-deployment-parity ->
 terminal-source-authorization. Every gate is an invariant: protected main only,
 the newest main wins and a superseded run ends neutral, reruns and manual
 dispatch on main may deploy, and no job depends on an exact run, artifact,
@@ -37,7 +37,8 @@ EXPECTED_DEPENDENCIES = {
     "runtime-config": ["preflight", "deploy"],
     "publish-vertical-flagships": ["source-admission", "deploy"],
     "readiness-verdict": ["runtime-config"],
-    "relock": ["runtime-config", "readiness-verdict"],
+    "execution-readiness": ["readiness-verdict"],
+    "relock": ["runtime-config", "execution-readiness"],
     "post-deployment-parity": ["relock"],
     "terminal-source-authorization": ["relock", "post-deployment-parity", "publish-vertical-flagships"],
 }
@@ -48,6 +49,7 @@ EXPECTED_CONDITIONS = {
     "runtime-config": None,
     "publish-vertical-flagships": "${{ needs.source-admission.outputs.publish == 'true' && needs.deploy.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}",
     "readiness-verdict": None,
+    "execution-readiness": None,
     "relock": None,
     "post-deployment-parity": "${{ needs.relock.outputs.current_main == 'true' }}",
     "terminal-source-authorization": "${{ always() && needs.relock.result == 'success' && (needs.post-deployment-parity.result == 'success' || (needs.post-deployment-parity.result == 'skipped' && needs.relock.outputs.current_main != 'true')) && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') }}",
@@ -317,7 +319,7 @@ def simulate(jobs: dict, *, event="push", attempt=1, vertical=False,
     return results
 
 
-DEPLOY_PATH = ("preflight", "deploy", "runtime-config", "readiness-verdict", "relock",
+DEPLOY_PATH = ("preflight", "deploy", "runtime-config", "readiness-verdict", "execution-readiness", "relock",
                "post-deployment-parity", "terminal-source-authorization")
 
 
@@ -365,7 +367,7 @@ class HFSyncLivelockFreeGraphTests(unittest.TestCase):
 
     def test_failed_effects_never_reach_terminal_authorization(self) -> None:
         for failed in ("preflight", "deploy", "runtime-config", "readiness-verdict",
-                       "relock", "post-deployment-parity"):
+                       "execution-readiness", "relock", "post-deployment-parity"):
             with self.subTest(failed=failed):
                 results = simulate(self.jobs, failures=(failed,))
                 self.assertEqual(results[failed], "failure")
@@ -408,7 +410,7 @@ class HFSyncLivelockFreeGraphTests(unittest.TestCase):
         mutations = (
             ("    needs: [source-admission, preflight]\n", "    needs: source-admission\n", "dependency gate: deploy"),
             ("    needs: [preflight, deploy]\n", "    needs: deploy\n", "dependency gate: runtime-config"),
-            ("    needs: [runtime-config, readiness-verdict]\n", "    needs: runtime-config\n", "dependency gate: relock"),
+            ("    needs: [runtime-config, execution-readiness]\n", "    needs: runtime-config\n", "dependency gate: relock"),
             ("    needs: [relock, post-deployment-parity, publish-vertical-flagships]\n",
              "    needs: [post-deployment-parity, publish-vertical-flagships]\n", "dependency gate: terminal-source-authorization"),
             ("    if: " + EXPECTED_CONDITIONS["deploy"] + "\n",

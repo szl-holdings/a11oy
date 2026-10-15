@@ -85,6 +85,13 @@ ACTION_IDENTITY_COPY_ADDITIONS = {"szl_action_identity.py"}
 RAG_REFERENCE_AUTH_COPY_ADDITIONS = {"a11oy_rag_reference_auth.py"}
 STATE_STORE_COPY_ADDITIONS = {"a11oy_state_store.py"}
 PUBLIC_ESTATE_COPY_ADDITIONS = {"static/shared/public-estate-contract.v1.json"}
+# Exact observer/native-adapter/consumer additions; prior source pins stay intact.
+# Consolidating two adjacent root COPY instructions pays for the parser's own
+# exact tools/ path without increasing the 118-layer ceiling.
+EXECUTION_OBSERVER_COPY_ADDITIONS = {
+    "observer_runtime.py", "observer_adapters.py", "native_readbacks.py",
+    "szl_execution_readiness.py", "tools/execution_acceptance.py", "tools/__init__.py",
+}
 READINESS_READER_COPY_ADDITIONS = {
     "szl_readiness_artifact.py", ".github/scripts/publish_readiness_verdict.py",
 }
@@ -154,6 +161,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert STATE_STORE_COPY_ADDITIONS <= copy_sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= copy_sources
     assert READINESS_READER_COPY_ADDITIONS <= copy_sources
+    assert EXECUTION_OBSERVER_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
@@ -165,6 +173,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | STATE_STORE_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
         | READINESS_READER_COPY_ADDITIONS
+        | EXECUTION_OBSERVER_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
@@ -192,6 +201,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert STATE_STORE_COPY_ADDITIONS <= sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
     assert READINESS_READER_COPY_ADDITIONS <= sources
+    assert EXECUTION_OBSERVER_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -200,6 +210,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - STATE_STORE_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - READINESS_READER_COPY_ADDITIONS
+        - EXECUTION_OBSERVER_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
@@ -225,6 +236,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert STATE_STORE_COPY_ADDITIONS <= sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
     assert READINESS_READER_COPY_ADDITIONS <= sources
+    assert EXECUTION_OBSERVER_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -233,6 +245,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - STATE_STORE_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - READINESS_READER_COPY_ADDITIONS
+        - EXECUTION_OBSERVER_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")

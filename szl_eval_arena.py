@@ -639,7 +639,7 @@ def _resolve_harness(harness_profile_id: str | None) -> dict[str, Any]:
 def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None,
              *, execution_mode: str = "live", request_origin: str = "",
              execution_limits=None, execution_budget=None,
-             selected_model_slug=None) -> dict[str, Any]:
+             selected_model_slug=None, native_readbacks=None) -> dict[str, Any]:
     """Run one governed eval suite over one routed model. Deterministic. Never raises."""
     suite = _SUITES.get(suite_id) if isinstance(suite_id, str) else None
     if not suite:
@@ -871,6 +871,13 @@ def run_eval(suite_id: str, model_id: str, harness_profile_id: str | None = None
             execution_budget.check()
         except ExecutionBudgetError:
             forum_allowed = False
+    if strict is not None and forum_allowed and native_readbacks is not None:
+        try:
+            native_readbacks.record_eval({"body": receipt_body, "dsse": dsse, "signing": signing})
+            execution_budget.check()
+        except Exception:
+            execution_budget.fail("NATIVE_READBACK_PERSISTENCE_FAILED", ambiguous=True)
+            forum_allowed = False
     forum = (_ingest_forum(receipt_body, dsse, model_id) if forum_allowed else
              {"ingested": False, "error": "EXECUTION_BUDGET_TERMINAL"})
 
@@ -1097,6 +1104,7 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
                 code = str(exc) if isinstance(exc, ExecutionBudgetError) else "STRICT_EVAL_JSON_INVALID"
                 return JSONResponse({"error": code}, status_code=422)
             strict_args["execution_budget"] = budget
+            strict_args["native_readbacks"] = getattr(app.state, "execution_native_readbacks", None)
 
         from functools import partial
         from starlette.concurrency import run_in_threadpool
@@ -1117,6 +1125,8 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
             raise
         code = out.pop("status_code", 200)
         return JSONResponse(out, status_code=code)
+
+    eval_run.execution_native_readbacks_schema = "szl.native-execution-readbacks/v1"
 
     @app.get(base + "/health")
     async def eval_health() -> "JSONResponse":
