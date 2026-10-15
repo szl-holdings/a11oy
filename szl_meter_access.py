@@ -19,6 +19,11 @@ from urllib.parse import urlsplit
 
 
 _HOST = "meter2.a-11-oy.com"
+# Source-owned activation pointer. A later protected release may set this to one
+# reviewed, freshly provisioned versioned secret name. Never infer the active
+# credential by scanning environment variables or silently fall back to legacy.
+ACTIVE_METER2_TARGETS_SECRET = None
+_VERSIONED_SECRET = re.compile(r"SZL_METER_HMAC_TARGETS_V1_[0-9A-F]{32}\Z")
 _ID_ENV = "A11OY_METER2_CF_ACCESS_CLIENT_ID"
 _SECRET_ENV = "A11OY_METER2_CF_ACCESS_CLIENT_SECRET"
 _CLIENT = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
@@ -90,6 +95,15 @@ def _message(method, target, audience, client, stamp, nonce):
     return "\n".join(("szl-meter-hmac-v1", method, target, audience, client, stamp, nonce)).encode("ascii")
 
 
+def _targets_secret_name(origin):
+    if origin != "https://meter2.a-11-oy.com" or ACTIVE_METER2_TARGETS_SECRET is None:
+        return "SZL_METER_HMAC_TARGETS"
+    if (not isinstance(ACTIVE_METER2_TARGETS_SECRET, str)
+            or not _VERSIONED_SECRET.fullmatch(ACTIVE_METER2_TARGETS_SECRET)):
+        raise MeterAuthConfigurationError("invalid source-owned meter secret selector")
+    return ACTIVE_METER2_TARGETS_SECRET
+
+
 def meter_request_headers(url: str) -> dict[str, str]:
     """Sign one exact GET with a fresh nonce; never send keys or follow redirects.
 
@@ -98,7 +112,10 @@ def meter_request_headers(url: str) -> dict[str, str]:
     restricted to loopback; remote meters require HTTPS. No implicit host match.
     """
     origin, target = _origin_and_target(url)
-    entries = _config(os.environ.get("SZL_METER_HMAC_TARGETS", ""))
+    secret_name = _targets_secret_name(origin)
+    entries = _config(os.environ.get(secret_name, ""))
+    if secret_name != "SZL_METER_HMAC_TARGETS" and set(entries) != {origin}:
+        raise MeterAuthConfigurationError("versioned meter secret has wrong audience")
     for configured_origin, configured_entry in entries.items():
         entry_origin, entry_target = _origin_and_target(configured_origin)
         if (configured_origin != entry_origin or entry_target != "/"

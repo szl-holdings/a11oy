@@ -20,6 +20,7 @@ PUBLIC_DIGEST = "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2c
 
 
 CHECKER_PATH = "tools/check_copy_sync_lockstep.py"
+METER_MANIFEST_PATH = ".github/shared-source-payload-manifest.json"
 KANCHAY_MANIFEST_PATHS = (
     "console/assets/szl/SOURCE.json",
     "docs/site/docs/public/szl/SOURCE.json",
@@ -53,24 +54,42 @@ def signing_source_row():
     return '    "a11oy_signing_key.py": "' + digest + '",\n'
 
 
+def meter_source_row():
+    digest = hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest()
+    return '    "szl_meter_access.py": "' + digest + '"\n'
+
+
 class ExactSourceExceptionContract(unittest.TestCase):
-    def test_exception_is_one_exact_public_row_and_path_with_and_semantics(self):
+    def test_exceptions_are_exact_public_rows_and_paths_with_and_semantics(self):
         config = tomllib.loads((ROOT / ".gitleaks.toml").read_text())
         rule = next(rule for rule in config["rules"] if rule["id"] == "generic-api-key")
         self.assertEqual(set(rule), {"id", "allowlists"})
-        self.assertEqual(len(rule["allowlists"]), 3)
+        self.assertEqual(len(rule["allowlists"]), 4)
         allow = rule["allowlists"][0]
+        meter_allow = rule["allowlists"][3]
         self.assertEqual(set(allow), {"description", "condition", "regexTarget", "paths", "regexes"})
         self.assertEqual(allow["condition"], "AND")
         self.assertEqual(allow["regexTarget"], "line")
         self.assertEqual(len(allow["paths"]), 1)
         self.assertEqual(len(allow["regexes"]), 1)
-        self.assertEqual(allow["paths"], [r"^tools/check_copy_sync_lockstep\.py$"])
+        self.assertEqual(allow["paths"], [r"(^|[\\/])tools[\\/]check_copy_sync_lockstep\.py$"])
         line = signing_source_row()
         self.assertIn(line, (ROOT / CHECKER_PATH).read_text())
         self.assertRegex(line, allow["regexes"][0])
         self.assertIsNone(re.search(allow["regexes"][0], line.rstrip() + ' "private_api_key": "' + disposable_credential() + '"'))
         self.assertIsNone(re.search(allow["regexes"][0], line.replace(hashlib.sha256((ROOT / "a11oy_signing_key.py").read_bytes()).hexdigest(), disposable_credential())))
+        self.assertEqual(set(meter_allow), {"description", "condition", "regexTarget", "paths", "regexes"})
+        self.assertEqual(meter_allow["condition"], "AND")
+        self.assertEqual(meter_allow["regexTarget"], "line")
+        self.assertEqual(len(meter_allow["paths"]), 1)
+        self.assertEqual(len(meter_allow["regexes"]), 1)
+        self.assertRegex(METER_MANIFEST_PATH, meter_allow["paths"][0])
+        self.assertIsNone(re.search(meter_allow["paths"][0], "other/shared-source-payload-manifest.json"))
+        meter_line = meter_source_row()
+        self.assertIn(meter_line, (ROOT / METER_MANIFEST_PATH).read_text())
+        self.assertRegex(meter_line, meter_allow["regexes"][0])
+        self.assertIsNone(re.search(meter_allow["regexes"][0], meter_line.rstrip() + ' "private_api_key": "' + disposable_credential() + '"'))
+        self.assertIsNone(re.search(meter_allow["regexes"][0], meter_line.replace(hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest(), disposable_credential())))
 
     def test_kanchay_exception_is_exact_checksum_row_and_five_source_paths(self):
         config = tomllib.loads((ROOT / ".gitleaks.toml").read_text())
@@ -165,6 +184,23 @@ class PublicDigestScannerBoundary(unittest.TestCase):
         row = signing_source_row().rstrip() + ' "private_api_key": "' + disposable_credential() + '"\n'
         self.assertEqual(self.scan(row, CHECKER_PATH), 1)
 
+    def test_exact_meter_source_digest_in_manifest_is_not_a_credential(self):
+        self.assertEqual(self.scan(meter_source_row(), METER_MANIFEST_PATH), 0)
+
+    def test_identical_meter_source_row_outside_manifest_is_scanned(self):
+        self.assertEqual(self.scan(meter_source_row(), "other/shared-source-payload-manifest.json"), 1)
+
+    def test_different_meter_digest_in_manifest_is_scanned(self):
+        row = '    "szl_meter_access.py": "' + disposable_credential() + '"\n'
+        self.assertEqual(self.scan(row, METER_MANIFEST_PATH), 1)
+
+    def test_adjacent_credential_in_manifest_is_scanned(self):
+        row = meter_source_row() + '    "private_api_key": "' + disposable_credential() + '"\n'
+        self.assertEqual(self.scan(row, METER_MANIFEST_PATH), 1)
+
+    def test_same_line_credential_in_manifest_is_scanned(self):
+        row = meter_source_row().rstrip() + ' "private_api_key": "' + disposable_credential() + '"\n'
+        self.assertEqual(self.scan(row, METER_MANIFEST_PATH), 1)
     def test_canonical_stylesheet_checksum_in_each_source_manifest_is_not_a_credential(self):
         for path in KANCHAY_MANIFEST_PATHS:
             with self.subTest(path=path):

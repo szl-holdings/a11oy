@@ -28,6 +28,8 @@
 #     when the value is exactly 64 lowercase-hex chars (a sha256 digest) AND the
 #     surrounding name says sha256 / fingerprint / orphan_key. See
 #     docs/KEY_ROTATION.md and .github/hf-corpus-guards.json.
+#   • one exact public source-digest row for the shared meter helper, bound to
+#     the validated shared-source payload manifest path.
 #
 # Real credentials (tokens, private keys, cloud secrets) remain fully detected.
 
@@ -102,7 +104,7 @@ id = "generic-api-key"
 description = "Exact reviewed a11oy_signing_key.py source identity in source admission"
 condition = "AND"
 regexTarget = "line"
-paths = ['''^tools/check_copy_sync_lockstep\.py$''']
+paths = ['''(^|[\\/])tools[\\/]check_copy_sync_lockstep\.py$''']
 regexes = ['''^\s*"a11oy_signing_key\.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",\s*$''']
 
 # Public CSS checksum in the byte-exact, accepted KANCHAY SOURCE manifest at
@@ -136,3 +138,13 @@ paths = [
   '''^benchmarks/governed-agent-bench/huggingface/szl/SOURCE\.json$''',
 ]
 regexes = ['''^\s*"szl-tokens\.css"\s*:\s*"81f7c9baeef0b435e6e3f9d0c4e0d70e40fa17df5d1f30697f623cd3ef5f8eab"\s*,?\s*$''']
+
+# The exact public SHA-256 of the shared meter helper is source identity, not
+# an API credential. Both path and full row must match. The reciprocal payload
+# validator independently checks this digest against both source files.
+[[rules.allowlists]]
+description = "Exact reviewed szl_meter_access.py digest in shared payload"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|[\\/])\.github[\\/]shared-source-payload-manifest\.json$''']
+regexes = ['''^\s*"szl_meter_access\.py"\s*:\s*"e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",?\s*$''']
