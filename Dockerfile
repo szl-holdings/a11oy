@@ -511,7 +511,8 @@ COPY schemas/puriq-receipt-v1.json ./schemas/puriq-receipt-v1.json
 COPY policy/colang/roe_core.co policy/colang/killinchu_threat.co policy/colang/gdw_enforcement_contract.json policy/colang/enforcement-contract.json ./policy/colang/
 # GOVERNED AUTO-REVIEW (Integration I2) — keystone autonomy layer: governed +
 # … (full rationale: docs/DOCKERFILE_NOTES.md §68)
-COPY scripts/check_tau_eval.py scripts/verify_installed_authority.py .github/scripts/publish_readiness_verdict.py ./scripts/
+COPY scripts/check_tau_eval.py scripts/verify_installed_authority.py ./scripts/
+COPY .github/scripts/publish_readiness_verdict.py ./.github/scripts/
 # Lean4Agent workflow-invariant scaffold (ROADMAP / EXPERIMENTAL — not a verified
 # proof yet; rendered as ROADMAP in the UI). Shipped so the .lean source is in
 # the image for audit; no Lean toolchain is invoked at runtime.

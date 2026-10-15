@@ -139,13 +139,9 @@ SERVE_AGE = 86400
 @lru_cache(maxsize=1)
 def _validator():
     # Import the canonical pure validator, never its provider-writing main().
-    source = ROOT / ".github/scripts/publish_readiness_verdict.py"
-    if not source.is_file():
-        # The reviewed Docker COPY batches this source into /app/scripts/.
-        source = ROOT / "scripts/publish_readiness_verdict.py"
     spec = importlib.util.spec_from_file_location(
         "_readiness_artifact_validator",
-        source,
+        ROOT / ".github/scripts/publish_readiness_verdict.py",
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

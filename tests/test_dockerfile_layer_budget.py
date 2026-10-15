@@ -13,9 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 BUILD_WORKFLOW = ROOT / ".github" / "workflows" / "docker-build.yml"
 # Prior admitted af0026 has 110 COPY + 7 RUN instructions in runtime.
-# This ceiling preserves that measured source depth; the native image import
-# remains the authority for the base image plus actual filesystem layer limit.
-RUNTIME_LAYER_BUDGET = 117
+# The readiness verdict validator needs one dedicated COPY: relocating its
+# Python source fails the installed-source provenance guard. The native image
+# build passed with this additional instruction; keep its increase explicit.
+RUNTIME_LAYER_BUDGET = 118
 # Exact base 5ec5b66 has 579 explicit COPY sources with SHA-256
 # aa11d167572da80452e1247815b1a0e08bbd9ba206f4d859b0b26f8d84ffc48e.
 # Steward adds only its four named adapter/reader/projection/lock files, batched
@@ -39,8 +40,8 @@ RUNTIME_LAYER_BUDGET = 117
 # The Python command-centre projection adds only its canonical public binding,
 # batched with existing shared assets; historical counts and digests stay put.
 # Readiness artifact reading adds its one module and the canonical pure verdict
-# validator, both batched into existing COPY instructions. Historical baselines
-# exclude these exact sources; the runtime layer budget remains unchanged.
+# validator. The latter keeps its source path with a dedicated COPY instruction.
+# Historical baselines exclude these exact sources.
 # Preserve every prior source and the unchanged layer budget, not a broad COPY.
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
