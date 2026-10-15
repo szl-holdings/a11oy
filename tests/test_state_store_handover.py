@@ -8,7 +8,12 @@ ParentConflict) and the bucket is a local directory. A fake clock drives the
 heartbeat, the handover wait and lease staleness deterministically.
 """
 
+import copy
+import hashlib
 import json
+import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from dataclasses import replace
 
 import pytest
@@ -16,6 +21,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import a11oy_state_store as ss
+from routers.series_a_control_plane import Store
 from tests.state_store_support import FakeClock, FakeHeadBackend, count, make_db, replica
 # The hosted GDW job enumerates this suite; collect its lifecycle companion too.
 from tests.state_store_error_lifecycle import TestStateStoreErrorLifecycle
@@ -303,3 +309,408 @@ def test_heartbeat_object_names_the_lease_holder(world):
     beat = json.loads(world["objects"].get_bytes(ss.HEARTBEAT_PATH))
     assert beat["epoch"] == 1 and beat["writer_id"] == a.writer_id
     assert beat["schema"] == ss.HEARTBEAT_SCHEMA
+
+
+# Explicit observation acknowledgements use real disposable SQLite snapshots.
+@pytest.fixture
+def observation_world(tmp_path, monkeypatch):
+    clock, backend = FakeClock(), FakeHeadBackend()
+    objects = ss.LocalDirObjectStore(tmp_path / "objects")
+    writer = replica(tmp_path, "a", objects, backend, clock)
+    writer.boot()
+    writer.heartbeat_once()
+    monkeypatch.setattr(ss, "_ACTIVE", writer)
+    monkeypatch.setenv(ss.ENABLE_ENV, ss.ENABLED_VALUE)
+    monkeypatch.setenv("A11OY_SERIES_A_SQLITE_JOURNAL", "DELETE")
+    owner = Store()
+    yield writer, owner, backend, objects, clock, tmp_path
+    writer._close_watchers()
+
+
+def reserve_observation(writer, owner, **overrides):
+    values = dict(source_revision=writer.source_revision, runtime_boot_id=writer.boot_id,
+                  run_nonce="c" * 64, plan_sha256="d" * 64, case_id="policy-decide",
+                  request_sha256="e" * 64, receipt_id="observation-fixture-1",
+                  started_at="2026-10-15T03:00:00Z")
+    values.update(overrides)
+    return owner.reserve_execution_observation(**values)
+
+
+def acknowledge_observation(writer, owner, row):
+    return writer.snapshot_confirmed("series_a",
+        lambda path: owner.execution_observation_matches(path, row))
+
+
+def legacy_observation_rows(owner):
+    with sqlite3.connect(owner.path) as db:
+        return {table: db.execute(f'SELECT * FROM "{table}" ORDER BY 1').fetchall()
+                for table in ("snapshots", "passports", "passport_executions",
+                              "receipts", "events", "metadata")}
+
+
+def test_owner_reservation_and_completed_object_survive_clean_restore(observation_world):
+    writer, owner, backend, objects, clock, root = observation_world
+    stamp = "2026-10-15T03:00:00Z"
+    owner.save_snapshot({"observed_at": stamp, "valid_until": stamp},
+                        {"fixture": "UNSIGNED_SYNTHETIC"})
+    passport = owner.save_passport({"decision": "DENY", "created_at": stamp})
+    owner.begin_execution(passport, writer.boot_id, stamp)
+
+    class UnsignedFixtureSigner:
+        def sign(self, payload):
+            return {"payload": payload, "signature_status": "UNSIGNED_SYNTHETIC"}
+
+    owner.append_receipt("SYNTHETIC", {"fixture": "NOT_EXECUTED"}, UnsignedFixtureSigner())
+    before = legacy_observation_rows(owner)
+    assert all(before.values())
+    row = reserve_observation(writer, owner)
+    reserved = acknowledge_observation(writer, owner, row)
+    assert reserved["entry"] == backend.head()["snapshots"]["series_a"]
+    observation = {"receipt": {"fixture": "NOT_A_LIVE_RECEIPT"},
+                   "response_b64": "e30=", "readback_b64": "e30="}
+    completed = owner.complete_execution_observation(row["receipt_id"], observation)
+    proof = acknowledge_observation(writer, owner, completed)
+    assert proof["entry"]["sha256"] != reserved["entry"]["sha256"]
+    assert proof["head_sha256"] == hashlib.sha256(backend.observe().body).hexdigest()
+    assert legacy_observation_rows(owner) == before
+    clock.on_sleep.append(writer.heartbeat_once)
+    successor = replica(root, "b", objects, backend, clock)
+    try:
+        successor.boot()
+        assert successor.claim_kind == ss.CLAIM_CLEAN
+        assert successor.boot_id != writer.boot_id
+        assert Store.execution_observation_matches(successor.local_path("series_a"), completed)
+    finally:
+        successor._close_watchers()
+
+
+def test_duplicate_attempt_and_nonce_rebinding_are_consumed(observation_world):
+    writer, owner, *_ = observation_world
+    reserve_observation(writer, owner)
+    with pytest.raises(ValueError, match="ATTEMPT_ALREADY_CONSUMED"):
+        reserve_observation(writer, owner)
+    for changes in ({"plan_sha256": "f" * 64}, {"source_revision": "f" * 40},
+                    {"runtime_boot_id": "f" * 32}):
+        with pytest.raises(ValueError, match="NONCE_ALREADY_BOUND"):
+            reserve_observation(writer, owner, **changes)
+    assert reserve_observation(writer, owner, case_id="policy-compliance",
+                   receipt_id="observation-fixture-2")["state"] == "RESERVED"
+
+
+def test_concurrent_duplicate_has_one_winner(observation_world):
+    writer, owner, *_ = observation_world
+
+    def attempt(_):
+        try:
+            return reserve_observation(writer, owner)["state"]
+        except ValueError as exc:
+            return str(exc)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        outcomes = list(pool.map(attempt, range(8)))
+    assert outcomes.count("RESERVED") == 1
+    assert outcomes.count("OBSERVATION_ATTEMPT_ALREADY_CONSUMED") == 7
+
+
+def test_completion_requires_reservation_and_cannot_be_replaced(observation_world):
+    writer, owner, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    expected = owner.complete_execution_observation(row["receipt_id"], {"fixture": "first"})
+    for receipt_id in (row["receipt_id"], "missing"):
+        with pytest.raises(ValueError, match="RESERVATION_REQUIRED"):
+            owner.complete_execution_observation(receipt_id, {"fixture": "replacement"})
+    assert owner.read_execution_observation(row["receipt_id"]) == expected
+
+
+def test_read_does_not_initialize_tables_or_change_database(observation_world):
+    _, owner, *_ = observation_world
+    path = Path(owner.path)
+    before = path.read_bytes()
+    assert owner.read_execution_observation("missing") is None
+    assert path.read_bytes() == before
+    with sqlite3.connect(path) as db:
+        assert db.execute("PRAGMA journal_mode").fetchone()[0] == "delete"
+        assert db.execute("SELECT name FROM sqlite_master WHERE name LIKE 'execution_observ%'").fetchall() == []
+
+
+@pytest.mark.parametrize("mode,role", [(ss.MODE_UNFENCED, ss.ROLE_UNFENCED_WRITER),
+                                      (ss.MODE_FENCED, ss.ROLE_FENCED),
+                                      (ss.MODE_FENCED, ss.ROLE_HANDOVER)])
+def test_nonfenced_or_nonwriter_never_uploads(observation_world, monkeypatch, mode, role):
+    writer, owner, _, objects, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    writer.mode, writer.role = mode, role
+    monkeypatch.setattr(objects, "put_file", lambda *_: pytest.fail("uploaded without writer"))
+    with pytest.raises(ss.StorageBlocked, match="CONFIRMED_WRITER_REQUIRED"):
+        acknowledge_observation(writer, owner, row)
+
+
+def test_stale_lease_rejects_before_snapshot(observation_world):
+    writer, owner, _, _, clock, _ = observation_world
+    row = reserve_observation(writer, owner)
+    clock.advance(writer.settings.stale_s + 1)
+    with pytest.raises(ss.StorageBlocked, match="CONFIRMED_LEASE_REQUIRED"):
+        acknowledge_observation(writer, owner, row)
+
+
+def test_wrong_snapshot_contents_are_not_acknowledged(observation_world):
+    writer, owner, backend, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    wrong = dict(row, request_sha256="f" * 64)
+    head_before = backend.observe()
+    with pytest.raises(ss.StorageBlocked, match="CONFIRMED_CONTENT_MISMATCH"):
+        acknowledge_observation(writer, owner, wrong)
+    assert backend.observe() == head_before
+
+
+def test_uncertain_cas_never_acknowledges_or_discards_unrelated_pending(observation_world, monkeypatch):
+    writer, owner, backend, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    unrelated = {"fixture": "unrelated pending bytes"}
+    writer._unpublished["gdw"] = copy.deepcopy(unrelated)
+    head_before = backend.observe()
+
+    def uncertain(*_):
+        raise ss.StorageBlocked("STATE_HEAD_OUTCOME_UNCERTAIN")
+
+    monkeypatch.setattr(backend, "submit", uncertain)
+    with pytest.raises(ss.StorageBlocked):
+        acknowledge_observation(writer, owner, row)
+    assert backend.observe() == head_before
+    assert writer._unpublished["gdw"] == unrelated
+    assert owner.read_execution_observation(row["receipt_id"])["state"] == "RESERVED"
+
+
+def test_reused_unpublished_object_is_checked_and_acknowledged(observation_world):
+    writer, owner, backend, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    backend.unreachable = True
+    writer.snapshot_once(force=True)
+    backend.unreachable = False
+    pending = dict(writer._unpublished["series_a"])
+    writer._unpublished["gdw"] = {"fixture": "preserve unrelated"}
+    proof = acknowledge_observation(writer, owner, row)
+    assert proof["entry"] == pending
+    assert "series_a" not in writer._unpublished
+    assert writer._unpublished["gdw"] == {"fixture": "preserve unrelated"}
+
+
+def test_repeated_confirmation_preserves_distinct_restore_history(observation_world, monkeypatch):
+    writer, owner, backend, objects, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    for generation in range(ss.HISTORY_DEPTH + 2):
+        owner.append_event("SYNTHETIC", {"generation": generation})
+        acknowledge_observation(writer, owner, row)
+    expected_head = backend.head()
+    history = expected_head["history"]["series_a"]
+    assert len(history) == ss.HISTORY_DEPTH
+    assert len({entry["sha256"] for entry in history}) == ss.HISTORY_DEPTH
+    expected = backend.observe()
+    submissions = backend.submits
+    writer._unpublished["series_a"] = dict(expected_head["snapshots"]["series_a"])
+    writer._unpublished["gdw"] = {"fixture": "preserve unrelated"}
+    monkeypatch.setattr(objects, "put_file", lambda *_: pytest.fail("unchanged upload"))
+    downloads = []
+    download = writer._download
+
+    def observed_download(remote, path):
+        downloads.append(remote)
+        download(remote, path)
+
+    monkeypatch.setattr(writer, "_download", observed_download)
+    for _ in range(ss.HISTORY_DEPTH + 3):
+        proof = acknowledge_observation(writer, owner, row)
+        assert proof["entry"] == expected_head["snapshots"]["series_a"]
+        assert proof["head_sha256"] == hashlib.sha256(expected.body).hexdigest()
+        assert backend.observe() == expected
+        assert backend.head() == expected_head
+        assert backend.submits == submissions
+    assert downloads == [proof["entry"]["path"]] * (ss.HISTORY_DEPTH + 3)
+    assert "series_a" not in writer._unpublished
+    assert writer._unpublished["gdw"] == {"fixture": "preserve unrelated"}
+
+
+def test_different_pending_confirmation_advances_published_head(observation_world):
+    writer, owner, backend, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    first = acknowledge_observation(writer, owner, row)
+    completed = owner.complete_execution_observation(row["receipt_id"],
+                                                    {"fixture": "NOT_A_LIVE_RECEIPT"})
+    backend.unreachable = True
+    writer.snapshot_once(force=True)
+    backend.unreachable = False
+    pending = dict(writer._unpublished["series_a"])
+    assert pending != first["entry"]
+    before = backend.observe()
+    submissions = backend.submits
+    proof = acknowledge_observation(writer, owner, completed)
+    assert proof["entry"] == pending
+    assert backend.observe() != before
+    assert backend.submits == submissions + 1
+    assert backend.head()["history"]["series_a"] == [first["entry"]]
+    assert "series_a" not in writer._unpublished
+
+
+def test_pending_handover_does_not_drain_the_current_request(observation_world, monkeypatch):
+    writer, owner, backend, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    before = backend.head()
+    requested = writer._next(before, backend.observe().body, transition="HANDOVER_REQUEST",
+                             state=ss.STATE_HANDOVER,
+                             handover={"requested_by": "f" * 32,
+                                       "requested_at": "2026-10-15T03:00:00Z"})
+    backend._append(ss.canonical(requested))
+    monkeypatch.setattr(writer, "_release", lambda *_: pytest.fail("synchronous self-drain"))
+    with pytest.raises(ss.StorageBlocked, match="CONFIRMED_HEAD_CHANGED"):
+        acknowledge_observation(writer, owner, row)
+    assert writer.role == ss.ROLE_WRITER
+
+
+@pytest.mark.parametrize("mutation", ["absent", "empty", "wrong_epoch", "wrong_writer",
+                                     "wrong_boot", "wrong_schema", "boolean_epoch",
+                                     "boolean_time", "future", "nan", "malformed"])
+def test_confirmed_writer_requires_its_own_valid_fresh_heartbeat(
+        observation_world, monkeypatch, mutation):
+    writer, owner, _, objects, clock, _ = observation_world
+    row = reserve_observation(writer, owner)
+    beat = json.loads(objects.get_bytes(ss.HEARTBEAT_PATH))
+    if mutation == "empty":
+        beat = {}
+    elif mutation == "wrong_epoch":
+        beat["epoch"] += 1
+    elif mutation == "wrong_writer":
+        beat["writer_id"] = "f" * 32
+    elif mutation == "wrong_boot":
+        beat["boot_id"] = "f" * 32
+    elif mutation == "wrong_schema":
+        beat["schema"] = "unknown"
+    elif mutation == "boolean_epoch":
+        beat["epoch"] = True
+    elif mutation == "boolean_time":
+        beat["at_unix"] = True
+    elif mutation == "future":
+        beat["at_unix"] = clock.time() + 1
+    elif mutation == "nan":
+        beat["at_unix"] = float("nan")
+    raw = (None if mutation == "absent" else b"{" if mutation == "malformed"
+           else json.dumps(beat).encode())
+    monkeypatch.setattr(objects, "get_bytes", lambda _: raw)
+    monkeypatch.setattr(objects, "put_file", lambda *_: pytest.fail("unadmitted upload"))
+    with pytest.raises(ss.StorageBlocked, match="CONFIRMED_LEASE_REQUIRED"):
+        acknowledge_observation(writer, owner, row)
+
+
+def test_expiry_during_capture_never_advances_head(observation_world, monkeypatch):
+    writer, owner, backend, _, clock, _ = observation_world
+    row = reserve_observation(writer, owner)
+    before = backend.observe()
+    capture = writer._capture
+
+    def slow_capture(*args):
+        entry = capture(*args)
+        clock.advance(writer.settings.stale_s + 1)
+        return entry
+
+    monkeypatch.setattr(writer, "_capture", slow_capture)
+    with pytest.raises(ss.StorageBlocked, match="CONFIRMED_LEASE_REQUIRED"):
+        acknowledge_observation(writer, owner, row)
+    assert backend.observe() == before
+
+
+@pytest.mark.parametrize("failure", ["upload", "readback", "tamper"])
+def test_object_failure_never_acknowledges(observation_world, monkeypatch, failure):
+    writer, owner, backend, objects, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    before = backend.observe()
+
+    def unavailable(*_):
+        raise ss.StorageBlocked("OBJECT_UNAVAILABLE")
+
+    if failure == "upload":
+        monkeypatch.setattr(objects, "put_file", unavailable)
+    elif failure == "readback":
+        monkeypatch.setattr(objects, "get_file", unavailable)
+    else:
+        download = writer._download
+
+        def tampered(remote, path):
+            download(remote, path)
+            with path.open("ab") as output:
+                output.write(b"tampered")
+
+        monkeypatch.setattr(writer, "_download", tampered)
+    with pytest.raises(ss.StorageBlocked):
+        acknowledge_observation(writer, owner, row)
+    assert backend.observe() == before
+    assert owner.read_execution_observation(row["receipt_id"])["state"] == "RESERVED"
+
+
+def test_uncertain_cas_that_landed_requires_exact_remote_readback(observation_world):
+    writer, owner, backend, *_ = observation_world
+    row = reserve_observation(writer, owner)
+    backend.fail_next_submit = "uncertain_landed"
+    proof = acknowledge_observation(writer, owner, row)
+    assert proof["entry"] == backend.head()["snapshots"]["series_a"]
+    assert proof["head_sha256"] == hashlib.sha256(backend.observe().body).hexdigest()
+
+
+@pytest.mark.parametrize("point", ["submit", "after_submit"])
+def test_handover_at_publication_never_acknowledges_or_self_drains(
+        observation_world, monkeypatch, point):
+    writer, owner, backend, *_ = observation_world
+    row = reserve_observation(writer, owner)
+
+    def handover():
+        current = backend.head()
+        requested = writer._next(current, backend.observe().body,
+                                 transition="HANDOVER_REQUEST", state=ss.STATE_HANDOVER,
+                                 handover={"requested_by": "f" * 32,
+                                           "requested_at": "2026-10-15T03:00:00Z"})
+        backend._append(ss.canonical(requested))
+
+    monkeypatch.setattr(writer, "_release", lambda *_: pytest.fail("self-drain"))
+    if point == "submit":
+        backend.before_submit = handover
+    else:
+        read_at = backend.read_at
+
+        def read_then_handover(revision):
+            result = read_at(revision)
+            handover()
+            return result
+
+        monkeypatch.setattr(backend, "read_at", read_then_handover)
+    with pytest.raises(ss.StorageBlocked, match="CONFIRMED_HEAD_CHANGED"):
+        acknowledge_observation(writer, owner, row)
+    assert writer.role == ss.ROLE_WRITER
+
+
+def test_separate_owner_connections_still_consume_attempt_once(observation_world):
+    writer, owner, *_ = observation_world
+    other = Store(requested_path=owner.path)
+
+    def attempt(index):
+        try:
+            return reserve_observation(writer, owner if index % 2 else other)["state"]
+        except ValueError as exc:
+            return str(exc)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        outcomes = list(pool.map(attempt, range(8)))
+    assert outcomes.count("RESERVED") == 1
+    assert outcomes.count("OBSERVATION_ATTEMPT_ALREADY_CONSUMED") == 7
+
+
+def test_read_only_accessor_retains_committed_wal_data(observation_world, monkeypatch):
+    writer, owner, *_ = observation_world
+    monkeypatch.setenv("A11OY_SERIES_A_SQLITE_JOURNAL", "WAL")
+    wal_owner = Store(requested_path=owner.path)
+    connection = wal_owner.connect()
+    try:
+        row = reserve_observation(writer, wal_owner)
+        before = legacy_observation_rows(wal_owner)
+        assert wal_owner.read_execution_observation(row["receipt_id"]) == row
+        assert legacy_observation_rows(wal_owner) == before
+        assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    finally:
+        connection.close()
