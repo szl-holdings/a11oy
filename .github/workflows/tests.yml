@@ -276,6 +276,7 @@ jobs:
           tests/test_atelier_grok_cpu_lab.py
           tests/test_run_local_atelier.py
           tests/test_command_centre.py
+          tests/test_command_centre_view.py
           tests/test_jev_gate.py
           tests/test_jev_fail_closed.py
           payloads/tests/test_yuyay_jev_offline.py
@@ -283,6 +284,41 @@ jobs:
           scripts/test_configure_hf_gdw_runtime.py
           scripts/test_prove_hf_gdw_runtime.py
           -q
+
+  python-command-centre-browser:
+    name: Python command-centre local presentation witness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact local witness dependencies
+        run: >-
+          pip install --require-hashes
+          -r .github/requirements/ci-rag.txt
+          -r .github/requirements/platform-candidate-browser.txt
+      - name: Install pinned Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+      - name: Verify witness refusal and fixture contracts
+        run: python -m pytest -q tests/test_python_command_centre_witness.py
+      - name: Verify source-bound local presentation, not operational readiness
+        run: >-
+          python scripts/witness_python_command_centre.py
+          --expected-source-sha "$GITHUB_SHA"
+          --require-clean-source
+          --output-dir "$RUNNER_TEMP/python-command-centre"
+      - name: Retain local presentation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-command-centre-local-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/python-command-centre
+          if-no-files-found: error
+          retention-days: 14
 
   python-wave26-lambda-attnres:
     name: Wave 26 MODELED Lambda-AttnRes and replay contracts
