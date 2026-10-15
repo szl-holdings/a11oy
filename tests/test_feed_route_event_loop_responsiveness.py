@@ -185,7 +185,10 @@ def test_network_feed_routes_preserve_event_loop_responsiveness_and_schemas(monk
         "vertical", "equities_official", "equities", "equities_note", "crypto",
         "fx", "fintech_cve", "sources_cited", "doctrine",
     }
-    assert list(finance_payload["equities"]) == ["SPY", "AAPL", "MSFT", "NVDA", "^VIX"]
+    # The released blocker returns unavailable, so optional Yahoo rows are
+    # omitted and required-source failures keep the finance response closed.
+    assert finance_payload["equities"] == {}
+    assert finance_response.status_code == 503
     assert list(finance_payload["equities_official"]) == ["SPY", "AAPL", "MSFT", "NVDA"]
     assert list(finance_payload["crypto"]) == ["BTC-USD", "ETH-USD", "SOL-USD"]
 
@@ -194,7 +197,7 @@ def test_network_feed_routes_preserve_event_loop_responsiveness_and_schemas(monk
     assert deva_payload["tab"] == "quant"
 
     devb_payload = _payload(devb_response)
-    assert set(devb_payload) == {"surface", "term", "opinions", "doctrine"}
+    assert set(devb_payload) == {"surface", "term", "opinions", "sources_cited", "doctrine"}
     assert devb_payload["surface"] == "matter"
 
 

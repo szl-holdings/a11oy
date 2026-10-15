@@ -127,3 +127,35 @@ def test_alternate_namespace_keeps_local_operator_guard(isolated):
     with TestClient(app) as client:
         assert client.post("/api/alternate/v1/eval/run", json=EXPLICIT).status_code == 401
     run.assert_not_called()
+
+
+@pytest.mark.parametrize("limits", [None, {}, [], True,
+    {"max_model_requests": 1, "max_output_tokens": 1, "max_elapsed_seconds": True},
+    {"max_model_requests": 1, "max_output_tokens": 1, "max_elapsed_seconds": 1, "retry": 0}])
+def test_invalid_strict_limits_do_not_reach_eval(isolated, limits):
+    client, run = isolated
+    response = client.post(PATH, headers=HEADERS,
+        json={**EXPLICIT, "execution_mode": "live", "execution_limits": limits})
+    assert response.status_code == 422
+    run.assert_not_called()
+
+
+def test_strict_limits_do_not_silently_select_modeled_execution(isolated):
+    client, run = isolated
+    response = client.post(PATH, headers=HEADERS, json={**EXPLICIT,
+        "execution_limits": {"max_model_requests": 1, "max_output_tokens": 1, "max_elapsed_seconds": 1}})
+    assert response.status_code == 422
+    run.assert_not_called()
+
+
+@pytest.mark.parametrize("extra", [
+    ',"model_id":"replacement"', ',"retry":0', ',"unused":NaN',
+    ',"execution_limits":{"max_model_requests":1,"max_model_requests":2,"max_output_tokens":1,"max_elapsed_seconds":1}',
+])
+def test_strict_json_cannot_hide_ambiguous_or_extra_request_fields(isolated, extra):
+    client, run = isolated
+    body = ('{"suite":"core_honest_v1","model_id":"test-model","execution_mode":"live",'
+            '"execution_limits":{"max_model_requests":1,"max_output_tokens":1,"max_elapsed_seconds":1}'
+            + extra + '}')
+    assert client.post(PATH, headers=HEADERS, content=body).status_code == 422
+    run.assert_not_called()

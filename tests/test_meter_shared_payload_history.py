@@ -30,13 +30,30 @@ def test_prior_active_manifest_is_retained_byte_exact():
     assert hashlib.sha256((ROOT / predecessor).read_bytes()).hexdigest() == manifest["files"][predecessor]
 
 
-def test_active_meter_payload_remains_content_bound():
-    raw = (ROOT / ".github/shared-source-payload-manifest.json").read_bytes()
+def test_prior_meter_manifest_fixture_retains_its_original_content_address():
+    # Reproduce the earlier exact public manifest bytes. The historical source
+    # remains in Git; this fixture is not a claim that the active slot is unchanged.
+    prior = {
+        "files": {"szl_meter_access.py": "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4"},
+        "payload_id": "meter-selector-20261011-v1",
+        "schema": "szl-shared-source-payload/v1",
+    }
+    raw = (json.dumps(prior, indent=2) + "\n").encode("utf-8")
     assert hashlib.sha256(raw).hexdigest() == "b8be768d9a012a941375ca852a7559dac02bdef530cfcd4e32abecfc0d74c1e0"
+
+
+def test_active_meter_and_bounded_engine_payload_remains_content_bound():
+    raw = (ROOT / ".github/shared-source-payload-manifest.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6"
     manifest = json.loads(raw)
-    assert manifest["payload_id"] == "meter-selector-20261011-v1"
-    assert set(manifest["files"]) == {"szl_meter_access.py"}
-    assert hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest() == manifest["files"]["szl_meter_access.py"]
+    assert manifest["payload_id"] == "code-engine-bounded-model-20261015-v1"
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["files"] == {
+        "a11oy_code_engine.py": "a03aa1c294b69c8dfe3ce20d85aaf2347fac93ad7cba3544c1697d381639ac6f",
+        "szl_meter_access.py": "e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",
+    }
+    for relative, expected in manifest["files"].items():
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
 def test_meter_selector_is_inactive_without_importing_the_runtime():

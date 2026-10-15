@@ -212,6 +212,16 @@ def validate_plan(envelope: Any, context: AdmissionContext, *, now: datetime | N
         body = case["body"]
         if case_id in ("eval-run", "agentloop-run"):
             text(body.get("model_id"), "EXPLICIT_MODEL_REQUIRED")
+            limits = fields(body.get("execution_limits"),
+                            "max_model_requests max_output_tokens max_elapsed_seconds",
+                            "EXECUTION_LIMITS_REQUIRED")
+            # These bound the approved client request. The runtime must still
+            # admit its full suite and enforce the limits before dispatch.
+            for name, ceiling in (("max_model_requests", 32),
+                                  ("max_output_tokens", 32768),
+                                  ("max_elapsed_seconds", 300)):
+                require(type(limits[name]) is int and 1 <= limits[name] <= ceiling,
+                        "EXECUTION_LIMITS_INVALID")
         if case_id == "eval-run":
             text(body.get("suite"), "EXPLICIT_SUITE_REQUIRED")
             require(body.get("execution_mode") == "live", "MODELED_IS_NOT_LIVE_ACCEPTANCE")

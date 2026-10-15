@@ -25,7 +25,16 @@ or receipt identity stops the producer, retaining the failed evidence.
 | `eval-run` | `{"suite":"core_honest_v1","model_id":null,"execution_mode":"live"}` | `model_id` is intentionally unresolved. A real admitted model, provider/budget, existing operator identity and suite hash must be selected. The endpoint signs a receipt and ingests into the forum. | Actual selected-model execution, per-case accounting, valid outcome evidence, response and receipt verification/readback. A reference or MODELED run does not qualify live evaluation. |
 | `agentloop-run` | `{"task":"Return the integer result of 2 + 2 without tools, code execution or external actions.","mode":"chat","model_id":null,"eval_suite":"core_honest_v1","max_retries":0,"sandbox":false,"consult_brain":false,"allocate_energy":false}` | `model_id` is unresolved. The exact planner, model/self-eval calls, approval gate, signer and forum effects must be bounded before execution. Request flags must be honored by the actual implementation, not merely present in JSON. | A completed bounded chat loop and self-eval with verifiable receipt/readback. A MODELED plan alone, blocked step, missing model, or unsupported side effect does not qualify. |
 
-The current standalone validator rejects missing model identifiers, MODELED eval
+Both proposed model request bodies must also include an explicit
+`execution_limits` object: `max_model_requests`, `max_output_tokens`, and
+`max_elapsed_seconds`. For the current eight-case suite, the separate eval and
+single-chat-step loop require capacity for eight and nine client model requests,
+respectively. Values must be selected with the real provider, model and approved
+task; they are intentionally not supplied as approved defaults in the table.
+The [bounded runtime path](BOUNDED_RUNTIME.md) enforces these client limits but
+does not establish a provider billing ceiling or complete acceptance evidence.
+
+The current standalone validator rejects missing limits or model identifiers, MODELED eval
 requests and agent plans that request sandbox execution, retries, brain context,
 energy allocation or an embedded approval object. Supporting those effects would
 need its own review and actual existing authority. No second approver identity
