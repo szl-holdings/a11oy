@@ -11,6 +11,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import importlib.util
+import sys
+from functools import lru_cache
 import math
 import os
 import re
@@ -137,6 +140,15 @@ ROUTES = {
 
 class RelockError(RuntimeError):
     """The live canonical deployment does not satisfy the reviewed contract."""
+
+
+@lru_cache(maxsize=1)
+def execution_validator():
+    spec = importlib.util.spec_from_file_location("_relock_execution_readiness", REPOSITORY_ROOT / "szl_execution_readiness.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def normalize_origin(value: str) -> str:
@@ -561,6 +573,7 @@ def validate_readiness_summary(
     expected_origin: str,
     now: datetime | None = None,
     run_verdict: Mapping[str, Any] | None = None,
+    execution_inputs=None,
 ) -> dict[str, Any]:
     if (
         payload.get("honest") is not True
@@ -578,10 +591,13 @@ def validate_readiness_summary(
             base=payload.get("verdict_base"),
             checked_at=payload.get("verdict_checked_at"),
             summary=payload.get("verdict_summary"),
+            execution_inputs=execution_inputs,
             source_sha=source_sha,
             expected_origin=expected_origin,
             now=now,
         )
+        if evidence.get("executionCoverage") != payload.get("execution_coverage"):
+            raise RelockError("served execution coverage differs from independently verified observations")
         evidence["channel"] = "served"
         return evidence
     if run_verdict is None:
@@ -607,10 +623,13 @@ def validate_readiness_summary(
         base=run_verdict.get("base"),
         checked_at=run_verdict.get("checkedAt"),
         summary=run_verdict.get("summary"),
+        execution_inputs=execution_inputs,
         source_sha=source_sha,
         expected_origin=expected_origin,
         now=now,
     )
+    if evidence.get("executionCoverage") != run_verdict.get("executionCoverage"):
+        raise RelockError("run-local execution coverage differs from independently verified observations")
     evidence["channel"] = "run-local"
     return evidence
 
@@ -623,6 +642,7 @@ def validate_verdict_evidence(
     source_sha: str,
     expected_origin: str,
     now: datetime | None = None,
+    execution_inputs=None,
 ) -> dict[str, Any]:
     try:
         observed_base = normalize_origin(base)
@@ -684,8 +704,24 @@ def validate_verdict_evidence(
         or not 0 <= required_not_probed <= skipped
     ):
         raise RelockError("readiness verdict required-not-probed count is invalid")
-    if required_not_probed != 0:
-        raise RelockError("readiness verdict contains unprobed required endpoints")
+    verified_execution = None
+    gate = execution_validator()
+    canonical_matrix = gate.acceptance.strict_json(gate.acceptance.read_file(
+        str(REPOSITORY_ROOT / "tools/readiness-harness/tabs.json")))
+    matrix_requires_execution = any(type(spec) is dict and spec.get("method", "GET") not in ("GET", "HEAD")
+        for spec in canonical_matrix.get("endpoints", {}).values())
+    if required_not_probed != 0 or matrix_requires_execution:
+        try:
+            if type(execution_inputs) is not dict or set(execution_inputs) != {"passive", "matrix", "bundle", "context"}:
+                raise ValueError("raw independent execution inputs required")
+            passive = execution_inputs["passive"]
+            if passive.get("summary") != summary or passive.get("checkedAt") != checked_at or passive.get("base") != base:
+                raise ValueError("compact verdict differs from full passive artifact")
+            verified_execution = execution_validator().validate_combined(
+                passive, execution_inputs["matrix"], execution_inputs["bundle"], execution_inputs["context"],
+                source=source_sha, now=current)
+        except Exception as exc:
+            raise RelockError("readiness verdict contains unprobed required endpoints without independently verified execution evidence") from exc
     blocking_degraded = summary.get("blockingDegraded", summary["degraded"])
     if (
         not isinstance(blocking_degraded, int)
@@ -716,6 +752,7 @@ def validate_verdict_evidence(
         "base": normalize_origin(expected_origin),
         "age_seconds": age_seconds,
         "summary": {**dict(summary), "requiredNotProbed": required_not_probed},
+        **({"executionCoverage": verified_execution} if verified_execution is not None else {}),
     }
 
 
@@ -783,6 +820,7 @@ def validate_route(
     origin: str,
     run_verdict: Mapping[str, Any] | None = None,
     series_a_database: str = SERIES_A_VARIABLES["A11OY_SERIES_A_DB"],
+    execution_inputs=None,
 ) -> dict[str, Any]:
     evidence: dict[str, Any] = {
         "url": response.url,
@@ -886,7 +924,7 @@ def validate_route(
             payload,
             source_sha,
             expected_origin=origin,
-            run_verdict=run_verdict,
+            run_verdict=run_verdict, execution_inputs=execution_inputs,
         )
     elif name == "storage_status":
         evidence["storage_state"] = validate_state_store_status(payload)
@@ -937,6 +975,7 @@ def validate_route(
         evidence["estate_state"] = payload["state"]
         evidence["critical_failures"] = list(critical_failures)
         evidence["signing_key_source"] = payload["signing_key_source"]
+        evidence["runtime_boot_id"] = payload.get("runtime_boot_id")
         evidence["storage"] = dict(storage)
     return evidence
 
@@ -948,6 +987,7 @@ def probe_routes(
     source_variable: str,
     run_verdict: Mapping[str, Any] | None = None,
     state_store_v2: bool = False,
+    execution_inputs=None,
 ) -> dict[str, dict[str, Any]]:
     output: dict[str, dict[str, Any]] = {}
     routes = dict(ROUTES)
@@ -972,11 +1012,38 @@ def probe_routes(
             source_variable,
             origin,
             run_verdict,
-            series_a_database,
+            series_a_database, execution_inputs=execution_inputs,
         )
         evidence["head_http_status"] = head.status_code
         output[name] = evidence
     return output
+
+
+def verify_current_execution_owner(execution_inputs, *, client=None):
+    """Final read-only owner lookup; revoked/cancelled completed runs cannot relock."""
+    if type(execution_inputs) is not dict:
+        raise RelockError("raw execution inputs are required for current owner verification")
+    spec = importlib.util.spec_from_file_location("_relock_completed_export_collector",
+        REPOSITORY_ROOT / ".github/scripts/collect_execution_readiness.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    def read(active_client):
+        bundle, report = module.collect(active_client, execution_inputs["context"],
+            operator_token=os.environ.get("A11OY_CODE_ADMIN_KEY", ""),
+            tenant=os.environ.get("A11OY_CODE_TENANT", ""))
+        gate = execution_validator()
+        if gate.acceptance.canonical(bundle) != gate.acceptance.canonical(execution_inputs["bundle"]):
+            raise RelockError("current retained execution export differs from immutable run evidence")
+        return report
+    try:
+        if client is not None:  # Explicit transport injection for isolated tests only.
+            return read(client)
+        import httpx
+        with httpx.Client(timeout=httpx.Timeout(20, connect=10), follow_redirects=False, trust_env=True) as active:
+            return read(active)
+    except Exception:
+        raise RelockError("current retained execution owner evidence is unavailable") from None
 
 
 def evaluate_once(
@@ -984,6 +1051,7 @@ def evaluate_once(
     session: requests.Session,
     contract: Mapping[str, str],
     run_verdict: Mapping[str, Any] | None = None,
+    execution_inputs=None,
 ) -> dict[str, Any]:
     info = api.space_info(contract["repo_id"])
     repository_sha = str(getattr(info, "sha", "") or "").lower()
@@ -1071,13 +1139,32 @@ def evaluate_once(
         contract["source_sha"],
         contract["variable"],
         run_verdict,
-        state_store_v2,
+        state_store_v2, execution_inputs=execution_inputs,
     )
+    if execution_inputs is not None:
+        context = execution_inputs["context"]
+        if (not state_store_v2 or runtime_sha != context.runtime_revision
+                or routes["series_a_status"].get("runtime_boot_id") != context.runtime_boot_id):
+            raise RelockError("execution context does not match current HF revision, process boot, and fenced storage")
+        # Bracket the complete readback. Same source alone cannot identify a
+        # restarted process; verify HF serving revision and Series-A boot again.
+        after_info = api.space_info(contract["repo_id"])
+        after_revision, _ = immutable_runtime_revision(after_info)
+        if after_revision != runtime_sha or str(getattr(after_info, "sha", "")).lower() != repository_sha:
+            raise RelockError("runtime revision changed during execution evidence readback")
+        after_status = session.get(contract["origin"] + ROUTES["series_a_status"], allow_redirects=False, timeout=60)
+        if after_status.status_code != 200:
+            raise RelockError("runtime boot recheck unavailable")
+        after_payload = require_json(after_status)
+        if after_payload.get("runtime_boot_id") != context.runtime_boot_id or after_payload.get("source_revision") != contract["source_sha"]:
+            raise RelockError("runtime boot or source changed during execution evidence readback")
     clones = {f"SZLHOLDINGS/a11oy-clone-{index}": False for index in range(1, 5)}
     for clone_id in tuple(clones):
         clones[clone_id] = bool(api.repo_exists(clone_id, repo_type="space"))
     if any(clones.values()):
         raise RelockError(f"historical A11oy clone reappeared: {clones}")
+    current_execution_owner = (verify_current_execution_owner(execution_inputs)
+                               if execution_inputs is not None else None)
 
     return {
         "schema": REPORT_SCHEMA,
@@ -1110,6 +1197,7 @@ def evaluate_once(
         "dockerfile_present": True,
         "holographic_source_present": True,
         "clone_presence": clones,
+        "current_execution_owner": current_execution_owner,
         "routes": routes,
         "boundaries": [
             "This verifier performs only Hugging Face metadata reads and same-host HEAD/GET probes.",
@@ -1126,11 +1214,12 @@ def evaluate(
     attempts: int,
     retry_seconds: int,
     run_verdict: Mapping[str, Any] | None = None,
+    execution_inputs=None,
 ) -> dict[str, Any]:
     last: Exception | None = None
     for attempt in range(1, max(1, attempts) + 1):
         try:
-            report = evaluate_once(api, session, contract, run_verdict)
+            report = evaluate_once(api, session, contract, run_verdict, execution_inputs=execution_inputs)
             report["attempts"] = attempt
             return report
         except Exception as exc:  # noqa: BLE001
@@ -1164,6 +1253,13 @@ def main() -> int:
             "against the exact source and canonical origin."
         ),
     )
+    parser.add_argument("--execution-bundle")
+    parser.add_argument("--passive-verdict")
+    parser.add_argument("--authority-pins")
+    parser.add_argument("--expected-runtime-sha")
+    parser.add_argument("--expected-boot-id")
+    parser.add_argument("--expected-run-nonce")
+    parser.add_argument("--matrix", default=str(REPOSITORY_ROOT / "tools/readiness-harness/tabs.json"))
     args = parser.parse_args()
     contract = normalize(args.repo_id, args.origin, args.source_sha, args.source_variable)
     token = os.environ.get("HF_TOKEN")
@@ -1195,8 +1291,23 @@ def main() -> int:
             if args.readiness_verdict_file
             else None
         )
+        execution_inputs = None
+        if not args.execution_bundle:
+            raise RelockError("five canonical POST contracts require the raw admitted execution bundle")
+        if args.execution_bundle:
+            gate = execution_validator()
+            context = gate.context_from_independent_file(
+                args.authority_pins, expected_source=args.source_sha,
+                expected_runtime_revision=args.expected_runtime_sha,
+                expected_runtime_boot_id=args.expected_boot_id, expected_run_nonce=args.expected_run_nonce)
+            execution_inputs = {"context": context,
+                "bundle": gate.acceptance.strict_json(gate.acceptance.read_file(args.execution_bundle)),
+                "passive": gate.acceptance.strict_json(gate.acceptance.read_file(args.passive_verdict)),
+                "matrix": gate.canonical_matrix(args.matrix)}
+        elif any((args.passive_verdict, args.authority_pins, args.expected_runtime_sha, args.expected_boot_id, args.expected_run_nonce)):
+            raise RelockError("execution context requires raw passive and execution evidence")
         report = evaluate(
-            api, session, contract, args.attempts, args.retry_seconds, run_verdict
+            api, session, contract, args.attempts, args.retry_seconds, run_verdict, execution_inputs=execution_inputs
         )
         code = 0
     except Exception as exc:  # noqa: BLE001

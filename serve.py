@@ -3651,6 +3651,7 @@ try:
                 "checked_at": _now,
             }, status_code=200)
         _verdict_available = False
+        _verified_execution_coverage = None
         _verdict_summary = None
         _verdict_source_revision = None
         _verdict_checked_at = None
@@ -3705,6 +3706,12 @@ try:
                 )
             except (TypeError, ValueError):
                 _checked_dt = None
+            _verified_execution_coverage = None
+            if _required_not_probed == 5 and _rd_artifact.hosted():
+                try:
+                    _verified_execution_coverage = _rd_artifact.reader.current_execution_coverage(verdict, now=_now_dt)
+                except Exception:
+                    pass
             _complete_counts = (
                 all(
                     isinstance(value, int)
@@ -3718,7 +3725,9 @@ try:
                 and isinstance(_required_not_probed, int)
                 and not isinstance(_required_not_probed, bool)
                 and 0 <= _required_not_probed <= _counts[2]
-                and _required_not_probed == 0
+                and (_required_not_probed == 0 or (
+                    _required_not_probed == 5 and _counts[2] == 5
+                    and _verified_execution_coverage is not None))
                 and all(value == 0 for value in _counts[3:6])
                 and isinstance(_blocking_degraded, int)
                 and not isinstance(_blocking_degraded, bool)
@@ -3788,6 +3797,7 @@ try:
                 "verdict_base": _verdict_base,
                 "verdict_expected_base": _canonical_origin,
                 "verdict_evidence": _artifact_state,
+                "execution_coverage": _verified_execution_coverage if _verdict_available else None,
                 "checked_at": _now,
             }, status_code=200)
         return _RDJSON({
@@ -5076,6 +5086,9 @@ _http_client: httpx.AsyncClient = None  # type: ignore[assignment]
 async def startup() -> None:
     global _node_proc, _http_client
     if _rd_artifact is not None:
+        _execution_observer = getattr(app.state, "szl_execution_observer", None)
+        if _execution_observer is not None:
+            _rd_artifact.reader.bind_execution_observer(_execution_observer)
         _rd_artifact.reader.start()
     load_gates()
     _http_client = httpx.AsyncClient(timeout=30.0)
@@ -8787,7 +8800,7 @@ try:
                       + str(len(_SC_PROVED_FORMULAS)) + " total. All other F-numbers are roadmap / open sorry. "
                       "Lambda is Conjecture 1. Locked kernel @ c7c0ba17: 749 declarations / 14 unique axioms / 163 sorries (doctrine v11). "
                       "Experimental main @ 7885fd9: 1304 declarations / 22 axioms, ~36 theorems CI-green (Wave5-8) — labeled experimental, NOT folded into the locked count of 8.")
-            cites = [{"endpoint": "szl_brain.CANONICAL", "data": {"proved": _SC_PROVED_FORMULAS, "count": len(_SC_PROVED_FORMULAS), "doctrine": "v11", "kernel_commit": "c7c0ba17"}}]
+            cites = [{"endpoint": "serve._SC_PROVED_FORMULAS", "data": {"proved": _SC_PROVED_FORMULAS, "count": len(_SC_PROVED_FORMULAS), "doctrine": "v11", "kernel_commit": "c7c0ba17"}}]
         elif topic == "roadmap":
             answer = ("a11oy is fully self-contained: it is the orchestrator, receipt substrate and LLM hub, "
                       "and serves all of its capabilities in-process — Reasoning, Policy/Safety, Operator, "

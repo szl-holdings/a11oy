@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import importlib.util
+import sys
+from functools import lru_cache
 import math
 import os
 import re
@@ -38,6 +41,16 @@ class VerdictError(RuntimeError):
     """The probe output is not safe to publish as deployment evidence."""
 
 
+@lru_cache(maxsize=1)
+def execution_validator():
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location("_publisher_execution_readiness", root / "szl_execution_readiness.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def normalize_origin(value: str) -> str:
     parsed = urlsplit(str(value or "").strip())
     if (
@@ -63,6 +76,7 @@ def compact_verdict(
     expected_origin: str,
     expected_source_sha: str,
     now: datetime | None = None,
+    matrix=None, execution_bundle=None, execution_context=None,
 ) -> dict[str, Any]:
     """Validate fresh probe output and retain only the served evidence fields."""
     source_sha = str(expected_source_sha or "").strip().lower()
@@ -110,8 +124,23 @@ def compact_verdict(
         or not 0 <= required_not_probed <= skipped
     ):
         raise VerdictError("probe summary required-not-probed count is invalid")
-    if required_not_probed != 0:
-        raise VerdictError("probe summary contains unprobed required endpoints")
+    execution_coverage = None
+    if matrix is None and normalize_origin(expected_origin) == "https://szlholdings-a11oy.hf.space":
+        gate = execution_validator()
+        matrix = gate.acceptance.strict_json(gate.acceptance.read_file(
+            str(Path(__file__).resolve().parents[2] / "tools/readiness-harness/tabs.json")))
+    matrix_requires_execution = isinstance(matrix, dict) and any(
+        path in matrix.get("endpoints", {}) for path in (
+            "/api/a11oy/v1/policy/decide", "/api/a11oy/v1/policy/compliance",
+            "/api/a11oy/v1/operator/ask", "/api/a11oy/v1/eval/run", "/api/a11oy/v1/agentloop/run"))
+    if required_not_probed != 0 or matrix_requires_execution:
+        try:
+            execution_coverage = execution_validator().validate_combined(
+                payload, matrix, execution_bundle, execution_context, source=source_sha, now=current)
+        except Exception as exc:
+            raise VerdictError("probe summary contains unprobed required endpoints without verified execution evidence") from exc
+    elif execution_bundle is not None or execution_context is not None:
+        raise VerdictError("execution evidence cannot relabel the five passive NOT_PROBED rows")
     blocking_degraded = summary.get(BLOCKING_DEGRADED_FIELD, summary["degraded"])
     if (
         not isinstance(blocking_degraded, int)
@@ -144,6 +173,7 @@ def compact_verdict(
         "base": normalize_origin(expected_origin),
         "checkedAt": checked_at,
         "sourceRevision": source_sha,
+        **({"executionCoverage": execution_coverage} if execution_coverage is not None else {}),
         "summary": {
             **dict(zip(COUNT_FIELDS, counts, strict=True)),
             BLOCKING_DEGRADED_FIELD: blocking_degraded,
@@ -160,6 +190,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--expected-origin", required=True)
     parser.add_argument("--expected-source-sha", required=True)
     parser.add_argument("--variable", default=VERDICT_VARIABLE)
+    parser.add_argument("--execution-bundle")
+    parser.add_argument("--authority-pins")
+    parser.add_argument("--expected-runtime-sha")
+    parser.add_argument("--expected-boot-id")
+    parser.add_argument("--expected-run-nonce")
+    parser.add_argument("--matrix", default=str(Path(__file__).resolve().parents[2] / "tools/readiness-harness/tabs.json"))
     parser.add_argument(
         "--validate-only",
         action="store_true",
@@ -187,10 +223,27 @@ def main(argv: list[str] | None = None) -> int:
     payload = json.loads(Path(args.input).read_text(encoding="utf-8"))
     if not isinstance(payload, Mapping):
         raise VerdictError("probe output must be a JSON object")
+    execution_bundle = execution_context = None
+    gate = execution_validator()
+    matrix = gate.canonical_matrix(args.matrix)
+    if args.execution_bundle:
+        if not args.validate_only:
+            raise VerdictError("combined evidence cannot be published through a restarting Space variable")
+        gate = execution_validator()
+        execution_context = gate.context_from_independent_file(
+            args.authority_pins, expected_source=args.expected_source_sha,
+            expected_runtime_revision=args.expected_runtime_sha,
+            expected_runtime_boot_id=args.expected_boot_id,
+            expected_run_nonce=args.expected_run_nonce)
+        execution_bundle = gate.acceptance.strict_json(gate.acceptance.read_file(args.execution_bundle))
+        matrix = gate.canonical_matrix(args.matrix)
+    elif any((args.authority_pins, args.expected_runtime_sha, args.expected_boot_id, args.expected_run_nonce)):
+        raise VerdictError("execution context requires the raw observation bundle")
     compact = compact_verdict(
         payload,
         expected_origin=args.expected_origin,
         expected_source_sha=args.expected_source_sha,
+        matrix=matrix, execution_bundle=execution_bundle, execution_context=execution_context,
     )
     rendered = json.dumps(compact, sort_keys=True, separators=(",", ":"))
     if len(rendered.encode("utf-8")) > 4096:
