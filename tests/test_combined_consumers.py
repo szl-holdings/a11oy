@@ -414,9 +414,41 @@ def test_sole_workflow_passes_raw_separate_evidence_and_independent_context():
     assert 'name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}' in fragment
     upload = fragment[fragment.index("      - name: Upload immutable full probe evidence"):fragment.index("      # The same fail-closed")]
     assert "execution-observations.json" in upload and "execution-authority-pins.json" not in upload
-    assert "${{ env.EXECUTION_EVIDENCE_DIR }}/readiness-verdict.json" in upload
+    upload_paths = upload.split("          path: |\n", 1)[1].split("          if-no-files-found:", 1)[0]
+    assert [line.strip() for line in upload_paths.splitlines() if line.strip()] == [
+        "${{ runner.temp }}/execution-evidence/readiness-verdict.json",
+        "${{ runner.temp }}/execution-evidence/execution-observations.json",
+    ]
     assert "${{ env.VERDICT_PATH }}" not in upload
     assert "--validate-only" in fragment and "--matrix" not in fragment
+
+
+def test_observer_allowlist_tracks_single_series_a_registration():
+    allowlist = (ROOT / ".github/register-invocation-allowlist.txt").read_text()
+    entries = [line for line in allowlist.splitlines() if line.split("#", 1)[0].strip() == "observer_runtime"]
+    assert len(entries) == 1 and "routers.series_a_control_plane.register()" in entries[0]
+    assert "register_from_service()" in entries[0]
+
+    chain = [
+        ("serve.py", None, "routers", "frontier_reads", "_fr_router.register"),
+        ("routers/frontier_reads.py", "register", "routers", "series_a_control_plane", "_series_a_control_plane.register"),
+        ("routers/series_a_control_plane.py", "register", "observer_runtime", "register_from_service", "register_from_service"),
+    ]
+    for path, function, module, imported, called in chain:
+        tree = ast.parse((ROOT / path).read_text())
+        if function:
+            tree = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == function)
+        bound = called.split(".", 1)[0]
+        assert any(isinstance(node, ast.ImportFrom) and node.module == module and
+                   any(alias.name == imported and (alias.asname or alias.name) == bound for alias in node.names)
+                   for node in ast.walk(tree)), path
+        calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and ast.unparse(node.func) == called]
+        assert len(calls) == 1 and ast.unparse(calls[0].args[0]) == "app", path
+
+    tree = ast.parse((ROOT / "observer_runtime.py").read_text())
+    owner = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "register_from_service")
+    calls = [node for node in ast.walk(owner) if isinstance(node, ast.Call) and ast.unparse(node.func) == "register"]
+    assert len(calls) == 1 and [ast.unparse(arg) for arg in calls[0].args] == ["app", "subject"]
 
 
 @pytest.mark.parametrize("mode", ["current", "cancelled", "different", "storage", "boot"])

@@ -697,6 +697,12 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
     "/api/a11oy/v1/numerics/run/{engine}":
         "three fixed numeric operations, no source accepted, network-isolated launcher",
     "/api/a11oy/v1/operator/ask": "read-only question over in-process state",
+    "/api/a11oy/v1/series-a/execution-observations/challenge":
+        "owner checks operator + tenant before body/signing; ObserverOwnerAuthorization negatives",
+    "/api/a11oy/v1/series-a/execution-observations/run":
+        "owner checks operator + tenant before body and requires a signed runtime-bound plan; ObserverOwnerAuthorization negatives",
+    "/api/a11oy/v1/series-a/execution-observations/cancel/{nonce}":
+        "owner checks operator + tenant before body and binds the challenge owner; ObserverOwnerAuthorization negatives",
     "/api/a11oy/v1/ouroboros/run-all": "own credential registry (gdw_auth) + deployment flag",
     "/api/a11oy/v1/oversight/run": "deterministic oversight scenario",
     "/api/a11oy/v1/specdec/run": "bounded deterministic benchmark",
@@ -722,7 +728,7 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
 
 _SIDE_EFFECT_NET = (r"exec|/run\b|/run/|sign\b|inject|append|/write|operator|agent|mcp|/keys|"
                     r"ingest|record|/cap\b|start|stop|checkpoint|archive|command|chaos|promote|"
-                    r"admit|memory|/act\b|bridge|stream|stt|turn|loop|step")
+                    r"admit|memory|remember|replicate|/act\b|bridge|stream|stt|turn|loop|step")
 
 
 class ServeAppGate(unittest.TestCase):
