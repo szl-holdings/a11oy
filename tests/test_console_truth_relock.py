@@ -170,7 +170,8 @@ def test_investor_locked_formulas_use_canonical_doctrine_payload() -> None:
     assert "(newSet(lockedIds)).size===8" in compact
     assert "['F1','F4','F7','F11','F12','F18','F19','F22']" in compact
     assert "HASH-LINKED" not in investor
-    assert "reported id:" in investor
+    assert "sample entry id:" in investor
+    assert "One receipt" not in investor
     assert "exactly 8" not in investor
     assert "{F1, F4, F7, F11, F12, F18, F19, F22}" not in investor
 
@@ -199,6 +200,7 @@ global.document = {getElementById: (id) => element(id)};
 global.esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char]);
+let ledgerRows = [{receipt_id: '<img src=x onerror=alert(1)>', simulated: true}];
 global.window = {
   VIEWS: {},
   getJSON: async (url) => {
@@ -210,7 +212,7 @@ global.window = {
       };
     }
     if (url === '/api/a11oy/v1/wow/ledger?limit=1&advance=0') {
-      return {receipts: [{receipt_id: '<img src=x onerror=alert(1)>', hash: 'reported'}]};
+      return {receipts: ledgerRows};
     }
     throw new Error('unexpected URL ' + url);
   },
@@ -222,10 +224,19 @@ vm.runInThisContext(logic);
   const rendered = element('inv-one-receipt').innerHTML;
   assert.doesNotMatch(rendered, /<img/);
   assert.match(rendered, /&lt;img src=x onerror=alert\(1\)&gt;/);
-  assert.match(rendered, /REPORTED/);
-  assert.equal(element('inv-one-ep').textContent, 'REPORTED');
+  assert.match(rendered, /SIMULATED/);
+  assert.doesNotMatch(rendered, /REPORTED|reported id:/);
+  assert.equal(element('inv-one-ep').textContent, 'SIMULATED');
   assert.equal(element('inv-locked-ep').textContent, 'UNAVAILABLE');
   assert.equal(element('inv-locked-list').textContent, 'UNAVAILABLE');
+  ledgerRows = [{receipt_id: 'signed-looking-id', simulated: false, signature: 'unverified', verified: true}];
+  await window.VIEWS.investor.render(container);
+  assert.equal(element('inv-one-ep').textContent, 'UNAVAILABLE');
+  assert.doesNotMatch(element('inv-one-receipt').innerHTML, /signed-looking-id|REPORTED/);
+  ledgerRows = [];
+  await window.VIEWS.investor.render(container);
+  assert.equal(element('inv-one-ep').textContent, 'UNAVAILABLE');
+  assert.doesNotMatch(element('inv-one-receipt').innerHTML, /SIMULATED|REPORTED/);
 })().catch((error) => {
   console.error(error && error.stack || error);
   process.exitCode = 1;

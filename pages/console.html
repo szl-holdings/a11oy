@@ -17105,7 +17105,8 @@ window.a11oyInvestor = (function(){
 <script>
 /* Investor View — first-class in-console VIEW (ÑAWI design lane). Not a density
    toggle and not a stub page. /investor is a 307 alias onto this chrome
-   (?view=investor). Doctrine, locked-8, one receipt, one Verify CTA, then a11oy.net diligence. */
+   (?view=investor). Doctrine, locked-8, a labeled ledger sample, a separate
+   Verify CTA, then a11oy.net diligence. */
 (function(){
   function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0, iv=setInterval(function(){ if(window.VIEWS||n++>200){clearInterval(iv);fn();} },40); } }
   whenReady(function(){
@@ -17113,7 +17114,7 @@ window.a11oyInvestor = (function(){
     V.investor={
       title:'Investor View',
       badge:'DOCTRINE v11 · LOCKED',
-      sub:'Doctrine, the canonical locked-proven formula set, one receipt you can verify, then diligence on a11oy.net. Λ = Conjecture 1 (advisory, gray, never a theorem, never a gate).',
+      sub:'Doctrine, the canonical locked-proven formula set, an honestly labeled ledger sample, and separate receipt verification. Λ = Conjecture 1 (advisory, gray, never a theorem, never a gate).',
       render:async function(c){
         var empty = (window.emptyUnknownBlock||function(k,d){ return '<div class="empty-unknown"><span class="empty-unknown-k">'+k+'</span><span class="empty-unknown-d">'+d+'</span></div>'; });
         async function readJSON(url){
@@ -17130,10 +17131,11 @@ window.a11oyInvestor = (function(){
           +'<div class="card"><div class="card-h"><span class="card-t">Locked-proven</span><span class="card-ep mono" id="inv-locked-ep">UNAVAILABLE</span></div>'
           +'<p class="mono" id="inv-locked-list">UNAVAILABLE</p>'
           +'<p class="muted">A proof of rigor, not a traction number. Count and IDs render only from the doctrine endpoint.</p></div>'
-          +'<div class="card"><div class="card-h"><span class="card-t">One receipt</span><span class="card-ep" id="inv-one-ep">probing</span></div>'
-          +'<div id="inv-one-receipt">'+empty('UNKNOWN','live source unavailable')+'</div></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Ledger sample</span><span class="card-ep" id="inv-one-ep">probing</span></div>'
+          +'<div id="inv-one-receipt">'+empty('UNKNOWN','ledger source unavailable')+'</div>'
+          +'<p class="muted">A simulated ledger entry is not a signed or durable receipt. Verify a separate receipt with its own evidence.</p></div>'
           +'<div class="btns">'
-          +'<a class="btn teal" href="/verify">Verify a receipt</a>'
+          +'<a class="btn teal" href="/verify">Open receipt verifier</a>'
           +'<a class="btn" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Open diligence on a11oy.net ↗</a>'
           +'</div>';
         try{
@@ -17158,14 +17160,17 @@ window.a11oyInvestor = (function(){
           var rec=((L&&(L.receipts||L.items))||[])[0];
           var host=document.getElementById('inv-one-receipt');
           var ep=document.getElementById('inv-one-ep');
-          if(rec && host){
+          if(rec && host && rec.simulated===true){
             var id=rec.receipt_id||rec.hash||rec.id||'';
-            host.innerHTML='<div class="row mono"><span class="badge b-teal">REPORTED</span><span>reported id: '+esc(String(id).slice(0,48))+'</span></div>';
-            if(ep) ep.textContent='REPORTED';
+            host.innerHTML='<div class="row mono"><span class="badge b-gold">SIMULATED</span><span>sample entry id: '+esc(String(id).slice(0,48))+'</span></div>';
+            if(ep) ep.textContent='SIMULATED';
           } else {
+            if(host) host.innerHTML=empty('UNAVAILABLE','No signed, durable receipt was verified by this view.');
             if(ep) ep.textContent='UNAVAILABLE';
           }
         }catch(e){
+          var host2=document.getElementById('inv-one-receipt');
+          if(host2) host2.innerHTML=empty('UNAVAILABLE','Ledger source unavailable.');
           var ep2=document.getElementById('inv-one-ep'); if(ep2) ep2.textContent='UNAVAILABLE';
         }
       }
