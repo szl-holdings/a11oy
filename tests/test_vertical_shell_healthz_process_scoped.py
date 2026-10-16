@@ -10,8 +10,10 @@ shell's own landing/panels integrity and the body states its scope.
 """
 import hashlib
 import importlib.util
+import io
 import json
 import sys
+import urllib.error
 from pathlib import Path
 from types import ModuleType
 from unittest.mock import patch
@@ -354,6 +356,126 @@ def test_publication_admission_separates_upstream_outage_from_artifact_integrity
     assert not r.observation_passes(row, source_revision=revision, workflow_run_id=run_id)
     row["readyz"]["checks"]["panels_sha256"] = True
     row["readyz"]["state"] = "INVALID"
+    assert not r.observation_passes(row, source_revision=revision, workflow_run_id=run_id)
+
+
+class _ObservationBody(io.BytesIO):
+    def __init__(self, raw, status):
+        super().__init__(raw)
+        self.status = status
+        self.read_sizes = []
+
+    def read(self, size=-1):
+        self.read_sizes.append(size)
+        return super().read(size)
+
+
+@pytest.mark.parametrize("status", [200, 503])
+def test_publication_http_json_preserves_response_status_and_body(monkeypatch, status):
+    r = load("hf_publish_vertical_flagships_v4_impl")
+    url = "https://szlholdings-terra.hf.space/readyz"
+    payload = {"ready": status == 200, "state": "UPSTREAM_UNAVAILABLE" if status == 503 else "MEASURED"}
+    body = _ObservationBody(json.dumps(payload).encode(), status)
+    calls = []
+
+    def open_response(request, *, timeout):
+        calls.append((request, timeout))
+        if status == 503:
+            raise urllib.error.HTTPError(url, status, "Service Unavailable", {}, body)
+        return body
+
+    monkeypatch.setattr(r.urllib.request, "urlopen", open_response)
+    assert r.get_json(url, timeout=7) == (status, payload)
+    assert len(calls) == 1
+    request, timeout = calls[0]
+    assert request.full_url == url and timeout == 7
+    assert request.get_method() == "GET"
+    assert {name.lower(): value for name, value in request.header_items()} == {
+        "user-agent": r.USER_AGENT, "cache-control": "no-cache"}
+    assert body.read_sizes == [1024 * 1024 + 1]
+    assert body.closed
+    assert r._BASE.get_json is r.get_json
+
+
+@pytest.mark.parametrize("status", [200, 503])
+@pytest.mark.parametrize("raw, error", [
+    (b'{"ready":false,"reason":"\xff"}', "UnicodeDecodeError"),
+    (b"<!doctype html><html>unavailable</html>", "JSONDecodeError"),
+    (b" " * (1024 * 1024) + b"{}", "ObservationBodyTooLarge"),
+], ids=["invalid-utf8", "html-body", "oversized-body"])
+def test_publication_http_invalid_body_keeps_real_status_and_cannot_admit(monkeypatch, status, raw, error):
+    r = load("hf_publish_vertical_flagships_v4_impl")
+    url = "https://szlholdings-terra.hf.space/readyz"
+    body = _ObservationBody(raw, status)
+
+    def open_response(request, *, timeout):
+        if status == 503:
+            raise urllib.error.HTTPError(url, status, "Service Unavailable", {}, body)
+        return body
+
+    monkeypatch.setattr(r.urllib.request, "urlopen", open_response)
+    observed_status, payload = r.get_json(url)
+    assert observed_status == status and payload == {"error": error}
+    assert body.read_sizes == [1024 * 1024 + 1]
+    assert body.closed
+    row = {"slug": "terra", "readyz_http": observed_status, "readyz": payload}
+    assert r._publication_view(row)["readyz"] == {"error": error}
+    assert not r.observation_passes(row, source_revision=REVISION, workflow_run_id="1")
+
+
+def test_publication_http_transport_failure_is_not_an_http_response(monkeypatch):
+    r = load("hf_publish_vertical_flagships_v4_impl")
+
+    def unavailable(request, *, timeout):
+        raise urllib.error.URLError("private transport details must not be copied")
+
+    monkeypatch.setattr(r.urllib.request, "urlopen", unavailable)
+    assert r.get_json("https://szlholdings-terra.hf.space/readyz") == (None, {"error": "URLError"})
+
+
+def test_publication_base_observer_retains_503_json_for_integrity_admission(monkeypatch):
+    r = load("hf_publish_vertical_flagships_v4_impl")
+    revision, run_id = "a" * 40, "12345"
+    ready = {"schema": "szl.vertical-shell-readiness/v1", "ready": False,
+             "state": "UPSTREAM_UNAVAILABLE",
+             "checks": {"landing_sha256": True, "panels_sha256": True, "upstream": False},
+             "upstream": {"accepted": False, "status": "UNAVAILABLE", "reason": "UPSTREAM_UNAVAILABLE"}}
+    build = {"schema": "szl.build-info/v1", "source_repository": "szl-holdings/a11oy",
+             "source_revision": revision, "workflow_run_id": int(run_id),
+             "artifact_set_sha256": "c" * 64, "hf_revision": "f" * 40, "forge": None}
+    deployment = {"schema": "szl.vertical-shell-deployment/v1", "state": "VERIFIED_RUNTIME_ARTIFACTS",
+                  "source_revision": revision, "workflow_run_id": int(run_id),
+                  "artifact_set_sha256": "c" * 64, "landing_sha256": "d" * 64,
+                  "panels_sha256": "e" * 64, "forge": None}
+    responses = {"/api/build-info": (200, build), "/readyz": (503, ready),
+                 "/build-receipt.json": (200, deployment)}
+    requests = []
+
+    def open_response(request, *, timeout):
+        path = request.full_url.removeprefix("https://szlholdings-terra.hf.space")
+        requests.append(path)
+        status, payload = responses[path]
+        body = _ObservationBody(json.dumps(payload).encode(), status)
+        if status == 503:
+            raise urllib.error.HTTPError(request.full_url, status, "Service Unavailable", {}, body)
+        return body
+
+    monkeypatch.setattr(r.urllib.request, "urlopen", open_response)
+    monkeypatch.setattr(r._BASE, "probe_html", lambda *args, **kwargs: {
+        "http_status": 200, "marker_present": True})
+    row = {"slug": "terra", "root_marker": "fixture-root", "artifact_set_sha256": "c" * 64,
+           "landing_sha256": "d" * 64, "panels_sha256": "e" * 64, "forge": None}
+    r._base_observe_flagship(row)
+    assert requests == list(responses)
+    assert row["readyz_http"] == 503 and row["readyz"] == ready
+    assert r.observation_passes(row, source_revision=revision, workflow_run_id=run_id)
+    assert row["readyz_http"] == 503 and row["readyz"]["ready"] is False
+    assert row["upstream_readiness"] == {
+        "accepted": False, "status": "UNAVAILABLE", "reason": "UPSTREAM_UNAVAILABLE", "http_status": 503}
+    row["build_info"]["source_revision"] = "b" * 40
+    assert not r.observation_passes(row, source_revision=revision, workflow_run_id=run_id)
+    row["build_info"]["source_revision"] = revision
+    row["readyz"]["checks"]["panels_sha256"] = False
     assert not r.observation_passes(row, source_revision=revision, workflow_run_id=run_id)
 
 

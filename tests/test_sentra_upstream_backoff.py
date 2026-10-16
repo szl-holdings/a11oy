@@ -52,6 +52,7 @@ class Response:
         self.headers = {"content-type": "application/json", **(headers or {})}
         self.body = manifest() if body is None else body
         self.text = self.body if isinstance(self.body, str) else json.dumps(self.body)
+        self.content = self.text.encode("utf-8")
         self.json_error = json_error
 
     def json(self):
@@ -100,6 +101,83 @@ def test_first_429_and_repeated_reads_remain_unavailable_without_repolling():
     clock.advance(1)
     ns["probe"]()
     assert len(calls) == 2
+
+
+def test_recognized_429_fingerprint_is_redacted_diagnostic_not_admission():
+    response = Response(429, {
+        "error": {"code": "rate_limited", "message": "private-owner-message",
+                  "trace_id": "private-trace-id"},
+        "debug_token": "private-debug-token",
+    }, {"x-ratelimit-policy": "sliding-window;w=60", "x-secret-header": "private-header-value"})
+    ns, _, _ = runtime(lambda *_args, **_kwargs: response)
+    result = ns["probe"]()
+    assert result["last_attempt"]["rate_limit"] == {
+        "evidence_class": "REPORTED", "fingerprint": "A11OY_SHARED_IP_LIMIT"}
+    assert result["last_attempt"]["http_status"] == 429
+    assert result["status"] == "UNAVAILABLE" and result["data"] is None
+    assert result["receipt_verified"] is False
+    assert result["retry_after_seconds"] == 30
+    public = json.dumps(result)
+    for private in ("private-owner-message", "private-trace-id", "private-debug-token", "private-header-value",
+                    "trace_id", "debug_token", "x-secret-header", "x-ratelimit-policy", "sliding-window;w=60"):
+        assert private not in public
+
+
+@pytest.mark.parametrize("response", [
+    Response(429, {"error": {"code": "upstream_limited"}}, {"x-ratelimit-policy": "sliding-window;w=60"}),
+    Response(429, {"error": {"code": "rate_limited"}}, {"x-ratelimit-policy": "sliding-window;w=61"}),
+    Response(429, {"error": {"code": "rate_limited"}}, {"x-ratelimit-policy": "sliding-window;w=60 "}),
+    Response(429, {"error": {"code": "rate_limited"}}),
+    Response(429, {"error": "rate_limited"}, {"x-ratelimit-policy": "sliding-window;w=60"}),
+    Response(429, [{"error": {"code": "rate_limited"}}], {"x-ratelimit-policy": "sliding-window;w=60"}),
+    Response(429, "<html>rate limited</html>", {"content-type": "text/html", "x-ratelimit-policy": "sliding-window;w=60"}),
+    Response(429, "{not-json", {"x-ratelimit-policy": "sliding-window;w=60"}, json_error=True),
+    Response(429, {"error": {"code": "rate_limited", "message": "x" * 4096}},
+             {"x-ratelimit-policy": "sliding-window;w=60"}),
+], ids=["wrong-code", "wrong-policy", "policy-not-exact", "missing-policy", "error-not-object",
+        "body-not-object", "html-body", "malformed-json", "oversized-json"])
+def test_429_fingerprint_is_unknown_without_the_complete_bounded_signature(response):
+    ns, _, _ = runtime(lambda *_args, **_kwargs: response)
+    result = ns["probe"]()
+    assert result["last_attempt"]["rate_limit"] == {"evidence_class": "UNKNOWN", "fingerprint": None}
+    assert result["last_attempt"]["http_status"] == 429
+    assert result["status"] == "UNAVAILABLE" and result["data"] is None
+    assert result["receipt_verified"] is False
+    assert result["retry_after_seconds"] == 30
+
+
+@pytest.mark.parametrize("size, expected", [
+    (4096, {"evidence_class": "REPORTED", "fingerprint": "A11OY_SHARED_IP_LIMIT"}),
+    (4097, {"evidence_class": "UNKNOWN", "fingerprint": None}),
+])
+def test_429_fingerprint_checks_the_raw_body_byte_limit(size, expected):
+    response = Response(429, {"error": {"code": "rate_limited"}},
+                        {"x-ratelimit-policy": "sliding-window;w=60"})
+    response.content = response.content.ljust(size, b" ")
+    ns, _, _ = runtime(lambda *_args, **_kwargs: response)
+    assert ns["probe"]()["last_attempt"]["rate_limit"] == expected
+
+
+@pytest.mark.parametrize("status", [200, 403, 503])
+def test_non_429_body_cannot_claim_the_shared_ip_limit(status):
+    response = Response(status, {"error": {"code": "rate_limited"}},
+                        {"x-ratelimit-policy": "sliding-window;w=60"})
+    ns, _, _ = runtime(lambda *_args, **_kwargs: response)
+    result = ns["probe"]()
+    assert result["last_attempt"].get("rate_limit", {}).get("fingerprint") is None
+    assert result["status"] == "UNAVAILABLE"
+    assert result["receipt_verified"] is False
+
+
+def test_returned_rate_limit_metadata_cannot_mutate_retained_evidence():
+    response = Response(429, {"error": {"code": "rate_limited"}},
+                        {"x-ratelimit-policy": "sliding-window;w=60"})
+    ns, clock, _ = runtime(lambda *_args, **_kwargs: response)
+    result = ns["probe"]()
+    result["last_attempt"]["rate_limit"]["fingerprint"] = "caller-invented"
+    clock.advance(1)
+    assert ns["probe"]()["last_attempt"]["rate_limit"] == {
+        "evidence_class": "REPORTED", "fingerprint": "A11OY_SHARED_IP_LIMIT"}
 
 
 @pytest.mark.parametrize("date_header", [False, True])
@@ -179,7 +257,8 @@ def test_last_good_reuse_keeps_original_timestamp_and_expires_at_ttl():
 
     def get(url, **kwargs):
         calls.append(url)
-        return Response() if len(calls) == 1 else Response(429, {})
+        return Response() if len(calls) == 1 else Response(
+            429, {"error": {"code": "rate_limited"}}, {"x-ratelimit-policy": "sliding-window;w=60"})
 
     ns, clock, _ = runtime(get)
     fresh = ns["probe"]()
@@ -202,6 +281,8 @@ def test_last_good_reuse_keeps_original_timestamp_and_expires_at_ttl():
     assert len(calls) == 2
     assert after_429["status"] == "SNAPSHOT"
     assert after_429["last_attempt"]["http_status"] == 429
+    assert after_429["last_attempt"]["rate_limit"] == {
+        "evidence_class": "REPORTED", "fingerprint": "A11OY_SHARED_IP_LIMIT"}
     assert after_429["observation"]["observed_at"] == original_time
     assert after_429["receipt_verified"] is False
     clock.advance(90)

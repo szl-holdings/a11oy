@@ -62,6 +62,23 @@ if CFG.get("slug") == "sentra":
                 return "UPSTREAM_PAYLOAD_INVALID"
             return None
 
+        @staticmethod
+        def _rate_limit_fingerprint(response):
+            # Diagnostic only: no raw body, request identity, or arbitrary
+            # headers are exposed, and this never changes admission/backoff.
+            unknown = {"evidence_class": "UNKNOWN", "fingerprint": None}
+            try:
+                if len(response.content) > 4096:
+                    return unknown
+                body = response.json()
+                error = body.get("error") if isinstance(body, dict) else None
+                if (isinstance(error, dict) and error.get("code") == "rate_limited"
+                        and response.headers.get("x-ratelimit-policy") == "sliding-window;w=60"):
+                    return {"evidence_class": "REPORTED", "fingerprint": "A11OY_SHARED_IP_LIMIT"}
+            except (AttributeError, TypeError, ValueError):
+                pass
+            return unknown
+
         def observe(self):
             # Holding the lock across the bounded request provides single-flight:
             # concurrent callers use its result, never send duplicate requests.
@@ -78,6 +95,8 @@ if CFG.get("slug") == "sentra":
                             headers={"User-Agent": "SZLHOLDINGS-Flagship/4.0"})
                         attempt["http_status"] = response.status_code
                         retry = self._retry_after(response.headers.get("retry-after"))
+                        if response.status_code == 429:
+                            attempt["rate_limit"] = self._rate_limit_fingerprint(response)
                         if response.is_success:
                             if "json" not in response.headers.get("content-type", "").lower():
                                 attempt["reason"] = "UPSTREAM_NOT_JSON"
@@ -119,7 +138,7 @@ if CFG.get("slug") == "sentra":
                 valid = self._good is not None and age < SENTRA_LAST_GOOD_TTL_SECONDS
                 result = {"status": "REACHABLE" if valid and fetched else "SNAPSHOT" if valid else "UNAVAILABLE",
                     "honesty": "HTTP success is reachability, not MEASURED", "receipt_verified": False,
-                    "source": CFG["upstream"], "last_attempt": dict(self._attempt),
+                    "source": CFG["upstream"], "last_attempt": _sentra_copy.deepcopy(self._attempt),
                     "retry_after_seconds": round(max(0, self._next_attempt - now), 3)}
                 if valid:
                     result.update({"http_status": self._good["http_status"],
