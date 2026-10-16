@@ -200,7 +200,7 @@ global.document = {getElementById: (id) => element(id)};
 global.esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char]);
-let ledgerRecord = {receipt_id: '<img src=x onerror=alert(1)>', simulated: true};
+let ledgerRows = [{receipt_id: '<img src=x onerror=alert(1)>', simulated: true}];
 global.window = {
   VIEWS: {},
   getJSON: async (url) => {
@@ -212,7 +212,7 @@ global.window = {
       };
     }
     if (url === '/api/a11oy/v1/wow/ledger?limit=1&advance=0') {
-      return {receipts: [ledgerRecord]};
+      return {receipts: ledgerRows};
     }
     throw new Error('unexpected URL ' + url);
   },
@@ -229,10 +229,14 @@ vm.runInThisContext(logic);
   assert.equal(element('inv-one-ep').textContent, 'SIMULATED');
   assert.equal(element('inv-locked-ep').textContent, 'UNAVAILABLE');
   assert.equal(element('inv-locked-list').textContent, 'UNAVAILABLE');
-  ledgerRecord = {receipt_id: 'signed-looking-id', simulated: false, signature: 'unverified', verified: true};
+  ledgerRows = [{receipt_id: 'signed-looking-id', simulated: false, signature: 'unverified', verified: true}];
   await window.VIEWS.investor.render(container);
   assert.equal(element('inv-one-ep').textContent, 'UNAVAILABLE');
   assert.doesNotMatch(element('inv-one-receipt').innerHTML, /signed-looking-id|REPORTED/);
+  ledgerRows = [];
+  await window.VIEWS.investor.render(container);
+  assert.equal(element('inv-one-ep').textContent, 'UNAVAILABLE');
+  assert.doesNotMatch(element('inv-one-receipt').innerHTML, /SIMULATED|REPORTED/);
 })().catch((error) => {
   console.error(error && error.stack || error);
   process.exitCode = 1;
