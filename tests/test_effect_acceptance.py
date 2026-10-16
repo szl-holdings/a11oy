@@ -1,5 +1,6 @@
 """Offline checks for the separate, simulated POST acceptance driver."""
 
+import ast
 import copy
 import importlib.util
 import json
@@ -54,7 +55,7 @@ class LocalRouteFixture:
         if path == effect.ROUTES[1]:
             return Response(200, {"question": json["question"], "topic": "formulas",
                                   "grounded": True,
-                                  "citations": [{"endpoint": "szl_brain.CANONICAL",
+                                  "citations": [{"endpoint": "serve._SC_PROVED_FORMULAS",
                                                  "data": {"count": 8, "proved":
                                                           ["F1", "F4", "F7", "F11", "F12",
                                                            "F18", "F19", "F22"]}}]})
@@ -175,6 +176,63 @@ def _sample_report(sha, image):
             "checkedAt": effect._stamp(), "results": rows,
             "summary": {"total": 5, "pass": 4, "unavailable": 1},
             "productionReadiness": "UNAVAILABLE"}
+
+
+def test_rehearsal_accepts_actual_formula_source_without_claiming_agentloop_execution():
+    source = SCRIPT.parents[2] / "serve.py"
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    functions = [node for node in ast.walk(tree)
+                 if isinstance(node, ast.FunctionDef) and node.name in ("_sc_classify", "_sc_ask")]
+    assert len(functions) == 2
+    table = next(node for node in ast.walk(tree) if isinstance(node, ast.Assign)
+                 and any(isinstance(target, ast.Name) and target.id == "_SC_PROVED_FORMULAS"
+                         for target in node.targets))
+    # Execute the actual formula answer and table without importing the app or
+    # signing anything; this receipt stand-in remains an offline fixture.
+    namespace = {"_sc_receipt": lambda *args: {"signed": False}}
+    exec(compile(ast.Module(body=[table, *functions], type_ignores=[]), str(source), "exec"), namespace)
+
+    class ActualFormulaAnswer(LocalRouteFixture):
+        def post(self, path, json, headers):
+            response = super().post(path, json, headers)
+            if path == effect.ROUTES[1]:
+                response.body = namespace["_sc_ask"](json["question"])
+            return response
+
+    rows = effect.rehearse(ActualFormulaAnswer(), "fixture-token")
+    assert [row["result"] for row in rows] == ["PASS"] * 3 + ["UNAVAILABLE", "PASS"]
+    assert rows[1]["semantic"]["citationEndpoint"] == "serve._SC_PROVED_FORMULAS"
+    assert rows[3]["effectState"] == "REFUSED_BEFORE_ROUTE"
+    sha, image = "a" * 40, "sha256:" + "b" * 64
+    report = _sample_report(sha, image)
+    report["results"] = rows
+    effect._validate_child_report(report, sha, image)
+    assert report["productionReadiness"] == "UNAVAILABLE"
+
+
+def test_rehearsal_rejects_retired_formula_citation_and_stops_later_posts():
+    class RetiredCitation(LocalRouteFixture):
+        def post(self, path, json, headers):
+            response = super().post(path, json, headers)
+            if path == effect.ROUTES[1]:
+                response.body["citations"][0]["endpoint"] = "szl_brain.CANONICAL"
+            return response
+
+    fixture = RetiredCitation()
+    rows = effect.rehearse(fixture, "fixture-token")
+    assert fixture.posts == list(effect.ROUTES[:2])
+    assert rows[1]["reason"] == "effect_unknown_contract_mismatch"
+    assert rows[1]["effectState"] == "UNKNOWN"
+    assert all(row["attempts"] == 0 and row["reason"] == "stopped_after_unknown_effect"
+               for row in rows[2:])
+
+
+def test_host_rejects_retired_formula_citation():
+    sha, image = "a" * 40, "sha256:" + "b" * 64
+    report = _sample_report(sha, image)
+    report["results"][1]["semantic"]["citationEndpoint"] = "szl_brain.CANONICAL"
+    with pytest.raises(ValueError, match="operator_semantic_invalid"):
+        effect._validate_child_report(report, sha, image)
 
 
 def test_host_accepts_only_bounded_consistent_child_report():

@@ -5,9 +5,10 @@
 """
 szl_khipu_replicate.py — cross-Space Khipu replication thread (OPTIONAL).
 
-Replication is DISABLED BY DEFAULT. Each Space's handler ACCEPTS inbound
-replications (idempotent: a receipt already present is a no-op) but NEVER pushes
-outbound until replication is explicitly enabled via enable() / env var.
+Replication is DISABLED BY DEFAULT. Each Space's handler accepts inbound
+replications but never pushes outbound until explicitly enabled via enable() / env
+var. Receiver deduplication and crash recovery remain unqualified: outbound
+activation is BLOCKED until those gaps are resolved.
 
 Wire: HTTP POST to a sibling Space's
     /api/<organ>/v2/khipu/replicate
@@ -18,6 +19,11 @@ foreign receipts into its own primary append-only chain — replication is a
 mirror, not a merge, so each Space's own chain integrity is never disturbed).
 
 Outbound push uses urllib (stdlib) so there is no hard `requests` dependency.
+Delivery advances only after every configured peer acknowledges the entire batch.
+Failed or partial batches retain their cursor. Ambiguous or partial delivery
+pauses this process; an operator must reconcile receiver readback before explicitly
+enabling it again. This pause is not durable across restarts. Public delivery
+diagnostics identify peers by position and never echo URLs or raw errors.
 """
 from __future__ import annotations
 
@@ -25,6 +31,7 @@ import json
 import os
 import threading
 import time
+import urllib.error
 import urllib.request
 from typing import Any, Callable, Dict, List, Optional
 
@@ -32,7 +39,7 @@ __version__ = "khipu-replicate/1.0.0"
 
 
 class Replicator:
-    """Optional outbound replicator. Disabled until enable() is called."""
+    """Optional sender; uncertain delivery pauses until operator reconciliation."""
 
     def __init__(
         self,
@@ -53,10 +60,13 @@ class Replicator:
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
         self._lock = threading.Lock()
+        self._paused_reason: Optional[str] = None
         self.last_push: Dict[str, Any] = {}
 
     def enable(self) -> None:
+        """Explicit operator action; reconcile receiver readback before resuming."""
         with self._lock:
+            self._paused_reason = None
             self.enabled = True
 
     def disable(self) -> None:
@@ -73,23 +83,67 @@ class Replicator:
             return json.loads(resp.read().decode("utf-8"))
 
     def push_once(self) -> Dict[str, Any]:
-        """Push receipts newer than the cursor to every peer. No-op if disabled."""
-        if not self.enabled:
-            return {"pushed": 0, "enabled": False, "reason": "replication disabled"}
-        if not self.source_fn:
-            return {"pushed": 0, "enabled": True, "reason": "no source_fn"}
-        receipts = self.source_fn(self._cursor)
-        if not receipts:
-            return {"pushed": 0, "enabled": True, "peers": len(self.peers)}
-        results = {}
-        for base in self.peers:
+        """Advance only after complete acknowledgements; concurrent pushes serialize."""
+        with self._lock:
+            if not self.enabled:
+                return {"pushed": 0, "enabled": False,
+                        "reason": self._paused_reason or "replication disabled"}
+            peers = tuple(self.peers)
+            if not peers:
+                return {"pushed": 0, "enabled": True, "reason": "no peers"}
+            if not self.source_fn:
+                return {"pushed": 0, "enabled": True, "reason": "no source_fn"}
             try:
-                results[base] = self._post(base, receipts)
-            except Exception as e:  # honest: record failure, never crash
-                results[base] = {"error": repr(e)}
-        self._cursor += len(receipts)
-        self.last_push = {"ts": time.time(), "count": len(receipts), "results": results}
-        return {"pushed": len(receipts), "enabled": True, "results": results}
+                receipts = self.source_fn(self._cursor)
+            except Exception:
+                return {"pushed": 0, "enabled": True, "reason": "SOURCE_UNAVAILABLE"}
+            if type(receipts) is not list or any(type(item) is not dict for item in receipts):
+                return {"pushed": 0, "enabled": True, "reason": "SOURCE_INVALID"}
+            if not receipts:
+                return {"pushed": 0, "enabled": True, "peers": len(peers)}
+            results = {}
+            complete = True
+            uncertain = False
+            acknowledged = 0
+            for index, base in enumerate(peers):
+                peer = f"peer_{index + 1}"
+                if uncertain:
+                    results[peer] = {"error": "NOT_ATTEMPTED_RECONCILIATION_REQUIRED"}
+                    continue
+                try:
+                    acknowledgement = self._post(base, receipts)
+                    if (type(acknowledgement) is dict
+                            and type(acknowledgement.get("accepted")) is int
+                            and acknowledgement["accepted"] == len(receipts)
+                            and type(acknowledgement.get("rejected")) is int
+                            and acknowledgement["rejected"] == 0):
+                        results[peer] = {"accepted": len(receipts), "rejected": 0}
+                        acknowledged += 1
+                    else:
+                        results[peer] = {"error": "ACKNOWLEDGEMENT_INVALID"}
+                        complete = False
+                        uncertain = True
+                except urllib.error.HTTPError as error:
+                    results[peer] = {"error": ("AUTHENTICATION_REQUIRED" if error.code == 401
+                                               else "DELIVERY_UNAVAILABLE")}
+                    complete = False
+                    uncertain = error.code != 401
+                except Exception:
+                    results[peer] = {"error": "DELIVERY_UNAVAILABLE"}
+                    complete = False
+                    uncertain = True
+                # A refusal cannot undo delivery already acknowledged by a peer.
+                if not complete and acknowledged:
+                    uncertain = True
+            pushed = len(receipts) if complete else 0
+            self._cursor += pushed
+            if uncertain:
+                self.enabled = False
+                self._paused_reason = "RECONCILIATION_REQUIRED"
+            self.last_push = {"ts": time.time(), "count": pushed, "attempted": len(receipts),
+                              "results": results}
+            return {"pushed": pushed, "enabled": self.enabled, "results": results,
+                    "paused_reason": self._paused_reason}
 
     def _loop(self) -> None:
         while not self._stop.is_set():
@@ -116,7 +170,8 @@ class Replicator:
         return {
             "version": __version__,
             "enabled": self.enabled,
-            "peers": self.peers,
+            "paused_reason": self._paused_reason,
+            "peers": [f"peer_{index + 1}" for index in range(len(self.peers))],
             "cursor": self._cursor,
             "interval_s": self.interval_s,
             "last_push": self.last_push,
