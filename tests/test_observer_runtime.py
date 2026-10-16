@@ -572,11 +572,15 @@ def test_http_size_limit_stops_stream_before_parse(world):
     assert world.effects == [] and remote_rows(world) == []
 
 
-def test_authority_expiry_cancels_native_await_and_burns_plan(world):
-    nonce, plan = signed_plan(world, mutate=lambda plan: plan.update({
-        "expires_at": observer.stamp(observer.utcnow() + timedelta(seconds=0.1))}))
+def test_authority_expiry_cancels_native_await_and_burns_plan(world, monkeypatch):
+    nonce, plan = signed_plan(world)
+    expires_at = world.subject._challenges[nonce].expires_at
+    # Snapshot setup must not spend the native-await timeout under test.
+    now = [expires_at - timedelta(seconds=0.1)]
+    monkeypatch.setattr(observer, "utcnow", lambda: now[0])
     cancelled = []
     async def stall(case):
+        now[0] = expires_at + timedelta(microseconds=1)
         try:
             await asyncio.Event().wait()
         except asyncio.CancelledError:
@@ -587,6 +591,9 @@ def test_authority_expiry_cancels_native_await_and_burns_plan(world):
         run(world, nonce, plan)
     assert len(cancelled) == 1 and world.effects == []
     assert len(remote_rows(world)) == 5 and nonce not in world.subject._exports
+    assert world.subject._challenges[nonce].state == "BURNED"
+    with pytest.raises(observer.ObserverBlocked, match="CONSUMED"):
+        run(world, nonce, plan)
 
 
 def restart(world, monkeypatch):
