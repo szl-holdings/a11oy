@@ -59,6 +59,8 @@ class FakeClient:
         if path.endswith("/operator/ask"):
             if self.failure == "wrong_answer":
                 return 200, {"topic": "general", "answer": "no evidence"}
+            endpoint = ("szl_brain.CANONICAL" if self.failure == "bad_citation"
+                        else run.verifier.FORMULA_CITATION_ENDPOINT)
             receipt = {"schema": "szl.a11oy.operator/v1", "kind": "ask", "organ": "a11oy",
                        "ts_utc": run.stamp(), "doctrine": "v11",
                        "lambda_status": "Conjecture 1 (NOT a theorem)",
@@ -69,7 +71,7 @@ class FakeClient:
                          "answer": ", ".join(run.verifier.LOCKED), "grounded": True,
                          "receipt": {"receipt": receipt, "signed": False, "signing_available": False,
                                      "dsse": {"signed": False}},
-                         "citations": [{"endpoint": "szl_brain.CANONICAL",
+                         "citations": [{"endpoint": endpoint,
                                         "data": {"count": 8, "proved": run.verifier.LOCKED, "doctrine": "v11"}}]}
         if path.endswith("/policy/compliance"):
             return 200, {"status": "REAL", "framework": "NIST", "covered": 8, "total": 8}
@@ -149,6 +151,22 @@ def test_semantically_wrong_success_stops_before_next_post(tmp_path):
     assert bundle["cases"][1]["state"] == "UNKNOWN"
     assert bundle["cases"][2]["state"] == "NOT_ATTEMPTED"
     assert receipt["publication_eligible"] is False
+
+
+def test_retired_formula_citation_stops_after_second_post_without_retry(tmp_path):
+    _, client, receipt, bundle = capture(tmp_path, failure="bad_citation")
+    posts = [(path, body) for method, path, body in client.calls if method == "POST"]
+    assert len(posts) == 2
+    assert posts[1][0].endswith("/operator/ask")
+    assert sum(path.endswith("/operator/ask") for path, _ in posts) == 1
+    assert bundle["cases"][0]["state"] == "OBSERVED"
+    assert bundle["cases"][1]["state"] == "UNKNOWN"
+    assert bundle["cases"][1]["reason"] == "EFFECT_CONTRACT_MISMATCH"
+    assert bundle["cases"][2]["state"] == "NOT_ATTEMPTED"
+    assert all(row["state"] == "NOT_ATTEMPTED" for row in bundle["cases"][2:])
+    assert receipt["publication_eligible"] is False
+    assert receipt["execution_authorized"] is False
+    assert receipt["signing"] == "UNSIGNED"
 
 
 def test_existing_run_directory_is_never_resumed_or_overwritten(tmp_path):
