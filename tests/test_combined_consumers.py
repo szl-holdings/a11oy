@@ -404,6 +404,7 @@ def test_collector_blocks_foreign_routes_before_any_request():
 
 
 def test_sole_workflow_passes_raw_separate_evidence_and_independent_context():
+    import yaml
     text = (ROOT / ".github/workflows/hf-sync.yml").read_text()
     fragment = text[text.index("  readiness-verdict:"):text.index("  post-deployment-parity:")]
     assert fragment.count("collect_execution_readiness.py") == 1
@@ -414,7 +415,17 @@ def test_sole_workflow_passes_raw_separate_evidence_and_independent_context():
     assert 'name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}' in fragment
     upload = fragment[fragment.index("      - name: Upload immutable full probe evidence"):fragment.index("      # The same fail-closed")]
     assert "execution-observations.json" in upload and "execution-authority-pins.json" not in upload
-    assert "${{ env.EXECUTION_EVIDENCE_DIR }}/readiness-verdict.json" in upload
+    # The upload action cannot see another step's environment. Bind its actual
+    # paths to the collector's directory rather than an out-of-scope env name.
+    steps = yaml.safe_load(text)["jobs"]["execution-readiness"]["steps"]
+    collect_step = next(step for step in steps
+                        if "collect_execution_readiness.py" in step.get("run", ""))
+    upload_step = next(step for step in steps
+                       if step.get("name") == "Upload immutable full probe evidence")
+    folder = collect_step["env"]["EXECUTION_EVIDENCE_DIR"]
+    assert folder == "${{ runner.temp }}/execution-evidence"
+    assert upload_step["with"]["path"].splitlines() == [
+        folder + "/readiness-verdict.json", folder + "/execution-observations.json"]
     assert "${{ env.VERDICT_PATH }}" not in upload
     assert "--validate-only" in fragment and "--matrix" not in fragment
 

@@ -176,15 +176,34 @@ class Transport:
         require(not self.stop.is_set() and self.clock() < self.deadline,
                 "READINESS_FETCH_DEADLINE")
 
-    def _read(self, url, headers, limit, *, redirect=False):
+    def _read(self, url, headers, limit, *, redirect=False, artifact_object=False):
         self.budget()
+        import httpx
+        stage = "ARTIFACT_DOWNLOAD" if artifact_object else "GITHUB_READ"
         try:
             with self.client.stream("GET", url, headers={**headers, "Accept-Encoding": "identity"},
                                     timeout=min(5, self.deadline - self.clock())) as response:
+                if response.status_code != (302 if redirect else 200):
+                    status = response.status_code
+                    if status == 401:
+                        reason = "AUTHENTICATION_FAILED"
+                    elif status == 429 or (status == 403 and (
+                            response.headers.get("x-ratelimit-remaining") == "0"
+                            or bool(response.headers.get("retry-after")))):
+                        reason = "RATE_LIMITED"
+                    elif status == 403:
+                        reason = "ACCESS_DENIED"
+                    elif status == 404:
+                        reason = "RESOURCE_UNAVAILABLE"
+                    elif 500 <= status <= 599:
+                        reason = "UPSTREAM_UNAVAILABLE"
+                    else:
+                        reason = "UNEXPECTED_RESPONSE"
+                    # Fixed codes only: never expose response bodies, credentials,
+                    # headers, signed object URLs or provider exception messages.
+                    raise EvidenceBlocked(stage + "_" + reason)
                 if redirect:
-                    require(response.status_code == 302, "ARTIFACT_DOWNLOAD_UNAVAILABLE")
                     return response.headers.get("location", "")
-                require(response.status_code == 200, "GITHUB_READ_UNAVAILABLE")
                 require(response.headers.get("content-encoding", "").strip().lower() in ("", "identity"),
                         "READINESS_RESPONSE_ENCODING_INVALID")
                 data = bytearray()
@@ -198,8 +217,12 @@ class Transport:
                 return bytes(data)
         except EvidenceBlocked:
             raise
+        except httpx.TimeoutException:
+            raise EvidenceBlocked(stage + "_TIMEOUT") from None
+        except httpx.RequestError:
+            raise EvidenceBlocked(stage + "_TRANSPORT_UNAVAILABLE") from None
         except Exception:
-            raise EvidenceBlocked("GITHUB_READ_UNAVAILABLE") from None
+            raise EvidenceBlocked(stage + "_UNAVAILABLE") from None
 
     def json(self, suffix):
         require(suffix.startswith("/") and "#" not in suffix, "GITHUB_READ_SCOPE_INVALID")
@@ -226,7 +249,7 @@ class Transport:
                     "ARTIFACT_DOWNLOAD_DESTINATION_INVALID")
         except (TypeError, ValueError):
             raise EvidenceBlocked("ARTIFACT_DOWNLOAD_DESTINATION_INVALID") from None
-        return self._read(location, {}, MAX_ARCHIVE)
+        return self._read(location, {}, MAX_ARCHIVE, artifact_object=True)
 
 
 def _complete(payload, key):
