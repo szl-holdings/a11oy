@@ -8,6 +8,7 @@ history; a request body can never assert two-person attestation. Every sandbox
 reached through a11oy_code_engine.governed_turn needs allow_exec from the header
 principal, and a withheld execution is labelled NOT_EXECUTED, never as a run.
 """
+import ast
 import asyncio
 import os
 import sys
@@ -574,6 +575,18 @@ class KenMcpCall(unittest.TestCase):
 # Route-level gate: szl_operator_auth.PROTECTED_ROUTES + OperatorGateMiddleware.
 # ---------------------------------------------------------------------------
 class GateTable(unittest.TestCase):
+    def test_lmdb_append_is_exactly_gated_in_both_shared_namespaces(self):
+        for namespace in ("a11oy", "killinchu"):
+            path = f"/api/{namespace}/v2/khipu/lmdb/append"
+            for candidate in (path, path + "/", path.replace("/v2/", "//v2//")):
+                self.assertEqual(opauth.protected_action("POST", candidate),
+                                 ("Khipu LMDB append", "state"))
+            for method in ("GET", "HEAD", "OPTIONS"):
+                self.assertIsNone(opauth.protected_action(method, path))
+            for candidate in (path + "ed", path + "/extra", path.replace("/v2/", "/v1/"),
+                              path.replace("/append", "/tail")):
+                self.assertIsNone(opauth.protected_action("POST", candidate))
+
     def test_safe_methods_are_never_gated(self):
         for method in ("GET", "HEAD", "OPTIONS", "get"):
             with self.subTest(method=method):
@@ -644,6 +657,37 @@ class GateMiddleware(unittest.TestCase):
                     self.assertFalse(r.json()["credential_configured"])
         self.assertEqual(self.reached, [])
 
+    def test_lmdb_append_denies_before_receiving_the_body(self):
+        async def forbidden_receive():
+            raise AssertionError("unauthorized body must not be received")
+
+        for namespace in ("a11oy", "killinchu"):
+            for key, headers in ((OPERATOR, {}), (OPERATOR, {"authorization": "Bearer wrong"}),
+                                 (OPERATOR, {"authorization": f"Basic {OPERATOR}"}),
+                                 ("", {"authorization": f"Bearer {OPERATOR}"})):
+                with self.subTest(namespace=namespace, configured=bool(key), headers=sorted(headers)):
+                    sent = []
+                    async def send(message):
+                        sent.append(message)
+                    scope = {"type": "http", "method": "POST",
+                             "path": f"/api/{namespace}/v2/khipu/lmdb/append",
+                             "headers": [(k.encode(), v.encode()) for k, v in headers.items()]}
+                    with patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: key}):
+                        asyncio.run(self.client.app(scope, forbidden_receive, send))
+                    self.assertEqual(sent[0]["status"], 401)
+        self.assertEqual(self.reached, [])
+
+    def test_lmdb_append_operator_reads_and_near_misses_pass_through(self):
+        expected = []
+        with patch.dict(os.environ, SECRETS):
+            for namespace in ("a11oy", "killinchu"):
+                path = f"/api/{namespace}/v2/khipu/lmdb/append"
+                self.assertEqual(self.client.post(path, headers=OPERATOR_ONLY, json={}).status_code, 200)
+                self.assertEqual(self.client.get(path).status_code, 200)
+                self.assertEqual(self.client.post(path + "ed", json={}).status_code, 200)
+                expected.extend([("POST", path), ("GET", path), ("POST", path + "ed")])
+        self.assertEqual(self.reached, expected)
+
     def test_operator_and_public_requests_pass_through(self):
         with patch.dict(os.environ, SECRETS):
             self.assertEqual(self.client.post("/api/a11oy/code/run", headers=OPERATOR_ONLY,
@@ -663,6 +707,118 @@ class GateMiddleware(unittest.TestCase):
         self.assertIs(app.user_middleware[-1].cls, opauth.OperatorGateMiddleware)
         self.assertEqual(
             sum(m.cls is opauth.OperatorGateMiddleware for m in app.user_middleware), 1)
+
+
+def _route_definitions(filename, names):
+    """Load the real handlers without constructing stores or importing a server."""
+    tree = ast.parse((ROOT / filename).read_text(encoding="utf-8"))
+    definitions = [node for node in ast.walk(tree)
+                   if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                   and node.name in names]
+    assert {node.name for node in definitions} == set(names)
+    return compile(ast.Module(body=definitions, type_ignores=[]), str(ROOT / filename), "exec")
+
+
+class LmdbAppendNativeAdmission(unittest.TestCase):
+    """The actual nested handler uses a SIMULATED memory-only append boundary."""
+
+    def _client(self, namespace):
+        from fastapi import Request
+        from starlette.responses import JSONResponse
+        from typing import Any
+        app = FastAPI()
+        append = MagicMock(return_value={"action": "note", "payload": {"fixture": True}})
+        namespace_globals = {"app": app, "ns": namespace, "Request": Request, "Any": Any,
+                             "JSONResponse": JSONResponse, "klmdb": types.SimpleNamespace(append=append),
+                             "operator_refusal": opauth.operator_refusal}
+        exec(_route_definitions("szl_unay_routes.py", {"khipu_lmdb_append"}), namespace_globals)
+        return TestClient(app), append
+
+    def test_native_guard_denies_before_json_in_any_namespace(self):
+        for namespace in ("a11oy", "killinchu", "szl", "rosie"):
+            client, append = self._client(namespace)
+            for key, headers in ((OPERATOR, {}), (OPERATOR, {"Authorization": "Bearer wrong"}),
+                                 (OPERATOR, {"Authorization": f"Basic {OPERATOR}"}),
+                                 ("", OPERATOR_ONLY)):
+                with self.subTest(namespace=namespace, configured=bool(key), headers=sorted(headers)), \
+                        patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: key}), \
+                        patch("starlette.requests.Request.json", new_callable=AsyncMock) as body:
+                    body.side_effect = AssertionError("unauthorized JSON must not be read")
+                    response = client.post(f"/api/{namespace}/v2/khipu/lmdb/append",
+                                           headers=headers, content=b"{")
+                    self.assertEqual(response.status_code, 401, response.text)
+                    self.assertEqual(response.json()["status"], "BLOCKED")
+                    self.assertEqual(response.headers["www-authenticate"], "Bearer")
+                    body.assert_not_called()
+            append.assert_not_called()
+
+    def test_native_guard_denies_on_identity_resolver_error(self):
+        client, append = self._client("a11oy")
+        with patch.object(opauth, "principal", side_effect=RuntimeError("fixture resolver failure")), \
+                patch("starlette.requests.Request.json", new_callable=AsyncMock) as body:
+            response = client.post("/api/a11oy/v2/khipu/lmdb/append", content=b"{")
+        self.assertEqual(response.status_code, 401)
+        body.assert_not_called()
+        append.assert_not_called()
+
+    def test_operator_preserves_append_payload_and_default_action(self):
+        for namespace in ("a11oy", "killinchu", "szl", "rosie"):
+            for value, action, payload in (({"action": "fixture", "payload": {"n": 3}}, "fixture", {"n": 3}),
+                                           ({}, "note", {})):
+                client, append = self._client(namespace)
+                with patch.dict(os.environ, SECRETS):
+                    response = client.post(f"/api/{namespace}/v2/khipu/lmdb/append",
+                                           headers=OPERATOR_ONLY, json=value)
+                self.assertEqual(response.status_code, 200, response.text)
+                self.assertEqual(response.json(), append.return_value)
+                append.assert_called_once_with(action, payload=payload)
+
+
+class ObserverNativeAdmission(unittest.TestCase):
+    """Use actual route and caller definitions; no Service, signer or stores exist."""
+
+    def test_all_three_post_routes_deny_before_body_and_work(self):
+        import hashlib
+        import re
+        from starlette.requests import Request
+        from starlette.responses import JSONResponse, Response
+        from starlette.routing import Route
+        from a11oy_code_runloop import _tenant_refusal
+        from tools import execution_acceptance as acceptance
+        prefix = "/api/a11oy/v1/series-a/execution-observations"
+        namespace = {"asyncio": asyncio, "hashlib": hashlib, "re": re, "Request": Request,
+                     "JSONResponse": JSONResponse, "Response": Response, "Route": Route,
+                     "_tenant_refusal": _tenant_refusal, "acceptance": acceptance, "PREFIX": prefix,
+                     "principal_from_headers": opauth.principal_from_headers}
+        exec(_route_definitions("observer_runtime.py", {"ObserverBlocked", "require", "error_code",
+                                                       "_caller", "register"}), namespace)
+        subject = types.SimpleNamespace(challenge=MagicMock(), run=AsyncMock(), cancel=MagicMock())
+        subject._caller = types.MethodType(namespace["_caller"], subject)
+        app = Starlette()
+        namespace["register"](app, subject)
+        client = TestClient(app)
+        tenant = "synthetic-tenant"
+        valid = {**OPERATOR_ONLY, "X-A11oy-Tenant": tenant}
+        for headers, configured, key, error in (
+                ({}, tenant, OPERATOR, "OPERATOR_REQUIRED"),
+                ({"Authorization": "Bearer wrong"}, tenant, OPERATOR, "OPERATOR_REQUIRED"),
+                ({"Authorization": f"Basic {OPERATOR}"}, tenant, OPERATOR, "OPERATOR_REQUIRED"),
+                (valid, tenant, "", "OPERATOR_REQUIRED"),
+                (OPERATOR_ONLY, tenant, OPERATOR, "TENANT_REQUIRED"),
+                ({**valid, "X-A11oy-Tenant": "wrong"}, tenant, OPERATOR, "TENANT_REQUIRED"),
+                (valid, "", OPERATOR, "TENANT_REQUIRED")):
+            for path in ("/challenge", "/run", "/cancel/fixture-nonce"):
+                with self.subTest(path=path, error=error, headers=sorted(headers)), \
+                        patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: key, "A11OY_CODE_TENANT": configured}), \
+                        patch.object(Request, "stream") as stream:
+                    stream.side_effect = AssertionError("unauthorized body must not be streamed")
+                    response = client.post(prefix + path, headers=headers, content=b"{")
+                    self.assertIn(response.status_code, (403, 409))
+                    self.assertEqual(response.json(), {"status": "BLOCKED", "error": error})
+                    stream.assert_not_called()
+        subject.challenge.assert_not_called()
+        subject.run.assert_not_called()
+        subject.cancel.assert_not_called()
 
 
 # Write routes whose path looks side-effecting but which were reviewed and stay
@@ -699,6 +855,12 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
     "/api/a11oy/v1/operator/ask": "read-only question over in-process state",
     "/api/a11oy/v1/ouroboros/run-all": "own credential registry (gdw_auth) + deployment flag",
     "/api/a11oy/v1/oversight/run": "deterministic oversight scenario",
+    "/api/a11oy/v1/series-a/execution-observations/challenge":
+        "native Observer._caller operator+tenant before body; ObserverNativeAdmission covers refusal",
+    "/api/a11oy/v1/series-a/execution-observations/run":
+        "native Observer._caller before body, then signed-plan admission; ObserverNativeAdmission covers refusal",
+    "/api/a11oy/v1/series-a/execution-observations/cancel/{nonce}":
+        "native Observer._caller before body, then owning operator nonce; ObserverNativeAdmission covers refusal",
     "/api/a11oy/v1/specdec/run": "bounded deterministic benchmark",
     "/api/a11oy/v1/trajectory/ingest": "stateless parse of the posted sample",
     "/api/a11oy/v1/warhacker/run/{problem}": "deterministic demo engine",

@@ -61,6 +61,7 @@ for _p in _IMPORT_PATHS:
 import szl_unay  # noqa: E402
 import szl_khipu_lmdb  # noqa: E402
 import szl_khipu_replicate  # noqa: E402
+from szl_operator_auth import operator_refusal  # noqa: E402
 
 
 def _pick_data_dir() -> str:
@@ -196,6 +197,9 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
 
     @app.post(f"/api/{ns}/v2/khipu/lmdb/append")
     async def khipu_lmdb_append(request: Request) -> Any:  # noqa: ANN401
+        refusal = operator_refusal(request, "Khipu LMDB append")
+        if refusal is not None:
+            return refusal
         body = await request.json()
         action = body.get("action", "note")
         rcpt = klmdb.append(action, payload=body.get("payload") or {})
