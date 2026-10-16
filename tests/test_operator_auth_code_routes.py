@@ -41,6 +41,14 @@ APPROVER = "approver-test-secret-not-real"
 OPERATOR_ONLY = {"Authorization": f"Bearer {OPERATOR}"}
 BOTH = {"Authorization": f"Bearer {OPERATOR}", opauth.SECOND_APPROVER_HEADER: APPROVER}
 SECRETS = {opauth.OPERATOR_KEY_ENV: OPERATOR, opauth.SECOND_APPROVER_KEY_ENV: APPROVER}
+OBSERVATION_PREFIX = "/api/a11oy/v1/series-a/execution-observations"
+OBSERVATION_WRITES = tuple(OBSERVATION_PREFIX + suffix for suffix in
+                           ("/challenge", "/run", "/cancel/" + "a" * 64))
+PERSISTENT_V2_WRITES = (
+    "/api/a11oy/v2/khipu/lmdb/append",
+    "/api/a11oy/v2/khipu/replicate",
+    "/api/a11oy/v2/unay/remember",
+)
 
 
 def _client() -> TestClient:
@@ -644,6 +652,59 @@ class GateMiddleware(unittest.TestCase):
                     self.assertFalse(r.json()["credential_configured"])
         self.assertEqual(self.reached, [])
 
+    def test_observation_and_persistent_writes_deny_before_body_or_dispatch(self):
+        async def exercise(path, headers):
+            async def forbidden_receive():
+                self.fail("an unauthorized request body must not be consumed")
+
+            sent = []
+            async def send(message):
+                sent.append(message)
+
+            async def forbidden_dispatch(scope, receive, send):
+                self.fail("an unauthorized request must not reach a native handler")
+
+            await opauth.OperatorGateMiddleware(forbidden_dispatch)(
+                {"type": "http", "method": "POST", "path": path,
+                 "headers": [(key.lower().encode(), value.encode()) for key, value in headers.items()]},
+                forbidden_receive, send,
+            )
+            self.assertEqual(sent[0]["status"], 401)
+
+        for configured in (True, False):
+            with patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: OPERATOR if configured else ""}):
+                headers_cases = ({}, {"Authorization": "Bearer wrong"})
+                if not configured:
+                    headers_cases += (OPERATOR_ONLY,)
+                for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES:
+                    for headers in headers_cases:
+                        with self.subTest(path=path, configured=configured, headers=sorted(headers)):
+                            asyncio.run(exercise(path, headers))
+
+    def test_observation_and_persistence_reads_remain_ungated(self):
+        paths = (
+            OBSERVATION_PREFIX + "/exports/" + "a" * 64,
+            "/api/a11oy/v2/khipu/lmdb/stats",
+            "/api/a11oy/v2/khipu/lmdb/verify",
+            "/api/a11oy/v2/khipu/lmdb/tail",
+            "/api/a11oy/v2/khipu/replicate/status",
+            "/api/a11oy/v2/unay/stats",
+            "/api/a11oy/v2/unay/recall",
+        )
+        with patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: ""}):
+            for path in paths:
+                with self.subTest(path=path):
+                    self.assertEqual(self.client.get(path).status_code, 200)
+            self.assertEqual(self.client.post("/api/a11oy/v2/unay/recall", json={}).status_code, 200)
+        self.assertEqual(len(self.reached), len(paths) + 1)
+
+    def test_operator_reaches_native_observation_and_persistence_guards(self):
+        with patch.dict(os.environ, SECRETS):
+            for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES:
+                with self.subTest(path=path):
+                    self.assertEqual(self.client.post(path, headers=OPERATOR_ONLY, json={}).status_code, 200)
+        self.assertEqual(self.reached, [("POST", path) for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES])
+
     def test_operator_and_public_requests_pass_through(self):
         with patch.dict(os.environ, SECRETS):
             self.assertEqual(self.client.post("/api/a11oy/code/run", headers=OPERATOR_ONLY,
@@ -844,6 +905,47 @@ class ServeAppGate(unittest.TestCase):
         turn.assert_not_called()
         run_code.assert_not_called()
         sign.assert_not_called()
+
+    def test_observation_and_persistence_refusals_have_no_native_effects(self):
+        import szl_khipu_lmdb
+        import szl_khipu_replicate
+        import szl_unay
+        observer = self.serve.app.state.szl_execution_observer
+        with patch.object(observer, "_caller") as caller, \
+                patch.object(szl_khipu_lmdb.KhipuLMDB, "append") as append, \
+                patch.object(szl_unay.UnayStore, "remember") as remember, \
+                patch.object(szl_khipu_replicate, "verify_inbound") as replicate:
+            for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES:
+                for headers in ({}, {"Authorization": "Bearer wrong"}):
+                    with self.subTest(path=path, headers=sorted(headers)):
+                        response = self.client.post(path, headers=headers, content=b"{")
+                        self.assertEqual(response.status_code, 401)
+                        self.assertEqual(response.json()["status"], "BLOCKED")
+            caller.assert_not_called()
+            append.assert_not_called()
+            remember.assert_not_called()
+            replicate.assert_not_called()
+
+    def test_observation_operator_still_needs_native_tenant_before_effects(self):
+        observer = self.serve.app.state.szl_execution_observer
+        with patch.dict(os.environ, {"A11OY_CODE_TENANT": "observer-fixture-tenant"}), \
+                patch.object(observer, "_identity") as identity, \
+                patch.object(observer, "challenge") as challenge, \
+                patch.object(observer, "run", new_callable=AsyncMock) as run, \
+                patch.object(observer, "cancel") as cancel:
+            for path in OBSERVATION_WRITES:
+                for tenant in (None, "wrong-fixture-tenant"):
+                    headers = dict(OPERATOR_ONLY)
+                    if tenant is not None:
+                        headers["x-a11oy-tenant"] = tenant
+                    with self.subTest(path=path, tenant=tenant):
+                        response = self.client.post(path, headers=headers, content=b"{")
+                        self.assertIn(response.status_code, (403, 409))
+                        self.assertEqual(response.json()["error"], "TENANT_REQUIRED")
+            identity.assert_not_called()
+            challenge.assert_not_called()
+            run.assert_not_awaited()
+            cancel.assert_not_called()
 
     def test_side_effect_routes_are_gated_or_reviewed(self):
         import re

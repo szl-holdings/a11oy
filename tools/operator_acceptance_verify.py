@@ -25,6 +25,8 @@ HEX32 = re.compile(r"[0-9a-f]{32}\Z")
 HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 UTC = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\Z")
 LOCKED = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
+# Live serve.py formulas branch. szl_brain.CANONICAL is retired and must not match.
+FORMULA_CITATION_ENDPOINT = "serve._SC_PROVED_FORMULAS"
 CONTRACTS = {
     "policy-decide": "/api/a11oy/v1/policy/decide",
     "operator-ask": "/api/a11oy/v1/operator/ask",
@@ -166,7 +168,7 @@ def _answer(case):
             and body.get("question") == case["request"]["question"]
             and type(body.get("answer")) is str and bool(body["answer"].strip())
             and type(citations) is list and bool(citations), "FORMULA_RESPONSE_MISMATCH")
-    matched = [c for c in citations if type(c) is dict and c.get("endpoint") == "szl_brain.CANONICAL"]
+    matched = [c for c in citations if type(c) is dict and c.get("endpoint") == FORMULA_CITATION_ENDPOINT]
     require(len(matched) == 1 and type(matched[0].get("data")) is dict,
             "FORMULA_CITATION_MISMATCH")
     data = matched[0]["data"]
