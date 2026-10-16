@@ -54,7 +54,7 @@ class LocalRouteFixture:
         if path == effect.ROUTES[1]:
             return Response(200, {"question": json["question"], "topic": "formulas",
                                   "grounded": True,
-                                  "citations": [{"endpoint": "szl_brain.CANONICAL",
+                                  "citations": [{"endpoint": "serve._SC_PROVED_FORMULAS",
                                                  "data": {"count": 8, "proved":
                                                           ["F1", "F4", "F7", "F11", "F12",
                                                            "F18", "F19", "F22"]}}]})
@@ -85,6 +85,22 @@ def test_bounded_one_shot_rehearsal_keeps_unsafe_effect_unavailable():
     assert rows[3]["effectState"] == "REFUSED_BEFORE_ROUTE"
     assert rows[1]["effectState"] == "RESPONSE_OBSERVED_NO_TRACKED_STATE_DELTA"
     assert all("fixture-token" not in str(row) for row in rows)
+
+
+def test_operator_mismatched_citation_is_unavailable():
+    class StaleCitation(LocalRouteFixture):
+        def post(self, path, json, headers):
+            response = super().post(path, json, headers)
+            if path == effect.ROUTES[1]:
+                response.body["citations"][0]["endpoint"] = "szl_brain.CANONICAL"
+            return response
+
+    fixture = StaleCitation()
+    rows = effect.rehearse(fixture, "fixture-token")
+    assert fixture.posts == list(effect.ROUTES[:2])
+    assert rows[1]["result"] == "UNAVAILABLE"
+    assert rows[1]["reason"] == "effect_unknown_contract_mismatch"
+    assert all(row["attempts"] == 0 for row in rows[2:])
 
 
 def test_http_200_without_policy_state_readback_is_unavailable():
@@ -186,6 +202,8 @@ def test_host_accepts_only_bounded_consistent_child_report():
                     lambda x: x["summary"].update(unavailable=0),
                     lambda x: x["results"][3].update(result="PASS", evidenceClass="SIMULATED"),
                     lambda x: x["results"][0].update(attempts=0),
+                    lambda x: x["results"][1]["semantic"].update(
+                        citationEndpoint="szl_brain.CANONICAL"),
                     lambda x: x["results"][0]["after"].update(policy_decisions=99)):
         forged = copy.deepcopy(report)
         corrupt(forged)
