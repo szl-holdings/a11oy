@@ -713,7 +713,8 @@ class _NvdCooldownClient:
     def __exit__(self, *_args) -> None:
         return None
 
-    def get(self, url: str, headers=None):
+    def get(self, url: str, headers=None, *, timeout=None):
+        assert isinstance(timeout, (int, float)) and 0 < timeout <= vertical._source_http_timeout_s()
         self.urls.append(str(url))
         if "services.nvd.nist.gov" in str(url):
             return _NvdResponse(429, headers={"Retry-After": "30"})
@@ -818,10 +819,10 @@ def test_nvd_cooldown_without_a_feed_stays_unavailable(monkeypatch) -> None:
     monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
 
     class _Broken(_NvdCooldownClient):
-        def get(self, url: str, headers=None):
+        def get(self, url: str, headers=None, *, timeout=None):
             if str(url) == vertical._NVD_RECENT_FEED_URL:
                 raise TimeoutError("recent feed unreachable")
-            return super().get(url, headers=headers)
+            return super().get(url, headers=headers, timeout=timeout)
 
     monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: _Broken(b""))
     observed = vertical.feed_nvd(12, keyword="financial")
@@ -898,7 +899,7 @@ def test_nvd_stale_rest_retained_when_recent_feed_is_not_provably_newer(
         "status": "stale", "fetched_at": fallback_clock, "error": "feed refresh failed",
     }}
     monkeypatch.setattr(vertical, "_cached_fetch", lambda *_a, **_k: primary)
-    monkeypatch.setattr(vertical, "_nvd_recent_feed_observation", lambda *_a: fallback)
+    monkeypatch.setattr(vertical, "_nvd_recent_feed_observation", lambda *_a, **_k: fallback)
     assert vertical.feed_nvd(20) is primary
 
 
@@ -911,7 +912,7 @@ def test_nvd_stale_recent_feed_keeps_its_real_clock_and_still_fails_readiness(mo
         "status": "stale", "fetched_at": now_s - 7200, "error": "feed refresh failed",
     }}
     monkeypatch.setattr(vertical, "_cached_fetch", lambda *_a, **_k: primary)
-    monkeypatch.setattr(vertical, "_nvd_recent_feed_observation", lambda *_a: fallback)
+    monkeypatch.setattr(vertical, "_nvd_recent_feed_observation", lambda *_a, **_k: fallback)
     monkeypatch.setattr(vertical, "feed_cisa_kev", lambda *_a: {
         "value": {"items": []}, "freshness": {"status": "live", "fetched_at": now_s},
     })
@@ -935,7 +936,7 @@ def test_nvd_failed_recent_feed_does_not_discard_last_good_rest(monkeypatch) -> 
         "status": "unavailable", "fetched_at": 2000, "error": "feed refresh failed",
     }}
     monkeypatch.setattr(vertical, "_cached_fetch", lambda *_a, **_k: primary)
-    monkeypatch.setattr(vertical, "_nvd_recent_feed_observation", lambda *_a: fallback)
+    monkeypatch.setattr(vertical, "_nvd_recent_feed_observation", lambda *_a, **_k: fallback)
     assert vertical.feed_nvd(20) is primary
 
 
