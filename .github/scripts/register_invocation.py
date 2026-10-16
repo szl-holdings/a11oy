@@ -35,7 +35,8 @@ WHAT THIS SCRIPT DOES
    only module-level (not nested / not class-method) ``register`` counts.
 
 2. Parses each entrypoint (serve.py + the other serve entrypoints) with ast to
-   determine, for every register-defining module, whether serve.py BOTH:
+   determine direct registration, and follows literal repository-local calls
+   through called top-level parent/wrapper functions. Direct registration BOTH:
        (a) imports the module  (import X / import X as Y / from X import ...),
            AND
        (b) invokes ``<module>.register(`` (or ``<alias>.register(``, or the
@@ -55,17 +56,19 @@ WHAT THIS SCRIPT DOES
    entrypoints scanned).
 
 HONEST SCOPE / LIMITATIONS (printed on success so CI logs are auditable)
-- Only detects the top-level ``def register(`` contract by name. A surface that
-  wires itself under a differently-named function is not covered (by design —
-  the whole repo uses ``register`` as the contract).
+- Only credits a top-level ``def register(`` contract. A differently named
+  wrapper is followed only when statically called and its call chain reaches
+  that contract; importing or defining a wrapper grants no credit.
 - Only checks root-level ``*.py`` modules (surfaces live at repo root); it does
   not descend into sub-packages.
 - Treats an import + a ``.register(`` attribute call OR a bare ``register(``
   (from ``from X import register``) as "wired". It does not prove the call is
   reachable at runtime (a try/except-guarded call still counts as wired — which
   is correct: the guarded block is how every a11oy surface is registered).
+- Indirect traversal reads repository-local ASTs only, never imports modules,
+  skips uncalled nested definitions, and is bounded to 2048 call targets.
 - Dynamic invocation via getattr/importlib string names is not detected; such a
-  module must be allow-listed with a reason.
+  module still needs an existing documented exemption or explicit wiring.
 
 USAGE
 -----
@@ -95,6 +98,7 @@ import argparse
 import ast
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Sequence
 
@@ -199,6 +203,131 @@ def wired_modules_in_entrypoint(source: str) -> set[str]:
     return wired
 
 
+def indirect_register_calls(repo_root: Path, entrypoints: Sequence[str]) -> set[str]:
+    """Follow literal repo-local calls without importing application modules.
+
+    Only module bodies and called top-level functions contribute edges. A
+    definition, import, dynamic lookup or uncalled nested handler is not a call.
+    Existing direct detection is retained separately for compatibility.
+    """
+    root = repo_root.resolve()
+    trees: dict[str, ast.Module | None] = {}
+    pending: list[tuple[str, str | None]] = []
+    visited: set[tuple[str, str | None]] = set()
+    wired: set[str] = set()
+
+    def scoped_nodes(nodes):
+        for node in nodes:
+            yield node
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                     ast.ClassDef, ast.Lambda)):
+                yield from scoped_nodes(ast.iter_child_nodes(node))
+
+    def module_path(name):
+        if not name or not all(part.isidentifier() for part in name.split(".")):
+            return None
+        base = root.joinpath(*name.split("."))
+        for path in (base.with_suffix(".py"), base / "__init__.py"):
+            resolved = path.resolve()
+            if resolved.is_relative_to(root) and resolved.is_file():
+                return resolved
+        return None
+
+    def tree_for(name):
+        if name not in trees:
+            path = module_path(name)
+            try:
+                trees[name] = (ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+                               if path is not None else None)
+            except (OSError, SyntaxError, ValueError):
+                trees[name] = None
+        return trees[name]
+
+    def bindings(nodes, inherited, module_scope=False):
+        result = dict(inherited)
+        shadowed = set()
+        for node in scoped_nodes(nodes):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    bound = alias.asname or alias.name.split(".")[0]
+                    target = (alias.name if alias.asname else bound, None)
+                    result[bound] = target if bound not in result or result[bound] == target else None
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                for alias in node.names:
+                    if alias.name == "*":
+                        continue
+                    bound = alias.asname or alias.name
+                    child = node.module + "." + alias.name
+                    target = ((child, None) if module_path(child) is not None
+                              else (node.module, alias.name))
+                    result[bound] = target if bound not in result or result[bound] == target else None
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+                shadowed.add(node.id)
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                result.pop(node.name, None)
+                if not module_scope or isinstance(node, ast.ClassDef):
+                    shadowed.add(node.name)
+        for name in shadowed:
+            result.pop(name, None)
+        return result, shadowed
+
+    for entrypoint in entrypoints:
+        path = (root / entrypoint).resolve()
+        if path.is_relative_to(root) and path.suffix == ".py":
+            pending.append((".".join(path.relative_to(root).with_suffix("").parts), None))
+
+    while pending:
+        target = pending.pop()
+        if target in visited:
+            continue
+        if len(visited) >= 2048:
+            print("::warning::Indirect registration call budget exhausted; no indirect credit granted.")
+            return set()
+        visited.add(target)
+        module, symbol = target
+        tree = tree_for(module)
+        if tree is None:
+            continue
+        functions = {node.name: node for node in tree.body
+                     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        function = functions.get(symbol) if symbol is not None else None
+        if symbol is not None and function is None:
+            continue
+        global_bindings, global_shadowed = bindings(tree.body, {}, module_scope=True)
+        if symbol is not None and (symbol in global_shadowed or symbol in global_bindings):
+            continue
+        if symbol == REGISTER_FUNC:
+            wired.add(module)
+        body = tree.body if function is None else function.body
+        aliases, shadowed = (bindings(body, global_bindings) if function is not None
+                             else (global_bindings, set(global_shadowed)))
+        if function is not None:
+            shadowed.update(arg.arg for arg in (function.args.posonlyargs + function.args.args
+                                                + function.args.kwonlyargs))
+            shadowed.update(arg.arg for arg in (function.args.vararg, function.args.kwarg)
+                            if arg is not None)
+        for node in scoped_nodes(body):
+            if not isinstance(node, ast.Call):
+                continue
+            callee = node.func
+            attributes = []
+            while isinstance(callee, ast.Attribute):
+                attributes.append(callee.attr)
+                callee = callee.value
+            if not isinstance(callee, ast.Name) or callee.id in shadowed:
+                continue
+            alias = aliases.get(callee.id)
+            if attributes and alias is not None and alias[1] is None:
+                parts = list(reversed(attributes))
+                pending.append((".".join([alias[0]] + parts[:-1]), parts[-1]))
+            elif not attributes and alias is not None and alias[1] is not None:
+                pending.append(alias)
+            elif (not attributes and callee.id in functions
+                  and callee.id not in global_shadowed):
+                pending.append((module, callee.id))
+    return wired
+
+
 def collect_wired_across_entrypoints(
     entrypoints: Sequence[str], repo_root: Path
 ) -> set[str]:
@@ -211,7 +340,7 @@ def collect_wired_across_entrypoints(
         wired |= wired_modules_in_entrypoint(
             ep_path.read_text(encoding="utf-8", errors="replace")
         )
-    return wired
+    return wired | indirect_register_calls(repo_root, entrypoints)
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +382,88 @@ def load_allowlist(path: Path) -> dict[str, str]:
 # SELF-TEST — verify the guard CATCHES an unwired register() (no false negative)
 # ---------------------------------------------------------------------------
 
+def run_indirect_tests() -> bool:
+    """SAMPLE source fixtures; nothing in the fixture modules is executed."""
+    sources = {
+        "serve.py": "from routers import frontier as surface\nsurface.register(object())\n",
+        "routers/frontier.py": (
+            "def register(app):\n"
+            "    from routers import service as parent\n"
+            "    return parent.register(app)\n"
+        ),
+        "routers/service.py": (
+            "def register(app):\n"
+            "    from child import register_from_service as mount\n"
+            "    return mount(app)\n"
+        ),
+        "child.py": (
+            "def register(app, owner):\n    return {}\n"
+            "def register_from_service(app):\n    return register(app, object())\n"
+        ),
+    }
+    cases = [
+        ("intact delegated chain", {}, True),
+        ("direct module registration retained", {"serve.py": (
+            "import child as surface\nsurface.register(object(), object())\n"
+        )}, True),
+        ("direct bare registration retained", {"serve.py": (
+            "from child import register\nregister(object(), object())\n"
+        )}, True),
+        ("aliased registration wrapper", {"serve.py": (
+            "from routers.service import register as setup\nsetup(object())\n"
+        )}, True),
+        ("missing parent call", {"routers/frontier.py": "def register(app):\n    return {}\n"}, False),
+        ("missing terminal call", {"child.py": (
+            "def register(app, owner):\n    return {}\n"
+            "def register_from_service(app):\n    return {}\n"
+        )}, False),
+        ("imported but uncalled wrapper", {"routers/service.py": (
+            "def register(app):\n"
+            "    from child import register_from_service as mount\n"
+            "    return {}\n"
+        )}, False),
+        ("uncalled entrypoint function", {"serve.py": (
+            "from routers import frontier as surface\n"
+            "def unused():\n    surface.register(object())\n"
+        )}, False),
+        ("uncalled nested terminal function", {"child.py": (
+            "def register(app, owner):\n    return {}\n"
+            "def register_from_service(app):\n"
+            "    def unused():\n        register(app, object())\n"
+            "    return {}\n"
+        )}, False),
+        ("dynamic lookup", {"routers/service.py": (
+            "def register(app):\n    import child\n"
+            "    return getattr(child, 'register_from_service')(app)\n"
+        )}, False),
+        ("helper cycle", {"routers/service.py": (
+            "def register(app):\n    return repeat(app)\n"
+            "def repeat(app):\n    return register(app)\n"
+        )}, False),
+        ("shadowed imported function", {"routers/service.py": (
+            "from child import register_from_service as mount\n"
+            "def register(app, mount=None):\n    return mount(app)\n"
+        )}, False),
+        ("rebound terminal definition", {"child.py": (
+            "def register(app, owner):\n    return {}\n"
+            "register = object()\n"
+            "def register_from_service(app):\n    return register(app, object())\n"
+        )}, False),
+    ]
+    with tempfile.TemporaryDirectory(prefix="szl-register-guard-") as temporary:
+        root = Path(temporary)
+        (root / "routers").mkdir()
+        for description, changes, expected in cases:
+            for path, source in {**sources, **changes}.items():
+                (root / path).write_text(source, encoding="utf-8")
+            actual = "child" in collect_wired_across_entrypoints(["serve.py"], root)
+            if actual != expected:
+                print(f"[SELF-TEST] FAIL: {description}: expected={expected}, actual={actual}")
+                return False
+            print(f"[SELF-TEST] PASS: {description}")
+    return True
+
+
 def run_missing_test(repo_root: Path) -> bool:
     print("\n[SELF-TEST] Verifying guard catches an UNWIRED register()...")
     dummy_name = "test_guard_dummy_register_module"
@@ -270,7 +481,7 @@ def run_missing_test(repo_root: Path) -> bool:
         unwired = register_mods - wired
         if dummy_name in unwired:
             print(f"[SELF-TEST] PASS: guard correctly flagged unwired '{dummy_name}'")
-            return True
+            return run_indirect_tests()
         print(f"[SELF-TEST] FAIL: guard did NOT flag '{dummy_name}' — false negative!")
         return False
     finally:
@@ -379,10 +590,11 @@ def main(argv: list[str] | None = None) -> int:
     print("[register-invocation] RESULT: PASS — every module defining a top-level "
           "register() is wired into an entrypoint or documented in the allow-list.")
     print()
-    print("Honest scope note: detects the top-level `def register(` contract by name on "
-          "root-level *.py, and credits a module as wired when an entrypoint both imports "
-          "it and invokes <module>.register( (or a bare register() from `from m import "
-          "register`). Dynamic getattr/importlib wiring must be allow-listed with a reason.")
+    print("Honest scope note: detects the top-level `def register(` contract on root-level "
+          "*.py. Preserves direct entrypoint detection and follows bounded, statically "
+          "called repository-local parent/wrapper functions without importing them. "
+          "Unknown/dynamic targets grant no indirect credit; static wiring does not "
+          "prove successful runtime initialization.")
     return 0
 
 
