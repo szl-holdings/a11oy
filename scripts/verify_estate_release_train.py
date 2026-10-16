@@ -35,6 +35,7 @@ except ModuleNotFoundError:
 
 SCHEMA = "szl.estate-release-train.receipt/v1"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
 PROFILE_COUNTS = re.compile(
     r"(?P<spaces>[0-9]+) public Spaces, (?P<models>[0-9]+) models, "
     r"(?P<datasets>[0-9]+) datasets"
@@ -733,6 +734,49 @@ def semantic_html(origin: str) -> dict[str, Any]:
     }
 
 
+def _exact_token(value: Any, pattern: re.Pattern[str]) -> str | None:
+    if type(value) is str and pattern.fullmatch(value):
+        return value
+    return None
+
+
+def component_stamp_evidence(
+    component: Mapping[str, Any],
+    *,
+    publication_revision: Any,
+    source_repository_revision: Any,
+) -> dict[str, Any]:
+    """Record publication, artifact, and content-equivalent identities separately.
+
+    The returned object is evidence only. It is not read by the alignment
+    predicate, and a content-equivalent witness does not remove
+    SOURCE_REVISION_MISMATCH.
+    """
+    errors: list[str] = []
+
+    def optional(key: str, pattern: re.Pattern[str], code: str) -> str | None:
+        if key not in component:
+            return None
+        token = _exact_token(component.get(key), pattern)
+        if token is None:
+            errors.append(code)
+        return token
+
+    return {
+        "schema": "szl.component-stamp-evidence/v1",
+        "gating": False,
+        "publication_revision": _exact_token(publication_revision, SHA40),
+        "artifact_sha256": optional("artifact_sha256", HEX64, "ARTIFACT_SHA256_INVALID"),
+        "content_equivalent_source_revision": optional(
+            "content_equivalent_source_revision",
+            SHA40,
+            "CONTENT_EQUIVALENT_REVISION_INVALID",
+        ),
+        "source_repository_revision": _exact_token(source_repository_revision, SHA40),
+        "witness_errors": errors,
+    }
+
+
 def inspect_component(component: Mapping[str, Any], paths: Sequence[str]) -> dict[str, Any]:
     source = github_main(str(component["source_repository"]))
     space = hf_space(str(component["hf_repo_id"]))
@@ -765,6 +809,13 @@ def inspect_component(component: Mapping[str, Any], paths: Sequence[str]) -> dic
             blockers.append("SOURCE_WITNESS_UNAVAILABLE")
     elif expected != observed:
         blockers.append("SOURCE_REVISION_MISMATCH")
+    # The runtime revision is the publication identity. The source-repository
+    # tip and any explicit content-equivalent witness stay in other fields.
+    stamp_evidence = component_stamp_evidence(
+        component,
+        publication_revision=observed if runtime.get("observed") else None,
+        source_repository_revision=expected,
+    )
     return {
         "key": component["key"],
         "required": bool(component.get("required")),
@@ -779,6 +830,7 @@ def inspect_component(component: Mapping[str, Any], paths: Sequence[str]) -> dic
         },
         "aligned": aligned,
         "blockers": blockers,
+        "stamp_evidence": stamp_evidence,
     }
 
 
