@@ -282,6 +282,80 @@ def test_unexpected_compression_is_rejected_before_body_decode():
     transport.close()
 
 
+@pytest.mark.parametrize("status,headers,reason", [
+    (401, {}, "AUTHENTICATION_FAILED"),
+    (403, {}, "ACCESS_DENIED"),
+    (403, {"x-ratelimit-remaining": "0"}, "RATE_LIMITED"),
+    (403, {"retry-after": "60"}, "RATE_LIMITED"),
+    (404, {}, "RESOURCE_UNAVAILABLE"),
+    (429, {}, "RATE_LIMITED"),
+    (503, {}, "UPSTREAM_UNAVAILABLE"),
+    (302, {}, "UNEXPECTED_RESPONSE"),
+])
+@pytest.mark.parametrize("stage", ["api", "artifact_redirect", "artifact_object"])
+def test_failed_reads_are_classified_without_reading_or_disclosing_the_body(status, headers, reason, stage):
+    seen = []
+    class NeverRead(httpx.SyncByteStream):
+        def __iter__(self):
+            pytest.fail("rejected response body was read")
+            yield b"secret response"
+    def respond(request):
+        seen.append(request)
+        if stage == "artifact_object" and request.url.host == "api.github.com":
+            return httpx.Response(302, headers={
+                "location": "https://fixture.blob.core.windows.net/a?sig=private"})
+        # 302 is expected at the redirect hop: a 200 body is the invalid response.
+        code = 200 if stage == "artifact_redirect" and status == 302 else status
+        return httpx.Response(code, headers=headers, stream=NeverRead())
+    transport = subject.Transport("fixture-secret", threading.Event(),
+        client=httpx.Client(transport=httpx.MockTransport(respond)))
+    prefix = "ARTIFACT_DOWNLOAD" if stage == "artifact_object" else "GITHUB_READ"
+    try:
+        with pytest.raises(subject.EvidenceBlocked) as error:
+            if stage == "api":
+                transport.json("/branches/main")
+            else:
+                transport.archive(9)
+        assert str(error.value) == prefix + "_" + reason
+        assert error.value.__suppress_context__ or error.value.__context__ is None
+        assert len(seen) == (2 if stage == "artifact_object" else 1)
+        assert all(request.method == "GET" for request in seen)
+        if stage == "artifact_object":
+            assert "authorization" not in seen[-1].headers
+    finally:
+        transport.close()
+
+
+@pytest.mark.parametrize("exception,reason", [
+    (httpx.ReadTimeout, "TIMEOUT"),
+    (httpx.ConnectError, "TRANSPORT_UNAVAILABLE"),
+    (RuntimeError, "UNAVAILABLE"),
+])
+@pytest.mark.parametrize("artifact_object", [False, True])
+def test_transport_errors_never_disclose_exception_text(exception, reason, artifact_object):
+    seen = []
+    def respond(request):
+        seen.append(request)
+        if artifact_object and request.url.host == "api.github.com":
+            return httpx.Response(302, headers={
+                "location": "https://fixture.blob.core.windows.net/a?sig=private"})
+        raise exception("fixture-secret https://fixture.invalid/?sig=private")
+    transport = subject.Transport("fixture-secret", threading.Event(),
+        client=httpx.Client(transport=httpx.MockTransport(respond)))
+    try:
+        with pytest.raises(subject.EvidenceBlocked) as error:
+            if artifact_object:
+                transport.archive(9)
+            else:
+                transport.json("/branches/main")
+        prefix = "ARTIFACT_DOWNLOAD" if artifact_object else "GITHUB_READ"
+        assert str(error.value) == prefix + "_" + reason
+        assert error.value.__suppress_context__ is True
+        assert len(seen) == (2 if artifact_object else 1)
+    finally:
+        transport.close()
+
+
 def test_no_credential_fails_without_constructing_http_client(monkeypatch):
     monkeypatch.setattr(httpx, "Client", lambda *a, **k: pytest.fail("network client created"))
     reader = subject.Reader(environ={"SPACE_ID": ENV["SPACE_ID"], "SZL_GIT_SHA": SOURCE})
@@ -318,7 +392,9 @@ def test_source_change_during_fetch_and_serve_expiry(combined):
 
 def test_snapshot_expires_without_refresh_at_the_admission_horizon():
     reader = subject.Reader(environ=dict(ENV))
-    reader.state = observe()
+    # Isolate passive-clock expiry from the separately bounded execution context.
+    payload, _, _ = fixture()
+    reader.state = {"verdict": payload, "source": SOURCE, "evidence": None}
     checked = subject.timestamp(CHECKED)
     assert subject.SERVE_AGE == subject._validator().MAX_INGEST_AGE_SECONDS
     assert reader.snapshot(now=checked + timedelta(seconds=3600))["verdict"] is not None
@@ -328,7 +404,7 @@ def test_snapshot_expires_without_refresh_at_the_admission_horizon():
     assert reader.state["verdict"]["checkedAt"] == CHECKED
 
 
-def test_hosted_route_independently_rejects_stale_cached_verdict(monkeypatch):
+def test_hosted_route_independently_rejects_stale_cached_verdict(monkeypatch, combined):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
     source = (subject.ROOT / "serve.py").read_text(encoding="utf-8")
@@ -339,11 +415,14 @@ def test_hosted_route_independently_rejects_stale_cached_verdict(monkeypatch):
     monkeypatch.setenv("SPACE_ID", ENV["SPACE_ID"])
     monkeypatch.setenv("SZL_GIT_SHA", SOURCE)
     monkeypatch.setenv("SZL_READINESS_CANONICAL_ORIGIN", subject.ORIGIN)
-    cached = observe()
+    fake = FakeTransport(combined)
+    cached = observe(fake)
     cached["verdict"]["checkedAt"] = (
         datetime.now(timezone.utc) - timedelta(minutes=30)
     ).strftime("%Y-%m-%dT%H:%M:%SZ")
     reader = subject.Reader(environ=dict(ENV))
+    reader.state = cached
+    reader.execution_context_provider = fake.owner
     monkeypatch.setattr(subject, "reader", reader)
     monkeypatch.setattr(reader, "snapshot", lambda: cached)
     monkeypatch.setattr(reader, "refresh", lambda: pytest.fail("GET fetched"))
