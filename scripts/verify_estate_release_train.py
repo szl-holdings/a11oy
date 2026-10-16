@@ -560,22 +560,37 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
     }
 
 
-def _is_provider_injected_script(
+_WEBMCP_SRC = "https://a-11-oy.com/.webmcp/bridge.js"
+_WEBMCP_IDENTITY = {
+    "src": _WEBMCP_SRC,
+    "type": "module",
+    "data-packs": "c2pa,mcp-server-client",
+}
+# Closed set. The bridge reads data-packs and data-mcp-url only. These two
+# scheduler annotations are not read. Any other attribute stays product HTML.
+_WEBMCP_SCHEDULER_ATTRS = {
+    "async": frozenset({None, "", "async"}),
+    "fetchpriority": frozenset({"low"}),
+}
+
+
+def _provider_script_kind(
     src: str, attrs: Sequence[tuple[str, str | None]] = ()
-) -> bool:
-    """Identify only the known Cloudflare beacon and exact observed WebMCP tag.
+) -> str:
+    """Classify a known Cloudflare beacon or the zone WebMCP bridge.
 
     The apex is served through Cloudflare, while the canonical Hugging Face Space
     is not. Cloudflare may therefore append its own external analytics beacon to
     otherwise byte-equivalent product HTML. That provider-owned script is not an
     SZL product asset and must not create product/Space semantic drift.
-    Cloudflare also injects its WebMCP bridge when the zone's webmcp_enabled
-    setting is on; see its zone-setting contract:
+    The WebMCP tag is injected by the zone settings webmcp_enabled and
+    webmcp_packs, not by the repository template or the Space publisher:
     https://developers.cloudflare.com/api/resources/zones/subresources/settings/
-    Only the exact canonical-apex module tag observed on 2026-10-10 is
-    recognized: data-packs="c2pa,mcp-server-client". Its URL and metadata
-    remain bounded: altered attributes, duplicate attributes, URLs, or tool
-    packs stay in the product semantic contract and continue to fail parity.
+    Identity remains the 2026-10-10 module URL and data-packs value. The beta
+    injector may also emit boolean async and fetchpriority="low". Those two
+    annotations do not select packs or the MCP URL. A different host, pack,
+    type, query, fragment, duplicate attribute, data-mcp-url, or any other
+    attribute stays in the product semantic contract and fails parity.
     """
     parsed = urllib.parse.urlsplit(src)
     if (
@@ -585,22 +600,35 @@ def _is_provider_injected_script(
         and not parsed.query
         and not parsed.fragment
     ):
-        return True
-    return bool(
+        return "beacon"
+    if not (
         parsed.scheme == "https"
         and parsed.netloc == "a-11-oy.com"
         and parsed.path == "/.webmcp/bridge.js"
         and not parsed.query
         and not parsed.fragment
-        and src == "https://a-11-oy.com/.webmcp/bridge.js"
-        and len(attrs) == 3
-        and dict(attrs)
-        == {
-            "src": src,
-            "type": "module",
-            "data-packs": "c2pa,mcp-server-client",
-        }
-    )
+        and src == _WEBMCP_SRC
+    ):
+        return ""
+    if len(attrs) != len(dict(attrs)):
+        return ""
+    identity: dict[str, str] = {}
+    for key, value in attrs:
+        allowed = _WEBMCP_SCHEDULER_ATTRS.get(key)
+        if allowed is not None:
+            if value not in allowed:
+                return ""
+            continue
+        identity[key] = "" if value is None else value
+    if identity != _WEBMCP_IDENTITY:
+        return ""
+    return "webmcp"
+
+
+def _is_provider_injected_script(
+    src: str, attrs: Sequence[tuple[str, str | None]] = ()
+) -> bool:
+    return _provider_script_kind(src, attrs) != ""
 
 
 class SemanticHTML(HTMLParser):
@@ -615,6 +643,20 @@ class SemanticHTML(HTMLParser):
         self.provider_scripts: set[str] = set()
         self.styles: set[str] = set()
         self.links: set[str] = set()
+        self._open_webmcp_src: str | None = None
+        self._open_webmcp_text: list[str] = []
+
+    def _close_webmcp(self) -> None:
+        src = self._open_webmcp_src
+        if src is None:
+            return
+        # The injected tag is empty. Inline content is not the edge bridge.
+        if "".join(self._open_webmcp_text).strip():
+            self.scripts.add(src)
+        else:
+            self.provider_scripts.add(src)
+        self._open_webmcp_src = None
+        self._open_webmcp_text = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key: value or "" for key, value in attrs}
@@ -624,9 +666,14 @@ class SemanticHTML(HTMLParser):
             if key.startswith("data-szl-"):
                 self.markers[key] = value
         if tag == "script" and values.get("src"):
+            self._close_webmcp()
             src = values["src"]
-            if _is_provider_injected_script(src, attrs):
+            kind = _provider_script_kind(src, attrs)
+            if kind == "beacon":
                 self.provider_scripts.add(src)
+            elif kind == "webmcp":
+                self._open_webmcp_src = src
+                self._open_webmcp_text = []
             else:
                 self.scripts.add(src)
         if tag == "link" and values.get("href"):
@@ -639,14 +686,19 @@ class SemanticHTML(HTMLParser):
                 self.links.add(href.split("?", 1)[0])
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "script":
+            self._close_webmcp()
         if tag == "title":
             self.in_title = False
 
     def handle_data(self, data: str) -> None:
+        if self._open_webmcp_src is not None:
+            self._open_webmcp_text.append(data)
         if self.in_title:
             self.title_parts.append(data.strip())
 
     def result(self) -> dict[str, Any]:
+        self._close_webmcp()
         stable = {
             "title": " ".join(part for part in self.title_parts if part),
             "markers": dict(sorted(self.markers.items())),
