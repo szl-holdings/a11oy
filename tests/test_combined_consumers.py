@@ -415,6 +415,11 @@ def test_sole_workflow_passes_raw_separate_evidence_and_independent_context():
     assert 'name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}' in fragment
     upload = fragment[fragment.index("      - name: Upload immutable full probe evidence"):fragment.index("      # The same fail-closed")]
     assert "execution-observations.json" in upload and "execution-authority-pins.json" not in upload
+    upload_paths = upload.split("          path: |\n", 1)[1].split("          if-no-files-found:", 1)[0]
+    assert [line.strip() for line in upload_paths.splitlines() if line.strip()] == [
+        "${{ runner.temp }}/execution-evidence/readiness-verdict.json",
+        "${{ runner.temp }}/execution-evidence/execution-observations.json",
+    ]
     # The upload action cannot see another step's environment. Bind its actual
     # paths to the collector's directory rather than an out-of-scope env name.
     steps = yaml.safe_load(text)["jobs"]["execution-readiness"]["steps"]
