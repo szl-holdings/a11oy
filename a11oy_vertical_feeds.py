@@ -383,15 +383,47 @@ def _nvd_retry_after_s(
     )
 
 
-def _nvd_wait_locked(headers: Optional[dict[str, str]] = None) -> None:
+class _NvdOperation:
+    """One admitted queue/slot/REST/fallback window, not an HTTP timeout."""
+
+    def __init__(self, headers: Optional[dict[str, str]] = None,
+                 timeout_s: Optional[float] = None) -> None:
+        # One provider interval and two existing transport budgets admit a
+        # cold REST observation plus its existing official-feed fallback.
+        self.http_timeout = (_source_http_timeout_s() if timeout_s is None
+                             else min(_source_http_timeout_s(), timeout_s))
+        self.deadline = (time.monotonic() + _nvd_min_interval_s(headers)
+                         + 2 * self.http_timeout + 1.0)
+
+    def remaining(self) -> float:
+        return max(0.0, self.deadline - time.monotonic())
+
+    def require_remaining(self) -> float:
+        remaining = self.remaining()
+        if remaining <= 0:
+            raise RuntimeError("NVD refresh operation deadline exceeded")
+        return remaining
+
+    def adopt(self, flight: Any) -> None:
+        # A late caller can shorten its own budget, never renew the leader's.
+        if flight.deadline is not None:
+            self.deadline = min(self.deadline, flight.deadline)
+
+
+def _nvd_wait_locked(headers: Optional[dict[str, str]] = None,
+                     operation: Optional[_NvdOperation] = None) -> None:
     """Reserve one provider-wide NVD slot or fail during an active cooldown."""
     global _NVD_NEXT_REQUEST_AT
     now = time.monotonic()
     if now < _NVD_COOLDOWN_UNTIL:
         raise RuntimeError("NVD rate limited; provider cooldown active")
     delay = max(0.0, _NVD_NEXT_REQUEST_AT - now)
+    if operation is not None and delay >= operation.require_remaining():
+        raise RuntimeError("NVD refresh operation deadline exceeded before provider slot")
     if delay:
         time.sleep(delay)
+    if operation is not None:
+        operation.require_remaining()
     _NVD_NEXT_REQUEST_AT = time.monotonic() + _nvd_min_interval_s(headers)
 
 
@@ -407,9 +439,13 @@ def _source_json_with_cooldown(
     client: httpx.Client,
     url: str,
     headers: Optional[dict[str, str]] = None,
+    operation: Optional[_NvdOperation] = None,
 ) -> Any:
     """Fetch once; provider-wide CourtListener/NVD 429s hold later reads."""
     def request() -> Any:
+        if operation is not None:
+            timeout = min(operation.http_timeout, operation.require_remaining())
+            return client.get(url, headers=headers, timeout=timeout)
         return client.get(url, headers=headers) if headers else client.get(url)
 
     if _is_courtlistener_source(url):
@@ -423,14 +459,26 @@ def _source_json_with_cooldown(
             return response.json()
 
     if _is_nvd_source(url):
-        with _NVD_RATE_LOCK:
-            _nvd_wait_locked(headers)
+        acquired = (_NVD_RATE_LOCK.acquire(timeout=operation.require_remaining())
+                    if operation is not None else _NVD_RATE_LOCK.acquire())
+        if not acquired:
+            raise RuntimeError("NVD refresh operation deadline exceeded in provider queue")
+        try:
+            if operation is not None:
+                _nvd_wait_locked(headers, operation)
+            else:
+                _nvd_wait_locked(headers)
             response = request()
             if getattr(response, "status_code", None) == 429:
                 _nvd_defer_locked(_nvd_retry_after_s(response, headers))
                 raise RuntimeError("NVD rate limited; provider cooldown active")
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            if operation is not None:
+                operation.require_remaining()
+            return result
+        finally:
+            _NVD_RATE_LOCK.release()
 
     response = request()
     response.raise_for_status()
@@ -754,10 +802,11 @@ def _govern_validation_response(error: _GovernValidationError) -> JSONResponse:
 class _RefreshFlight:
     """One in-process refresh shared by every caller for the same cache key."""
 
-    def __init__(self) -> None:
+    def __init__(self, operation: Optional[_NvdOperation] = None) -> None:
         self.event = threading.Event()
         self.result: Optional[dict[str, Any]] = None
         self.waiters = 0
+        self.deadline = operation.deadline if operation is not None else None
 
 
 # Blocking upstream clients remain synchronous so the existing feed/parser/cache
@@ -839,20 +888,33 @@ class _Cache:
             v = self._d.get(key)
             return dict(v) if v else None
 
-    def put(self, key: str, value: Any, ttl: float, status: str = "live") -> dict[str, Any]:
+    def put(self, key: str, value: Any, ttl: float, status: str = "live",
+            operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
+        if operation is not None:
+            if not self._lock.acquire(timeout=operation.require_remaining()):
+                raise RuntimeError("NVD refresh operation deadline exceeded in publication queue")
+            try:
+                operation.require_remaining()
+                rec = {"value": value, "fetched_at": time.time(), "ttl": ttl, "status": status}
+                self._d[key] = rec
+                self._evict_locked(key)
+                return rec
+            finally:
+                self._lock.release()
         rec = {"value": value, "fetched_at": time.time(), "ttl": ttl, "status": status}
         with self._lock:
             self._d[key] = rec
             self._evict_locked(key)
         return rec
 
-    def claim_refresh(self, key: str) -> tuple[_RefreshFlight, bool]:
+    def claim_refresh(self, key: str,
+                      operation: Optional[_NvdOperation] = None) -> tuple[_RefreshFlight, bool]:
         with self._lock:
             flight = self._inflight.get(key)
             if flight is not None:
                 flight.waiters += 1
                 return flight, False
-            flight = _RefreshFlight()
+            flight = _RefreshFlight(operation)
             self._inflight[key] = flight
             return flight, True
 
@@ -911,9 +973,11 @@ def _client(timeout_s: Optional[float] = None) -> httpx.Client:
     return httpx.Client(timeout=timeout, headers=UA, follow_redirects=False)
 
 
-def _flight_wait_failure(rec: Optional[dict[str, Any]], timeout_s: Optional[float] = None) -> dict[str, Any]:
+def _flight_wait_failure(rec: Optional[dict[str, Any]], timeout_s: Optional[float] = None,
+                         operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
     budget = min(_source_http_timeout_s(), timeout_s) if timeout_s is not None else _source_http_timeout_s()
-    error = f"single-flight wait exceeded {budget:g}s source budget"
+    error = ("single-flight wait exceeded admitted NVD refresh deadline" if operation is not None
+             else f"single-flight wait exceeded {budget:g}s source budget")
     observed_at = time.time()
     if rec:
         return {"value": rec["value"], "freshness": {
@@ -948,7 +1012,8 @@ def _refresh_failure(rec: Optional[dict[str, Any]], exc: BaseException) -> dict[
 
 def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", headers=None,
                   timeout_s: Optional[float] = None,
-                  private_error: bool = False) -> dict[str, Any]:
+                  private_error: bool = False,
+                  operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
     """Return {value, freshness}. Serve warm cache if within TTL; else refetch.
     On error keep last-good and mark 'stale' — never fabricate. Concurrent
     refreshes for one key are coalesced into exactly one upstream operation."""
@@ -964,11 +1029,19 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
             and (now - rec["fetched_at"]) < min(rec["ttl"], ttl)):
         return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
 
-    flight, is_leader = _CACHE.claim_refresh(key)
+    if operation is None and _is_nvd_source(url):
+        operation = _NvdOperation(headers, timeout_s)
+    elif operation is not None and timeout_s is not None:
+        operation.http_timeout = min(operation.http_timeout, timeout_s)
+    flight, is_leader = (_CACHE.claim_refresh(key, operation) if operation is not None
+                         else _CACHE.claim_refresh(key))
+    if operation is not None:
+        operation.adopt(flight)
     if not is_leader:
         budget = min(_source_http_timeout_s(), timeout_s) if timeout_s is not None else _source_http_timeout_s()
-        if not flight.event.wait(budget + 1.0):
-            return _flight_wait_failure(rec, timeout_s)
+        wait = operation.remaining() if operation is not None else budget + 1.0
+        if not flight.event.wait(wait):
+            return _flight_wait_failure(rec, timeout_s, operation)
         return flight.result if flight.result is not None else _flight_wait_failure(rec, timeout_s)
 
     # A caller can read an expired record, lose the scheduler, and claim just
@@ -986,9 +1059,17 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     result: Optional[dict[str, Any]] = None
     try:
         with _client(timeout_s) if timeout_s is not None else _client() as cl:
-            data = _source_json_with_cooldown(cl, url, headers=headers)
+            if operation is not None:
+                data = _source_json_with_cooldown(cl, url, headers=headers, operation=operation)
+            else:
+                data = _source_json_with_cooldown(cl, url, headers=headers)
         val = parser(data) if parser else data
-        _CACHE.put(key, val, ttl, status="live")
+        if operation is not None:
+            operation.require_remaining()
+        if operation is not None:
+            _CACHE.put(key, val, ttl, status="live", operation=operation)
+        else:
+            _CACHE.put(key, val, ttl, status="live")
         result = {"value": val, "freshness": _CACHE.freshness(key)}
     except BaseException as exc:
         if rec:
@@ -1664,7 +1745,7 @@ def _parse_nvd_recent_document(raw: bytes) -> dict[str, Any]:
     return {"totalResults": total, "items": items}
 
 
-def _nvd_recent_feed_snapshot() -> dict[str, Any]:
+def _nvd_recent_feed_snapshot(operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
     """Fetch the recent feed once per TTL and share it across NVD readers."""
     key = _NVD_RECENT_FEED_KEY
     ttl = _NVD_RECENT_FEED_TTL_S
@@ -1673,11 +1754,15 @@ def _nvd_recent_feed_snapshot() -> dict[str, Any]:
     if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
         return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
 
-    flight, is_leader = _CACHE.claim_refresh(key)
+    flight, is_leader = (_CACHE.claim_refresh(key, operation) if operation is not None
+                         else _CACHE.claim_refresh(key))
+    if operation is not None:
+        operation.adopt(flight)
     if not is_leader:
         budget = _source_http_timeout_s()
-        if not flight.event.wait(budget + 1.0):
-            return _flight_wait_failure(rec, budget)
+        wait = operation.remaining() if operation is not None else budget + 1.0
+        if not flight.event.wait(wait):
+            return _flight_wait_failure(rec, budget, operation)
         return (flight.result if flight.result is not None
                 else _flight_wait_failure(rec, budget))
 
@@ -1691,12 +1776,23 @@ def _nvd_recent_feed_snapshot() -> dict[str, Any]:
 
     result: Optional[dict[str, Any]] = None
     try:
+        if operation is not None:
+            operation.require_remaining()
         with _client() as client:
-            response = client.get(_NVD_RECENT_FEED_URL)
+            if operation is not None:
+                response = client.get(_NVD_RECENT_FEED_URL, timeout=min(
+                    operation.http_timeout, operation.require_remaining()))
+            else:
+                response = client.get(_NVD_RECENT_FEED_URL)
             response.raise_for_status()
             raw = response.content
         page = _parse_nvd_recent_document(raw)
-        _CACHE.put(key, page, ttl, status="live")
+        if operation is not None:
+            operation.require_remaining()
+        if operation is not None:
+            _CACHE.put(key, page, ttl, status="live", operation=operation)
+        else:
+            _CACHE.put(key, page, ttl, status="live")
         result = {"value": page, "freshness": _CACHE.freshness(key)}
     except BaseException as exc:
         if rec:
@@ -1714,9 +1810,11 @@ def _nvd_recent_feed_snapshot() -> dict[str, Any]:
     return result
 
 
-def _nvd_recent_feed_observation(limit: int, keyword: str | None) -> dict[str, Any]:
+def _nvd_recent_feed_observation(limit: int, keyword: str | None,
+                                 operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
     """Project one bounded page from the shared recent-feed snapshot."""
-    snapshot = _nvd_recent_feed_snapshot()
+    snapshot = (_nvd_recent_feed_snapshot(operation) if operation is not None
+                else _nvd_recent_feed_snapshot())
     value = snapshot.get("value") if isinstance(snapshot, dict) else None
     if not isinstance(value, dict) or not isinstance(value.get("items"), list):
         return snapshot
@@ -1792,15 +1890,17 @@ def feed_nvd(limit: int = 25, keyword: str | None = None) -> dict[str, Any]:
     # URL and cache key so it cannot leak through public freshness errors.
     api_key = (os.environ.get("NVD_API_KEY") or "").strip()
     headers = {"apiKey": api_key} if api_key else None
+    operation = _NvdOperation(headers)
     # A failed REST refresh may leave an old row indefinitely. The existing
     # official feed can recover both a cold cache and that stale-cache case;
     # its own observation clock must actually be newer before replacing data.
-    observed = _cached_fetch(key, url, ttl=240, parser=parse, headers=headers)
+    observed = _cached_fetch(key, url, ttl=240, parser=parse, headers=headers,
+                             operation=operation)
     has_observation = isinstance(observed.get("value"), dict)
     freshness = observed.get("freshness") or {}
     if has_observation and freshness.get("status") != "stale":
         return observed
-    fallback = _nvd_recent_feed_observation(limit, keyword)
+    fallback = _nvd_recent_feed_observation(limit, keyword, operation=operation)
     if not isinstance(fallback.get("value"), dict):
         return observed
     if not has_observation:

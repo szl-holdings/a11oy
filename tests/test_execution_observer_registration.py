@@ -64,7 +64,7 @@ def composed_app(tmp_path, monkeypatch):
     import routers
     from routers import series_a_control_plane
 
-    for name in ("A11OY_EXECUTION_AUTHORITY_FILE", "A11OY_STATE_STORE",
+    for name in ("A11OY_EXECUTION_AUTHORITY_FILE", "A11OY_EXECUTION_AUTHORITY_PINS_JSON", "A11OY_STATE_STORE",
                  "A11OY_REQUIRE_PERSISTENT_STORAGE", "A11OY_SERIES_A_REQUIRE_MOUNT",
                  "GDW_DURABLE_STORAGE"):
         monkeypatch.delenv(name, raising=False)

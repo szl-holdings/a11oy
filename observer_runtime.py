@@ -81,7 +81,17 @@ class AuthorityPins:
         """Read only a deployment-selected public pin file; never mint authority."""
         if path is None:
             return None
-        raw = Path(path).read_bytes()
+        return cls.from_bytes(Path(path).read_bytes())
+
+    @classmethod
+    def from_json(cls, value):
+        """Parse a startup deployment value, never a request or artifact field."""
+        require(type(value) is str, "INVALID_AUTHORITY_CONFIGURATION")
+        return cls.from_bytes(value.encode("utf-8"))
+
+    @classmethod
+    def from_bytes(cls, raw):
+        """One strict public-key parser shared by both deployment sources."""
         require(len(raw) <= 16384, "AUTHORITY_CONFIGURATION_TOO_LARGE")
         value = acceptance.strict_json(raw)
         acceptance.fields(value, "schema approval_public_pem approval_key_id runtime_public_pem runtime_key_id",
@@ -111,15 +121,19 @@ class Challenge:
 class Observer:
     """Owns admission, existing Series-A storage, runtime signing and bounded export."""
 
-    def __init__(self, service, app, *, authority_file=None):
+    def __init__(self, service, app, *, authority_file=None, authority_json=None):
         require(isinstance(service, Service), "SERIES_A_SERVICE_REQUIRED")
         self.service = service
         self.configuration_error = None
-        try:
-            self.pins = AuthorityPins.from_file(authority_file)
-        except Exception:
-            self.pins = None
-            self.configuration_error = "INVALID_AUTHORITY_CONFIGURATION"
+        self.pins = None
+        if authority_file is not None and authority_json is not None:
+            self.configuration_error = "AMBIGUOUS_AUTHORITY_CONFIGURATION"
+        else:
+            try:
+                self.pins = (AuthorityPins.from_json(authority_json) if authority_json is not None
+                             else AuthorityPins.from_file(authority_file))
+            except Exception:
+                self.configuration_error = "INVALID_AUTHORITY_CONFIGURATION"
         self._app = app
         self._challenges = {}
         self._exports = {}
@@ -663,14 +677,17 @@ def register(app, observer):
 def register_from_service(app):
     """Concrete Series-A startup integration; no new service or signer is made.
 
-    The public pin path is deployment configuration, never an HTTP parameter.
-    An absent/invalid file leaves every execution route disabled. The existing
-    registered Service and active StateStore retain ownership and lifecycle.
+    Exactly one public pin file or inline JSON value is captured from deployment
+    configuration at startup, never from an HTTP parameter. Absent, invalid or
+    ambiguous configuration leaves execution disabled. The existing registered
+    Service and active StateStore retain ownership and lifecycle.
     """
     require(getattr(app.state, "szl_execution_observer", None) is None,
             "OBSERVATION_SERVICE_ALREADY_REGISTERED")
     service = getattr(app.state, "szl_series_a_service", None)
-    subject = Observer(service, app, authority_file=os.environ.get("A11OY_EXECUTION_AUTHORITY_FILE") or None)
+    subject = Observer(service, app,
+                       authority_file=os.environ.get("A11OY_EXECUTION_AUTHORITY_FILE"),
+                       authority_json=os.environ.get("A11OY_EXECUTION_AUTHORITY_PINS_JSON"))
     require(getattr(app.state, "execution_native_readbacks", None) is None,
             "NATIVE_READBACK_OWNER_ALREADY_REGISTERED")
     if subject.pins is not None:

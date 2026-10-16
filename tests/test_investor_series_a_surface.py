@@ -49,7 +49,7 @@ def test_front_door_catalog_links_do_not_invent_runtime_inventory_counts() -> No
 
 
 def test_console_investor_view_is_live_evidence_bound_and_mobile_reachable():
-    console = (ROOT / "pages/console.html").read_text()
+    console = (ROOT / "pages/console.html").read_text(encoding="utf-8")
     investor = _between(console, "/* Investor View", "<!-- DEV1 WAVE K")
     controller = _between(console, '<script id="inv-mode-js">', "</script>")
     # The current public destination is a first-class console view; the retired
@@ -63,7 +63,8 @@ def test_console_investor_view_is_live_evidence_bound_and_mobile_reachable():
     assert "canonicalLockedIds" in investor
     assert "lockedCount===8" in investor
     assert "(new Set(lockedIds)).size===8" in investor
-    assert "REPORTED" in investor and "UNAVAILABLE" in investor
+    assert "SIMULATED" in investor and "UNAVAILABLE" in investor
+    assert "REPORTED" not in investor
     assert 'href="/verify"' in investor
     assert 'href="https://a11oy.net"' in investor
     assert "Signing is claimed only when persistent signer evidence is active and verification passes" in investor
@@ -74,7 +75,7 @@ def test_console_investor_view_is_live_evidence_bound_and_mobile_reachable():
 
 
 def test_console_observability_names_and_posture_fail_closed():
-    console = (ROOT / "pages/console.html").read_text()
+    console = (ROOT / "pages/console.html").read_text(encoding="utf-8")
     normalizer = _between(console, "window._meshRows=function(raw)", "function _meshSortRows")
     nervous = _between(console, "V.organnervous={", "V.organskeleton={")
     assert "row(v,null,i)" in normalizer
@@ -96,7 +97,7 @@ def test_console_observability_names_and_posture_fail_closed():
         assert "signed receipts" not in line
     assert "getPublic('/api/a11oy/v1/lambda/org',8000)" in console
     assert "orgLambdaText(orgLambda)" in console
-    service = (ROOT / "serve.py").read_text()
+    service = (ROOT / "serve.py").read_text(encoding="utf-8")
     for retained_server_boundary in (
         '"observation_state": "inventory"',
         '"observed": False, "latency_ms": None',
@@ -152,7 +153,7 @@ const value=scope.setHeroReceiptsFromLedger(input.data);
 process.stdout.write(JSON.stringify({nodes,value}));
 '''
     result = subprocess.run([node, "-e", harness], input=json.dumps({"code": code, "data": data}),
-        text=True, capture_output=True, check=True, timeout=10)
+        text=True, encoding="utf-8", capture_output=True, check=True, timeout=10)
     return json.loads(result.stdout)
 
 
@@ -221,7 +222,7 @@ def _between(source, start, end):
 def _node(source):
     node = shutil.which("node")
     assert node, "Node.js is required for the shipped console behavior contract"
-    result = subprocess.run([node, "-e", source], input=(ROOT / "pages/console.html").read_text(), text=True, capture_output=True, timeout=25)
+    result = subprocess.run([node, "-e", source], input=(ROOT / "pages/console.html").read_text(encoding="utf-8"), text=True, encoding="utf-8", capture_output=True, timeout=25)
     assert result.returncode == 0, result.stdout + result.stderr
 
 

@@ -85,6 +85,8 @@ class SyntheticAdapters:
 
 @pytest.fixture
 def world(tmp_path, monkeypatch):
+    for name in ("A11OY_EXECUTION_AUTHORITY_FILE", "A11OY_EXECUTION_AUTHORITY_PINS_JSON"):
+        monkeypatch.delenv(name, raising=False)
     clock, backend = FakeClock(), FakeHeadBackend()
     objects = ss.LocalDirObjectStore(tmp_path / "objects")
     writer = replica(tmp_path, "a", objects, backend, clock)
@@ -417,6 +419,147 @@ def test_invalid_pins_leave_concrete_registration_disabled(world, monkeypatch):
     assert world.effects == [] and remote_rows(world) == []
 
 
+@pytest.mark.parametrize("source", ["file", "inline"])
+@pytest.mark.parametrize("invalid", ["empty", "duplicate", "extra", "schema", "oversized",
+                                    "private_key", "same_key", "wrong_pin"])
+def test_authority_sources_share_strict_public_pin_validation(world, monkeypatch, source, invalid):
+    raw = world.authority_file.read_text()
+    value = json.loads(raw)
+    if invalid == "empty":
+        raw = ""
+    elif invalid == "duplicate":
+        raw = '{"schema":"szl.execution-authority-pins/v1",' + raw[1:]
+    elif invalid == "extra":
+        value["request_authorized"] = True
+        raw = json.dumps(value)
+    elif invalid == "schema":
+        value["schema"] = "wrong"
+        raw = json.dumps(value)
+    elif invalid == "oversized":
+        raw = " " * 16385
+    elif invalid == "private_key":
+        value["approval_public_pem"] = world.approval_private.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption()).decode()
+        raw = json.dumps(value)
+    elif invalid == "same_key":
+        value["approval_public_pem"] = value["runtime_public_pem"]
+        value["approval_key_id"] = value["runtime_key_id"]
+        raw = json.dumps(value)
+    elif invalid == "wrong_pin":
+        value["approval_key_id"] = "0" * 64
+        raw = json.dumps(value)
+    if source == "file":
+        path = world.root / "invalid-startup-pins.json"
+        path.write_text(raw)
+        monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_FILE", str(path))
+    else:
+        monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_PINS_JSON", raw)
+    app = Starlette()
+    app.state.szl_series_a_service = world.service
+    result = observer.register_from_service(app)
+    assert result["authority_configured"] is False
+    assert result["configuration_error"] == "INVALID_AUTHORITY_CONFIGURATION"
+    assert getattr(app.state, "execution_native_readbacks", None) is None
+    with pytest.raises(observer.ObserverBlocked, match="APPROVAL_AUTHORITY_UNAVAILABLE"):
+        app.state.szl_execution_observer.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+
+
+@pytest.mark.parametrize("empty_file", [False, True])
+@pytest.mark.parametrize("empty_json", [False, True])
+def test_ambiguous_authority_sources_refuse_even_if_a_value_is_empty(
+        world, monkeypatch, empty_file, empty_json):
+    raw = world.authority_file.read_text()
+    monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_FILE", "" if empty_file else str(world.authority_file))
+    monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_PINS_JSON", "" if empty_json else raw)
+    app = Starlette()
+    app.state.szl_series_a_service = world.service
+    with monkeypatch.context() as local_patch:
+        local_patch.setattr(Path, "read_bytes", lambda *args: pytest.fail("ambiguous sources must not be read"))
+        result = observer.register_from_service(app)
+    assert result["authority_configured"] is False
+    assert result["configuration_error"] == "AMBIGUOUS_AUTHORITY_CONFIGURATION"
+    assert app.state.szl_execution_observer.pins is None
+    assert getattr(app.state, "execution_native_readbacks", None) is None
+    assert world.effects == [] and remote_rows(world) == []
+
+
+@pytest.mark.parametrize("source", ["file", "inline"])
+def test_authority_is_captured_once_without_authority_generation(world, monkeypatch, source):
+    raw = world.authority_file.read_text()
+    if source == "file":
+        monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_FILE", str(world.authority_file))
+    else:
+        monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_PINS_JSON", raw)
+    app = Starlette()
+    app.state.szl_series_a_service = world.service
+    with monkeypatch.context() as local_patch:
+        if source == "inline":
+            local_patch.setattr(Path, "read_bytes", lambda *args: pytest.fail("inline pins must not read a file"))
+        local_patch.setattr(ec, "generate_private_key", lambda *args: pytest.fail("startup must not mint authority"))
+        result = observer.register_from_service(app)
+    subject = app.state.szl_execution_observer
+    admitted_pins = subject.pins
+    assert result["authority_configured"] is True and result["configuration_error"] is None
+    assert admitted_pins == world.subject.pins
+    assert app.state.execution_native_readbacks.service is world.service
+    assert world.effects == [] and remote_rows(world) == []
+    world.authority_file.write_text('{"schema":"wrong"}')
+    monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_PINS_JSON", '{"schema":"wrong"}')
+    monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_FILE", "missing-after-startup.json")
+    assert subject.pins is admitted_pins
+    challenge = subject.challenge(HEADERS)["challenge"]
+    assert challenge["approval_key_id"] == admitted_pins.approval_key_id
+    assert challenge["runtime_key_id"] == admitted_pins.runtime_key_id
+    assert world.effects == [] and remote_rows(world) == []
+
+
+def test_later_environment_configuration_cannot_admit_a_disabled_observer(world, monkeypatch):
+    app = Starlette()
+    app.state.szl_series_a_service = world.service
+    result = observer.register_from_service(app)
+    assert result["authority_configured"] is False and result["configuration_error"] is None
+    monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_PINS_JSON", world.authority_file.read_text())
+    subject = app.state.szl_execution_observer
+    with pytest.raises(observer.ObserverBlocked, match="APPROVAL_AUTHORITY_UNAVAILABLE"):
+        subject.challenge(HEADERS)
+    assert subject.pins is None and getattr(app.state, "execution_native_readbacks", None) is None
+    assert world.effects == [] and remote_rows(world) == []
+
+
+def test_constructor_uses_only_explicit_authority_not_environment(world, monkeypatch):
+    monkeypatch.setenv("A11OY_EXECUTION_AUTHORITY_PINS_JSON", world.authority_file.read_text())
+    subject = observer.Observer(world.service, world.app)
+    assert subject.pins is None and subject.configuration_error is None
+    explicit = observer.Observer(world.service, world.app,
+                                 authority_json=world.authority_file.read_text())
+    assert explicit.pins == world.subject.pins
+
+
+def test_http_cannot_supply_missing_startup_authority(world):
+    app = Starlette()
+    app.state.szl_series_a_service = world.service
+    observer.register_from_service(app)
+    raw = world.authority_file.read_text()
+
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=acceptance.ORIGIN) as client:
+            response = await client.post(observer.PREFIX + "/challenge",
+                params={"A11OY_EXECUTION_AUTHORITY_PINS_JSON": raw},
+                headers={**HEADERS, "x-execution-authority-pins": raw})
+            assert response.status_code == 403
+            assert response.json()["error"] == "APPROVAL_AUTHORITY_UNAVAILABLE"
+            response = await client.post(observer.PREFIX + "/challenge", headers=HEADERS,
+                                         json={"A11OY_EXECUTION_AUTHORITY_PINS_JSON": json.loads(raw)})
+            assert response.status_code == 403
+            assert response.json()["error"] == "CHALLENGE_BODY_FORBIDDEN"
+    asyncio.run(scenario())
+    assert app.state.szl_execution_observer.pins is None
+    assert getattr(app.state, "execution_native_readbacks", None) is None
+    assert world.effects == [] and remote_rows(world) == []
+
+
 def test_http_size_limit_stops_stream_before_parse(world):
     async def body():
         yield b" " * (acceptance.MAX_BYTES + 1)
@@ -429,11 +572,15 @@ def test_http_size_limit_stops_stream_before_parse(world):
     assert world.effects == [] and remote_rows(world) == []
 
 
-def test_authority_expiry_cancels_native_await_and_burns_plan(world):
-    nonce, plan = signed_plan(world, mutate=lambda plan: plan.update({
-        "expires_at": observer.stamp(observer.utcnow() + timedelta(seconds=0.1))}))
+def test_authority_expiry_cancels_native_await_and_burns_plan(world, monkeypatch):
+    nonce, plan = signed_plan(world)
+    expires_at = world.subject._challenges[nonce].expires_at
+    # Snapshot setup must not spend the native-await timeout under test.
+    now = [expires_at - timedelta(seconds=0.1)]
+    monkeypatch.setattr(observer, "utcnow", lambda: now[0])
     cancelled = []
     async def stall(case):
+        now[0] = expires_at + timedelta(microseconds=1)
         try:
             await asyncio.Event().wait()
         except asyncio.CancelledError:
@@ -444,6 +591,9 @@ def test_authority_expiry_cancels_native_await_and_burns_plan(world):
         run(world, nonce, plan)
     assert len(cancelled) == 1 and world.effects == []
     assert len(remote_rows(world)) == 5 and nonce not in world.subject._exports
+    assert world.subject._challenges[nonce].state == "BURNED"
+    with pytest.raises(observer.ObserverBlocked, match="CONSUMED"):
+        run(world, nonce, plan)
 
 
 def restart(world, monkeypatch):
