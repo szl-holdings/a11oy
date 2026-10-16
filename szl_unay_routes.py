@@ -27,7 +27,7 @@ collides with the existing /api/{ns}/v1/* routes; ADDITIVE only):
     GET  /api/{ns}/v2/khipu/lmdb/verify    — full on-disk chain re-walk
     GET  /api/{ns}/v2/khipu/lmdb/tail?n=   — last n receipts
 
-  REPLICATION (authenticated inbound; outbound DISABLED by default):
+  REPLICATION (inbound accepted; outbound DISABLED by default):
     POST /api/{ns}/v2/khipu/replicate      — accept inbound receipts (verified)
     GET  /api/{ns}/v2/khipu/replicate/status
 
@@ -61,7 +61,7 @@ for _p in _IMPORT_PATHS:
 import szl_unay  # noqa: E402
 import szl_khipu_lmdb  # noqa: E402
 import szl_khipu_replicate  # noqa: E402
-import szl_operator_auth as _operator_auth  # noqa: E402
+from szl_operator_auth import operator_refusal  # noqa: E402
 
 
 def _pick_data_dir() -> str:
@@ -163,7 +163,7 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
 
     @app.post(f"/api/{ns}/v2/unay/remember")
     async def unay_remember(request: Request) -> Any:  # noqa: ANN401
-        refusal = _operator_auth.operator_refusal(request, "UNAY memory writes")
+        refusal = operator_refusal(request, "UNAY memory writes")
         if refusal is not None:
             return refusal
         body = await request.json()
@@ -200,7 +200,7 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
 
     @app.post(f"/api/{ns}/v2/khipu/lmdb/append")
     async def khipu_lmdb_append(request: Request) -> Any:  # noqa: ANN401
-        refusal = _operator_auth.operator_refusal(request, "Khipu LMDB append")
+        refusal = operator_refusal(request, "Khipu LMDB append")
         if refusal is not None:
             return refusal
         body = await request.json()
@@ -219,7 +219,7 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
     # ----------------------------------------------------------- REPLICATION
     @app.post(f"/api/{ns}/v2/khipu/replicate")
     async def khipu_replicate(request: Request) -> Any:  # noqa: ANN401
-        refusal = _operator_auth.operator_refusal(request, "Khipu replication writes")
+        refusal = operator_refusal(request, "Khipu replication writes")
         if refusal is not None:
             return refusal
         body = await request.json()
