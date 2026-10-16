@@ -63,7 +63,8 @@ def test_console_investor_view_is_live_evidence_bound_and_mobile_reachable():
     assert "canonicalLockedIds" in investor
     assert "lockedCount===8" in investor
     assert "(new Set(lockedIds)).size===8" in investor
-    assert "REPORTED" in investor and "UNAVAILABLE" in investor
+    assert "SIMULATED" in investor and "UNAVAILABLE" in investor
+    assert "REPORTED" not in investor
     assert 'href="/verify"' in investor
     assert 'href="https://a11oy.net"' in investor
     assert "Signing is claimed only when persistent signer evidence is active and verification passes" in investor

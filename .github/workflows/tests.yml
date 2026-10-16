@@ -1239,6 +1239,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
       - name: Install scoped test dependencies
         run: |
           pip install --require-hashes -r .github/requirements/ci-core.txt
@@ -1248,6 +1251,6 @@ jobs:
         # operation evidence, quarantine behavior, malformed-registry refusal,
         # zero deletion authority, stale-cache labeling, and API merge semantics.
         run: |
-          pytest tests/test_frontier_model_admission.py tests/test_model_intel_frontier_estate.py tests/test_model_inference_support.py tests/test_demo_critical_routes.py tests/test_series_a_estate.py tests/test_holographic_command_bar.py -q
+          pytest tests/test_frontier_model_admission.py tests/test_model_intel_frontier_estate.py tests/test_model_inference_support.py tests/test_demo_critical_routes.py tests/test_series_a_estate.py tests/test_holographic_command_bar.py tests/test_console_truth_relock.py tests/test_investor_series_a_surface.py -q
           python -B scripts/collect_model_inference_support.py --check
           python model_release/frontier-qualification/frontier_admission_guard.py audit
