@@ -2,6 +2,7 @@
 
 import ast
 import copy
+from functools import lru_cache
 import importlib.util
 import json
 import sys
@@ -24,6 +25,28 @@ class Response:
 
     def json(self):
         return self.body
+
+
+@lru_cache(maxsize=1)
+def _source_operator_ask():
+    # Bind this simulated transport to the actual deterministic formula answer,
+    # without importing serve, signing a receipt, opening stores or using a model.
+    path = SCRIPT.parents[2] / "serve.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    functions = []
+    for name in ("_sc_classify", "_sc_ask"):
+        nodes = [node for node in ast.walk(tree)
+                 if isinstance(node, ast.FunctionDef) and node.name == name]
+        assert len(nodes) == 1
+        functions.append(nodes[0])
+    constants = [node for node in ast.walk(tree) if isinstance(node, ast.Assign)
+                 and any(isinstance(target, ast.Name) and target.id == "_SC_PROVED_FORMULAS"
+                         for target in node.targets)]
+    assert len(constants) == 1
+    namespace = {"_SC_PROVED_FORMULAS": ast.literal_eval(constants[0].value),
+                 "_sc_receipt": lambda *args: {"evidenceClass": "SIMULATED"}}
+    exec(compile(ast.Module(body=functions, type_ignores=[]), str(path), "exec"), namespace)
+    return namespace["_sc_ask"]
 
 
 class LocalRouteFixture:
@@ -53,12 +76,7 @@ class LocalRouteFixture:
                             "decision": "allow", "receipt_hash": "fixture-only"}
             return Response(200, {"decision": "allow", "receipt_hash": "fixture-only"})
         if path == effect.ROUTES[1]:
-            return Response(200, {"question": json["question"], "topic": "formulas",
-                                  "grounded": True,
-                                  "citations": [{"endpoint": "serve._SC_PROVED_FORMULAS",
-                                                 "data": {"count": 8, "proved":
-                                                          ["F1", "F4", "F7", "F11", "F12",
-                                                           "F18", "F19", "F22"]}}]})
+            return Response(200, copy.deepcopy(_source_operator_ask()(json["question"])))
         if path == effect.ROUTES[4]:
             return Response(200, {"status": "REAL", "framework": "NIST",
                                   "covered": 8, "total": 8})
@@ -97,6 +115,35 @@ def test_http_200_without_policy_state_readback_is_unavailable():
     assert rows[0]["effectState"] == "UNKNOWN"
     assert fixture.posts == [effect.ROUTES[0]]
     assert all(row["attempts"] == 0 for row in rows[1:])
+
+
+@pytest.mark.parametrize("mutation", ["old_citation", "count", "formulas", "grounded", "question", "topic"])
+def test_formula_contract_mismatch_stops_before_remaining_posts(mutation):
+    class ChangedFormula(LocalRouteFixture):
+        def post(self, path, json, headers):
+            response = super().post(path, json, headers)
+            if path == effect.ROUTES[1]:
+                body = response.body
+                if mutation == "old_citation":
+                    body["citations"][0]["endpoint"] = "szl_brain.CANONICAL"
+                elif mutation == "count":
+                    body["citations"][0]["data"]["count"] = 9
+                elif mutation == "formulas":
+                    body["citations"][0]["data"]["proved"][-1] = "F23"
+                elif mutation == "grounded":
+                    body["grounded"] = False
+                elif mutation == "question":
+                    body["question"] = "different question"
+                else:
+                    body["topic"] = "general"
+            return response
+
+    fixture = ChangedFormula()
+    rows = effect.rehearse(fixture, "fixture-token")
+    assert fixture.posts == list(effect.ROUTES[:2])
+    assert rows[1]["result"] == "UNAVAILABLE" and rows[1]["effectState"] == "UNKNOWN"
+    assert all(row["attempts"] == 0 and row["reason"] == "stopped_after_unknown_effect"
+               for row in rows[2:])
 
 
 def test_failed_baseline_never_counts_as_post_attempt():
@@ -244,7 +291,8 @@ def test_host_accepts_only_bounded_consistent_child_report():
                     lambda x: x["summary"].update(unavailable=0),
                     lambda x: x["results"][3].update(result="PASS", evidenceClass="SIMULATED"),
                     lambda x: x["results"][0].update(attempts=0),
-                    lambda x: x["results"][0]["after"].update(policy_decisions=99)):
+                    lambda x: x["results"][0]["after"].update(policy_decisions=99),
+                    lambda x: x["results"][1]["semantic"].update(citationEndpoint="szl_brain.CANONICAL")):
         forged = copy.deepcopy(report)
         corrupt(forged)
         with pytest.raises(ValueError):

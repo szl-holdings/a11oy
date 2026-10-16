@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Staged provenance service: fixed-plan execution with durable attempt consumption.
+"""Provenance service: fixed-plan execution with durable attempt consumption.
 
-This module is not registered in the deployed application. Independent public
-pins and immutable process HF identity are mandatory; their absence disables it.
+The Series-A owner registers this module through register_from_service(). Source
+registration does not establish live execution admission: independent public pins
+and immutable process HF identity are mandatory; their absence disables execution.
 No public method accepts a signer, target URL, runtime identity or SQL predicate.
 """
 
@@ -620,7 +621,7 @@ class Observer:
 
 
 def register(app, observer):
-    """Staging-only registration; callers must explicitly integrate after review."""
+    """Mount the existing Series-A observer; registration grants no execution authority."""
     async def challenge(request):
         try:
             observer._caller(request.headers)

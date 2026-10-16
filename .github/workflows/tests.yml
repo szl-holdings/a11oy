@@ -67,6 +67,7 @@ jobs:
           tests/test_atelier_curated_snapshot.py
           tests/test_site_route_aliases.py
           tests/test_operator_auth_code_routes.py
+          tests/test_unay_operator_auth.py
           tests/test_khipu_replication_delivery.py
           tests/test_unay_write_authorization.py
           tests/test_second_brain_bridge.py
