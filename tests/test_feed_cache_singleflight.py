@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections import deque
+import gzip
+import json
 
 import threading
 import time
@@ -905,3 +907,273 @@ def test_devb_courtlistener_reuses_shared_cache_for_one_hour(monkeypatch) -> Non
     assert observed["ttl"] == 3600.0
     assert "/api/rest/v4/search/" in observed["url"]
     assert result["freshness"]["status"] == "live"
+
+
+def test_nvd_singleflight_waits_for_admitted_provider_slot(monkeypatch) -> None:
+    """SIMULATED source: a lawful scheduler wait outlasts the HTTP-only wait."""
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_source_http_timeout_s", lambda: 0.05)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", time.monotonic() + 1.2)
+    waiting = threading.Event()
+    original_sleep = time.sleep
+
+    def paced_sleep(seconds):
+        waiting.set()
+        original_sleep(seconds)
+
+    monkeypatch.setattr(vertical.time, "sleep", paced_sleep)
+
+    class Client:
+        calls = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def get(self, _url, **_kwargs):
+            self.calls += 1
+            return httpx.Response(200, json={"vulnerabilities": []},
+                                  request=httpx.Request("GET", _url))
+
+    client = Client()
+    monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: client)
+    results = {}
+
+    def fetch(name):
+        results[name] = vertical._cached_fetch(
+            "shared-nvd", "https://services.nvd.nist.gov/rest/json/cves/2.0", 240)
+
+    leader = threading.Thread(target=fetch, args=("leader",))
+    leader.start()
+    try:
+        assert waiting.wait(1)
+        fetch("follower")
+    finally:
+        leader.join(3)
+    assert not leader.is_alive()
+    assert client.calls == 1
+    assert results["leader"]["freshness"]["status"] == "live"
+    assert results["follower"] == results["leader"]
+
+
+@pytest.fixture
+def nvd_operation_env(monkeypatch):
+    """SIMULATED transports and monotonic time; never contact NIST."""
+    clock = {"now": 100.0}
+    calls = []
+    monkeypatch.setattr(vertical.time, "monotonic", lambda: clock["now"])
+    monkeypatch.setattr(vertical.time, "sleep", lambda delay: clock.update(now=clock["now"] + delay))
+    monkeypatch.setattr(vertical, "_CACHE", vertical._Cache())
+    monkeypatch.setattr(vertical, "_NVD_RATE_LOCK", threading.Lock())
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 0.0)
+    monkeypatch.setattr(vertical, "_NVD_COOLDOWN_UNTIL", 0.0)
+    monkeypatch.delenv("A11OY_NVD_MIN_INTERVAL_S", raising=False)
+    monkeypatch.delenv("A11OY_SOURCE_HTTP_TIMEOUT_S", raising=False)
+    monkeypatch.delenv("NVD_API_KEY", raising=False)
+    content = gzip.compress(json.dumps({"vulnerabilities": []}).encode())
+
+    def respond(url, _kwargs):
+        return httpx.Response(200, content=content if url == vertical._NVD_RECENT_FEED_URL
+                              else b'{"vulnerabilities": []}', request=httpx.Request("GET", url))
+
+    env = {"clock": clock, "calls": calls, "respond": respond}
+
+    class Client:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def get(self, url, **kwargs):
+            calls.append((url, kwargs))
+            return env["respond"](url, kwargs)
+
+    monkeypatch.setattr(vertical, "_client", lambda *_args, **_kwargs: Client())
+    return env
+
+
+def test_nvd_provider_queue_is_bounded_before_transport(monkeypatch, nvd_operation_env):
+    waits = []
+
+    class OccupiedLock:
+        def acquire(self, *, timeout):
+            waits.append(timeout)
+            return False
+
+    monkeypatch.setattr(vertical, "_NVD_RATE_LOCK", OccupiedLock())
+    result = vertical._cached_fetch("queue", "https://services.nvd.nist.gov/rest/json/cves/2.0", 240)
+    assert waits == [15.0]  # 6s slot + unchanged 4s REST and 4s fallback + publication.
+    assert nvd_operation_env["calls"] == []
+    assert result["value"] is None and result["freshness"]["status"] == "unavailable"
+    assert "provider queue" in result["freshness"]["error"]
+    assert vertical._CACHE.get("queue") is None
+
+
+def test_nvd_unadmitted_slot_does_not_sleep_or_fetch(monkeypatch, nvd_operation_env):
+    monkeypatch.setattr(vertical, "_NVD_NEXT_REQUEST_AT", 116.0)
+    result = vertical._cached_fetch("slot", "https://services.nvd.nist.gov/rest/json/cves/2.0", 240)
+    assert nvd_operation_env["clock"]["now"] == 100.0
+    assert nvd_operation_env["calls"] == []
+    assert vertical._NVD_NEXT_REQUEST_AT == 116.0
+    assert result["value"] is None and "provider slot" in result["freshness"]["error"]
+
+
+def test_nvd_late_success_cannot_publish_or_renew_last_good(nvd_operation_env):
+    vertical._CACHE.put("late", {"items": ["original"]}, 1, status="live")
+    with vertical._CACHE._lock:
+        vertical._CACHE._d["late"]["fetched_at"] -= 30
+    before = dict(vertical._CACHE.get("late"))
+    original = nvd_operation_env["respond"]
+
+    def late(url, kwargs):
+        nvd_operation_env["clock"]["now"] = 116.0
+        return original(url, kwargs)
+
+    nvd_operation_env["respond"] = late
+    result = vertical._cached_fetch("late", "https://services.nvd.nist.gov/rest/json/cves/2.0", 240)
+    assert nvd_operation_env["calls"][0][1]["timeout"] == 4.0
+    assert result["value"] == before["value"]
+    assert result["freshness"]["status"] == "stale"
+    assert result["freshness"]["fetched_at"] == before["fetched_at"]
+    after = vertical._CACHE.get("late")
+    assert after["ttl"] == before["ttl"] and after["fetched_at"] == before["fetched_at"]
+    assert not vertical._CACHE._inflight
+
+
+def test_nvd_late_follower_adopts_existing_deadline_without_renewal(nvd_operation_env):
+    leader = vertical._NvdOperation()
+    flight, _ = vertical._CACHE.claim_refresh("existing", leader)
+    nvd_operation_env["clock"]["now"] = 114.0
+    follower = vertical._NvdOperation()
+    waits = []
+
+    class Pending:
+        def wait(self, seconds):
+            waits.append(seconds)
+            return False
+
+    flight.event = Pending()
+    result = vertical._cached_fetch("existing", "https://services.nvd.nist.gov/rest/json/cves/2.0",
+                                    240, operation=follower)
+    assert waits == [1.0]
+    assert flight.deadline == leader.deadline == follower.deadline == 115.0
+    assert nvd_operation_env["calls"] == []
+    assert result["value"] is None and "admitted NVD refresh deadline" in result["freshness"]["error"]
+
+
+def test_nvd_fallback_consumes_remaining_rest_operation_budget(nvd_operation_env):
+    original = nvd_operation_env["respond"]
+
+    def consume_rest_budget(url, kwargs):
+        if url != vertical._NVD_RECENT_FEED_URL:
+            # Simulate a late/failed synchronous transport; do not grant a new fallback window.
+            nvd_operation_env["clock"]["now"] = 113.0
+            raise httpx.ReadTimeout("SIMULATED REST timeout")
+        return original(url, kwargs)
+
+    nvd_operation_env["respond"] = consume_rest_budget
+    result = vertical.feed_nvd(20)
+    assert [kwargs["timeout"] for _, kwargs in nvd_operation_env["calls"]] == [4.0, 2.0]
+    assert result["freshness"]["status"] == "live"
+    assert result["value"]["retrieval"] == "nvd-cve-2.0-recent-json-feed"
+
+
+def test_nvd_exhausted_operation_never_starts_fallback_transport(nvd_operation_env):
+    def failed_late(_url, _kwargs):
+        nvd_operation_env["clock"]["now"] = 116.0
+        raise httpx.ReadTimeout("SIMULATED expired REST")
+
+    nvd_operation_env["respond"] = failed_late
+    result = vertical.feed_nvd(20)
+    assert len(nvd_operation_env["calls"]) == 1
+    assert result["value"] is None and result["freshness"]["status"] == "unavailable"
+    assert vertical._CACHE.get(vertical._NVD_RECENT_FEED_KEY) is None
+    assert not vertical._CACHE._inflight
+
+
+def test_nvd_late_fallback_result_cannot_be_cached(nvd_operation_env):
+    operation = vertical._NvdOperation()
+    original = nvd_operation_env["respond"]
+
+    def late(url, kwargs):
+        nvd_operation_env["clock"]["now"] = 116.0
+        return original(url, kwargs)
+
+    nvd_operation_env["respond"] = late
+    result = vertical._nvd_recent_feed_snapshot(operation)
+    assert result["value"] is None and result["freshness"]["status"] == "unavailable"
+    assert vertical._CACHE.get(vertical._NVD_RECENT_FEED_KEY) is None
+    assert not vertical._CACHE._inflight
+
+
+def test_nvd_fallback_join_cannot_extend_own_or_shared_deadline(nvd_operation_env):
+    leader = vertical._NvdOperation()
+    flight, _ = vertical._CACHE.claim_refresh(vertical._NVD_RECENT_FEED_KEY, leader)
+    caller = vertical._NvdOperation()
+    caller.deadline = 105.0
+    nvd_operation_env["clock"]["now"] = 104.0
+    waits = []
+
+    class Pending:
+        def wait(self, seconds):
+            waits.append(seconds)
+            return False
+
+    flight.event = Pending()
+    result = vertical._nvd_recent_feed_snapshot(caller)
+    assert waits == [1.0]
+    assert caller.deadline == 105.0 and flight.deadline == leader.deadline == 115.0
+    assert result["value"] is None and nvd_operation_env["calls"] == []
+
+
+def test_nvd_expired_operation_can_only_reuse_original_cached_fallback(nvd_operation_env):
+    vertical._CACHE.put(vertical._NVD_RECENT_FEED_KEY, {"items": []}, 240, status="live")
+    before = dict(vertical._CACHE.get(vertical._NVD_RECENT_FEED_KEY))
+    operation = vertical._NvdOperation()
+    nvd_operation_env["clock"]["now"] = 116.0
+    result = vertical._nvd_recent_feed_snapshot(operation)
+    assert result["value"] == before["value"]
+    assert result["freshness"]["fetched_at"] == before["fetched_at"]
+    assert vertical._CACHE.get(vertical._NVD_RECENT_FEED_KEY) == before
+    assert nvd_operation_env["calls"] == []
+
+
+@pytest.mark.parametrize("target", ["rest", "fallback"])
+def test_nvd_deadline_checked_inside_publication_lock(nvd_operation_env, target):
+    operation = vertical._NvdOperation()
+    original_lock = threading.Lock()
+
+    class ExpiringPublicationLock:
+        acquisitions = 0
+
+        def acquire(self, *, timeout=-1):
+            acquired = original_lock.acquire(timeout=min(timeout, 0.01) if timeout >= 0 else 0.01)
+            assert acquired, "publication failure must release its cache lock"
+            self.acquisitions += 1
+            if self.acquisitions == 4:
+                nvd_operation_env["clock"]["now"] = 116.0
+            return acquired
+
+        def release(self):
+            original_lock.release()
+
+        def __enter__(self):
+            self.acquire()
+            return self
+
+        def __exit__(self, *_args):
+            self.release()
+
+    vertical._CACHE._lock = ExpiringPublicationLock()
+    if target == "rest":
+        result = vertical._cached_fetch("publication", "https://services.nvd.nist.gov/rest/json/cves/2.0",
+                                        240, operation=operation)
+    else:
+        result = vertical._nvd_recent_feed_snapshot(operation)
+    assert result["value"] is None and result["freshness"]["status"] == "unavailable"
+    assert vertical._CACHE._d == {} and vertical._CACHE._inflight == {}
+    assert not original_lock.locked()
