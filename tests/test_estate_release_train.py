@@ -131,6 +131,30 @@ class EstateReleaseTrainTests(unittest.TestCase):
         self.assertEqual(apex.result()["provider_scripts"], [bridge])
         self.assertEqual(apex.result()["scripts"], ["/app.js"])
 
+    def test_semantic_html_accepts_only_webmcp_scheduler_annotations(self) -> None:
+        baseline = release.SemanticHTML()
+        baseline.feed('<title>A11oy</title><script src="/app.js"></script>')
+        bridge = "https://a-11-oy.com/.webmcp/bridge.js"
+        packs = 'data-packs="c2pa,mcp-server-client"'
+        accepted = (
+            f'<script type="module" async fetchpriority="low" src="{bridge}" {packs}></script>',
+            f'<script fetchpriority="low" type="module" src="{bridge}" {packs} async></script>',
+            f'<script async src="{bridge}" type="module" {packs}></script>',
+            f'<script type="module" src="{bridge}" {packs} fetchpriority="low"></script>',
+            f'<script async="async" type="module" src="{bridge}" {packs}></script>',
+            f'<script type="module" src="{bridge}" {packs}> \n\t</script>',
+        )
+        for tag in accepted:
+            with self.subTest(tag=tag):
+                apex = release.SemanticHTML()
+                apex.feed('<title>A11oy</title><script src="/app.js"></script>' + tag)
+                self.assertEqual(
+                    baseline.result()["semantic_sha256"],
+                    apex.result()["semantic_sha256"],
+                )
+                self.assertEqual(apex.result()["provider_scripts"], [bridge])
+                self.assertEqual(apex.result()["scripts"], ["/app.js"])
+
     def test_semantic_html_webmcp_variants_remain_product_drift(self) -> None:
         baseline = release.SemanticHTML()
         baseline.feed('<title>A11oy</title><script src="/app.js"></script>')
@@ -177,6 +201,24 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 'data-packs="mcp-server-client" onload="changed()"></script>',
                 f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client" async></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="mcp-server-client"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client">unexpected()</script>',
+                f'<script type="module" async fetchpriority="high" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client"></script>',
+                f'<script type="module" async fetchpriority="Low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client"></script>',
+                f'<script type="module" async="false" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client" data-mcp-url="/mcp"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client" crossorigin="anonymous"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client" nonce="n"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client" integrity="sha256-aa"></script>',
                 f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client" data-packs="dom"></script>',
                 f'<script type="module" src="{bridge}" src="{bridge}" '
