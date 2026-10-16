@@ -21,6 +21,7 @@ PUBLIC_DIGEST = "1ee6a88e37d522c5404ac04ac90eadcbfc6f7e59140a778d03275832e217e2c
 
 CHECKER_PATH = "tools/check_copy_sync_lockstep.py"
 METER_MANIFEST_PATH = ".github/shared-source-payload-manifest.json"
+METER_ARCHIVE_PATH = ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json"
 KANCHAY_MANIFEST_PATHS = (
     "console/assets/szl/SOURCE.json",
     "docs/site/docs/public/szl/SOURCE.json",
@@ -81,12 +82,15 @@ class ExactSourceExceptionContract(unittest.TestCase):
         self.assertEqual(set(meter_allow), {"description", "condition", "regexTarget", "paths", "regexes"})
         self.assertEqual(meter_allow["condition"], "AND")
         self.assertEqual(meter_allow["regexTarget"], "line")
-        self.assertEqual(len(meter_allow["paths"]), 1)
+        self.assertEqual(len(meter_allow["paths"]), 2)
         self.assertEqual(len(meter_allow["regexes"]), 1)
         self.assertRegex(METER_MANIFEST_PATH, meter_allow["paths"][0])
+        self.assertRegex(METER_ARCHIVE_PATH, meter_allow["paths"][1])
+        self.assertFalse(any(re.search(path, ".github/shared-source-payloads/other.json")
+                             for path in meter_allow["paths"]))
         self.assertIsNone(re.search(meter_allow["paths"][0], "other/shared-source-payload-manifest.json"))
         meter_line = meter_source_row()
-        self.assertIn(meter_line, (ROOT / METER_MANIFEST_PATH).read_text())
+        self.assertIn(meter_line, (ROOT / METER_ARCHIVE_PATH).read_text())
         self.assertRegex(meter_line, meter_allow["regexes"][0])
         self.assertIsNone(re.search(meter_allow["regexes"][0], meter_line.rstrip() + ' "private_api_key": "' + disposable_credential() + '"'))
         self.assertIsNone(re.search(meter_allow["regexes"][0], meter_line.replace(hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest(), disposable_credential())))
@@ -186,6 +190,17 @@ class PublicDigestScannerBoundary(unittest.TestCase):
 
     def test_exact_meter_source_digest_in_manifest_is_not_a_credential(self):
         self.assertEqual(self.scan(meter_source_row(), METER_MANIFEST_PATH), 0)
+
+    def test_exact_archived_meter_digest_is_not_a_credential(self):
+        self.assertEqual(self.scan(meter_source_row(), METER_ARCHIVE_PATH), 0)
+
+    def test_archive_does_not_exempt_other_values_or_adjacent_credentials(self):
+        row = '    "szl_meter_access.py": "' + disposable_credential() + '"\n'
+        self.assertEqual(self.scan(row, METER_ARCHIVE_PATH), 1)
+        adjacent = meter_source_row() + '    "private_api_key": "' + disposable_credential() + '"\n'
+        self.assertEqual(self.scan(adjacent, METER_ARCHIVE_PATH), 1)
+        same_line = meter_source_row().rstrip() + ' "private_api_key": "' + disposable_credential() + '"\n'
+        self.assertEqual(self.scan(same_line, METER_ARCHIVE_PATH), 1)
 
     def test_identical_meter_source_row_outside_manifest_is_scanned(self):
         self.assertEqual(self.scan(meter_source_row(), "other/shared-source-payload-manifest.json"), 1)

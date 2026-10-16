@@ -18,18 +18,30 @@ in readiness output. Artifact-object requests do not carry the GitHub token.
 
 Admission requires protected current main to equal the deployed source before
 and after acquisition, the newest exact-source canonical workflow run and
-attempt to succeed, both named probe and relock jobs to succeed, and a complete
-artifact census. The archive must match its Actions SHA-256 and size, contain
-only the expected JSON member, and bind the same repository, source, run and
-attempt. The complete shipped endpoint matrix must have acceptable observations;
+attempt to succeed, the passive producer, execution producer and relock jobs to
+succeed in dependency order, and a complete artifact census. The archive must
+match its Actions SHA-256 and size, contain exactly `readiness-verdict.json` and
+`execution-observations.json` for the bound execution observer, and bind the same
+repository, source, run and attempt. The complete shipped endpoint matrix must
+have acceptable observations;
 missing `requiredNotProbed`, skipped required effects, malformed counts, stale
 data, unavailable required sources and incomplete runs fail closed. No older
 successful run is substituted for a newer failure.
 
 This is authenticated GitHub Actions metadata plus byte-digest verification.
-It is **not an independent signature or independent runtime witness**:
-`signatures_verified` remains false. A retained artifact does not grant effect
-authority, certify AGI, establish model quality, or establish storage durability.
+With the application-owned execution context, the reader also verifies the
+approval and observation signatures and reports `signatures_verified: true`.
+Those signatures are **not an independent runtime witness**. The artifact cannot
+supply its own trusted context or grant effect authority, certify AGI, establish
+model quality, or establish storage durability.
+
+GitHub read failures use fixed diagnostic codes for rejected authentication,
+denied access, rate limits, unavailable resources, upstream errors, timeouts and
+transport errors. An unavailable resource can also mean hidden or inaccessible
+content; the code does not infer that a credential expired. Artifact-object
+download failures have a separate `ARTIFACT_DOWNLOAD` prefix. No response body,
+credential, signed URL or provider exception text is exposed. Every failure still
+clears accepted evidence; these diagnostics do not change admission or retry.
 
 ## Timing and operational limits
 
