@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-10-15T13:39:34Z",
+  "observedAt": "2026-10-16T01:11:35Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -1847,8 +1847,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "b183ea2506e0772902224eb0041ff2ed66f49161",
-        "lastModified": "2026-10-15T13:34:35.000Z",
+        "sha": "1b40303312b8dbbd90d836b5abd3ebf29167712b",
+        "lastModified": "2026-10-16T01:07:39.000Z",
         "cardSemanticSha256": "2062f8a7461392e79949029144cffe0e7690821603c87c95e7a8db2146056ab5",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2867,9 +2867,9 @@
         "disabled": false,
         "sdk": "static",
         "license": "apache-2.0",
-        "sha": "71ad65f34fef3abe4f92acd51c04e30cc6cd0bb8",
-        "lastModified": "2026-10-13T17:37:25.000Z",
-        "cardSemanticSha256": "40f12bad5458bccc55f969b875e563233b7f11872a4494b556458ec0c3551f58",
+        "sha": "7d2a491358bebddac6ee3e99a19967b306add964",
+        "lastModified": "2026-10-15T21:34:48.000Z",
+        "cardSemanticSha256": "bfc9cc28845d57a9e22bd32d8fa0b45f07b75cf63b43d7b231a019788a29dc5f",
         "createdAt": "2026-05-30T08:16:05.000Z",
         "tags": [
           "static",
@@ -2889,8 +2889,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "44b18d92730c84cdc1e2e5e802c59be2fe66eeeb",
-        "lastModified": "2026-10-15T13:19:17.000Z",
+        "sha": "80a3ad18fc1b005e78d99b84ea48ac6a4ee4e0c4",
+        "lastModified": "2026-10-16T01:02:03.000Z",
         "cardSemanticSha256": "2ccaf699d9d3ebca168bc8f2958d636a68d65ff81e1222c19bfc4e03333c149c",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -2946,8 +2946,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "d0582469c919a1e8d2b2b9fe5e962c59620b710a",
-        "lastModified": "2026-10-15T00:10:04.000Z",
+        "sha": "090066f8a23f399354b5bfac692bb99fa93be42a",
+        "lastModified": "2026-10-15T23:17:41.000Z",
         "cardSemanticSha256": "8e62c3a3bc1c4e621118f2a092124fadfc8819c957be9671038b30ad53ac055b",
         "createdAt": "2026-08-29T05:01:15.000Z",
         "tags": [
@@ -2999,8 +2999,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "82ad581bcd69fd680fad8b67ee742f7f049acd15",
-        "lastModified": "2026-10-15T00:10:34.000Z",
+        "sha": "3ccf336ff8310c4c1d4bf8c12deccdafbf4d570a",
+        "lastModified": "2026-10-15T23:18:18.000Z",
         "cardSemanticSha256": "9cc0c0db6dad42bd69740157ebeccc89468b1d9f0903cdb9022d8e6daf95dcc4",
         "createdAt": "2026-09-02T21:47:52.000Z",
         "tags": [
@@ -3184,8 +3184,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "b67f48100e7ebe472eec670780477dd253b8ef49",
-        "lastModified": "2026-10-14T13:37:07.000Z",
+        "sha": "fa5c87cc3ee43a796c4b22b952f3f77155b602b2",
+        "lastModified": "2026-10-16T00:39:09.000Z",
         "cardSemanticSha256": "1630aaebce2abc982cace834c0197202bc286d0aef2a4ffccb44771bd67f0289",
         "createdAt": "2026-06-01T05:46:37.000Z",
         "tags": [
@@ -3343,8 +3343,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "605ff481594243d860406fcb51c1c609839a3407",
-        "lastModified": "2026-10-15T00:11:05.000Z",
+        "sha": "86b48d93c2c17dec6a57b7039bb15e2c85fa1aea",
+        "lastModified": "2026-10-15T23:18:57.000Z",
         "cardSemanticSha256": "71eeb249ca7c622db819c1dfa2e506da67b430d9885c2f9fdc874149b84612f7",
         "createdAt": "2026-09-02T21:47:51.000Z",
         "tags": [
@@ -3718,8 +3718,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "df5c2b7f90b6a9ec3f02cd8fc757ab1158893275",
-        "lastModified": "2026-10-15T00:09:42.000Z",
+        "sha": "0eb98b5170d13f0545c1dfd39bfd974642603aee",
+        "lastModified": "2026-10-15T23:17:17.000Z",
         "cardSemanticSha256": "a8793e7c358f39694ebe131bc9868a790ec3c7107ee4f24c8250458905162b3b",
         "createdAt": "2026-09-02T21:47:50.000Z",
         "tags": [
