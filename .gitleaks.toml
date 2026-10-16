@@ -146,5 +146,8 @@ regexes = ['''^\s*"szl-tokens\.css"\s*:\s*"81f7c9baeef0b435e6e3f9d0c4e0d70e40fa1
 description = "Exact reviewed szl_meter_access.py digest in shared payload"
 condition = "AND"
 regexTarget = "line"
-paths = ['''(^|[\\/])\.github[\\/]shared-source-payload-manifest\.json$''']
+paths = [
+  '''(^|[\\/])\.github[\\/]shared-source-payload-manifest\.json$''',
+  '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]code-engine-bounded-model-20261015-v1\.json$''',
+]
 regexes = ['''^\s*"szl_meter_access\.py"\s*:\s*"e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",?\s*$''']

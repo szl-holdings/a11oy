@@ -34,6 +34,7 @@ jobs:
           python -B -m pytest -q -p no:cacheprovider
           tests/test_observer_runtime.py tests/test_native_readbacks.py
           tests/test_observer_adapters.py tests/test_real_execution_routes.py
+          tests/test_execution_observer_registration.py
           tests/test_combined_consumers.py tests/test_readiness_artifact.py
           tests/test_publish_readiness_verdict.py tests/test_canonical_a11oy_relock.py
           tests/test_execution_acceptance.py tests/test_dockerfile_layer_budget.py
@@ -67,6 +68,8 @@ jobs:
           tests/test_site_route_aliases.py
           tests/test_operator_auth_code_routes.py
           tests/test_unay_operator_auth.py
+          tests/test_khipu_replication_delivery.py
+          tests/test_unay_write_authorization.py
           tests/test_second_brain_bridge.py
           tests/test_code_completion_boundaries.py
           tests/test_agent_loop_execution_guards.py
