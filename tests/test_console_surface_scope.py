@@ -43,7 +43,7 @@ def _rule(css: str, selector: str) -> str:
 
 def test_dark_panels_declare_their_own_surface_and_leave_the_page_one_h1():
     hero = _hero_markup()
-    assert hero.startswith("'<section class=\"hero\" data-surface=\"dark\"")
+    assert re.match(r"'<section class=\"[^\"]*\bhero\b[^\"]*\" data-surface=\"dark\"", hero)
     assert "<h1" not in hero
     assert '<h2 class="hero-h1">' in hero
 
@@ -89,12 +89,28 @@ def test_every_vendored_kanchay_copy_is_bundle_1_3_0():
     assert ':root, [data-surface="dark"] {' in css
 
     for copy in KANCHAY_COPIES:
-        source = json.loads((ROOT / copy / "SOURCE.json").read_text(encoding="utf-8"))
+        manifest_bytes = (ROOT / copy / "SOURCE.json").read_bytes()
+        source = json.loads(manifest_bytes)
         assert source["version"] == "1.3.0", copy
+        subset = json.loads((ROOT / copy / "VENDORED.json").read_text(encoding="utf-8"))
+        assert subset["schema"] == "szl.kanchay-vendored-subset/v1"
+        assert subset["upstream"]["manifest_sha256"] == hashlib.sha256(manifest_bytes).hexdigest()
+        installed = {name: digest for name, digest in source["sha256"].items() if (ROOT / copy / name).is_file()}
+        assert subset["files"] == installed, copy
         for name, digest in source["sha256"].items():
             path = ROOT / copy / name
             if path.exists():
                 assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, (copy, name)
+
+
+def test_sidebar_uses_the_approved_compact_orbit_projection():
+    projection = ROOT / "console/assets/szl/orbit-v2"
+    record = json.loads((projection / "UPSTREAM.json").read_text())
+    assert record["source_commit"] == "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070"
+    assert record["source_path"] == "kit/logos/orbit-v2/suite/szl-icon-32.svg"
+    assert record["sha256"] == "6e2b7d72a3af3d9602b79de41df0194ede6496a9661f057108ec224c0efc92e6"
+    assert hashlib.sha256((projection / record["file"]).read_bytes()).hexdigest() == record["sha256"]
+    assert 'src="/assets/szl/orbit-v2/szl-icon-32.svg" alt="SZL Holdings" width="40" height="40"' in CONSOLE
 
 
 def test_gate_label_follows_its_read_and_never_mints_live():

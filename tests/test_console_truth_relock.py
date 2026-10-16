@@ -31,7 +31,7 @@ def _energy_slice() -> str:
 def test_console_claims_fail_closed() -> None:
     console = _console()
 
-    assert "built for energy-evidence-aware sovereign compute" in console
+    assert "Inspect service health, energy readings, and the evidence behind every reported state." in console
     assert 'aria-label="platform evidence and runtime receipts"' in console
     assert "built on measured-energy sovereign compute" not in console
     assert 'aria-label="live measured platform receipts"' not in console
@@ -170,7 +170,8 @@ def test_investor_locked_formulas_use_canonical_doctrine_payload() -> None:
     assert "(newSet(lockedIds)).size===8" in compact
     assert "['F1','F4','F7','F11','F12','F18','F19','F22']" in compact
     assert "HASH-LINKED" not in investor
-    assert "reported id:" in investor
+    assert "sample entry id:" in investor
+    assert "One receipt" not in investor
     assert "exactly 8" not in investor
     assert "{F1, F4, F7, F11, F12, F18, F19, F22}" not in investor
 
@@ -199,6 +200,7 @@ global.document = {getElementById: (id) => element(id)};
 global.esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char]);
+let ledgerRows = [{receipt_id: '<img src=x onerror=alert(1)>', simulated: true}];
 global.window = {
   VIEWS: {},
   getJSON: async (url) => {
@@ -209,8 +211,8 @@ global.window = {
         locked_formula_ids: ['F1','F2','F3','F4','F5','F6','F7','F8','F9'],
       };
     }
-    if (url === '/api/a11oy/v1/wow/ledger?limit=1') {
-      return {receipts: [{receipt_id: '<img src=x onerror=alert(1)>', hash: 'reported'}]};
+    if (url === '/api/a11oy/v1/wow/ledger?limit=1&advance=0') {
+      return {receipts: ledgerRows};
     }
     throw new Error('unexpected URL ' + url);
   },
@@ -222,10 +224,19 @@ vm.runInThisContext(logic);
   const rendered = element('inv-one-receipt').innerHTML;
   assert.doesNotMatch(rendered, /<img/);
   assert.match(rendered, /&lt;img src=x onerror=alert\(1\)&gt;/);
-  assert.match(rendered, /REPORTED/);
-  assert.equal(element('inv-one-ep').textContent, 'REPORTED');
+  assert.match(rendered, /SIMULATED/);
+  assert.doesNotMatch(rendered, /REPORTED|reported id:/);
+  assert.equal(element('inv-one-ep').textContent, 'SIMULATED');
   assert.equal(element('inv-locked-ep').textContent, 'UNAVAILABLE');
   assert.equal(element('inv-locked-list').textContent, 'UNAVAILABLE');
+  ledgerRows = [{receipt_id: 'signed-looking-id', simulated: false, signature: 'unverified', verified: true}];
+  await window.VIEWS.investor.render(container);
+  assert.equal(element('inv-one-ep').textContent, 'UNAVAILABLE');
+  assert.doesNotMatch(element('inv-one-receipt').innerHTML, /signed-looking-id|REPORTED/);
+  ledgerRows = [];
+  await window.VIEWS.investor.render(container);
+  assert.equal(element('inv-one-ep').textContent, 'UNAVAILABLE');
+  assert.doesNotMatch(element('inv-one-receipt').innerHTML, /SIMULATED|REPORTED/);
 })().catch((error) => {
   console.error(error && error.stack || error);
   process.exitCode = 1;

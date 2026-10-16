@@ -18,6 +18,7 @@ import pytest
 sources = importlib.import_module("verticals.puriq-markets.runtime.sources")
 transport = importlib.import_module("verticals.puriq-markets.runtime.transport")
 routes = importlib.import_module("verticals.puriq-markets.runtime.routes")
+finance_contract = importlib.import_module("verticals.puriq-markets.runtime.contract")
 
 NOW = 1_789_430_400
 TOKEN = "read-fixture-" * 4
@@ -489,7 +490,7 @@ def test_generated_finance_projection_preserves_canonical_data_and_no_secret_for
     payload = client().observe("coinbase-ticker")
     class ProxyResponse:
         status_code = 200
-        headers = {"content-type": "application/json"}
+        headers = {"content-type": "application/json", "x-szl-finance-contract": finance_contract.header_value()}
         def __enter__(self): return self
         def __exit__(self, *args): pass
         def iter_bytes(self): yield json.dumps(payload).encode()
@@ -530,7 +531,7 @@ def test_generated_finance_projection_preserves_canonical_data_and_no_secret_for
     result = http.get("/api/live").json()
     assert result["status"] == "UNAVAILABLE" and result["data"]["state"] == "DEGRADED"
     payload["source_revision"] = "2" * 40
-    assert http.get("/api/finance/overview").json()["error"] == "CANONICAL_REVISION_MISMATCH"
+    assert http.get("/api/finance/overview").json()["error"] == "CANONICAL_REVISION_INCONSISTENT"
     assert http.get("/api/finance/observations/coinbase-ticker?api_key=private").status_code == 422
 
 
@@ -541,7 +542,11 @@ def test_publisher_overlay_keeps_finance_on_existing_writer_and_base_unchanged()
     assert row["upstream"] == "https://szlholdings-a11oy.hf.space/api/a11oy/v1/finance/overview"
     assert row["source"].endswith("a11oy/tree/main/verticals/puriq-markets")
     assert "Public finance projection" in overlay.APP
-    assert overlay.TERRA_FORGE_GENERATOR == "szl-vertical-forge/0.2.2"
+    # Terra's landing moved to forge 0.2.3 (upstream-evidence probe state); the
+    # immutable base still declares 0.2.2 and is never edited.
+    assert overlay.TERRA_FORGE_GENERATOR == "szl-vertical-forge/0.2.3"
+    base_source = (root / "scripts/_hf_publish_vertical_flagships_v4_impl_base.py").read_text(encoding="utf-8")
+    assert 'TERRA_FORGE_GENERATOR = "szl-vertical-forge/0.2.2"' in base_source
 
 
 def test_version_route_is_finance_only(tmp_path, monkeypatch):
@@ -590,7 +595,8 @@ def production_projection(tmp_path, monkeypatch):
     namespace = {"__name__": "generated_finance_boundary"}
     exec(compile(proxy.augment(generator.APP), "finance_boundary_app", "exec"), namespace)
     state = {"status": 200, "body": client().observe("coinbase-ticker"), "calls": [],
-             "headers": {"content-type": "application/json"}}
+             "headers": {"content-type": "application/json",
+                         "x-szl-finance-contract": finance_contract.header_value()}}
     class Response:
         def __init__(self):
             self.status_code, self.headers = state["status"], state["headers"]
@@ -760,3 +766,70 @@ def test_projection_does_not_accept_non_json_mime_containing_json(production_pro
     p["headers"] = {"content-type": "text/not-json"}
     reply = p["http"].get("/api/finance/observations/coinbase-ticker")
     assert reply.status_code == 503 and reply.json().get("data") is None
+
+
+def test_runtime_declares_its_read_contract_on_every_finance_response(monkeypatch):
+    monkeypatch.setattr(routes, "CLIENT", client())
+    app = FastAPI()
+    routes.register(app)
+    http = TestClient(app)
+    prefix = routes.PREFIX
+    declared = finance_contract.header_value()
+    assert declared == "szl.finance.read-api/1"
+    for method, path, status in (("GET", "/providers", 200), ("GET", "/observations/coinbase-ticker", 200),
+                                 ("GET", "/observations/unknown-source", 404),
+                                 ("GET", "/observations/alpaca-quote", 403),
+                                 ("GET", "/analytics/v2/receipts", 200),
+                                 ("GET", "/signed-prices/DOGE", 422), ("GET", "/contract?x=1", 422)):
+        result = http.request(method, prefix + path)
+        assert result.status_code == status, path
+        assert result.headers[finance_contract.HEADER] == declared, path
+
+
+def test_contract_endpoint_reports_versions_from_code_and_revision_as_evidence(monkeypatch):
+    monkeypatch.setattr(routes, "CLIENT", client())
+    app = FastAPI()
+    routes.register(app)
+    body = TestClient(app).get(routes.PREFIX + "/contract").json()
+    assert body == {"schema": "szl.finance.read-contract/v1", "contract": "szl.finance.read-api",
+        "versions": [1], "response_schemas": {"1": list(finance_contract.RESPONSE_SCHEMAS[1])},
+        "header": "X-SZL-Finance-Contract", "source_revision": "1" * 40,
+        "components": {"analytics": routes.analytics.COMPONENT, "signed_price": routes.signed_prices.COMPONENT},
+        "revision_role": "EVIDENCE_NOT_COMPATIBILITY_KEY", "read_only": True, "execution_enabled": False}
+    # The contract does not depend on which revision is running.
+    unbound = transport.FinanceClient(environ={})
+    monkeypatch.setattr(routes, "CLIENT", unbound)
+    other = TestClient(app).get(routes.PREFIX + "/contract").json()
+    assert other["versions"] == body["versions"] and other["source_revision"] == "UNBOUND"
+
+
+def test_contract_response_schema_strings_appear_in_runtime_source():
+    # A cheap lint only. Behavioural coverage (the real router's responses, of
+    # every declared schema, accepted by the emitted validators) lives in
+    # tests/test_finance_functional_gate.py::test_canonical_sweep_accepts_*.
+    runtime = Path(__file__).resolve().parents[1] / "verticals/puriq-markets/runtime"
+    text = "".join(path.read_text(encoding="utf-8") for path in sorted(runtime.glob("*.py"))
+                   if path.name != "contract.py")
+    for schema in finance_contract.RESPONSE_SCHEMAS[max(finance_contract.VERSIONS)]:
+        assert f'"{schema}"' in text, schema
+
+
+def test_released_contract_version_one_is_frozen():
+    # Version 1 is served. Adding a route or response schema, or changing one,
+    # defines version 2 (READ_API_CONTRACT.md); never edit this snapshot.
+    assert finance_contract.RESPONSE_SCHEMAS[1] == (
+        "szl.finance.providers/v1", "szl.finance.overview/v1", "szl.finance.observation/v1",
+        "szl.finance.analytics/v2", "szl.finance.research/v1", "szl.finance.signed-price/v1")
+    assert finance_contract.ROUTES[1] == (
+        ("GET", "/contract"), ("GET", "/providers"), ("GET", "/overview"), ("GET", "/observations/{source}"),
+        ("GET", "/analytics/v2/signals/{symbol_name}"), ("GET", "/analytics/v2/quote/{symbol_name}"),
+        ("POST", "/analytics/v2/portfolio"), ("GET", "/analytics/v2/receipts"),
+        ("GET", "/analytics/v2/receipts/verify"), ("POST", "/analytics/v2/receipts/verify"),
+        ("POST", "/research/audit"), ("GET", "/signed-prices/model"), ("GET", "/signed-prices/{symbol_name}"))
+
+
+def test_runtime_serves_exactly_the_routes_its_contract_declares():
+    served = {(method, route.path[len(routes.PREFIX):]) for route in routes.router.routes
+              for method in route.methods if route.path.startswith(routes.PREFIX + "/")}
+    declared = set().union(*(finance_contract.ROUTES[v] for v in finance_contract.VERSIONS))
+    assert served == declared

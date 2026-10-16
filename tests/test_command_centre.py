@@ -147,8 +147,8 @@ def test_get_does_not_call_provider_or_store_credentials():
     assert 'localStorage' not in code
 
 
-def test_css_has_existing_design_system():
-    page = (centre.ROOT / 'index.html').read_text(encoding='utf-8')
+def test_css_has_existing_design_system(client):
+    page = client.get('/command-centre').text
     assert '/command-centre/szl/szl-design-system.css' in page
     assert '/command-centre/szl/szl-console.css' in page
 
@@ -189,19 +189,53 @@ def test_owned_assets_emit_body_not_zero_copy_pathsend(client):
     assert 'FileResponse(' not in inspect.getsource(centre)
 
 
-def test_missing_page_is_unavailable(client, monkeypatch, tmp_path):
+def test_missing_serving_source_is_unavailable(client, monkeypatch, tmp_path):
     monkeypatch.setattr(centre, 'ROOT', tmp_path)
     response = client.get('/command-centre')
     assert response.status_code == 503
-    assert response.json()['code'] == 'ASSET_UNAVAILABLE'
+    assert response.json()['code'] == 'PAGE_SOURCE_UNAVAILABLE'
+    manifest = client.get('/api/a11oy/v1/command-centre/manifest')
+    assert manifest.status_code == 503
+    assert manifest.json()['code'] == 'PAGE_SOURCE_UNAVAILABLE'
+
+
+def test_page_is_bound_to_python_renderer_and_exact_public_inputs(client):
+    response = client.get('/command-centre')
+    assert response.content == centre.page_bytes()
+    manifest = client.get('/api/a11oy/v1/command-centre/manifest').json()
+    assert manifest['presentation']['mode'] == 'PYTHON_SERVER_RENDERED'
+    assert manifest['presentation']['renderer'] == 'routers/command_centre_view.py'
+    assert manifest['presentation']['sources'] == centre.presentation_sources()
+    assert 'routers/command_centre_web/index.html' not in manifest['presentation']['sources']
+    assert manifest['public_estate']['sha256'] == hashlib.sha256(centre.PUBLIC_ESTATE.read_bytes()).hexdigest()
+    model_bytes = json.dumps(manifest, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+    digest = hashlib.sha256(model_bytes).hexdigest()
+    assert f'data-view-input-sha256="{digest}"' in response.text
+    assert 'INVENTORY_ONLY · FOLD' in response.text
+    assert 'not a governed keeper' in response.text
 
 
 def test_vendor_exception_is_byte_bound_not_application_exemption():
-    provenance = json.loads((centre.ROOT / 'szl' / 'SOURCE.json').read_text(encoding='utf-8'))
+    vendor_root = centre.ROOT / 'szl'
+    manifest_bytes = (vendor_root / 'SOURCE.json').read_bytes()
+    provenance = json.loads(manifest_bytes)
     assert provenance['version'] == '1.3.0'
-    assert provenance['source_commit'] == '48344c27292dfefb7bb61823742ffda7fdd951ac'
-    for name, digest in provenance['sha256'].items():
-        assert hashlib.sha256((centre.ROOT / 'szl' / name).read_bytes()).hexdigest() == digest
+    assert provenance['source_commit'] == '27d12e77fc0f9f1a0e5fae8b34adf2380d51d070'
+    subset = json.loads((vendor_root / 'VENDORED.json').read_text(encoding='utf-8'))
+    assert subset['schema'] == 'szl.kanchay-vendored-subset/v1'
+    assert subset['scope'] == 'STATIC_PRESENTATION_ASSETS_ONLY'
+    assert subset['upstream'] == {
+        'repository': 'szl-holdings/szl-brand',
+        'revision': '4309f6fce89179331b0b3ed8c99494e76c5be256',
+        'manifest_path': 'kanchay/SOURCE.json',
+        'manifest_sha256': '967a77235227f1d75852fb61873e46336e67403cbc0e7e12b141e31c83fbd93d',
+    }
+    assert hashlib.sha256(manifest_bytes).hexdigest() == subset['upstream']['manifest_sha256']
+    assert set(subset['files']) == {'szl-design-system.css', 'szl-console.css'}
+    assert {p.name for p in vendor_root.iterdir()} == set(subset['files']) | {'SOURCE.json', 'VENDORED.json'}
+    for name, digest in subset['files'].items():
+        assert digest == provenance['sha256'][name]
+        assert hashlib.sha256((vendor_root / name).read_bytes()).hexdigest() == digest
     from scripts.check_banned_tokens import Allowlist
     allowlist = Allowlist.load(str(centre.ROOT.parents[1] / '.doctrine-allowlist'))
     assert allowlist.is_allowed('routers/command_centre_web/szl/szl-design-system.css')

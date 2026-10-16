@@ -11,6 +11,8 @@ import hmac
 import json
 import os
 import re
+import threading
+import time
 import uuid
 from urllib.parse import urlsplit, urlunsplit
 
@@ -24,6 +26,166 @@ _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$")
 
 class RouterContractError(ValueError):
     pass
+
+
+class ExecutionBudgetError(ValueError):
+    """A local request bound failed; never contains provider or credential text."""
+
+
+class ExecutionBudget:
+    """Opt-in bounds on client requests, requested output and observed elapsed time.
+
+    These are not a billing ceiling or an assertion about a remote provider's
+    internal retries. Reservations are consumed before dispatch and never refunded.
+    A failed or ambiguous request closes the budget instead of authorizing a retry.
+    """
+
+    _CAPS = {"max_model_requests": 32, "max_output_tokens": 32768,
+             "max_elapsed_seconds": 300}
+
+    def __init__(self, limits):
+        if (not isinstance(limits, dict) or set(limits) != set(self._CAPS)
+                or any(type(limits[key]) is not int or not 1 <= limits[key] <= cap
+                       for key, cap in self._CAPS.items())):
+            raise ExecutionBudgetError("INVALID_EXECUTION_LIMITS")
+        self._limits = dict(limits)
+        self._started = time.monotonic()
+        self._deadline = self._started + limits["max_elapsed_seconds"]
+        self._lock = threading.RLock()
+        self._requests = 0
+        self._reserved = 0
+        self._reported = 0
+        self._unknown_usage = 0
+        self._pending = None
+        self._error = None
+        self._ambiguous = False
+
+    @property
+    def max_output_tokens(self):
+        return self._limits["max_output_tokens"]
+
+    @property
+    def remaining_output_tokens(self):
+        with self._lock:
+            return self.max_output_tokens - self._reserved
+
+    @property
+    def remaining_attempts(self):
+        with self._lock:
+            return self._limits["max_model_requests"] - self._requests
+
+    def check(self):
+        with self._lock:
+            if self._error:
+                raise ExecutionBudgetError(self._error)
+            remaining = self._deadline - time.monotonic()
+            if remaining <= 0:
+                self.fail("EXECUTION_DEADLINE_EXCEEDED", ambiguous=self._pending is not None)
+                raise ExecutionBudgetError(self._error)
+            return remaining
+
+    def preflight(self, attempts, output_tokens):
+        with self._lock:
+            self.check()
+            if (type(attempts) is not int or attempts < 1
+                    or type(output_tokens) is not int or output_tokens < attempts):
+                raise ExecutionBudgetError("INVALID_EXECUTION_PREFLIGHT")
+            if self._pending is not None:
+                raise ExecutionBudgetError("EXECUTION_REQUEST_ALREADY_PENDING")
+            if attempts > self.remaining_attempts:
+                raise ExecutionBudgetError("EXECUTION_REQUEST_BUDGET_INSUFFICIENT")
+            if output_tokens > self.remaining_output_tokens:
+                raise ExecutionBudgetError("EXECUTION_OUTPUT_BUDGET_INSUFFICIENT")
+
+    def claim_attempt(self, output_tokens):
+        with self._lock:
+            self.preflight(1, output_tokens)
+            self._requests += 1
+            self._reserved += output_tokens
+            self._pending = output_tokens
+            return self.check()
+
+    def record_output(self, output_tokens):
+        with self._lock:
+            self.check()
+            if (self._pending is None or (output_tokens is not None and (
+                    type(output_tokens) is not int or not 0 <= output_tokens <= self._pending))):
+                self.fail("EXECUTION_OUTPUT_USAGE_INVALID", ambiguous=True)
+                raise ExecutionBudgetError(self._error)
+            if output_tokens is None:
+                self.fail("EXECUTION_OUTPUT_USAGE_UNAVAILABLE", ambiguous=True)
+                raise ExecutionBudgetError(self._error)
+            self._reported += output_tokens
+            self._pending = None
+
+    def fail(self, code, ambiguous=False):
+        with self._lock:
+            if not self._error:
+                self._error = (code if isinstance(code, str)
+                               and re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", code)
+                               else "EXECUTION_FAILED")
+            self._ambiguous = self._ambiguous or bool(ambiguous)
+            if self._pending is not None:
+                self._unknown_usage += 1
+            self._pending = None
+
+    def snapshot(self):
+        with self._lock:
+            return {"limits": dict(self._limits), "model_requests": self._requests,
+                    "output_tokens_reserved": self._reserved,
+                    "output_tokens_reported": self._reported,
+                    "usage_complete": self._unknown_usage == 0 and self._pending is None,
+                    "request_pending": self._pending is not None,
+                    "terminal": self._error is not None, "error": self._error,
+                    "ambiguous": self._ambiguous,
+                    "elapsed_ms": max(0, round((time.monotonic() - self._started) * 1000)),
+                    "enforcement_scope": "CLIENT_REQUESTS_ONLY"}
+
+
+def strict_model_slug(model_id):
+    """Resolve one declared open-weight model; never select a runtime fallback."""
+    if (not isinstance(model_id, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,191}", model_id)):
+        raise ExecutionBudgetError("STRICT_MODEL_ID_REQUIRED")
+    try:
+        import a11oy_code_engine as engine
+        try:
+            from szl_substrate import szl_llm_registry as registry
+        except ImportError:
+            import szl_llm_registry as registry
+        entries = [entry for entry in registry.MODEL_REGISTRY
+                   if isinstance(entry, dict) and entry.get("model_id") == model_id]
+        # This catalog is a static source of explicit model identities, not the
+        # legacy transport's automatic fallback sequence.
+        entries += [{**entry, "model_slug": entry["id"]}
+                    for entry in engine._FALLBACK_ROSTER
+                    if isinstance(entry, dict) and entry.get("id") == model_id]
+    except (AttributeError, ImportError, TypeError) as exc:
+        raise ExecutionBudgetError("STRICT_MODEL_REGISTRY_UNAVAILABLE") from exc
+    if len(entries) != 1:
+        raise ExecutionBudgetError("STRICT_MODEL_NOT_REGISTERED")
+    if not engine._is_open_weight(entries[0]):
+        raise ExecutionBudgetError("STRICT_OPEN_WEIGHT_MODEL_REQUIRED")
+    slug = entries[0].get("model_slug")
+    if (not isinstance(slug, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,191}", slug)
+            or any(part.lower() in {"auto", "automatic", "default", "best", "fastest", "cheapest"}
+                   for part in slug.split("/"))):
+        raise ExecutionBudgetError("STRICT_MODEL_SLUG_INVALID")
+    return slug
+
+
+def strict_governance_admission(governance):
+    """A governance allow alone cannot waive a classified route's egress rule."""
+    route = governance.get("route") if isinstance(governance, dict) else None
+    sensitivity = route.get("sensitivity") if isinstance(route, dict) else None
+    if (not isinstance(governance, dict) or governance.get("decision") != "allow"
+            or not isinstance(sensitivity, dict)
+            or not isinstance(sensitivity.get("class"), str)
+            or sensitivity.get("class") not in {"PUBLIC", "INTERNAL"}
+            or route.get("airgap_required") is not False):
+        raise ExecutionBudgetError("STRICT_GOVERNANCE_EGRESS_DENIED")
+    return sensitivity["class"]
 
 
 def _digest(value):
@@ -233,10 +395,14 @@ def _model_plan(client, base, headers, request, expected_upstream_model):
 
 
 def complete(prompt, *, classification, request_id=None, request_origin="",
-             model=None, expected_upstream_model=None):
-    """Execute once after the caller's governance allow; no provider fallback."""
+             model=None, expected_upstream_model=None, execution_budget=None):
+    """One gateway request after governance; the gateway may try provider candidates."""
     evidence = {"state": "UNAVAILABLE", "answer": None, "signature_state": "UNSIGNED",
                 "receipt_kind": "HASH_INTEGRITY_ONLY", "http_status": 503}
+    if execution_budget is not None:
+        # The gateway contract cannot prohibit its provider retries or fallback.
+        # A post-response attempt trail cannot establish pre-dispatch admission.
+        return {**evidence, "error": "STRICT_ROUTER_TRANSPORT_UNSUPPORTED"}
     try:
         base, token, revision, configured_model = _configuration(request_origin)
         model = configured_model if model is None else model

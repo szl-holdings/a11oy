@@ -436,6 +436,7 @@ def test_selected_model_rejects_rehashed_but_unbound_completion(wired, field, va
 @pytest.fixture
 def eval_arena(monkeypatch, governed):
     import szl_eval_arena as arena
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "eval-router-test-only")
     monkeypatch.setattr(arena, "_registry_snapshot", lambda: {
         "available": True, "any_key_wired": True,
         "models": {"example": {"model_id": "example", "model_slug": "fixture-model"}}})
@@ -521,7 +522,8 @@ def test_eval_http_invalid_execution_mode_returns_422_without_transport(wired, e
     app = FastAPI()
     eval_arena.register(app)
     with TestClient(app) as client:
-        response = client.post("/api/a11oy/v1/eval/run", json={
+        response = client.post("/api/a11oy/v1/eval/run",
+            headers={"Authorization": "Bearer eval-router-test-only"}, json={
             "suite": "isolated", "model_id": "example", "execution_mode": mode})
     assert response.status_code == 422
     assert wired["requests"] == []
@@ -573,8 +575,9 @@ def test_eval_http_provider_work_does_not_block_serving_event_loop(wired, eval_a
     import asyncio
     async def scenario():
         async with _AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://eval.test") as client:
-            pending = asyncio.create_task(client.post("/api/a11oy/v1/eval/run", json={
-                "suite": "isolated", "model_id": "example"}))
+            pending = asyncio.create_task(client.post("/api/a11oy/v1/eval/run",
+                headers={"Authorization": "Bearer eval-router-test-only"}, json={
+                "suite": "isolated", "model_id": "example", "execution_mode": "live"}))
             for _ in range(100):
                 if entered.is_set():
                     break
@@ -591,3 +594,311 @@ def test_eval_http_provider_work_does_not_block_serving_event_loop(wired, eval_a
         asyncio.run(scenario())
     finally:
         release.set()
+
+
+STRICT_LIMITS = {"max_model_requests": 2, "max_output_tokens": 12, "max_elapsed_seconds": 20}
+STRICT_MODEL = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+
+
+@pytest.mark.parametrize("key", STRICT_LIMITS)
+@pytest.mark.parametrize("value", [True, False, None, "1", 1.0, 0, -1, float("nan"), float("inf")])
+def test_strict_budget_rejects_coercion_and_nonfinite_limits(key, value):
+    with pytest.raises(adapter.ExecutionBudgetError, match="INVALID_EXECUTION_LIMITS"):
+        adapter.ExecutionBudget({**STRICT_LIMITS, key: value})
+
+
+@pytest.mark.parametrize("limits", [None, [], {}, {**STRICT_LIMITS, "retry": 0},
+    {**STRICT_LIMITS, "max_model_requests": 33}, {**STRICT_LIMITS, "max_output_tokens": 32769},
+    {**STRICT_LIMITS, "max_elapsed_seconds": 301}])
+def test_strict_budget_requires_exact_bounded_shape(limits):
+    with pytest.raises(adapter.ExecutionBudgetError):
+        adapter.ExecutionBudget(limits)
+
+
+def test_strict_budget_no_refund_and_pending_attempt_is_exclusive():
+    budget = adapter.ExecutionBudget(STRICT_LIMITS)
+    budget.claim_attempt(8)
+    with pytest.raises(adapter.ExecutionBudgetError, match="ALREADY_PENDING"):
+        budget.claim_attempt(1)
+    budget.record_output(1)
+    assert budget.remaining_output_tokens == 4
+    budget.claim_attempt(4)
+    budget.record_output(0)
+    with pytest.raises(adapter.ExecutionBudgetError, match="BUDGET_INSUFFICIENT"):
+        budget.claim_attempt(1)
+    assert budget.snapshot()["output_tokens_reserved"] == 12
+    assert budget.snapshot()["output_tokens_reported"] == 1
+
+
+@pytest.mark.parametrize("usage", [None, True, -1, 4, 1.0, float("nan"), float("inf")])
+def test_strict_budget_ambiguous_usage_is_terminal(usage):
+    budget = adapter.ExecutionBudget(STRICT_LIMITS)
+    budget.claim_attempt(3)
+    with pytest.raises(adapter.ExecutionBudgetError):
+        budget.record_output(usage)
+    assert budget.snapshot()["terminal"] is True
+    assert budget.snapshot()["ambiguous"] is True
+    with pytest.raises(adapter.ExecutionBudgetError):
+        budget.claim_attempt(1)
+
+
+def test_strict_budget_deadline_is_shared_and_cannot_be_extended(monkeypatch):
+    clock = [10.0]
+    monkeypatch.setattr(adapter.time, "monotonic", lambda: clock[0])
+    budget = adapter.ExecutionBudget({**STRICT_LIMITS, "max_elapsed_seconds": 2})
+    assert budget.claim_attempt(3) == 2.0
+    clock[0] = 12.01
+    with pytest.raises(adapter.ExecutionBudgetError, match="DEADLINE"):
+        budget.record_output(1)
+    assert budget.snapshot()["ambiguous"] is True
+    clock[0] = 10.0
+    with pytest.raises(adapter.ExecutionBudgetError, match="DEADLINE"):
+        budget.claim_attempt(1)
+
+
+def test_strict_budget_concurrent_claims_cannot_share_an_attempt():
+    from concurrent.futures import ThreadPoolExecutor
+    budget = adapter.ExecutionBudget(STRICT_LIMITS)
+    barrier = threading.Barrier(8)
+    def claim():
+        barrier.wait(timeout=5)
+        try:
+            budget.claim_attempt(3)
+            return True
+        except adapter.ExecutionBudgetError:
+            return False
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        assert sum(pool.map(lambda _: claim(), range(8))) == 1
+    assert budget.snapshot()["model_requests"] == 1
+    assert budget.snapshot()["output_tokens_reserved"] == 3
+    budget.record_output(2)
+
+
+def test_legacy_gateway_refuses_strict_contract_before_any_transport(wired):
+    result = adapter.complete("Explain a public example.", classification="PUBLIC",
+                              execution_budget=adapter.ExecutionBudget(STRICT_LIMITS))
+    assert result["error"] == "STRICT_ROUTER_TRANSPORT_UNSUPPORTED"
+    assert wired["requests"] == []
+
+
+@pytest.fixture
+def strict_eval(eval_arena, monkeypatch):
+    import a11oy_code_engine as engine
+    import a11oy_vertical_feeds as feeds
+    monkeypatch.setattr(engine, "_MODEL_BASE_URL", "https://fixed-model.example/v1")
+    monkeypatch.setattr(engine, "_HF_TOKEN", "")
+    monkeypatch.setattr(engine, "_LOCAL_MODEL_CMD", "")
+    suite = eval_arena._SUITES["isolated"]
+    suite["cases"].append({**suite["cases"][0], "id": "two", "input": "Explain a second public example."})
+    state = {"requests": [], "writes": [], "signs": [], "forum": [], "mode": "success"}
+    original_governed = feeds.governed_turn
+    def govern(*args, **kwargs):
+        if kwargs.get("emit_receipt", True):
+            state["writes"].append(args[1])
+        return original_governed(*args, **kwargs)
+    monkeypatch.setattr(feeds, "governed_turn", govern)
+    def sign(body):
+        state["signs"].append(body)
+        return {"signed": False}, {"state": "UNSIGNED"}
+    def forum(*args):
+        state["forum"].append(args)
+        return {"ingested": False}
+    monkeypatch.setattr(eval_arena, "_sign", sign)
+    monkeypatch.setattr(eval_arena, "_ingest_forum", forum)
+    def provider(req):
+        state["requests"].append(req)
+        assert str(req.url) == "https://fixed-model.example/v1/chat/completions"
+        body = json.loads(req.content)
+        assert body["model"] == STRICT_MODEL
+        assert "ground-truth-do-not-send" not in req.content.decode()
+        assert body["max_tokens"] <= 12
+        if state["mode"] == "blocked":
+            state["entered"].set()
+            assert state["release"].wait(5)
+        if state["mode"] == "timeout":
+            raise httpx.ReadTimeout("isolated transport interruption", request=req)
+        if state["mode"] in {"http", "redirect"}:
+            return httpx.Response(429 if state["mode"] == "http" else 307,
+                                  headers={"Location": "https://forbidden.example/"})
+        completion = {"model": STRICT_MODEL, "choices": [{"index": 0,
+            "message": {"role": "assistant", "content": "Isolated model response."}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5}}
+        if state["mode"] == "wrong-model":
+            completion["model"] = "different-model"
+        elif state["mode"] == "missing-usage":
+            completion.pop("usage")
+        elif state["mode"] == "over-limit":
+            completion["usage"]["completion_tokens"] = 1000
+        return httpx.Response(200, json=completion)
+    monkeypatch.setattr(httpx, "Client", lambda **kw: _Client(
+        **{**kw, "transport": httpx.MockTransport(provider)}))
+    return eval_arena, state
+
+
+def test_strict_eval_real_transport_uses_one_selected_model_and_shared_bounds(strict_eval):
+    arena, state = strict_eval
+    result = arena.run_eval("isolated", STRICT_MODEL, execution_limits=STRICT_LIMITS)
+    assert result["status_code"] == 200, result
+    assert result["aggregate"]["execution_complete"] is True
+    assert result["aggregate"]["model_qualified"] is False
+    assert result["aggregate"]["accuracy"] == 0.0
+    assert len(state["requests"]) == 2
+    assert [json.loads(req.content)["max_tokens"] for req in state["requests"]] == [6, 6]
+    assert result["execution_budget"]["model_requests"] == 2
+    assert result["execution_budget"]["output_tokens_reserved"] == 12
+    assert result["execution_budget"]["output_tokens_reported"] == 6
+    assert result["execution_budget"]["usage_complete"] is True
+    assert result["receipt"]["body"]["execution_budget"]["output_tokens_reserved"] == 12
+    assert result["results"][0]["generation"]["state"] == "CLIENT_COMPLETED"
+    assert result["results"][0]["generation"]["receipt_kind"] == "CLIENT_OBSERVATION_ONLY"
+
+
+@pytest.mark.parametrize("mode", ["timeout", "http", "redirect", "wrong-model", "missing-usage", "over-limit"])
+def test_strict_eval_failed_or_ambiguous_request_stops_whole_suite(strict_eval, mode):
+    arena, state = strict_eval
+    state["mode"] = mode
+    result = arena.run_eval("isolated", STRICT_MODEL, execution_limits=STRICT_LIMITS)
+    assert len(state["requests"]) == 1
+    assert result["aggregate"]["execution_complete"] is False
+    assert result["aggregate"]["n_evaluated"] == 0
+    assert result["aggregate"]["accuracy"] is None
+    assert result["execution_budget"]["terminal"] is True
+    assert result["execution_budget"]["ambiguous"] is True
+    assert result["results"][1]["error"] == "STRICT_EVAL_STOPPED"
+    assert len(state["writes"]) == 1
+
+
+@pytest.mark.parametrize("bad_case", [
+    {"input": ""}, {"input": []}, {"id": "one"}, {"expected": None}, {"scorer": "missing"},
+    {"scorer": "regex", "expected": "["}, {"input": "My SSN is 123-45-6789"},
+    {"input": "Explain patient care methods."},
+])
+def test_strict_eval_late_invalid_or_denied_case_prevents_all_effects(strict_eval, bad_case):
+    arena, state = strict_eval
+    arena._SUITES["isolated"]["cases"][1].update(bad_case)
+    result = arena.run_eval("isolated", STRICT_MODEL, execution_limits=STRICT_LIMITS)
+    assert result["status_code"] == 422
+    assert state["requests"] == state["writes"] == state["signs"] == state["forum"] == []
+
+
+@pytest.mark.parametrize("limits", [
+    {**STRICT_LIMITS, "max_model_requests": 1}, {**STRICT_LIMITS, "max_output_tokens": 1},
+])
+def test_strict_eval_whole_suite_capacity_checked_before_effects(strict_eval, limits):
+    arena, state = strict_eval
+    result = arena.run_eval("isolated", STRICT_MODEL, execution_limits=limits)
+    assert result["status_code"] == 422
+    assert state["requests"] == state["writes"] == state["signs"] == state["forum"] == []
+
+
+def test_strict_eval_shared_model_selection_cannot_change_between_steps(strict_eval):
+    arena, state = strict_eval
+    result = arena.run_eval("isolated", STRICT_MODEL,
+        execution_budget=adapter.ExecutionBudget(STRICT_LIMITS), selected_model_slug="different/model")
+    assert result["error"] == "STRICT_MODEL_SELECTION_CHANGED"
+    assert state["requests"] == state["writes"] == state["signs"] == state["forum"] == []
+
+
+def test_strict_eval_rechecks_egress_at_actual_case_dispatch(strict_eval, monkeypatch):
+    arena, state = strict_eval
+    import a11oy_vertical_feeds as feeds
+    original = feeds.governed_turn
+    def changed_policy(*args, **kwargs):
+        result = original(*args, **kwargs)
+        if kwargs.get("emit_receipt", True):
+            result["route"]["sensitivity"]["class"] = "SECRET"
+            result["route"]["airgap_required"] = True
+        return result
+    monkeypatch.setattr(feeds, "governed_turn", changed_policy)
+    result = arena.run_eval("isolated", STRICT_MODEL, execution_limits=STRICT_LIMITS)
+    assert state["requests"] == []
+    assert len(state["writes"]) == 1
+    assert result["aggregate"]["execution_complete"] is False
+    assert result["execution_budget"]["terminal"] is True
+
+
+def test_strict_eval_late_receipt_does_not_report_bounded_completion(strict_eval, monkeypatch):
+    arena, state = strict_eval
+    clock = [10.0]
+    monkeypatch.setattr(adapter.time, "monotonic", lambda: clock[0])
+    original = arena._sign
+    def late_sign(body):
+        result = original(body)
+        clock[0] = 40.0
+        return result
+    monkeypatch.setattr(arena, "_sign", late_sign)
+    result = arena.run_eval("isolated", STRICT_MODEL, execution_limits=STRICT_LIMITS)
+    assert len(state["requests"]) == 2
+    assert result["aggregate"]["execution_complete"] is False
+    assert result["error"] == "STRICT_EVAL_NOT_COMPLETED_WITHIN_LIMITS"
+    assert result["execution_budget"]["error"] == "EXECUTION_DEADLINE_EXCEEDED"
+    assert result["receipt"]["body"]["aggregate"]["execution_complete"] is True
+    assert result["receipt"]["body"]["execution_budget"]["terminal"] is False
+    assert result["execution_complete"] is False
+    assert result["state"] == "UNAVAILABLE"
+    assert state["forum"] == []
+
+
+def test_strict_eval_deadline_before_signing_skips_new_receipt_effects(strict_eval, monkeypatch):
+    arena, state = strict_eval
+    clock = [10.0]
+    monkeypatch.setattr(adapter.time, "monotonic", lambda: clock[0])
+    original = arena._solve_case
+    def expired_after_response(*args, **kwargs):
+        result = original(*args, **kwargs)
+        clock[0] = 40.0
+        return result
+    monkeypatch.setattr(arena, "_solve_case", expired_after_response)
+    result = arena.run_eval("isolated", STRICT_MODEL, execution_limits=STRICT_LIMITS)
+    assert len(state["requests"]) == 1
+    assert state["signs"] == state["forum"] == []
+    assert result["receipt"]["dsse"]["state"] == "NOT_PRODUCED"
+    assert result["aggregate"]["execution_complete"] is False
+
+
+def test_strict_eval_request_cancellation_stops_worker_followup_effects(strict_eval, monkeypatch):
+    import asyncio
+    arena, state = strict_eval
+    state.update(mode="blocked", entered=threading.Event(), release=threading.Event())
+    finished = threading.Event()
+    observed = []
+    original = arena.run_eval
+    def observe(*args, **kwargs):
+        try:
+            result = original(*args, **kwargs)
+            observed.append(result)
+            return result
+        finally:
+            finished.set()
+    monkeypatch.setattr(arena, "run_eval", observe)
+    app = FastAPI()
+    arena.register(app)
+    async def scenario():
+        async with _AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://eval.test") as client:
+            pending = asyncio.create_task(client.post("/api/a11oy/v1/eval/run",
+                headers={"Authorization": "Bearer eval-router-test-only"}, json={
+                    "suite": "isolated", "model_id": STRICT_MODEL,
+                    "execution_mode": "live", "execution_limits": STRICT_LIMITS}))
+            try:
+                assert await asyncio.to_thread(state["entered"].wait, 5)
+                pending.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await pending
+            finally:
+                state["release"].set()
+            assert await asyncio.to_thread(finished.wait, 5)
+    try:
+        asyncio.run(scenario())
+    finally:
+        state["release"].set()
+    assert len(state["requests"]) == 1
+    assert state["signs"] == state["forum"] == []
+    assert observed[0]["execution_budget"]["error"] == "EXECUTION_CANCELLED"
+    assert observed[0]["receipt"]["dsse"]["state"] == "NOT_PRODUCED"
+    assert observed[0]["execution_complete"] is False
+
+
+@pytest.mark.parametrize("model", ["openrouter_auto", "claude_sonnet_4_6", "auto", "Qwen/missing", None, True])
+def test_strict_model_requires_declared_explicit_open_weight_identity(model):
+    with pytest.raises(adapter.ExecutionBudgetError):
+        adapter.strict_model_slug(model)

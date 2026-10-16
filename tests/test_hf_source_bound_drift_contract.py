@@ -32,7 +32,11 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("if: github.event_name == 'pull_request'", self.pr_job)
         self.assertIn("github.event.pull_request.base.sha", self.pr_job)
         self.assertNotIn("github.event.pull_request.head.sha", self.pr_job)
-        self.assertIn("verify_hf_repository_parity.py", self.pr_job)
+        self.assertIn(
+            '"$pythonLocation/bin/python3" -I -B '
+            "baseline/.github/scripts/verify_hf_repository_parity.py",
+            self.pr_job,
+        )
         self.assertIn('--github-ref "$SOURCE_REF"', self.pr_job)
         self.assertIn("hf-current-base-parity.out.json", self.pr_job)
         self.assertNotIn("source-probe-path", self.pr_job)
@@ -58,6 +62,7 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn("ref: ${{ github.sha }}", self.repository_job)
         self.assertIn("SOURCE_REF: ${{ github.sha }}", self.repository_job)
         self.assertIn(
+            '"$pythonLocation/bin/python3" -I -B '
             "source/.github/scripts/verify_hf_repository_parity.py",
             self.repository_job,
         )

@@ -77,6 +77,16 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
+
+def _state_store_dir(name: str) -> Optional[str]:
+    """Local directory owned by the a11oy state store, when A11OY_STATE_STORE=v2."""
+    try:
+        import a11oy_state_store
+    except ImportError:  # organ copies of this module ship without it
+        return None
+    directory = a11oy_state_store.local_dir(name)
+    return None if directory is None else str(directory)
+
 # ---------------------------------------------------------------------------
 # Doctrine constants — the v11 LOCK. These are load-bearing; tests assert them.
 # ---------------------------------------------------------------------------
@@ -390,8 +400,11 @@ class DurableKhipu:
         self._db: Optional[sqlite3.Connection] = None
         self._json_path: Optional[str] = None
 
-        # Resolve a writable path. Honor an env override; else a per-organ default.
-        default_dir = os.environ.get(
+        # Resolve a writable path. The a11oy state store (A11OY_STATE_STORE=v2)
+        # owns the live file on local disk; else honor an env override; else a
+        # per-organ default.
+        state_dir = _state_store_dir("khipu")
+        default_dir = str(state_dir) if state_dir is not None else os.environ.get(
             "SZL_KHIPU_DIR", os.environ.get("HOME", "/tmp") + "/.szl_khipu"
         )
         self._path = path or os.path.join(default_dir, f"khipu_{self.ns}.sqlite3")
@@ -755,15 +768,16 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         "status": "ABSENT",
         "signing_available": False,
         "scheme": "UNAVAILABLE",
+        "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+        "availability_evaluated": False,
+        "runtime_status_endpoint": "/api/a11oy/healthz",
     }
 
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
         live = {
-            "status": "ABSENT",
-            "signing_available": False,
-            "scheme": "UNAVAILABLE",
+            **_SIGNER_ABSENT,
             "mint": "POST /api/a11oy/khipu/sign",
             "rollup": "/api/a11oy/healthz",
             "pubkey": "/cosign.pub",
@@ -777,6 +791,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             live["error"] = type(exc).__name__
         return {
             "status": "ok",
+            "scope": "PROCESS_LIVENESS",
+            "capability_readiness_asserted": False,
+            "operational_readiness_endpoint": "/api/a11oy/healthz",
             "organ": organ,
             "doctrine": DOCTRINE,
             "lock": "749/14/163",
@@ -902,6 +919,14 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                 "principle": "HONESTY OVER CHECKLIST.",
             },
         }
+
+    # Product-edge fallback must use this exact handler, which owns the public
+    # /api/a11oy/v1/honest route, rather than serve.py's older shadowed route.
+    if organ == "a11oy":
+        app.add_api_route(
+            "/controller", _honest, methods=["GET", "HEAD"],
+            include_in_schema=False,
+        )
 
     report["registered"].append("honest_footer")
 

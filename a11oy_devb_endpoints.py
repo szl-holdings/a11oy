@@ -103,6 +103,21 @@ def _variant_cache_key(source: str, **parameters: Any) -> str:
     return f"{source}|{hashlib.sha256(canonical).hexdigest()[:20]}"
 
 
+def _courtlistener_cache_key(term: str, limit: int, kind: str) -> str:
+    if _HAS_VF and hasattr(_vf, "_courtlistener_cache_key"):
+        return _vf._courtlistener_cache_key(term, limit, kind)
+    normalized_term = re.sub(r"\s+", " ", str(term).strip()).casefold()
+    return _variant_cache_key(
+        "courtlistener", term=normalized_term, limit=limit, kind=kind,
+    )
+
+
+def _courtlistener_cache_ttl_s() -> float:
+    if _HAS_VF and hasattr(_vf, "_COURTLISTENER_CACHE_TTL_S"):
+        return float(_vf._COURTLISTENER_CACHE_TTL_S)
+    return 3600.0
+
+
 def _bounded_limit(value: Any, default: int, maximum: int) -> int:
     try:
         parsed = int(value)
@@ -366,7 +381,8 @@ def _local_refresh_failure(rec: Optional[dict[str, Any]],
     }}
 
 
-def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = None) -> dict[str, Any]:
+def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = None,
+            require_shared: bool = False) -> dict[str, Any]:
     if not _source_url_allowed(url):
         return {"value": None, "freshness": {
             "status": "unavailable", "error": "external feed URL requires HTTPS",
@@ -382,7 +398,14 @@ def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = 
     with _LOCAL_CACHE_LOCK:
         rec = _LOCAL_CACHE.get(key)
         rec = dict(rec) if rec else None
-    if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
+    if require_shared:
+        # CourtListener must never escape its provider-wide scheduler via this
+        # standalone transport if the shared module is missing or has failed.
+        return _local_refresh_failure(
+            rec, RuntimeError("CourtListener shared provider scheduler unavailable"),
+        )
+    if (rec and rec.get("status") == "live"
+            and (now - rec["fetched_at"]) < min(rec["ttl"], ttl)):
         return {"value": rec["value"], "freshness": _fresh(rec)}
 
     flight, is_leader = _claim_local_refresh(key)
@@ -396,7 +419,7 @@ def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = 
         current = _LOCAL_CACHE.get(key)
         current = dict(current) if current else None
     if (current and current.get("status") == "live"
-            and (current_now - current["fetched_at"]) < current["ttl"]):
+            and (current_now - current["fetched_at"]) < min(current["ttl"], ttl)):
         result = {"value": current["value"], "freshness": _fresh(current)}
         _finish_local_refresh(key, flight, result)
         return result
@@ -661,8 +684,9 @@ def feed_courtlistener(term: str, limit: int = 20, kind: str = "o") -> dict[str,
             })
         return {"count": d.get("count"), "term": term, "items": items}
 
-    return _cached(_variant_cache_key("cl", kind=kind, term=term, limit=limit),
-                   url, ttl=900, parser=parse)
+    return _cached(_courtlistener_cache_key(term, limit, kind),
+                   url, ttl=_courtlistener_cache_ttl_s(), parser=parse,
+                   require_shared=True)
 
 
 def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]:

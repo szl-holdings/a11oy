@@ -59,6 +59,9 @@ HONESTY (absolute):
   * Nothing here touches the locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}. locked8_touched:false.
 
 Endpoint: POST /api/a11oy/v1/agentloop/run ; GET /api/a11oy/v1/agentloop/health.
+The POST requires the operator Bearer and the code run-loop's configured tenant
+before parsing a task. This admission check does not establish tenant-isolated
+storage or authorize a live acceptance probe.
 Routes inserted BEFORE the SPA catch-all, try/except guarded (never takes the Space down).
 Reuses the HOST app's REAL signer passed in from serve.py (same one the engine uses).
 """
@@ -67,7 +70,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
+import re
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
@@ -174,6 +180,21 @@ def _refused(request, action: str):
     return _opauth.operator_refusal(request, action)
 
 
+def _tenant_refusal(request):
+    """Share the code run-loop's configured-tenant admission, or fail closed."""
+    from starlette.responses import JSONResponse
+
+    check = getattr(_runloop, "_tenant_refusal", None) if _RUNLOOP_OK else None
+    if not callable(check):
+        return JSONResponse({"ok": False, "status": "BLOCKED",
+                             "error": "tenant admission unavailable"}, status_code=503)
+    try:
+        return check(request)
+    except Exception:
+        return JSONResponse({"ok": False, "status": "BLOCKED",
+                             "error": "tenant admission unavailable"}, status_code=503)
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -199,6 +220,241 @@ def _default_eval_suite(mode: str) -> str:
     return "core_honest_v1"
 
 
+def _json_evidence(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _json_evidence(item) for key, item in value.items() if isinstance(key, str)}
+    if isinstance(value, list):
+        return [_json_evidence(item) for item in value]
+    if type(value) is float and not math.isfinite(value):
+        return None
+    return deepcopy(value) if value is None or type(value) in (str, int, float, bool) else None
+
+
+def _fields(value: Any, names: tuple[str, ...]) -> dict:
+    return {key: _json_evidence(value[key]) for key in names if key in value} if isinstance(value, dict) else {}
+
+
+def _error_code(value: Any) -> Optional[str]:
+    if value is None or value == "":
+        return None
+    codes = {"MODEL_NOT_REGISTERED", "INVALID_EVAL_PROMPT", "EVAL_GOVERNANCE_NOT_ALLOWED",
+             "SOVEREIGN_MODEL_UNAVAILABLE", "MODEL_SLUG_REQUIRED", "MODEL_RESPONSE_UNAVAILABLE",
+             "EVAL_TRANSPORT_OR_GOVERNANCE_UNAVAILABLE", "HARNESS_TRANSPORT_UNAVAILABLE",
+             "ROUTER_CONFIGURATION_REQUIRED", "ROUTER_REQUEST_FAILED",
+             "ROUTER_TRANSPORT_OR_CONTRACT_ERROR", "ROUTER_SELECTED_MODEL_MISMATCH",
+             "ENGINE_CALL_FAILED", "SELF_EVAL_FAILED", "SELF_EVAL_UNAVAILABLE"}
+    return value if isinstance(value, str) and value in codes else "UPSTREAM_ERROR_REDACTED"
+
+
+def _finite_number(value: Any) -> bool:
+    return type(value) is int or (type(value) is float and math.isfinite(value))
+
+
+def _nonfinite_evidence(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(_nonfinite_evidence(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_nonfinite_evidence(item) for item in value)
+    return type(value) is float and not math.isfinite(value)
+
+
+def _generation_evidence(value: Any) -> Optional[dict]:
+    if not isinstance(value, dict):
+        return None
+    # Only the transport's documented observation fields; never copy headers,
+    # arbitrary provider extensions, configured URLs, or free-form errors.
+    evidence = _fields(value, ("state", "answer", "refusal", "http_status", "source_revision",
+                               "request_id", "source_binding", "signature_state", "receipt_kind",
+                               "energy", "requested", "backend_id", "model_slug", "reachable",
+                               "live", "text_present", "api_style", "attempts", "execution_budget"))
+    if "error" in value:
+        evidence["error"] = _error_code(value["error"])
+    if _nonfinite_evidence(value):
+        evidence["error"] = "INVALID_NUMERIC_EVIDENCE"
+    if isinstance(value.get("receipt"), dict):
+        evidence["receipt"] = _fields(value["receipt"], (
+            "schema", "algorithm", "digest", "request_digest", "response_digest", "plan_digest",
+            "provider_id", "public_model", "upstream_model", "classification",
+            "secret_material_recorded", "elapsed_ms"))
+        if isinstance(value["receipt"].get("attempts"), list):
+            evidence["receipt"]["attempts"] = [
+                _fields(row, ("provider_id", "state", "status_code"))
+                for row in value["receipt"]["attempts"]]
+    if isinstance(value.get("completion"), dict):
+        completion = value["completion"]
+        evidence["completion"] = _fields(completion, ("id", "model", "object", "created"))
+        if isinstance(completion.get("choices"), list):
+            choices = []
+            for choice in completion["choices"]:
+                row = _fields(choice, ("index", "finish_reason"))
+                if isinstance(choice, dict) and isinstance(choice.get("message"), dict):
+                    row["message"] = _fields(choice["message"], ("role", "content", "refusal"))
+                choices.append(row)
+            evidence["completion"]["choices"] = choices
+    return evidence
+
+
+def _eval_evidence(value: Any) -> dict:
+    if not isinstance(value, dict):
+        return {"error": "SELF_EVAL_UNAVAILABLE"}
+    evidence = _fields(value, ("status_code", "suite", "model_id", "execution_mode",
+                               "honesty_label", "aggregate", "receipt", "execution_budget",
+                               "execution_complete"))
+    if "error" in value:
+        evidence["error"] = _error_code(value["error"])
+    if _nonfinite_evidence(value):
+        evidence["error"] = "INVALID_NUMERIC_EVIDENCE"
+    if isinstance(value.get("results"), list):
+        rows = []
+        for result in value["results"]:
+            row = _fields(result, ("id", "category", "scorer", "input", "expected", "answer",
+                                   "answer_sha256", "passed", "pipeline_passed", "evaluated",
+                                   "refused", "honesty_label", "governance"))
+            if isinstance(result, dict):
+                if "error" in result:
+                    row["error"] = _error_code(result["error"])
+                if "generation" in result:
+                    row["generation"] = _generation_evidence(result["generation"])
+                    # The projection above excludes provider extensions. Preserve
+                    # their existing content binding without publishing them.
+                    row["generation_source_sha256"] = _sha256(_canon(result["generation"]))
+            rows.append(row)
+        evidence["results"] = rows
+    return evidence
+
+
+def _reported_eval_complete(evidence: dict, model_id: str, suite_id: str) -> bool:
+    aggregate = evidence.get("aggregate")
+    results = evidence.get("results")
+    if "execution_budget" in evidence:
+        final_budget = evidence["execution_budget"]
+        if (not isinstance(final_budget, dict) or final_budget.get("terminal") is not False
+                or final_budget.get("usage_complete") is not True
+                or final_budget.get("request_pending") is not False
+                or evidence.get("execution_complete") is not True):
+            return False
+    if (not isinstance(aggregate, dict) or not isinstance(results, list)
+            or evidence.get("error") is not None or evidence.get("status_code") != 200
+            or evidence.get("model_id") != model_id
+            or not isinstance(model_id, str) or not model_id.strip()
+            or not isinstance(evidence.get("suite"), dict)
+            or evidence["suite"].get("id") != suite_id
+            or evidence.get("execution_mode") != "live" or evidence.get("honesty_label") != "LIVE"):
+        return False
+    counts = [aggregate.get(name) for name in ("n_cases", "n_evaluated", "n_passed", "n_unavailable")]
+    if not all(type(count) is int and count >= 0 for count in counts):
+        return False
+    n, evaluated, passed, unavailable = counts
+    accuracy = aggregate.get("accuracy")
+    lam = aggregate.get("lambda")
+    if (n <= 0 or evaluated != n or len(results) != n or passed > n or unavailable != 0
+            or aggregate.get("execution_complete") is not True
+            or aggregate.get("score_basis") != "MODEL_RESPONSES_ONLY"
+            or not _finite_number(accuracy) or not 0 <= accuracy <= 1
+            or abs(accuracy - round(passed / evaluated, 4)) > 0.00001
+            or (lam is not None and (not _finite_number(lam) or not 0 <= lam <= 1))):
+        return False
+    ids = set()
+    for row in results:
+        if not isinstance(row, dict):
+            return False
+        case_id = row.get("id")
+        generation = row.get("generation")
+        governance = row.get("governance")
+        if (not isinstance(case_id, str) or not case_id or case_id in ids
+                or row.get("evaluated") is not True or type(row.get("passed")) is not bool
+                or row.get("honesty_label") != "LIVE" or row.get("error") is not None
+                or not isinstance(generation, dict) or generation.get("error") is not None
+                or not isinstance(governance, dict) or governance.get("decision") != "allow"):
+            return False
+        if isinstance(generation.get("state"), str) and generation["state"] in {"COMPLETED", "REFUSED"}:
+            receipt = generation.get("receipt")
+            if not isinstance(receipt, dict) or receipt.get("public_model") != model_id:
+                return False
+            if generation["state"] == "COMPLETED" and (
+                    not isinstance(row.get("answer"), str) or not row["answer"].strip()
+                    or row["answer"] != generation.get("answer")):
+                return False
+            if generation["state"] == "REFUSED" and (
+                    row.get("refused") is not True or row.get("answer") != generation.get("refusal")):
+                return False
+        elif isinstance(generation.get("state"), str) and generation["state"] in {"CLIENT_COMPLETED", "CLIENT_REFUSED"}:
+            budget = generation.get("execution_budget")
+            if (generation.get("requested") != model_id
+                    or not isinstance(generation.get("model_slug"), str)
+                    or not generation["model_slug"]
+                    or generation.get("signature_state") != "UNSIGNED"
+                    or generation.get("receipt_kind") != "CLIENT_OBSERVATION_ONLY"
+                    or type(generation.get("attempts")) is not int or generation["attempts"] != 1
+                    or not isinstance(budget, dict) or budget.get("terminal") is not False
+                    or budget.get("usage_complete") is not True or budget.get("request_pending") is not False
+                    or budget.get("enforcement_scope") != "CLIENT_REQUESTS_ONLY"):
+                return False
+            limits = budget.get("limits")
+            if (not isinstance(limits, dict)
+                    or any(type(budget.get(key)) is not int or budget[key] < 0
+                           for key in ("model_requests", "output_tokens_reserved", "output_tokens_reported"))
+                    or type(limits.get("max_model_requests")) is not int
+                    or not 1 <= budget["model_requests"] <= limits["max_model_requests"]
+                    or type(limits.get("max_output_tokens")) is not int
+                    or not 0 <= budget["output_tokens_reported"] <= budget["output_tokens_reserved"] <= limits["max_output_tokens"]):
+                return False
+            if generation["state"] == "CLIENT_COMPLETED" and (
+                    not isinstance(row.get("answer"), str) or not row["answer"].strip()
+                    or row["answer"] != generation.get("answer")):
+                return False
+            if generation["state"] == "CLIENT_REFUSED" and (
+                    row.get("refused") is not True or row.get("answer") != generation.get("refusal")):
+                return False
+        elif not (generation.get("state") == "LIVE" and generation.get("requested") == model_id
+                  and generation.get("text_present") is True):
+            return False
+        ids.add(case_id)
+    return passed == sum(row["passed"] is True for row in results)
+
+
+def _completion(steps: list[dict], model_id: str) -> dict:
+    complete_steps = 0
+    reasons = set()
+    for step in steps:
+        final = step.get("final") or {}
+        engine = final.get("engine") or {}
+        approval = final.get("approval") or {}
+        inference = engine.get("inference") or {}
+        step_reasons = set()
+        if engine.get("decision") != "ALLOW":
+            step_reasons.add("GATE_NOT_ALLOWED")
+        if approval.get("required") is not False and not (
+                approval.get("required") is True and approval.get("granted") is True):
+            step_reasons.add("APPROVAL_NOT_GRANTED_OR_UNKNOWN")
+        if (engine.get("error") is not None or engine.get("ok") is False
+                or engine.get("emitted") is not True or engine.get("output_present") is not True):
+            step_reasons.add("ENGINE_OUTPUT_UNAVAILABLE")
+        if (not isinstance(model_id, str) or not model_id.strip() or inference.get("mode") != "generative"
+                or inference.get("model") != model_id or inference.get("error") is not None
+                or inference.get("rate_limited") is True
+                or type(inference.get("attempts")) is not int or inference["attempts"] <= 0):
+            step_reasons.add("SELECTED_MODEL_GENERATION_NOT_OBSERVED")
+        if step.get("sandbox") and (engine.get("executed") is not True
+                                     or engine.get("execution_status") != "EXECUTED"):
+            step_reasons.add("SANDBOX_EXECUTION_NOT_OBSERVED")
+        evidence = (final.get("eval") or {}).get("evidence") or {}
+        if not _reported_eval_complete(evidence, model_id, step.get("suite_id")):
+            step_reasons.add("SELF_EVAL_INCOMPLETE_OR_UNAVAILABLE")
+        complete_steps += not step_reasons
+        reasons.update(step_reasons)
+    if not steps:
+        reasons.add("NO_EXECUTED_STEPS")
+    blocked = {"GATE_NOT_ALLOWED", "APPROVAL_NOT_GRANTED_OR_UNKNOWN"}.intersection(reasons)
+    complete = bool(steps) and not reasons
+    return {"state": "OBSERVED_COMPLETE" if complete else "BLOCKED" if blocked else
+            "INCOMPLETE" if complete_steps else "UNAVAILABLE", "complete": complete,
+            "n_steps": len(steps), "n_complete_steps": complete_steps,
+            "requested_model_id": model_id or None, "reasons": sorted(reasons),
+            "evidence_basis": "UPSTREAM_REPORTED_UNVERIFIED",
+            "receipt_verification_asserted": False, "model_qualified": False}
+
+
 # ===========================================================================
 # THE GOVERNED LOOP — importable core (no FastAPI request). NEVER raises into
 # the caller; NEVER fabricates a run, an eval, a signature, or an approval.
@@ -215,7 +471,7 @@ def run_loop(task: str,
              sandbox: Optional[bool] = None,
              consult_brain: bool = False,
              allocate_energy: bool = False,
-             allow_exec: bool = False) -> dict:
+             allow_exec: bool = False, execution_budget=None, native_readbacks=None) -> dict:
     """Run ONE governed autonomous loop over a task.
 
     allow_exec (default False) is forwarded to the engine: a planned code step reaches
@@ -231,6 +487,47 @@ def run_loop(task: str,
     Returns a dict with: ok, run_id, plan, steps[], composite_receipt (signed),
     aggregate, forum_ingest, honest labels. Λ = Conjecture 1.
     """
+    strict_plan = None
+    strict_approval = None
+    if execution_budget is not None:
+        valid_budget = False
+        try:
+            from szl_router_client import ExecutionBudget, strict_governance_admission
+            valid_budget = isinstance(execution_budget, ExecutionBudget)
+            if (not valid_budget
+                    or mode != "chat" or type(max_retries) is not int or max_retries != 0
+                    or sandbox is not False or consult_brain is not False
+                    or allocate_energy is not False or allow_exec is not False
+                    or approval is not None or harness_profile_id
+                    or not isinstance(task, str) or not 0 < len(task.strip()) <= 32000
+                    or not _ENGINE_OK or not _ARENA_OK or not _APPROVAL_OK):
+                raise ValueError("STRICT_CHAT_SCOPE_REQUIRED")
+            execution_budget.check()
+            if os.environ.get("A11OY_APPROVAL_INTERRUPT") == "1":
+                check_action = getattr(_loop, "_is_state_changing", None)
+                if not callable(check_action) or check_action(task, True):
+                    raise ValueError("STRICT_APPROVAL_SCOPE_UNSUPPORTED")
+            strict_plan = _arena.prepare_strict_eval(eval_suite, model_id, execution_budget)
+            execution_budget.preflight(1 + strict_plan["n_cases"], 1 + strict_plan["n_cases"])
+            _engine.strict_transport_preflight(strict_plan["model_slug"])
+            from a11oy_vertical_feeds import governed_turn as strict_gate
+            admitted = strict_gate("agentloop", task, declared="PUBLIC",
+                                   action_kind="bounded-model-inference", emit_receipt=False)
+            strict_governance_admission(admitted)
+            strict_approval = _approval_interrupt(action="low:" + task[:60], severity="low",
+                                                  reversible=True, decision="ALLOW", grant=None)
+            if not isinstance(strict_approval, dict) or strict_approval.get("required") is not False:
+                raise ValueError("STRICT_APPROVAL_REQUIRED_OR_UNKNOWN")
+            execution_budget.check()
+        except Exception as exc:
+            code = str(exc)
+            if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", code) is None:
+                code = "STRICT_EXECUTION_ADMISSION_UNAVAILABLE"
+            if valid_budget:
+                execution_budget.fail(code)
+            return {"ok": False, "status_code": 422, "status": "BLOCKED", "error": code,
+                    "orchestration_complete": False, "completion": _completion([], model_id),
+                    "execution_limits": execution_budget.snapshot() if valid_budget else None}
     task = (task or "").strip()
     ns = ns or "a11oy"
     mode = (mode or "").lower()
@@ -243,7 +540,7 @@ def run_loop(task: str,
     # composite receipt. The per-step ACT still flows through the engine with
     # want_model=model_id; the sovereign block records the intended backend +
     # reachability so an offline run is honestly MODELED/UNAVAILABLE (no fabrication).
-    sovereign_requested = bool(_SOV_OK and _sov and _sov.is_sovereign(model_id))
+    sovereign_requested = bool(execution_budget is None and _SOV_OK and _sov and _sov.is_sovereign(model_id))
     sovereign_block = None
     sovereign_state = None
     if sovereign_requested:
@@ -278,7 +575,9 @@ def run_loop(task: str,
     if not _ENGINE_OK:
         return {
             "ok": False,
-            "error": "engine unavailable: %s" % _ENGINE_ERR,
+            "orchestration_complete": False,
+            "completion": _completion([], model_id),
+            "error": "ENGINE_UNAVAILABLE",
             "label": ("MODELED-UNAVAILABLE — the real governed engine could not be imported "
                       "in this runtime; no loop fabricated."),
             "conjecture_note": _CONJECTURE_NOTE,
@@ -286,7 +585,13 @@ def run_loop(task: str,
         }
 
     # ── PLAN — reuse the runloop's MODELED decomposition (single source of truth) ──
-    if _RUNLOOP_OK:
+    if execution_budget is not None:
+        plan_out = {"run_id": _mk_run_id(task), "task": task, "mode": "chat",
+                    "created_at": _now(), "plan": [{"n": 1,
+                        "title": "Answer the explicit bounded chat request", "mode": "chat",
+                        "prompt": task, "sandbox": False, "state_changing": False}],
+                    "label": "MODELED fixed one-step chat plan; execution is observed separately."}
+    elif _RUNLOOP_OK:
         plan_out = _runloop.plan(task, mode)
     else:  # additive fallback: minimal 1-step plan (still honest MODELED)
         eff_mode = mode if mode in ("chat", "code", "research") else "chat"
@@ -335,13 +640,22 @@ def run_loop(task: str,
             # engine itself applies the OPTIONAL harness profile for this step and
             # records its provenance in the step receipt (harness_profile_id passthrough). ──
             try:
+                bounded = {}
+                if execution_budget is not None:
+                    execution_budget.check()
+                    bounded = {"execution_budget": execution_budget,
+                               "selected_model_slug": strict_plan["model_slug"],
+                               "output_token_limit": min(700, execution_budget.remaining_output_tokens //
+                                                         (1 + strict_plan["n_cases"]))}
                 run = _engine.governed_turn(
                     step_mode, step_prompt, sign_fn, ns,
                     untrusted_input=step_untrusted,
                     run_chain=engine_chain, sandbox=step_sandbox,
                     want_model=model_id, harness_profile_id=harness_profile_id or "",
-                    allow_exec=bool(allow_exec))
+                    allow_exec=bool(allow_exec), **bounded)
             except Exception as e:  # never raise into the request
+                if execution_budget is not None:
+                    execution_budget.fail("STRICT_ENGINE_FAILED", ambiguous=True)
                 run = {"ok": False, "error": "engine error: %s" % type(e).__name__,
                        "decision": "DENY", "gate": {"severity": "high"},
                        "label": "engine raised; no run fabricated."}
@@ -377,8 +691,17 @@ def run_loop(task: str,
             eval_summary = None
             if _ARENA_OK:
                 try:
+                    eval_options = {}
+                    if execution_budget is not None:
+                        execution_budget.check()
+                        if run.get("decision") != "ALLOW" or run.get("emitted") is not True:
+                            execution_budget.fail("STRICT_ENGINE_NOT_COMPLETED")
+                            execution_budget.check()
+                        eval_options = {"execution_budget": execution_budget,
+                                        "selected_model_slug": strict_plan["model_slug"],
+                                        "native_readbacks": native_readbacks}
                     ev = _arena.run_eval(suite_id, model_id or "claude_opus_4_8",
-                                         harness_profile_id or None)
+                                         harness_profile_id or None, **eval_options)
                     agg = ev.get("aggregate") or {}
                     ev_receipt = (ev.get("receipt") or {})
                     ev_dsse = (ev_receipt.get("dsse") or {})
@@ -393,21 +716,29 @@ def run_loop(task: str,
                         "receipt_pae_sha256": ev_dsse.get("_pae_sha256"),
                         "receipt_signed": bool(ev_dsse.get("signed")),
                         "forum_ingested": bool((ev.get("forum_ingest") or {}).get("ingested")),
-                        "label": ("LIVE eval-arena scoring — deterministic suite, HELM-style "
-                                  "axes, Λ geometric mean (Conjecture 1). Its own signed receipt "
-                                  "was ingested to /llm/forum."),
+                        "evidence": _eval_evidence(ev),
+                        "source_sha256": _sha256(_canon(ev)),
+                        "label": ("Eval-arena observations retained; completion and signature "
+                                  "verification are separate from receipt presence. "
+                                  "Λ remains advisory (Conjecture 1)."),
                     }
                 except Exception as e:
+                    if execution_budget is not None:
+                        execution_budget.fail("STRICT_SELF_EVAL_FAILED")
                     eval_summary = {"suite_id": suite_id, "accuracy": None,
                                     "note": "eval-arena error: %s" % type(e).__name__,
+                                    "evidence": {"error": "SELF_EVAL_FAILED"},
                                     "label": "MODELED-UNAVAILABLE — eval-arena raised; not fabricated."}
             else:
                 eval_summary = {"suite_id": suite_id, "accuracy": None,
+                                "evidence": {"error": "SELF_EVAL_UNAVAILABLE"},
                                 "note": "szl_eval_arena not importable in this runtime.",
                                 "label": "MODELED-OFF — eval-arena unavailable; no score fabricated."}
 
             # ── (d) GATE — durable HumanApprovalGate (deny-by-default, OFF unless env=1) ──
-            if _APPROVAL_OK:
+            if execution_budget is not None:
+                approval_res = strict_approval
+            elif _APPROVAL_OK:
                 try:
                     approval_res = _approval_interrupt(
                         action=(gate.get("severity", "") + ":" + (step_prompt or "")[:60]),
@@ -423,19 +754,32 @@ def run_loop(task: str,
                                 "note": ("HumanApprovalGate primitive unavailable in this runtime "
                                          "(MODELED-OFF).")}
 
+            inference = _fields(run.get("inference"), (
+                "mode", "model", "upstream_model", "display", "license", "attempts", "rate_limited"))
+            if isinstance(run.get("inference"), dict) and "error" in run["inference"]:
+                inference["error"] = _error_code(run["inference"]["error"])
             attempt = {
                 "attempt": n_try,
                 "engine": {
                     "ok": run.get("ok"),
+                    "emitted": run.get("emitted"),
+                    "output_present": any(isinstance(value, str) and bool(value.strip()) for value in (
+                        run.get("answer"), run.get("output"),
+                        (run.get("code") or {}).get("code") if isinstance(run.get("code"), dict) else None)),
+                    "error": _error_code(run.get("error")),
+                    "inference": inference,
+                    "backend": _fields(run.get("backend"), (
+                        "backend", "mode", "primary_model", "configured", "offline", "sovereign")),
                     "decision": decision,
                     "gate_severity": gate.get("severity"),
                     "lambda": step_lambda,
                     "mode": step_mode,
                     "sandbox": step_sandbox,
-                    "executed": bool(run.get("executed")),
+                    "executed": run.get("executed") is True,
                     "execution_status": run.get("execution_status"),
                     "signed": step_signed,
                     "signed_pae_sha256": step_sig.get("_pae_sha256"),
+                    "signed_receipt": deepcopy(step_sig),
                     "answer_preview": (run.get("answer") or run.get("output") or "")[:200]
                         if isinstance(run.get("answer") or run.get("output"), str) else None,
                     "sandbox_run": (run.get("sandbox_run") or run.get("exec") or None),
@@ -444,6 +788,9 @@ def run_loop(task: str,
                 "eval": eval_summary,
                 "approval": approval_res,
             }
+            # Invalid numerical evidence remains unavailable rather than making
+            # the HTTP JSON encoder raise after the effects have already run.
+            attempt = _json_evidence(attempt)
             attempts.append(attempt)
             best = attempt
 
@@ -462,6 +809,7 @@ def run_loop(task: str,
             "n": n, "title": pstep.get("title"), "mode": step_mode,
             "sandbox": step_sandbox, "state_changing": state_changing,
             "suite_id": suite_id, "attempts": len(attempts), "final": best,
+            "attempt_evidence_sha256": _sha256(_canon(attempts)),
             "prev_digest": prev_digest,
         }
         step_digest = _sha256(_canon(step_body))
@@ -474,18 +822,41 @@ def run_loop(task: str,
             "retries": len(attempts) - 1,
             "attempts": attempts,
             "final": best,
+            "attempt_evidence_sha256": step_body["attempt_evidence_sha256"],
             "step_digest": step_digest,
         })
 
     # ── whole-run aggregate (honest; Λ is advisory Conjecture 1) ──
     n_steps = len(steps_out)
+    completion = _completion(steps_out, model_id)
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            completion.update(state="INCOMPLETE", complete=False)
+            completion["reasons"] = sorted(set(completion["reasons"] + ["EXECUTION_BUDGET_CLOSED"]))
+    retry_policy = {
+        "outer_max_retries": max_retries,
+        "engine_internal_retries_bounded": False,
+        "engine_model_fallback_disabled": False,
+        "budget_enforcement_asserted": False,
+        "note": "Outer retries do not bound the legacy engine's internal retries or model fallback.",
+    }
+    if execution_budget is not None:
+        retry_policy.update(engine_internal_retries_bounded=True,
+                            engine_model_fallback_disabled=True,
+                            budget_enforcement_asserted=True,
+                            execution_limits=execution_budget.snapshot(),
+                            note="Client dispatches and requested output are bounded; elapsed checks are cooperative. Remote retries and billed cost are not proven.")
     step_accs = [s["final"]["eval"].get("accuracy") for s in steps_out
                  if s.get("final") and s["final"].get("eval")
-                 and isinstance(s["final"]["eval"].get("accuracy"), (int, float))]
+                 and _finite_number(s["final"]["eval"].get("accuracy"))
+                 and 0 <= s["final"]["eval"]["accuracy"] <= 1]
     mean_acc = round(sum(step_accs) / len(step_accs), 4) if step_accs else None
     step_lams = [s["final"]["eval"].get("lambda") for s in steps_out
                  if s.get("final") and s["final"].get("eval")
-                 and isinstance(s["final"]["eval"].get("lambda"), (int, float))]
+                 and _finite_number(s["final"]["eval"].get("lambda"))
+                 and 0 <= s["final"]["eval"]["lambda"] <= 1]
     mean_lambda = round(min(TRUST_CEILING, sum(step_lams) / len(step_lams)), 6) if step_lams else None
     any_denied = any(s["final"]["engine"].get("decision") == "DENY"
                      for s in steps_out if s.get("final") and s["final"].get("engine"))
@@ -540,6 +911,8 @@ def run_loop(task: str,
         "harness_profile_id": harness_profile_id or None,
         "eval_suite_default": eval_suite or "(per-step mode heuristic)",
         "max_retries": max_retries,
+        "completion": completion,
+        "retry_policy": retry_policy,
         "n_steps": n_steps,
         "step_chain": [{"n": s["n"], "digest": s["step_digest"],
                         "decision": (s["final"]["engine"].get("decision") if s.get("final") else None),
@@ -597,7 +970,8 @@ def run_loop(task: str,
             "brain_energy_available": (bool(_brainfeed.brain_energy_available(ns))
                                        if _BRAINFEED_OK and _brainfeed else False),
         },
-        "leaders_cited": [{"name": l["name"], "url": l["url"]} for l in LEADERS],
+        "leaders_cited": [{"name": leader["name"], "url": leader["url"]}
+                          for leader in LEADERS],
         "doctrine": DOCTRINE,
         "kernel_commit": _KERNEL,
         "locked8": list(LOCKED8),
@@ -616,13 +990,50 @@ def run_loop(task: str,
     }
 
     # ── sign the ONE composite receipt (host signer: real ECDSA-P256 in-Space; UNSIGNED-LOCAL locally) ──
-    dsse, signing = _sign(receipt_body, sign_fn)
+    final_admitted = True
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            final_admitted = False
+    if final_admitted:
+        dsse, signing = _sign(receipt_body, sign_fn)
+    else:
+        dsse = {"signed": False, "signatures": [], "honesty": "Strict execution budget closed before composite signing."}
+        signing = {"available": False, "mode": "UNSIGNED-LOCAL"}
 
     # ── ingest the composite receipt to the shared /llm/forum ──
-    forum = _ingest_forum(receipt_body, dsse)
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            final_admitted = False
+    if execution_budget is not None and final_admitted and native_readbacks is not None:
+        try:
+            native_readbacks.record_agentloop({"body": receipt_body, "dsse": dsse, "signing": signing})
+            execution_budget.check()
+        except Exception:
+            execution_budget.fail("NATIVE_READBACK_PERSISTENCE_FAILED", ambiguous=True)
+            final_admitted = False
+    forum = (_ingest_forum(receipt_body, dsse) if final_admitted else
+             {"ingested": False, "note": "Strict execution budget closed; forum publication withheld."})
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            final_admitted = False
+        retry_policy = deepcopy(retry_policy)
+        retry_policy["execution_limits"] = execution_budget.snapshot()
+        if not final_admitted:
+            completion = deepcopy(completion)
+            completion.update(state="INCOMPLETE", complete=False)
+            completion["reasons"] = sorted(set(completion["reasons"] + ["EXECUTION_BUDGET_CLOSED"]))
 
     return {
-        "ok": True,
+        "ok": completion["complete"],
+        "orchestration_complete": True,
+        "completion": completion,
+        "retry_policy": retry_policy,
         "status_code": 200,
         "surface": "szl_agent_loop_governed",
         "run_id": run_id,
@@ -652,11 +1063,9 @@ def run_loop(task: str,
         "doctrine": DOCTRINE,
         "kernel_commit": _KERNEL,
         "conjecture_note": _CONJECTURE_NOTE,
-        "label": ("LIVE governed agent loop — Brain-vault context (corpus='brain', advisory) → "
-                  "plan (MODELED) → act (engine P1-P6, Λ-gate, sandbox) → self-eval (eval-arena) "
-                  "→ HumanApprovalGate → bounded retry → Brain-harnessed energy allocation "
-                  "(/brain/energy, advisory) → ONE composite signed receipt chaining "
-                  "brain-context + profile + steps + eval + energy, ingested to /llm/forum. "
+        "label": (completion["state"] + " — governed loop orchestration finished. "
+                  "Completion is UPSTREAM_REPORTED_UNVERIFIED, not model qualification, "
+                  "signature verification, or a bounded-cost claim. The plan is MODELED; "
                   "Λ is Conjecture 1 (advisory)."),
     }
 
@@ -766,10 +1175,37 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
         refused = _refused(request, "Governed agent loop")
         if refused is not None:
             return refused
+        tenant = _tenant_refusal(request)
+        if tenant is not None:
+            return tenant
         try:
             b = await request.json()
         except Exception:
             b = {}
+        if not isinstance(b, dict):
+            return JSONResponse({"ok": False, "error": "request body must be an object"}, status_code=400)
+        execution_budget = None
+        if "execution_limits" in b:
+            try:
+                from szl_router_client import ExecutionBudget, _unique_object
+                raw = await request.body()
+                if len(raw) > 128 * 1024:
+                    raise ValueError("STRICT_REQUEST_TOO_LARGE")
+                b = json.loads(raw, object_pairs_hook=_unique_object,
+                               parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+                if (set(b) != {"task", "mode", "model_id", "eval_suite", "max_retries",
+                               "sandbox", "consult_brain", "allocate_energy", "execution_limits"}
+                        or b.get("mode") != "chat" or b.get("sandbox") is not False
+                        or b.get("consult_brain") is not False or b.get("allocate_energy") is not False
+                        or type(b.get("max_retries")) is not int or b["max_retries"] != 0
+                        or not isinstance(b.get("task"), str) or not 0 < len(b["task"].strip()) <= 32000
+                        or any(not isinstance(b.get(key), str) or not b[key].strip()
+                               for key in ("model_id", "eval_suite"))):
+                    raise ValueError("STRICT_CHAT_SCOPE_REQUIRED")
+                execution_budget = ExecutionBudget(b["execution_limits"])
+            except Exception:
+                return JSONResponse({"ok": False, "status": "BLOCKED",
+                                     "error": "INVALID_STRICT_EXECUTION_REQUEST"}, status_code=422)
         task = b.get("task") or b.get("prompt") or b.get("query") or ""
         if not task:
             return JSONResponse({
@@ -796,11 +1232,27 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
         consult_brain = bool(_BRAINFEED_OK) if consult_brain is None else bool(consult_brain)
         allocate_energy = b.get("allocate_energy", b.get("energy"))
         allocate_energy = bool(_BRAINFEED_OK) if allocate_energy is None else bool(allocate_energy)
-        result = run_loop(task, sign_fn, ns=ns, mode=mode, model_id=model_id,
-                          harness_profile_id=harness_profile_id, eval_suite=eval_suite,
-                          approval=approval, max_retries=max_retries, sandbox=sandbox,
-                          consult_brain=consult_brain, allocate_energy=allocate_energy,
-                          allow_exec=_exec_permitted(request))
+        options = {"ns": ns, "mode": mode, "model_id": model_id,
+                   "harness_profile_id": harness_profile_id, "eval_suite": eval_suite,
+                   "approval": approval, "max_retries": max_retries, "sandbox": sandbox,
+                   "consult_brain": consult_brain, "allocate_energy": allocate_energy,
+                   "allow_exec": _exec_permitted(request) if execution_budget is None else False}
+        if execution_budget is not None:
+            from anyio import to_thread
+            from functools import partial
+            try:
+                # Cancellation must reach this handler before an in-flight
+                # worker returns, including through AnyIO middleware scopes.
+                # The worker is cooperative; remote cancellation is not claimed.
+                result = await to_thread.run_sync(partial(run_loop, task, sign_fn,
+                                                execution_budget=execution_budget,
+                                                native_readbacks=getattr(app.state, "execution_native_readbacks", None),
+                                                **options), abandon_on_cancel=True)
+            except BaseException:
+                execution_budget.fail("EXECUTION_CANCELLED", ambiguous=True)
+                raise
+        else:
+            result = run_loop(task, sign_fn, **options)
         return JSONResponse(result, status_code=result.get("status_code", 200))
 
     async def _health(request):
@@ -886,6 +1338,7 @@ def register(app, ns: str = "a11oy", sign_fn: Optional[Callable[[dict], dict]] =
             "checked_at": _now(),
         })
 
+    _run.execution_native_readbacks_schema = "szl.native-execution-readbacks/v1"
     routes = [
         Route("/api/%s/v1/agentloop/run" % ns, _run, methods=["POST"],
               name="%s_agentloop_run" % ns),
@@ -907,7 +1360,8 @@ def _selftest() -> None:  # pragma: no cover
         return szl_dsse.sign_payload(obj, "application/vnd.szl.khipu+json")
     out = run_loop("write a python function that returns the first 5 primes",
                    _sign, ns="a11oy", mode="code", max_retries=1)
-    assert out["ok"] is True, out
+    assert out["orchestration_complete"] is True, out
+    assert out["ok"] is False and out["completion"]["complete"] is False, out
     assert out["composite_receipt"]["body"]["schema"] == SCHEMA
     assert out["composite_receipt"]["body"]["locked8_touched"] is False
     assert out["aggregate"]["lambda_status"] == "CONJECTURE"
@@ -919,7 +1373,8 @@ def _selftest() -> None:  # pragma: no cover
     outb = run_loop("explain the Euler Khipu DAG identity F1 and estimate its energy budget",
                     _sign, ns="a11oy", mode="research", max_retries=0,
                     consult_brain=True, allocate_energy=True)
-    assert outb["ok"] is True, outb
+    assert outb["orchestration_complete"] is True, outb
+    assert outb["ok"] is False and outb["completion"]["complete"] is False, outb
     body = outb["composite_receipt"]["body"]
     assert body["brain_consulted"] is True and body["energy_allocated"] is True
     bc = body["brain_context"]

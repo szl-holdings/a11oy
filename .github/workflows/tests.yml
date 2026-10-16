@@ -12,6 +12,33 @@ permissions:
   packages: read
 
 jobs:
+  execution-observer:
+    name: Fixed execution observations and readiness evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      HF_HUB_DISABLE_IMPLICIT_TOKEN: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install hash-locked fixture dependency closure
+        run: python -m pip install --require-hashes -r .github/requirements/ci-execution.txt
+      - name: Verify actual routes, native ownership and fail-closed consumers
+        run: >-
+          python -B -m pytest -q -p no:cacheprovider
+          tests/test_observer_runtime.py tests/test_native_readbacks.py
+          tests/test_observer_adapters.py tests/test_real_execution_routes.py
+          tests/test_execution_observer_registration.py
+          tests/test_combined_consumers.py tests/test_readiness_artifact.py
+          tests/test_publish_readiness_verdict.py tests/test_canonical_a11oy_relock.py
+          tests/test_execution_acceptance.py tests/test_dockerfile_layer_budget.py
+
   python-estate-rag:
     name: Estate RAG lifecycle and read-only route contracts
     runs-on: ubuntu-latest
@@ -22,7 +49,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install exact RAG route test dependencies
-        run: pip install --require-hashes -r .github/requirements/ci-rag.txt
+        run: pip install --require-hashes -r .github/requirements/ci-rag.txt -r .github/requirements/ci-execution.txt
       - name: Verify published-index reads, lifecycle writes, and authority boundaries
         env:
           # The assembled app captures these paths at import. The runner
@@ -40,8 +67,70 @@ jobs:
           tests/test_atelier_curated_snapshot.py
           tests/test_site_route_aliases.py
           tests/test_operator_auth_code_routes.py
+          tests/test_unay_operator_auth.py
+          tests/test_khipu_replication_delivery.py
+          tests/test_unay_write_authorization.py
           tests/test_second_brain_bridge.py
           tests/test_code_completion_boundaries.py
+          tests/test_agent_loop_execution_guards.py
+          tests/test_agentloop_completion_evidence.py
+          tests/test_agentloop_tenant_admission.py
+          tests/test_authorized_rag_synthesis.py
+          tests/test_agent_synthesis_status.py
+          tests/test_nexus_bind.py
+          tests/test_nexus_readonly_evidence.py
+          tests/test_readiness_artifact.py
+          tests/test_code_engine_isolation.py
+          tests/test_code_engine_mandatory_limits.py
+          tests/test_sandbox_fail_closed_followups.py
+
+  code-runloop-admission:
+    name: Code run-loop step identity and result restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact runtime test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-rag.txt
+      - name: Run the action-identity reference and the run-loop admission journey
+        env:
+          A11OY_CODE_DB: ${{ runner.temp }}/a11oy-runloop-admission/code.db
+          A11OY_CODE_SANDBOX: ${{ runner.temp }}/a11oy-runloop-admission/sandbox
+          A11OY_REACT_DB: ${{ runner.temp }}/a11oy-runloop-admission/react.sqlite3
+          A11OY_AGENT_REFLECT_DB: ${{ runner.temp }}/a11oy-runloop-admission/reflect.db
+        run: |
+          python -m unittest tests.test_szl_action_identity_reference tests.test_code_runloop_admission -v
+
+  python-policy-receipt-conservation:
+    name: Policy receipt conservation is derived from events
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Derive conservation from the submitted decision and emitted node
+        run: python -m pytest -q tests/test_policy_receipt_conservation.py
+
+  liu-hui-float64:
+    name: Liu Hui float64 recurrence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Check the rationalized recurrence in normal and optimized execution
+        run: |
+          python -B tests/test_liu_hui_pi_stability.py
+          python -O -B tests/test_liu_hui_pi_stability.py
 
   python-energy-measurement:
     name: Energy exporter measurement and null-evidence contract
@@ -70,7 +159,7 @@ jobs:
       # allowed_actions policy (github_owned_allowed=true, verified_allowed=true,
       # patterns_allowed=[]). Replaced with corepack (Node.js built-in, no external action)
       # and npm scripts. Node.js setup uses github-owned actions/setup-node only.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -155,6 +244,41 @@ jobs:
           tests/test_nemo_v3_owner_dispatch_validation.py
           -q
 
+  python-state-store-hub-sdk:
+    name: State-store Hub SDK and runtime closure (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.14"]
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      HF_HUB_DISABLE_IMPLICIT_TOKEN: "1"
+      HF_HUB_DISABLE_PROGRESS_BARS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install the complete primary image dependency closure
+        run: |
+          python -m pip install -r requirements-runtime.txt pytest==9.0.3
+          python -m pip check
+      - name: Verify actual SDK interfaces and offline state-store invariants
+        run: >-
+          python -B -m pytest -q -p no:cacheprovider
+          tests/test_state_store_hub_sdk.py
+          tests/test_state_store_handover.py
+          tests/test_state_store_restore.py
+          tests/test_state_store_wiring.py
+          tests/test_sqlite_orphan_repair.py
+          tests/test_sqlite_logical_fingerprint.py
+          tests/test_hf_hub_131_source_contract.py
+
   python-gdw-successor:
     name: GDW authenticated durability and promotion contract
     runs-on: ubuntu-latest
@@ -186,6 +310,9 @@ jobs:
           tests/test_gdw_runtime_degraded_boot.py
           tests/test_sqlite_orphan_repair.py
           tests/test_sqlite_logical_fingerprint.py
+          tests/test_state_store_handover.py
+          tests/test_state_store_restore.py
+          tests/test_state_store_wiring.py
           tests/test_gdw_durable_runtime.py
           tests/test_gdw_durable_artifacts.py
           tests/test_gdw_durable_storage.py
@@ -204,6 +331,8 @@ jobs:
           tests/test_gdw_installed_source_builder.py
           tests/test_hf_gdw_preservation.py
           tests/test_gdw_store_recovery.py
+          tests/test_gdw_current_capture.py
+          tests/test_gdw_historical_qualification.py
           tests/test_gdw_orphan_forensics.py
           tests/test_gdw_workspace_v2.py
           tests/test_gdw_attention.py
@@ -214,6 +343,7 @@ jobs:
           tests/test_atelier_grok_cpu_lab.py
           tests/test_run_local_atelier.py
           tests/test_command_centre.py
+          tests/test_command_centre_view.py
           tests/test_jev_gate.py
           tests/test_jev_fail_closed.py
           payloads/tests/test_yuyay_jev_offline.py
@@ -221,6 +351,41 @@ jobs:
           scripts/test_configure_hf_gdw_runtime.py
           scripts/test_prove_hf_gdw_runtime.py
           -q
+
+  python-command-centre-browser:
+    name: Python command-centre local presentation witness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact local witness dependencies
+        run: >-
+          pip install --require-hashes
+          -r .github/requirements/ci-rag.txt
+          -r .github/requirements/platform-candidate-browser.txt
+      - name: Install pinned Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+      - name: Verify witness refusal and fixture contracts
+        run: python -m pytest -q tests/test_python_command_centre_witness.py
+      - name: Verify source-bound local presentation, not operational readiness
+        run: >-
+          python scripts/witness_python_command_centre.py
+          --expected-source-sha "$GITHUB_SHA"
+          --require-clean-source
+          --output-dir "$RUNNER_TEMP/python-command-centre"
+      - name: Retain local presentation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: python-command-centre-local-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/python-command-centre
+          if-no-files-found: error
+          retention-days: 14
 
   python-wave26-lambda-attnres:
     name: Wave 26 MODELED Lambda-AttnRes and replay contracts
@@ -341,12 +506,24 @@ jobs:
         # PEM that differs from its own fingerprint or from /cosign.pub, or if the
         # assurance matrix's /verify and signing claims drift from the served
         # /verify page and the /govern/infer receipt shape.
+        # The homepage image-closure suite boots serve.py inside the /app tree
+        # projected from the Dockerfile COPY set and requires every same-origin
+        # subresource of the rendered front door to be an installed file, so a
+        # source-only path (the a11oy-homepage.css 404) can no longer pass CI.
         run: >-
           pytest
           tests/test_demo_critical_routes.py
+          tests/test_homepage_image_asset_closure.py
+          tests/test_anatomy_read_boundary.py
+          tests/test_anatomy_seed_read_contract.py
+          tests/test_anatomy_v6_page_contract.py
+          tests/test_anatomy_v5_contract.py
           tests/test_oac_page_surface.py
           tests/test_fleet_event_loop.py
           tests/test_attest.py
+          tests/test_attest_build_commit.py
+          tests/test_attest_meter_evidence.py
+          tests/test_runtime_contracts.py
           tests/test_frontier_now_control_plane.py
           tests/test_holographic_static_route_runtime.py
           tests/test_khipu_gguf_voter.py
@@ -357,6 +534,12 @@ jobs:
           tests/test_ledger_receipt_records.py
           tests/test_org_lambda_sample_inputs.py
           tests/test_runtime_verifying_key_surfaces.py
+          tests/test_platform_candidate_preview.py
+          tests/test_platform_candidate_no_transform_middleware.py
+          tests/test_zero_cdn_guard.py
+          tests/test_verify_platform_candidate_preview.py
+          tests/test_platform_candidate_browser_witness.py
+          tests/test_platform_candidate_browser_witness_cli.py
           test_canonical_domain.py
           -q
 
@@ -397,7 +580,7 @@ jobs:
         with:
           python-version: "3.11"
       # Execute the real SDA widget contract from the existing pytest target.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - name: Install test deps (FastAPI TestClient over a real hardened app)
@@ -412,7 +595,7 @@ jobs:
         # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
         # asserts /healthz stays exempt — so a regression that throttles a health probe,
         # drops the limiter, or breaks an envelope becomes a red gate.
-        run: pytest tests/test_be_hardening.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
+        run: pytest tests/test_be_hardening.py test_backend_hardening.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
 
   python-energy-egress-scrub:
     name: Energy /metrics private-address egress guard (pytest, offline)
@@ -566,6 +749,8 @@ jobs:
           # workflows use. No signing, so no id-token: write — this only VERIFIES an
           # already-signed receipt against the public Sigstore trust root.
           python -m pip install --require-hashes -r .github/requirements/ci-sigstore.txt
+      - name: Verify quant manifest HTTPS and failure propagation offline
+        run: python -m pytest tests/test_quant_manifest_transport.py -q
       - name: Genuine receipt verifies AND a tampered copy is rejected (no monkeypatch)
         # Integration negative-proof (issue #408): runs scripts/tamper_release_receipt.py
         # on a committed GENUINE receipt fixture and asserts scripts/verify_release_receipts.py
@@ -759,6 +944,12 @@ jobs:
         run: python3 -m unittest tests.test_szl_dsse_parity -v
       - name: Verify shared credential and receipt hardening
         run: pytest tests/test_shared_security_hardening.py -q
+      - name: Verify offline execution observation bindings
+        run: python -m pytest tests/test_execution_acceptance.py -q
+      - name: Verify bounded operator capture and offline semantic evidence
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: python -B -m pytest tests/test_operator_acceptance_run.py tests/test_operator_acceptance_verify.py -q -p no:cacheprovider
 
   python-sign-cert-dsse-parity:
     name: DSSE PAE parity — sign_cert_dsse Ed25519 cosign-family, diverges from szl-receipt (offline)
@@ -812,8 +1003,9 @@ jobs:
         # /frontier renders its surface list FROM this endpoint. A future regression that
         # drifts, pads, or hardcodes labels becomes a red gate. Fully offline. Λ = Conjecture 1.
         run: >-
-          pytest test_frontier_surfaces.py
+          pytest test_frontier_surfaces.py test_frontier_manifest.py
           tests/test_frontier_manifest_readiness.py
+          tests/test_provenance_receipt_write_boundary.py
           tests/test_frontier_health_rollup.py -q
 
   python-v4-fleet-federation:
@@ -1051,6 +1243,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
       - name: Install scoped test dependencies
         run: |
           pip install --require-hashes -r .github/requirements/ci-core.txt
@@ -1060,6 +1255,6 @@ jobs:
         # operation evidence, quarantine behavior, malformed-registry refusal,
         # zero deletion authority, stale-cache labeling, and API merge semantics.
         run: |
-          pytest tests/test_frontier_model_admission.py tests/test_model_intel_frontier_estate.py tests/test_model_inference_support.py tests/test_demo_critical_routes.py tests/test_series_a_estate.py tests/test_holographic_command_bar.py -q
+          pytest tests/test_frontier_model_admission.py tests/test_model_intel_frontier_estate.py tests/test_model_inference_support.py tests/test_demo_critical_routes.py tests/test_series_a_estate.py tests/test_holographic_command_bar.py tests/test_console_truth_relock.py tests/test_investor_series_a_surface.py -q
           python -B scripts/collect_model_inference_support.py --check
           python model_release/frontier-qualification/frontier_admission_guard.py audit

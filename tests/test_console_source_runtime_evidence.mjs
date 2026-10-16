@@ -26,7 +26,7 @@ function inlineScriptBodies(source) {
 test('the changed inline scripts parse as shipped browser JavaScript', () => {
   const bodies = inlineScriptBodies(html);
   const relevant = bodies.filter(body => body.includes('source-runtime-evidence:begin') ||
-    body.includes("V.command={ title:'Command Center', badge:'LIVE · AUTO-POLL'"));
+    body.includes('id="source-runtime-evidence"'));
   assert.equal(relevant.length, 2);
   for (const body of relevant) assert.doesNotThrow(() => new Script(body));
 });
@@ -175,10 +175,11 @@ test('network failure keeps every row unavailable', async () => {
 });
 
 test('the visible card starts without a commit link and labels external destinations as links only', () => {
-  const finalCommand = html.indexOf("V.command={ title:'Command Center', badge:'LIVE · AUTO-POLL'");
+  const finalCommand = html.lastIndexOf('V.command=');
   assert.ok(finalCommand > 0, 'the final Command Center overlay exists');
   const card = html.indexOf('id="source-runtime-evidence"');
   assert.ok(card > finalCommand, 'the card is mounted in the final shipped Command Center render');
+  assert.match(html.slice(finalCommand, card), /badge:'READ-ONLY · AUTO-POLL'/);
   const block = html.slice(card, card + 2600);
   assert.match(block, /id="source-runtime-commit"[^>]*hidden/);
   assert.match(block, /Hugging Face Space · link only/);

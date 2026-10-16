@@ -69,13 +69,13 @@ def exact_step(actual, expected, diagnostic):
 
 CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
-UPLOAD = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 HF_CREDENTIAL = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
-CONTROL_CLIENT = 'python -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
+CONTROL_CLIENT = 'python -I -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
 EXACT_CHECKOUT = {"name": "Checkout exact protected source", "uses": CHECKOUT,
                   "with": {"ref": "${{ github.sha }}", "persist-credentials": False, "fetch-depth": "1"}}
 PYTHON_312 = {"name": "Set up Python", "uses": SETUP_PYTHON, "with": {"python-version": "3.12"}}
-CLASSIFY_RUN = '''python -B .github/scripts/resume_hf_space.py
+CLASSIFY_RUN = '''python -I -B .github/scripts/resume_hf_space.py
 --repo-id "$CANONICAL_SPACE"
 --output "$PREFLIGHT_REPORT"
 --github-output "$GITHUB_OUTPUT"'''
@@ -85,7 +85,7 @@ if [ "${CONVERGE:-false}" != 'true' ]; then
   echo 'converged=false' >> "$GITHUB_OUTPUT"
   exit 0
 fi
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/preflight-series-config-admission.json" \
   --github-output "$RUNNER_TEMP/preflight-series-config-admission.out"
@@ -93,11 +93,11 @@ if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-series-config-admission.ou
   echo '::error::Protected main changed before Series-A configuration.'
   exit 1
 fi
-python -B scripts/configure_hf_series_a_runtime.py \
+python -I -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
   --expected-source-sha "$GITHUB_SHA" \
   --output "$RUNTIME_CONFIG_REPORT"
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json" \
   --github-output "$RUNNER_TEMP/preflight-gdw-config-admission.out"
@@ -105,12 +105,12 @@ if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-gdw-config-admission.out";
   echo '::error::Protected main changed before GDW configuration.'
   exit 1
 fi
-python -B scripts/configure_hf_gdw_runtime.py \
+python -I -B scripts/configure_hf_gdw_runtime.py \
   --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
   --output "$GDW_CONFIG_REPORT"
 echo 'converged=true' >> "$GITHUB_OUTPUT"'''
 ADMIT_RUN = r'''set -euo pipefail
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/preflight-admission.json" \
   --github-output "$GITHUB_OUTPUT"'''
@@ -125,14 +125,14 @@ WINDOW_ENV = {"STAGE": "${{ steps.runtime.outputs.stage }}",
               "DISPATCH_WINDOW": "${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}"}
 ADMITTED = "${{ steps.admit.outputs.publish == 'true' }}"
 WINDOW_OPEN = "${{ steps.window.outputs.open == 'true' }}"
-AWAIT_RUN = '''python -B .github/scripts/await_hf_runtime_serving.py
+AWAIT_RUN = '''python -I -B .github/scripts/await_hf_runtime_serving.py
 --repo-id "$CANONICAL_SPACE"
 --origin "$CANONICAL_ORIGIN"
 --source-sha "$GITHUB_SHA"
 --report "$RUNTIME_CONFIG_REPORT"
 --report "$GDW_CONFIG_REPORT"'''
 OWNER_RUN = r'''set -euo pipefail
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/preflight-source-admission.json" \
   --github-output "$GITHUB_OUTPUT"'''
@@ -142,7 +142,7 @@ if [ "${PREDEPLOY_CONVERGED:-false}" = 'true' ]; then
   mode=(--check-only)
 else
   echo '::notice::Configuration was not converged before deploy; converging against the deployed revision.'
-  python3 -B scripts/hf_exact_main_ownership.py \
+  python3 -I -B scripts/hf_exact_main_ownership.py \
     --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
     --receipt "$RUNNER_TEMP/runtime-series-config-admission.json" \
     --github-output "$RUNNER_TEMP/runtime-series-config-admission.out"
@@ -151,12 +151,12 @@ else
     exit 1
   fi
 fi
-python -B scripts/configure_hf_series_a_runtime.py \
+python -I -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
   --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
 if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
-  python3 -B scripts/hf_exact_main_ownership.py \
+  python3 -I -B scripts/hf_exact_main_ownership.py \
     --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
     --receipt "$RUNNER_TEMP/runtime-gdw-config-admission.json" \
     --github-output "$RUNNER_TEMP/runtime-gdw-config-admission.out"
@@ -165,12 +165,12 @@ if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
     exit 1
   fi
 fi
-python -B scripts/configure_hf_gdw_runtime.py \
+python -I -B scripts/configure_hf_gdw_runtime.py \
   --repo-id "$CANONICAL_SPACE" \
   --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$GDW_CONFIG_REPORT"'''
 # Post-deploy jobs may read and verify, never restart, pause or write variables.
-POST_DEPLOY_JOBS = ("runtime-config", "readiness-verdict", "relock",
+POST_DEPLOY_JOBS = ("runtime-config", "readiness-verdict", "execution-readiness", "relock",
                     "post-deployment-parity", "terminal-source-authorization")
 RESTART_EFFECT_TOKENS = ("restart_space", "restart-space", "pause_space", "add_space_variable",
                          "prove_hf_series_a_restart.py",
@@ -182,13 +182,56 @@ REMOVED_CREDENTIAL_TOKENS = ("DOCS_READ_TOKEN", "--github-read-token", "--operat
 
 
 VERDICT_PUBLISH = re.compile(r"publish_readiness_verdict\.py(?!\s+--validate-only\b)")
-VERDICT_VALIDATE_RUN = '''python .github/scripts/publish_readiness_verdict.py
+VERDICT_VALIDATE_RUN = '''python -I -B .github/scripts/publish_readiness_verdict.py
 --validate-only
 --input "$VERDICT_PATH"
 --expected-origin "$CANONICAL_ORIGIN"
 --expected-source-sha "$SOURCE_SHA"
+--execution-bundle "$EXECUTION_EVIDENCE_DIR/execution-observations.json"
+--authority-pins "$EXECUTION_EVIDENCE_DIR/execution-authority-pins.json"
+--expected-runtime-sha "$EXPECTED_EXECUTION_HF_REVISION"
+--expected-boot-id "$EXPECTED_EXECUTION_BOOT_ID"
+--expected-run-nonce "$EXPECTED_EXECUTION_RUN_NONCE"
 --github-output "$GITHUB_OUTPUT"'''
-RUN_VERDICT = "${{ needs.readiness-verdict.outputs.verdict }}"
+PLATFORM_CANDIDATE_ORIGIN_RUN = r'''set -euo pipefail
+python -I -B .github/scripts/verify_platform_candidate_preview.py \
+  --base-url "https://szlholdings-a11oy.hf.space" \
+  --expected-contract-file serve.py \
+  > "$PLATFORM_CANDIDATE_ORIGIN_REPORT"'''
+PLATFORM_CANDIDATE_PRODUCT_RUN = r'''set -euo pipefail
+python -I -B .github/scripts/verify_platform_candidate_preview.py \
+  --base-url "https://a-11-oy.com" \
+  --expected-contract-file serve.py \
+  > "$PLATFORM_CANDIDATE_PRODUCT_REPORT"'''
+PLATFORM_CANDIDATE_BROWSER_INSTALL_RUN = r'''set -euo pipefail
+python -I -m pip install --disable-pip-version-check --no-cache-dir \
+  --only-binary=:all: --require-hashes \
+  -r .github/requirements/platform-candidate-browser.txt
+python -I -m playwright install --with-deps chromium'''
+PLATFORM_CANDIDATE_BROWSER_RUN = r'''set -euo pipefail
+unset PLAYWRIGHT_CHROMIUM_PATH
+python -I -B scripts/witness_platform_candidate_preview.py \
+  --origin "https://szlholdings-a11oy.hf.space" \
+  --origin "https://a-11-oy.com" \
+  --expected-contract-file serve.py \
+  --output "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
+PLATFORM_CANDIDATE_EVIDENCE_RUN = r'''set -euo pipefail
+test -s "$PLATFORM_CANDIDATE_ORIGIN_REPORT"
+test -s "$PLATFORM_CANDIDATE_PRODUCT_REPORT"
+test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
+RUN_VERDICT = "${{ needs.execution-readiness.outputs.verdict }}"
+REVIEWED_DEPLOY_JOB_SHA256 = "a30a6a0ed116101c998635538465ef55c0b97d134f0a4381a5ea4b4fb97a19fb"
+REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c8762f3de244d5964f"
+
+
+def exact_job_digest(source: str, name: str) -> str:
+    match = re.search(
+        rf"(?ms)^  {re.escape(name)}:\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)",
+        source,
+    )
+    if match is None:
+        raise WorkflowContractError("missing exact job: " + name)
+    return hashlib.sha256(match.group(0).strip().encode("utf-8")).hexdigest()
 
 
 def job_strings(value):
@@ -203,9 +246,115 @@ def job_strings(value):
         yield value
 
 
+def assert_job_environment_contexts(jobs):
+    """Catch runtime-only references before GitHub rejects the whole workflow.
+
+    GitHub's contexts reference permits github/needs/strategy/matrix/vars/
+    secrets/inputs in jobs.<job_id>.env. The runner, job, steps and env objects
+    become available in step environments. This focused check covers those
+    invalid roots, including bracket syntax and whole-object function arguments;
+    it is not a substitute for a complete Actions expression validator.
+    """
+    for name, job in jobs.items():
+        for value in job_strings(job.get("env", {})):
+            for expression in re.findall(r"\$\{\{(.*?)\}\}", value, re.S):
+                # A quoted literal is not a context reference. Actions string
+                # literals escape a single quote by doubling it.
+                code = re.sub(r"'(?:[^']|'')*'", "''", expression)
+                if re.search(r"(?<![\w.])(?:runner|job|steps|env)\b", code, re.I):
+                    raise WorkflowContractError("unsupported job environment context: " + name)
+
+
+def assert_execution_evidence_contract(jobs, source):
+    """Keep authenticated collection separate from browser/passive execution."""
+    passive = jobs["readiness-verdict"]
+    if "outputs" in passive:
+        raise WorkflowContractError("passive evidence cannot grant execution coverage")
+    exact_step(passive["steps"][-1], {
+        "name": "Upload immutable passive probe evidence", "uses": UPLOAD,
+        "with": {"name": "canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
+                 "path": "${{ env.VERDICT_PATH }}", "if-no-files-found": "error", "retention-days": "90"},
+    }, "passive artifact allowlist")
+    execution = jobs["execution-readiness"]
+    if execution.get("outputs") != {"verdict": "${{ steps.gate.outputs.verdict }}"}:
+        raise WorkflowContractError("readiness verdict gate must hand its verdict to relock")
+    expected = {
+        "name": "Collect and verify admitted execution evidence", "needs": "readiness-verdict",
+        "runs-on": "ubuntu-latest", "timeout-minutes": "10",
+        "permissions": {"contents": "read", "actions": "read"},
+        "outputs": {"verdict": "${{ steps.gate.outputs.verdict }}"},
+        "env": {
+            "SOURCE_SHA": "${{ github.sha }}",
+            "EXPECTED_EXECUTION_HF_REVISION": "${{ vars.A11OY_EXECUTION_HF_REVISION }}",
+            "EXPECTED_EXECUTION_BOOT_ID": "${{ vars.A11OY_EXECUTION_BOOT_ID }}",
+            "EXPECTED_EXECUTION_RUN_NONCE": "${{ vars.A11OY_EXECUTION_RUN_NONCE }}",
+        },
+    }
+    if {key: value for key, value in execution.items() if key != "steps"} != expected:
+        raise WorkflowContractError("execution collection job authority scope")
+    steps = [
+        EXACT_CHECKOUT, PYTHON_312,
+        {"name": "Download this exact run and attempt's passive evidence",
+         "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+         "with": {"name": "canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
+                  "path": "${{ runner.temp }}/passive-evidence"}},
+        {"name": "Install exact execution evidence verification clients",
+         "run": 'python -I -m pip install --disable-pip-version-check '
+                '"huggingface_hub==1.23.0" "requests==2.32.5" "cryptography==50.0.2" "httpx==0.28.1"'},
+        {"name": "Collect the independently admitted completed execution export",
+         "env": {"EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence",
+                 "A11OY_EXECUTION_AUTHORITY_PINS_JSON": "${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}",
+                 "A11OY_CODE_ADMIN_KEY": "${{ secrets.A11OY_CODE_ADMIN_KEY }}",
+                 "A11OY_CODE_TENANT": "${{ secrets.A11OY_CODE_TENANT }}"},
+         "run": 'python -I -B .github/scripts/collect_execution_readiness.py '
+                '--source-sha "$SOURCE_SHA" --runtime-sha "$EXPECTED_EXECUTION_HF_REVISION" '
+                '--boot-id "$EXPECTED_EXECUTION_BOOT_ID" --run-nonce "$EXPECTED_EXECUTION_RUN_NONCE" '
+                '--out-dir "$EXECUTION_EVIDENCE_DIR"'},
+        {"name": "Stage unchanged passive evidence beside the execution export",
+         "env": {"VERDICT_PATH": "${{ runner.temp }}/passive-evidence/readiness-verdict.json",
+                 "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence"},
+         "run": 'cp -- "$VERDICT_PATH" "$EXECUTION_EVIDENCE_DIR/readiness-verdict.json"'},
+        {"name": "Upload immutable full probe evidence", "uses": UPLOAD,
+         "with": {"name": "canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}",
+                  "path": "${{ runner.temp }}/execution-evidence/readiness-verdict.json\n${{ runner.temp }}/execution-evidence/execution-observations.json",
+                  "if-no-files-found": "error", "retention-days": "90"}},
+        {"name": "Validate the source-bound verdict without a Space write", "id": "gate",
+         "env": {"VERDICT_PATH": "${{ runner.temp }}/passive-evidence/readiness-verdict.json",
+                 "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence"},
+         "run": VERDICT_VALIDATE_RUN},
+    ]
+    if len(execution.get("steps", [])) != len(steps):
+        raise WorkflowContractError("execution collection step order")
+    for actual, intended in zip(execution["steps"], steps):
+        diagnostic = ("readiness verdict gate must fail closed without a Space write"
+                      if intended.get("id") == "gate" else "execution collection exact step: " + intended["name"])
+        exact_step(actual, intended, diagnostic)
+
+
 def assert_deploy_path_contract(source):
     """The deploy path converges first, starts once, then only verifies."""
     jobs = assert_deploy_dependency_graph(source)
+    document = workflow_document(source)
+    events = document.get("on", {})
+    dispatch = events.get("workflow_dispatch", {}) if isinstance(events, dict) else {}
+    dispatch_inputs = dispatch.get("inputs", {}) if isinstance(dispatch, dict) else {}
+    if (
+        not isinstance(events, dict)
+        or set(events) != {"push", "workflow_dispatch"}
+        or events.get("push") != {"branches": ["main"]}
+        or set(dispatch_inputs) != {
+            "publish_vertical_flagships", "vertical_plan_json", "open_deploy_window"
+        }
+        or not all(isinstance(value, dict) for value in dispatch_inputs.values())
+        or dispatch_inputs["publish_vertical_flagships"].get("type") != "boolean"
+        or dispatch_inputs["publish_vertical_flagships"].get("default") is not False
+        or dispatch_inputs["vertical_plan_json"].get("type") != "string"
+        or dispatch_inputs["vertical_plan_json"].get("required") is not False
+        or dispatch_inputs["vertical_plan_json"].get("default") != ""
+        or dispatch_inputs["open_deploy_window"].get("type") != "boolean"
+        or dispatch_inputs["open_deploy_window"].get("default") is not False
+    ):
+        raise WorkflowContractError("provider workflow event scope changed")
     admission = jobs["source-admission"]
     if [step.get("name") for step in admission["steps"]] != [
             "Checkout the immutable queued source", "Require main and classify current source ownership",
@@ -261,6 +410,8 @@ def assert_deploy_path_contract(source):
             or inputs.get("source-revision-variable") != "SZL_GIT_SHA"
             or inputs.get("source-revision-probe-path") != "/api/build-info"):
         raise WorkflowContractError("deploy must start the Space once and bind exact source")
+    if exact_job_digest(source, "deploy") != REVIEWED_DEPLOY_JOB_SHA256:
+        raise WorkflowContractError("deploy authority contract changed")
 
     runtime = jobs["runtime-config"]
     if (runtime.get("permissions") != {"contents": "read"}
@@ -292,24 +443,73 @@ def assert_deploy_path_contract(source):
             if VERDICT_PUBLISH.search(text):
                 raise WorkflowContractError("post-deploy restart or variable effect: " + name + ": verdict publish")
     readiness = jobs["readiness-verdict"]
-    if "HF_TOKEN" in json.dumps(readiness) or [step.get("name") for step in readiness["steps"]] != [
-            "Checkout exact protected source", "Set up Node.js", "Set up Python",
-            "Probe the exact canonical deployment", "Upload immutable full probe evidence",
-            "Validate the source-bound verdict without a Space write"]:
+    readiness_text = json.dumps(readiness)
+    if (readiness.get("permissions") != {"contents": "read"}
+            or readiness.get("env") != {
+                "GH_TOKEN": "",
+                "GITHUB_TOKEN": "",
+                "SOURCE_SHA": "${{ github.sha }}",
+                "VERDICT_PATH": "/tmp/readiness-verdict.json",
+                "PLATFORM_CANDIDATE_ORIGIN_REPORT": "/tmp/platform-candidate-origin.json",
+                "PLATFORM_CANDIDATE_PRODUCT_REPORT": "/tmp/platform-candidate-product.json",
+                "PLATFORM_CANDIDATE_BROWSER_REPORT": "/tmp/platform-candidate-browser.json",
+            }
+            or "HF_TOKEN" in readiness_text or "secrets." in readiness_text
+            or [step.get("name") for step in readiness["steps"]] != [
+                "Checkout exact protected source", "Set up Node.js", "Set up Python",
+                "Verify the candidate on the canonical Space origin",
+                "Verify the candidate on the product domain",
+                "Install the exact Platform candidate browser witness runtime",
+                "Witness the candidate in Chromium on both fixed origins",
+                "Require complete Platform candidate evidence",
+                "Upload secret-free Platform candidate evidence",
+                "Probe the exact canonical deployment", "Upload immutable passive probe evidence"]):
         raise WorkflowContractError("readiness verdict must stay evidence-only")
-    exact_step(readiness["steps"][-1], {"name": "Validate the source-bound verdict without a Space write",
-                                        "id": "gate", "run": VERDICT_VALIDATE_RUN},
-               "readiness verdict gate must fail closed without a Space write")
-    if readiness.get("outputs") != {"verdict": "${{ steps.gate.outputs.verdict }}"}:
-        raise WorkflowContractError("readiness verdict gate must hand its verdict to relock")
+    exact_step(readiness["steps"][3], {
+        "name": "Verify the candidate on the canonical Space origin",
+        "shell": "bash", "run": PLATFORM_CANDIDATE_ORIGIN_RUN,
+    }, "canonical Platform candidate verifier")
+    exact_step(readiness["steps"][4], {
+        "name": "Verify the candidate on the product domain",
+        "if": "${{ always() }}", "shell": "bash",
+        "run": PLATFORM_CANDIDATE_PRODUCT_RUN,
+    }, "product Platform candidate verifier")
+    exact_step(readiness["steps"][5], {
+        "name": "Install the exact Platform candidate browser witness runtime",
+        "if": "${{ always() }}", "shell": "bash",
+        "run": PLATFORM_CANDIDATE_BROWSER_INSTALL_RUN,
+    }, "Platform candidate browser runtime")
+    exact_step(readiness["steps"][6], {
+        "name": "Witness the candidate in Chromium on both fixed origins",
+        "if": "${{ always() }}", "shell": "bash",
+        "run": PLATFORM_CANDIDATE_BROWSER_RUN,
+    }, "Platform candidate browser witness")
+    exact_step(readiness["steps"][7], {
+        "name": "Require complete Platform candidate evidence",
+        "if": "${{ always() }}", "shell": "bash",
+        "run": PLATFORM_CANDIDATE_EVIDENCE_RUN,
+    }, "Platform candidate evidence completeness")
+    exact_step(readiness["steps"][8], {
+        "name": "Upload secret-free Platform candidate evidence",
+        "if": "${{ always() }}", "uses": UPLOAD,
+        "with": {
+            "name": "platform-candidate-${{ github.run_id }}-${{ github.run_attempt }}",
+            "path": "${{ env.PLATFORM_CANDIDATE_ORIGIN_REPORT }}\n${{ env.PLATFORM_CANDIDATE_PRODUCT_REPORT }}\n${{ env.PLATFORM_CANDIDATE_BROWSER_REPORT }}",
+            "if-no-files-found": "error", "retention-days": "90",
+        },
+    }, "Platform candidate artifact allowlist")
+    assert_execution_evidence_contract(jobs, source)
 
     relock = jobs["relock"]
     # The deploy path never writes the verdict into the Space, so relock must
     # re-validate this run's verdict rather than require a served one.
     evaluate = named_step(relock, "Evaluate the canonical application contract")
     evaluate_run = compact(evaluate.get("run", ""))
-    if (relock.get("needs") != ["runtime-config", "readiness-verdict"]
-            or evaluate.get("env") != {"RUN_READINESS_VERDICT": RUN_VERDICT}
+    if (relock.get("needs") != ["runtime-config", "execution-readiness"]
+            or evaluate.get("env") != {"RUN_READINESS_VERDICT": RUN_VERDICT,
+                "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence",
+                "A11OY_CODE_ADMIN_KEY": "${{ secrets.A11OY_CODE_ADMIN_KEY }}",
+                "A11OY_CODE_TENANT": "${{ secrets.A11OY_CODE_TENANT }}"}
             or 'printf \'%s\' "$RUN_READINESS_VERDICT" > "$RUNNER_TEMP/run-readiness-verdict.json"' not in evaluate_run
             or '--readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json"' not in evaluate_run):
         raise WorkflowContractError("relock must re-validate this run's readiness verdict")
@@ -330,6 +530,8 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
                                       "CURRENT_MAIN": "${{ steps.post_deploy_owner.outputs.publish }}"}
             or relock.get("outputs") != {"current_main": "${{ steps.post_deploy_owner.outputs.publish }}"}):
         raise WorkflowContractError("actual verification exit must be enforced")
+    if exact_job_digest(source, "relock") != REVIEWED_RELOCK_JOB_SHA256:
+        raise WorkflowContractError("relock credential contract changed")
     parity = jobs["post-deployment-parity"]
     if (parity.get("needs") != "relock" or parity.get("uses") != "./.github/workflows/hf-module-drift.yml"
             or parity.get("permissions") != {"contents": "read"}):
@@ -342,7 +544,6 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
     for token in REMOVED_CREDENTIAL_TOKENS:
         if token in source:
             raise WorkflowContractError("removed credential or donor effect: " + token)
-    document = workflow_document(source)
     if document["on"]["workflow_dispatch"]["inputs"]["publish_vertical_flagships"]["default"] is not False:
         raise WorkflowContractError("vertical publication requires explicit opt in")
     vertical = jobs["publish-vertical-flagships"]
@@ -360,7 +561,7 @@ PROOF_ATTEMPTED = "(steps.series_a_proof.outcome == 'success' || steps.series_a_
 DRILL_PROOF_CONDITION = "${{ always() && " + PROOF_ATTEMPTED + " }}"
 BOUNDED_RUNS = {
     "series_a": r'''set +e
-python -B scripts/prove_hf_series_a_restart.py \
+python -I -B scripts/prove_hf_series_a_restart.py \
   --repo-id "$CANONICAL_SPACE" --origin "$CANONICAL_ORIGIN" \
   --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
   --source-sha "${{ github.sha }}" --output "$SERIES_A_LIVE_REPORT"
@@ -368,7 +569,7 @@ code=$?
 echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 exit "$code"''',
     "gdw": r'''set +e
-python -B scripts/prove_hf_gdw_runtime.py \
+python -I -B scripts/prove_hf_gdw_runtime.py \
   --series-a-proof "$SERIES_A_LIVE_REPORT" \
   --run-context "${{ github.run_id }}:${{ github.run_attempt }}" \
   --origin "$CANONICAL_ORIGIN" \
@@ -377,13 +578,13 @@ code=$?
 echo "exit_code=$code" >> "$GITHUB_OUTPUT"
 exit "$code"''',
     "admission": r'''set -euo pipefail
-python -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
+python -I -B scripts/check_hf_manual_prerequisites.py --admit-live-proofs \
   --series-a-proof "$SERIES_A_LIVE_REPORT" --series-a-proof-exit "${SERIES_A_PROOF_EXIT:-2}" \
   --gdw-proof "$GDW_LIVE_REPORT" --gdw-proof-exit "${GDW_PROOF_EXIT:-2}" \
   --source-sha "${{ github.sha }}" --output "$LIVE_PROOF_ADMISSION_REPORT"''',
 }
 DRILL_LIVE_RUN = '''set -euo pipefail
-python3 -B - "$CANONICAL_ORIGIN/api/build-info" "$GITHUB_SHA" <<'PY'
+python3 -I -B - "$CANONICAL_ORIGIN/api/build-info" "$GITHUB_SHA" <<'PY'
 import json, sys, urllib.request
 url, sha = sys.argv[1], sys.argv[2]
 request = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
@@ -394,7 +595,7 @@ if str(build.get("revision") or "").lower() != sha:
     sys.exit(1)
 PY'''
 DRILL_GDW_OWNER_RUN = r'''set -euo pipefail
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/restart-drill-gdw-admission.json" \
   --github-output "$RUNNER_TEMP/restart-drill-gdw-admission.out"
@@ -405,7 +606,7 @@ fi'''
 GDW_AFTER_OWNER = "${{ always() && steps.gdw_owner.outcome == 'success' }}"
 DRILL_OWNER_RUN = r'''set -euo pipefail
 test "$GITHUB_REF" = refs/heads/main
-python3 -B scripts/hf_exact_main_ownership.py \
+python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/restart-drill-source-admission.json" \
   --github-output "$RUNNER_TEMP/restart-drill-source-admission.out"
@@ -490,7 +691,7 @@ def assert_blocked_restart_workflow(source):
         raise WorkflowContractError("restart job set requires review")
     job = jobs["restart-proof"]
     blocked = named_step(job, "Fail explicitly while live restart effects remain unreviewed")
-    expected = 'python -B scripts/check_hf_manual_prerequisites.py --blocked-proof series-a --source-sha "$GITHUB_SHA" --output "$PROOF_PATH"'
+    expected = 'python -I -B scripts/check_hf_manual_prerequisites.py --blocked-proof series-a --source-sha "$GITHUB_SHA" --output "$PROOF_PATH"'
     if compact(blocked.get("run", "")) != expected or "if" in blocked or "continue-on-error" in blocked:
         raise WorkflowContractError("restart workflow must fail explicitly")
     if "continue-on-error" in job:
@@ -586,9 +787,34 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def setUpClass(cls):
         cls.source = WORKFLOW.read_text(encoding="utf-8")
 
+    def test_browser_witness_policy_suites_are_in_the_required_test_workflow(self):
+        tests_workflow = (ROOT / ".github/workflows/tests.yml").read_text(
+            encoding="utf-8"
+        )
+        for path in (
+            "tests/test_platform_candidate_browser_witness.py",
+            "tests/test_platform_candidate_browser_witness_cli.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(tests_workflow.count(path), 1)
+
     def test_actual_deploy_path_contract(self):
         jobs = assert_deploy_path_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
+
+    def test_token_bearing_workflows_isolate_every_python_entrypoint(self):
+        for workflow in (WORKFLOW, DRILL_WORKFLOW):
+            launches = []
+            for raw in workflow.read_text(encoding="utf-8").splitlines():
+                command = raw.strip()
+                if command.startswith("run: "):
+                    command = command.removeprefix("run: ")
+                if re.match(r"python3?(?:\s|$)", command):
+                    launches.append(command)
+            self.assertTrue(launches, workflow)
+            for command in launches:
+                with self.subTest(workflow=workflow.name, command=command):
+                    self.assertRegex(command, r"^python3? -I (?:-B|-m (?:pip|playwright)\b)")
 
     def test_post_deploy_jobs_cannot_restart_pause_or_write_variables(self):
         for job_name, marker in (
@@ -596,8 +822,8 @@ class DeployPathWorkflowTests(unittest.TestCase):
             ("relock", "            --retry-seconds 10\n"),
         ):
             for injected in (
-                "          python -B scripts/prove_hf_series_a_restart.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
-                "          python -B scripts/prove_hf_gdw_runtime.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
+                "          python -I -B scripts/prove_hf_series_a_restart.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
+                "          python -I -B scripts/prove_hf_gdw_runtime.py --source-sha \"$GITHUB_SHA\" --output /tmp/p.json\n",
                 "          python -c 'import huggingface_hub; huggingface_hub.HfApi().restart_space(\"SZLHOLDINGS/a11oy\")'\n",
                 "          python .github/scripts/publish_readiness_verdict.py --input x --repo-id y\n",
                 "          python .github/scripts/publish_readiness_verdict.py\n",
@@ -621,10 +847,72 @@ class DeployPathWorkflowTests(unittest.TestCase):
                 with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
                     assert_deploy_path_contract(self.source.replace(original, replacement, 1))
 
+    def test_platform_candidate_verifiers_are_literal_credential_free_and_retained(self):
+        cases = (
+            ("python -I -B .github/scripts/verify_platform_candidate_preview.py",
+             "python -I -B .github/scripts/unreviewed_candidate_verifier.py",
+             "canonical Platform candidate verifier"),
+            ("python -I -B .github/scripts/verify_platform_candidate_preview.py",
+             "python -B .github/scripts/verify_platform_candidate_preview.py",
+             "canonical Platform candidate verifier"),
+            ('--base-url "https://szlholdings-a11oy.hf.space"',
+             '--base-url "$CANONICAL_ORIGIN"',
+             "canonical Platform candidate verifier"),
+            ('--base-url "https://a-11-oy.com"',
+             '--base-url "https://example.invalid"',
+             "product Platform candidate verifier"),
+            ("--expected-contract-file serve.py", "--expected-contract-file unreviewed.py",
+             "canonical Platform candidate verifier"),
+            ("-r .github/requirements/platform-candidate-browser.txt",
+             "playwright>=1.62.0",
+             "Platform candidate browser runtime"),
+            ("--only-binary=:all: --require-hashes",
+             "--only-binary=:all:",
+             "Platform candidate browser runtime"),
+            ("python -I -m playwright install --with-deps chromium",
+             "python -I -m playwright install chromium",
+             "Platform candidate browser runtime"),
+            ("python -I -B scripts/witness_platform_candidate_preview.py",
+             "python -I -B scripts/unreviewed_browser_witness.py",
+             "Platform candidate browser witness"),
+            ("unset PLAYWRIGHT_CHROMIUM_PATH",
+             "export PLAYWRIGHT_CHROMIUM_PATH=/tmp/unreviewed-browser",
+             "Platform candidate browser witness"),
+            ('--output "$PLATFORM_CANDIDATE_BROWSER_REPORT"',
+             '--output /tmp/unreviewed-browser.json',
+             "Platform candidate browser witness"),
+            ('test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"',
+             'test -e "$PLATFORM_CANDIDATE_BROWSER_REPORT"',
+             "Platform candidate evidence completeness"),
+            ("            ${{ env.PLATFORM_CANDIDATE_PRODUCT_REPORT }}\n",
+             "            ${{ env.VERDICT_PATH }}\n",
+             "Platform candidate artifact allowlist"),
+            ("            ${{ env.PLATFORM_CANDIDATE_BROWSER_REPORT }}\n",
+             "            ${{ env.VERDICT_PATH }}\n",
+             "Platform candidate artifact allowlist"),
+            ("      PLATFORM_CANDIDATE_PRODUCT_REPORT: /tmp/platform-candidate-product.json\n",
+             "      PLATFORM_CANDIDATE_PRODUCT_REPORT: /tmp/platform-candidate-product.json\n"
+             "      HF_TOKEN: ${{ secrets.HF_TOKEN }}\n",
+             "readiness verdict must stay evidence-only"),
+            ('      GH_TOKEN: ""\n',
+             "      GH_TOKEN: ${{ github.token }}\n",
+             "readiness verdict must stay evidence-only"),
+            ('      GITHUB_TOKEN: ""\n',
+             "      GITHUB_TOKEN: ${{ github.token }}\n",
+             "readiness verdict must stay evidence-only"),
+        )
+        for original, replacement, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic, replacement=replacement):
+                self.assertIn(original, self.source)
+                changed = self.source.replace(original, replacement, 1)
+                self.assertNotEqual(changed, self.source)
+                with self.assertRaisesRegex(WorkflowContractError, re.escape(diagnostic)):
+                    assert_deploy_path_contract(changed)
+
     def test_preflight_classification_and_convergence_cannot_be_weakened(self):
         cases = (
-            ("python -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py --restart", "preflight classification"),
-            ('          python -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --expected-source-sha "$GITHUB_SHA" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n',
+            ("python -I -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py", "preflight classification"),
+            ('          python -I -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --expected-source-sha "$GITHUB_SHA" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n',
              '          true\n', "preflight convergence"),
             ('--receipt "$RUNNER_TEMP/preflight-series-config-admission.json"',
              '--receipt /tmp/forged.json', "preflight convergence"),
@@ -638,8 +926,11 @@ class DeployPathWorkflowTests(unittest.TestCase):
             ("        id: converge\n        if: ${{ steps.window.outputs.open == 'true' }}\n", "        id: converge\n", "preflight convergence"),
             ("        id: runtime\n        if: ${{ steps.admit.outputs.publish == 'true' }}\n", "        id: runtime\n", "preflight classification"),
             ('--receipt "$RUNNER_TEMP/preflight-admission.json"', '--receipt /tmp/forged.json', "admit current main before any provider effect"),
-            ("        type: boolean\n        default: false\n\npermissions:", "        type: boolean\n        default: true\n\npermissions:", "deploy window must default closed"),
-            ("python -B .github/scripts/await_hf_runtime_serving.py", "true", "runtime-config must await"),
+            ("        type: boolean\n        default: false\n\npermissions:", "        type: boolean\n        default: true\n\npermissions:", "provider workflow event scope changed"),
+            ("python -I -B .github/scripts/await_hf_runtime_serving.py", "true", "runtime-config must await"),
+            ("python -I -m pip install --disable-pip-version-check",
+             "python -m pip install --disable-pip-version-check",
+             "preflight control client"),
             ('restart-space: ${{ needs.preflight.outputs.restart_required == \'true\' }}', "restart-space: true", "start the Space once"),
             ("require-default-branch-tip: true", "require-default-branch-tip: false", "start the Space once"),
             ("mode=(--check-only)", "mode=(--check-only --unverified)", "runtime-config must verify"),
@@ -653,7 +944,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def test_relock_must_revalidate_this_runs_verdict(self):
         cases = (
             ('            --readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json" \\\n', ""),
-            ("          RUN_READINESS_VERDICT: ${{ needs.readiness-verdict.outputs.verdict }}\n",
+            ("          RUN_READINESS_VERDICT: ${{ needs.execution-readiness.outputs.verdict }}\n",
              "          RUN_READINESS_VERDICT: '{}'\n"),
         )
         for original, replacement in cases:
@@ -665,6 +956,67 @@ class DeployPathWorkflowTests(unittest.TestCase):
         self.assertIn(output, self.source)
         with self.assertRaisesRegex(WorkflowContractError, "hand its verdict to relock"):
             assert_deploy_path_contract(self.source.replace(output, "", 1))
+
+    def test_execution_collector_preserves_isolation_and_exact_evidence_handoff(self):
+        block = re.search(r"(?ms)^  execution-readiness:\n.*?(?=^  relock:\n)", self.source).group(0)
+        cases = (
+            ("      actions: read\n", "      actions: write\n"),
+            ("    env:\n", "    env:\n      A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n"),
+            ("python -I -B .github/scripts/collect_execution_readiness.py",
+             "python -I -B scripts/execute_acceptance_plan.py"),
+            ("          A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n",
+             "          A11OY_CODE_ADMIN_KEY: ${{ secrets.HF_TOKEN }}\n"),
+            ("canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
+             "canonical-a11oy-passive-${{ github.run_id }}-1"),
+            ("            ${{ runner.temp }}/execution-evidence/execution-observations.json\n",
+             "            ${{ runner.temp }}/execution-evidence/execution-authority-pins.json\n"),
+            ("      EXPECTED_EXECUTION_RUN_NONCE: ${{ vars.A11OY_EXECUTION_RUN_NONCE }}\n",
+             "      EXPECTED_EXECUTION_RUN_NONCE: ${{ steps.gate.outputs.run_nonce }}\n"),
+        )
+        for original, replacement in cases:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, block)
+                changed = self.source.replace(block, block.replace(original, replacement, 1), 1)
+                with self.assertRaisesRegex(WorkflowContractError, "execution collection"):
+                    assert_deploy_path_contract(changed)
+
+    def test_runtime_paths_use_supported_step_contexts(self):
+        jobs = workflow_document(self.source)["jobs"]
+        assert_job_environment_contexts(jobs)
+        for job_id in ("execution-readiness", "relock"):
+            self.assertNotIn("EXECUTION_EVIDENCE_DIR", jobs[job_id]["env"])
+            self.assertNotIn("VERDICT_PATH", jobs[job_id]["env"])
+            for step in jobs[job_id]["steps"]:
+                shell = step.get("run", "")
+                for variable, expected in (
+                    ("EXECUTION_EVIDENCE_DIR", "${{ runner.temp }}/execution-evidence"),
+                    ("VERDICT_PATH", "${{ runner.temp }}/passive-evidence/readiness-verdict.json"),
+                ):
+                    if "$" + variable in shell:
+                        self.assertEqual(step.get("env", {}).get(variable), expected)
+
+    def test_job_environment_rejects_runtime_context_regressions(self):
+        jobs = workflow_document(self.source)["jobs"]
+        original_paths = (
+            ("execution-readiness", "VERDICT_PATH", "${{ runner.temp }}/passive-evidence/readiness-verdict.json"),
+            ("execution-readiness", "EXECUTION_EVIDENCE_DIR", "${{ runner.temp }}/execution-evidence"),
+            ("relock", "EXECUTION_EVIDENCE_DIR", "${{ runner.temp }}/execution-evidence"),
+        )
+        for job_id, key, value in original_paths:
+            with self.subTest(job_id=job_id, key=key):
+                changed = json.loads(json.dumps(jobs))
+                changed[job_id]["env"][key] = value
+                with self.assertRaisesRegex(WorkflowContractError, "unsupported job environment context"):
+                    assert_job_environment_contexts(changed)
+        for value in ("${{ runner['temp'] }}", "${{ toJSON(runner) }}", "${{ job.status }}",
+                      "${{ steps.collect.outputs.path }}", "${{ env.EXECUTION_EVIDENCE_DIR }}"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(WorkflowContractError, "unsupported job environment context"):
+                    assert_job_environment_contexts({"fixture": {"env": {"PATH": value}}})
+        assert_job_environment_contexts({"fixture": {"env": {
+            "literal": "${{ format('runner.temp/{0}', github.run_id) }}",
+            "source": "${{ needs.deploy.outputs.source }}",
+        }}})
 
     def test_superseded_relock_is_neutral_but_failed_verification_stays_red(self):
         cases = (
@@ -685,9 +1037,9 @@ class DeployPathWorkflowTests(unittest.TestCase):
                 assert_deploy_path_contract(self.source + "\n# " + token + "\n")
 
     def test_vertical_publication_keeps_owned_source_and_plan_gates(self):
-        before = "        if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n        run: python scripts/hf_publish_vertical_flagships_v4.py\n"
+        before = "        if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}\n        run: python -I -B scripts/hf_publish_vertical_flagships_v4.py\n"
         self.assertIn(before, self.source)
-        changed = self.source.replace(before, "        run: python scripts/hf_publish_vertical_flagships_v4.py\n", 1)
+        changed = self.source.replace(before, "        run: python -I -B scripts/hf_publish_vertical_flagships_v4.py\n", 1)
         with self.assertRaisesRegex(WorkflowContractError, "vertical source and plan gate"):
             assert_deploy_path_contract(changed)
 
@@ -736,7 +1088,7 @@ class RestartDrillWorkflowTests(unittest.TestCase):
 
     def test_blocked_proof_fallback_or_managed_selector_is_rejected(self):
         for before, after in (
-            ("python -B scripts/prove_hf_gdw_runtime.py \\", "python -B scripts/check_hf_manual_prerequisites.py --blocked-proof gdw \\"),
+            ("python -I -B scripts/prove_hf_gdw_runtime.py \\", "python -I -B scripts/check_hf_manual_prerequisites.py --blocked-proof gdw \\"),
             ('--origin "$CANONICAL_ORIGIN" \\\n            --source-sha',
              '--origin "$CANONICAL_ORIGIN" \\\n            --managed-acquisition "$RUNNER_TEMP/gdw-durable-acquisition.json" \\\n            --source-sha'),
         ):

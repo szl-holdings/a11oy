@@ -39,6 +39,7 @@ RETIRED_JOBS = (
 POST_DEPLOY_JOBS = (
     "runtime-config",
     "readiness-verdict",
+    "execution-readiness",
     "relock",
     "post-deployment-parity",
     "terminal-source-authorization",
@@ -111,16 +112,16 @@ def verdict_channel_violations(blocks: dict[str, str]) -> list[str]:
 
     The deploy path never writes SZL_PROBE_VERDICT_JSON into the Space (that
     write restarts it), so the live route serves no verdict. Relock must then
-    re-validate this run's verdict, handed over as the readiness job output.
+    re-validate this run's verdict, handed over as the separate execution-readiness job output.
     """
-    readiness, relock = blocks.get("readiness-verdict", ""), blocks.get("relock", "")
+    readiness, relock = blocks.get("execution-readiness", ""), blocks.get("relock", "")
     if "--validate-only" not in readiness:
-        return []
+        return ["execution verdict requires a no-write validation gate"]
     violations = []
     if ("verdict: ${{ steps.gate.outputs.verdict }}" not in readiness
             or '--github-output "$GITHUB_OUTPUT"' not in readiness):
         violations.append("readiness verdict is not handed to relock")
-    if ("${{ needs.readiness-verdict.outputs.verdict }}" not in relock
+    if ("${{ needs.execution-readiness.outputs.verdict }}" not in relock
             or "--readiness-verdict-file" not in relock):
         violations.append("relock requires a served verdict that nothing publishes")
     return violations
@@ -218,7 +219,7 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
         # The guard must reject each historical livelock shape, so it cannot
         # rot into an always-pass check.
         sha = "f4a1a45f" + "0" * 32
-        anchor = '          python3 -B scripts/hf_exact_main_ownership.py \\\n'
+        anchor = '          python3 -I -B scripts/hf_exact_main_ownership.py \\\n'
         self.assertIn(anchor, self.text)
         preflight_if = "    if: ${{ needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}\n"
         self.assertIn(preflight_if, self.text)
@@ -247,7 +248,7 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
             "verdict output not written": self.text.replace(
                 '          --github-output "$GITHUB_OUTPUT"\n\n  relock:', "\n  relock:", 1),
             "convergence without wait": self.text.replace(
-                "          python -B .github/scripts/await_hf_runtime_serving.py\n", "          true\n", 1),
+                "          python -I -B .github/scripts/await_hf_runtime_serving.py\n", "          true\n", 1),
             "converge before admission": self.text.replace(
                 "        id: admit\n", "        id: late_owner\n", 1),
             "ungated deploy window": self.text.replace(

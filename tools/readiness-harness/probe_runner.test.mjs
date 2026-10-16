@@ -25,6 +25,83 @@ const readinessMatrix = JSON.parse(readFileSync(
 const routerSemanticContract =
   readinessMatrix.schemas.router_stats.semanticContract;
 
+test("readiness never sends state-changing requests, including legacy opt-in", async () => {
+  const originalArgv = process.argv;
+  const originalAuthorization = process.env.A11OY_READINESS_MUTATION_AUTHORIZED;
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  globalThis.fetch = async () => {
+    requests += 1;
+    return new Response("{}", {
+      status: 200, headers: { "content-type": "application/json" },
+    });
+  };
+  try {
+    for (const [flag, authorization] of [[true, "1"], [false, ""], [true, ""], [false, "1"]]) {
+      process.argv = [...originalArgv, ...(flag ? ["--allow-state-changing"] : [])];
+      process.env.A11OY_READINESS_MUTATION_AUTHORIZED = authorization;
+      const runner = await import(`./probe_runner.mjs?readonly=${flag}-${authorization}`);
+      const results = [];
+      for (const method of ["POST", "put", "PATCH", "DELETE", "OPTIONS", "TRACE"]) {
+        const result = await runner.probeEndpoint("/synthetic-effect", { method });
+        assert.equal(result.skipped, true, method);
+        assert.equal(result.required, true);
+        assert.equal(result.runtimeState, "NOT_PROBED");
+        assert.equal(result.status, null);
+        assert.equal(result.schemaOk, null);
+        assert.equal(result.freshOk, null);
+        assert.equal(result.samples, 0);
+        assert.equal(result.lie, false);
+        assert.equal(result.unreachable, false);
+        assert.match(result.skipReason, /read-only/);
+        results.push(result);
+      }
+      const gate = runner.summarizeReleaseGate(results, 6);
+      assert.equal(gate.complete, true);
+      assert.equal(gate.requiredNotProbed, 6);
+      assert.equal(runner.releaseExitCode(gate), 1);
+      assert.equal(runner.releaseExitCode(gate, true), 0);
+    }
+    assert.equal(requests, 0);
+  } finally {
+    process.argv = originalArgv;
+    globalThis.fetch = originalFetch;
+    if (originalAuthorization === undefined) {
+      delete process.env.A11OY_READINESS_MUTATION_AUTHORIZED;
+    } else {
+      process.env.A11OY_READINESS_MUTATION_AUTHORIZED = originalAuthorization;
+    }
+  }
+});
+
+test("optional unprobed contracts remain visible without claiming a successful probe", async () => {
+  const result = await probeEndpoint("/optional-effect", { method: "POST", required: false });
+  const gate = summarizeReleaseGate([result], 1);
+  assert.equal(result.skipped, true);
+  assert.equal(result.status, null);
+  assert.equal(gate.requiredNotProbed, 0);
+  assert.equal(gate.blocked, false);
+});
+
+test("readiness GET and HEAD retain bounded retries and timing samples", async () => {
+  for (const method of ["GET", "HEAD"]) {
+    const requests = [];
+    const delays = [];
+    const result = await probeEndpoint("/synthetic-read", { method }, {
+      request: async (path, actualMethod) => {
+        requests.push({ path, method: actualMethod });
+        return { status: requests.length === 1 ? 503 : 200, ms: 5, body: {} };
+      },
+      sleepFn: async (delay) => { delays.push(delay); },
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.samples, 5);
+    assert.equal(requests.length, 6);
+    assert.ok(requests.every((request) => request.method === method));
+    assert.deepEqual(delays, [1200, 400, 400, 400, 400]);
+  }
+});
+
 function liveRouterStats(nowMs = Date.now()) {
   const organForTier = new Map([
     [0, "Reasoning"], [1, "Reasoning"], [2, "a11oy"], [3, "Operator"],
@@ -89,6 +166,23 @@ test("freshness recognizes explicit snake- and camel-case observation clocks", (
       Date.parse("2026-07-26T01:06:00Z"),
     ).freshOk, true);
   }
+});
+
+test("freshness ignores counters whose names merely end in ts", () => {
+  const observedAt = "2026-10-09T01:08:18.985Z";
+  const body = {
+    historical_billable_receipts: 0,
+    historical_reported_charged_cents: 0,
+    ts: observedAt,
+  };
+
+  assert.equal(findTimestamp(body)?.toISOString(), observedAt);
+  assert.equal(evaluateFreshness(
+    "/api/a11oy/v1/energy/harvest",
+    { freshnessSLA: 3600 },
+    body,
+    Date.parse("2026-10-09T01:09:00Z"),
+  ).freshOk, true);
 });
 
 test("freshness prefers nested source fetch time over a market event timestamp", () => {
@@ -659,6 +753,36 @@ test("SYNTHETIC HTTP probe blocks a fresh cited but unbuilt RAG index", async ()
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("explicit optional degradation remains visible without blocking release", () => {
+  const optionalPaths = [
+    "/api/a11oy/v1/energy/live",
+    "/api/a11oy/v1/energy/sci",
+    "/api/a11oy/v1/vert/legal/feed",
+    "/api/a11oy/v1/devb/legal/matter?limit=1",
+    "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1",
+    "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1",
+  ];
+  for (const path of optionalPaths) {
+    assert.equal(readinessMatrix.endpoints[path].degradedBlocksReadiness, false, path);
+  }
+  for (const path of [
+    "/api/a11oy/v1/rag/status",
+    "/api/a11oy/v1/vert/defense/feed",
+    "/api/a11oy/v1/vert/finance/feed",
+    "/api/a11oy/v1/vert/realestate/feed",
+  ]) {
+    assert.equal(readinessMatrix.endpoints[path].degradedBlocksReadiness, true, path);
+  }
+  const result = {
+    path: optionalPaths[0], required: true, lie: false, unreachable: false,
+    throttled: false, degraded: true, degradedBlocksReadiness: false,
+  };
+  const gate = summarizeReleaseGate([result], 1);
+  assert.equal(gate.requiredDegraded, 0);
+  assert.equal(gate.blocked, false);
+  assert.equal(releaseExitCode(gate), 0);
 });
 
 test("admitted negative root scalar labels retain endpoint-level absence", () => {

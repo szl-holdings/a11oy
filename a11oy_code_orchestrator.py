@@ -75,12 +75,9 @@ import szl_operator_auth as _opauth
 # never break the existing orchestrator routes (Zero-Bandaid: degrade honestly).
 # ---------------------------------------------------------------------------
 try:
-    # Prefer the installable shared substrate; fall back to the local vendored
-    # copy if the package is absent (guarded — the outer except is the final net).
-    try:
-        from szl_substrate import a11oy_agent_loop as _agent  # governed FSM
-    except Exception:
-        import a11oy_agent_loop as _agent  # governed FSM
+    # Keep the route bound to the runtime shipped and reviewed in this source
+    # tree. An optional installed substrate can carry an older admission loop.
+    import a11oy_agent_loop as _agent  # governed FSM
 except Exception as _exc:  # pragma: no cover
     _agent = None
     _AGENT_IMPORT_ERROR = str(_exc)
@@ -771,7 +768,8 @@ DEFAULT_SYSTEM_PROMPT = (
     "answer at the highest available quality using a unified open-LLM router. You "
     "can orchestrate governed SZL services (Governance, Policy, Operator, Field-Node "
     "roles) and reach outside via GitHub, Hugging Face, web search/fetch/browse, a "
-    "sandboxed shell, and a sandboxed filesystem - all of which are exposed to you "
+    "shell with no IP network (allow-listed commands), and a workspace filesystem - all "
+    "of which are exposed to you "
     "as tools. Every action you take is gated by PURIQ (Yuyay 13-axis wisdom + "
     "HUKLLA tripwires) and receipted on the Khipu chain. Be precise, write clear "
     "code, cite sources, refuse cleanly when a gate denies, and prefer streaming. "
@@ -1882,7 +1880,10 @@ TOOL_SCHEMAS = [
             "path": {"type": "string"}, "method": {"type": "string", "default": "GET"},
             "json": {"type": "object"}}, "required": ["organ", "path"]}}},
     {"type": "function", "function": {
-        "name": "shell_exec", "description": "Run an allow-listed command in a sandboxed dir (no network, 30s).",
+        "name": "shell_exec", "description": ("Run an allow-listed command in the workspace dir inside an attested per-run "
+                                                "network namespace (no IP network; refused when it cannot be attested), "
+                                                "mandatory rlimits (no forks, no file growth), 30s. Not a filesystem "
+                                                "sandbox: it runs as the server's uid."),
         "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}}},
     {"type": "function", "function": {
         "name": "fs_read", "description": "Read a file from the sandboxed workspace dir.",
@@ -1929,7 +1930,8 @@ TOOL_SCHEMAS = [
         "parameters": {"type": "object", "properties": {
             "path": {"type": "string"}, "diff": {"type": "string"}}, "required": ["path", "diff"]}}},
     {"type": "function", "function": {
-        "name": "run_tests", "description": "Run a test command in the constrained sandbox (python3/pytest/node). Honest boundary.",
+        "name": "run_tests", "description": ("Run an allow-listed test command (python3/pytest/node) in the workspace dir. "
+                                                "NOT sandboxed: no rlimits and no network or filesystem isolation."),
         "parameters": {"type": "object", "properties": {
             "command": {"type": "string", "default": "python3 -m pytest -q"}}, "required": []}}},
     {"type": "function", "function": {
@@ -1949,14 +1951,17 @@ TOOL_SCHEMAS = [
 SHELL_ALLOWLIST = {"ls", "cat", "echo", "wc", "head", "tail", "grep", "find", "python3", "node", "sort", "uniq"}
 
 # ---------------------------------------------------------------------------
-# Sandboxed code runner for the IDE "Run" button. HONEST safety boundary:
+# Code runner for the IDE "Run" button (and run_tests). HONEST boundary: this is
+# NOT a sandbox.
 #  - only python3 / node interpreters (no arbitrary binaries)
-#  - executed inside SANDBOX_DIR with a minimal PATH, NO network reachability is
-#    promised (the Space process MAY have egress; we do NOT sandbox the network
-#    at the kernel level here, so we LABEL that honestly rather than claim it)
-#  - 8s wall-clock timeout, output truncated
-# This is a constrained-interpreter runner, NOT a hardened multi-tenant jail.
-# The label returned to the UI states the boundary plainly (no fake claims).
+#  - the working directory is SANDBOX_DIR, but nothing confines the code to it:
+#    it runs as the server's own uid and can read and write what that uid can
+#  - minimal env (no inherited secrets), wall-clock timeout, output truncated
+#  - NO rlimits, NO network isolation (the Space process may have egress), NO
+#    filesystem, seccomp or container isolation
+# Callers need the two-person operator gate. The label returned to the UI states
+# the boundary plainly; the isolated paths are a11oy_code_engine._sandbox_exec,
+# a11oy_governed_kernel and the shell_exec tool.
 # ---------------------------------------------------------------------------
 RUN_INTERPRETERS = {
     "python": ["python3", "-I", "-S"],   # -I isolated, -S no site
@@ -1964,19 +1969,21 @@ RUN_INTERPRETERS = {
     "shell": None,   # shell handled via the allow-listed _tool_shell path only
 }
 RUN_BOUNDARY = (
-    "sandbox: isolated dir + 8s timeout + interpreter-only (python3/node). "
-    "Network is NOT kernel-isolated in this Space \u2014 do not run untrusted code "
-    "expecting egress containment. Honest boundary, not a hardened jail."
+    "NOT sandboxed: runs as the server's own uid with the workspace dir as its working "
+    "directory, a minimal env and a wall-clock timeout (8s Run, 30s tests), interpreter-only "
+    "(python3/node). No rlimits, no network isolation and no filesystem isolation \u2014 "
+    "do not run untrusted code here."
 )
 
 
 def run_code(language: str, code: str) -> dict[str, Any]:
-    """Execute editor code in the constrained sandbox. Returns stdout/stderr/code.
+    """Execute editor code UNSANDBOXED (see RUN_BOUNDARY): the server's own uid, the
+    workspace as cwd, a minimal env and an 8s timeout. Returns stdout/stderr/code.
     NO fake run: if the language is unsupported we say so honestly."""
     SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
     lang = (language or "python").lower()
     if lang in ("text/x-csrc", "c"):
-        return {"error": "C execution is not enabled in this sandbox (no compiler in image). "
+        return {"error": "C execution is not enabled in this runner (no compiler in image). "
                          "Honest limitation \u2014 Python and JavaScript run live.",
                 "boundary": RUN_BOUNDARY, "code": None}
     if lang == "shell":
@@ -2197,7 +2204,8 @@ def _tool_apply_patch(path: str, diff: str) -> Any:
 
 
 def _tool_run_tests(command: str) -> Any:
-    """Run an allow-listed test command in the sandbox (python3/pytest/node)."""
+    """Run an allow-listed test command (python3/pytest/node) in the workspace dir.
+    NOT sandboxed (see RUN_BOUNDARY)."""
     parts = command.strip().split()
     if not parts:
         return {"error": "empty command"}
@@ -2324,17 +2332,101 @@ async def _tool_flagship(client: httpx.AsyncClient, organ: str, path: str, metho
         return {"status": resp.status_code, "text": resp.text[:2000]}
 
 
+# shell_exec runs inside the SAME isolation as a11oy_code_engine._sandbox_exec,
+# reused from that module (byte-locked shared source; imported, never copied):
+# fixed root-owned `unshare --user --map-current-user --net`, mandatory
+# CPU+AS+CORE+FSIZE+NPROC rlimits applied and read back in the child before exec,
+# a non-root server, and the engine's attestation as the child's first act. The
+# attestation stub then execs the allow-listed binary in place, so the binary
+# inherits the attested namespaces and limits. If any control is missing the
+# command is refused and never runs; there is no unisolated fallback.
+SHELL_TIMEOUT_S = 30
+SHELL_MEM_MB = 256
+_SHELL_EXEC_STUB = "import os, sys\nos.execv(sys.argv[1], sys.argv[1:])\n"
+SHELL_ISOLATION = (
+    "allow-listed command as the server's own non-root uid in an attested per-run user + "
+    "network namespace (unshare --user --map-current-user --net: no IP network, only an "
+    "unconfigured loopback), mandatory CPU+memory+core+fsize+nproc rlimits (fail closed: "
+    "no forks, no file growth), 30s wall-clock timeout, minimal env. NOT a filesystem "
+    "sandbox: the command can read what the server's uid can read (including that uid's "
+    "/proc entries) and can delete files that uid may write; filesystem Unix sockets are "
+    "not covered by the network namespace. No seccomp or container isolation."
+)
+SHELL_REFUSED_ISOLATION = "UNAVAILABLE — fail closed: the command was NOT executed"
+
+
+def _shell_refused(command: str, error: str, stderr: str = "", code: int | None = None) -> dict:
+    return {"error": error, "command": command, "stdout": "", "stderr": stderr[:1000],
+            "code": code, "execution_attempted": False, "execution_state": "UNAVAILABLE",
+            "isolation": SHELL_REFUSED_ISOLATION}
+
+
 def _tool_shell(command: str) -> Any:
     SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
     parts = command.strip().split()
     if not parts or parts[0] not in SHELL_ALLOWLIST:
         return {"error": f"binary not in allow-list {sorted(SHELL_ALLOWLIST)}", "command": command}
     try:
-        out = subprocess.run(parts, capture_output=True, text=True, timeout=30,
-                             cwd=str(SANDBOX_DIR), env={"PATH": os.environ.get("PATH", "")})
-        return {"stdout": out.stdout[:4000], "stderr": out.stderr[:1000], "code": out.returncode}
-    except subprocess.TimeoutExpired:
-        return {"error": "timeout (30s)", "command": command}
+        import a11oy_code_engine as _engine
+    except Exception as exc:  # fail closed: no isolation helpers, no execution
+        return _shell_refused(command, "sandbox unavailable: the isolation engine is not "
+                                       f"importable ({type(exc).__name__})")
+    import shutil
+
+    path = os.environ.get("PATH", "")
+    binary = shutil.which(parts[0], path=path)
+    if not binary:
+        return _shell_refused(command, f"'{parts[0]}' is not installed in this image")
+    capability = _engine.sandbox_capability()
+    if capability.get("state") != "READY_TO_PROBE":
+        return _shell_refused(command, "fixed sandbox isolation prerequisites unavailable",
+                              "missing: %s" % ", ".join(capability.get("missing") or []))
+    res, plan, refusal = _engine._plan_mandatory_rlimits(SHELL_TIMEOUT_S, SHELL_MEM_MB)
+    if refusal:
+        return _shell_refused(command, refusal)
+    identity, refusal = _engine._parent_identity()
+    if refusal:
+        return _shell_refused(command, refusal)
+
+    def _limits():
+        # child-only, MANDATORY; raises (never swallows), so a failure aborts before exec.
+        _engine._apply_mandatory_rlimits(res, plan)
+
+    want = [identity["net"], identity["user"], str(identity["uid"])]
+    argv = [_engine._UNSHARE, *_engine._UNSHARE_FLAGS, "--", sys.executable, "-I", "-S", "-c",
+            _engine._ATTEST_SRC + _SHELL_EXEC_STUB, *want, binary, *parts[1:]]
+    try:
+        rc, out, err, timed_out = _engine._launch(argv, cwd=str(SANDBOX_DIR), env={"PATH": path},
+                                                  timeout=SHELL_TIMEOUT_S, preexec_fn=_limits)
+    except _engine._NotStarted as exc:
+        return _shell_refused(command, str(exc))
+    except _engine._AfterStart as exc:
+        return {"error": f"sandbox error after the command started ({exc}); whether it ran "
+                         "could not be established", "command": command, "stdout": "",
+                "stderr": "", "code": None, "execution_attempted": None,
+                "execution_state": "UNVERIFIED",
+                "isolation": "UNVERIFIED — the child started; its result was lost"}
+    marker, problems, rest = _engine._attestation(out, identity)
+    if marker is None or marker.get("ok") is not True:
+        # No attestation, or the child's own self-check exited before the exec.
+        return _shell_refused(command, "sandbox unavailable: the shell child did not attest "
+                                       "its isolation; the command never ran",
+                              "; ".join(problems) + ((" | " + err.decode("utf-8", "replace"))
+                                                     if err else ""),
+                              code=rc)
+    stdout = rest.decode("utf-8", "replace")[:4000]
+    stderr = err.decode("utf-8", "replace")[:1000]
+    if problems:
+        return {"error": "sandbox isolation attestation mismatch: %s" % "; ".join(problems),
+                "command": command, "stdout": stdout, "stderr": stderr, "code": rc,
+                "execution_attempted": True, "execution_state": "UNVERIFIED",
+                "isolation": "UNVERIFIED — the command ran but its isolation did not verify"}
+    if timed_out:
+        return {"error": f"timeout ({SHELL_TIMEOUT_S}s)", "command": command,
+                "stdout": stdout, "stderr": stderr, "code": rc, "execution_attempted": True,
+                "isolation": SHELL_ISOLATION}
+    return {"stdout": stdout, "stderr": stderr, "code": rc, "execution_attempted": True,
+            "isolation": SHELL_ISOLATION}
 
 
 def _safe_sandbox_path(path: str) -> Path:
@@ -3054,12 +3146,15 @@ async def rag_seed(request: Request) -> JSONResponse:
 # ===========================================================================
 @router.get("/agent/status")
 async def agent_status() -> JSONResponse:
-    """Agent availability + guard configuration + recent Reflexion lessons."""
+    """Report content admission separately from inference-backend readiness."""
     if _agent is None:
         return JSONResponse({"available": False, "error": f"a11oy_agent_loop not importable: {_AGENT_IMPORT_ERROR}"},
                             status_code=503)
     return JSONResponse({
-        "available": True,
+        # These routes do not yet have a scoped source/provider controller.
+        # A reachable model or operator credential cannot grant that authority.
+        "available": False,
+        "control_loop_available": True,
         "surface_name": "Chaski",
         "states": [_agent.S_INTAKE, _agent.S_PLAN, _agent.S_RETRIEVE, _agent.S_ACT,
                    _agent.S_OBSERVE, _agent.S_VERIFY, _agent.S_REFLECT,
@@ -3068,7 +3163,9 @@ async def agent_status() -> JSONResponse:
         "guards": {"max_steps": _agent.MAX_STEPS,
                    "max_reflect_depth": _agent.MAX_REFLECT_DEPTH,
                    "lambda_floor": _agent.LAMBDA_FLOOR},
-        "mode": "live" if inference_backend_ready() else "deterministic_stub",
+        "mode": "content_admission_unavailable",
+        "inference_backend_ready": inference_backend_ready(),
+        "synthesis_admission": {"state": "UNAVAILABLE", "reason": "CONTENT_ADMISSION_UNAVAILABLE"},
         "token_secret": _code_secret_name(),
         "recent_reflections": _agent.recent_reflections(limit=10),
     })
@@ -3136,6 +3233,8 @@ async def agent_stream(request: Request):
             yield sse(ev, d)
             await asyncio.sleep(0)
         yield sse("done", {"ok": result.get("ok"), "final_state": result.get("final_state"),
+                           "halt_reason": result.get("halt_reason"),
+                           "synthesis_admission": result.get("synthesis_admission"),
                            "answer": result.get("answer"), "stub": result.get("stub"),
                            "i_dont_know": result.get("i_dont_know"),
                            "step_count": result.get("step_count"),
@@ -3171,8 +3270,9 @@ async def code_ide():
 
 @router.post("/run")
 async def code_run(request: Request) -> JSONResponse:
-    """Execute editor code in the constrained sandbox. Honest safety boundary is
-    returned in the response (see RUN_BOUNDARY). PURIQ-gated + Khipu-receipted."""
+    """Execute editor code, NOT sandboxed (no rlimits, no network or filesystem
+    isolation); the honest boundary is returned in the response (RUN_BOUNDARY).
+    Two-person operator gate + PURIQ-gated + Khipu-receipted."""
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
@@ -3183,7 +3283,7 @@ async def code_run(request: Request) -> JSONResponse:
         return _blocked("Code execution", needs_second_approver=True)
     if not isinstance(code, str) or not code.strip():
         return JSONResponse({"error": "empty code", "boundary": RUN_BOUNDARY, "code": None})
-    # Gate the run as a sandboxed exec action.
+    # Gate the run as a code-execution action (the same PURIQ bar as shell_exec).
     gate = puriq_decide("shell_exec", _gate_context_for_tool(
         "shell_exec", {"run": language}, attested=who["two_person_attested"],
         authorized=who["operator"]))
@@ -3202,9 +3302,11 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
     long-lived per-run_id worker whose globals() persist across cells (DEFER-2).
 
     Delegates to a11oy_governed_kernel.GovernedKernel.exec_cell (one worker process
-    per run_id; rlimits + network-disable preamble + isolated interpreter). The hard
-    security screen runs in the PURIQ gate below BEFORE the cell ever reaches the
-    worker. Returns {output, receipt_hash, rlimit_status}.
+    per run_id; mandatory rlimits + attested user/network namespace + isolated
+    interpreter, fail closed). The deterministic hard security screen
+    (a11oy_code_engine.hard_security_screen) runs on the cell BEFORE the PURIQ gate
+    and before the cell ever reaches a worker, as on the code-as-action path; a
+    hard block never executes. Returns {output, receipt_hash, rlimit_status}.
 
     PROVE wire: after each exec a signed Khipu receipt is emitted and recorded into
     the UNIFIED LEDGER (organ="a11oy-kernel") via szl_lake_ingest.record_receipt —
@@ -3224,6 +3326,22 @@ async def kernel_exec(run_id: str, request: Request) -> JSONResponse:
     if not isinstance(code, str) or not code.strip():
         return JSONResponse({"error": "empty code", "output": None,
                              "receipt_hash": None, "rlimit_status": None})
+    # HARD deny-by-default screen (key/env/ledger/signer/network/fs bans) on the cell
+    # itself. Fail closed: if the screen cannot run, nothing executes.
+    try:
+        import a11oy_code_engine as _ce
+        screen = _ce.hard_security_screen(code)
+    except Exception as exc:
+        return JSONResponse({"error": f"hard security gate unavailable ({type(exc).__name__}); "
+                                      "the cell was NOT executed",
+                             "status": "BLOCKED", "executed": False, "output": None,
+                             "receipt_hash": None, "rlimit_status": None}, status_code=503)
+    if screen.get("hard_block") is not False:
+        _METRICS["gate_denied_total"] += 1
+        return JSONResponse({"error": screen.get("reason") or "hard security gate DENIED",
+                             "findings": screen.get("findings"), "status": "BLOCKED",
+                             "executed": False, "output": None, "receipt_hash": None,
+                             "rlimit_status": None})
     # PURIQ-gate the cell as a sandboxed exec action (same bar as /run).
     gate = puriq_decide("shell_exec",
                         _gate_context_for_tool("shell_exec", {"kernel": run_id},
@@ -3428,6 +3546,13 @@ async def chat_stream(request: Request):
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
+    agentic = bool(body.get("agentic", False))
+    if agentic and _agent is None:
+        return JSONResponse({
+            "ok": False, "error": "AGENT_LOOP_UNAVAILABLE", "mode": "agentic",
+            "agentic": True, "served_by": "NOT_INVOKED", "model": None,
+            "synthesis_admission": {"state": "UNAVAILABLE", "reason": "AGENT_LOOP_UNAVAILABLE"},
+        }, status_code=503)
     who = _opauth.principal(request)
     # Conversation memory is operator state: an anonymous turn gets a fresh id, never
     # reads a stored conversation by a guessed id, and is never written to memory.
@@ -3452,7 +3577,6 @@ async def chat_stream(request: Request):
     # Agentic mode: run the governed FSM (plan/retrieve/act/observe/verify/
     # reflect/finalize) instead of the single-shot tool loop. Default OFF so the
     # existing chat behavior is byte-for-byte unchanged unless explicitly asked.
-    agentic = bool(body.get("agentic", False)) and _agent is not None
 
     # ------------------------------------------------------------------
     # Message contract: the browser tab POSTs an OpenAI-style `messages`
@@ -3511,14 +3635,15 @@ async def chat_stream(request: Request):
         # truthful. When serving locally (reachability-gated by _serving_base, so
         # it can never overclaim) report the on-box served tag — not the logical
         # router id — plus a sovereign/served_locally flag.
-        _serve_base, _serve_local = _serving_base()
+        _serve_base, _serve_local = (None, False) if agentic else _serving_base()
         # R-RESILIENCE/R-FREEPOWER provenance: report WHO served + the REAL base_url +
         # an energy_source field on EVERY turn (honest plumbing; "grid" today, real
         # value once a stranded-energy node comes online). served_by stays coarse
         # (local-gpu / hf-router); a future LiteLLM proxy can refine to tier-A/B/C/D.
-        _served_by = "local-gpu" if _serve_local else "hf-router"
-        _energy_source = "grid"
-        _route_model = _map_model_for_local(decision["model"]) if _serve_local else decision["model"]
+        _served_by = "NOT_INVOKED" if agentic else ("local-gpu" if _serve_local else "hf-router")
+        _energy_source = None if agentic else "grid"
+        _route_model = (None if agentic else
+                        (_map_model_for_local(decision["model"]) if _serve_local else decision["model"]))
         yield sse("route", {"conversation_id": conv_id, "tier": decision["tier"],
                             "model": _route_model, "license_class": decision["license_class"],
                             "reason": decision["reason"],
@@ -3545,8 +3670,8 @@ async def chat_stream(request: Request):
                     execute_tool=_principal_tool_runner(client, who),
                     model_complete=agent_model_complete, rag_query=_agent_rag_query,
                     two_person_attested=two_person, emit=_agent_emit)
-            except Exception as exc:
-                yield sse("error", {"error": f"agent loop failed: {str(exc)[:300]}"})
+            except Exception:
+                yield sse("error", {"error": "AGENT_LOOP_UNAVAILABLE"})
                 return
             # Drain buffered step events (the loop ran to completion synchronously).
             for ev, data in _queue:
@@ -3559,11 +3684,16 @@ async def chat_stream(request: Request):
                 await asyncio.sleep(0)
             latency_ms = int((time.time() - t0) * 1000)
             y13 = yuyay13_response_score(answer, None, latency_ms)
-            # R0 honesty: a locally-served agentic turn is served by the on-box tag
-            # (and costs nothing). Only remap when we actually served local AND the
-            # finalize step wasn't the no-credential deterministic stub.
-            _ag_local = _serve_local and not result.get("stub")
-            _ag_model = _map_model_for_local(result.get("model")) if _ag_local else result.get("model")
+            # A configured router is not evidence that an admitted model ran.
+            # The fixed synthesis backend supplies destination identity on success.
+            _ag_admission = result.get("synthesis_admission") or {}
+            _ag_invoked = (result.get("ok") is True and result.get("stub") is False
+                           and result.get("final_state") == _agent.S_FINALIZE
+                           and _ag_admission.get("state") == "AUTHORIZED_CONTENT_SUPPLIED")
+            _ag_local = _ag_invoked and _ag_admission.get("trust_domain") == "LOCAL"
+            _ag_model = result.get("model") if _ag_invoked else None
+            _ag_unserved = ("NOT_INVOKED" if result.get("halt_reason") == "CONTENT_ADMISSION_UNAVAILABLE"
+                            else "NOT_CONFIRMED")
             _remember("assistant", answer, model=_ag_model,
                       tier=decision["tier"], latency_ms=latency_ms, cost_usd=0.0,
                       yuyay13=y13, khipu_hash=result.get("khipu_hash"))
@@ -3574,8 +3704,10 @@ async def chat_stream(request: Request):
                                "chain_verified": result.get("chain_verified", True),
                                "mode": "agentic", "agentic": True,
                                "served_locally": _ag_local, "sovereign": _ag_local,
-                               "served_by": ("local-gpu" if _ag_local else "hf-router"),
-                               "base_url": _serve_base, "energy_source": _energy_source,
+                               "served_by": (_ag_admission.get("provider_id") if _ag_invoked else _ag_unserved),
+                               "base_url": None, "energy_source": None,
+                               "ok": result.get("ok"), "halt_reason": result.get("halt_reason"),
+                               "synthesis_admission": result.get("synthesis_admission"),
                                "final_state": result.get("final_state"),
                                "step_count": result.get("step_count"),
                                "i_dont_know": result.get("i_dont_know"),

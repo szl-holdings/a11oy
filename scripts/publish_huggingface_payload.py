@@ -176,6 +176,17 @@ def remote_state(api, revision: str) -> tuple[str, dict[str, int]]:
     return observed, files
 
 
+def current_parent(api) -> str:
+    """Read the target's current Hub HEAD as the compare-and-swap parent.
+
+    The commit stays parent-bound: reconcile re-reads HEAD immediately before
+    committing, and create_commit(parent_commit=...) refuses when anything
+    advanced the target in between. No operator-typed revision is involved.
+    """
+    observed, _ = remote_state(api, "main")
+    return observed
+
+
 def reconcile(api, expected_revision: str, payload: dict[str, bytes], source_revision: str,
               *, read_file, operation_factory, check_source, apply: bool = False) -> dict:
     parent = sha(expected_revision)
@@ -233,11 +244,15 @@ def main() -> int:
     parser.add_argument("--repo-id", default=TARGET, choices=[TARGET])
     parser.add_argument("--repo-type", default=REPO_TYPE, choices=[REPO_TYPE])
     parser.add_argument("--folder", default="dist/huggingface/a11oy")
-    parser.add_argument("--expected-revision", required=True)
+    parent = parser.add_mutually_exclusive_group(required=True)
+    parent.add_argument("--expected-revision", help="an operator-reviewed exact Hub parent revision")
+    parent.add_argument("--parent-from-hub", action="store_true",
+                        help="bind the commit to the target's current Hub HEAD, read at run time")
     parser.add_argument("--apply", action="store_true", help="perform the one parent-bound additive commit")
     args = parser.parse_args()
     try:
-        sha(args.expected_revision)
+        if args.expected_revision is not None:
+            sha(args.expected_revision)
         token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
         require(bool(token), "HF_TOKEN is missing; use the existing publisher credential.")
         from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
@@ -255,9 +270,12 @@ def main() -> int:
             require(local.stat().st_size == size, "A downloaded immutable file has an unexpected size.")
             return local.read_bytes()
 
-        result = reconcile(api, args.expected_revision, payload, source_revision,
+        expected = args.expected_revision if args.expected_revision is not None else current_parent(api)
+        result = reconcile(api, expected, payload, source_revision,
                            read_file=read_file, operation_factory=CommitOperationAdd,
                            check_source=canonical_source, apply=args.apply)
+        result["parent_source"] = ("OPERATOR_SELECTED" if args.expected_revision is not None
+                                   else "HUB_HEAD_AT_RUN")
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     except PublishError as error:

@@ -27,6 +27,39 @@ def _set_test_hmac(monkeypatch, origin):
         origin: {"client_id": "test-reader", "key_hex": secrets.token_hex(32)}}))
 
 
+def test_source_owned_version_selector_never_falls_back_or_chooses_newest(monkeypatch):
+    origin = "https://meter2.a-11-oy.com"
+    name = "SZL_METER_HMAC_TARGETS_V1_" + "A" * 32
+    monkeypatch.setenv("SZL_METER_HMAC_TARGETS", json.dumps({
+        origin: {"client_id": "old-reader", "key_hex": secrets.token_hex(32)}}))
+    monkeypatch.setenv("SZL_METER_HMAC_TARGETS_V1_" + "B" * 32, json.dumps({
+        origin: {"client_id": "wrong-version", "key_hex": secrets.token_hex(32)}}))
+    monkeypatch.setattr(szl_meter_access, "ACTIVE_METER2_TARGETS_SECRET", name)
+    with pytest.raises(szl_meter_access.MeterAuthConfigurationError):
+        szl_meter_access.meter_request_headers(origin + "/metrics")
+    monkeypatch.setenv(name, json.dumps({
+        origin: {"client_id": "selected-reader", "key_hex": secrets.token_hex(32)}}))
+    headers = szl_meter_access.meter_request_headers(origin + "/metrics")
+    assert headers["X-SZL-Meter-Client"] == "selected-reader"
+
+
+def test_versioned_secret_rejects_wrong_audience_and_invalid_pointer(monkeypatch):
+    origin = "https://meter2.a-11-oy.com"
+    name = "SZL_METER_HMAC_TARGETS_V1_" + "C" * 32
+    monkeypatch.setattr(szl_meter_access, "ACTIVE_METER2_TARGETS_SECRET", name)
+    monkeypatch.setenv(name, json.dumps({
+        "https://meter.a-11-oy.com": {"client_id": "other-reader",
+                                     "key_hex": secrets.token_hex(32)}}))
+    with pytest.raises(szl_meter_access.MeterAuthConfigurationError,
+                       match="wrong audience"):
+        szl_meter_access.meter_request_headers(origin + "/metrics")
+    monkeypatch.setattr(szl_meter_access, "ACTIVE_METER2_TARGETS_SECRET",
+                        "SZL_METER_HMAC_TARGETS_V1_LATEST")
+    with pytest.raises(szl_meter_access.MeterAuthConfigurationError,
+                       match="source-owned"):
+        szl_meter_access.meter_request_headers(origin + "/metrics")
+
+
 def test_headers_require_pair_and_exact_https_host(monkeypatch):
     monkeypatch.setenv("A11OY_METER2_CF_ACCESS_CLIENT_ID", _ID)
     monkeypatch.delenv("A11OY_METER2_CF_ACCESS_CLIENT_SECRET", raising=False)

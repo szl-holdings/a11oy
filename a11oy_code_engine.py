@@ -12,7 +12,7 @@ GOVERNANCE — not raw model power.
 THREE GOVERNED MODES, all P1-P6, all receipted:
   1. CHAT     — multi-turn conversation.  govern -> answer -> signed receipt.
   2. CODE     — generate code AND run it in a REAL governed sandbox
-                (plan -> policy/kernel gate -> isolated subprocess exec -> signed
+                (plan -> policy/kernel gate -> restricted subprocess exec -> signed
                 receipt of the run, with stdout/result).
   3. RESEARCH — retrieve + answer over REAL sources (the in-image RAG governance
                 corpus + the app's already-wired live public feeds — CVE/KEV/MITRE/
@@ -74,7 +74,6 @@ import json
 import math
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -91,6 +90,7 @@ except ImportError:  # pragma: no cover - exercised on Windows
 try:
     import szl_agentic_loop as _loop
     _retrieve = _loop._retrieve
+    _retrieve_with_identity = _loop._retrieve_with_identity
     _trust_score = _loop._trust_score
     _sha = _loop._sha
     _LOOP_OK = True
@@ -119,6 +119,18 @@ except Exception:  # additive: never break the Space if the loop module moves
         scored.sort(key=lambda x: -x[0])
         return [{"chunk_id": d["id"], "title": d["title"], "text": d["text"], "score": s}
                 for s, d in scored[:top_k]]
+
+    def _retrieve_with_identity(query: str, top_k: int = 3):
+        chunks = _retrieve(query, top_k=top_k)
+        return chunks, {
+            "backend": "engine-mini-corpus",
+            "corpus_generation": "UNKNOWN",
+            "source_handles": [c.get("chunk_id") for c in chunks],
+            "fallback": "loop-import-failed",
+            "abstention": "UNKNOWN",
+            "plane": "in-image",
+            "outcome": "fallback-grounded",
+        }
 
     def _trust_score(axes: dict) -> float:
         vals = [max(1e-6, min(1.0, float(v))) for v in (axes or {}).values()] or [0.5]
@@ -335,11 +347,14 @@ def _consensus(votes: list) -> dict:
 
 
 # ===========================================================================
-# REAL GOVERNED SANDBOX  (restricted subprocess: rlimits + no-network + timeout).
+# GOVERNED SANDBOX  (restricted subprocess: mandatory rlimits + attested user and
+# network namespaces + timeout).
 # Plan -> policy/kernel gate (handled by the governed loop) -> execute -> receipt.
-# Honest label: "sandboxed (restricted subprocess)". Full seccomp/container
-# isolation is available on the tower/UDS pod; in the HF CPU Space we apply OS
-# resource limits + a network-disabled child env + a hard timeout.
+# Honest label: "restricted subprocess". These are resource controls plus a
+# per-run user + network namespace, NOT a seccomp or container sandbox. Container/
+# microVM isolation is ROADMAP and is not claimed by this engine. Other a11oy
+# code-execution routes (a11oy_governed_kernel, the orchestrator's /code/run) do
+# not use this sandbox and carry their own labels.
 # ===========================================================================
 _FORBIDDEN_IMPORTS = ("socket", "urllib", "requests", "http", "ftplib", "smtplib",
                       "subprocess", "multiprocessing", "ctypes", "shutil", "os.system",
@@ -348,7 +363,26 @@ _FORBIDDEN_CALLS = ("open(", "eval(", "exec(", "compile(", "__import__", "input(
                     "os.remove", "os.rmdir", "os.unlink", "os.environ", "os.popen",
                     "os.fork", "os.kill")
 
-_UNSHARE = shutil.which("unshare") if os.name == "posix" else None
+_IS_POSIX = os.name == "posix"
+# Fixed, root-owned system locations only. A PATH lookup would let any earlier
+# `unshare` on the server's PATH stand in for the namespace boundary.
+_UNSHARE_CANDIDATES = ("/usr/bin/unshare", "/bin/unshare")
+
+
+def _fixed_unshare():
+    if not _IS_POSIX:
+        return None
+    for cand in _UNSHARE_CANDIDATES:
+        try:
+            st = os.stat(cand)
+        except OSError:
+            continue
+        if st.st_uid == 0 and not (st.st_mode & 0o022) and os.access(cand, os.X_OK):
+            return cand
+    return None
+
+
+_UNSHARE = _fixed_unshare()
 
 
 def sandbox_capability() -> dict:
@@ -359,7 +393,7 @@ def sandbox_capability() -> dict:
     without POSIX rlimits and a real network namespace boundary.
     """
     missing = []
-    if os.name != "posix":
+    if not _IS_POSIX:
         missing.append("POSIX_HOST")
     if resource is None:
         missing.append("POSIX_RESOURCE_LIMITS")
@@ -371,7 +405,8 @@ def sandbox_capability() -> dict:
         "resource_limits": resource is not None,
         "network_namespace_command": _UNSHARE,
         "honesty": (
-            "Execution still requires a successful per-run unshare --net probe."
+            "Execution still requires a non-root server and a per-run unshare --user --net "
+            "probe whose child attests new namespaces, zero capabilities and a refused fork."
             if not missing else
             "Code execution is refused because the fixed isolation prerequisites are absent."
         ),
@@ -455,22 +490,336 @@ def hard_security_screen(code: str) -> dict:
             "network_or_fs_attempt": base["network_or_fs_attempt"]}
 
 
+# ---------------------------------------------------------------------------
+# MANDATORY CHILD RLIMITS (fail closed).
+# Every limit below is MANDATORY. If any one of them cannot be applied, the
+# generated code does not run: there is no "run without limits" degraded mode.
+#   - parent-side preflight (_plan_mandatory_rlimits): non-mutating, BEFORE any
+#     process is created. Denies when the resource module, a mandatory RLIMIT_*
+#     constant, getrlimit/setrlimit or RLIM_INFINITY is missing, when a current
+#     limit cannot be read, or when the mandate is not a positive finite value.
+#     It never changes the server process's own limits.
+#   - child-side hook (_apply_mandatory_rlimits): runs as preexec_fn in the forked
+#     child of BOTH the namespace probe and the code run, and RAISES on any
+#     setrlimit failure or on a limit that is not in effect when read back.
+#     CPython then aborts the child before exec and raises SubprocessError in the
+#     parent, so the generated code never runs; the parent maps that to the same
+#     DENY shape (execution_attempted=False).
+# A read-back proves a limit is set, not that the kernel enforces it: Linux skips
+# RLIMIT_NPROC for a root-owned (INIT_USER) process and for a CAP_SYS_ADMIN or
+# CAP_SYS_RESOURCE holder, and such a process may raise its own hard limits. So
+# the engine also refuses a root server (_parent_identity), runs the child in a
+# fresh user namespace mapped to the server's own non-root uid (no capability in
+# the initial namespace), and makes the child prove it before any user code runs
+# (_ATTEST_SRC: new user + network namespace, expected uid, zero effective and
+# permitted capabilities, and a fork() that the kernel refuses).
+# Honest scope: rlimits + a subprocess + user/network namespaces + regex
+# screening are resource controls, NOT an OS isolation boundary (no seccomp,
+# chroot, mount namespace or container here). The child runs as the server's uid
+# and can read what that uid can read.
+# ---------------------------------------------------------------------------
+_MANDATORY_RLIMITS = ("RLIMIT_CPU", "RLIMIT_AS", "RLIMIT_CORE", "RLIMIT_FSIZE", "RLIMIT_NPROC")
+_NO_POSIX_LIMITS_ERROR = "sandbox unavailable: POSIX resource limits are required"
+_LIMIT_HOOK_FAILED_ERROR = ("sandbox unavailable: a mandatory rlimit could not be applied in the "
+                            "child before exec (preexec limit hook failed); the code never ran")
+_UNSHARE_FLAGS = ("--user", "--map-current-user", "--net")
+_ATTEST_TOKEN = "SZL_NETNS_READY"
+# Runs first in BOTH children (as `python -c` in the probe, as the head of main.py
+# in the code run), so it precedes any user code. It writes one attestation line
+# as the first stdout line and exits before the user code when any check fails.
+# argv[1:4] carries the parent's network namespace, user namespace and uid.
+_ATTEST_SRC = (
+    "def _szl_attest():\n"
+    "    import json, os, sys\n"
+    "    def _read(path):\n"
+    "        with open(path) as handle:\n"
+    "            return handle.read()\n"
+    "    status = dict(line.split(':', 1) for line in _read('/proc/self/status').splitlines()\n"
+    "                  if ':' in line)\n"
+    "    m = {'net': os.readlink('/proc/self/ns/net'), 'user': os.readlink('/proc/self/ns/user'),\n"
+    "         'uid': os.getuid(), 'euid': os.geteuid(),\n"
+    "         'cap_eff': status.get('CapEff', '').strip(), 'cap_prm': status.get('CapPrm', '').strip(),\n"
+    "         'uid_map': _read('/proc/self/uid_map').split()}\n"
+    "    try:\n"
+    "        pid = os.fork()\n"
+    "    except OSError as exc:\n"
+    "        m['fork'] = 'refused:%d' % exc.errno\n"
+    "    else:\n"
+    "        if pid == 0:\n"
+    "            os._exit(0)\n"
+    "        os.waitpid(pid, 0)\n"
+    "        m['fork'] = 'allowed'\n"
+    "    want = sys.argv[1:4]\n"
+    "    m['ok'] = bool(len(want) == 3 and m['net'] != want[0] and m['user'] != want[1]\n"
+    "                   and want[2] != '0' and str(m['uid']) == want[2] and str(m['euid']) == want[2]\n"
+    "                   and m['uid_map'] == [want[2], want[2], '1']\n"
+    "                   and m['cap_eff'] != '' and int(m['cap_eff'], 16) == 0\n"
+    "                   and m['cap_prm'] != '' and int(m['cap_prm'], 16) == 0\n"
+    "                   and m['fork'] == 'refused:11')\n"
+    "    sys.stdout.write('" + _ATTEST_TOKEN + " ' + json.dumps(m, sort_keys=True) + '\\n')\n"
+    "    sys.stdout.flush()\n"
+    "    del sys.argv[1:4]\n"
+    "    if not m['ok']:\n"
+    "        os._exit(97)\n"
+    "_szl_attest()\n"
+    "del _szl_attest\n"
+)
+
+
+class _NotStarted(Exception):
+    """The sandbox child program never started (fork, preexec hook or exec failed)."""
+
+
+class _AfterStart(Exception):
+    """The sandbox child started, then waiting on it failed unexpectedly."""
+
+
+def _sandbox_denied(error: str, isolation: str,
+                    stderr: str = "execution denied because mandatory rlimits cannot be enforced",
+                    elapsed_ms: float = 0.0, capability=None, exit_code: int = -1) -> dict:
+    """The sandbox DENY shape: nothing executed, with a precise reason."""
+    out = {"ok": False, "execution_state": "UNAVAILABLE", "error": error, "stdout": "",
+           "stderr": stderr, "exit": exit_code, "elapsed_ms": elapsed_ms, "isolation": isolation,
+           "execution_attempted": False}
+    if capability is not None:
+        out["capability"] = capability
+    return out
+
+
+def _rlim_stricter(a, b, inf):
+    """The stricter (lower) of two rlimit values; RLIM_INFINITY means no limit."""
+    if a == inf:
+        return b
+    if b == inf:
+        return a
+    return min(a, b)
+
+
+def _rlim_within(actual, wanted, inf) -> bool:
+    """True when `actual` is at least as strict as `wanted`."""
+    if wanted == inf:
+        return True
+    if actual == inf:
+        return False
+    return actual <= wanted
+
+
+def _positive_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _plan_mandatory_rlimits(timeout_s: int, mem_mb: int):
+    """Parent-side preflight for the mandatory child rlimits. NON-MUTATING: it only
+    reads the current limits and never calls setrlimit on the server process.
+
+    Returns (resource_module, plan, None) on success or (None, None, reason) when a
+    mandatory limit cannot be enforced. `plan` is [(name, rid, (soft, hard)), ...];
+    each value is the strictest of the mandated value and the inherited limits, so
+    the child's setrlimit is always a permitted lowering and never weaker than
+    either the mandate or what the server process already had."""
+    res = resource
+    if not _IS_POSIX or res is None:
+        return None, None, _NO_POSIX_LIMITS_ERROR
+    if not (_positive_int(timeout_s) and _positive_int(mem_mb)):
+        return None, None, ("sandbox unavailable: the CPU-time and memory mandates must be "
+                            "positive integers (got timeout_s=%r, mem_mb=%r)" % (timeout_s, mem_mb))
+    for fn in ("getrlimit", "setrlimit"):
+        if not callable(getattr(res, fn, None)):
+            return None, None, ("sandbox unavailable: resource.%s is unavailable, so mandatory "
+                                "rlimits cannot be enforced" % fn)
+    inf = getattr(res, "RLIM_INFINITY", None)
+    if inf is None:
+        return None, None, ("sandbox unavailable: resource.RLIM_INFINITY is unavailable, so "
+                            "mandatory rlimits cannot be planned")
+    mem = mem_mb * 1024 * 1024
+    mandated = {"RLIMIT_CPU": (timeout_s, timeout_s),
+                "RLIMIT_AS": (mem, mem),
+                "RLIMIT_CORE": (0, 0),     # no core dump
+                "RLIMIT_FSIZE": (0, 0),    # no file writes
+                "RLIMIT_NPROC": (0, 0)}    # no new processes
+    plan = []
+    for name in _MANDATORY_RLIMITS:
+        rid = getattr(res, name, None)
+        if rid is None:
+            return None, None, ("sandbox unavailable: mandatory rlimit %s is not supported on "
+                                "this platform" % name)
+        try:
+            cur_soft, cur_hard = res.getrlimit(rid)
+        except Exception as e:
+            return None, None, ("sandbox unavailable: mandatory rlimit %s cannot be read (%s)"
+                                % (name, type(e).__name__))
+        soft, hard = mandated[name]
+        if soft == inf or hard == inf:
+            return None, None, ("sandbox unavailable: the mandate for %s equals RLIM_INFINITY"
+                                % name)
+        eff_hard = _rlim_stricter(hard, cur_hard, inf)
+        eff_soft = _rlim_stricter(_rlim_stricter(soft, cur_soft, inf), eff_hard, inf)
+        if eff_soft == inf or eff_hard == inf or eff_soft < 0 or eff_hard < 0:
+            return None, None, ("sandbox unavailable: the planned %s limit is not a finite "
+                                "non-negative value" % name)
+        plan.append((name, rid, (eff_soft, eff_hard)))
+    return res, plan, None
+
+
+def _apply_mandatory_rlimits(res, plan) -> None:
+    """Child-side preexec hook. Applies EVERY planned limit and reads it back.
+    Raises on any failure and NEVER swallows one: CPython then aborts the child
+    before exec, so the generated code never runs without its limits."""
+    inf = res.RLIM_INFINITY
+    for name, rid, (soft, hard) in plan:
+        res.setrlimit(rid, (soft, hard))
+        got_soft, got_hard = res.getrlimit(rid)
+        if not (_rlim_within(got_soft, soft, inf) and _rlim_within(got_hard, hard, inf)):
+            raise OSError("mandatory rlimit %s is not in effect after setrlimit" % name)
+
+
+def _parent_identity():
+    """The server's own uid and namespaces, read before any child starts.
+
+    Returns ({"uid", "net", "user"}, None) or (None, refusal). Refuses a root
+    server: Linux does not apply RLIMIT_NPROC to a root-owned child even inside a
+    new user namespace. The uid is also translated through the server's own
+    uid_map, so a uid that maps to root one namespace level up is refused too."""
+    try:
+        uid, euid = os.getuid(), os.geteuid()
+        net = os.readlink("/proc/self/ns/net")
+        user = os.readlink("/proc/self/ns/user")
+        with open("/proc/self/uid_map", encoding="ascii") as handle:
+            rows = [tuple(int(x) for x in line.split()) for line in handle if line.strip()]
+        outer = None
+        for inside, outside, count in rows:
+            if inside <= euid < inside + count:
+                outer = outside + (euid - inside)
+    except (OSError, ValueError, TypeError, AttributeError) as e:
+        return None, ("sandbox unavailable: the server's own uid and namespaces cannot be "
+                      "read (%s), so an unprivileged child cannot be verified" % type(e).__name__)
+    if uid == 0 or euid == 0:
+        return None, ("sandbox unavailable: the server runs as root; Linux does not apply "
+                      "RLIMIT_NPROC to a root-owned child, so code is refused")
+    if outer is None or outer == 0:
+        return None, ("sandbox unavailable: the server's uid maps to root (or to nothing) "
+                      "outside its user namespace, so code is refused")
+    return {"uid": euid, "net": net, "user": user}, None
+
+
+def _attestation(stdout: bytes, identity: dict):
+    """Split the child's first stdout line (its attestation) from the rest.
+
+    Returns (marker, problems, rest). `marker` is None when the child never wrote
+    one: the preamble did not run, so no user code ran either. `problems` lists
+    every check the parent itself finds failed against `identity`."""
+    first, sep, rest = stdout.partition(b"\n")
+    prefix = (_ATTEST_TOKEN + " ").encode("ascii")
+    if not sep or not first.startswith(prefix):
+        return None, ["the child wrote no isolation attestation"], stdout
+    try:
+        marker = json.loads(first[len(prefix):].decode("utf-8"))
+    except ValueError:
+        return None, ["the child's isolation attestation is unreadable"], rest
+    if not isinstance(marker, dict):
+        return None, ["the child's isolation attestation is not an object"], rest
+    problems = []
+    if marker.get("net") in (None, identity["net"]):
+        problems.append("no new network namespace")
+    if marker.get("user") in (None, identity["user"]):
+        problems.append("no new user namespace")
+    want = str(identity["uid"])
+    if want == "0" or str(marker.get("uid")) == "0" or str(marker.get("euid")) == "0":
+        problems.append("the child runs as root")
+    if (str(marker.get("uid")) != want or str(marker.get("euid")) != want
+            or marker.get("uid_map") != [want, want, "1"]):
+        problems.append("the child does not run as the server's own uid")
+    for key in ("cap_eff", "cap_prm"):
+        try:
+            if int(str(marker.get(key)), 16) != 0:
+                problems.append("the child holds capabilities (%s)" % key)
+        except ValueError:
+            problems.append("the child's %s is unreadable" % key)
+    if marker.get("fork") != "refused:11":
+        problems.append("fork() was not refused with EAGAIN, so RLIMIT_NPROC does not bind")
+    if marker.get("ok") is not True:
+        problems.append("the child's own isolation self-check failed")
+    return marker, problems, rest
+
+
+def _launch(args, *, cwd, env, timeout, preexec_fn):
+    """Start one sandbox child and wait for it.
+
+    Returns (returncode, stdout, stderr, timed_out) as bytes. Raises _NotStarted
+    when the program never started: CPython's Popen raises before it returns when
+    fork, the preexec hook or exec fails, and then no child is left running.
+    Raises _AfterStart when waiting fails after the child started."""
+    try:
+        proc = subprocess.Popen(args, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                close_fds=True, preexec_fn=preexec_fn)
+    except subprocess.SubprocessError as e:
+        # CPython raises a bare SubprocessError when preexec_fn raised in the
+        # forked child; the child exits before exec, so the program never ran.
+        raise _NotStarted(_LIMIT_HOOK_FAILED_ERROR) from e
+    except Exception as e:
+        raise _NotStarted("sandbox unavailable: the child could not be started (%s: %s)"
+                          % (type(e).__name__, e)) from e
+    with proc:
+        try:
+            try:
+                out, err = proc.communicate(timeout=timeout)
+                return proc.returncode, out or b"", err or b"", False
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                out, err = proc.communicate()
+                return proc.returncode, out or b"", err or b"", True
+        except Exception as e:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+            raise _AfterStart("%s: %s" % (type(e).__name__, e)) from e
+
+
+def _text(data: bytes, limit: int) -> str:
+    return data.decode("utf-8", errors="replace")[:limit]
+
+
+_SANDBOX_ISOLATION = ("restricted subprocess: separate process as the server's own non-root uid "
+                      "in a per-run user + network namespace (unshare --user --map-current-user "
+                      "--net), mandatory CPU+memory+core+fsize+nproc rlimits (fail closed); before "
+                      "the code ran the child attested new namespaces, its uid, zero capabilities "
+                      "and a refused fork(). %ss wall-clock timeout, minimal env. Resource controls "
+                      "only: no seccomp, filesystem or container isolation; the child can read "
+                      "what the server's uid can read.")
+
+
 def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
                   mem_mb: int = 256) -> dict:
-    """Execute agent-generated code in an ISOLATED restricted subprocess.
-    Isolation applied (honest):
+    """Execute agent-generated code in a restricted subprocess.
+    Controls applied (honest):
       - separate process (subprocess), NOT in the server process
-      - OS rlimits: CPU time, address space (memory), no core dump, file-size 0,
-        no child processes (RLIMIT_NPROC) -> can't fork a network helper
-      - network disabled in the child via env + no socket import allowed by screen
-      - hard wall-clock timeout (kills the tree)
-      - temp CWD, minimal env (no secrets), text-only capture
-    Returns stdout/stderr/exit/timing. NEVER raises into the server.
+      - MANDATORY OS rlimits: CPU time, address space (memory), no core dump,
+        file-size 0, no child processes (RLIMIT_NPROC). FAIL CLOSED: if any one
+        cannot be applied, nothing runs (see _plan_mandatory_rlimits /
+        _apply_mandatory_rlimits) and the DENY shape comes back with
+        execution_attempted=False.
+      - refused outright when the server runs as root (_parent_identity)
+      - a per-run `unshare --user --map-current-user --net` user + network
+        namespace. A probe child under the same limits, then the code child itself,
+        attest before any user code runs that the namespaces are new, the uid is
+        the server's own non-root uid, no capability is held and fork() is refused
+        (_ATTEST_SRC). A missing or failed attestation is a refusal.
+      - socket monkeypatched in the child preamble + socket import banned by the
+        static screen (in-process, best effort)
+      - hard wall-clock timeout (the child cannot fork, so killing it ends the run)
+      - temp CWD, minimal env passed to the child, text-only capture. The child runs
+        as the server's uid, so this is NOT a secret or filesystem boundary.
+    This is NOT a seccomp or container sandbox (container/microVM = ROADMAP).
+    `execution_attempted` is True only when the code child attested and so reached
+    the user code; it is None when that cannot be established. NEVER raises into
+    the server.
     """
     if lang != "python":
         return {"ok": False, "error": "only python is sandboxed in this build",
                 "stdout": "", "stderr": "unsupported language: %s" % lang, "exit": -1,
-                "isolation": "n/a"}
+                "isolation": "n/a", "execution_attempted": False}
 
     capability = sandbox_capability()
     if capability["state"] != "READY_TO_PROBE":
@@ -484,30 +833,42 @@ def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
             "elapsed_ms": 0.0,
             "isolation": "UNAVAILABLE — no code executed",
             "capability": capability,
+            "execution_attempted": False,
         }
 
-    def _limits():
-        # child-only resource limits (POSIX). Applied in the forked child pre-exec.
-        try:
-            resource.setrlimit(resource.RLIMIT_CPU, (timeout_s, timeout_s))
-            soft = mem_mb * 1024 * 1024
-            resource.setrlimit(resource.RLIMIT_AS, (soft, soft))
-            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
-            resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))   # no file writes
-            try:
-                resource.setrlimit(resource.RLIMIT_NPROC, (0, 0))  # no new processes
-            except Exception:
-                pass
-        except Exception:
-            pass
+    res, plan, refusal = _plan_mandatory_rlimits(timeout_s, mem_mb)
+    if refusal:
+        return _sandbox_denied(refusal, "UNAVAILABLE — fail closed: mandatory rlimits required; "
+                                        "no code executed", capability=capability)
+    identity, refusal = _parent_identity()
+    if refusal:
+        return _sandbox_denied(refusal, "UNAVAILABLE — fail closed: an unprivileged child is "
+                                        "required; no code executed",
+                               stderr="execution denied because RLIMIT_NPROC would not bind",
+                               capability=capability)
 
+    def _limits():
+        # child-only, MANDATORY resource limits; raises (never swallows) on failure.
+        _apply_mandatory_rlimits(res, plan)
+
+    want = [identity["net"], identity["user"], str(identity["uid"])]
     env = {"PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1",
            "HOME": "/tmp", "no_proxy": "*", "PYTHONUNBUFFERED": "1"}
     t0 = time.time()
+
+    def _ms():
+        return round((time.time() - t0) * 1000, 1)
+
+    def _refused(error, stderr, exit_code=-1):
+        return _sandbox_denied(error, "UNAVAILABLE — fail closed: no user code executed",
+                               stderr=stderr[:4000], elapsed_ms=_ms(), capability=capability,
+                               exit_code=exit_code)
+
     with tempfile.TemporaryDirectory(prefix="a11oy_code_box_") as box:
         src = Path(box) / "main.py"
-        # harden: strip a network-disabling preamble in front of the user code.
-        preamble = (
+        # The attestation runs first, then a network-disabling preamble, then the
+        # user code.
+        preamble = _ATTEST_SRC + (
             "import sys\n"
             "def _no_net(*a, **k):\n"
             "    raise OSError('network disabled in a11oy Code sandbox')\n"
@@ -517,51 +878,70 @@ def _sandbox_exec(code: str, lang: str = "python", timeout_s: int = 6,
             "except Exception:\n"
             "    pass\n"
         )
-        src.write_text(preamble + (code or ""))
         try:
-            # A command being present is not evidence that this host permits a
-            # network namespace.  Prove the exact boundary immediately before
-            # the run; fail closed if the kernel denies it.
-            probe = subprocess.run(
-                [_UNSHARE, "--net", "--", sys.executable, "-I", "-S", "-c",
-                 "print('SZL_NETNS_READY')"],
-                cwd=box, env=env, capture_output=True, text=True, timeout=3,
-                preexec_fn=_limits,
-            )
-            if probe.returncode != 0 or probe.stdout.strip() != "SZL_NETNS_READY":
-                return {
-                    "ok": False,
-                    "execution_state": "UNAVAILABLE",
-                    "error": "network namespace probe failed",
-                    "stdout": "",
-                    "stderr": (probe.stderr or "unshare --net did not establish isolation")[:4000],
-                    "exit": probe.returncode,
-                    "elapsed_ms": round((time.time() - t0) * 1000, 1),
-                    "isolation": "UNAVAILABLE — no user code executed",
-                    "capability": capability,
-                }
-            proc = subprocess.run(
-                [_UNSHARE, "--net", "--", sys.executable, "-I", "-S", str(src)],
-                cwd=box, env=env, capture_output=True, text=True,
-                timeout=timeout_s + 1, preexec_fn=_limits,
-            )
-            dt = round((time.time() - t0) * 1000, 1)
-            out = (proc.stdout or "")[:8000]
-            err = (proc.stderr or "")[:4000]
-            return {"ok": proc.returncode == 0, "stdout": out, "stderr": err,
-                    "exit": proc.returncode, "elapsed_ms": dt,
-                    "isolation": ("sandboxed (restricted subprocess): separate process, "
-                                  "CPU+memory+fsize+nproc rlimits, unshare --net, %ss "
-                                  "wall-clock timeout, minimal env. Full seccomp/container "
-                                  "isolation on the tower/UDS pod." % timeout_s)}
-        except subprocess.TimeoutExpired:
-            return {"ok": False, "stdout": "", "stderr": "timeout after %ss (killed)" % timeout_s,
-                    "exit": -9, "elapsed_ms": round((time.time() - t0) * 1000, 1),
-                    "isolation": "sandboxed (restricted subprocess) — timed out and killed"}
+            src.write_text(preamble + (code or ""), encoding="utf-8")
         except Exception as e:
-            return {"ok": False, "stdout": "", "stderr": "sandbox error: %s" % e,
-                    "exit": -1, "elapsed_ms": round((time.time() - t0) * 1000, 1),
-                    "isolation": "sandboxed (restricted subprocess)"}
+            return _refused("sandbox unavailable: the run directory could not be written (%s)"
+                            % type(e).__name__, "nothing was started")
+        # A command being present is not evidence that this host permits the
+        # namespaces or that the limits bind. Prove both immediately before the run
+        # with a child that runs no user code; fail closed if anything is missing.
+        try:
+            rc, out, err, timed_out = _launch(
+                [_UNSHARE, *_UNSHARE_FLAGS, "--", sys.executable, "-I", "-S", "-c",
+                 _ATTEST_SRC, *want],
+                cwd=box, env=env, timeout=3, preexec_fn=_limits)
+        except _NotStarted as e:
+            return _refused(str(e), "the namespace probe never started")
+        except _AfterStart as e:
+            return _refused("sandbox unavailable: the namespace probe failed (%s)" % e,
+                            "namespace probe error")
+        if timed_out:
+            return _refused("network namespace probe timed out",
+                            "unshare --user --net probe exceeded 3s")
+        marker, problems, _rest = _attestation(out, identity)
+        if rc != 0 or marker is None or problems:
+            return _refused("network namespace probe failed",
+                            "; ".join(problems) + ((" | " + _text(err, 3000)) if err else ""),
+                            exit_code=rc if rc is not None else -1)
+
+        try:
+            rc, out, err, timed_out = _launch(
+                [_UNSHARE, *_UNSHARE_FLAGS, "--", sys.executable, "-I", "-S", str(src), *want],
+                cwd=box, env=env, timeout=timeout_s + 1, preexec_fn=_limits)
+        except _NotStarted as e:
+            return _refused(str(e), "the code child never started")
+        except _AfterStart as e:
+            return {"ok": False, "execution_state": "UNVERIFIED",
+                    "error": ("sandbox error after the code child started (%s); whether the "
+                              "code ran could not be established" % e),
+                    "stdout": "", "stderr": "", "exit": -1, "elapsed_ms": _ms(),
+                    "execution_attempted": None,
+                    "isolation": "UNVERIFIED — the child started; its result was lost"}
+        marker, problems, rest = _attestation(out, identity)
+        if marker is None or marker.get("ok") is not True:
+            # No attestation, or the child's own self-check exited before the user code.
+            return _refused("sandbox unavailable: the code child did not attest its isolation; "
+                            "the code never ran",
+                            "; ".join(problems) + ((" | " + _text(err, 3000)) if err else ""),
+                            exit_code=rc if rc is not None else -1)
+        if problems:
+            # The child's self-check passed, so the code ran, but the parent cannot
+            # confirm the attestation. Report the run without the isolation claim.
+            return {"ok": False, "execution_state": "UNVERIFIED",
+                    "error": "sandbox isolation attestation mismatch: %s" % "; ".join(problems),
+                    "stdout": _text(rest, 8000), "stderr": _text(err, 4000), "exit": rc,
+                    "elapsed_ms": _ms(), "execution_attempted": True,
+                    "isolation": "UNVERIFIED — the code ran but its isolation did not verify"}
+        if timed_out:
+            return {"ok": False, "stdout": _text(rest, 8000),
+                    "stderr": ("timeout after %ss (killed)" % timeout_s
+                               + ((" | " + _text(err, 3000)) if err else "")),
+                    "exit": -9, "elapsed_ms": _ms(), "execution_attempted": True,
+                    "isolation": "restricted subprocess (attested) — timed out and killed"}
+        return {"ok": rc == 0, "stdout": _text(rest, 8000), "stderr": _text(err, 4000),
+                "exit": rc, "elapsed_ms": _ms(), "execution_attempted": True,
+                "isolation": _SANDBOX_ISOLATION % timeout_s}
 
 
 # ===========================================================================
@@ -633,11 +1013,121 @@ def _model_configured() -> bool:
     return True
 
 
-def _hf_chat(messages, max_tokens=512, want_model=None):
+def strict_transport_preflight(model_slug):
+    """Validate the configured direct transport without networking or signing."""
+    from urllib.parse import urlsplit
+    import ipaddress
+    parsed = urlsplit(_MODEL_BASE_URL)
+    own_hosts = {"a-11-oy.com", "www.a-11-oy.com", "szlholdings-a11oy.hf.space",
+                 "localhost", "host.docker.internal"}
+    for name in ("A11OY_PUBLIC_ORIGIN", "PUBLIC_ORIGIN", "SPACE_HOST"):
+        origin = os.environ.get(name, "")
+        if origin:
+            own_hosts.add((urlsplit(origin if "://" in origin else "https://" + origin).hostname or "").lower().rstrip("."))
+    try:
+        address = ipaddress.ip_address(parsed.hostname or "")
+        mapped = getattr(address, "ipv4_mapped", None)
+        loopback = address.is_loopback or address.is_unspecified or bool(mapped and mapped.is_loopback)
+    except ValueError:
+        loopback = False
+    if (_LOCAL_MODEL_CMD or not _model_configured() or not isinstance(model_slug, str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,191}", model_slug) is None
+            or parsed.scheme != "https" or not parsed.hostname or parsed.username
+            or parsed.password or parsed.query or parsed.fragment
+            or parsed.path.rstrip("/") not in {"", "/v1"} or parsed.port not in {None, 443}
+            or parsed.hostname.lower().rstrip(".") in own_hosts or loopback):
+        raise ValueError("STRICT_MODEL_CONFIGURATION_REQUIRED")
+
+
+def _strict_hf_chat(messages, max_tokens, want_model, execution_budget):
+    """One selected-model HTTP dispatch; remote provider internals are unknown."""
+    import httpx
+    from szl_router_client import ExecutionBudget, ExecutionBudgetError, _unique_object
+
+    if not isinstance(execution_budget, ExecutionBudget):
+        return {"ok": False, "text": None, "model": None, "attempts": 0,
+                "rate_limited": False, "error": "INVALID_EXECUTION_BUDGET",
+                "execution_limits": None}
+
+    attempted = False
+    try:
+        execution_budget.check()
+        strict_transport_preflight(want_model)
+        if type(max_tokens) is not int or max_tokens < 1:
+            raise ValueError("STRICT_MODEL_CONFIGURATION_REQUIRED")
+        timeout = execution_budget.claim_attempt(max_tokens)
+        attempted = True
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if _HF_TOKEN:
+            headers["Authorization"] = "Bearer " + _HF_TOKEN
+        payload = {"model": want_model, "messages": messages, "max_tokens": max_tokens,
+                   "temperature": 0.0, "stream": False}
+        chunks, size = [], 0
+        with httpx.Client(timeout=httpx.Timeout(timeout), follow_redirects=False,
+                          trust_env=True) as client:
+            execution_budget.check()
+            with client.stream("POST", _MODEL_BASE_URL.rstrip("/") + "/chat/completions",
+                               headers=headers, json=payload) as response:
+                if response.status_code != 200:
+                    raise ValueError("STRICT_MODEL_HTTP_FAILURE")
+                if "application/json" not in response.headers.get("content-type", "").lower():
+                    raise ValueError("STRICT_MODEL_JSON_REQUIRED")
+                for chunk in response.iter_bytes():
+                    execution_budget.check()
+                    size += len(chunk)
+                    if size > 2_000_000:
+                        raise ValueError("STRICT_MODEL_RESPONSE_TOO_LARGE")
+                    chunks.append(chunk)
+        execution_budget.check()
+        data = json.loads(b"".join(chunks), object_pairs_hook=_unique_object,
+                          parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+        if not isinstance(data, dict) or data.get("model") != want_model or data.get("error"):
+            raise ValueError("STRICT_MODEL_IDENTITY_MISMATCH")
+        choices = data.get("choices")
+        if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
+            raise ValueError("STRICT_MODEL_CHOICE_INVALID")
+        choice, message = choices[0], choices[0].get("message")
+        if (not isinstance(message, dict) or message.get("role") != "assistant"
+                or message.get("tool_calls") or message.get("function_call")
+                or choice.get("finish_reason") not in {"stop", "content_filter"}):
+            raise ValueError("STRICT_MODEL_COMPLETION_INVALID")
+        refused = bool(message.get("refusal") or choice.get("finish_reason") == "content_filter")
+        content = message.get("refusal") if refused else message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("STRICT_MODEL_COMPLETION_EMPTY")
+        usage = data.get("usage")
+        if usage is not None and not isinstance(usage, dict):
+            raise ValueError("STRICT_MODEL_USAGE_INVALID")
+        output_tokens = usage.get("completion_tokens") if isinstance(usage, dict) else None
+        if isinstance(usage, dict) and any(key in usage for key in ("prompt_tokens", "total_tokens")):
+            if (any(type(usage.get(key)) is not int or usage[key] < 0
+                    for key in ("prompt_tokens", "completion_tokens", "total_tokens"))
+                    or usage["total_tokens"] != usage["prompt_tokens"] + usage["completion_tokens"]):
+                raise ValueError("STRICT_MODEL_USAGE_INVALID")
+        execution_budget.record_output(output_tokens)
+        execution_budget.check()
+        return {"ok": True, "text": content, "model": want_model, "display": want_model,
+                "license": "registry-declared", "attempts": 1, "rate_limited": False,
+                "refused": refused, "error": None, "execution_limits": execution_budget.snapshot()}
+    except Exception as exc:
+        known = str(exc) if isinstance(exc, (ValueError, ExecutionBudgetError)) else "STRICT_MODEL_TRANSPORT_FAILED"
+        code = known if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", known) else "STRICT_MODEL_RESPONSE_INVALID"
+        execution_budget.fail(code, ambiguous=attempted)
+        return {"ok": False, "text": None, "model": None, "attempts": int(attempted),
+                "rate_limited": False, "error": code,
+                "execution_limits": execution_budget.snapshot()}
+    except BaseException:
+        execution_budget.fail("STRICT_MODEL_INTERRUPTED", ambiguous=attempted)
+        raise
+
+
+def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None):
     """Call the OpenAI-compatible model endpoint server-side, with 2x retry and
     automatic fallback down the open-weight roster. Returns a dict:
       {ok, text, model, license, attempts, rate_limited, error}
     NEVER fabricates: on total failure ok=False and text=None."""
+    if execution_budget is not None:
+        return _strict_hf_chat(messages, max_tokens, want_model, execution_budget)
     import urllib.request, urllib.error, json as _json, time as _time
     # build the model try-order: requested model first (if open-weight), then roster
     order = []
@@ -715,10 +1205,16 @@ def _backend_label() -> dict:
             "configure_hint": "Set the HF_TOKEN Space secret to enable live open-weight inference "
                               "via the HF Router (server-side only). Governance is real either way.",
             "model_serving": "local deterministic, retrieval-grounded backend",
-            "sandbox_isolation": ("Real restricted-subprocess isolation here (separate process, "
-                                  "no network, CPU/memory/time/file-size/process rlimits, isolated "
-                                  "python -I -S). Full seccomp/container isolation runs on the "
-                                  "tower/UDS pod."),
+            "sandbox_isolation": ("Restricted subprocess here: separate process as the server's "
+                                  "own non-root uid in a per-run user + network namespace, "
+                                  "mandatory CPU/memory/core/file-size/process rlimits, python "
+                                  "-I -S, wall-clock timeout. Before any code runs the child "
+                                  "attests new namespaces, zero capabilities and a refused "
+                                  "fork(); this governed-turn sandbox refuses the code, never "
+                                  "runs it unlimited, if any of that fails or the server runs "
+                                  "as root. Resource controls, not a seccomp, filesystem or "
+                                  "container sandbox (the child can read what the server's uid "
+                                  "can read); container/microVM isolation is ROADMAP."),
             "offline": True,
             "honest": ("No model weights and no token in this env, so a11oy Code runs a "
                        "DETERMINISTIC, retrieval-grounded backend (it never fakes generative "
@@ -857,7 +1353,9 @@ def _resolve_harness(harness_profile_id: str, prompt: str, ns: str) -> dict:
 def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                   untrusted_input: str = "", run_chain=None,
                   sandbox: bool = False, want_model: str = "",
-                  harness_profile_id: str = "", allow_exec: bool = False) -> dict:
+                  harness_profile_id: str = "", allow_exec: bool = False,
+                  execution_budget=None, selected_model_slug=None,
+                  output_token_limit=None) -> dict:
     """One fully-governed a11oy Code turn (chat | code | research).
     P1 retrieve -> P2 quarantine untrusted -> P3 tool_call -> P4 policy_check ->
     P5 kernel_check -> P6 emit (+sign). Same 6-receipt chain as the proven loop.
@@ -874,6 +1372,40 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     When set, the resolved profile system layer is injected as an extra system
     message and the harness apply-receipt {profile id+version+sha256, model_id,
     Λ axes, provenance} is folded into this step's signed receipt."""
+    strict_governance = None
+    if execution_budget is not None:
+        valid_budget = False
+        try:
+            from szl_router_client import ExecutionBudget, strict_model_slug, strict_governance_admission
+            valid_budget = isinstance(execution_budget, ExecutionBudget)
+            if not valid_budget:
+                raise ValueError("INVALID_EXECUTION_BUDGET")
+            execution_budget.check()
+            if (mode != "chat" or sandbox is not False or allow_exec is not False
+                    or harness_profile_id or untrusted_input or not isinstance(prompt, str)
+                    or not 0 < len(prompt.strip()) <= 32_000
+                    or type(output_token_limit) is not int or output_token_limit < 1
+                    or selected_model_slug != strict_model_slug(want_model)):
+                raise ValueError("STRICT_CHAT_SCOPE_REQUIRED")
+            strict_transport_preflight(selected_model_slug)
+            from a11oy_vertical_feeds import governed_turn as strict_gate
+            strict_governance = strict_gate("agentloop", prompt, declared="PUBLIC",
+                                           action_kind="bounded-model-inference", emit_receipt=False)
+            strict_governance_admission(strict_governance)
+        except Exception as exc:
+            code = str(exc)
+            if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", code) is None:
+                code = "STRICT_INFERENCE_ADMISSION_UNAVAILABLE"
+            if valid_budget:
+                execution_budget.fail(code)
+            denied = {"mode": mode, "decision": "DENY", "emitted": False,
+                      "error": code, "execution_limits": execution_budget.snapshot() if valid_budget else None}
+            try:
+                signature = sign_fn(denied)
+            except Exception:
+                signature = {"signed": False, "signatures": []}
+            return {**denied, "ok": False, "signed_receipt": signature,
+                    "executed": False, "execution_status": "NOT_REQUESTED"}
     run_chain = run_chain if run_chain is not None else []
 
     # ---- Wave G: OPTIONAL behavior-profile attach (governed persona) ----------
@@ -903,11 +1435,20 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     # ---- routing (C20 + W7-5) -------------------------------------------------
     roster, roster_src = _roster()
     chosen, scored, envelope, route_reason = _route(mode, prompt, roster)
+    if execution_budget is not None:
+        chosen = {"id": want_model, "tier": "explicit", "model_slug": selected_model_slug}
+        route_reason = "Explicit registered model; no runtime model fallback."
 
     # ---- HOP 1: retrieve (RAG over in-image corpus) ---------------------------
-    chunks = _retrieve(prompt, top_k=3)
+    chunks, retrieval = _retrieve_with_identity(prompt, top_k=3)
     _chain_receipt("retrieve", {"query": prompt[:240], "mode": mode,
-                                "cited_chunk_ids": [c["chunk_id"] for c in chunks]})
+                                "cited_chunk_ids": [c["chunk_id"] for c in chunks],
+                                "backend": retrieval.get("backend"),
+                                "corpus_generation": retrieval.get("corpus_generation"),
+                                "source_handles": list(retrieval.get("source_handles") or [])[:8],
+                                "fallback": retrieval.get("fallback"),
+                                "abstention": retrieval.get("abstention"),
+                                "outcome": retrieval.get("outcome")})
 
     # ---- HOP 2: quarantine untrusted (P3 non-interference) --------------------
     ui_low = (untrusted_input or "").lower()
@@ -943,11 +1484,16 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         if ctx_note:
             msgs.append({"role": "system", "content": ctx_note})
         msgs.append({"role": "user", "content": prompt})
-        gen = _hf_chat(msgs, max_tokens=700, want_model=(want_model or None))
+        gen = (_hf_chat(msgs, max_tokens=output_token_limit, want_model=selected_model_slug,
+                        execution_budget=execution_budget)
+               if execution_budget is not None else
+               _hf_chat(msgs, max_tokens=700, want_model=(want_model or None)))
         if gen.get("ok"):
             inference = {"mode": "generative", "model": gen["model"], "display": gen.get("display"),
                          "license": gen.get("license"), "attempts": gen.get("attempts"),
                          "rate_limited": False, "error": None}
+            if execution_budget is not None:
+                inference.update(model=want_model, upstream_model=gen["model"])
         else:
             inference = {"mode": "unavailable", "model": None, "attempts": gen.get("attempts"),
                          "rate_limited": bool(gen.get("rate_limited")), "error": gen.get("error")}
@@ -1012,6 +1558,15 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     sev_rank = {"low": 1, "medium": 2, "high": 3, "critical": 4}.get(severity, 2)
     reasons = []
     gate_allow = True
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            gate_allow = False
+            reasons.append("strict execution budget closed or expired")
+    if execution_budget is not None and not (gen and gen.get("ok")):
+        gate_allow = False
+        reasons.append("strict selected-model inference unavailable")
     if sev_rank >= 3 and confidence < 0.6:
         gate_allow = False; reasons.append("high-severity action with low confidence (deny-by-default)")
     if sev_rank >= 4 and not reversible:
@@ -1060,8 +1615,9 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     if mode == "code" and sandbox:
         if allowed and allow_exec:
             sandbox_result = _sandbox_exec(code_blob["code"], lang=code_blob["language"])
-            executed = (sandbox_result.get("execution_state") != "UNAVAILABLE"
-                        and sandbox_result.get("isolation") != "n/a")
+            # Only an explicit True means the user code was reached. A missing,
+            # False or None execution_attempted is never reported as executed.
+            executed = sandbox_result.get("execution_attempted") is True
             sandbox_result["executed"] = executed
         elif allowed:
             sandbox_result = {"ok": False, "executed": False, "stdout": "", "stderr": "",
@@ -1074,10 +1630,15 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                               "exit": None, "blocked": True,
                               "execution_state": "NOT_EXECUTED",
                               "isolation": "not executed — blocked at the gate (gate soundness)"}
+    sandbox_unverified = (sandbox_result or {}).get("execution_state") == "UNVERIFIED"
     if not (mode == "code" and sandbox):
         execution_status = "NOT_REQUESTED"
+    elif executed and sandbox_unverified:
+        execution_status = "EXECUTED — sandbox isolation NOT verified"
     elif executed:
         execution_status = "EXECUTED"
+    elif sandbox_unverified:
+        execution_status = "UNVERIFIED — sandbox error after launch; whether the code ran is unknown"
     elif exec_withheld:
         execution_status = "NOT_EXECUTED — BLOCKED (operator two-person credential required)"
     elif allowed:
@@ -1087,8 +1648,13 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
 
     # ---- HOP 6: emit (+ sign the final receipt) -------------------------------
     if allowed:
-        if mode == "code" and sandbox and executed:
+        if mode == "code" and sandbox and executed and sandbox_unverified:
+            effect = {"emitted": True, "effect": ("code executed but its sandbox isolation was NOT "
+                                                  "verified; result on the receipt")}
+        elif mode == "code" and sandbox and executed:
             effect = {"emitted": True, "effect": "code executed in governed sandbox; result on the receipt"}
+        elif mode == "code" and sandbox and sandbox_unverified:
+            effect = {"emitted": True, "effect": "code emitted; %s" % execution_status}
         elif mode == "code" and sandbox:
             effect = {"emitted": True, "effect": "code emitted but NOT executed: %s" % execution_status}
         else:
@@ -1108,9 +1674,18 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         "gate_reasons": reasons, "chain_final_hash": prev_hash, "chain_depth": len(chain),
         "emitted": effect["emitted"], "issuer": ns,
         "sandbox_exit": (sandbox_result or {}).get("exit") if sandbox_result else None,
+        "sandbox_execution_attempted": (
+            (sandbox_result or {}).get("execution_attempted") if sandbox_result else None
+        ),
+        "sandbox_error": (sandbox_result or {}).get("error") if sandbox_result else None,
         "executed": executed, "execution_status": execution_status,
         "issued_at": datetime.now(timezone.utc).isoformat(),
     }
+    if execution_budget is not None:
+        decision_payload["execution_limits"] = execution_budget.snapshot()
+        decision_payload["pre_inference_governance"] = strict_governance
+        decision_payload["selected_model"] = {"model_id": want_model,
+                                              "upstream_model": selected_model_slug}
     # Wave G: fold the OPTIONAL harness profile provenance into the SIGNED payload
     # so the step's signature covers which behavior profile shaped it (id+version
     # +sha256, model_id, Λ axes, provenance). Body text is NEVER included.
@@ -1128,12 +1703,22 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
             "harness_signature": (_hr.get("signature") or {}).get("value"),
             "honesty_label": _hr.get("honesty_label"),
         }
-    try:
-        envelope_sig = sign_fn(decision_payload)
-    except Exception as e:
-        envelope_sig = {"signed": False, "signatures": [],
-                        "honesty": "UNSIGNED — signer raised: %s" % type(e).__name__,
-                        "payloadType": "application/vnd.szl.receipt+json"}
+    signing_admitted = True
+    if execution_budget is not None:
+        try:
+            execution_budget.check()
+        except Exception:
+            signing_admitted = False
+    if signing_admitted:
+        try:
+            envelope_sig = sign_fn(decision_payload)
+        except Exception as e:
+            envelope_sig = {"signed": False, "signatures": [],
+                            "honesty": "UNSIGNED — signer raised: %s" % type(e).__name__,
+                            "payloadType": "application/vnd.szl.receipt+json"}
+    else:
+        envelope_sig = {"signed": False, "signatures": [], "state": "NOT_PRODUCED",
+                        "honesty": "Strict execution budget closed before signing."}
     _chain_receipt("emit", {"decision": decision, "emitted": effect["emitted"],
                             "signed": bool(envelope_sig.get("signed")),
                             "sandbox_exit": (sandbox_result or {}).get("exit") if sandbox_result else None,
@@ -1144,7 +1729,16 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
 
     # plain-language summary
     if decision == "ALLOW":
-        if mode == "code" and sandbox and executed:
+        if mode == "code" and sandbox and executed and sandbox_unverified:
+            summ = ("Allowed by the safety gate (severity %s, calibrated confidence %.2f) and the "
+                    "advisory trust check (%.2f). The code ran, but its sandbox isolation could "
+                    "not be verified (%s); treat this run as unisolated. The receipt says so."
+                    % (severity, confidence, trust, (sandbox_result or {}).get("error")))
+        elif mode == "code" and sandbox and sandbox_unverified:
+            summ = ("Allowed by the safety gate, but the sandbox failed after the child started "
+                    "(%s). Whether the code ran is unknown; the receipt says so."
+                    % (sandbox_result or {}).get("error"))
+        elif mode == "code" and sandbox and executed:
             summ = ("Allowed. The code passed the safety gate (severity %s, calibrated confidence %.2f) "
                     "and the advisory trust check (%.2f), then ran in the governed sandbox. "
                     "The run + result are on a signed, hash-chained receipt." % (severity, confidence, trust))
@@ -1155,8 +1749,10 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
                     "The code and a signed receipt are returned; nothing ran."
                     % (severity, confidence, trust))
         elif mode == "code" and sandbox:
-            summ = ("Allowed by the safety gate, but NOT executed: the sandbox isolation "
-                    "prerequisites are unavailable on this host. Nothing ran; the receipt says so.")
+            summ = ("Allowed by the safety gate, but NOT executed: the sandbox refused to run "
+                    "it (%s). Nothing ran; the receipt says so."
+                    % ((sandbox_result or {}).get("error")
+                       or "sandbox prerequisites are unavailable on this host"))
         else:
             summ = ("Allowed. After retrieving guidance, quarantining any untrusted input, calling the "
                     "policy tool and passing the safety + advisory trust checks (trust %.2f), the %s "
@@ -1178,6 +1774,7 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         "confidence": conf,
         "backend": backend,
         "inference": inference,
+        "retrieval": retrieval,
         "retrieved": chunks,
         "untrusted": {"present": bool(untrusted_input), "excerpt": (untrusted_input or "")[:240],
                       "injection_markers_detected": injection_detected,
@@ -1272,8 +1869,11 @@ def capabilities(ns: str) -> dict:
                       "StarCoder2/Llama/Gemma/Phi). No closed weights baked in. No API key required.",
             "no_agi": True, "lambda": "Conjecture 1 (advisory, never the gate)",
             "locked_proven": 8,
-            "sandbox": "sandboxed (restricted subprocess) in the HF CPU Space; full seccomp/"
-                       "container isolation on the tower/UDS pod.",
+            "sandbox": "governed-turn sandbox: restricted subprocess as the server's own "
+                       "non-root uid with mandatory rlimits in a per-run user + network "
+                       "namespace, each attested by the child before the code runs; fail "
+                       "closed, and refused on a root server. Not a seccomp, filesystem or "
+                       "container sandbox; container/microVM isolation is ROADMAP.",
             "offline": "Offline-capable: deterministic local backend + local sandbox + vendored UI; "
                        "no external API/CDN required at runtime.",
         },

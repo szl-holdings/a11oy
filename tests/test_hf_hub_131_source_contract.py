@@ -104,13 +104,13 @@ def test_historic_129_130_mismatch_remains_synthetic_hold() -> None:
     assert result["sandboxJobCreationAuthorized"] is False
 
 
-def test_current_repository_canonical_pins_match_admitted_131() -> None:
+def test_current_runtime_cannot_reuse_historical_131_admission() -> None:
     result = MODULE.evaluate_repository(ROOT)
-    assert result["auditPin"] == "1.31.0"
-    assert result["runtimePin"] == "1.31.0"
+    assert result["auditPin"] == "1.33.0"
+    assert result["runtimePin"] == "1.33.0"
     assert result["requiredVersion"] == "1.31.0"
-    assert result["aligned"] is True
-    assert result["disposition"] == "EVALUATION"
+    assert result["aligned"] is False
+    assert result["disposition"] == "HOLD"
     assert result["productionAuthorized"] is False
     assert result["automaticPromotionAuthorized"] is False
     assert result["hubPublicationAuthorized"] is False
@@ -141,8 +141,8 @@ def test_historic_133_grouped_bump_is_synthetic_hold() -> None:
         assert result[key] is False
 
 
-def test_managed_storage_sdk_matches_the_admitted_runtime_contract() -> None:
-    """Read the literal without loading provider or database implementations."""
+def test_retired_v1_sdk_keeps_its_historical_contract() -> None:
+    """Retired v1 evidence is unchanged; active v2 has interface-based tests."""
     tree = ast.parse((ROOT / "gdw_durable_storage.py").read_text(encoding="utf-8"))
     values = [
         ast.literal_eval(node.value)
@@ -259,7 +259,7 @@ def test_historic_openai_audit_380_versus_runtime_243_is_synthetic_hold() -> Non
     assert historic["openai"] == ("3.8.0", "2.43.0")
     runtime = _runtime_equality_pins(MODULE.runtime_install_text(ROOT))
     assert runtime["openai"] == "2.43.0"
-    assert runtime["huggingface_hub"] == MODULE.HF_HUB_VERSION
+    assert runtime["huggingface_hub"] == "1.33.0"
 
 
 def test_audited_report_must_contain_every_runtime_pin(tmp_path: Path) -> None:

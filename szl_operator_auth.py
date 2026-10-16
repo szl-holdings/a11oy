@@ -146,6 +146,7 @@ PROTECTED_ROUTES = (
     (r"/api/a11oy/v1/connectors/[^/]+/write", "Connector write", "tool"),
     (r"/api/a11oy/v4/bridge/(hermes|openclaw)", "External agent bridge", "tool"),
     (r"/api/a11oy/v1/factory/run", "Factory workflow run", "state"),
+    (r"/api/a11oy/v1/eval/run", "Evaluation and receipt publication", "tool"),
     # -- signing a caller-supplied payload with the server key ------------------
     (r"/khipu/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/khipu/sign", "Receipt signing", "sign"),
@@ -160,6 +161,9 @@ PROTECTED_ROUTES = (
     (r"/api/a11oy/v1/constitution/(state|ontology|memory|ledger)", "Constitution writes", "state"),
     (r"/api/a11oy/v1/khipu-os/(checkpoint|archive)", "Khipu OS checkpoint/archive", "state"),
     (r"/api/a11oy/v1/be/khipu/append", "Khipu append", "state"),
+    (r"/api/a11oy/v2/khipu/lmdb/append", "Khipu LMDB append", "state"),
+    (r"/api/a11oy/v2/khipu/replicate", "Khipu replication writes", "state"),
+    (r"/api/a11oy/v2/unay/remember", "UNAY memory writes", "state"),
     (r"/api/a11oy/v1/wires/inject", "Cross-Space wire injection", "state"),
     (r"/api/a11oy/v4/inbox", "Organ inbox writes", "state"),
     (r"/api/a11oy/v1/provenance/(anchor/anchor|govern)", "Public-ledger anchor", "state"),
@@ -170,6 +174,10 @@ PROTECTED_ROUTES = (
     (r"/api/a11oy/v1/llm/forum/ingest", "LLM forum ingest", "state"),
     (r"(/api/lake/v1|/v1/lake)/receipts", "Lake receipt ingest", "state"),
     (r"/api/a11oy/v1/series-a/(refresh|passports/(evaluate|execute))", "Series-A passport writes", "state"),
+    # Observer handlers retain their tenant, fixed-plan and independent-authority
+    # checks. This outer gate refuses callers before parsing or native dispatch.
+    (r"/api/a11oy/v1/series-a/execution-observations/(challenge|run|cancel/[^/]+)",
+     "Execution observation control", "state"),
 )
 
 _COMPILED_ROUTES = tuple(

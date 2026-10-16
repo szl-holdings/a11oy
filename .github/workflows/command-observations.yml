@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -105,7 +105,7 @@ jobs:
           python tests/browser_command_observations.py 2>&1 | tee command-evidence/tests.log
       - name: Preserve browser evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: command-observations-${{ github.run_id }}-${{ github.run_attempt }}
           path: command-evidence/
@@ -135,7 +135,7 @@ jobs:
         run: python scripts/witness_command_release.py --expected-source "$EXPECTED_SOURCE"
       - name: Preserve successful or failed public browser evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: command-live-${{ github.run_id }}-${{ github.run_attempt }}
           path: command-live-evidence/

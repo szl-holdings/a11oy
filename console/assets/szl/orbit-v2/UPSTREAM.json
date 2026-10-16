@@ -1,0 +1,10 @@
+{
+  "schema": "szl.brand-projection/v1",
+  "repository": "https://github.com/szl-holdings/szl-brand",
+  "source_commit": "27d12e77fc0f9f1a0e5fae8b34adf2380d51d070",
+  "source_path": "kit/logos/orbit-v2/suite/szl-icon-32.svg",
+  "file": "szl-icon-32.svg",
+  "sha256": "6e2b7d72a3af3d9602b79de41df0194ede6496a9661f057108ec224c0efc92e6",
+  "license": "CC-BY-4.0",
+  "usage": "Approved Orbit v2 compact icon; display at24-48CSS pixels without redrawing."
+}

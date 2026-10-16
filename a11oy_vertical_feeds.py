@@ -26,10 +26,14 @@ All live sources verified in team/LIVE_SOURCES_VERIFIED.md (all HTTP 200).
 
 from __future__ import annotations
 
+from collections import deque
+
 import base64
 import copy
 import functools
+import gzip
 import hashlib
+import io
 import json
 import math
 import os
@@ -38,6 +42,7 @@ import re
 import sys
 import threading
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
 from typing import Annotated, Any, Callable, Optional
 from urllib.parse import urljoin, urlsplit
@@ -98,18 +103,68 @@ _SOURCE_HTTP_TIMEOUT_DEFAULT_S = 4.0
 _SOURCE_HTTP_TIMEOUT_MIN_S = 0.25
 _SOURCE_HTTP_TIMEOUT_MAX_S = 15.0
 
-# CourtListener v4 permits anonymous read traffic but rate-limits cold bursts.
-# Every CourtListener transport in this process crosses one serialized scheduler
-# so vertical, Dev-B, warm-loop, and readiness calls cannot fan out upstream.
+# CourtListener's documented default quota is 5/minute, 50/hour, and
+# 125/day. Every transport in this process crosses one serialized scheduler.
+# The local budgets retain 20% headroom so vertical, Dev-B, warm-loop, and
+# readiness calls cannot consume the provider ceiling through distinct keys.
 _COURTLISTENER_MIN_INTERVAL_ENV = "A11OY_COURTLISTENER_MIN_INTERVAL_S"
-_COURTLISTENER_MIN_INTERVAL_DEFAULT_S = 1.0
-_COURTLISTENER_MIN_INTERVAL_MIN_S = 0.25
-_COURTLISTENER_MIN_INTERVAL_MAX_S = 10.0
+_COURTLISTENER_MIN_INTERVAL_DEFAULT_S = 13.0
+_COURTLISTENER_MIN_INTERVAL_MIN_S = 12.0
+_COURTLISTENER_MIN_INTERVAL_MAX_S = 3600.0
+# Legal routes promise a one-hour observation age. Refresh at that boundary;
+# provider-wide budgets/cooldowns below still decide whether a read is allowed.
+# A denied refresh retains last-good data and its original timestamp as stale.
+_COURTLISTENER_CACHE_TTL_S = 3600.0
+_COURTLISTENER_RATE_WINDOWS: tuple[tuple[float, int], ...] = (
+    (60.0, 4),
+    (3600.0, 40),
+    (86400.0, 100),
+)
 _COURTLISTENER_COOLDOWN_DEFAULT_S = 60.0
 _COURTLISTENER_COOLDOWN_MAX_S = 86400.0
 _COURTLISTENER_RATE_LOCK = threading.Lock()
 _COURTLISTENER_NEXT_REQUEST_AT = 0.0
 _COURTLISTENER_COOLDOWN_UNTIL = 0.0
+_COURTLISTENER_REQUEST_TIMES: deque[float] = deque()
+
+# NVD API 2.0 allows five anonymous requests per rolling 30-second window and
+# fifty with an API key. Every NVD transport in this process crosses one
+# provider-wide scheduler so defense, finance, cyber, warm-loop, and readiness
+# calls cannot fan out under distinct cache keys. The keyed default still sleeps
+# for several seconds, following NVD guidance rather than consuming the limit.
+_NVD_MIN_INTERVAL_ENV = "A11OY_NVD_MIN_INTERVAL_S"
+_NVD_ANONYMOUS_MIN_INTERVAL_DEFAULT_S = 6.0
+_NVD_KEYED_MIN_INTERVAL_DEFAULT_S = 2.0
+_NVD_MIN_INTERVAL_MIN_S = 0.6
+_NVD_MIN_INTERVAL_MAX_S = 30.0
+_NVD_COOLDOWN_DEFAULT_S = 30.0
+_NVD_COOLDOWN_MAX_S = 86400.0
+_NVD_RATE_LOCK = threading.Lock()
+_NVD_NEXT_REQUEST_AT = 0.0
+_NVD_COOLDOWN_UNTIL = 0.0
+# Official NIST CVE 2.0 recent feed. It is the same corpus as the REST API and
+# is outside that API's request quota. Used when the API has no current row.
+_NVD_RECENT_FEED_URL = (
+    "https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-recent.json.gz"
+)
+_NVD_RECENT_FEED_KEY = "nvd_recent_json_2_0"
+_NVD_RECENT_FEED_TTL_S = 240.0
+_NVD_RECENT_FEED_GZ_MAX = 2_500_000
+_NVD_RECENT_FEED_JSON_MAX = 24_000_000
+# GitHub's public commits Atom feed. It is not the Events API. Anonymous
+# api.github.com reads from a shared egress return 403 once that quota is
+# spent, and a cold process has no last-good events row. This feed is used
+# only in that anonymous gap. A configured reader that is rejected stays
+# unavailable and is not retried here.
+_GITHUB_COMMITS_ATOM_TTL_S = 180.0
+_GITHUB_COMMITS_ATOM_MAX = 256_000
+_ATOM_NS = "{http://www.w3.org/2005/Atom}"
+_GITHUB_ATOM_OWNER = re.compile(r"[A-Za-z0-9_-]{1,39}")
+_GITHUB_ATOM_REPO = re.compile(r"[A-Za-z0-9._-]{1,100}")
+_GITHUB_COMMIT_SHA = re.compile(r"[0-9a-f]{40}")
+_GITHUB_ATOM_UPDATED = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z"
+)
 
 
 def _source_http_timeout_s() -> float:
@@ -220,22 +275,52 @@ def _courtlistener_retry_after_s(response: Any) -> float:
     )
 
 
-def _courtlistener_wait_locked() -> None:
-    """Reserve a request slot unless the provider's 429 cooldown is active.
+def _courtlistener_budget_delay_s(now_s: float) -> float:
+    """Return the rolling-window delay, pruning observations older than a day."""
+    longest_window = max(window_s for window_s, _limit in _COURTLISTENER_RATE_WINDOWS)
+    while (_COURTLISTENER_REQUEST_TIMES
+           and now_s - _COURTLISTENER_REQUEST_TIMES[0] >= longest_window):
+        _COURTLISTENER_REQUEST_TIMES.popleft()
 
-    Callers must hold ``_COURTLISTENER_RATE_LOCK``. The short configured spacing
-    remains serialized so no other request can leapfrog a reserved slot.
+    delay_s = 0.0
+    for window_s, limit in _COURTLISTENER_RATE_WINDOWS:
+        recent = [
+            observed_at for observed_at in _COURTLISTENER_REQUEST_TIMES
+            if now_s - observed_at < window_s
+        ]
+        if len(recent) >= limit:
+            delay_s = max(delay_s, recent[-limit] + window_s - now_s)
+    return max(0.0, delay_s)
+
+
+def _courtlistener_wait_locked() -> None:
+    """Reserve one provider-wide slot or fail closed at a rolling quota.
+
+    Callers hold ``_COURTLISTENER_RATE_LOCK``. Short inter-request spacing may
+    wait in-process. Minute/hour/day exhaustion returns immediately so a web
+    request never sleeps for an unbounded provider window; the cache layer then
+    serves a real last-good value or an honest UNAVAILABLE result.
     """
     global _COURTLISTENER_NEXT_REQUEST_AT
-    now = time.monotonic()
-    if now < _COURTLISTENER_COOLDOWN_UNTIL:
+    monotonic_now = time.monotonic()
+    if monotonic_now < _COURTLISTENER_COOLDOWN_UNTIL:
         raise RuntimeError("CourtListener rate limited; provider cooldown active")
-    delay = max(0.0, _COURTLISTENER_NEXT_REQUEST_AT - now)
-    if delay:
-        time.sleep(delay)
+
+    wall_now = time.time()
+    budget_delay_s = _courtlistener_budget_delay_s(wall_now)
+    if budget_delay_s > 0:
+        raise RuntimeError(
+            "CourtListener provider budget exhausted; "
+            f"retry after {math.ceil(budget_delay_s)}s"
+        )
+
+    spacing_delay_s = max(0.0, _COURTLISTENER_NEXT_REQUEST_AT - monotonic_now)
+    if spacing_delay_s:
+        time.sleep(spacing_delay_s)
     _COURTLISTENER_NEXT_REQUEST_AT = (
         time.monotonic() + _courtlistener_min_interval_s()
     )
+    _COURTLISTENER_REQUEST_TIMES.append(time.time())
 
 
 def _courtlistener_defer_locked(delay_s: float) -> None:
@@ -246,28 +331,158 @@ def _courtlistener_defer_locked(delay_s: float) -> None:
     )
 
 
+def _is_nvd_source(url: str) -> bool:
+    try:
+        parsed = httpx.URL(url)
+    except Exception:
+        return False
+    return (
+        parsed.scheme == "https"
+        and (parsed.host or "").lower().rstrip(".") == "services.nvd.nist.gov"
+        and parsed.path.rstrip("/") == "/rest/json/cves/2.0"
+    )
+
+
+def _nvd_has_api_key(headers: Optional[dict[str, str]]) -> bool:
+    return bool(headers and isinstance(headers.get("apiKey"), str)
+                and headers["apiKey"].strip())
+
+
+def _nvd_min_interval_s(headers: Optional[dict[str, str]] = None) -> float:
+    """Return bounded NVD request spacing for keyed or anonymous access."""
+    default = (
+        _NVD_KEYED_MIN_INTERVAL_DEFAULT_S
+        if _nvd_has_api_key(headers)
+        else _NVD_ANONYMOUS_MIN_INTERVAL_DEFAULT_S
+    )
+    raw = os.environ.get(_NVD_MIN_INTERVAL_ENV, str(default))
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = default
+    if not math.isfinite(value):
+        value = default
+    return max(_NVD_MIN_INTERVAL_MIN_S, min(_NVD_MIN_INTERVAL_MAX_S, value))
+
+
+def _nvd_retry_after_s(
+    response: Any, headers: Optional[dict[str, str]] = None,
+) -> float:
+    """Honor a numeric NVD Retry-After value, bounded to one day."""
+    response_headers = getattr(response, "headers", None) or {}
+    raw = response_headers.get("retry-after") or response_headers.get("Retry-After")
+    try:
+        delay = float(raw)
+    except (TypeError, ValueError, OverflowError):
+        delay = _NVD_COOLDOWN_DEFAULT_S
+    if not math.isfinite(delay):
+        delay = _NVD_COOLDOWN_DEFAULT_S
+    return max(
+        _nvd_min_interval_s(headers),
+        min(_NVD_COOLDOWN_MAX_S, delay),
+    )
+
+
+class _NvdOperation:
+    """One admitted queue/slot/REST/fallback window, not an HTTP timeout."""
+
+    def __init__(self, headers: Optional[dict[str, str]] = None,
+                 timeout_s: Optional[float] = None) -> None:
+        # One provider interval and two existing transport budgets admit a
+        # cold REST observation plus its existing official-feed fallback.
+        self.http_timeout = (_source_http_timeout_s() if timeout_s is None
+                             else min(_source_http_timeout_s(), timeout_s))
+        self.deadline = (time.monotonic() + _nvd_min_interval_s(headers)
+                         + 2 * self.http_timeout + 1.0)
+
+    def remaining(self) -> float:
+        return max(0.0, self.deadline - time.monotonic())
+
+    def require_remaining(self) -> float:
+        remaining = self.remaining()
+        if remaining <= 0:
+            raise RuntimeError("NVD refresh operation deadline exceeded")
+        return remaining
+
+    def adopt(self, flight: Any) -> None:
+        # A late caller can shorten its own budget, never renew the leader's.
+        if flight.deadline is not None:
+            self.deadline = min(self.deadline, flight.deadline)
+
+
+def _nvd_wait_locked(headers: Optional[dict[str, str]] = None,
+                     operation: Optional[_NvdOperation] = None) -> None:
+    """Reserve one provider-wide NVD slot or fail during an active cooldown."""
+    global _NVD_NEXT_REQUEST_AT
+    now = time.monotonic()
+    if now < _NVD_COOLDOWN_UNTIL:
+        raise RuntimeError("NVD rate limited; provider cooldown active")
+    delay = max(0.0, _NVD_NEXT_REQUEST_AT - now)
+    if operation is not None and delay >= operation.require_remaining():
+        raise RuntimeError("NVD refresh operation deadline exceeded before provider slot")
+    if delay:
+        time.sleep(delay)
+    if operation is not None:
+        operation.require_remaining()
+    _NVD_NEXT_REQUEST_AT = time.monotonic() + _nvd_min_interval_s(headers)
+
+
+def _nvd_defer_locked(delay_s: float) -> None:
+    global _NVD_COOLDOWN_UNTIL
+    _NVD_COOLDOWN_UNTIL = max(
+        _NVD_COOLDOWN_UNTIL,
+        time.monotonic() + max(0.0, delay_s),
+    )
+
+
 def _source_json_with_cooldown(
     client: httpx.Client,
     url: str,
     headers: Optional[dict[str, str]] = None,
+    operation: Optional[_NvdOperation] = None,
 ) -> Any:
-    """Fetch JSON once; one CourtListener 429 holds later reads until its reset."""
+    """Fetch once; provider-wide CourtListener/NVD 429s hold later reads."""
     def request() -> Any:
+        if operation is not None:
+            timeout = min(operation.http_timeout, operation.require_remaining())
+            return client.get(url, headers=headers, timeout=timeout)
         return client.get(url, headers=headers) if headers else client.get(url)
 
-    if not _is_courtlistener_source(url):
-        response = request()
-        response.raise_for_status()
-        return response.json()
+    if _is_courtlistener_source(url):
+        with _COURTLISTENER_RATE_LOCK:
+            _courtlistener_wait_locked()
+            response = request()
+            if getattr(response, "status_code", None) == 429:
+                _courtlistener_defer_locked(_courtlistener_retry_after_s(response))
+                raise RuntimeError("CourtListener rate limited; provider cooldown active")
+            response.raise_for_status()
+            return response.json()
 
-    with _COURTLISTENER_RATE_LOCK:
-        _courtlistener_wait_locked()
-        response = request()
-        if getattr(response, "status_code", None) == 429:
-            _courtlistener_defer_locked(_courtlistener_retry_after_s(response))
-            raise RuntimeError("CourtListener rate limited; provider cooldown active")
-        response.raise_for_status()
-        return response.json()
+    if _is_nvd_source(url):
+        acquired = (_NVD_RATE_LOCK.acquire(timeout=operation.require_remaining())
+                    if operation is not None else _NVD_RATE_LOCK.acquire())
+        if not acquired:
+            raise RuntimeError("NVD refresh operation deadline exceeded in provider queue")
+        try:
+            if operation is not None:
+                _nvd_wait_locked(headers, operation)
+            else:
+                _nvd_wait_locked(headers)
+            response = request()
+            if getattr(response, "status_code", None) == 429:
+                _nvd_defer_locked(_nvd_retry_after_s(response, headers))
+                raise RuntimeError("NVD rate limited; provider cooldown active")
+            response.raise_for_status()
+            result = response.json()
+            if operation is not None:
+                operation.require_remaining()
+            return result
+        finally:
+            _NVD_RATE_LOCK.release()
+
+    response = request()
+    response.raise_for_status()
+    return response.json()
 
 
 def _courtlistener_public_url(value: Any) -> str:
@@ -282,6 +497,14 @@ def _variant_cache_key(source: str, **parameters: Any) -> str:
     canonical = json.dumps(parameters, sort_keys=True, separators=(",", ":"),
                            ensure_ascii=True, default=str).encode("utf-8")
     return f"{source}|{hashlib.sha256(canonical).hexdigest()[:20]}"
+
+
+def _courtlistener_cache_key(term: str, limit: int, kind: str = "o") -> str:
+    """Return one shared cache identity for equivalent CourtListener reads."""
+    normalized_term = re.sub(r"\s+", " ", str(term).strip()).casefold()
+    return _variant_cache_key(
+        "courtlistener", term=normalized_term, limit=limit, kind=kind,
+    )
 
 
 def _bounded_limit(value: Any, default: int, maximum: int) -> int:
@@ -579,10 +802,11 @@ def _govern_validation_response(error: _GovernValidationError) -> JSONResponse:
 class _RefreshFlight:
     """One in-process refresh shared by every caller for the same cache key."""
 
-    def __init__(self) -> None:
+    def __init__(self, operation: Optional[_NvdOperation] = None) -> None:
         self.event = threading.Event()
         self.result: Optional[dict[str, Any]] = None
         self.waiters = 0
+        self.deadline = operation.deadline if operation is not None else None
 
 
 # Blocking upstream clients remain synchronous so the existing feed/parser/cache
@@ -664,20 +888,33 @@ class _Cache:
             v = self._d.get(key)
             return dict(v) if v else None
 
-    def put(self, key: str, value: Any, ttl: float, status: str = "live") -> dict[str, Any]:
+    def put(self, key: str, value: Any, ttl: float, status: str = "live",
+            operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
+        if operation is not None:
+            if not self._lock.acquire(timeout=operation.require_remaining()):
+                raise RuntimeError("NVD refresh operation deadline exceeded in publication queue")
+            try:
+                operation.require_remaining()
+                rec = {"value": value, "fetched_at": time.time(), "ttl": ttl, "status": status}
+                self._d[key] = rec
+                self._evict_locked(key)
+                return rec
+            finally:
+                self._lock.release()
         rec = {"value": value, "fetched_at": time.time(), "ttl": ttl, "status": status}
         with self._lock:
             self._d[key] = rec
             self._evict_locked(key)
         return rec
 
-    def claim_refresh(self, key: str) -> tuple[_RefreshFlight, bool]:
+    def claim_refresh(self, key: str,
+                      operation: Optional[_NvdOperation] = None) -> tuple[_RefreshFlight, bool]:
         with self._lock:
             flight = self._inflight.get(key)
             if flight is not None:
                 flight.waiters += 1
                 return flight, False
-            flight = _RefreshFlight()
+            flight = _RefreshFlight(operation)
             self._inflight[key] = flight
             return flight, True
 
@@ -736,9 +973,11 @@ def _client(timeout_s: Optional[float] = None) -> httpx.Client:
     return httpx.Client(timeout=timeout, headers=UA, follow_redirects=False)
 
 
-def _flight_wait_failure(rec: Optional[dict[str, Any]], timeout_s: Optional[float] = None) -> dict[str, Any]:
+def _flight_wait_failure(rec: Optional[dict[str, Any]], timeout_s: Optional[float] = None,
+                         operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
     budget = min(_source_http_timeout_s(), timeout_s) if timeout_s is not None else _source_http_timeout_s()
-    error = f"single-flight wait exceeded {budget:g}s source budget"
+    error = ("single-flight wait exceeded admitted NVD refresh deadline" if operation is not None
+             else f"single-flight wait exceeded {budget:g}s source budget")
     observed_at = time.time()
     if rec:
         return {"value": rec["value"], "freshness": {
@@ -773,7 +1012,8 @@ def _refresh_failure(rec: Optional[dict[str, Any]], exc: BaseException) -> dict[
 
 def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", headers=None,
                   timeout_s: Optional[float] = None,
-                  private_error: bool = False) -> dict[str, Any]:
+                  private_error: bool = False,
+                  operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
     """Return {value, freshness}. Serve warm cache if within TTL; else refetch.
     On error keep last-good and mark 'stale' — never fabricate. Concurrent
     refreshes for one key are coalesced into exactly one upstream operation."""
@@ -785,14 +1025,23 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
         }}
     rec = _CACHE.get(key)
     now = time.time()
-    if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
+    if (rec and rec.get("status") == "live"
+            and (now - rec["fetched_at"]) < min(rec["ttl"], ttl)):
         return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
 
-    flight, is_leader = _CACHE.claim_refresh(key)
+    if operation is None and _is_nvd_source(url):
+        operation = _NvdOperation(headers, timeout_s)
+    elif operation is not None and timeout_s is not None:
+        operation.http_timeout = min(operation.http_timeout, timeout_s)
+    flight, is_leader = (_CACHE.claim_refresh(key, operation) if operation is not None
+                         else _CACHE.claim_refresh(key))
+    if operation is not None:
+        operation.adopt(flight)
     if not is_leader:
         budget = min(_source_http_timeout_s(), timeout_s) if timeout_s is not None else _source_http_timeout_s()
-        if not flight.event.wait(budget + 1.0):
-            return _flight_wait_failure(rec, timeout_s)
+        wait = operation.remaining() if operation is not None else budget + 1.0
+        if not flight.event.wait(wait):
+            return _flight_wait_failure(rec, timeout_s, operation)
         return flight.result if flight.result is not None else _flight_wait_failure(rec, timeout_s)
 
     # A caller can read an expired record, lose the scheduler, and claim just
@@ -802,7 +1051,7 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     current = _CACHE.get(key)
     current_now = time.time()
     if (current and current.get("status") == "live"
-            and (current_now - current["fetched_at"]) < current["ttl"]):
+            and (current_now - current["fetched_at"]) < min(current["ttl"], ttl)):
         result = {"value": current["value"], "freshness": _CACHE.freshness(key)}
         _CACHE.finish_refresh(key, flight, result)
         return result
@@ -810,9 +1059,17 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     result: Optional[dict[str, Any]] = None
     try:
         with _client(timeout_s) if timeout_s is not None else _client() as cl:
-            data = _source_json_with_cooldown(cl, url, headers=headers)
+            if operation is not None:
+                data = _source_json_with_cooldown(cl, url, headers=headers, operation=operation)
+            else:
+                data = _source_json_with_cooldown(cl, url, headers=headers)
         val = parser(data) if parser else data
-        _CACHE.put(key, val, ttl, status="live")
+        if operation is not None:
+            operation.require_remaining()
+        if operation is not None:
+            _CACHE.put(key, val, ttl, status="live", operation=operation)
+        else:
+            _CACHE.put(key, val, ttl, status="live")
         result = {"value": val, "freshness": _CACHE.freshness(key)}
     except BaseException as exc:
         if rec:
@@ -860,7 +1117,7 @@ _VERTICAL_FEED_CACHE_KEYS: dict[str, tuple[str, ...]] = {
         "poly_SPY", "poly_AAPL", "poly_MSFT", "poly_NVDA",
         "cb_BTC-USD", "cb_ETH-USD", "cb_SOL-USD", "nvd_financial", "fx_USD",
     ),
-    "legal": ("fedreg", "courtlistener_artificial_intelligence"),
+    "legal": ("fedreg", "courtlistener"),
     "cyber": (
         "cisa_kev", "nvd", "gh_huggingface_transformers", "gh_openai_gpt-2",
         "gh_pytorch_pytorch", "ghev_huggingface_transformers", "hf_models",
@@ -1405,6 +1662,197 @@ def feed_cisa_kev(limit: int = 40) -> dict[str, Any]:
     return result
 
 
+def _gunzip_bounded(raw: bytes, limit: int) -> bytes:
+    """Inflate one gzip body and stop once the declared byte cap is crossed."""
+    if not isinstance(raw, (bytes, bytearray)):
+        raise ValueError("NVD recent feed body is not bytes")
+    if len(raw) < 2 or bytes(raw[:2]) != b"\x1f\x8b":
+        raise ValueError("NVD recent feed is not gzip")
+    if len(raw) > _NVD_RECENT_FEED_GZ_MAX:
+        raise ValueError("NVD recent feed gzip is over the size limit")
+    chunks: list[bytes] = []
+    total = 0
+    with gzip.GzipFile(fileobj=io.BytesIO(bytes(raw))) as handle:
+        while True:
+            block = handle.read(65536)
+            if not block:
+                break
+            total += len(block)
+            if total > limit:
+                raise ValueError("NVD recent feed JSON is over the size limit")
+            chunks.append(block)
+    return b"".join(chunks)
+
+
+def _parse_nvd_recent_document(raw: bytes) -> dict[str, Any]:
+    """Parse NIST's CVE 2.0 recent feed into the same item shape as the API."""
+    data = json.loads(_gunzip_bounded(raw, _NVD_RECENT_FEED_JSON_MAX))
+    if not isinstance(data, dict):
+        raise ValueError("NVD recent feed JSON is not an object")
+    vulnerabilities = data.get("vulnerabilities")
+    if not isinstance(vulnerabilities, list):
+        raise ValueError("NVD recent feed vulnerabilities list is missing")
+    items: list[dict[str, Any]] = []
+    for entry in vulnerabilities:
+        if not isinstance(entry, dict):
+            continue
+        cve = entry.get("cve")
+        if not isinstance(cve, dict):
+            continue
+        metrics = cve.get("metrics") or {}
+        if not isinstance(metrics, dict):
+            metrics = {}
+        series = (
+            metrics.get("cvssMetricV31")
+            or metrics.get("cvssMetricV30")
+            or metrics.get("cvssMetricV2")
+            or []
+        )
+        severity, score = "NONE", 0.0
+        if isinstance(series, list) and series and isinstance(series[0], dict):
+            cvss = series[0].get("cvssData") or {}
+            if not isinstance(cvss, dict):
+                cvss = {}
+            severity = str(
+                cvss.get("baseSeverity") or series[0].get("baseSeverity") or "NONE"
+            ).upper()
+            raw_score = cvss.get("baseScore", 0.0)
+            if (isinstance(raw_score, bool) or not isinstance(raw_score, (int, float))
+                    or not math.isfinite(float(raw_score))):
+                score = 0.0
+            else:
+                score = float(raw_score)
+        descriptions = cve.get("descriptions") or []
+        desc = ""
+        if isinstance(descriptions, list):
+            for item in descriptions:
+                if (isinstance(item, dict) and item.get("lang") == "en"
+                        and isinstance(item.get("value"), str)):
+                    desc = item["value"]
+                    break
+        items.append({
+            "id": cve.get("id"),
+            "severity": severity,
+            "score": score,
+            "published": str(cve.get("published") or "")[:10],
+            "desc": desc[:200],
+            "_search": desc.casefold(),
+        })
+    items.sort(key=lambda row: row["published"], reverse=True)
+    total = data.get("totalResults", len(items))
+    if isinstance(total, bool) or not isinstance(total, int):
+        total = len(items)
+    return {"totalResults": total, "items": items}
+
+
+def _nvd_recent_feed_snapshot(operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
+    """Fetch the recent feed once per TTL and share it across NVD readers."""
+    key = _NVD_RECENT_FEED_KEY
+    ttl = _NVD_RECENT_FEED_TTL_S
+    rec = _CACHE.get(key)
+    now = time.time()
+    if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
+        return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
+
+    flight, is_leader = (_CACHE.claim_refresh(key, operation) if operation is not None
+                         else _CACHE.claim_refresh(key))
+    if operation is not None:
+        operation.adopt(flight)
+    if not is_leader:
+        budget = _source_http_timeout_s()
+        wait = operation.remaining() if operation is not None else budget + 1.0
+        if not flight.event.wait(wait):
+            return _flight_wait_failure(rec, budget, operation)
+        return (flight.result if flight.result is not None
+                else _flight_wait_failure(rec, budget))
+
+    current = _CACHE.get(key)
+    current_now = time.time()
+    if (current and current.get("status") == "live"
+            and (current_now - current["fetched_at"]) < current["ttl"]):
+        result = {"value": current["value"], "freshness": _CACHE.freshness(key)}
+        _CACHE.finish_refresh(key, flight, result)
+        return result
+
+    result: Optional[dict[str, Any]] = None
+    try:
+        if operation is not None:
+            operation.require_remaining()
+        with _client() as client:
+            if operation is not None:
+                response = client.get(_NVD_RECENT_FEED_URL, timeout=min(
+                    operation.http_timeout, operation.require_remaining()))
+            else:
+                response = client.get(_NVD_RECENT_FEED_URL)
+            response.raise_for_status()
+            raw = response.content
+        page = _parse_nvd_recent_document(raw)
+        if operation is not None:
+            operation.require_remaining()
+        if operation is not None:
+            _CACHE.put(key, page, ttl, status="live", operation=operation)
+        else:
+            _CACHE.put(key, page, ttl, status="live")
+        result = {"value": page, "freshness": _CACHE.freshness(key)}
+    except BaseException as exc:
+        if rec:
+            _CACHE.mark_stale_if_same(key, rec["fetched_at"])
+        safe = exc if isinstance(exc, Exception) else RuntimeError(
+            "NVD recent feed refresh aborted")
+        result = _refresh_failure(rec, safe)
+        if not isinstance(exc, Exception):
+            raise
+    finally:
+        if result is None:
+            result = _refresh_failure(
+                rec, RuntimeError("NVD recent feed refresh aborted before publication"))
+        _CACHE.finish_refresh(key, flight, result)
+    return result
+
+
+def _nvd_recent_feed_observation(limit: int, keyword: str | None,
+                                 operation: Optional[_NvdOperation] = None) -> dict[str, Any]:
+    """Project one bounded page from the shared recent-feed snapshot."""
+    snapshot = (_nvd_recent_feed_snapshot(operation) if operation is not None
+                else _nvd_recent_feed_snapshot())
+    value = snapshot.get("value") if isinstance(snapshot, dict) else None
+    if not isinstance(value, dict) or not isinstance(value.get("items"), list):
+        return snapshot
+    selected = value["items"]
+    if keyword:
+        needle = keyword.casefold()
+        selected = [
+            item for item in selected
+            if isinstance(item, dict) and needle in str(item.get("_search") or "")
+        ]
+    public: list[dict[str, Any]] = []
+    sevcount = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "NONE": 0}
+    for item in selected[:limit]:
+        if not isinstance(item, dict):
+            continue
+        severity = str(item.get("severity") or "NONE").upper()
+        sevcount[severity] = sevcount.get(severity, 0) + 1
+        public.append({
+            "id": item.get("id"),
+            "severity": severity,
+            "score": item.get("score", 0.0),
+            "published": item.get("published"),
+            "desc": item.get("desc"),
+        })
+    total = len(selected) if keyword else value.get("totalResults", len(value["items"]))
+    return {
+        "value": {
+            "totalResults": total,
+            "items": public,
+            "sevcount": sevcount,
+            "source": "NVD CVE JSON 2.0 recent feed",
+            "source_url": _NVD_RECENT_FEED_URL,
+            "retrieval": "nvd-cve-2.0-recent-json-feed",
+        },
+        "freshness": snapshot.get("freshness"),
+    }
+
+
 def feed_nvd(limit: int = 25, keyword: str | None = None) -> dict[str, Any]:
     limit = _bounded_limit(limit, 25, 100)
     keyword = _bounded_text(keyword, "", 120) or None
@@ -1442,7 +1890,29 @@ def feed_nvd(limit: int = 25, keyword: str | None = None) -> dict[str, Any]:
     # URL and cache key so it cannot leak through public freshness errors.
     api_key = (os.environ.get("NVD_API_KEY") or "").strip()
     headers = {"apiKey": api_key} if api_key else None
-    return _cached_fetch(key, url, ttl=240, parser=parse, headers=headers)
+    operation = _NvdOperation(headers)
+    # A failed REST refresh may leave an old row indefinitely. The existing
+    # official feed can recover both a cold cache and that stale-cache case;
+    # its own observation clock must actually be newer before replacing data.
+    observed = _cached_fetch(key, url, ttl=240, parser=parse, headers=headers,
+                             operation=operation)
+    has_observation = isinstance(observed.get("value"), dict)
+    freshness = observed.get("freshness") or {}
+    if has_observation and freshness.get("status") != "stale":
+        return observed
+    fallback = _nvd_recent_feed_observation(limit, keyword, operation=operation)
+    if not isinstance(fallback.get("value"), dict):
+        return observed
+    if not has_observation:
+        return fallback
+    observed_at = freshness.get("fetched_at")
+    fallback_at = (fallback.get("freshness") or {}).get("fetched_at")
+    if (all(not isinstance(clock, bool) and isinstance(clock, (int, float))
+            and math.isfinite(clock) and clock > 0
+            for clock in (observed_at, fallback_at))
+            and fallback_at > observed_at):
+        return fallback
+    return observed
 
 
 def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]:
@@ -1466,11 +1936,10 @@ def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]
 def feed_courtlistener(term: str = "artificial intelligence", limit: int = 20) -> dict[str, Any]:
     term = _bounded_text(term, "artificial intelligence", 160)
     limit = _bounded_limit(limit, 20, 100)
-    source = "courtlistener_" + re.sub(r"\W+", "_", term).strip("_")[:40]
     url = "https://www.courtlistener.com/api/rest/v4/search/?" + str(httpx.QueryParams({
         "q": term, "type": "o", "order_by": "dateFiled desc", "page_size": limit,
     }))
-    key = _variant_cache_key(source, term=term, limit=limit, kind="o")
+    key = _courtlistener_cache_key(term, limit, "o")
     def parse(d):
         res = d.get("results", [])[:limit]
         return {"count": d.get("count"), "items": [{
@@ -1478,7 +1947,7 @@ def feed_courtlistener(term: str = "artificial intelligence", limit: int = 20) -
             "url": _courtlistener_public_url(r.get("absolute_url")),
             "citeCount": r.get("citeCount", 0), "status": r.get("status"),
         } for r in res]}
-    return _cached_fetch(key, url, ttl=900, parser=parse)
+    return _cached_fetch(key, url, ttl=_COURTLISTENER_CACHE_TTL_S, parser=parse)
 
 
 def feed_yahoo(symbol: str) -> dict[str, Any]:
@@ -1697,6 +2166,151 @@ def feed_polygon(symbol: str) -> dict[str, Any]:
                          headers={"Authorization": f"Bearer {key}"})
 
 
+def _github_commits_atom_url(repo: str) -> str:
+    """Return the exact public commits feed for one owner/name pair."""
+    owner, separator, name = repo.partition("/")
+    if (not separator or "/" in name
+            or _GITHUB_ATOM_OWNER.fullmatch(owner) is None
+            or _GITHUB_ATOM_REPO.fullmatch(name) is None
+            or owner in {".", ".."} or name in {".", ".."} or ".." in name):
+        raise ValueError("GitHub commits atom repo is outside the public pattern")
+    return f"https://github.com/{owner}/{name}/commits.atom"
+
+
+def _parse_github_commits_atom(raw: bytes, repo: str) -> dict[str, Any]:
+    """Keep commit entries whose id, link, time, and author all agree."""
+    if not isinstance(raw, (bytes, bytearray)):
+        raise ValueError("GitHub commits atom body is not bytes")
+    if len(raw) > _GITHUB_COMMITS_ATOM_MAX:
+        raise ValueError("GitHub commits atom is over the size limit")
+    folded = raw[:64].lstrip().lower()
+    if b"<!doctype" in raw.lower() or b"<!entity" in raw.lower() or folded.startswith(b"<!doctype"):
+        raise ValueError("GitHub commits atom document type is not accepted")
+    owner, _, name = repo.partition("/")
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as exc:
+        raise ValueError("GitHub commits atom is not well-formed XML") from exc
+    if root.tag != f"{_ATOM_NS}feed":
+        raise ValueError("GitHub commits atom root is not a feed")
+    feed_id = (root.findtext(f"{_ATOM_NS}id") or "").strip()
+    if f"/{owner}/{name}/" not in feed_id or "github.com" not in feed_id:
+        raise ValueError("GitHub commits atom feed id does not match the requested repo")
+    commit_prefix = "tag:github.com,2008:Grit::Commit/"
+    items: list[dict[str, str]] = []
+    for entry in root.findall(f"{_ATOM_NS}entry"):
+        entry_id = (entry.findtext(f"{_ATOM_NS}id") or "").strip()
+        if not entry_id.startswith(commit_prefix):
+            continue
+        sha = entry_id[len(commit_prefix):]
+        if _GITHUB_COMMIT_SHA.fullmatch(sha) is None:
+            continue
+        commit_url = f"https://github.com/{owner}/{name}/commit/{sha}"
+        linked = False
+        for link in entry.findall(f"{_ATOM_NS}link"):
+            if (link.get("href") or "").strip() == commit_url:
+                linked = True
+                break
+        if not linked:
+            continue
+        updated = (entry.findtext(f"{_ATOM_NS}updated") or "").strip()
+        if _GITHUB_ATOM_UPDATED.fullmatch(updated) is None:
+            continue
+        author = entry.find(f"{_ATOM_NS}author")
+        actor = ""
+        if author is not None:
+            actor = (author.findtext(f"{_ATOM_NS}name") or "").strip()
+        if (not actor or len(actor) > 100
+                or any(ord(char) < 32 or char in "<>" for char in actor)):
+            continue
+        items.append({
+            "type": "Commit",
+            "actor": actor,
+            "created": updated,
+            "ref": commit_url,
+        })
+    if not items:
+        raise ValueError("GitHub commits atom has no observable commits")
+    return {"items": items}
+
+
+def _github_commits_atom_snapshot(repo: str) -> dict[str, Any]:
+    """Fetch one repo's public commits feed once per TTL."""
+    try:
+        url = _github_commits_atom_url(repo)
+    except ValueError as exc:
+        return _refresh_failure(None, exc)
+    key = _variant_cache_key("gh_commits_atom", repo=repo)
+    ttl = _GITHUB_COMMITS_ATOM_TTL_S
+    rec = _CACHE.get(key)
+    now = time.time()
+    if rec and (now - rec["fetched_at"]) < rec["ttl"] and rec.get("status") == "live":
+        return {"value": rec["value"], "freshness": _CACHE.freshness(key)}
+
+    flight, is_leader = _CACHE.claim_refresh(key)
+    if not is_leader:
+        budget = _source_http_timeout_s()
+        if not flight.event.wait(budget + 1.0):
+            return _flight_wait_failure(rec, budget)
+        return (flight.result if flight.result is not None
+                else _flight_wait_failure(rec, budget))
+
+    current = _CACHE.get(key)
+    current_now = time.time()
+    if (current and current.get("status") == "live"
+            and (current_now - current["fetched_at"]) < current["ttl"]):
+        result = {"value": current["value"], "freshness": _CACHE.freshness(key)}
+        _CACHE.finish_refresh(key, flight, result)
+        return result
+
+    result: Optional[dict[str, Any]] = None
+    try:
+        with _client() as client:
+            response = client.get(url)
+            if response.status_code != 200:
+                raise ValueError(f"GitHub commits atom HTTP {response.status_code}")
+            page = _parse_github_commits_atom(response.content, repo)
+        _CACHE.put(key, page, ttl, status="live")
+        result = {"value": page, "freshness": _CACHE.freshness(key)}
+    except BaseException as exc:
+        if rec:
+            _CACHE.mark_stale_if_same(key, rec["fetched_at"])
+        safe = exc if isinstance(exc, Exception) else RuntimeError(
+            "GitHub commits atom refresh aborted")
+        result = _refresh_failure(rec, safe)
+        if not isinstance(exc, Exception):
+            raise
+    finally:
+        if result is None:
+            result = _refresh_failure(
+                rec, RuntimeError("GitHub commits atom refresh aborted before publication"))
+        _CACHE.finish_refresh(key, flight, result)
+    return result
+
+
+def _github_commits_atom_observation(repo: str, limit: int) -> dict[str, Any]:
+    """Project a bounded page of observed commits. This is not the Events API."""
+    snapshot = _github_commits_atom_snapshot(repo)
+    value = snapshot.get("value") if isinstance(snapshot, dict) else None
+    items = value.get("items") if isinstance(value, dict) else None
+    if not isinstance(items, list) or not items:
+        return snapshot
+    try:
+        url = _github_commits_atom_url(repo)
+    except ValueError as exc:
+        return _refresh_failure(None, exc)
+    return {
+        "value": {
+            "repo": repo,
+            "items": [dict(item) for item in items[:limit] if isinstance(item, dict)],
+            "source": "GitHub public commits Atom feed",
+            "source_url": url,
+            "retrieval": "github-commits-atom",
+        },
+        "freshness": snapshot.get("freshness"),
+    }
+
+
 def feed_gh_events(repo: str = "huggingface/transformers", limit: int = 12) -> dict[str, Any]:
     repo = _bounded_text(repo, "huggingface/transformers", 160)
     limit = _bounded_limit(limit, 12, 100)
@@ -1708,8 +2322,21 @@ def feed_gh_events(repo: str = "huggingface/transformers", limit: int = 12) -> d
             "ref": (e.get("payload") or {}).get("ref") or (e.get("payload") or {}).get("action"),
         } for e in (d if isinstance(d, list) else [])[:limit]]}
     source = "ghev_" + re.sub(r"\W+", "_", repo).strip("_")[:48]
-    return _github_public_fetch(_variant_cache_key(source, repo=repo, limit=limit),
-                                url, ttl=180, parser=parse)
+    observed = _github_public_fetch(_variant_cache_key(source, repo=repo, limit=limit),
+                                    url, ttl=180, parser=parse)
+    if isinstance(observed.get("value"), dict):
+        return observed
+    # A present credential, including a malformed one, must not fall through to
+    # another origin. Only an allowed anonymous read with no events row does.
+    if os.environ.get(_GITHUB_PUBLIC_READ_ENV) is not None:
+        return observed
+    error = str((observed.get("freshness") or {}).get("error") or "")
+    if ("outside exact API origin" in error or "credential malformed" in error):
+        return observed
+    atom = _github_commits_atom_observation(repo, limit)
+    if isinstance(atom.get("value"), dict) and atom["value"].get("items"):
+        return atom
+    return observed
 
 
 def feed_treasury(limit: int = 6) -> dict[str, Any]:
@@ -2023,6 +2650,25 @@ def _readiness_public_clocked_source(entry: Any) -> Any:
     return _readiness_public_source(entry)
 
 
+def _finance_required_source_usable(entry: Any, now_s: float) -> bool:
+    """Keep required-source loss out of HTTP 200 without inventing evidence."""
+    if not isinstance(entry, dict) or entry.get("value") is None:
+        return False
+    freshness = entry.get("freshness")
+    if not isinstance(freshness, dict):
+        return False
+    status = freshness.get("status")
+    if (not isinstance(status, str)
+            or status not in _READINESS_PUBLIC_FRESHNESS | {"reference", "unofficial-fallback"}):
+        return False
+    observed_at = freshness.get("fetched_at")
+    if (isinstance(observed_at, bool) or not isinstance(observed_at, (int, float))
+            or not math.isfinite(observed_at) or observed_at <= 0):
+        return False
+    # The protected finance contract allows one hour and five minutes of skew.
+    return -300 <= now_s - observed_at <= 3600
+
+
 def _defense_required_source_usable(entry: Any, now_s: float) -> bool:
     """Admit HTTP 200 only for the two observed, fresh defense sources."""
     if not isinstance(entry, dict):
@@ -2199,7 +2845,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         ))
         cursor += len(crypto_pairs)
         cve, fx = values[cursor:cursor + 2]
-        return JSONResponse({"vertical": "finance",
+        payload = {"vertical": "finance",
                              "equities_official": {symbol: _readiness_public_clocked_source(entry)
                                                    for symbol, entry in official.items()},
                              "equities": _finance_public_series(eq),
@@ -2210,7 +2856,16 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
                                         for pair, entry in crypto.items()},
                              "fx": _readiness_public_clocked_source(fx),
                              "fintech_cve": _readiness_public_clocked_source(cve),
-                             "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE})
+                             "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE}
+        required_sources = [
+            *(payload["equities_official"].get(symbol) for symbol in official_syms),
+            *(payload["crypto"].get(pair) for pair in crypto_pairs),
+            payload["fx"], payload["fintech_cve"],
+        ]
+        observed_at = time.time()
+        status_code = (200 if all(_finance_required_source_usable(source, observed_at)
+                                  for source in required_sources) else 503)
+        return JSONResponse(payload, status_code=status_code)
 
     # ---- LEGAL ----
     @app.get(base + "/legal/feed", include_in_schema=False)

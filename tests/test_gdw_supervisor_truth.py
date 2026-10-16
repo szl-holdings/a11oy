@@ -1,7 +1,34 @@
 from __future__ import annotations
 
 import gdw_runtime
+import pytest
 from routers import gdw_frontier
+
+
+@pytest.mark.parametrize("alive", [True, False])
+def test_stop_requires_the_outbox_worker_to_finish(monkeypatch, alive):
+    monkeypatch.setattr(gdw_runtime, "_STATE", {"drain": {"running": True}})
+    supervisor = gdw_runtime.OutboxSupervisor(
+        enabled=True, interval_seconds=5, retry_max_seconds=60,
+        batch_size=10, lease_seconds=30,
+    )
+
+    class Worker:
+        def join(self, timeout):
+            assert timeout == 0
+
+        def is_alive(self):
+            return alive
+
+    supervisor._thread = Worker()
+    if alive:
+        with pytest.raises(gdw_runtime.state_store.StorageBlocked,
+                           match="GDW_DRAIN_NOT_QUIESCED"):
+            supervisor.stop(timeout_seconds=0)
+    else:
+        supervisor.stop(timeout_seconds=0)
+    assert supervisor._stop.is_set()
+    assert gdw_runtime._STATE["drain"]["running"] is alive
 
 
 def test_supervisor_does_not_report_success_with_pending_effects(

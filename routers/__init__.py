@@ -51,5 +51,6 @@ __all__ = [
     "series_a_control_plane",
     "hf_tooling_evidence",
     "command_centre",
+    "platform_candidate_preview",
     "atelier_grok",
 ]

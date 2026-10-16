@@ -123,13 +123,37 @@ class EstateReleaseTrainTests(unittest.TestCase):
         apex.feed(
             '<title>A11oy</title><script src="/app.js"></script>'
             f'<script type="module" src="{bridge}" '
-            'data-packs="mcp-server-client"></script>'
+            'data-packs="c2pa,mcp-server-client"></script>'
         )
         self.assertEqual(
             baseline.result()["semantic_sha256"], apex.result()["semantic_sha256"]
         )
         self.assertEqual(apex.result()["provider_scripts"], [bridge])
         self.assertEqual(apex.result()["scripts"], ["/app.js"])
+
+    def test_semantic_html_accepts_only_webmcp_scheduler_annotations(self) -> None:
+        baseline = release.SemanticHTML()
+        baseline.feed('<title>A11oy</title><script src="/app.js"></script>')
+        bridge = "https://a-11-oy.com/.webmcp/bridge.js"
+        packs = 'data-packs="c2pa,mcp-server-client"'
+        accepted = (
+            f'<script type="module" async fetchpriority="low" src="{bridge}" {packs}></script>',
+            f'<script fetchpriority="low" type="module" src="{bridge}" {packs} async></script>',
+            f'<script async src="{bridge}" type="module" {packs}></script>',
+            f'<script type="module" src="{bridge}" {packs} fetchpriority="low"></script>',
+            f'<script async="async" type="module" src="{bridge}" {packs}></script>',
+            f'<script type="module" src="{bridge}" {packs}> \n\t</script>',
+        )
+        for tag in accepted:
+            with self.subTest(tag=tag):
+                apex = release.SemanticHTML()
+                apex.feed('<title>A11oy</title><script src="/app.js"></script>' + tag)
+                self.assertEqual(
+                    baseline.result()["semantic_sha256"],
+                    apex.result()["semantic_sha256"],
+                )
+                self.assertEqual(apex.result()["provider_scripts"], [bridge])
+                self.assertEqual(apex.result()["scripts"], ["/app.js"])
 
     def test_semantic_html_webmcp_variants_remain_product_drift(self) -> None:
         baseline = release.SemanticHTML()
@@ -167,11 +191,34 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 f'<script type="module" src="{bridge}"></script>',
                 f'<script type="module" src="{bridge}" data-packs="dom"></script>',
                 f'<script type="module" src="{bridge}" '
+                'data-packs="mcp-server-client"></script>',
+                f'<script type="module" src="{bridge}" data-packs="c2pa"></script>',
+                f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client,dom"></script>',
+                f'<script type="module" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client,dom"></script>',
                 f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client" onload="changed()"></script>',
                 f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client" async></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="mcp-server-client"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client">unexpected()</script>',
+                f'<script type="module" async fetchpriority="high" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client"></script>',
+                f'<script type="module" async fetchpriority="Low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client"></script>',
+                f'<script type="module" async="false" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client" data-mcp-url="/mcp"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client" crossorigin="anonymous"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client" nonce="n"></script>',
+                f'<script type="module" async fetchpriority="low" src="{bridge}" '
+                'data-packs="c2pa,mcp-server-client" integrity="sha256-aa"></script>',
                 f'<script type="module" src="{bridge}" '
                 'data-packs="mcp-server-client" data-packs="dom"></script>',
                 f'<script type="module" src="{bridge}" src="{bridge}" '
@@ -492,6 +539,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         )
         self.assertFalse(result["observed"])
         self.assertIsNone(result["counts"]["models"])
+        self.assertIsNone(result["items"]["models"])
         self.assertEqual(result["enumeration_state"]["models"], "UNAVAILABLE")
         self.assertEqual(result["errors"]["models"], "INVALID_LIST_RESPONSE")
 
@@ -502,6 +550,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         )
         self.assertTrue(result["observed"])
         self.assertEqual(result["counts"]["models"], 0)
+        self.assertEqual(result["items"]["models"], [])
         self.assertEqual(result["enumeration_state"]["spaces"], "COMPLETE")
 
     def test_pagination_completes_two_pages(self) -> None:
@@ -547,6 +596,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
             lambda url, **kw: {"status": 401, "json": [], "link": None},
         )
         self.assertIsNone(result["counts"]["spaces"])
+        self.assertIsNone(result["items"]["spaces"])
         self.assertEqual(result["errors"]["spaces"], "HTTP_UNAVAILABLE")
 
     def test_page_budget_is_partial_not_complete(self) -> None:
@@ -578,6 +628,7 @@ class InventoryAndIdentityContractTests(unittest.TestCase):
         self.assertFalse(result["observed"])
         self.assertEqual(result["enumeration_state"]["models"], "PARTIAL")
         self.assertIsNone(result["counts"]["models"])
+        self.assertIsNone(result["items"]["models"])
 
     def test_conflicting_aliases_fail_closed(self) -> None:
         value, state = release.extract_source_revision(

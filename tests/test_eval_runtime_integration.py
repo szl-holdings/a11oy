@@ -153,6 +153,13 @@ def test_operator_routes_fail_closed_and_rerun_keeps_health_responsive(
 ):
     worker_started = threading.Event()
     worker_release = threading.Event()
+    signing_calls = []
+
+    def forbidden_sign(*args, **kwargs):
+        signing_calls.append(True)
+        raise AssertionError("Read-only ledger/export requests must not invoke a signer")
+
+    monkeypatch.setattr(serve, "_a11oy_sign_receipt", forbidden_sign)
 
     def blocked_live_run(triggered_by=None):
         worker_started.set()
@@ -178,22 +185,26 @@ def test_operator_routes_fail_closed_and_rerun_keeps_health_responsive(
                 transport=transport,
                 base_url="http://a11oy-runtime.test",
             ) as client:
-                # Required ledger/export surfaces are operational live-empty,
-                # never the deterministic SAMPLE chain. Repeated export GETs
-                # stay byte-for-byte equivalent and never mint a receipt.
-                sample_ledger = (await client.get("/api/a11oy/v1/ledger")).json()
-                export_one = (await client.get("/api/a11oy/v1/receipt/export")).json()
-                export_two = (await client.get("/api/a11oy/v1/receipt/export")).json()
-                assert sample_ledger["data_kind"] == "live"
-                assert sample_ledger["operational"] is True
-                assert sample_ledger["count"] == 0
-                assert sample_ledger["receipts"] == []
-                assert sample_ledger["structure_verified"] is True
+                # The ledger is operational live-empty. The browser's separate
+                # export route serves its prebuilt SAMPLE envelope; repeated
+                # reads must preserve those bytes and never invoke a signer.
+                live_ledger = (await client.get("/api/a11oy/v1/ledger")).json()
+                export_response_one = await client.get("/api/a11oy/v1/receipt/export")
+                export_response_two = await client.get("/api/a11oy/v1/receipt/export")
+                assert export_response_one.content == export_response_two.content
+                export_one = export_response_one.json()
+                export_two = export_response_two.json()
+                assert live_ledger["data_kind"] == "live"
+                assert live_ledger["operational"] is True
+                assert live_ledger["count"] == 0
+                assert live_ledger["receipts"] == []
+                assert live_ledger["structure_verified"] is True
                 assert export_one == export_two
-                assert export_one["state"] == "live"
-                assert export_one["data_kind"] == "live"
-                assert export_one["operational"] is True
+                assert export_one["state"] == "SAMPLE"
+                assert export_one["data_kind"] == "sample"
+                assert export_one["operational"] is False
                 assert export_one["receipt_minted"] is False
+                assert signing_calls == []
 
                 # Method safety is enforced by the actual router, not a source check.
                 with serve._A11OY_EVAL_HIST_LOCK:
@@ -317,3 +328,4 @@ def test_operator_routes_fail_closed_and_rerun_keeps_health_responsive(
 
     assert isolated_runtime["popen_calls"] == []
     assert len(isolated_runtime["energy_calls"]) == 1
+    assert signing_calls == []

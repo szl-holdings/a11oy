@@ -4,7 +4,8 @@
 The command surface consumes only source handles, revisions, counts, and digests.
 Candidate content stays inside the Second Brain controller boundary. All remote
 origins, repositories, and paths are fixed; generated output is deterministic and
-carries no timestamp, secret, private graph row, model weight, or execution authority.
+carries no materialization timestamp, secret, private graph row, model weight, or
+execution authority. Review observations retain the original run timestamp and expire.
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 import tempfile
 import urllib.error
 import urllib.parse
@@ -21,6 +23,18 @@ from collections import Counter
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+
+# Direct script execution must resolve the same tracked modules as offline tests.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from routers.governed_graph_operations import analyse_graph
+from scripts.observe_ouroboros_frontier import (
+    ObservationError,
+    observe_receipt,
+    unavailable_observation,
+    validate_run_status,
+)
 
 SECOND_BRAIN_REPOSITORY = "szl-holdings/szl-second-brain"
 ANATOMY_REPOSITORY = "szl-holdings/anatomy"
@@ -41,6 +55,9 @@ RAW_ORIGIN = "https://raw.githubusercontent.com"
 USER_AGENT = "a11oy-holographic-brain-frontier-v7/1.0"
 MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_HANDLES = 72
+OUROBOROS_WORKFLOW = ".github/workflows/codex-continuous-frontier.yml"
+MAX_REVIEW_ARCHIVE_BYTES = 4 * 1024 * 1024
+MAX_ARTIFACT_REDIRECTS = 3
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 FRONTIER_ID = re.compile(r"^frontier:[0-9a-f]{32}$")
@@ -312,6 +329,171 @@ def fetch_second_brain(
     return revision, state_raw, candidates_raw
 
 
+class _NoArtifactRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _artifact_storage_location(value: Any) -> str:
+    """Admit only the fixed API's HTTPS artifact-storage redirect, without auth."""
+    if not isinstance(value, str) or len(value) > 16384:
+        raise MaterializationError("artifact redirect is invalid")
+    try:
+        parts = urllib.parse.urlsplit(value)
+        valid = (
+            parts.scheme == "https"
+            and parts.username is None
+            and parts.password is None
+            and parts.port in {None, 443}
+            and not parts.fragment
+            and re.fullmatch(r"[a-z0-9-]+\.blob\.core\.windows\.net", parts.hostname or "")
+        )
+    except ValueError as exc:
+        raise MaterializationError("artifact redirect is invalid") from exc
+    if not valid:
+        raise MaterializationError("artifact redirect origin is not admitted")
+    return value
+
+
+def download_ouroboros_artifact(artifact_id: int, token: str | None) -> bytes:
+    """Read one artifact; never forward the GitHub bearer to redirected storage."""
+    if type(artifact_id) is not int or artifact_id <= 0:
+        raise MaterializationError("artifact identity is invalid")
+    url = f"{API_ORIGIN}/repos/{OUROBOROS_REPOSITORY}/actions/artifacts/{artifact_id}/zip"
+    opener = urllib.request.build_opener(_NoArtifactRedirect())
+    for hop in range(MAX_ARTIFACT_REDIRECTS + 1):
+        headers = {"User-Agent": USER_AGENT, "Accept": "application/vnd.github+json"}
+        if hop == 0:
+            headers["X-GitHub-Api-Version"] = "2022-11-28"
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+        request = urllib.request.Request(url, headers=headers)
+        try:
+            with opener.open(request, timeout=45) as response:
+                payload = response.read(MAX_REVIEW_ARCHIVE_BYTES + 1)
+        except urllib.error.HTTPError as exc:
+            location = exc.headers.get("Location") if exc.headers is not None else None
+            redirect = exc.code in {301, 302, 303, 307, 308}
+            exc.close()
+            if not redirect or hop == MAX_ARTIFACT_REDIRECTS:
+                raise MaterializationError("artifact download is unavailable") from None
+            url = _artifact_storage_location(location)
+            continue
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            raise MaterializationError("artifact download is unavailable") from exc
+        if len(payload) > MAX_REVIEW_ARCHIVE_BYTES:
+            raise MaterializationError("artifact archive exceeds the byte bound")
+        return payload
+    raise MaterializationError("artifact redirect bound exceeded")
+
+
+def fetch_ouroboros_observation(
+    expected: dict[str, Any], token: str | None, *, now: datetime | None = None,
+) -> dict[str, Any]:
+    """Observe only the latest fixed workflow; an older success is never a fallback."""
+    run = None
+
+    def unavailable(state: str, reason: str) -> dict[str, Any]:
+        return unavailable_observation(expected, state=state, reason=reason, run=run)
+
+    try:
+        runs = github_json(
+            f"{API_ORIGIN}/repos/{OUROBOROS_REPOSITORY}/actions/workflows/"
+            "codex-continuous-frontier.yml/runs?branch=main&per_page=1",
+            token,
+        )
+    except MaterializationError:
+        return unavailable("UNAVAILABLE", "RUN_METADATA_UNAVAILABLE")
+    if (not isinstance(runs, dict) or type(runs.get("total_count")) is not int
+            or runs["total_count"] < 0 or not isinstance(runs.get("workflow_runs"), list)
+            or len(runs["workflow_runs"]) > 1):
+        return unavailable("REJECTED", "RUN_LIST_REJECTED")
+    if not runs["workflow_runs"]:
+        return unavailable("UNAVAILABLE", "REVIEW_RUN_UNAVAILABLE")
+    run = runs["workflow_runs"][0]
+    try:
+        terminal = validate_run_status(expected, run, now=now)
+    except ObservationError:
+        return unavailable("REJECTED", "RUN_METADATA_REJECTED")
+    if terminal is not None:
+        return terminal
+
+    run_id, attempt = run["id"], run["run_attempt"]
+    name = f"ouroboros-frontier-{run_id}-{attempt}"
+    try:
+        listing = github_json(
+            f"{API_ORIGIN}/repos/{OUROBOROS_REPOSITORY}/actions/runs/{run_id}/artifacts?per_page=100",
+            token,
+        )
+    except MaterializationError:
+        return unavailable("UNAVAILABLE", "ARTIFACT_METADATA_UNAVAILABLE")
+    if (not isinstance(listing, dict) or type(listing.get("total_count")) is not int
+            or not 0 <= listing["total_count"] <= 100
+            or not isinstance(listing.get("artifacts"), list)
+            or len(listing["artifacts"]) != listing["total_count"]
+            or not all(isinstance(item, dict) for item in listing["artifacts"])):
+        return unavailable("REJECTED", "ARTIFACT_LIST_REJECTED")
+    matches = [item for item in listing["artifacts"] if item.get("name") == name]
+    if not matches:
+        return unavailable("UNAVAILABLE", "REVIEW_ARTIFACT_UNAVAILABLE")
+    if len(matches) != 1:
+        return unavailable("REJECTED", "REVIEW_ARTIFACT_AMBIGUOUS")
+    artifact = matches[0]
+    if artifact.get("expired") is True:
+        return unavailable("UNAVAILABLE", "REVIEW_ARTIFACT_EXPIRED")
+    try:
+        archive = download_ouroboros_artifact(artifact.get("id"), token)
+    except MaterializationError:
+        return unavailable("UNAVAILABLE", "ARTIFACT_DOWNLOAD_UNAVAILABLE")
+    try:
+        return observe_receipt(archive, expected=expected, run=run, artifact=artifact, now=now)
+    except ObservationError:
+        return unavailable("REJECTED", "REVIEW_RECEIPT_REJECTED")
+
+
+def build_advisory_dag(expected: dict[str, Any]) -> dict[str, Any]:
+    """Analyze the existing review composition; this does not schedule its nodes."""
+    candidate_input = "brain-candidates:sha256:" + expected["candidate_set_sha256"]
+    controller_input = "ouroboros-controller:git:" + expected["controller_revision"]
+    return analyse_graph({
+        "schema": "szl.governed-graph/v1",
+        "graph_id": "brain-frontier-review-" + expected["candidate_set_sha256"][:20],
+        "goal": (
+            "Inspect the source-bound Second Brain and existing Ouroboros advisory review composition. "
+            "This MODELED topology grants no execution authority and makes no claim that its nodes ran."
+        ),
+        "external_inputs": [candidate_input, controller_input],
+        "nodes": [
+            {"id": "OBSERVE", "label": "Bind fixed public source packet", "role": "scope",
+             "consumes": [candidate_input, controller_input], "produces": ["source.packet"],
+             "authority": "READ_ONLY"},
+            {"id": "ORIENT", "label": "Prepare review input from source handles", "role": "reducer",
+             "depends_on": ["OBSERVE"], "consumes": ["source.packet"],
+             "produces": ["review.input"], "authority": "READ_ONLY"},
+            {"id": "PROPOSE", "label": "One bounded advisory reviewer attempt", "role": "loop",
+             "depends_on": ["ORIENT"], "consumes": ["review.input"],
+             "produces": ["untrusted.review"], "authority": "PROPOSE", "max_iterations": 1,
+             "exit_conditions": ["review_returned", "review_failed", "budget_exhausted"]},
+            {"id": "VERIFY", "label": "Validate source-bound review receipt", "role": "verifier",
+             "depends_on": ["OBSERVE", "PROPOSE"], "consumes": ["source.packet", "untrusted.review"],
+             "produces": ["advisory.observation"], "authority": "READ_ONLY",
+             "fresh_context": True, "verifier_for": ["PROPOSE"]},
+            {"id": "HOLD", "label": "Hold recommendations for human admission", "role": "governance",
+             "depends_on": ["VERIFY"], "consumes": ["advisory.observation"],
+             "produces": ["public.aggregate"], "authority": "READ_ONLY"},
+        ],
+        "anchors": [{
+            "id": "exact-source-and-advisory-boundary", "type": "source",
+            "nodes": ["OBSERVE", "VERIFY", "HOLD"], "required": True,
+            "description": (
+                "Require exact input, controller and receipt binding. Recorded review is untrusted; "
+                "a matching digest does not establish truth, signature or production readiness."
+            ),
+        }],
+        "budget": {"max_nodes": 5, "max_parallel": 1, "max_depth": 5, "max_total_iterations": 1},
+    })
+
+
 def validate_frontier(
     state_raw: bytes,
     candidates_raw: bytes,
@@ -503,6 +685,10 @@ def build_snapshot(
     state_raw: bytes,
     candidates_raw: bytes,
     dependency_revisions: dict[str, str],
+    *,
+    observe_ouroboros: bool = False,
+    token: str | None = None,
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     if not isinstance(second_brain_revision, str) or not HEX_40.fullmatch(second_brain_revision):
         raise MaterializationError("second brain revision is not exact")
@@ -512,7 +698,21 @@ def build_snapshot(
     for repository, revision in dependency_revisions.items():
         if not isinstance(revision, str) or not HEX_40.fullmatch(revision):
             raise MaterializationError(f"dependency revision is not exact: {repository}")
+    expected_review = {
+        "controller_revision": dependency_revisions[OUROBOROS_REPOSITORY],
+        "second_brain_revision": second_brain_revision,
+        "state_file_sha256": sha256_bytes(state_raw),
+        "candidate_file_sha256": sha256_bytes(candidates_raw),
+        "candidate_set_sha256": state["candidate_set_sha256"],
+        "candidate_count": state["candidate_count"],
+        "candidate_ids": [row["id"] for row in rows],
+    }
     handles = select_handles(rows)
+    observation = (
+        fetch_ouroboros_observation(expected_review, token, now=now)
+        if observe_ouroboros
+        else unavailable_observation(expected_review, state="UNAVAILABLE", reason="REVIEW_NOT_OBSERVED")
+    )
     snapshot: dict[str, Any] = {
         "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
         "state": "SOURCE_BOUND_REVIEW_MEMORY",
@@ -539,7 +739,7 @@ def build_snapshot(
             "ouroboros": {
                 "repository": OUROBOROS_REPOSITORY,
                 "revision": dependency_revisions[OUROBOROS_REPOSITORY],
-                "review_workflow": ".github/workflows/codex-frontier-review.yml",
+                "review_workflow": OUROBOROS_WORKFLOW,
             },
         },
         "formula_atlas": {
@@ -571,6 +771,8 @@ def build_snapshot(
             "VERIFY",
             "HOLD",
         ],
+        "ouroboros_observation": observation,
+        "advisory_dag": build_advisory_dag(expected_review),
     }
     snapshot["snapshot_sha256"] = sha256_bytes(canonical_bytes(snapshot))
     return snapshot
@@ -610,6 +812,8 @@ def main() -> int:
         state_raw,
         candidates_raw,
         dependencies,
+        observe_ouroboros=True,
+        token=token,
     )
     atomic_write(
         args.output,
@@ -627,6 +831,9 @@ def main() -> int:
                 ],
                 "selected_handle_count": snapshot["selected_handle_count"],
                 "snapshot_sha256": snapshot["snapshot_sha256"],
+                "ouroboros_observation_state": snapshot["ouroboros_observation"]["state"],
+                "ouroboros_observation_reason": snapshot["ouroboros_observation"]["reason"],
+                "advisory_dag_execution": snapshot["advisory_dag"]["execution"]["mode"],
             },
             sort_keys=True,
         )

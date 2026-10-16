@@ -1,0 +1,9 @@
+{
+  "files": {
+    ".github/shared-source-payloads/code-engine-mandatory-rlimits-20261013-v1.json": "36105ff1ff554796850d02765a81027a43bcba6afac223b5dd498d68316b0e3c",
+    "a11oy_code_engine.py": "2670d8e3acaadb7f2e4fe8cf87c8c12ae111b4e1b38aba802864a3dbdbe5c574",
+    "tests/test_code_engine_mandatory_limits.py": "e04fbf88f261cb41a5469ce17cefb0f6847d0a0c2099035fe7addecd01a8c835"
+  },
+  "payload_id": "code-engine-attested-sandbox-20261013-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

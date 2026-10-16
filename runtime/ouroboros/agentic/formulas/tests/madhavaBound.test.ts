@@ -9,10 +9,12 @@
 //   Commit SHA: 1dca00032dfc9aa8559cc6c2e4b63192fcf52371
 //
 // Property tests:
-//   1. remainderBound ≥ 0 for all valid (x, N)          [Lean: madhavaRemainderBound_nonneg]
-//   2. |arctan(x) − partial| ≤ remainderBound for |x|≤1 [Lean: MadhavaBound]
-//   3. remainderBound decreases as N increases           [Leibniz monotone-decreasing terms]
-//   4. partial converges to arctan(x)                   [alternating series convergence]
+//   1. reported remainderBound ≥ 0. The flag does not replay Lean.
+//   2. float residual |Math.atan(x) − partial| versus the reported expression.
+//      This is not a Lean proof that the limit is arctan, and a flushed 0 is
+//      SUBNORMAL_OR_UNDERFLOW rather than a proven error of zero.
+//   3. reported remainder decreases as N increases on the finite spot range
+//   4. at x = 0 the partial and the reported bound are 0
 
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
@@ -37,9 +39,8 @@ describe("MadhavaBound — Layer 3 parity test", () => {
     );
   });
 
-  // Property 2: the partial sum is within remainderBound of arctan(x)
-  // (This is the core Madhava-Leibniz remainder theorem statement)
-  it("P2: |arctan(x) − partial| ≤ remainderBound for |x| ≤ 1", () => {
+  // Property 2: float residual against Math.atan. Not a Lean arctan theorem.
+  it("P2: |Math.atan(x) − partial| ≤ reported remainder for |x| ≤ 1", () => {
     fc.assert(
       fc.property(
         fc.float({ min: -1, max: 1, noNaN: true }),
@@ -88,8 +89,8 @@ describe("MadhavaBound — Layer 3 parity test", () => {
     );
   });
 
-  // Property 5: boundNonneg is always true (follows from theorem)
-  it("P5: boundNonneg flag is always true", () => {
+  // Property 5: the reported float is nonnegative. This does not replay Lean.
+  it("P5: reported boundNonneg flag is true without claiming a Lean replay", () => {
     fc.assert(
       fc.property(
         fc.float({ min: -1, max: 1, noNaN: true }),
@@ -102,15 +103,16 @@ describe("MadhavaBound — Layer 3 parity test", () => {
     );
   });
 
-  // Property 6: lambdaScore ∈ [0,1]
-  it("P6: lambdaScore ∈ [0,1] for all valid inputs", () => {
+  // Property 6: a finite lambda is in [0,1]. Underflow does not report 1.
+  it("P6: lambdaScore is in [0,1] only for a finite remainder", () => {
     fc.assert(
       fc.property(
         fc.float({ min: -1, max: 1, noNaN: true }),
         fc.integer({ min: 1, max: 50 }),
         (x, N) => {
-          const { lambdaScore } = madhavaBound({ x, N });
-          return lambdaScore >= 0 && lambdaScore <= 1;
+          const { lambdaScore, remainderBoundState } = madhavaBound({ x, N });
+          if (remainderBoundState === "SUBNORMAL_OR_UNDERFLOW") return lambdaScore === null;
+          return typeof lambdaScore === "number" && lambdaScore >= 0 && lambdaScore <= 1;
         }
       ),
       { numRuns: FC_RUNS }
@@ -142,6 +144,20 @@ describe("MadhavaBound — Layer 3 parity test", () => {
 
     it("throws for N < 1", () => {
       expect(() => madhavaBound({ x: 0.5, N: 0 })).toThrow();
+    });
+
+    it("x=0.5 N=600 is underflow and does not report a perfect lambda", () => {
+      const r = madhavaBound({ x: 0.5, N: 600 });
+      expect(r.remainderBoundState).toBe("SUBNORMAL_OR_UNDERFLOW");
+      expect(r.remainderBound).toBe(0);
+      expect(r.lambdaScore).toBeNull();
+      expect(r.accuracyClaim).toBe("NOT_ASSERTED");
+      expect(r.leanScope).toBe("nonnegativity_only");
+      expect(r.floatTruncationError).toBe("NOT_BOUNDED");
+    });
+
+    it("throws above the truncation cap", () => {
+      expect(() => madhavaBound({ x: 0.5, N: 10001 })).toThrow();
     });
   });
 });

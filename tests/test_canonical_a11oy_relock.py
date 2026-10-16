@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import copy
+import pytest
+import httpx
+import requests
+import huggingface_hub
 import json
 import pathlib
 import re
@@ -18,16 +23,6 @@ SCRIPT = ROOT / ".github" / "scripts" / "verify_canonical_a11oy.py"
 RUNTIME_CONFIG_SCRIPT = ROOT / "scripts" / "configure_hf_series_a_runtime.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "hf-sync.yml"
 
-if "requests" not in sys.modules:
-    requests_stub = types.ModuleType("requests")
-    requests_stub.Session = object
-    requests_stub.Response = object
-    sys.modules["requests"] = requests_stub
-if "huggingface_hub" not in sys.modules:
-    hub_stub = types.ModuleType("huggingface_hub")
-    hub_stub.HfApi = object
-    sys.modules["huggingface_hub"] = hub_stub
-
 SPEC = importlib.util.spec_from_file_location("verify_canonical_a11oy", SCRIPT)
 assert SPEC and SPEC.loader
 relock = importlib.util.module_from_spec(SPEC)
@@ -39,6 +34,56 @@ CONFIG_SPEC = importlib.util.spec_from_file_location(
 assert CONFIG_SPEC and CONFIG_SPEC.loader
 runtime_config = importlib.util.module_from_spec(CONFIG_SPEC)
 CONFIG_SPEC.loader.exec_module(runtime_config)
+
+
+from tests.test_combined_consumers import world, combined, FixtureHTTPClient
+from tests import test_combined_consumers as execution_fixture
+
+_ACTIVE_EXECUTION = None
+
+
+@pytest.fixture(autouse=True)
+def admitted_canonical_evidence(request, monkeypatch):
+    if request.cls is not CanonicalA11oyRelockTests:
+        yield
+        return
+    global _ACTIVE_EXECUTION
+    fixture = request.getfixturevalue("combined")
+    fixture["matrix"] = execution_fixture.gate.canonical_matrix()
+    rows = []
+    for path, spec in fixture["matrix"]["endpoints"].items():
+        mutation = path in execution_fixture.a.CONTRACTS.values()
+        rows.append({"path": path, "method": spec.get("method", "GET"),
+            "skipped": mutation, "runtimeState": "NOT_PROBED" if mutation else "OBSERVED",
+            "required": spec.get("required", True), "samples": 0 if mutation else 1,
+            "status": None if mutation else 200, "lie": False, "unreachable": False,
+            "throttled": False, "degraded": False,
+            **{name: None if mutation else True for name in ("schemaOk", "citationOk", "labelPolicyOk", "freshOk")}})
+    fixture["passive"]["results"] = rows
+    fixture["passive"]["summary"].update(endpoints=len(rows), ok=len(rows)-5)
+    fixture["compact"] = execution_fixture.compact(fixture)
+    _ACTIVE_EXECUTION = fixture
+    request.cls.execution_inputs = execution_fixture.inputs(fixture)
+    payloads = execution_fixture.collection_payloads(fixture)
+    def metadata(request):
+        assert request.method == "GET"
+        return httpx.Response(200, json=payloads[str(request.url)])
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: FixtureHTTPClient(
+        **{**kwargs, "transport": httpx.MockTransport(metadata)}))
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "fixture-only")
+    monkeypatch.setenv("A11OY_CODE_TENANT", "fixture-only")
+    yield
+    _ACTIVE_EXECUTION = None
+
+
+def evaluate_once(api, session, contract, run_verdict=None):
+    return relock.evaluate_once(api, session, contract, run_verdict,
+                               execution_inputs=execution_fixture.inputs(_ACTIVE_EXECUTION))
+
+
+def validate_readiness_summary(payload, source_sha, **kwargs):
+    return relock.validate_readiness_summary(payload, source_sha,
+        **kwargs, execution_inputs=execution_fixture.inputs(_ACTIVE_EXECUTION))
 
 
 class FakeResponse:
@@ -104,6 +149,8 @@ class FakeApi:
                 for name, value in relock.SERIES_A_VARIABLES.items()
             },
         }
+        if _ACTIVE_EXECUTION is not None:
+            self.variables["A11OY_STATE_STORE"] = SimpleNamespace(value="v2")
         self.secrets = {
             relock.CANONICAL_SIGNING_SECRET: SimpleNamespace(
                 key=relock.CANONICAL_SIGNING_SECRET
@@ -215,6 +262,7 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
                 "unreachable": 0,
                 "throttled": 0,
                 "degraded": 0,
+                "blockingDegraded": 0,
                 "p95_worst": 1806,
             },
         },
@@ -258,7 +306,49 @@ def success_session(origin: str, source_sha: str) -> FakeSession:
             )
         else:
             responses[("GET", url)] = FakeResponse(url, payload=payloads[name])
+    if _ACTIVE_EXECUTION is not None:
+        fixture = _ACTIVE_EXECUTION
+        readiness = responses[("GET", origin + relock.ROUTES["readiness"])]._payload
+        readiness.update(verdict_checked_at=fixture["passive"]["checkedAt"],
+            verdict_summary=copy.deepcopy(fixture["compact"]["summary"]),
+            execution_coverage=copy.deepcopy(fixture["compact"]["executionCoverage"]))
+        series = responses[("GET", origin + relock.ROUTES["series_a_status"])]._payload
+        series.update(database="/tmp/a11oy-state/series-a/control-plane-v2.sqlite3",
+                      runtime_boot_id=fixture["context"].runtime_boot_id)
+        storage_url = origin + relock.STATE_STORE_STATUS_ROUTE
+        storage = execution_fixture.collection_payloads(fixture)[storage_url]
+        responses[("HEAD", storage_url)] = FakeResponse(storage_url, text="")
+        responses[("GET", storage_url)] = FakeResponse(storage_url, payload=storage)
     return FakeSession(responses)
+
+
+def v2_session(origin: str, source_sha: str):
+    api = FakeApi(source_sha)
+    api.variables["A11OY_STATE_STORE"] = SimpleNamespace(value="v2")
+    session = success_session(origin, source_sha)
+    series_a = session.responses[("GET", origin + relock.ROUTES["series_a_status"])]._payload
+    series_a["database"] = "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3"
+    status = {
+        "schema": "szl.a11oy-storage-status/v2",
+        "mode": "FENCED", "role": "WRITER", "writable": True,
+        "unfenced": False, "epoch": 1, "alert": False,
+        "lease": {"state": "ACTIVE", "sequence": 52, "heartbeat_age_s": 3.6},
+        "pending_publish": [], "last_error": None,
+        "stores": {
+            label: {
+                "kind": kind, "health": "OK", "blocked_code": None,
+                "last_error_code": None, "snapshot_failures": 0,
+                "sha16": "a" * 16,
+                "integrity": "lmdb_read" if kind == "lmdb" else "quick_check",
+                "last_snapshot_age_s": 120.0, "unsnapshotted_change_age_s": 30.0,
+            }
+            for label, kind in relock.STATE_STORE_KINDS.items()
+        },
+    }
+    url = origin + relock.STATE_STORE_STATUS_ROUTE
+    session.responses[("HEAD", url)] = FakeResponse(url, text="")
+    session.responses[("GET", url)] = FakeResponse(url, payload=status)
+    return api, session, status
 
 
 class CanonicalA11oyRelockTests(unittest.TestCase):
@@ -282,7 +372,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 relock.normalize(*args)
 
     def test_success_requires_exact_source_runtime_routes_and_singleton(self) -> None:
-        report = relock.evaluate_once(
+        report = evaluate_once(
             FakeApi(self.source), success_session(self.origin, self.source), self.contract
         )
         self.assertTrue(report["ok"])
@@ -313,15 +403,74 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             runtime_config.SERIES_A_VARIABLES,
         )
 
+    def test_v2_local_database_requires_observed_fenced_storage(self) -> None:
+        api, session, _ = v2_session(self.origin, self.source)
+        report = evaluate_once(api, session, self.contract)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["series_a_runtime"]["state_store_mode"], "v2")
+        self.assertEqual(report["routes"]["storage_status"]["storage_state"]["epoch"], 1)
+
+    def test_storage_mode_cannot_bypass_database_path_or_root(self) -> None:
+        for mode, database, root in (
+            (None, "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", None),
+            ("v2", "/data/a11oy/series-a/control-plane-v2.sqlite3", None),
+            ("v2", "/tmp/unrelated.sqlite3", None),
+            ("v2", "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", "/data/state"),
+            ("unknown", "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3", None),
+        ):
+            with self.subTest(mode=mode, database=database, root=root):
+                api, session, _ = v2_session(self.origin, self.source)
+                api.variables["A11OY_STATE_STORE"] = SimpleNamespace(value=mode)
+                if root is not None:
+                    api.variables["A11OY_STATE_ROOT"] = SimpleNamespace(value=root)
+                session.responses[("GET", self.origin + relock.ROUTES["series_a_status"])]._payload["database"] = database
+                with self.assertRaises(relock.RelockError):
+                    evaluate_once(api, session, self.contract)
+
+    def test_v2_rejects_missing_or_unavailable_status_route(self) -> None:
+        for http_status in (404, 503):
+            api, session, _ = v2_session(self.origin, self.source)
+            session.responses[("GET", self.origin + relock.STATE_STORE_STATUS_ROUTE)].status_code = http_status
+            with self.subTest(status=http_status), self.assertRaises(relock.RelockError):
+                evaluate_once(api, session, self.contract)
+
+    def test_v2_rejects_unfenced_or_stale_lease_and_unhealthy_snapshots(self) -> None:
+        changes = (
+            (("schema",), "wrong"), (("mode",), "SNAPSHOT_ONLY_UNFENCED"),
+            (("role",), "FENCED"), (("writable",), False), (("unfenced",), True),
+            (("epoch",), 0), (("epoch",), True), (("alert",), True),
+            (("pending_publish",), ["series_a"]), (("last_error",), {"code": "FAILED"}),
+            (("lease", "state"), "RELEASED"), (("lease", "sequence"), 0),
+            (("lease", "heartbeat_age_s"), 121), (("lease", "heartbeat_age_s"), float("nan")),
+            (("stores", "series_a", "health"), "BLOCKED"),
+            (("stores", "gdw", "integrity"), None),
+            (("stores", "khipu_lmdb", "integrity"), "quick_check"),
+            (("stores", "series_a", "snapshot_failures"), 1),
+            (("stores", "series_a", "last_snapshot_age_s"), 901),
+            (("stores", "series_a", "unsnapshotted_change_age_s"), 901),
+            (("stores", "series_a", "sha16"), None), (("stores",), {}),
+        )
+        for path, value in changes:
+            with self.subTest(path=path, value=value):
+                api, session, status = v2_session(self.origin, self.source)
+                target = status
+                for key in path[:-1]:
+                    target = target[key]
+                target[path[-1]] = value
+                with self.assertRaises(relock.RelockError):
+                    evaluate_once(api, session, self.contract)
+
     def test_relock_rejects_any_doctrine_lie(self) -> None:
         session = success_session(self.origin, self.source)
         readiness_url = self.origin + relock.ROUTES["readiness"]
         readiness = session.responses[("GET", readiness_url)]._payload
-        readiness["verdict_summary"]["ok"] = 4
+        readiness["verdict_summary"]["ok"] = len(_ACTIVE_EXECUTION["passive"]["results"]) - 6
         readiness["verdict_summary"]["lies"] = 1
 
-        with self.assertRaisesRegex(relock.RelockError, "doctrine lies"):
-            relock.evaluate_once(FakeApi(self.source), session, self.contract)
+        _ACTIVE_EXECUTION["passive"]["summary"] = copy.deepcopy(readiness["verdict_summary"])
+        _ACTIVE_EXECUTION["passive"]["results"][0]["lie"] = True
+        with self.assertRaisesRegex(relock.RelockError, "independently verified execution evidence"):
+            evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_relock_rejects_unreachable_or_throttled_required_endpoints(self) -> None:
         for unreachable, throttled in ((1, 0), (0, 1), (1, 1), (5, 0), (0, 5)):
@@ -330,34 +479,80 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 readiness_url = self.origin + relock.ROUTES["readiness"]
                 readiness = session.responses[("GET", readiness_url)]._payload
                 readiness["verdict_summary"].update(
-                    ok=5 - unreachable - throttled,
+                    ok=len(_ACTIVE_EXECUTION["passive"]["results"]) - 5 - unreachable - throttled,
                     unreachable=unreachable,
                     throttled=throttled,
                 )
+                _ACTIVE_EXECUTION["passive"]["summary"] = copy.deepcopy(readiness["verdict_summary"])
+                rows = [row for row in _ACTIVE_EXECUTION["passive"]["results"] if row["method"] == "GET"]
+                for index, row in enumerate(rows):
+                    row["unreachable"] = index < unreachable
+                    row["throttled"] = unreachable <= index < unreachable + throttled
                 with self.assertRaisesRegex(
-                    relock.RelockError,
-                    "unreachable required endpoints|throttled required endpoints",
+                    relock.RelockError, "independently verified execution evidence",
                 ):
-                    relock.evaluate_once(FakeApi(self.source), session, self.contract)
+                    evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_relock_rejects_unavailable_required_sources(self) -> None:
         session = success_session(self.origin, self.source)
         readiness_url = self.origin + relock.ROUTES["readiness"]
         readiness = session.responses[("GET", readiness_url)]._payload
-        readiness["verdict_summary"].update(ok=4, degraded=1)
+        readiness["verdict_summary"].update(
+            ok=len(_ACTIVE_EXECUTION["passive"]["results"]) - 6, degraded=1, blockingDegraded=1
+        )
 
-        with self.assertRaisesRegex(relock.RelockError, "unavailable required sources"):
-            relock.evaluate_once(FakeApi(self.source), session, self.contract)
+        _ACTIVE_EXECUTION["passive"]["summary"] = copy.deepcopy(readiness["verdict_summary"])
+        _ACTIVE_EXECUTION["passive"]["results"][0]["degraded"] = True
+        with self.assertRaisesRegex(relock.RelockError, "independently verified execution evidence"):
+            evaluate_once(FakeApi(self.source), session, self.contract)
 
-    def test_relock_allows_explicitly_skipped_state_changes_with_passing_reads(self) -> None:
+    def test_relock_allows_optional_degradation_with_zero_blocking_degradation(self) -> None:
         session = success_session(self.origin, self.source)
         readiness_url = self.origin + relock.ROUTES["readiness"]
         readiness = session.responses[("GET", readiness_url)]._payload
-        readiness["verdict_summary"].update(ok=4, skippedStateChanging=1)
+        readiness["verdict_summary"].update(
+            ok=len(_ACTIVE_EXECUTION["passive"]["results"]) - 6, degraded=1, blockingDegraded=0
+        )
 
-        report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+        _ACTIVE_EXECUTION["passive"]["summary"] = copy.deepcopy(readiness["verdict_summary"])
+        optional_path = next(path for path, spec in _ACTIVE_EXECUTION["matrix"]["endpoints"].items()
+                             if spec.get("degradedBlocksReadiness", True) is False)
+        next(row for row in _ACTIVE_EXECUTION["passive"]["results"] if row["path"] == optional_path)["degraded"] = True
+        report = evaluate_once(FakeApi(self.source), session, self.contract)
 
         self.assertTrue(report["ok"])
+        self.assertEqual(
+            report["routes"]["readiness"]["verdict"]["summary"]["degraded"],
+            1,
+        )
+
+    def test_relock_rejects_optional_skip_claim_relabelling_required_posts(self) -> None:
+        session = success_session(self.origin, self.source)
+        readiness_url = self.origin + relock.ROUTES["readiness"]
+        readiness = session.responses[("GET", readiness_url)]._payload
+        # The canonical matrix has five required POSTs; a compact summary cannot
+        # reclassify one as optional or erase the other four.
+        readiness["verdict_summary"].update(
+            ok=len(_ACTIVE_EXECUTION["passive"]["results"]) - 1,
+            skippedStateChanging=1, requiredNotProbed=0)
+        with self.assertRaisesRegex(relock.RelockError, "independently verified execution evidence"):
+            evaluate_once(FakeApi(self.source), session, self.contract)
+
+    def test_relock_rejects_required_or_unclassified_skips(self) -> None:
+        for count in ("missing", 1, True, -1, 2, 1.5, "1", None):
+            with self.subTest(count=count):
+                session = success_session(self.origin, self.source)
+                readiness_url = self.origin + relock.ROUTES["readiness"]
+                summary = session.responses[("GET", readiness_url)]._payload["verdict_summary"]
+                summary.update(ok=len(_ACTIVE_EXECUTION["passive"]["results"]) - 5, skippedStateChanging=5)
+                if count == "missing":
+                    summary.pop("requiredNotProbed")
+                else:
+                    summary["requiredNotProbed"] = count
+                with self.assertRaisesRegex(
+                    relock.RelockError, "unprobed required endpoints|required-not-probed count"
+                ):
+                    evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_reviewed_markers_are_bound_to_the_deployed_holographic_source(self) -> None:
         self.assertEqual(relock.ROUTES["holographic"], "/holographic")
@@ -387,7 +582,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 relock.RelockError,
                 "reviewed source markers",
             ):
-                relock.evaluate_once(FakeApi(self.source), session, self.contract)
+                evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_every_live_frontier_asset_must_match_reviewed_source_bytes(self) -> None:
         for name in relock.BRAIN_SOURCE_PATHS:
@@ -400,7 +595,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 relock.RelockError,
                 "does not match reviewed source bytes",
             ):
-                relock.evaluate_once(FakeApi(self.source), session, self.contract)
+                evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_holographic_allows_runtime_widget_without_claiming_byte_equality(self) -> None:
         for name in sorted(relock.HOLOGRAPHIC_ROUTES):
@@ -410,7 +605,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 b"</body>", b'<script src="/operator-widget.js"></script></body>'
             )
             response.text = response.content.decode("utf-8")
-            report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            report = evaluate_once(FakeApi(self.source), session, self.contract)
             evidence = report["routes"][name]
             self.assertTrue(evidence["reviewed_asset_mounts"])
             self.assertFalse(evidence["source_bytes_matched"])
@@ -446,7 +641,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 with self.subTest(name=name, replacement=replacement), self.assertRaisesRegex(
                     relock.RelockError, "exact active reviewed asset mounts"
                 ):
-                    relock.evaluate_once(FakeApi(self.source), session, self.contract)
+                    evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_self_closing_foreign_elements_do_not_hide_the_following_mount(self) -> None:
         for tag in ("svg", "math"):
@@ -457,7 +652,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 f'<{tag}/><script src="/assets/brain-frontier-v7.js"'.encode(),
             )
             response.text = response.content.decode("utf-8")
-            report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            report = evaluate_once(FakeApi(self.source), session, self.contract)
             self.assertTrue(report["routes"]["holographic"]["reviewed_asset_mounts"])
 
     def test_brain_snapshot_semantics_are_independently_verified(self) -> None:
@@ -493,7 +688,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         url = self.origin + relock.ROUTES[name]
         session.responses[("GET", url)].headers["content-type"] = "text/html"
         with self.assertRaisesRegex(relock.RelockError, "invalid content type"):
-            relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_observed_badge_stays_unverified_until_both_probes_verify(self) -> None:
         source = (ROOT / relock.HOLOGRAPHIC_SOURCE_PATH).read_text(encoding="utf-8")
@@ -548,6 +743,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 "unreachable": 0,
                 "throttled": 0,
                 "degraded": 0,
+                "blockingDegraded": 0,
                 "p95_worst": 1806,
             },
         }
@@ -854,12 +1050,12 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             session = success_session(self.origin, self.source)
             session.responses[("GET", readiness_url)]._payload.update(update)
             with self.subTest(update=update), self.assertRaises(relock.RelockError):
-                relock.evaluate_once(FakeApi(self.source), session, self.contract)
+                evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_runtime_revision_is_read_from_current_hub_raw_metadata(self) -> None:
         api = FakeApi(self.source)
         api.runtime_revision_shape = "raw"
-        report = relock.evaluate_once(
+        report = evaluate_once(
             api, success_session(self.origin, self.source), self.contract
         )
         self.assertEqual(report["hf_runtime_sha"], api.runtime_sha)
@@ -873,13 +1069,13 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         build = session.responses[("GET", build_url)]._payload["build"]
         build["working_tree"] = "CLEAN"
         with self.assertRaisesRegex(relock.RelockError, "working-tree"):
-            relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_source_variable_mismatch_fails_closed(self) -> None:
         api = FakeApi(self.source)
         api.variables["SZL_GIT_SHA"] = SimpleNamespace(value="c" * 40)
         with self.assertRaisesRegex(relock.RelockError, "variable mismatch"):
-            relock.evaluate_once(api, success_session(self.origin, self.source), self.contract)
+            evaluate_once(api, success_session(self.origin, self.source), self.contract)
 
     def test_series_a_runtime_variable_or_volume_drift_fails_closed(self) -> None:
         api = FakeApi(self.source)
@@ -887,7 +1083,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             value="0"
         )
         with self.assertRaisesRegex(relock.RelockError, "variable drift"):
-            relock.evaluate_once(
+            evaluate_once(
                 api,
                 success_session(self.origin, self.source),
                 self.contract,
@@ -896,7 +1092,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         api = FakeApi(self.source)
         api.volumes[0].source = "SZLHOLDINGS/other"
         with self.assertRaisesRegex(relock.RelockError, "bucket is not attached"):
-            relock.evaluate_once(
+            evaluate_once(
                 api,
                 success_session(self.origin, self.source),
                 self.contract,
@@ -926,7 +1122,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 relock.RelockError,
                 "persistent storage contract",
             ):
-                relock.evaluate_once(
+                evaluate_once(
                     FakeApi(self.source),
                     session,
                     self.contract,
@@ -945,7 +1141,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 relock.RelockError,
                 "estate state",
             ):
-                relock.evaluate_once(
+                evaluate_once(
                     FakeApi(self.source),
                     session,
                     self.contract,
@@ -955,26 +1151,26 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         api = FakeApi(self.source)
         api.runtime_sha = "c" * 40
         with self.assertRaisesRegex(relock.RelockError, "runtime does not serve"):
-            relock.evaluate_once(api, success_session(self.origin, self.source), self.contract)
+            evaluate_once(api, success_session(self.origin, self.source), self.contract)
 
     def test_head_or_build_identity_failure_is_not_downgraded(self) -> None:
         session = success_session(self.origin, self.source)
         livez_url = self.origin + relock.ROUTES["livez"]
         session.responses[("HEAD", livez_url)].status_code = 405
         with self.assertRaisesRegex(relock.RelockError, "not operational"):
-            relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            evaluate_once(FakeApi(self.source), session, self.contract)
 
         session = success_session(self.origin, self.source)
         build_url = self.origin + relock.ROUTES["build_info"]
         session.responses[("GET", build_url)]._payload["build"]["revision"] = "c" * 40
         with self.assertRaisesRegex(relock.RelockError, "exact protected source"):
-            relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            evaluate_once(FakeApi(self.source), session, self.contract)
 
     def test_clone_reappearance_fails_closed(self) -> None:
         api = FakeApi(self.source)
         api.clones["SZLHOLDINGS/a11oy-clone-1"] = True
         with self.assertRaisesRegex(relock.RelockError, "clone reappeared"):
-            relock.evaluate_once(api, success_session(self.origin, self.source), self.contract)
+            evaluate_once(api, success_session(self.origin, self.source), self.contract)
 
     def unserved_summary(self) -> dict:
         # Exactly what serve.py's tab-matrix summary renders after a deploy
@@ -996,18 +1192,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         }
 
     def run_verdict(self, **overrides) -> dict:
-        verdict = {
-            "schema": "szl.readiness-verdict/v1",
-            "harness": "a11oy-readiness probe",
-            "doctrine": "v11",
-            "base": self.origin,
-            "checkedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "sourceRevision": self.source,
-            "summary": {
-                "endpoints": 5, "ok": 5, "skippedStateChanging": 0, "lies": 0,
-                "unreachable": 0, "throttled": 0, "degraded": 0, "p95_worst": 1806,
-            },
-        }
+        verdict = copy.deepcopy(_ACTIVE_EXECUTION["compact"])
         verdict.update(overrides)
         return verdict
 
@@ -1016,10 +1201,10 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         # live route honestly serves none. Without this run's verdict relock
         # fails closed; with it, relock re-validates it and passes.
         with self.assertRaisesRegex(relock.RelockError, "unavailable or source-unbound"):
-            relock.validate_readiness_summary(
+            validate_readiness_summary(
                 self.unserved_summary(), self.source, expected_origin=self.origin
             )
-        evidence = relock.validate_readiness_summary(
+        evidence = validate_readiness_summary(
             self.unserved_summary(), self.source, expected_origin=self.origin,
             run_verdict=self.run_verdict(),
         )
@@ -1046,7 +1231,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         }
         for name, verdict in cases.items():
             with self.subTest(case=name), self.assertRaises(relock.RelockError):
-                relock.validate_readiness_summary(
+                validate_readiness_summary(
                     self.unserved_summary(), self.source, expected_origin=self.origin,
                     run_verdict=verdict,
                 )
@@ -1066,7 +1251,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             ("available without verdict", {**self.unserved_summary(), "available": True}),
         ):
             with self.subTest(case=name), self.assertRaises(relock.RelockError):
-                relock.validate_readiness_summary(
+                validate_readiness_summary(
                     payload, self.source, expected_origin=self.origin,
                     run_verdict=self.run_verdict(),
                 )
@@ -1076,8 +1261,8 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         url = self.origin + relock.ROUTES["readiness"]
         session.responses[("GET", url)] = FakeResponse(url, payload=self.unserved_summary())
         with self.assertRaisesRegex(relock.RelockError, "unavailable or source-unbound"):
-            relock.evaluate_once(FakeApi(self.source), session, self.contract)
-        report = relock.evaluate_once(
+            evaluate_once(FakeApi(self.source), session, self.contract)
+        report = evaluate_once(
             FakeApi(self.source), session, self.contract, self.run_verdict()
         )
         self.assertTrue(report["ok"])
@@ -1135,7 +1320,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("add_space_variable", self.workflow)
         self.assertNotIn("python - <<'PY'", self.workflow)
         self.assertNotIn("def probe(", self.workflow)
-        self.assertIn("python .github/scripts/verify_canonical_a11oy.py", self.workflow)
+        self.assertIn("python -I -B .github/scripts/verify_canonical_a11oy.py", self.workflow)
 
     def test_post_deploy_probe_is_gated_before_relock_without_a_space_write(self) -> None:
         self.assertIn("readiness-verdict:", self.workflow)
@@ -1146,7 +1331,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         # The verdict gate still fails closed, but a Space-variable write would
         # restart the revision this run just started, so it only validates.
         self.assertIn(
-            "python .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
+            "python -I -B .github/scripts/publish_readiness_verdict.py\n          --validate-only\n",
             self.workflow,
         )
         self.assertEqual(self.workflow.count("publish_readiness_verdict.py"), 1)
@@ -1155,7 +1340,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertIn('--github-output "$GITHUB_OUTPUT"', self.workflow.split("  readiness-verdict:", 1)[1].split("\n  relock:", 1)[0])
         self.assertIn("verdict: ${{ steps.gate.outputs.verdict }}", self.workflow)
         relock_block = self.workflow.split("\n  relock:", 1)[1]
-        self.assertIn("RUN_READINESS_VERDICT: ${{ needs.readiness-verdict.outputs.verdict }}", relock_block)
+        self.assertIn("RUN_READINESS_VERDICT: ${{ needs.execution-readiness.outputs.verdict }}", relock_block)
         self.assertIn('--readiness-verdict-file "$RUNNER_TEMP/run-readiness-verdict.json"', relock_block)
         runtime_config = self.workflow.split(
             "  runtime-config:", 1
@@ -1168,7 +1353,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("HF_TOKEN", readiness_verdict)
         relock_job = self.workflow.split("  relock:", 1)[1]
         self.assertIn(
-            "needs: [runtime-config, readiness-verdict]",
+            "needs: [runtime-config, execution-readiness]",
             relock_job,
         )
         self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)
@@ -1181,7 +1366,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         self.assertLess(
             self.workflow.index("Upload immutable full probe evidence"),
             self.workflow.index(
-                "python .github/scripts/publish_readiness_verdict.py"
+                "python -I -B .github/scripts/publish_readiness_verdict.py"
             ),
         )
         publisher = (
@@ -1208,7 +1393,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
                 step = drill.split(f"      - name: {name}\n", 1)[1].split(
                     "\n      - name:", 1
                 )[0]
-                self.assertIn(f"python -B scripts/{script}", step)
+                self.assertIn(f"python -I -B scripts/{script}", step)
                 self.assertIn('--origin "$CANONICAL_ORIGIN"', step)
                 self.assertIn('--source-sha "${{ github.sha }}"', step)
                 self.assertIn(f'--output "${output}"', step)

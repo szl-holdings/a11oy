@@ -41,6 +41,14 @@ APPROVER = "approver-test-secret-not-real"
 OPERATOR_ONLY = {"Authorization": f"Bearer {OPERATOR}"}
 BOTH = {"Authorization": f"Bearer {OPERATOR}", opauth.SECOND_APPROVER_HEADER: APPROVER}
 SECRETS = {opauth.OPERATOR_KEY_ENV: OPERATOR, opauth.SECOND_APPROVER_KEY_ENV: APPROVER}
+OBSERVATION_PREFIX = "/api/a11oy/v1/series-a/execution-observations"
+OBSERVATION_WRITES = tuple(OBSERVATION_PREFIX + suffix for suffix in
+                           ("/challenge", "/run", "/cancel/" + "a" * 64))
+PERSISTENT_V2_WRITES = (
+    "/api/a11oy/v2/khipu/lmdb/append",
+    "/api/a11oy/v2/khipu/replicate",
+    "/api/a11oy/v2/unay/remember",
+)
 
 
 def _client() -> TestClient:
@@ -56,8 +64,10 @@ def _unsigned(payload):
 def _fake_sandbox(counter: list):
     def _run(code, lang="python", **_kw):
         counter.append(code)
+        # governed_turn reports a run as executed only on an explicit
+        # execution_attempted=True, so the double states that it reached the code.
         return {"ok": True, "stdout": "ran\n", "stderr": "", "exit": 0,
-                "elapsed_ms": 1.0, "isolation": "test double"}
+                "elapsed_ms": 1.0, "isolation": "test double", "execution_attempted": True}
     return _run
 
 
@@ -397,7 +407,7 @@ class GovernedTurnChokepoint(unittest.TestCase):
     """Every path into a11oy_code_engine._sandbox_exec needs allow_exec."""
 
     def setUp(self):
-        self.env = patch.dict(os.environ, SECRETS)
+        self.env = patch.dict(os.environ, {**SECRETS, "A11OY_CODE_TENANT": "synthetic-tenant"})
         self.env.start()
         self.calls = []
         self.patches = [patch.object(engine, "_sandbox_exec", _fake_sandbox(self.calls)),
@@ -440,9 +450,11 @@ class GovernedTurnChokepoint(unittest.TestCase):
         # Anonymous is refused (401 BLOCKED) before any model call, gate or receipt;
         # the operator alone reaches the route but never the sandbox; only the
         # two-person principal executes.
-        for label, headers, want_status, want_exec in (("anonymous", {}, 401, False),
-                                                       ("operator only", OPERATOR_ONLY, 200, False),
-                                                       ("both", BOTH, 200, True)):
+        tenant = {"X-A11oy-Tenant": "synthetic-tenant"}
+        for label, headers, want_status, want_exec in (
+                ("anonymous", {}, 401, False),
+                ("operator only", {**OPERATOR_ONLY, **tenant}, 200, False),
+                ("both", {**BOTH, **tenant}, 200, True)):
             with self.subTest(path=path, caller=label):
                 self.calls.clear()
                 r = client.request(method, path, headers=headers, json=body)
@@ -462,7 +474,8 @@ class GovernedTurnChokepoint(unittest.TestCase):
         import a11oy_code_runloop as runloop
         client = self._app(lambda app: runloop.register(app, "a11oy", _unsigned))
         body = {"prompt": "write a python function that returns 5 primes",
-                "mode": "code", "sandbox": True, "two_person_attested": True}
+                "purpose": "code", "mode": "code", "sandbox": True,
+                "two_person_attested": True}
         self._assert_route(client, "POST", "/api/a11oy/v1/code/runstep", body)
 
     def test_agentloop_run_route(self):
@@ -494,13 +507,17 @@ class GovernedTurnChokepoint(unittest.TestCase):
     def test_runloop_plan_and_approve_refuse_anonymous(self):
         import a11oy_code_runloop as runloop
         client = self._app(lambda app: runloop.register(app, "a11oy", _unsigned))
-        for path, body in (("/api/a11oy/v1/code/plan", {"task": "t"}),
-                           ("/api/a11oy/v1/code/approve",
-                            {"checkpoint_id": "c", "approver": "a"})):
-            with self.subTest(path=path):
-                self.assertEqual(client.post(path, json=body).status_code, 401)
-                self.assertEqual(client.post(path, json=body, headers=OPERATOR_ONLY).status_code,
-                                 200)
+        approve = {"checkpoint_id": "c", "approver": "a"}
+        self.assertEqual(client.post("/api/a11oy/v1/code/plan", json={"task": "t"}).status_code, 401)
+        self.assertEqual(client.post("/api/a11oy/v1/code/approve", json=approve).status_code, 401)
+        self.assertEqual(client.post("/api/a11oy/v1/code/approve", json=approve,
+                                     headers=OPERATOR_ONLY).status_code, 200)
+        admitted = {**OPERATOR_ONLY, "X-A11oy-Tenant": "synthetic-tenant"}
+        planned = client.post("/api/a11oy/v1/code/plan",
+                              json={"task": "t", "purpose": "chat"}, headers=admitted)
+        self.assertEqual(planned.status_code, 200, planned.text[:400])
+        self.assertEqual(planned.json()["purpose"], "chat")
+        self.assertEqual(planned.json()["mode"], "chat")
 
     def test_consensus_refuses_anonymous(self):
         client = self._app(lambda app: engine.register(app, "a11oy", _unsigned))
@@ -635,6 +652,59 @@ class GateMiddleware(unittest.TestCase):
                     self.assertFalse(r.json()["credential_configured"])
         self.assertEqual(self.reached, [])
 
+    def test_observation_and_persistent_writes_deny_before_body_or_dispatch(self):
+        async def exercise(path, headers):
+            async def forbidden_receive():
+                self.fail("an unauthorized request body must not be consumed")
+
+            sent = []
+            async def send(message):
+                sent.append(message)
+
+            async def forbidden_dispatch(scope, receive, send):
+                self.fail("an unauthorized request must not reach a native handler")
+
+            await opauth.OperatorGateMiddleware(forbidden_dispatch)(
+                {"type": "http", "method": "POST", "path": path,
+                 "headers": [(key.lower().encode(), value.encode()) for key, value in headers.items()]},
+                forbidden_receive, send,
+            )
+            self.assertEqual(sent[0]["status"], 401)
+
+        for configured in (True, False):
+            with patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: OPERATOR if configured else ""}):
+                headers_cases = ({}, {"Authorization": "Bearer wrong"})
+                if not configured:
+                    headers_cases += (OPERATOR_ONLY,)
+                for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES:
+                    for headers in headers_cases:
+                        with self.subTest(path=path, configured=configured, headers=sorted(headers)):
+                            asyncio.run(exercise(path, headers))
+
+    def test_observation_and_persistence_reads_remain_ungated(self):
+        paths = (
+            OBSERVATION_PREFIX + "/exports/" + "a" * 64,
+            "/api/a11oy/v2/khipu/lmdb/stats",
+            "/api/a11oy/v2/khipu/lmdb/verify",
+            "/api/a11oy/v2/khipu/lmdb/tail",
+            "/api/a11oy/v2/khipu/replicate/status",
+            "/api/a11oy/v2/unay/stats",
+            "/api/a11oy/v2/unay/recall",
+        )
+        with patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: ""}):
+            for path in paths:
+                with self.subTest(path=path):
+                    self.assertEqual(self.client.get(path).status_code, 200)
+            self.assertEqual(self.client.post("/api/a11oy/v2/unay/recall", json={}).status_code, 200)
+        self.assertEqual(len(self.reached), len(paths) + 1)
+
+    def test_operator_reaches_native_observation_and_persistence_guards(self):
+        with patch.dict(os.environ, SECRETS):
+            for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES:
+                with self.subTest(path=path):
+                    self.assertEqual(self.client.post(path, headers=OPERATOR_ONLY, json={}).status_code, 200)
+        self.assertEqual(self.reached, [("POST", path) for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES])
+
     def test_operator_and_public_requests_pass_through(self):
         with patch.dict(os.environ, SECRETS):
             self.assertEqual(self.client.post("/api/a11oy/code/run", headers=OPERATOR_ONLY,
@@ -680,7 +750,6 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
     "/api/a11oy/v1/composer/run": "deterministic formula chain",
     "/api/a11oy/v1/dream/promote": "promotion always denied; compute only",
     "/api/a11oy/v1/edge/run": "deterministic demo",
-    "/api/a11oy/v1/eval/run": "model-only eval over a fixed suite",
     "/api/a11oy/v1/gdw/step": "own credential registry (gdw_auth, step:write scope)",
     "/api/a11oy/v1/govern/agentos/snapshot": "aggregate + unsigned digest; body ignored",
     "/api/a11oy/v1/kverify/run": "bounded deterministic benchmark",
@@ -689,6 +758,12 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
     "/api/a11oy/v1/numerics/run/{engine}":
         "three fixed numeric operations, no source accepted, network-isolated launcher",
     "/api/a11oy/v1/operator/ask": "read-only question over in-process state",
+    "/api/a11oy/v1/series-a/execution-observations/challenge":
+        "owner checks operator + tenant before body/signing; ObserverOwnerAuthorization negatives",
+    "/api/a11oy/v1/series-a/execution-observations/run":
+        "owner checks operator + tenant before body and requires a signed runtime-bound plan; ObserverOwnerAuthorization negatives",
+    "/api/a11oy/v1/series-a/execution-observations/cancel/{nonce}":
+        "owner checks operator + tenant before body and binds the challenge owner; ObserverOwnerAuthorization negatives",
     "/api/a11oy/v1/ouroboros/run-all": "own credential registry (gdw_auth) + deployment flag",
     "/api/a11oy/v1/oversight/run": "deterministic oversight scenario",
     "/api/a11oy/v1/specdec/run": "bounded deterministic benchmark",
@@ -714,7 +789,7 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
 
 _SIDE_EFFECT_NET = (r"exec|/run\b|/run/|sign\b|inject|append|/write|operator|agent|mcp|/keys|"
                     r"ingest|record|/cap\b|start|stop|checkpoint|archive|command|chaos|promote|"
-                    r"admit|memory|/act\b|bridge|stream|stt|turn|loop|step")
+                    r"admit|memory|remember|replicate|/act\b|bridge|stream|stt|turn|loop|step")
 
 
 class ServeAppGate(unittest.TestCase):
@@ -831,6 +906,47 @@ class ServeAppGate(unittest.TestCase):
         run_code.assert_not_called()
         sign.assert_not_called()
 
+    def test_observation_and_persistence_refusals_have_no_native_effects(self):
+        import szl_khipu_lmdb
+        import szl_khipu_replicate
+        import szl_unay
+        observer = self.serve.app.state.szl_execution_observer
+        with patch.object(observer, "_caller") as caller, \
+                patch.object(szl_khipu_lmdb.KhipuLMDB, "append") as append, \
+                patch.object(szl_unay.UnayStore, "remember") as remember, \
+                patch.object(szl_khipu_replicate, "verify_inbound") as replicate:
+            for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES:
+                for headers in ({}, {"Authorization": "Bearer wrong"}):
+                    with self.subTest(path=path, headers=sorted(headers)):
+                        response = self.client.post(path, headers=headers, content=b"{")
+                        self.assertEqual(response.status_code, 401)
+                        self.assertEqual(response.json()["status"], "BLOCKED")
+            caller.assert_not_called()
+            append.assert_not_called()
+            remember.assert_not_called()
+            replicate.assert_not_called()
+
+    def test_observation_operator_still_needs_native_tenant_before_effects(self):
+        observer = self.serve.app.state.szl_execution_observer
+        with patch.dict(os.environ, {"A11OY_CODE_TENANT": "observer-fixture-tenant"}), \
+                patch.object(observer, "_identity") as identity, \
+                patch.object(observer, "challenge") as challenge, \
+                patch.object(observer, "run", new_callable=AsyncMock) as run, \
+                patch.object(observer, "cancel") as cancel:
+            for path in OBSERVATION_WRITES:
+                for tenant in (None, "wrong-fixture-tenant"):
+                    headers = dict(OPERATOR_ONLY)
+                    if tenant is not None:
+                        headers["x-a11oy-tenant"] = tenant
+                    with self.subTest(path=path, tenant=tenant):
+                        response = self.client.post(path, headers=headers, content=b"{")
+                        self.assertIn(response.status_code, (403, 409))
+                        self.assertEqual(response.json()["error"], "TENANT_REQUIRED")
+            identity.assert_not_called()
+            challenge.assert_not_called()
+            run.assert_not_awaited()
+            cancel.assert_not_called()
+
     def test_side_effect_routes_are_gated_or_reviewed(self):
         import re
         net = re.compile(_SIDE_EFFECT_NET)
@@ -887,6 +1003,21 @@ class ServeAppGate(unittest.TestCase):
                              json={})
         self.assertEqual(r.status_code, 401)
         self.assertEqual(r.headers.get("access-control-allow-origin"), "https://a-11-oy.com")
+
+
+# The RAG workflow lists this module by path. tests.yml is owned by a11oy#2583,
+# so the admission cases stay in their own module and are subclassed here.
+import importlib.util  # noqa: E402
+
+_admission_path = Path(__file__).resolve().parent / "test_code_runloop_admission.py"
+_admission_spec = importlib.util.spec_from_file_location(
+    "test_code_runloop_admission_listed", _admission_path)
+_runloop_admission = importlib.util.module_from_spec(_admission_spec)
+_admission_spec.loader.exec_module(_runloop_admission)
+
+
+class CodeRunloopAdmissionListed(_runloop_admission.CodeRunloopAdmission):
+    """Same admission cases, collected by the workflow that already names this file."""
 
 
 if __name__ == "__main__":

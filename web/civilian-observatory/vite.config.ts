@@ -58,6 +58,8 @@ export default defineConfig({
   root: path.resolve(import.meta.dirname, "client"),
   base: "./",
   build: {
+    // Tailwind v4's CSS floor; this applies only to the isolated civilian UI.
+    target: ["chrome111", "firefox128", "safari16.4"],
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     rollupOptions: {

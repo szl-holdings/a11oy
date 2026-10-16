@@ -38,6 +38,7 @@ a11oy_willay_nav            # wired via a string-name dynamic nav-injection loop
 a11oy_yupay_nav             # wired via a string-name dynamic nav-injection loop in serve.py (dynamic import)
 
 # --- REGISTERED BY AN AGGREGATOR / PARENT MODULE (not directly by serve.py) ---
+observer_runtime           # registered by routers.series_a_control_plane.register() via register_from_service(); its owner is registered by routers.frontier_reads.register() from serve.py (tests/test_combined_consumers.py binds this chain; tests/test_execution_observer_registration.py verifies the chain, singleton routes and GET side-effect boundary)
 szl_anatomy_loop            # registered by szl_dark_surfaces_register.register(), which IS wired in serve.py (#341)
 szl_mbse_cosim              # registered by szl_mbse.register() (szl_mbse IS wired in serve.py); mbse cosim is its real-endpoint child
 

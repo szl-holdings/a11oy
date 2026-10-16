@@ -1666,7 +1666,7 @@ SOFTWARE.
 
 ========================================
 
-tailwind-merge@2.6.1
+tailwind-merge@3.7.0
 License: MIT
 
 MIT License

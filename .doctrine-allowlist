@@ -45,6 +45,15 @@ packages/
 # SPA source in web/src/** is already scanned; scanning bundles is redundant.
 console/assets/
 
+# Exact source-bound Platform candidate bundle — this immutable Vite chunk is
+# pinned by source.json (SHA-256
+# 5a15694472596c6c0a512a54d0d2a8a4e43b9e99e4bdf9f74d9ab1e49eacd71b).
+# Its sole doctrine match is React DOM's upstream `seamless` boolean HTML
+# attribute key alongside `scoped` and `itemScope`; it is executable framework
+# vocabulary, not product prose.  Keep this exemption file-specific so every
+# other candidate asset remains scanned.
+console/preview/platform-a11oy/assets/index-CTnamNpU.js
+
 # serve.py — module docstring header contains the enforcement ban-list itself
 # as a policy declaration. The enumerated list IS the rule, not a violation.
 serve.py
@@ -423,4 +432,4 @@ routers/command_centre_web/szl/szl-design-system.css
 # chunk; its bytes are bound by civilian_observatory/PAYLOAD_MANIFEST.json.
 # Authored source, application chunks, documentation and CSS remain scanned.
 # This exact content-hashed path must be reviewed again when dependencies change.
-civilian_observatory/static/assets/dependencies-BcVPsqH8.js
+civilian_observatory/static/assets/dependencies-B2cuOcNb.js

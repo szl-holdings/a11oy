@@ -19,14 +19,13 @@ Routing: raw Starlette Route objects inserted at the HEAD of app.router.routes �
 the PROVEN serve.py pattern (szl_governed_api.register) so the new namespace wins
 over the /api/a11oy/{path:path} Node proxy + the /{full_path:path} SPA catch-all.
 
-DURABILITY (honest) — the a11oy Space runs storage=None / cpu-basic, so the local
-$SZL_LAKE_DIR NDJSON store (szl_lake_store.ReceiptLedger) backs the live API for
-the CURRENT process only and resets on every Space rebuild. To make receipts
-survive rebuilds, EVERY receipt is ALSO mirrored fire-and-forget to the durable HF
-dataset SZLHOLDINGS/a11oy-verifiable-corpus (prefix ``lake/``) via the existing
-szl_hf_bucket.HFBucket (debounced background commit using the HF_TOKEN already in
-the Space env). The mirror NEVER blocks a governed turn and NEVER raises — a
-dataset hiccup degrades honestly (status recorded, receipt still served locally).
+DURABILITY (honest) — local append acknowledgement means write, flush and fsync
+returned for the configured $SZL_LAKE_DIR. It does not establish provider
+persistence or recovery. A duplicate proves only an identity in the local ledger.
+The optional HF dataset mirror is queued separately; queueing is not acknowledged
+remote publication. An append error can follow a persisted write, so its outcome
+remains UNKNOWN with a stable receipt identity and bounded read-only readback.
+Readback may prove local readability, never a missing write or fsync durability.
 
 On boot, hydrate_from_dataset() replays the mirrored receipts back through the
 local ledger so the in-process Khipu chain head is reconstructed from the durable
@@ -44,7 +43,7 @@ import os
 import sys
 import threading
 
-from szl_lake_store import get_default_ledger
+from szl_lake_store import get_default_ledger, receipt_write_metadata
 
 API_PREFIX = "/api/lake/v1"
 
@@ -106,21 +105,72 @@ def _mirror_to_dataset(receipt):
 
 
 def record_receipt(receipt, organ="a11oy"):
-    """In-process ingest — the entry point a11oy's own governed turns call.
+    """Append once; distinguish a local acknowledgement from an unknown outcome.
 
-    Appends to the local durable ledger (idempotent on receipt id/hash) AND
-    mirrors to the HF dataset for cross-rebuild durability. Non-blocking, never
-    raises. Returns the ledger append result with a ``mirror`` status attached."""
+    Mirror queueing is separate from acknowledged remote publication. Never retry
+    an uncertain append here: retain its identity and expose read-only readback.
+    """
     try:
         if not isinstance(receipt, dict):
-            return {"accepted": False, "error": "receipt must be a JSON object"}
+            raise ValueError("receipt must be a JSON object")
         rec = dict(receipt)
         rec.setdefault("organ", organ)
-        result = get_default_ledger().append(rec)
+        normalized_organ, rid, _, _ = receipt_write_metadata(rec)
+    except Exception as exc:
+        return {"accepted": False, "duplicate": False, "state": "REJECTED",
+                "write_attempted": False, "error": type(exc).__name__,
+                "mirror": {"state": "NOT_ATTEMPTED",
+                           "publication": "NOT_ACKNOWLEDGED"}}
+    led = None
+    try:
+        led = get_default_ledger()
+        result = led.append(rec)
+    except Exception as exc:
+        # The append may have reached write/flush/fsync before raising. An
+        # absent or failed readback never proves that no bytes were persisted.
+        try:
+            readback = led.lookup_receipt(rid, normalized_organ) if led else {
+                "state": "UNKNOWN", "reason": "ledger unavailable"}
+        except Exception:
+            readback = {"state": "UNKNOWN", "reason": "readback unavailable"}
+        return {"accepted": False, "duplicate": False, "state": "UNKNOWN",
+                "receipt_id": rid, "organ": normalized_organ,
+                "write_attempted": True, "error": type(exc).__name__,
+                "readback": readback,
+                "mirror": {"state": "NOT_ATTEMPTED",
+                           "publication": "NOT_ACKNOWLEDGED"}}
+    if not isinstance(result, dict):
+        result = {"state": "UNKNOWN"}
+    else:
+        try:
+            # Validate and snapshot the entire acknowledgement before any mirror.
+            result = json.loads(json.dumps(result, allow_nan=False))
+        except (ValueError, TypeError, OverflowError, RecursionError):
+            result = {"state": "UNKNOWN", "reason": "append status was not strict JSON"}
+    acknowledged = (result.get("accepted") is True
+                    and result.get("duplicate") is False
+                    and result.get("receipt_id") == rid
+                    and result.get("organ") == normalized_organ
+                    and ("write_attempted" not in result or result["write_attempted"] is True)
+                    and result.get("state") in (None, "LOCAL_ACKNOWLEDGED"))
+    duplicate = (result.get("duplicate") is True
+                 and result.get("accepted") is False
+                 and result.get("receipt_id") == rid
+                 and result.get("organ") == normalized_organ
+                 and ("write_attempted" not in result or type(result["write_attempted"]) is bool)
+                 and result.get("state") in (None, "LOCAL_DUPLICATE"))
+    result["state"] = ("LOCAL_ACKNOWLEDGED" if acknowledged else
+                       "LOCAL_DUPLICATE" if duplicate else "UNKNOWN")
+    if result["state"] == "UNKNOWN":
+        # A contradictory or foreign append contract cannot authorize mirroring.
+        result.update(accepted=False, duplicate=False, receipt_id=rid,
+                      organ=normalized_organ, write_attempted=True)
+        result["mirror"] = {"state": "NOT_ATTEMPTED",
+                            "publication": "NOT_ACKNOWLEDGED"}
+    else:
         result["mirror"] = _mirror_to_dataset(rec)
-        return result
-    except Exception as e:  # honest, non-blocking
-        return {"accepted": False, "error": "record_receipt failed: %r" % (e,)}
+        result["mirror"]["publication"] = "NOT_ACKNOWLEDGED"
+    return result
 
 
 def hydrate_from_dataset(limit=0):
@@ -247,6 +297,12 @@ def register(app, ns="a11oy"):  # pragma: no cover
         qp = request.query_params
         organ = qp.get("organ")
         since = qp.get("since")
+        if "receipt_id" in qp:
+            try:
+                result = get_default_ledger().lookup_receipt(qp["receipt_id"], organ)
+            except ValueError as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+            return JSONResponse(result, headers={"Cache-Control": "no-store"})
         try:
             limit = int(qp.get("limit", "100"))
         except (TypeError, ValueError):
@@ -298,3 +354,4 @@ def register(app, ns="a11oy"):  # pragma: no cover
         print("[a11oy] lake hydrate thread NOT started: %r" % (e,), file=sys.stderr)
 
     return {"registered": registered, "status": "ok", "sink": RECEIPT_SINK_URL}
+

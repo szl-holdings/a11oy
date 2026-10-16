@@ -3,8 +3,8 @@
 """Regression guards for the 2026-08-28 live-audit + ATELIER honesty fixes.
 
   1. Landing hamburger at mobile breakpoints (44px targets).
-  2. Console ENERGY slot is LIVE ledger (empty) / ROADMAP — never MEASURED, never joules.
-  3. Hero receipts cite the same SAMPLE ledger source as the runtime card.
+  2. Console ENERGY uses paired operator aggregates with explicit source labels.
+  3. Hero receipts cite the same typed ledger source as the runtime card.
   4. /warhacker 307 Location keeps the #arena fragment.
   5. Public aliases /mesh /evidence /arena /router remain registered.
   6. Landing router health is STALE NOT_MEASURED · snapshot 2026-07-11.
@@ -24,13 +24,20 @@ NAV = ROOT / "a11oy_nav_wireup.py"
 
 def test_front_door_hamburger_is_44px_and_opens_hidden_links() -> None:
     html = FRONT_DOOR.read_text(encoding="utf-8")
+    assert '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell" />' in html
+    css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
+    compact = "".join(css.split())
+    owner = 'html[data-szl-shell-owner="homepage"]'
     assert 'id="menu-toggle"' in html
     assert 'class="menu-toggle"' in html
-    assert "min-width:44px" in html and "min-height:44px" in html
-    assert "header.nav.nav-open nav" in html
+    toggle = compact.split(f"{owner}.menu-toggle{{", 1)[1].split("}", 1)[0]
+    assert "width:48px" in toggle and "min-height:48px" in toggle
     assert 'aria-controls="site-nav"' in html
-    assert ".nav nav a.hide-sm,.nav nav a:not(.btn){display:none}" in html
-    assert "header.nav.nav-open nav a.hide-sm" in html
+    # The links remain available without JavaScript; only a ready controller
+    # may collapse the mobile navigation and its existing toggle opens it.
+    assert f'{owner}[data-szl-menu-ready="true"].navnav{{display:none;}}' in compact
+    assert f'{owner}[data-szl-menu-ready="true"]header.nav.nav-opennav{{display:grid;}}' in compact
+    assert 'document.documentElement.dataset.szlMenuReady="true"' in html
     assert "setOpen(!header.classList.contains" in html
 
 
@@ -46,37 +53,37 @@ def test_marketing_landing_ds_nav_has_hamburger_under_760px() -> None:
     assert "@media (max-width:760px){.ds-nav{display:none;}}" not in html
 
 
-def test_console_energy_never_claims_measured_joules() -> None:
+def test_console_energy_requires_source_labels_and_a_paired_token_window() -> None:
+    # The current operator has a verified NVML-window attribution contract. The
+    # former permanent-ROADMAP assertion predates that API. Browser execution of
+    # these branches (including zero, missing, and sample data) is covered by
+    # scripts/test_console_evidence.cjs without contacting an operator.
     html = CONSOLE.read_text(encoding="utf-8")
-    assert "measured pending" not in html
-    assert "LIVE ledger (empty)" in html
-    assert "_energyEmpty" in html
-    assert "_energyPending" in html
-    assert "_tagEl.textContent='ROADMAP'" in html
-    assert "setTxt('hero-joules','pending')" in html
-    assert "API+'/v1/energy/ledger'" in html
-    # ENERGY hero fill never paints a MEASURED chip or J/tok.
-    fill = html.split("ENERGY slot = LIVE ledger", 1)[1].split("hero-gate", 1)[0]
-    assert "_tagEl.textContent='MEASURED'" not in fill
-    assert "J/tok" not in fill
-    assert "_tagEl.textContent='MEASURED'" not in html
-    # Default ENERGY slot copy is ledger, not joules.
-    assert 'id="hero-joules" data-maturity="live">LIVE ledger (empty)</span>' in html
-    assert "not joules" in html
+    helper = html.split("window._a11oyEnergyReading=function(reading)", 1)[1].split(
+        "// ===== VISUAL HELPERS", 1
+    )[0]
+    assert "d.joules_measured_label==='MEASURED'" in helper
+    assert "d.stub_mode===false" in helper
+    assert "d.measured_token_joules/d.measured_tokens" in helper
+    assert "d.joules_sample_label==='SAMPLE'" in helper
+    assert "{label:'UNAVAILABLE',value:null}" in helper
+    assert "window._a11oyEnergyReading(_eh)" in html
+    assert "API+'/v1/energy/operator/status'" in html
+    assert "_eh.measured_token_joules.toFixed" not in html
     assert "JOULES SAMPLE" in html
 
 
-def test_hero_receipts_share_ledger_source_and_label_historical() -> None:
+def test_hero_receipts_share_one_typed_ledger_source() -> None:
     html = FRONT_DOOR.read_text(encoding="utf-8")
     assert "function setHeroReceiptsFromLedger" in html
-    assert "SAMPLE/historical" in html
+    assert "function ledgerReading" in html
     assert "setHeroReceiptsFromLedger(d)" in html
-    assert 'id="hs-receipts-hist"' in html
-    # Hero no longer copies lake/overview totals unlabeled into hs-receipts.
-    assert (
-        '$("hs-receipts").textContent    = (num(receipts)===null) ? "—"           : receipts.toLocaleString();'
-        not in html
-    )
+    assert 'id="hs-receipts-label"' in html
+    assert "SAMPLE/historical" not in html
+    assert "__lakeReceiptTotal" not in html
+    assert "ts.signed_receipts" not in html
+    assert "Operational receipt records · returned window" in html
+    assert "Signature reported · not verified here" in html
 
 
 def test_warhacker_redirect_preserves_arena_fragment() -> None:

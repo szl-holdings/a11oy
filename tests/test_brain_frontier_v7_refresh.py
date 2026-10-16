@@ -152,6 +152,77 @@ def test_old_orphan_terminal_is_rejected_even_with_a_success_job(tmp_path):
     assert "proposal_url_missing_or_invalid" in receipt["failures"]
 
 
+def blocked_authorization_proposal():
+    return {
+        "schema": "szl.a11oy.brain-frontier-v7-proposal/v1",
+        "terminal": True,
+        "state": refresh.BLOCKED_PROPOSAL_STATE,
+        "url": None,
+        "branch": refresh.expected_branch("b" * 64),
+        "head_sha": None,
+        "source_sha": "d" * 40,
+        "snapshot_sha256": "b" * 64,
+        "candidate_set_sha256": "c" * 64,
+        "failure": "RefreshError: GITHUB_TOKEN policy is UNAVAILABLE",
+        "authorization": {
+            "credential_kind": "github-token",
+            "policy_observed": False,
+            "github_token_pr_creation_allowed": None,
+            "required_action": (
+                "configure BRAIN_FRONTIER_PR_TOKEN or explicitly authorize "
+                "GitHub Actions PR creation"
+            ),
+        },
+    }
+
+
+def test_authorization_hold_is_one_terminal_source_bound_failure(tmp_path):
+    refresh.write_json(tmp_path / "proposal.json", blocked_authorization_proposal())
+    receipt = refresh.build_receipt(
+        receipt_args(tmp_path, changed="true", proposal_result="failure")
+    )
+    assert receipt["terminal"] is True
+    assert receipt["outcome"] == refresh.BLOCKED_RECEIPT_OUTCOME
+    assert receipt["failures"] == [refresh.BLOCKED_FAILURE]
+    assert receipt["proposal"]["source_sha"] == "d" * 40
+    assert receipt["proposal"]["snapshot_sha256"] == "b" * 64
+    assert receipt["proposal"]["candidate_set_sha256"] == "c" * 64
+    path = tmp_path / "receipt.json"
+    refresh.write_json(path, receipt)
+    assert refresh.verify_receipt(path)["outcome"] == refresh.BLOCKED_RECEIPT_OUTCOME
+    assert refresh.verify_receipt_command(argparse.Namespace(receipt=str(path))) == 1
+
+
+def test_authorization_hold_cannot_hide_binding_or_write_evidence(tmp_path):
+    for mutation in (
+        lambda value: value.__setitem__("source_sha", "e" * 40),
+        lambda value: value.__setitem__("head_sha", "a" * 40),
+        lambda value: value["authorization"].__setitem__("required_action", ""),
+    ):
+        proposal_value = blocked_authorization_proposal()
+        mutation(proposal_value)
+        refresh.write_json(tmp_path / "proposal.json", proposal_value)
+        receipt = refresh.build_receipt(
+            receipt_args(tmp_path, changed="true", proposal_result="failure")
+        )
+        assert receipt["terminal"] is False
+        assert receipt["outcome"] == "FAILED_CLOSED"
+        assert refresh.BLOCKED_FAILURE not in receipt["failures"]
+
+
+def test_observed_disabled_policy_is_a_precise_terminal_hold(tmp_path):
+    proposal_value = blocked_authorization_proposal()
+    proposal_value["authorization"]["policy_observed"] = True
+    proposal_value["authorization"]["github_token_pr_creation_allowed"] = False
+    refresh.write_json(tmp_path / "proposal.json", proposal_value)
+    receipt = refresh.build_receipt(
+        receipt_args(tmp_path, changed="true", proposal_result="failure")
+    )
+    path = tmp_path / "receipt.json"
+    refresh.write_json(path, receipt)
+    assert refresh.verify_receipt(path)["failures"] == [refresh.BLOCKED_FAILURE]
+
+
 @pytest.mark.parametrize("section,field,value", [
     ("source", "repository", "other/repository"),
     ("materialization", "changed", "false"),
@@ -277,7 +348,11 @@ def test_workflow_separates_reader_from_writer_and_always_enforces_receipt():
     assert workflow["concurrency"]["cancel-in-progress"] is False
     reader = workflow["jobs"]["materialize"]
     writer = workflow["jobs"]["proposal"]
-    assert "permissions" not in reader
+    assert reader["permissions"] == {"contents": "read", "actions": "read"}
+    materialize = next(step for step in reader["steps"] if step.get("id") == "materialize")
+    assert materialize["env"] == {
+        "GITHUB_TOKEN": "${{ github.token }}", "GH_READ_TOKEN": "${{ secrets.GH_READ_TOKEN }}",
+    }
     assert writer["permissions"] == {"contents": "write", "pull-requests": "write"}
     assert writer["needs"] == "materialize" and "always()" in writer["if"]
     assert reader["outputs"]["artifact_id"] == "${{ steps.snapshot_artifact.outputs.artifact-id }}"
