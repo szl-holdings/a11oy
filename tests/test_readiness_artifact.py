@@ -16,6 +16,9 @@ import zipfile
 
 import httpx
 import pytest
+# Load the TestClient class before the native fixture replaces httpx.Client
+# with its transport factory. A lazy import under that fixture cannot subclass it.
+from fastapi.testclient import TestClient
 
 import szl_readiness_artifact as subject
 from tests.test_combined_consumers import combined, world, stamp
@@ -406,7 +409,6 @@ def test_snapshot_expires_without_refresh_at_the_admission_horizon():
 
 def test_hosted_route_independently_rejects_stale_cached_verdict(monkeypatch, combined):
     from fastapi import FastAPI
-    from fastapi.testclient import TestClient
     source = (subject.ROOT / "serve.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     block = next(node for node in tree.body if isinstance(node, ast.Try) and any(
@@ -459,7 +461,6 @@ def test_lifecycle_single_worker_stop_restart_and_fresh_identity():
 
 def test_exact_route_reads_memory_without_start_or_env_green_fallback(monkeypatch):
     from fastapi import FastAPI
-    from fastapi.testclient import TestClient
     source = (subject.ROOT / "serve.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     block = next(node for node in tree.body if isinstance(node, ast.Try) and any(

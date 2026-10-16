@@ -42,8 +42,8 @@ def test_prior_meter_manifest_fixture_retains_its_original_content_address():
     assert hashlib.sha256(raw).hexdigest() == "b8be768d9a012a941375ca852a7559dac02bdef530cfcd4e32abecfc0d74c1e0"
 
 
-def test_active_meter_and_bounded_engine_payload_remains_content_bound():
-    raw = (ROOT / ".github/shared-source-payload-manifest.json").read_bytes()
+def test_archived_meter_and_bounded_engine_payload_remains_content_bound():
+    raw = (ROOT / ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6"
     manifest = json.loads(raw)
     assert manifest["payload_id"] == "code-engine-bounded-model-20261015-v1"
@@ -52,6 +52,18 @@ def test_active_meter_and_bounded_engine_payload_remains_content_bound():
         "a11oy_code_engine.py": "a03aa1c294b69c8dfe3ce20d85aaf2347fac93ad7cba3544c1697d381639ac6f",
         "szl_meter_access.py": hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest(),
     }
+    for relative, expected in manifest["files"].items():
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
+
+
+def test_active_write_boundary_payload_preserves_prior_evidence_and_source():
+    manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "execution-observer-operator-auth-20261016-v1"
+    assert {
+        ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json",
+        "szl_operator_auth.py", "szl_khipu_replicate.py", "szl_unay_routes.py",
+    } <= set(manifest["files"])
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 

@@ -154,7 +154,7 @@ def rehearse(client, operator_token):
                           and body.get("question") == payload["question"]
                           and type(body.get("citations")) is list
                           and bool(citations)
-                          and citations[0].get("endpoint") == "szl_brain.CANONICAL"
+                          and citations[0].get("endpoint") == "serve._SC_PROVED_FORMULAS"
                           and type(cited) is dict and cited.get("count") == 8
                           and cited.get("proved") == ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
                           and body.get("grounded") is True)
@@ -579,7 +579,7 @@ def _validate_child_report(report, source, image):
                 _require(set(semantic) == {"topic", "citationEndpoint", "citedCount",
                                            "grounded"}, "operator_semantic_keys_invalid")
                 _require(semantic.get("topic") == "formulas"
-                         and semantic.get("citationEndpoint") == "szl_brain.CANONICAL"
+                         and semantic.get("citationEndpoint") == "serve._SC_PROVED_FORMULAS"
                          and semantic.get("citedCount") == 8
                          and semantic.get("grounded") is True, "operator_semantic_invalid")
             else:

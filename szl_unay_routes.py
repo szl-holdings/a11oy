@@ -61,6 +61,7 @@ for _p in _IMPORT_PATHS:
 import szl_unay  # noqa: E402
 import szl_khipu_lmdb  # noqa: E402
 import szl_khipu_replicate  # noqa: E402
+from szl_operator_auth import operator_refusal  # noqa: E402
 
 
 def _pick_data_dir() -> str:
@@ -162,6 +163,9 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
 
     @app.post(f"/api/{ns}/v2/unay/remember")
     async def unay_remember(request: Request) -> Any:  # noqa: ANN401
+        refusal = operator_refusal(request, "UNAY memory writes")
+        if refusal is not None:
+            return refusal
         body = await request.json()
         text = body.get("text", "")
         if not text:
@@ -196,6 +200,9 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
 
     @app.post(f"/api/{ns}/v2/khipu/lmdb/append")
     async def khipu_lmdb_append(request: Request) -> Any:  # noqa: ANN401
+        refusal = operator_refusal(request, "Khipu LMDB append")
+        if refusal is not None:
+            return refusal
         body = await request.json()
         action = body.get("action", "note")
         rcpt = klmdb.append(action, payload=body.get("payload") or {})
@@ -212,6 +219,9 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
     # ----------------------------------------------------------- REPLICATION
     @app.post(f"/api/{ns}/v2/khipu/replicate")
     async def khipu_replicate(request: Request) -> Any:  # noqa: ANN401
+        refusal = operator_refusal(request, "Khipu replication writes")
+        if refusal is not None:
+            return refusal
         body = await request.json()
         receipts = body.get("receipts", [])
         accepted, rejected = 0, 0
