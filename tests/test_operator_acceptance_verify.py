@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Synthetic captured-response fixtures only; no provider request or production proof."""
+import ast
 import copy
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -42,7 +43,7 @@ def bundle():
     ask.update(state="OBSERVED", status_code=200,
                response={"topic": "formulas", "question": ask["request"]["question"],
                          "answer": ", ".join(v.LOCKED), "grounded": True,
-                         "citations": [{"endpoint": "szl_brain.CANONICAL",
+                         "citations": [{"endpoint": v.FORMULA_CITATION_ENDPOINT,
                                         "data": {"count": 8, "proved": v.LOCKED}}]})
     receipt = {"schema": "szl.a11oy.operator/v1", "kind": "ask", "organ": "a11oy",
                "ts_utc": "2026-10-15T13:59:15+00:00", "doctrine": "v11",
@@ -235,6 +236,47 @@ def test_not_attempted_prefix_cannot_hide_a_later_post(bundle):
                               readback_after=None)
     with pytest.raises(v.VerificationError, match="OBSERVATION_AFTER_STOP"):
         verify(bundle)
+
+
+def test_unrelated_citation_stays_allowed_beside_one_live_formula_source(bundle):
+    body = bundle["cases"][1]["response"]
+    body["citations"].append({"endpoint": "/api/a11oy/v1/lambda", "data": {"lambda": "Conjecture 1"}})
+    result = v.verify_case(bundle["cases"][1], run_nonce=NONCE)
+    assert result["status"] == "REPORTED"
+    assert result["semantic_checks_passed"] is True
+    assert result["execution_qualified"] is False
+    assert result["native_receipt_verified"] is False
+
+
+@pytest.mark.parametrize("mutation", ["retired", "absent", "duplicate"])
+def test_retired_absent_or_duplicate_formula_citations_are_rejected(bundle, mutation):
+    body = bundle["cases"][1]["response"]
+    if mutation == "retired":
+        body["citations"][0]["endpoint"] = "szl_brain.CANONICAL"
+    elif mutation == "absent":
+        body["citations"] = [{"endpoint": "/api/other", "data": {"count": 8, "proved": v.LOCKED}}]
+    elif mutation == "duplicate":
+        body["citations"].append(copy.deepcopy(body["citations"][0]))
+    result = v.verify_case(bundle["cases"][1], run_nonce=NONCE)
+    assert result["status"] == "BLOCKED"
+    assert result["reason"] == "FORMULA_CITATION_MISMATCH"
+    assert result["execution_qualified"] is False
+
+
+def test_serve_formula_citation_is_bound_to_the_live_literal_without_import():
+    tree = ast.parse((PATH.parents[1] / "serve.py").read_text(encoding="utf-8"))
+    proved_lists = []
+    endpoints = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "_SC_PROVED_FORMULAS"
+            for target in node.targets
+        ):
+            proved_lists.append(ast.literal_eval(node.value))
+        if isinstance(node, ast.Constant) and node.value == v.FORMULA_CITATION_ENDPOINT:
+            endpoints.append(node.value)
+    assert proved_lists == [list(v.LOCKED)]
+    assert endpoints == [v.FORMULA_CITATION_ENDPOINT]
 
 
 def test_changed_local_artifact_bytes_rejected_by_independent_digest(bundle):
