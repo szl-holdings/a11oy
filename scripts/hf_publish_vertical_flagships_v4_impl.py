@@ -18,6 +18,8 @@ import importlib.util
 import hashlib
 import json
 import os
+import urllib.error
+import urllib.request
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -460,6 +462,39 @@ def html(item: dict[str, Any]) -> str:
 
 _BASE.html = html
 
+MAX_OBSERVATION_JSON_BYTES = 1_048_576
+
+
+def get_json(url: str, *, timeout: int = 20) -> tuple[int | None, Any]:
+    """Retain bounded error-response evidence without turning an error into 200.
+
+    urllib raises HTTPError for the shell's truthful 503. The immutable reader
+    discards that body, so publication cannot distinguish intact source artifacts
+    with unavailable upstream evidence from an invalid deployment. Preserve both
+    the real status and JSON; admission still validates the complete row.
+    """
+    request = urllib.request.Request(
+        url, headers={"User-Agent": USER_AGENT, "Cache-Control": "no-cache"}
+    )
+    try:
+        response = urllib.request.urlopen(request, timeout=timeout)
+    except urllib.error.HTTPError as exc:
+        response = exc
+    except Exception as exc:
+        return None, {"error": type(exc).__name__}
+    status = None
+    try:
+        with response:
+            status = response.status
+            raw = response.read(MAX_OBSERVATION_JSON_BYTES + 1)
+        if len(raw) > MAX_OBSERVATION_JSON_BYTES:
+            return status, {"error": "ObservationBodyTooLarge"}
+        return status, json.loads(raw.decode("utf-8"))
+    except Exception as exc:
+        return status, {"error": type(exc).__name__}
+
+
+_BASE.get_json = get_json
 # Every publication scope qualifies Finance's public forwarding functionality.
 # File parity/process liveness alone cannot admit a broken or replaced projection.
 _base_observe_flagship = _BASE.observe_flagship
