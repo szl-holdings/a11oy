@@ -5566,6 +5566,8 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
 
 @app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
+    from szl_brain import mcp_inventory_snapshot
+    _mcp_inventory = mcp_inventory_snapshot("a11oy")
     # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
     # stamp DSSE-LIVE (pure status of the actual a11oy runtime key). Other /healthz
     # bodies must stay ABSENT/UNAVAILABLE — never copy this stamp.
@@ -5657,7 +5659,8 @@ async def healthz() -> JSONResponse:
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "axioms": 14,
         "sorries": 163,
-        "mcp_tools": 12,
+        "mcp_tools": _mcp_inventory["count"],
+        "mcp_inventory": _mcp_inventory,
         "policy_gates": 46,
         "anchor_formula_gates": 44,
         "hatun_willay": True,
@@ -5886,6 +5889,8 @@ async def proxy_to_backend(request: Request, backend_path: str) -> Response:
 @app.get("/api/a11oy/v1/gates")
 async def list_gates() -> JSONResponse:
     """List all 46 policy gates with name + description + lean_theorem. Doctrine v11."""
+    from szl_brain import mcp_inventory_snapshot
+    _mcp_inventory = mcp_inventory_snapshot("a11oy")
     summary = [
         {
             "name": g["name"],
@@ -5908,7 +5913,7 @@ async def list_gates() -> JSONResponse:
         "count": len(summary),
         "gates": summary,
         "doctrine": "v11",
-        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "mcp_tools": 12, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
+        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "mcp_tools": _mcp_inventory["count"], "mcp_inventory": _mcp_inventory, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "lean_citation_audit": {
             "verified_against": "LEAN_PROOF_CITATION_MATRIX.csv",
             "real_theorem_citations": verified,
@@ -8329,14 +8334,17 @@ async def a11oy_mcp_tools_inline():
             # Sibling unreachable — omit honestly, never fabricate a cluster.
             pass
     _flagships = sorted({t["flagship"] for t in tools})
-    return JSONResponse({
+    manifest = {
         "count": len(tools), "tools": tools, "doctrine": "v11",
         "flagship": "a11oy",  # host flagship (backward-compatible field)
         "flagships": _flagships,  # every flagship that contributed live tools
         "sources": _sources,
         "kernel_commit": "c7c0ba17", "slsa_level": _A11OY_SLSA_TEXT,
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
-    })
+    }
+    from szl_brain import observe_mcp_inventory
+    observe_mcp_inventory(manifest, space="a11oy")
+    return JSONResponse(manifest)
 
 @app.post("/api/a11oy/v1/mcp/call")
 async def a11oy_mcp_call_inline(request: Request):

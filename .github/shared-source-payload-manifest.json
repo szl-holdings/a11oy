@@ -1,10 +1,10 @@
 {
   "files": {
-    ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json": "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6",
-    "szl_khipu_replicate.py": "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1",
-    "szl_operator_auth.py": "5b511c270ebb0268974f144e2dc4d3754ad48803a9434f6976eb8c1681265c0d",
-    "szl_unay_routes.py": "22bb45839a8d1fded2aaf10e4d6e8be03427383a8d0f58ad7fd1b2e1d2fab0a8"
+    ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json": "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",
+    "docs/mcp-advertised-inventory-20261016.md": "1c9e22ba02cb3ccc5e30ac5d19e0dffeb4cc515b2a59cdf6ac956f4bdbe855eb",
+    "szl_brain.py": "45e5076d7dd7b7e72c3f7964c5bab304640a031e6cba52554431fe09a1ce639c",
+    "tests/test_mcp_inventory_observation.py": "54e138b95c45516b48ade088d4c849fa4a463b29cdb060d4062f88e1549d1229"
   },
-  "payload_id": "execution-observer-operator-auth-20261016-v1",
+  "payload_id": "mcp-advertised-inventory-20261016-v1",
   "schema": "szl-shared-source-payload/v1"
 }
