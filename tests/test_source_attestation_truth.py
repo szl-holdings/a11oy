@@ -23,6 +23,7 @@ _BUILD_ENV = (
     "A11OY_DEPLOYED_AT",
     "DEPLOYED_AT",
     "SZL_BUILD_TIME",
+    "A11OY_HF_RUNTIME_BINDING",
 )
 
 
@@ -46,7 +47,8 @@ def test_cross_repository_shas_do_not_prove_alignment(
     v2 = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {})
     v1 = attestation.build_attestation("SZLHOLDINGS/a11oy", {})
 
-    assert v2["source_commit"] == {"value": source_sha, "evidence_class": "MEASURED"}
+    assert v2["source_commit"] == {"value": source_sha, "evidence_class": "ENV_DECLARATION"}
+    assert v1["source"]["state"] == "ENV_DECLARATION"
     assert v2["deployed_commit"] == {
         "value": space_sha,
         "evidence_class": "ENV_DECLARATION",
@@ -134,6 +136,8 @@ def test_get_routes_are_frozen_unsigned_and_read_only(monkeypatch):
 
     assert v1["alignment_state"] == v2["alignment_state"] == "UNKNOWN"
     assert v2["source_commit"]["value"] == v2["deployed_commit"]["value"] == "c" * 40
+    assert v2["source_commit"]["evidence_class"] == "ENV_DECLARATION"
+    assert v1["source"]["state"] == "ENV_DECLARATION"
     assert v2["deployed_commit"]["evidence_class"] == "ENV_DECLARATION"
     assert v1["deployment"]["revision_state"] == "ENV_DECLARATION"
     assert v1["deployment"]["measurement_method"] == "PROCESS_ENVIRONMENT"

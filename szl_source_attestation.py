@@ -2,10 +2,12 @@
 """Immutable, fail-closed source/deployment attestation for public SZL surfaces."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi.responses import JSONResponse
@@ -16,6 +18,8 @@ SCHEMA_VERSION = "szl.source-deploy-attestation/v2"
 PRODUCT_SOURCE_SCHEMA = "szl.product-source/v1"
 # A 40-hex process environment string. Not a Hugging Face host measurement.
 ENV_DECLARATION = "ENV_DECLARATION"
+RUNTIME_BINDING_ENV = "A11OY_HF_RUNTIME_BINDING"
+RUNTIME_BINDING_SCHEMA = "szl.hf-runtime-binding/v1"
 PRODUCT_SOURCE_ROUTE = "/.well-known/source.json"
 # Doctrine v11 LOCKED kernel pin. This is the doctrine lock, NOT the Space deploy SHA.
 DOCTRINE_KERNEL_PIN = "c7c0ba17"
@@ -146,7 +150,7 @@ def build_attestation_v2(
         schema_version=SCHEMA_VERSION,
         immutable_for_process=True,
         repository_url=repository,
-        source_commit=_observed(source_commit),
+        source_commit=_env_declaration(source_commit),
         deployed_commit=_env_declaration(deployed_commit),
         build_digest=_observed(build_digest),
         image_digest=_observed(image_digest),
@@ -161,6 +165,7 @@ def build_attestation_v2(
         limits=[
             "Null/UNKNOWN means the runtime did not expose that immutable build fact.",
             "ENV_DECLARATION is a process environment string. It is not a Hugging Face host measurement and it is not MEASURED.",
+            "SZL_GIT_SHA and the other source environment names stay ENV_DECLARATION until artifact bytes are independently bound.",
             "GitHub and Hugging Face commit SHAs belong to separate histories; their equality or inequality does not establish source/deployment alignment.",
             "Alignment requires a separately verified source-to-HF publication byte-binding receipt; none is verified by this surface.",
             "This surface does not represent the separate Replit TypeScript control plane.",
@@ -182,6 +187,7 @@ def build_attestation(
     deployed_class = v2["deployed_commit"]["evidence_class"]
     repository_slug = str(source_input.get("repository") or "szl-holdings/a11oy")
     source_commit = v2["source_commit"]["value"]
+    source_class = v2["source_commit"]["evidence_class"]
     return {
         "schema": "szl.deployment-source/v1",
         "observed_at": _now_iso(),
@@ -194,7 +200,7 @@ def build_attestation(
             "commit": source_commit,
             "path": str(source_input.get("path") or ""),
             "relation": str(source_input.get("relation") or "declared-source-with-hf-overlay"),
-            "state": "MEASURED" if source_commit else "UNKNOWN",
+            "state": source_class if source_commit else "UNKNOWN",
             "evidence_url": (
                 f"https://github.com/{repository_slug}/commit/{source_commit}"
                 if source_commit else None
@@ -219,28 +225,78 @@ def build_attestation(
     }
 
 
-def measure_hf_revision(space_id: str, force: bool = False) -> Dict[str, object]:
-    """Read SPACE_REPOSITORY_COMMIT without labeling it MEASURED.
+def _runtime_unavailable() -> Dict[str, object]:
+    return {
+        "hf_revision": None,
+        "revision_state": "UNAVAILABLE",
+        "measurement_method": "UNAVAILABLE",
+    }
 
-    Hugging Face's documented Space environment does not define this name as an
-    immutable host identity. A 40-hex value stays an environment declaration.
-    The missing name stays UNAVAILABLE. This helper makes no network call.
-    ``force`` is ignored. The registered HTTP routes still freeze their payload
-    at process start; this function itself rereads the environment.
-    """
-    del space_id, force
+
+def _environment_runtime() -> Dict[str, object]:
     revision = _first_env(("SPACE_REPOSITORY_COMMIT",), _commit)
     if revision is None:
-        return {
-            "hf_revision": None,
-            "revision_state": "UNAVAILABLE",
-            "measurement_method": "UNAVAILABLE",
-        }
+        return _runtime_unavailable()
     return {
         "hf_revision": revision,
         "revision_state": ENV_DECLARATION,
         "measurement_method": "PROCESS_ENVIRONMENT",
     }
+
+
+def _independent_runtime_binding() -> Optional[Dict[str, object]]:
+    """Return a byte-checked runtime revision, or unavailable when a binding is configured badly.
+
+    ``None`` means no binding was configured. A configured binding never falls
+    through to the process-environment string.
+    """
+    configured = str(os.environ.get(RUNTIME_BINDING_ENV) or "").strip()
+    if not configured:
+        return None
+    try:
+        path = Path(configured)
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return _runtime_unavailable()
+        name = payload.get("artifact_name")
+        revision = _commit(payload.get("hf_revision"))
+        digest = str(payload.get("artifact_sha256") or "")
+        if (payload.get("schema") != RUNTIME_BINDING_SCHEMA
+                or not isinstance(name, str) or name != Path(name).name
+                or name in {"", ".", ".."} or "/" in name or "\\" in name
+                or revision is None or not re.fullmatch(r"[0-9a-f]{64}", digest)):
+            return _runtime_unavailable()
+        artifact = path.parent.joinpath(name).read_bytes()
+        if hashlib.sha256(artifact).hexdigest() != digest:
+            return _runtime_unavailable()
+        declared = _first_env(("SPACE_REPOSITORY_COMMIT",), _commit)
+        if declared is not None and declared != revision:
+            return _runtime_unavailable()
+    except (OSError, ValueError, TypeError):
+        return _runtime_unavailable()
+    return {
+        "hf_revision": revision,
+        "revision_state": "MEASURED",
+        "measurement_method": "SPACE_REPOSITORY_COMMIT",
+    }
+
+
+def measure_hf_revision(space_id: str, force: bool = False) -> Dict[str, object]:
+    """Read an independently bound runtime revision, or an environment declaration.
+
+    Hugging Face's documented Space environment does not define
+    ``SPACE_REPOSITORY_COMMIT`` as an immutable host identity. That string stays
+    ``ENV_DECLARATION`` / ``PROCESS_ENVIRONMENT`` and cannot satisfy the observer
+    gate. ``MEASURED`` / ``SPACE_REPOSITORY_COMMIT`` is returned only when a
+    binding file names artifact bytes whose SHA-256 matches. A bad or conflicting
+    binding is ``UNAVAILABLE``. This helper makes no network call. ``force`` is
+    ignored.
+    """
+    del space_id, force
+    bound = _independent_runtime_binding()
+    if bound is not None:
+        return bound
+    return _environment_runtime()
 
 
 def _honest_git_sha() -> tuple[str, str]:
