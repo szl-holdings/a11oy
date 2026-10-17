@@ -25,7 +25,8 @@ def install_actual_deterministic_routes(world):
     tree = ast.parse(source.read_text())
     names = {'_gov_now_iso', 'gov_envelope', '_sc_run_inspection', '_sc_compute_lambda', '_sc_build_verdict',
         '_sc_log_verdict', '_sc_now', '_sc_sha', '_sc_receipt', '_sc_classify', '_sc_ask',
-        '_sc_operator_answer', '_sc_body', '_sc_cap_feed', '_sc_cap_decide', '_sc_cap_compliance', '_sc_cap_ask'}
+        '_sc_operator_answer', '_sc_body', '_sc_rejected', '_sc_cap_feed', '_sc_cap_decide',
+        '_sc_cap_compliance', '_sc_cap_ask'}
     functions = []
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in names:
@@ -39,6 +40,7 @@ def install_actual_deterministic_routes(world):
         if isinstance(node, ast.Constant) and isinstance(node.value, str) and len(node.value) > 100)
     namespace = {'_sc_json': json, '_sc_hashlib': hashlib, '_sc_datetime': datetime,
         '_sc_secrets': secrets, '_SCRequest': Request, '_SCJSON': JSONResponse,
+        'JSONResponse': JSONResponse,
         '_SC_AUDIT_LOCK': threading.Lock(), '_SC_AUDIT': collections.deque(maxlen=200),
         '_SC_BUNDLE': json.loads(base64.b64decode(raw))}
     for name in ('_SC_THREAT_SIGNATURES', '_SC_LAMBDA_GATE_FLOOR', '_SC_PROVED_FORMULAS'):
