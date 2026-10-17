@@ -14,6 +14,8 @@ from pydantic import BaseModel
 
 SCHEMA_VERSION = "szl.source-deploy-attestation/v2"
 PRODUCT_SOURCE_SCHEMA = "szl.product-source/v1"
+# A 40-hex process environment string. Not a Hugging Face host measurement.
+ENV_DECLARATION = "ENV_DECLARATION"
 PRODUCT_SOURCE_ROUTE = "/.well-known/source.json"
 # Doctrine v11 LOCKED kernel pin. This is the doctrine lock, NOT the Space deploy SHA.
 DOCTRINE_KERNEL_PIN = "c7c0ba17"
@@ -92,6 +94,13 @@ def _observed(value: Optional[str]) -> ObservedValue:
     )
 
 
+def _env_declaration(value: Optional[str]) -> ObservedValue:
+    """Keep a present environment SHA, and do not call it MEASURED."""
+    if value is None:
+        return _observed(None)
+    return ObservedValue(value=value, evidence_class=ENV_DECLARATION)
+
+
 def build_attestation_v2(
     space_id: str,
     source: Optional[Dict[str, object]] = None,
@@ -138,7 +147,7 @@ def build_attestation_v2(
         immutable_for_process=True,
         repository_url=repository,
         source_commit=_observed(source_commit),
-        deployed_commit=_observed(deployed_commit),
+        deployed_commit=_env_declaration(deployed_commit),
         build_digest=_observed(build_digest),
         image_digest=_observed(image_digest),
         deploy_timestamp=_observed(deploy_timestamp),
@@ -151,6 +160,7 @@ def build_attestation_v2(
         },
         limits=[
             "Null/UNKNOWN means the runtime did not expose that immutable build fact.",
+            "ENV_DECLARATION is a process environment string. It is not a Hugging Face host measurement and it is not MEASURED.",
             "GitHub and Hugging Face commit SHAs belong to separate histories; their equality or inequality does not establish source/deployment alignment.",
             "Alignment requires a separately verified source-to-HF publication byte-binding receipt; none is verified by this surface.",
             "This surface does not represent the separate Replit TypeScript control plane.",
@@ -169,6 +179,7 @@ def build_attestation(
     v2 = build_attestation_v2(space_id, source, alignment_state, force)
     source_input = dict(source or {})
     revision = v2["deployed_commit"]["value"]
+    deployed_class = v2["deployed_commit"]["evidence_class"]
     repository_slug = str(source_input.get("repository") or "szl-holdings/a11oy")
     source_commit = v2["source_commit"]["value"]
     return {
@@ -192,8 +203,8 @@ def build_attestation(
         "deployment": {
             "hf_space": space_id,
             "hf_revision": revision,
-            "revision_state": "MEASURED" if revision else "UNAVAILABLE",
-            "measurement_method": "SPACE_REPOSITORY_COMMIT" if revision else "UNAVAILABLE",
+            "revision_state": "UNAVAILABLE" if revision is None else deployed_class,
+            "measurement_method": "UNAVAILABLE" if revision is None else "PROCESS_ENVIRONMENT",
         },
         # A caller-supplied label or a direct comparison of cross-repository
         # commit SHAs is not evidence. Preserve the v1 field, fail closed.
@@ -209,13 +220,26 @@ def build_attestation(
 
 
 def measure_hf_revision(space_id: str, force: bool = False) -> Dict[str, object]:
-    """Compatibility helper: environment-only, immutable, and never a network claim."""
+    """Read SPACE_REPOSITORY_COMMIT without labeling it MEASURED.
+
+    Hugging Face's documented Space environment does not define this name as an
+    immutable host identity. A 40-hex value stays an environment declaration.
+    The missing name stays UNAVAILABLE. This helper makes no network call.
+    ``force`` is ignored. The registered HTTP routes still freeze their payload
+    at process start; this function itself rereads the environment.
+    """
     del space_id, force
     revision = _first_env(("SPACE_REPOSITORY_COMMIT",), _commit)
+    if revision is None:
+        return {
+            "hf_revision": None,
+            "revision_state": "UNAVAILABLE",
+            "measurement_method": "UNAVAILABLE",
+        }
     return {
         "hf_revision": revision,
-        "revision_state": "MEASURED" if revision else "UNAVAILABLE",
-        "measurement_method": "SPACE_REPOSITORY_COMMIT" if revision else "UNAVAILABLE",
+        "revision_state": ENV_DECLARATION,
+        "measurement_method": "PROCESS_ENVIRONMENT",
     }
 
 
