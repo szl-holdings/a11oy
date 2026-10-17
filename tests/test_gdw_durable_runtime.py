@@ -257,6 +257,93 @@ def test_native_local_file_lock_excludes_second_process(stores):
     assert result.returncode != 0 and b"BlockingIOError" in result.stderr
 
 
+_LOCK_CHILD = """
+import sys
+from pathlib import Path
+
+import gdw_durable_runtime as durable
+from gdw_durable_artifacts import ArtifactCache
+from tests.test_gdw_durable_runtime import OfflineWriter, identity
+
+directory = Path(sys.argv[1])
+mode = sys.argv[2]
+paths = {label: directory / (label + ".sqlite3") for label in durable.LABELS}
+
+def publish(snapshots, deadline):
+    del snapshots, deadline
+    return {label: identity(label, path) for label, path in paths.items()}
+
+def publish_artifact(path, object_path, digest, deadline):
+    del deadline
+    return {"path": object_path, "size": path.stat().st_size, "sha256": digest, "xet_hash": "a" * 64}
+
+artifacts = ArtifactCache(directory / "artifacts", publish_artifact)
+writer = OfflineWriter(paths)
+if mode == "fail":
+    def verify_read(deadline):
+        del deadline
+        raise RuntimeError("fail-after-lock")
+    writer.verify_read = verify_read
+    try:
+        durable.LocalGate(writer, paths, directory, publish, artifacts=artifacts)
+    except RuntimeError:
+        print("RELEASED", flush=True)
+        sys.stdin.read()
+    else:
+        raise SystemExit("gate should have failed")
+elif mode == "contend":
+    durable.LocalGate(writer, paths, directory, publish, artifacts=artifacts)
+else:
+    raise SystemExit("unknown mode")
+"""
+
+
+def test_separate_processes_contend_for_localgate_and_failure_releases_lock(stores, tmp_path):
+    """Two processes use LocalGate on this test's temporary directory.
+
+    The failure path must drop the lock while that process is still alive.
+    Kernel cleanup after process exit is not this assertion.
+    """
+    import fcntl
+    import select
+    import sys
+
+    assert stores.directory.parent == tmp_path
+    assert (stores.directory.stat().st_mode & 0o777) == 0o700
+    script = tmp_path / "lock_child.py"
+    script.write_text(_LOCK_CHILD, encoding="utf-8")
+    env = os.environ.copy()
+    root = str(Path(__file__).resolve().parents[1])
+    env["PYTHONPATH"] = root + os.pathsep + env.get("PYTHONPATH", "")
+    contended = subprocess.run(
+        [sys.executable, str(script), str(stores.directory), "contend"],
+        capture_output=True, text=True, env=env, timeout=30,
+    )
+    assert contended.returncode != 0
+    assert "BlockingIOError" in contended.stderr
+    stores.gate.close()
+    held = subprocess.Popen(
+        [sys.executable, str(script), str(stores.directory), "fail"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, env=env,
+    )
+    try:
+        ready, _, _ = select.select([held.stdout], [], [], 30)
+        assert ready, "child did not report lock release"
+        line = held.stdout.readline()
+        assert line.strip() == "RELEASED"
+        assert held.poll() is None
+        descriptor = os.open(stores.directory / "writer.lock", os.O_RDWR | os.O_NOFOLLOW)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally:
+            os.close(descriptor)
+    finally:
+        held.stdin.close()
+        held.wait(timeout=10)
+    assert held.returncode == 0
+
+
 def test_local_lock_and_restore_checks_precede_remote_claim(stores):
     restored = stores.writer.head
     contender = OfflineWriter(stores.paths)

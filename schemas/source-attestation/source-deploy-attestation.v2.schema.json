@@ -21,11 +21,32 @@
   },
   "$defs": {
     "evidence": {
+      "description": "MEASURED is reserved for an independent observation and is not produced by szl_source_attestation.py. Commit slots do not accept MEASURED. A MEASURED build digest, image digest, or deploy timestamp must use measurement_method INDEPENDENT_ARTIFACT_OBSERVATION: a party who did not supply the string compared it to artifact bytes or a signed time outside this process. SPACE_REPOSITORY_COMMIT is not a method for those slots. It names the separate hf-revision observation in which a party who did not write the binding file compared running bytes to the published git object. ENV_DECLARATION and CALLER_DECLARED are declarations and do not carry a measurement method.",
       "type": "object", "additionalProperties": false, "required": ["value", "evidence_class"],
-      "properties": {"value": {"type": ["string", "null"]}, "evidence_class": {"enum": ["MEASURED", "UNKNOWN"]}}
+      "properties": {
+        "value": {"type": ["string", "null"]},
+        "evidence_class": {"enum": ["MEASURED", "UNKNOWN", "ENV_DECLARATION", "CALLER_DECLARED"]},
+        "measurement_method": {"type": "string", "minLength": 1}
+      },
+      "allOf": [{
+        "if": {"properties": {"evidence_class": {"const": "MEASURED"}}, "required": ["evidence_class"]},
+        "then": {"required": ["measurement_method"]}
+      }]
     },
-    "observedCommit": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}}}]},
-    "observedDigest": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}}}]},
-    "observedTimestamp": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "format": "date-time"}}}]}
+    "observedCommit": {"allOf": [
+      {"$ref": "#/$defs/evidence"},
+      {"properties": {"value": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}}},
+      {"if": {"properties": {"evidence_class": {"const": "MEASURED"}}, "required": ["evidence_class"]}, "then": false}
+    ]},
+    "observedDigest": {"allOf": [
+      {"$ref": "#/$defs/evidence"},
+      {"properties": {"value": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}}},
+      {"if": {"properties": {"evidence_class": {"const": "MEASURED"}}, "required": ["evidence_class"]}, "then": {"properties": {"measurement_method": {"const": "INDEPENDENT_ARTIFACT_OBSERVATION"}}}}
+    ]},
+    "observedTimestamp": {"allOf": [
+      {"$ref": "#/$defs/evidence"},
+      {"properties": {"value": {"type": ["string", "null"], "format": "date-time"}}},
+      {"if": {"properties": {"evidence_class": {"const": "MEASURED"}}, "required": ["evidence_class"]}, "then": {"properties": {"measurement_method": {"const": "INDEPENDENT_ARTIFACT_OBSERVATION"}}}}
+    ]}
   }
 }

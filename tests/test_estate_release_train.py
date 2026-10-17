@@ -297,6 +297,74 @@ class EstateReleaseTrainTests(unittest.TestCase):
             result = release.inspect_component(component, ("/api/build-info",))
         self.assertFalse(result["aligned"])
         self.assertIn("SOURCE_REVISION_MISMATCH", result["blockers"])
+        self.assertEqual(result["stamp_evidence"]["publication_revision"], "e" * 40)
+        self.assertEqual(result["stamp_evidence"]["source_repository_revision"], sha)
+        self.assertIsNone(result["stamp_evidence"]["artifact_sha256"])
+        self.assertIsNone(result["stamp_evidence"]["content_equivalent_source_revision"])
+        self.assertNotEqual(result["root"]["sha256"], result["stamp_evidence"]["artifact_sha256"])
+
+    def test_stamp_evidence_is_non_gating_and_keeps_three_identities_distinct(self) -> None:
+        source_revision = "c" * 40
+        publication_revision = "e" * 40
+        equivalent_revision = "a" * 40
+        artifact = "b" * 64
+        component = {
+            "key": "finance",
+            "source_repository": "szl-holdings/finance",
+            "hf_repo_id": "SZLHOLDINGS/finance",
+            "origin": "https://szlholdings-finance.hf.space",
+            "required": True,
+            "artifact_sha256": artifact,
+            "content_equivalent_source_revision": equivalent_revision,
+        }
+        with (
+            mock.patch.object(release, "github_main", return_value={"observed": True, "sha": source_revision}),
+            mock.patch.object(release, "hf_space", return_value={"observed": True, "stage": "RUNNING"}),
+            mock.patch.object(release, "probe_source", return_value={"observed": True, "revision": publication_revision}),
+            mock.patch.object(release, "fetch", return_value={"status": 200, "sha256": "d" * 64, "bytes": 100}),
+        ):
+            result = release.inspect_component(component, ("/api/build-info",))
+        evidence = result["stamp_evidence"]
+        self.assertFalse(result["aligned"])
+        self.assertIn("SOURCE_REVISION_MISMATCH", result["blockers"])
+        self.assertFalse(evidence["gating"])
+        self.assertEqual(evidence["schema"], "szl.component-stamp-evidence/v1")
+        self.assertEqual(evidence["publication_revision"], publication_revision)
+        self.assertEqual(evidence["artifact_sha256"], artifact)
+        self.assertEqual(evidence["content_equivalent_source_revision"], equivalent_revision)
+        self.assertEqual(evidence["source_repository_revision"], source_revision)
+        self.assertEqual(len({publication_revision, artifact, equivalent_revision, source_revision}), 4)
+        self.assertNotEqual(evidence["artifact_sha256"], result["root"]["sha256"])
+        self.assertEqual(evidence["witness_errors"], [])
+
+        component["content_equivalent_source_revision"] = source_revision
+        with (
+            mock.patch.object(release, "github_main", return_value={"observed": True, "sha": source_revision}),
+            mock.patch.object(release, "hf_space", return_value={"observed": True, "stage": "RUNNING"}),
+            mock.patch.object(release, "probe_source", return_value={"observed": True, "revision": publication_revision}),
+            mock.patch.object(release, "fetch", return_value={"status": 200, "sha256": "d" * 64, "bytes": 100}),
+        ):
+            still_open = release.inspect_component(component, ("/api/build-info",))
+        self.assertFalse(still_open["aligned"])
+        self.assertIn("SOURCE_REVISION_MISMATCH", still_open["blockers"])
+        self.assertEqual(
+            still_open["stamp_evidence"]["content_equivalent_source_revision"],
+            source_revision,
+        )
+        self.assertEqual(still_open["stamp_evidence"]["publication_revision"], publication_revision)
+
+        component["artifact_sha256"] = "not-a-digest"
+        with (
+            mock.patch.object(release, "github_main", return_value={"observed": True, "sha": source_revision}),
+            mock.patch.object(release, "hf_space", return_value={"observed": True, "stage": "RUNNING"}),
+            mock.patch.object(release, "probe_source", return_value={"observed": True, "revision": source_revision}),
+            mock.patch.object(release, "fetch", return_value={"status": 200, "sha256": "d" * 64, "bytes": 100}),
+        ):
+            matched = release.inspect_component(component, ("/api/build-info",))
+        self.assertTrue(matched["aligned"])
+        self.assertEqual(matched["blockers"], [])
+        self.assertIsNone(matched["stamp_evidence"]["artifact_sha256"])
+        self.assertEqual(matched["stamp_evidence"]["witness_errors"], ["ARTIFACT_SHA256_INVALID"])
 
     def test_profile_contract_requires_three_way_count_equality(self) -> None:
         config, record, manifest, blob = self._profile_fixture()
@@ -421,6 +489,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 result, _ = self._profile_observation(config, record, current, metadata, record["counts"], pinned=pinned)
                 self.assertFalse(result["aligned"])
                 self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+                self.assertNotIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 
     def _profile_contract_for_text(self, text, observed=None, manifest=None):
         counts = {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14}
@@ -496,6 +565,68 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14})
                 self.assertFalse(result["aligned"])
                 self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+                self.assertNotIn(
+                    "HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE",
+                    result["blockers"],
+                )
+
+    def test_profile_missing_counts_report_count_failure_without_binding_failure(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        counts = record["counts"]
+        complete = {kind: "COMPLETE" for kind in counts}
+        missing_observed = {
+            "counts": {kind: value for kind, value in counts.items() if kind != "kernels"},
+            "observed": True,
+            "enumeration_state": complete,
+        }
+        result, _ = self._profile_observation(
+            config, record, manifest, blob, counts, inventory=missing_observed,
+        )
+        self.assertIsNone(result["observed_counts"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+        self.assertNotIn(
+            "HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE",
+            result["blockers"],
+        )
+        missing_manifest = {**manifest, "json": {key: value for key, value in manifest["json"].items() if key != "counts"}}
+        result, _ = self._profile_observation(
+            config, record, missing_manifest, blob, counts, pinned=manifest,
+        )
+        self.assertIsNone(result["manifest_counts"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+        self.assertNotIn(
+            "HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE",
+            result["blockers"],
+        )
+
+    def test_profile_equal_counts_with_stale_binding_do_not_invent_count_mismatch(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        stale = {**manifest, "sha256": "0" * 64}
+        result, _ = self._profile_observation(
+            config, record, manifest, blob, record["counts"], pinned=stale,
+        )
+        self.assertEqual(result["declared_counts"], result["observed_counts"])
+        self.assertEqual(result["declared_counts"], result["manifest_counts"])
+        self.assertFalse(result["inventory_record_source_bound"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+        self.assertNotIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+
+    def test_profile_revision_drift_keeps_gate_closed_without_count_mismatch(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        drifted = {**manifest, "sha256": "1" * 64}
+        result, _ = self._profile_observation(
+            config, record, drifted, blob, record["counts"], pinned=manifest,
+        )
+        self.assertNotEqual(record["source_revision"], "e" * 40)
+        self.assertEqual(result["declared_counts"], result["observed_counts"])
+        self.assertEqual(result["declared_counts"], result["manifest_counts"])
+        self.assertFalse(result["inventory_record_source_bound"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+        self.assertNotIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 
     def test_release_id_is_deterministic_and_authority_is_fail_closed(self) -> None:
         config = json.loads(
