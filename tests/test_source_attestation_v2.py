@@ -106,8 +106,20 @@ def test_source_schema_accepts_payload(monkeypatch):
         measured[slot]["evidence_class"] = "MEASURED"
         with pytest.raises(jsonschema.ValidationError):
             validator.validate(measured)
+        for wrong in ("PROCESS_ENVIRONMENT", "SPACE_REPOSITORY_COMMIT"):
+            measured[slot]["measurement_method"] = wrong
+            with pytest.raises(jsonschema.ValidationError):
+                validator.validate(measured)
         measured[slot]["measurement_method"] = source.INDEPENDENT_ARTIFACT_OBSERVATION
         validator.validate(measured)
+    commit_measured = json.loads(json.dumps(declared))
+    commit_measured["source_commit"] = {
+        "value": "b" * 40,
+        "evidence_class": "MEASURED",
+        "measurement_method": "SPACE_REPOSITORY_COMMIT",
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        validator.validate(commit_measured)
 
 
 def test_v1_shape_remains_backward_compatible(monkeypatch):
