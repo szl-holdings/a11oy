@@ -1009,22 +1009,20 @@ def profile_inventory_contract(
         if not source_bound:
             blockers.append("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE")
 
+    counts_comparable = declared is not None and actual is not None and manifest is not None
+    counts_equal = bool(counts_comparable and declared == actual == manifest)
     aligned = bool(
         head.get("observed")
         and record_valid
         and source_bound
-        and declared
-        and actual
-        and manifest
+        and counts_equal
         and inventory.get("observed") is True
         and enumeration_complete
-        and declared == actual == manifest
     )
-    if not aligned:
-        if not enumeration_complete:
-            blockers.append("HF_INVENTORY_ENUMERATION_INCOMPLETE_OR_UNAVAILABLE")
-        else:
-            blockers.append("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE")
+    if not enumeration_complete:
+        blockers.append("HF_INVENTORY_ENUMERATION_INCOMPLETE_OR_UNAVAILABLE")
+    elif not counts_equal:
+        blockers.append("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE")
     return {
         "profile_repository": repository,
         "profile_sha": head.get("sha"),
