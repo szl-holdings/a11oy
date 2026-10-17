@@ -26,6 +26,23 @@ reject a receipt only after capture. That rejection withholds
 ``execution_authorized`` and leaves the earlier effects in place. A
 reference-executor result whose status is ``COMMITTED`` is not an input to
 this path and cannot become that flag.
+
+Reserved-row recovery after a failed acknowledgement:
+
+``run`` burns the challenge before it reserves the five rows. If
+``snapshot_confirmed`` then fails, no capture runs. The exception handler
+adds that nonce to the cancelled set and drops any export. The five local
+rows stay ``RESERVED``. They are not a grant, and the series_a snapshot
+stays unpublished. The supported path is to leave that nonce consumed.
+Do not reset, delete, or reuse it to make those rows available again.
+A second ``run`` of the same nonce raises
+``OBSERVATION_CHALLENGE_CONSUMED_OR_UNKNOWN``. ``export`` raises
+``OBSERVATION_EXPORT_UNAVAILABLE``. Reserving the same nonce and case
+raises ``OBSERVATION_ATTEMPT_ALREADY_CONSUMED``. A new challenge is a
+different nonce, leaves the five rows ``RESERVED``, and reports
+``execution_authorized`` false. Receipt rejection after capture is a
+different outcome: those five effects have already occurred, and
+``execution_authorized`` stays false.
 """
 
 from __future__ import annotations
