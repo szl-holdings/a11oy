@@ -132,6 +132,69 @@ def test_failed_acknowledgement_leaves_local_reservations_unpublished(world, mon
     assert [case_id for case_id, _state in rows] == sorted(acceptance.CONTRACTS)
 
 
+def _stored_attempt(world, nonce):
+    path = Path(world.service.store.path)
+    with sqlite3.connect(path) as db:
+        db.row_factory = sqlite3.Row
+        row = db.execute(
+            """SELECT p.source_revision, p.runtime_boot_id, p.plan_sha256, p.started_at,
+                      o.case_id, o.request_sha256
+               FROM execution_observations o
+               JOIN execution_observation_plans p ON p.run_nonce = o.run_nonce
+               WHERE o.run_nonce=? ORDER BY o.case_id LIMIT 1""",
+            (nonce,),
+        ).fetchone()
+    return dict(row)
+
+
+def test_failed_acknowledgement_retry_is_idempotent(world, monkeypatch):
+    nonce, plan = integration.signed_plan(world)
+
+    def refuse(*_args, **_kwargs):
+        raise state_store.StorageBlocked("ACK_REQUIRED")
+
+    monkeypatch.setattr(world.writer, "snapshot_confirmed", refuse)
+    with pytest.raises(state_store.StorageBlocked, match="ACK_REQUIRED"):
+        integration.run(world, nonce, plan)
+    with pytest.raises(integration.observer.ObserverBlocked, match="CONSUMED"):
+        integration.run(world, nonce, plan)
+    with pytest.raises(integration.observer.ObserverBlocked, match="UNAVAILABLE"):
+        integration.asyncio.run(world.subject.export(nonce, integration.HEADERS))
+    assert world.effects == []
+    assert integration.remote_rows(world) == []
+    assert len(local_rows(world)) == 5
+    stored = _stored_attempt(world, nonce)
+    with pytest.raises(ValueError, match="OBSERVATION_ATTEMPT_ALREADY_CONSUMED"):
+        world.service.store.reserve_execution_observation(
+            source_revision=stored["source_revision"],
+            runtime_boot_id=stored["runtime_boot_id"],
+            run_nonce=nonce,
+            plan_sha256=stored["plan_sha256"],
+            case_id=stored["case_id"],
+            request_sha256=stored["request_sha256"],
+            receipt_id="observation-" + ("ab" * 24),
+            started_at=stored["started_at"],
+        )
+    assert [state for _case_id, state in local_rows(world)] == ["RESERVED"] * 5
+
+
+def test_new_challenge_leaves_failed_reservations_unchanged(world, monkeypatch):
+    nonce, plan = integration.signed_plan(world)
+
+    def refuse(*_args, **_kwargs):
+        raise state_store.StorageBlocked("ACK_REQUIRED")
+
+    monkeypatch.setattr(world.writer, "snapshot_confirmed", refuse)
+    with pytest.raises(state_store.StorageBlocked, match="ACK_REQUIRED"):
+        integration.run(world, nonce, plan)
+    issued = world.subject.challenge(integration.HEADERS)
+    assert issued["execution_authorized"] is False
+    assert issued["challenge"]["run_nonce"] != nonce
+    assert world.effects == []
+    assert integration.remote_rows(world) == []
+    assert [state for _case_id, state in local_rows(world)] == ["RESERVED"] * 5
+
+
 def test_replayed_plan_retains_the_captured_effects(world):
     nonce, plan = integration.signed_plan(world)
     raw = integration.run(world, nonce, plan)
@@ -155,6 +218,7 @@ def test_rejected_receipt_leaves_the_captured_effects(world):
     bundle = result["bundle"]
     bundle["observations"][1] = bundle["observations"][0]
     context, _manager = world.subject._identity(nonce)
+    assert len(bundle["observations"]) == 5
     with pytest.raises(acceptance.EvidenceError):
         acceptance.validate(bundle, context)
     assert result["execution_authorized"] is False
