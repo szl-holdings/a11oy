@@ -21,8 +21,17 @@
   },
   "$defs": {
     "evidence": {
+      "description": "MEASURED is reserved for an independent observation and is not produced by szl_source_attestation.py. A MEASURED value must include measurement_method. INDEPENDENT_ARTIFACT_OBSERVATION is the method for a build digest, image digest, or deploy timestamp compared outside this process by a party who did not supply the string. SPACE_REPOSITORY_COMMIT is the method for an hf revision whose running bytes were compared to the published git object by a party who did not write the binding file. ENV_DECLARATION and CALLER_DECLARED are declarations and do not carry that method.",
       "type": "object", "additionalProperties": false, "required": ["value", "evidence_class"],
-      "properties": {"value": {"type": ["string", "null"]}, "evidence_class": {"enum": ["MEASURED", "UNKNOWN", "ENV_DECLARATION", "CALLER_DECLARED"]}}
+      "properties": {
+        "value": {"type": ["string", "null"]},
+        "evidence_class": {"enum": ["MEASURED", "UNKNOWN", "ENV_DECLARATION", "CALLER_DECLARED"]},
+        "measurement_method": {"type": "string", "minLength": 1}
+      },
+      "allOf": [{
+        "if": {"properties": {"evidence_class": {"const": "MEASURED"}}, "required": ["evidence_class"]},
+        "then": {"required": ["measurement_method"]}
+      }]
     },
     "observedCommit": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}}}]},
     "observedDigest": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}}}]},

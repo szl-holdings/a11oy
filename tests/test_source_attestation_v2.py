@@ -57,8 +57,18 @@ def test_observable_build_facts_do_not_prove_cross_repository_alignment(monkeypa
     # Equal SHA strings in separate Git repositories are not a verified
     # source-to-HF byte-binding receipt.
     assert result["alignment_state"] == "UNKNOWN"
-    assert result["build_digest"]["value"] == "sha256:" + "2" * 64
-    assert result["deploy_timestamp"]["value"] == "2026-07-17T00:30:00Z"
+    assert result["build_digest"] == {
+        "value": "sha256:" + "2" * 64,
+        "evidence_class": "ENV_DECLARATION",
+    }
+    assert result["image_digest"] == {
+        "value": "sha256:" + "3" * 64,
+        "evidence_class": "ENV_DECLARATION",
+    }
+    assert result["deploy_timestamp"] == {
+        "value": "2026-07-17T00:30:00Z",
+        "evidence_class": "ENV_DECLARATION",
+    }
 
 
 def test_hf_deployment_sha_is_admitted_as_source_commit(monkeypatch):
@@ -85,6 +95,19 @@ def test_source_schema_accepts_payload(monkeypatch):
     caller = source.build_attestation_v2("SZLHOLDINGS/a11oy", {"commit": "b" * 40}, "UNKNOWN")
     assert caller["source_commit"]["evidence_class"] == "CALLER_DECLARED"
     validator.validate(caller)
+    samples = {
+        "build_digest": "sha256:" + "2" * 64,
+        "image_digest": "sha256:" + "3" * 64,
+        "deploy_timestamp": "2026-07-17T00:30:00Z",
+    }
+    for slot, value in samples.items():
+        measured = json.loads(json.dumps(declared))
+        measured[slot]["value"] = value
+        measured[slot]["evidence_class"] = "MEASURED"
+        with pytest.raises(jsonschema.ValidationError):
+            validator.validate(measured)
+        measured[slot]["measurement_method"] = source.INDEPENDENT_ARTIFACT_OBSERVATION
+        validator.validate(measured)
 
 
 def test_v1_shape_remains_backward_compatible(monkeypatch):

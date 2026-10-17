@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Immutable, fail-closed source/deployment attestation for public SZL surfaces."""
+"""Immutable, fail-closed source/deployment attestation for public SZL surfaces.
+
+Process-environment strings and caller-dict strings are declarations.
+This module does not emit MEASURED. Payload limits name the measurement
+method an independent observation would have to carry before MEASURED
+would be honest.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -24,6 +30,15 @@ CALLER_DECLARED = "CALLER_DECLARED"
 # Revision text from a binding file whose sibling bytes match that file's digest.
 DECLARED_WITH_LOCAL_DIGEST = "DECLARED_WITH_LOCAL_DIGEST"
 LOCAL_FILE_SHA256 = "LOCAL_FILE_SHA256"
+# Not returned here. A MEASURED build digest, image digest, or deploy timestamp
+# would require this method: a party who did not supply the string compared it
+# to artifact bytes or a signed time outside this process.
+INDEPENDENT_ARTIFACT_OBSERVATION = "INDEPENDENT_ARTIFACT_OBSERVATION"
+# Not returned here. The observer gate asks for this method together with
+# revision_state MEASURED. That would require a party who did not write the
+# binding file to compare running artifact bytes with the published git object.
+# The local sibling hash does not cover the revision string.
+HOST_REVISION_MEASUREMENT = "SPACE_REPOSITORY_COMMIT"
 RUNTIME_BINDING_ENV = "A11OY_HF_RUNTIME_BINDING"
 RUNTIME_BINDING_SCHEMA = "szl.hf-runtime-binding/v1"
 PRODUCT_SOURCE_ROUTE = "/.well-known/source.json"
@@ -97,17 +112,14 @@ def _first_env(names: tuple[str, ...], validator) -> Optional[str]:
     return None
 
 
-def _observed(value: Optional[str]) -> ObservedValue:
-    return ObservedValue(
-        value=value,
-        evidence_class="MEASURED" if value is not None else "UNKNOWN",
-    )
+def _unknown() -> ObservedValue:
+    return ObservedValue(value=None, evidence_class="UNKNOWN")
 
 
 def _env_declaration(value: Optional[str]) -> ObservedValue:
-    """Keep a present environment SHA, and do not call it MEASURED."""
+    """Copy a process-environment string, and do not call it MEASURED."""
     if value is None:
-        return _observed(None)
+        return _unknown()
     return ObservedValue(value=value, evidence_class=ENV_DECLARATION)
 
 
@@ -126,7 +138,7 @@ def _source_commit_observation(source: Dict[str, object]) -> ObservedValue:
         return _env_declaration(from_environment)
     supplied = _commit(source.get("commit"))
     if supplied is None:
-        return _observed(None)
+        return _unknown()
     return ObservedValue(value=supplied, evidence_class=CALLER_DECLARED)
 
 
@@ -139,6 +151,10 @@ def build_attestation_v2(
     """Build once from immutable runtime/build inputs; ``force`` is ignored for compatibility."""
     del force
     source = dict(source or {})
+    # Caller digest and timestamp keys are not observations. Leaving them unread
+    # keeps them out of the payload; they are not relabeled as MEASURED.
+    for ignored in ("build_digest", "image_digest", "deploy_timestamp", "timestamp"):
+        source.pop(ignored, None)
     repository = str(source.get("repo_url") or source.get("repository_url") or "").strip()
     if not repository:
         old = str(source.get("repository") or "").strip()
@@ -170,9 +186,9 @@ def build_attestation_v2(
         repository_url=repository,
         source_commit=source_commit_observed,
         deployed_commit=_env_declaration(deployed_commit),
-        build_digest=_observed(build_digest),
-        image_digest=_observed(image_digest),
-        deploy_timestamp=_observed(deploy_timestamp),
+        build_digest=_env_declaration(build_digest),
+        image_digest=_env_declaration(image_digest),
+        deploy_timestamp=_env_declaration(deploy_timestamp),
         deployment_target=space_id,
         alignment_state=computed_alignment,
         claims={
@@ -181,10 +197,12 @@ def build_attestation_v2(
             "slsa_level": "NOT_CLAIMED",
         },
         limits=[
-            "Null/UNKNOWN means the runtime did not expose that immutable build fact.",
-            "ENV_DECLARATION is a process environment string. It is not a Hugging Face host measurement and it is not MEASURED.",
-            "CALLER_DECLARED is a commit string supplied by the caller. It is not an environment string and it is not MEASURED.",
-            "A local file SHA-256 match does not make a binding file's revision a Hugging Face host measurement.",
+            "Null/UNKNOWN means this surface did not read a well-formed value from the process environment.",
+            "ENV_DECLARATION is a process environment string, including source SHAs, deployed SHAs, build_digest, image_digest, and deploy_timestamp. It is not MEASURED.",
+            "CALLER_DECLARED is the source commit supplied by the caller dict when no source environment SHA is set. Caller build_digest, image_digest, and deploy_timestamp are not read. CALLER_DECLARED is not MEASURED.",
+            "This producer emits no MEASURED value. MEASURED requires a measurement_method for an observation this process did not perform. A build digest, image digest, or deploy timestamp would require measurement_method INDEPENDENT_ARTIFACT_OBSERVATION: a party who did not supply the string compared it to artifact bytes or a signed time outside this process.",
+            "DECLARED_WITH_LOCAL_DIGEST / LOCAL_FILE_SHA256 means a writer-selected binding file named a sibling whose bytes match artifact_sha256. That digest does not cover hf_revision. The result is local consistency only and does not satisfy the observer gate.",
+            "A legitimate MEASURED revision with measurement_method SPACE_REPOSITORY_COMMIT requires a party who did not write the binding file to compare the running artifact bytes with the git object published for that 40-hex SHA. This helper does not fetch that object and does not return that pair.",
             "GitHub and Hugging Face commit SHAs belong to separate histories; their equality or inequality does not establish source/deployment alignment.",
             "Alignment requires a separately verified source-to-HF publication byte-binding receipt; none is verified by this surface.",
             "This surface does not represent the separate Replit TypeScript control plane.",
@@ -348,10 +366,17 @@ def measure_hf_revision(space_id: str, force: bool = False) -> Dict[str, object]
     ``SPACE_REPOSITORY_COMMIT`` as an immutable host identity. That string stays
     ``ENV_DECLARATION`` / ``PROCESS_ENVIRONMENT``. A binding file whose sibling
     bytes match its digest stays ``DECLARED_WITH_LOCAL_DIGEST`` /
-    ``LOCAL_FILE_SHA256``. Neither result is ``MEASURED`` and neither uses
-    method ``SPACE_REPOSITORY_COMMIT``, so neither satisfies the observer gate.
-    A bad or conflicting binding is ``UNAVAILABLE``. This helper makes no
-    network call. ``force`` is ignored.
+    ``LOCAL_FILE_SHA256``. The digest does not cover ``hf_revision``. Neither
+    result is ``MEASURED`` and neither uses method ``SPACE_REPOSITORY_COMMIT``,
+    so neither satisfies the observer gate. Agreement between the environment
+    string and the binding revision does not promote the result.
+
+    A legitimate ``MEASURED`` / ``SPACE_REPOSITORY_COMMIT`` result would require
+    a party who did not write the binding file to compare the running artifact
+    bytes with the git object published for that 40-hex SHA. This helper does
+    not fetch that object and does not return that pair. A bad or conflicting
+    binding is ``UNAVAILABLE``. This helper makes no network call. ``force``
+    is ignored.
     """
     del space_id, force
     bound = _independent_runtime_binding()

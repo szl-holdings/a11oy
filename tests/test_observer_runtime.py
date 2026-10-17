@@ -283,6 +283,28 @@ def test_conflicting_environment_sha_does_not_admit(world, monkeypatch, tmp_path
     assert world.effects == [] and remote_rows(world) == []
 
 
+def test_revision_only_tamper_does_not_open_execution_gate(world, monkeypatch, tmp_path):
+    import szl_source_attestation as attestation
+
+    path, _artifact = write_runtime_binding(tmp_path, "b" * 40)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["hf_revision"] = "c" * 40
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
+    monkeypatch.delenv("SPACE_REPOSITORY_COMMIT", raising=False)
+    reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert reported == {
+        "hf_revision": "c" * 40,
+        "revision_state": "DECLARED_WITH_LOCAL_DIGEST",
+        "measurement_method": "LOCAL_FILE_SHA256",
+    }
+    assert reported["measurement_method"] != "SPACE_REPOSITORY_COMMIT"
+    with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
+        world.subject.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+
+
 def test_unmatched_binding_bytes_do_not_admit(world, monkeypatch, tmp_path):
     import szl_source_attestation as attestation
 

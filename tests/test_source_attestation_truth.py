@@ -131,6 +131,74 @@ def test_caller_supplied_source_sha_is_not_an_environment_declaration():
     assert v1["source"]["state"] == "CALLER_DECLARED"
 
 
+def _evidence_classes(payload):
+    found = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            if "evidence_class" in node:
+                found.append(node["evidence_class"])
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(payload)
+    return found
+
+
+@pytest.mark.parametrize(("name", "raw", "expected"), [
+    ("A11OY_BUILD_DIGEST", "2" * 64, "sha256:" + "2" * 64),
+    ("SZL_BUILD_DIGEST", "sha256:" + "4" * 64, "sha256:" + "4" * 64),
+    ("A11OY_IMAGE_DIGEST", "5" * 64, "sha256:" + "5" * 64),
+    ("CONTAINER_IMAGE_DIGEST", "sha256:" + "6" * 64, "sha256:" + "6" * 64),
+])
+def test_environment_digests_stay_declarations(monkeypatch, name, raw, expected):
+    monkeypatch.setenv(name, raw)
+    slot = "image_digest" if "IMAGE" in name else "build_digest"
+    result = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {})
+    assert result[slot] == {"value": expected, "evidence_class": "ENV_DECLARATION"}
+    assert "MEASURED" not in _evidence_classes(result)
+
+
+@pytest.mark.parametrize("name", ["A11OY_DEPLOYED_AT", "DEPLOYED_AT", "SZL_BUILD_TIME"])
+def test_environment_timestamps_stay_declarations(monkeypatch, name):
+    monkeypatch.setenv(name, "2026-07-16T20:30:00-04:00")
+    result = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {})
+    assert result["deploy_timestamp"] == {
+        "value": "2026-07-17T00:30:00Z",
+        "evidence_class": "ENV_DECLARATION",
+    }
+    assert "MEASURED" not in _evidence_classes(result)
+
+
+def test_first_environment_name_wins_and_caller_build_facts_are_unread(monkeypatch):
+    monkeypatch.setenv("A11OY_BUILD_DIGEST", "2" * 64)
+    monkeypatch.setenv("SZL_BUILD_DIGEST", "9" * 64)
+    caller = {
+        "commit": "9" * 40,
+        "build_digest": "sha256:" + "ab" * 32,
+        "image_digest": "sha256:" + "cd" * 32,
+        "deploy_timestamp": "2026-01-01T00:00:00Z",
+        "timestamp": "2026-01-02T00:00:00Z",
+    }
+    result = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", caller)
+    assert result["build_digest"] == {
+        "value": "sha256:" + "2" * 64,
+        "evidence_class": "ENV_DECLARATION",
+    }
+    assert result["image_digest"] == {"value": None, "evidence_class": "UNKNOWN"}
+    assert result["deploy_timestamp"] == {"value": None, "evidence_class": "UNKNOWN"}
+    assert result["source_commit"] == {"value": "9" * 40, "evidence_class": "CALLER_DECLARED"}
+    assert "MEASURED" not in _evidence_classes(result)
+    limits = "\n".join(result["limits"])
+    assert attestation.INDEPENDENT_ARTIFACT_OBSERVATION in limits
+    assert attestation.HOST_REVISION_MEASUREMENT in limits
+    assert "does not cover hf_revision" in limits
+    assert "does not satisfy the observer gate" in limits
+
+
 def test_local_digest_match_does_not_measure_the_binding_revision(tmp_path, monkeypatch):
     artifact = b"sibling-bytes"
     (tmp_path / "runtime.artifact").write_bytes(artifact)
@@ -147,6 +215,45 @@ def test_local_digest_match_does_not_measure_the_binding_revision(tmp_path, monk
         "revision_state": "DECLARED_WITH_LOCAL_DIGEST",
         "measurement_method": "LOCAL_FILE_SHA256",
     }
+
+
+def _binding(path, revision, digest):
+    path.write_text(json.dumps({
+        "schema": "szl.hf-runtime-binding/v1",
+        "hf_revision": revision,
+        "artifact_sha256": digest,
+        "artifact_name": "runtime.artifact",
+    }), encoding="utf-8")
+
+
+def test_revision_only_tamper_stays_local_consistency(tmp_path, monkeypatch):
+    artifact = b"sibling-bytes"
+    digest = hashlib.sha256(artifact).hexdigest()
+    (tmp_path / "runtime.artifact").write_bytes(artifact)
+    binding = tmp_path / "binding.json"
+    _binding(binding, "a" * 40, digest)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(binding))
+
+    matched = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert matched["measurement_method"] == "LOCAL_FILE_SHA256"
+    assert matched["revision_state"] == "DECLARED_WITH_LOCAL_DIGEST"
+
+    _binding(binding, "b" * 40, digest)
+    tampered = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert tampered == {
+        "hf_revision": "b" * 40,
+        "revision_state": "DECLARED_WITH_LOCAL_DIGEST",
+        "measurement_method": "LOCAL_FILE_SHA256",
+    }
+    assert tampered["revision_state"] != "MEASURED"
+    assert tampered["measurement_method"] != attestation.HOST_REVISION_MEASUREMENT
+
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "b" * 40)
+    agreed = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert agreed == tampered
+
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "a" * 40)
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
 
 
 def test_binding_symlink_and_digest_mismatch_stay_unavailable(tmp_path, monkeypatch):
