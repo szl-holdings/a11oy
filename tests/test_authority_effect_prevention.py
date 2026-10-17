@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Offline integration: bad evidence does not admit an A11oy effect.
+"""Offline integration: separate the checks that stop a capture from a receipt
+rejected after captures already happened.
 
 The existing owner is ``ObserverRuntime.run`` together with
 ``StateStore.snapshot_confirmed``. This module drives that path through the
@@ -11,20 +12,28 @@ an authorizer.
 Order inside ``run``, before ``adapters.capture``:
 
 1. ``_caller`` admits the operator principal and tenant.
-2. ``execution_acceptance.validate_plan`` checks the signed plan.
-3. The plan operator reference must match the challenge binding.
-4. ``_acknowledge`` calls ``StateStore.snapshot_confirmed`` on series_a.
+2. ``execution_acceptance.validate_plan`` checks the signed plan. A source,
+   runtime, boot, or nonce mismatch raises ``PLAN_BINDING_MISMATCH``.
+3. The plan operator reference must match the challenge binding. That mismatch
+   raises ``OPERATOR_PLAN_BINDING_MISMATCH`` and is a different code.
+4. Local rows are reserved, then ``_acknowledge`` calls
+   ``StateStore.snapshot_confirmed`` on series_a.
 
-``adapters.capture`` is the effect. A later ``execution_acceptance.validate``
-checks the observation receipts and still returns ``execution_authorized``
-false. A reference-executor result whose status is ``COMMITTED`` is not an
-input to this path and cannot become that flag.
+``adapters.capture`` is the effect. A failed acknowledgement leaves those local
+rows ``RESERVED``, publishes no series_a snapshot, and performs no capture.
+The local rows are not a grant. A later ``execution_acceptance.validate`` can
+reject a receipt only after capture. That rejection withholds
+``execution_authorized`` and leaves the earlier effects in place. A
+reference-executor result whose status is ``COMMITTED`` is not an input to
+this path and cannot become that flag.
 """
 
 from __future__ import annotations
 
+import sqlite3
 import sys
 import types
+from pathlib import Path
 
 try:
     import fcntl  # noqa: F401
@@ -57,6 +66,19 @@ def _committed_reference():
     }
 
 
+def local_rows(world):
+    path = Path(world.service.store.path)
+    if not path.is_file():
+        return []
+    with sqlite3.connect(path) as db:
+        tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if "execution_observations" not in tables:
+            return []
+        return db.execute(
+            "SELECT case_id,state FROM execution_observations ORDER BY case_id"
+        ).fetchall()
+
+
 def test_missing_plan_prevents_effects(world):
     nonce, _plan = integration.signed_plan(world)
     with pytest.raises((acceptance.EvidenceError, integration.observer.ObserverBlocked)):
@@ -74,19 +96,27 @@ def test_expired_plan_prevents_effects(world):
     assert integration.remote_rows(world) == []
 
 
-def test_mismatched_source_and_operator_prevent_effects(world):
+def test_source_mismatch_refuses_before_capture(world):
     nonce, plan = integration.signed_plan(
-        world, mutate=lambda body: body.update({
-            "source_revision": "c" * 40,
-            "operator_reference": "other-operator",
-        }))
-    with pytest.raises((acceptance.EvidenceError, integration.observer.ObserverBlocked)):
+        world, mutate=lambda body: body.update({"source_revision": "c" * 40}))
+    with pytest.raises(acceptance.EvidenceError, match="PLAN_BINDING_MISMATCH"):
         integration.run(world, nonce, plan)
     assert world.effects == []
     assert integration.remote_rows(world) == []
+    assert local_rows(world) == []
 
 
-def test_missing_v2_acknowledgement_prevents_effects(world, monkeypatch):
+def test_operator_mismatch_refuses_before_capture(world):
+    nonce, plan = integration.signed_plan(
+        world, mutate=lambda body: body.update({"operator_reference": "other-operator"}))
+    with pytest.raises(integration.observer.ObserverBlocked, match="OPERATOR_PLAN_BINDING_MISMATCH"):
+        integration.run(world, nonce, plan)
+    assert world.effects == []
+    assert integration.remote_rows(world) == []
+    assert local_rows(world) == []
+
+
+def test_failed_acknowledgement_leaves_local_reservations_unpublished(world, monkeypatch):
     nonce, plan = integration.signed_plan(world)
 
     def refuse(*_args, **_kwargs):
@@ -96,9 +126,13 @@ def test_missing_v2_acknowledgement_prevents_effects(world, monkeypatch):
     with pytest.raises(state_store.StorageBlocked, match="ACK_REQUIRED"):
         integration.run(world, nonce, plan)
     assert world.effects == []
+    assert integration.remote_rows(world) == []
+    rows = local_rows(world)
+    assert [state for _case_id, state in rows] == ["RESERVED"] * 5
+    assert [case_id for case_id, _state in rows] == sorted(acceptance.CONTRACTS)
 
 
-def test_replayed_plan_adds_no_effect(world):
+def test_replayed_plan_retains_the_captured_effects(world):
     nonce, plan = integration.signed_plan(world)
     raw = integration.run(world, nonce, plan)
     result = acceptance.strict_json(raw)
@@ -107,13 +141,14 @@ def test_replayed_plan_adds_no_effect(world):
     with pytest.raises(integration.observer.ObserverBlocked, match="CONSUMED"):
         integration.run(world, nonce, plan)
     assert len(world.effects) == 5
+    assert len(integration.remote_rows(world)) == 5
     context, _manager = world.subject._identity(nonce)
     reported = acceptance.validate(result["bundle"], context)
     assert reported["execution_authorized"] is False
     assert reported["status"] == "REPORTED"
 
 
-def test_replayed_receipt_does_not_grant_execution(world):
+def test_rejected_receipt_leaves_the_captured_effects(world):
     nonce, plan = integration.signed_plan(world)
     raw = integration.run(world, nonce, plan)
     result = acceptance.strict_json(raw)
@@ -124,6 +159,7 @@ def test_replayed_receipt_does_not_grant_execution(world):
         acceptance.validate(bundle, context)
     assert result["execution_authorized"] is False
     assert len(world.effects) == 5
+    assert len(integration.remote_rows(world)) == 5
 
 
 def test_reference_committed_result_is_not_an_execution_grant(world):
