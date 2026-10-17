@@ -421,6 +421,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 result, _ = self._profile_observation(config, record, current, metadata, record["counts"], pinned=pinned)
                 self.assertFalse(result["aligned"])
                 self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+                self.assertNotIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 
     def _profile_contract_for_text(self, text, observed=None, manifest=None):
         counts = {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14}
@@ -496,6 +497,68 @@ class EstateReleaseTrainTests(unittest.TestCase):
                 self.assertEqual(result["declared_counts"], {"spaces": 23, "models": 49, "datasets": 34, "kernels": 14})
                 self.assertFalse(result["aligned"])
                 self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+                self.assertNotIn(
+                    "HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE",
+                    result["blockers"],
+                )
+
+    def test_profile_missing_counts_report_count_failure_without_binding_failure(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        counts = record["counts"]
+        complete = {kind: "COMPLETE" for kind in counts}
+        missing_observed = {
+            "counts": {kind: value for kind, value in counts.items() if kind != "kernels"},
+            "observed": True,
+            "enumeration_state": complete,
+        }
+        result, _ = self._profile_observation(
+            config, record, manifest, blob, counts, inventory=missing_observed,
+        )
+        self.assertIsNone(result["observed_counts"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+        self.assertNotIn(
+            "HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE",
+            result["blockers"],
+        )
+        missing_manifest = {**manifest, "json": {key: value for key, value in manifest["json"].items() if key != "counts"}}
+        result, _ = self._profile_observation(
+            config, record, missing_manifest, blob, counts, pinned=manifest,
+        )
+        self.assertIsNone(result["manifest_counts"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+        self.assertNotIn(
+            "HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE",
+            result["blockers"],
+        )
+
+    def test_profile_equal_counts_with_stale_binding_do_not_invent_count_mismatch(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        stale = {**manifest, "sha256": "0" * 64}
+        result, _ = self._profile_observation(
+            config, record, manifest, blob, record["counts"], pinned=stale,
+        )
+        self.assertEqual(result["declared_counts"], result["observed_counts"])
+        self.assertEqual(result["declared_counts"], result["manifest_counts"])
+        self.assertFalse(result["inventory_record_source_bound"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+        self.assertNotIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+
+    def test_profile_revision_drift_keeps_gate_closed_without_count_mismatch(self) -> None:
+        config, record, manifest, blob = self._profile_fixture()
+        drifted = {**manifest, "sha256": "1" * 64}
+        result, _ = self._profile_observation(
+            config, record, drifted, blob, record["counts"], pinned=manifest,
+        )
+        self.assertNotEqual(record["source_revision"], "e" * 40)
+        self.assertEqual(result["declared_counts"], result["observed_counts"])
+        self.assertEqual(result["declared_counts"], result["manifest_counts"])
+        self.assertFalse(result["inventory_record_source_bound"])
+        self.assertFalse(result["aligned"])
+        self.assertIn("HF_PROFILE_INVENTORY_SOURCE_BINDING_MISMATCH_OR_UNAVAILABLE", result["blockers"])
+        self.assertNotIn("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE", result["blockers"])
 
     def test_release_id_is_deterministic_and_authority_is_fail_closed(self) -> None:
         config = json.loads(
