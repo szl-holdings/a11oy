@@ -82,6 +82,9 @@ def test_source_schema_accepts_payload(monkeypatch):
     declared = source.build_attestation_v2("SZLHOLDINGS/a11oy", {}, "UNKNOWN")
     assert declared["deployed_commit"]["evidence_class"] == "ENV_DECLARATION"
     validator.validate(declared)
+    caller = source.build_attestation_v2("SZLHOLDINGS/a11oy", {"commit": "b" * 40}, "UNKNOWN")
+    assert caller["source_commit"]["evidence_class"] == "CALLER_DECLARED"
+    validator.validate(caller)
 
 
 def test_v1_shape_remains_backward_compatible(monkeypatch):

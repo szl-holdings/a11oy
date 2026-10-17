@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Fail-closed source/Space attestation contract for separate Git histories."""
 
+import hashlib
+import json
+import os
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -100,9 +104,78 @@ def test_caller_cannot_override_unknown(monkeypatch, attempted_label):
         "SZLHOLDINGS/a11oy", source, attempted_label, force=True
     )
 
-    assert v2["source_commit"]["value"] == sha
+    assert v2["source_commit"] == {"value": sha, "evidence_class": "CALLER_DECLARED"}
+    assert v1["source"]["state"] == "CALLER_DECLARED"
     assert v2["deployed_commit"]["value"] == sha
     assert v2["alignment_state"] == v1["alignment_state"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize("name", [
+    "A11OY_SOURCE_COMMIT", "SZL_GIT_SHA", "GITHUB_SHA", "VERCEL_GIT_COMMIT_SHA",
+])
+def test_each_source_environment_sha_stays_an_environment_declaration(monkeypatch, name):
+    monkeypatch.setenv(name, "7" * 40)
+    result = attestation.build_attestation_v2(
+        "SZLHOLDINGS/a11oy", {"commit": "8" * 40}
+    )
+    assert result["source_commit"] == {"value": "7" * 40, "evidence_class": "ENV_DECLARATION"}
+    assert result["source_commit"]["evidence_class"] != "CALLER_DECLARED"
+    assert result["source_commit"]["evidence_class"] != "MEASURED"
+
+
+def test_caller_supplied_source_sha_is_not_an_environment_declaration():
+    sha = "9" * 40
+    v2 = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {"commit": sha})
+    v1 = attestation.build_attestation("SZLHOLDINGS/a11oy", {"commit": sha})
+    assert v2["source_commit"] == {"value": sha, "evidence_class": "CALLER_DECLARED"}
+    assert v1["source"]["state"] == "CALLER_DECLARED"
+
+
+def test_local_digest_match_does_not_measure_the_binding_revision(tmp_path, monkeypatch):
+    artifact = b"sibling-bytes"
+    (tmp_path / "runtime.artifact").write_bytes(artifact)
+    binding = tmp_path / "binding.json"
+    binding.write_text(json.dumps({
+        "schema": "szl.hf-runtime-binding/v1",
+        "hf_revision": "a" * 40,
+        "artifact_sha256": hashlib.sha256(artifact).hexdigest(),
+        "artifact_name": "runtime.artifact",
+    }), encoding="utf-8")
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(binding))
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy") == {
+        "hf_revision": "a" * 40,
+        "revision_state": "DECLARED_WITH_LOCAL_DIGEST",
+        "measurement_method": "LOCAL_FILE_SHA256",
+    }
+
+
+def test_binding_symlink_and_digest_mismatch_stay_unavailable(tmp_path, monkeypatch):
+    artifact = tmp_path / "runtime.artifact"
+    artifact.write_bytes(b"real")
+    binding = tmp_path / "binding.json"
+    binding.write_text(json.dumps({
+        "schema": "szl.hf-runtime-binding/v1",
+        "hf_revision": "a" * 40,
+        "artifact_sha256": hashlib.sha256(b"real").hexdigest(),
+        "artifact_name": "runtime.artifact",
+    }), encoding="utf-8")
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(binding))
+    artifact.write_bytes(b"changed")
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
+    artifact.write_bytes(b"real")
+    link = tmp_path / "linked.artifact"
+    try:
+        os.symlink(artifact, link)
+    except OSError:
+        return
+    binding.write_text(json.dumps({
+        "schema": "szl.hf-runtime-binding/v1",
+        "hf_revision": "a" * 40,
+        "artifact_sha256": hashlib.sha256(b"real").hexdigest(),
+        "artifact_name": "linked.artifact",
+    }), encoding="utf-8")
+    if hasattr(os, "O_NOFOLLOW") or os.path.islink(link):
+        assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
 
 
 def test_get_routes_are_frozen_unsigned_and_read_only(monkeypatch):

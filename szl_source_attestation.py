@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -18,6 +19,11 @@ SCHEMA_VERSION = "szl.source-deploy-attestation/v2"
 PRODUCT_SOURCE_SCHEMA = "szl.product-source/v1"
 # A 40-hex process environment string. Not a Hugging Face host measurement.
 ENV_DECLARATION = "ENV_DECLARATION"
+# A 40-hex commit supplied by the caller dict. Not an environment string.
+CALLER_DECLARED = "CALLER_DECLARED"
+# Revision text from a binding file whose sibling bytes match that file's digest.
+DECLARED_WITH_LOCAL_DIGEST = "DECLARED_WITH_LOCAL_DIGEST"
+LOCAL_FILE_SHA256 = "LOCAL_FILE_SHA256"
 RUNTIME_BINDING_ENV = "A11OY_HF_RUNTIME_BINDING"
 RUNTIME_BINDING_SCHEMA = "szl.hf-runtime-binding/v1"
 PRODUCT_SOURCE_ROUTE = "/.well-known/source.json"
@@ -105,6 +111,25 @@ def _env_declaration(value: Optional[str]) -> ObservedValue:
     return ObservedValue(value=value, evidence_class=ENV_DECLARATION)
 
 
+def _source_commit_observation(source: Dict[str, object]) -> ObservedValue:
+    """Label an environment SHA and a caller-supplied SHA as different facts."""
+    from_environment = _first_env(
+        (
+            "A11OY_SOURCE_COMMIT",
+            "SZL_GIT_SHA",
+            "GITHUB_SHA",
+            "VERCEL_GIT_COMMIT_SHA",
+        ),
+        _commit,
+    )
+    if from_environment is not None:
+        return _env_declaration(from_environment)
+    supplied = _commit(source.get("commit"))
+    if supplied is None:
+        return _observed(None)
+    return ObservedValue(value=supplied, evidence_class=CALLER_DECLARED)
+
+
 def build_attestation_v2(
     space_id: str,
     source: Optional[Dict[str, object]] = None,
@@ -119,15 +144,8 @@ def build_attestation_v2(
         old = str(source.get("repository") or "").strip()
         repository = f"https://github.com/{old}" if old else "https://github.com/szl-holdings/a11oy"
 
-    source_commit = _first_env(
-        (
-            "A11OY_SOURCE_COMMIT",
-            "SZL_GIT_SHA",
-            "GITHUB_SHA",
-            "VERCEL_GIT_COMMIT_SHA",
-        ),
-        _commit,
-    ) or _commit(source.get("commit"))
+    source_commit_observed = _source_commit_observation(source)
+    source_commit = source_commit_observed.value
     deployed_commit = _first_env(
         ("SPACE_REPOSITORY_COMMIT", "A11OY_DEPLOYED_COMMIT"), _commit
     )
@@ -150,7 +168,7 @@ def build_attestation_v2(
         schema_version=SCHEMA_VERSION,
         immutable_for_process=True,
         repository_url=repository,
-        source_commit=_env_declaration(source_commit),
+        source_commit=source_commit_observed,
         deployed_commit=_env_declaration(deployed_commit),
         build_digest=_observed(build_digest),
         image_digest=_observed(image_digest),
@@ -165,7 +183,8 @@ def build_attestation_v2(
         limits=[
             "Null/UNKNOWN means the runtime did not expose that immutable build fact.",
             "ENV_DECLARATION is a process environment string. It is not a Hugging Face host measurement and it is not MEASURED.",
-            "SZL_GIT_SHA and the other source environment names stay ENV_DECLARATION until artifact bytes are independently bound.",
+            "CALLER_DECLARED is a commit string supplied by the caller. It is not an environment string and it is not MEASURED.",
+            "A local file SHA-256 match does not make a binding file's revision a Hugging Face host measurement.",
             "GitHub and Hugging Face commit SHAs belong to separate histories; their equality or inequality does not establish source/deployment alignment.",
             "Alignment requires a separately verified source-to-HF publication byte-binding receipt; none is verified by this surface.",
             "This surface does not represent the separate Replit TypeScript control plane.",
@@ -244,18 +263,56 @@ def _environment_runtime() -> Dict[str, object]:
     }
 
 
+def _read_regular_file(path: Path) -> bytes:
+    """Read a regular file without following a symlink when the OS can say so.
+
+    Linux uses ``O_NOFOLLOW``. A platform without that flag rejects a reparse
+    point or symlink by ``lstat`` and then reads the already-checked path.
+    """
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    if nofollow:
+        descriptor = os.open(path, os.O_RDONLY | nofollow)
+        try:
+            info = os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode):
+                raise OSError("not a regular file")
+            remaining = info.st_size
+            chunks = []
+            while remaining > 0:
+                block = os.read(descriptor, min(remaining, 1024 * 1024))
+                if not block:
+                    break
+                chunks.append(block)
+                remaining -= len(block)
+            return b"".join(chunks)
+        finally:
+            os.close(descriptor)
+    info = path.lstat()
+    if stat.S_ISLNK(info.st_mode):
+        raise OSError("symlink")
+    reparse = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    attributes = getattr(info, "st_file_attributes", 0) or 0
+    if reparse and attributes & reparse:
+        raise OSError("reparse point")
+    if not stat.S_ISREG(info.st_mode):
+        raise OSError("not a regular file")
+    return path.read_bytes()
+
+
 def _independent_runtime_binding() -> Optional[Dict[str, object]]:
-    """Return a byte-checked runtime revision, or unavailable when a binding is configured badly.
+    """Check a caller-selected binding file against its sibling bytes.
 
     ``None`` means no binding was configured. A configured binding never falls
-    through to the process-environment string.
+    through to the process-environment string. A digest match keeps the
+    revision text from that file and does not call it a Hugging Face host
+    measurement: the same writer chose the revision and the bytes.
     """
     configured = str(os.environ.get(RUNTIME_BINDING_ENV) or "").strip()
     if not configured:
         return None
     try:
         path = Path(configured)
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(_read_regular_file(path).decode("utf-8"))
         if not isinstance(payload, dict):
             return _runtime_unavailable()
         name = payload.get("artifact_name")
@@ -266,31 +323,35 @@ def _independent_runtime_binding() -> Optional[Dict[str, object]]:
                 or name in {"", ".", ".."} or "/" in name or "\\" in name
                 or revision is None or not re.fullmatch(r"[0-9a-f]{64}", digest)):
             return _runtime_unavailable()
-        artifact = path.parent.joinpath(name).read_bytes()
-        if hashlib.sha256(artifact).hexdigest() != digest:
+        artifact = path.parent.joinpath(name)
+        if artifact.parent != path.parent:
+            return _runtime_unavailable()
+        hashed = _read_regular_file(artifact)
+        if hashlib.sha256(hashed).hexdigest() != digest:
             return _runtime_unavailable()
         declared = _first_env(("SPACE_REPOSITORY_COMMIT",), _commit)
         if declared is not None and declared != revision:
             return _runtime_unavailable()
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError, TypeError, UnicodeError):
         return _runtime_unavailable()
     return {
         "hf_revision": revision,
-        "revision_state": "MEASURED",
-        "measurement_method": "SPACE_REPOSITORY_COMMIT",
+        "revision_state": DECLARED_WITH_LOCAL_DIGEST,
+        "measurement_method": LOCAL_FILE_SHA256,
     }
 
 
 def measure_hf_revision(space_id: str, force: bool = False) -> Dict[str, object]:
-    """Read an independently bound runtime revision, or an environment declaration.
+    """Read a local binding digest or an environment declaration.
 
     Hugging Face's documented Space environment does not define
     ``SPACE_REPOSITORY_COMMIT`` as an immutable host identity. That string stays
-    ``ENV_DECLARATION`` / ``PROCESS_ENVIRONMENT`` and cannot satisfy the observer
-    gate. ``MEASURED`` / ``SPACE_REPOSITORY_COMMIT`` is returned only when a
-    binding file names artifact bytes whose SHA-256 matches. A bad or conflicting
-    binding is ``UNAVAILABLE``. This helper makes no network call. ``force`` is
-    ignored.
+    ``ENV_DECLARATION`` / ``PROCESS_ENVIRONMENT``. A binding file whose sibling
+    bytes match its digest stays ``DECLARED_WITH_LOCAL_DIGEST`` /
+    ``LOCAL_FILE_SHA256``. Neither result is ``MEASURED`` and neither uses
+    method ``SPACE_REPOSITORY_COMMIT``, so neither satisfies the observer gate.
+    A bad or conflicting binding is ``UNAVAILABLE``. This helper makes no
+    network call. ``force`` is ignored.
     """
     del space_id, force
     bound = _independent_runtime_binding()
