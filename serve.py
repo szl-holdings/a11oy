@@ -4113,17 +4113,19 @@ except Exception as _be_e:
 
 
 async def _safe_json_body(request: Request):
-    """Parse a JSON request body, tolerating empty/malformed input.
+    """Parse a JSON object body.
 
-    Returns (body, error_response). On a parse failure the caller should return
-    error_response (a 400) instead of letting request.json() raise — an
-    unguarded raise becomes an opaque HTTP 500 with a trace_id, which is both a
-    poor judge/demo experience and a minor error-shape leak. QA-hardened.
+    Returns (body, error_response). Malformed JSON and any JSON value that is
+    not an object become HTTP 400. Callers that authorize a request do that
+    before calling this helper. The policy string shorthand uses its own parser.
     """
     try:
-        return await request.json(), None
+        body = await request.json()
     except Exception:
         return None, JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    if not isinstance(body, dict):
+        return None, JSONResponse({"error": "JSON body must be an object"}, status_code=400)
+    return body, None
 
 
 # ADDITIVE: OTel — instrument FastAPI app
@@ -6627,8 +6629,6 @@ try:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
-        if not isinstance(body, dict):
-            body = {"context": body}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.ponder(body.get("context", body), traceparent=tp)
         return JSONResponse(_companion_scrub(r.to_dict()))
@@ -6638,8 +6638,6 @@ try:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
-        if not isinstance(body, dict):
-            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.synthesize(body.get("events", []), traceparent=tp)
         return JSONResponse(_companion_scrub(r.to_dict()))
@@ -6649,8 +6647,6 @@ try:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
-        if not isinstance(body, dict):
-            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         p = _A11OY_SHADOW.evolve(body.get("strategy", {}),
                                  approvers=body.get("approvers", []), traceparent=tp)
@@ -6661,8 +6657,6 @@ try:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
-        if not isinstance(body, dict):
-            body = {}
         tp = getattr(getattr(request, "state", None), "traceparent", None)
         r = _A11OY_SHADOW.brain_jack(body.get("query", ""),
                                      depth=int(body.get("depth", 1)),
@@ -6678,8 +6672,6 @@ try:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
-        if not isinstance(body, dict):
-            body = {}
         tier = body.get("tier", "T3")
         query = body.get("query") or body.get("message", "")
         tp = getattr(getattr(request, "state", None), "traceparent", None)
@@ -8876,9 +8868,15 @@ try:
 
     async def _sc_body(request):
         try:
-            return await request.json()
+            body = await request.json()
         except Exception:
-            return {}
+            return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "JSON body must be an object"}, status_code=400)
+        return body
+
+    def _sc_rejected(body):
+        return body if isinstance(body, JSONResponse) else None
 
     # ===================== ROUTE REGISTRATION (HONEST, codename-free) =====================
     # FOUNDER DECISION (doctrine v11, full purge): the legacy /api/{sentra,amaru,
@@ -8909,10 +8907,17 @@ try:
                         "note": _SC_BUNDLE["feed"].get("note", ""), "doctrine": "v11"})
 
     async def _sc_sentra_verdict(request: _SCRequest):
-        return _SCJSON(_sc_build_verdict(await _sc_body(request)))
+        body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
+        return _SCJSON(_sc_build_verdict(body))
 
     async def _sc_sentra_compliance(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         fw = (body or {}).get("framework", "NIST")
         key = str(fw).upper().replace("-", "").replace(" ", "")
         amap = {"NIST": "NIST", "STIG": "STIG", "ISO27001": "ISO27001", "ISO": "ISO27001"}
@@ -8927,14 +8932,23 @@ try:
 
     async def _sc_amaru_readiness(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         return _SCJSON(_sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {})))
 
     async def _sc_rosie_ask(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         return _SCJSON(_sc_ask((body or {}).get("question", "")))
 
     async def _sc_rosie_act(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
 
     async def _sc_rosie_recommend():
@@ -9016,13 +9030,20 @@ try:
 
     @app.post("/api/a11oy/v1/policy/decide")
     async def _sc_cap_decide(request: _SCRequest):
-        _v = _sc_build_verdict(await _sc_body(request))
+        body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
+        _v = _sc_build_verdict(body)
         return _SCJSON(gov_envelope(_v, status="REAL",
                                     citations=[{"endpoint": "/api/a11oy/v1/policy/decisions/feed", "data": {"governed": True}}]))
 
     @app.post("/api/a11oy/v1/policy/compliance")
     async def _sc_cap_compliance(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         fw = (body or {}).get("framework", "NIST")
         key = str(fw).upper().replace("-", "").replace(" ", "")
         amap = {"NIST": "NIST", "STIG": "STIG", "ISO27001": "ISO27001", "ISO": "ISO27001"}
@@ -9043,6 +9064,9 @@ try:
     @app.post("/api/a11oy/v1/reason/readiness")
     async def _sc_cap_readiness(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         _ra = _sc_readiness_assess((body or {}).get("subject", "demo-deploy"), (body or {}).get("records", {}))
         _rc = [{"endpoint": "records." + str(c.get("criterion")), "data": {"result": c.get("result"), "source": c.get("source")}}
                for c in (_ra.get("assessment", {}) or {}).get("checks", [])]
@@ -9051,12 +9075,18 @@ try:
     @app.post("/api/a11oy/v1/operator/ask")
     async def _sc_cap_ask(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         answer = await _sc_operator_answer((body or {}).get("question", ""))
         return _SCJSON(gov_envelope(answer, status=answer.get("status", "REAL")))
 
     @app.post("/api/a11oy/v1/operator/act")
     async def _sc_cap_act(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         _ar = _sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", ""))
         return _SCJSON(gov_envelope(_ar, status="REAL",
                                     citations=[{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}}]))
@@ -9259,6 +9289,9 @@ try:
     @app.post("/api/a11oy/v2/operator/command")
     async def _sc_cap_command(request: _SCRequest):
         body = await _sc_body(request)
+        rejected = _sc_rejected(body)
+        if rejected is not None:
+            return rejected
         res = _sc_command_loop(body)
         ran = bool((res.get("stages") or [{}])[0].get("status") == "REAL")
         cites = [{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}},
@@ -12306,8 +12339,6 @@ try:
         body, _err = await _safe_json_body(request)
         if _err is not None:
             return _err
-        if not isinstance(body, dict):
-            body = {}
         query = body.get("query") or body.get("prompt") or body.get("message") or ""
         if not isinstance(query, str):
             return JSONResponse({"error": "query must be a string"}, status_code=400)
