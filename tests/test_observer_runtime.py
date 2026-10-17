@@ -318,6 +318,24 @@ def test_unmatched_binding_bytes_do_not_admit(world, monkeypatch, tmp_path):
     assert world.effects == [] and remote_rows(world) == []
 
 
+def test_missing_binding_file_does_not_open_execution_gate(world, monkeypatch, tmp_path):
+    import szl_source_attestation as attestation
+
+    missing = tmp_path / "absent-binding.json"
+    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(missing))
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "c" * 40)
+    reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert reported == {
+        "hf_revision": None,
+        "revision_state": "UNAVAILABLE",
+        "measurement_method": "UNAVAILABLE",
+    }
+    with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
+        world.subject.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+
+
 @pytest.mark.parametrize("field,value", [("source_revision", "c" * 40), ("runtime_revision", "d" * 40),
                                          ("runtime_boot_id", "wrong-boot"), ("operator_reference", "owner")])
 def test_signed_identity_substitution_does_not_admit_effect(world, field, value):

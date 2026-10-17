@@ -256,7 +256,7 @@ def test_revision_only_tamper_stays_local_consistency(tmp_path, monkeypatch):
     assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
 
 
-def test_binding_symlink_and_digest_mismatch_stay_unavailable(tmp_path, monkeypatch):
+def test_binding_digest_mismatch_stays_unavailable(tmp_path, monkeypatch):
     artifact = tmp_path / "runtime.artifact"
     artifact.write_bytes(b"real")
     binding = tmp_path / "binding.json"
@@ -268,21 +268,56 @@ def test_binding_symlink_and_digest_mismatch_stay_unavailable(tmp_path, monkeypa
     }), encoding="utf-8")
     monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(binding))
     artifact.write_bytes(b"changed")
-    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
+    mismatched = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert mismatched == {
+        "hf_revision": None,
+        "revision_state": "UNAVAILABLE",
+        "measurement_method": "UNAVAILABLE",
+    }
+
+
+def test_binding_symlinks_stay_unavailable(tmp_path, monkeypatch):
+    artifact = tmp_path / "runtime.artifact"
     artifact.write_bytes(b"real")
-    link = tmp_path / "linked.artifact"
+    digest = hashlib.sha256(b"real").hexdigest()
+    binding = tmp_path / "binding.json"
+    _binding(binding, "a" * 40, digest)
+    artifact_link = tmp_path / "linked.artifact"
+    binding_link = tmp_path / "binding-link.json"
     try:
-        os.symlink(artifact, link)
-    except OSError:
-        return
+        os.symlink(artifact, artifact_link)
+        os.symlink(binding, binding_link)
+    except OSError as exc:
+        pytest.skip(f"symlink unavailable: {exc}")
     binding.write_text(json.dumps({
         "schema": "szl.hf-runtime-binding/v1",
         "hf_revision": "a" * 40,
-        "artifact_sha256": hashlib.sha256(b"real").hexdigest(),
+        "artifact_sha256": digest,
         "artifact_name": "linked.artifact",
     }), encoding="utf-8")
-    if hasattr(os, "O_NOFOLLOW") or os.path.islink(link):
-        assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(binding))
+    linked_artifact = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert linked_artifact["revision_state"] == "UNAVAILABLE"
+    assert linked_artifact["measurement_method"] == "UNAVAILABLE"
+    _binding(binding, "a" * 40, digest)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(binding_link))
+    linked_binding = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert linked_binding == {
+        "hf_revision": None,
+        "revision_state": "UNAVAILABLE",
+        "measurement_method": "UNAVAILABLE",
+    }
+
+
+def test_missing_binding_file_does_not_fall_through(tmp_path, monkeypatch):
+    missing = tmp_path / "absent-binding.json"
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(missing))
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "c" * 40)
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy") == {
+        "hf_revision": None,
+        "revision_state": "UNAVAILABLE",
+        "measurement_method": "UNAVAILABLE",
+    }
 
 
 def test_get_routes_are_frozen_unsigned_and_read_only(monkeypatch):
