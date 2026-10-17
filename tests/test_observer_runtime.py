@@ -35,37 +35,39 @@ from tools import execution_acceptance as acceptance
 HEADERS = {"authorization": "Bearer producer-fixture-operator", "x-a11oy-tenant": "producer-fixture-tenant"}
 
 
-class _IndependentRuntimeBinding:
-    """Write the artifact bytes the real measure_hf_revision helper checks."""
+class _SyntheticMeasuredRevision:
+    """Pipeline fixture only. Production does not return MEASURED for a binding file."""
 
-    def __init__(self, directory, revision):
-        self.directory = directory
-        self.path = directory / "runtime-binding.json"
-        self.artifact = directory / "runtime.artifact"
-        self._revision = revision
-        self.publish()
+    def __init__(self, revision):
+        self.revision = revision
 
-    @property
-    def revision(self):
-        return self._revision
+    def __call__(self, space_id, force=False):
+        del space_id, force
+        if not self.revision:
+            return {
+                "hf_revision": None,
+                "revision_state": "UNAVAILABLE",
+                "measurement_method": "UNAVAILABLE",
+            }
+        return {
+            "hf_revision": self.revision,
+            "revision_state": "MEASURED",
+            "measurement_method": "SPACE_REPOSITORY_COMMIT",
+        }
 
-    @revision.setter
-    def revision(self, value):
-        self._revision = value
-        self.publish()
 
-    def publish(self):
-        if not self._revision:
-            self.path.unlink(missing_ok=True)
-            return
-        artifact = ("independent-runtime:" + self._revision).encode()
-        self.artifact.write_bytes(artifact)
-        self.path.write_text(json.dumps({
-            "schema": "szl.hf-runtime-binding/v1",
-            "hf_revision": self._revision,
-            "artifact_sha256": hashlib.sha256(artifact).hexdigest(),
-            "artifact_name": "runtime.artifact",
-        }), encoding="utf-8")
+def write_runtime_binding(directory, revision, artifact_bytes=None):
+    artifact = artifact_bytes if artifact_bytes is not None else ("local-digest:" + revision).encode()
+    artifact_path = directory / "runtime.artifact"
+    artifact_path.write_bytes(artifact)
+    path = directory / "runtime-binding.json"
+    path.write_text(json.dumps({
+        "schema": "szl.hf-runtime-binding/v1",
+        "hf_revision": revision,
+        "artifact_sha256": hashlib.sha256(artifact).hexdigest(),
+        "artifact_name": "runtime.artifact",
+    }), encoding="utf-8")
+    return path, artifact_path
 
 
 def public(private):
@@ -130,8 +132,9 @@ def world(tmp_path, monkeypatch):
                         "A11OY_CODE_ADMIN_KEY": "producer-fixture-operator",
                         "A11OY_CODE_TENANT": "producer-fixture-tenant", "SZL_GIT_SHA": "a" * 40}.items():
         monkeypatch.setenv(name, value)
-    hf_revision = _IndependentRuntimeBinding(tmp_path, "b" * 40)
-    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(hf_revision.path))
+    hf_revision = _SyntheticMeasuredRevision("b" * 40)
+    monkeypatch.setattr(observer, "measure_hf_revision", hf_revision)
+    monkeypatch.delenv("A11OY_HF_RUNTIME_BINDING", raising=False)
     monkeypatch.delenv("SPACE_REPOSITORY_COMMIT", raising=False)
     runtime_private, approval_private = ec.generate_private_key(ec.SECP256R1()), ec.generate_private_key(ec.SECP256R1())
     key_path = tmp_path / "fixture-runtime.pem"
@@ -235,43 +238,99 @@ def test_missing_external_admission_disables_before_reservation(world, monkeypat
 
 
 def test_environment_sha_cannot_satisfy_immutable_hf_gate(world, monkeypatch):
-    monkeypatch.delenv("A11OY_HF_RUNTIME_BINDING")
+    import szl_source_attestation as attestation
+
+    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    monkeypatch.delenv("A11OY_HF_RUNTIME_BINDING", raising=False)
     monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "b" * 40)
     with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
         world.subject.challenge(HEADERS)
     assert world.effects == [] and remote_rows(world) == []
 
 
-def test_real_helper_admits_independently_bound_runtime_revision(world):
+def test_local_digest_match_does_not_open_execution_gate(world, monkeypatch, tmp_path):
     import szl_source_attestation as attestation
 
-    assert observer.measure_hf_revision is attestation.measure_hf_revision
+    path, _artifact = write_runtime_binding(tmp_path, "b" * 40)
+    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
+    monkeypatch.delenv("SPACE_REPOSITORY_COMMIT", raising=False)
     reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
     assert reported == {
         "hf_revision": "b" * 40,
-        "revision_state": "MEASURED",
-        "measurement_method": "SPACE_REPOSITORY_COMMIT",
+        "revision_state": "DECLARED_WITH_LOCAL_DIGEST",
+        "measurement_method": "LOCAL_FILE_SHA256",
     }
-    issued = world.subject.challenge(HEADERS)
-    assert issued["execution_authorized"] is False
-    nonce = issued["challenge"]["run_nonce"]
-    context, _manager = world.subject._identity(nonce)
-    assert context.runtime_revision == "b" * 40
-    assert context.source_revision == "a" * 40
-    built = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {})
+    assert reported["revision_state"] != "MEASURED"
+    assert reported["measurement_method"] != "SPACE_REPOSITORY_COMMIT"
+    with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
+        world.subject.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+    built = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {"commit": "c" * 40})
     assert built["source_commit"] == {"value": "a" * 40, "evidence_class": "ENV_DECLARATION"}
-    assert built["source_commit"]["evidence_class"] != "MEASURED"
 
 
-def test_conflicting_environment_sha_does_not_admit(world, monkeypatch):
+def test_conflicting_environment_sha_does_not_admit(world, monkeypatch, tmp_path):
+    import szl_source_attestation as attestation
+
+    path, _artifact = write_runtime_binding(tmp_path, "b" * 40)
+    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
     monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "c" * 40)
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
     with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
         world.subject.challenge(HEADERS)
     assert world.effects == [] and remote_rows(world) == []
 
 
-def test_unmatched_binding_bytes_do_not_admit(world):
-    world.hf_revision.artifact.write_bytes(b"tampered")
+def test_revision_only_tamper_does_not_open_execution_gate(world, monkeypatch, tmp_path):
+    import szl_source_attestation as attestation
+
+    path, _artifact = write_runtime_binding(tmp_path, "b" * 40)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["hf_revision"] = "c" * 40
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
+    monkeypatch.delenv("SPACE_REPOSITORY_COMMIT", raising=False)
+    reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert reported == {
+        "hf_revision": "c" * 40,
+        "revision_state": "DECLARED_WITH_LOCAL_DIGEST",
+        "measurement_method": "LOCAL_FILE_SHA256",
+    }
+    assert reported["measurement_method"] != "SPACE_REPOSITORY_COMMIT"
+    with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
+        world.subject.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+
+
+def test_unmatched_binding_bytes_do_not_admit(world, monkeypatch, tmp_path):
+    import szl_source_attestation as attestation
+
+    path, artifact = write_runtime_binding(tmp_path, "b" * 40)
+    artifact.write_bytes(b"tampered")
+    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
+    with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
+        world.subject.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+
+
+def test_missing_binding_file_does_not_open_execution_gate(world, monkeypatch, tmp_path):
+    import szl_source_attestation as attestation
+
+    missing = tmp_path / "absent-binding.json"
+    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(missing))
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "c" * 40)
+    reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert reported == {
+        "hf_revision": None,
+        "revision_state": "UNAVAILABLE",
+        "measurement_method": "UNAVAILABLE",
+    }
     with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
         world.subject.challenge(HEADERS)
     assert world.effects == [] and remote_rows(world) == []
