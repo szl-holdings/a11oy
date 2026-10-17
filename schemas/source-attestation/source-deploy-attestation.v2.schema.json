@@ -22,7 +22,7 @@
   "$defs": {
     "evidence": {
       "type": "object", "additionalProperties": false, "required": ["value", "evidence_class"],
-      "properties": {"value": {"type": ["string", "null"]}, "evidence_class": {"enum": ["MEASURED", "UNKNOWN"]}}
+      "properties": {"value": {"type": ["string", "null"]}, "evidence_class": {"enum": ["MEASURED", "UNKNOWN", "ENV_DECLARATION"]}}
     },
     "observedCommit": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}}}]},
     "observedDigest": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}}}]},

@@ -35,6 +35,39 @@ from tools import execution_acceptance as acceptance
 HEADERS = {"authorization": "Bearer producer-fixture-operator", "x-a11oy-tenant": "producer-fixture-tenant"}
 
 
+class _IndependentRuntimeBinding:
+    """Write the artifact bytes the real measure_hf_revision helper checks."""
+
+    def __init__(self, directory, revision):
+        self.directory = directory
+        self.path = directory / "runtime-binding.json"
+        self.artifact = directory / "runtime.artifact"
+        self._revision = revision
+        self.publish()
+
+    @property
+    def revision(self):
+        return self._revision
+
+    @revision.setter
+    def revision(self, value):
+        self._revision = value
+        self.publish()
+
+    def publish(self):
+        if not self._revision:
+            self.path.unlink(missing_ok=True)
+            return
+        artifact = ("independent-runtime:" + self._revision).encode()
+        self.artifact.write_bytes(artifact)
+        self.path.write_text(json.dumps({
+            "schema": "szl.hf-runtime-binding/v1",
+            "hf_revision": self._revision,
+            "artifact_sha256": hashlib.sha256(artifact).hexdigest(),
+            "artifact_name": "runtime.artifact",
+        }), encoding="utf-8")
+
+
 def public(private):
     pem = private.public_key().public_bytes(serialization.Encoding.PEM,
                                            serialization.PublicFormat.SubjectPublicKeyInfo)
@@ -95,9 +128,11 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(ss, "_ACTIVE", writer)
     for name, value in {ss.ENABLE_ENV: ss.ENABLED_VALUE, "A11OY_SERIES_A_SQLITE_JOURNAL": "DELETE",
                         "A11OY_CODE_ADMIN_KEY": "producer-fixture-operator",
-                        "A11OY_CODE_TENANT": "producer-fixture-tenant", "SZL_GIT_SHA": "a" * 40,
-                        "SPACE_REPOSITORY_COMMIT": "b" * 40}.items():
+                        "A11OY_CODE_TENANT": "producer-fixture-tenant", "SZL_GIT_SHA": "a" * 40}.items():
         monkeypatch.setenv(name, value)
+    hf_revision = _IndependentRuntimeBinding(tmp_path, "b" * 40)
+    monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(hf_revision.path))
+    monkeypatch.delenv("SPACE_REPOSITORY_COMMIT", raising=False)
     runtime_private, approval_private = ec.generate_private_key(ec.SECP256R1()), ec.generate_private_key(ec.SECP256R1())
     key_path = tmp_path / "fixture-runtime.pem"
     key_path.write_bytes(runtime_private.private_bytes(serialization.Encoding.PEM,
@@ -122,6 +157,7 @@ def world(tmp_path, monkeypatch):
         routes.append(Route(path, native, methods=["POST"]))
     result.app = Starlette(routes=routes)
     result.service = Service()
+    result.hf_revision = hf_revision
     result.subject = observer.Observer(result.service, result.app, authority_file=authority_file)
     result.subject.adapters = SyntheticAdapters(result.app, result)
     observer.register(result.app, result.subject)
@@ -184,7 +220,7 @@ def test_missing_external_admission_disables_before_reservation(world, monkeypat
     if missing == "approval":
         world.subject.pins = None
     elif missing == "hf_revision":
-        monkeypatch.delenv("SPACE_REPOSITORY_COMMIT")
+        world.hf_revision.revision = None
     elif missing == "operator":
         monkeypatch.delenv("A11OY_CODE_ADMIN_KEY")
     elif missing == "tenant":
@@ -194,6 +230,49 @@ def test_missing_external_admission_disables_before_reservation(world, monkeypat
     else:
         monkeypatch.setattr(ss, "_ACTIVE", None)
     with pytest.raises((observer.ObserverBlocked, acceptance.EvidenceError)):
+        world.subject.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+
+
+def test_environment_sha_cannot_satisfy_immutable_hf_gate(world, monkeypatch):
+    monkeypatch.delenv("A11OY_HF_RUNTIME_BINDING")
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "b" * 40)
+    with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
+        world.subject.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+
+
+def test_real_helper_admits_independently_bound_runtime_revision(world):
+    import szl_source_attestation as attestation
+
+    assert observer.measure_hf_revision is attestation.measure_hf_revision
+    reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
+    assert reported == {
+        "hf_revision": "b" * 40,
+        "revision_state": "MEASURED",
+        "measurement_method": "SPACE_REPOSITORY_COMMIT",
+    }
+    issued = world.subject.challenge(HEADERS)
+    assert issued["execution_authorized"] is False
+    nonce = issued["challenge"]["run_nonce"]
+    context, _manager = world.subject._identity(nonce)
+    assert context.runtime_revision == "b" * 40
+    assert context.source_revision == "a" * 40
+    built = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {})
+    assert built["source_commit"] == {"value": "a" * 40, "evidence_class": "ENV_DECLARATION"}
+    assert built["source_commit"]["evidence_class"] != "MEASURED"
+
+
+def test_conflicting_environment_sha_does_not_admit(world, monkeypatch):
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "c" * 40)
+    with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
+        world.subject.challenge(HEADERS)
+    assert world.effects == [] and remote_rows(world) == []
+
+
+def test_unmatched_binding_bytes_do_not_admit(world):
+    world.hf_revision.artifact.write_bytes(b"tampered")
+    with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
         world.subject.challenge(HEADERS)
     assert world.effects == [] and remote_rows(world) == []
 
@@ -302,7 +381,7 @@ def test_completed_context_is_resolved_only_from_retained_digest(world, monkeypa
     assert world.backend.submits == before
     with pytest.raises(observer.ObserverBlocked, match="NOT_ADMITTED"):
         world.subject.context_for_bundle_digest("0" * 64)
-    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "e" * 40)
+    world.hf_revision.revision = "e" * 40
     with pytest.raises(observer.ObserverBlocked, match="IDENTITY_CHANGED"):
         world.subject.context_for_bundle_digest(digest)
 
@@ -352,7 +431,7 @@ def test_change_after_first_effect_prevents_next_effect_and_export(world, monkey
         elif change == "tenant":
             monkeypatch.setenv("A11OY_CODE_TENANT", "rotated")
         elif change == "hf":
-            monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "e" * 40)
+            world.hf_revision.revision = "e" * 40
         elif change == "boot":
             world.service.runtime_boot_id = "new-boot"
         else:

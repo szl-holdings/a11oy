@@ -23,6 +23,7 @@ _BUILD_ENV = (
     "A11OY_DEPLOYED_AT",
     "DEPLOYED_AT",
     "SZL_BUILD_TIME",
+    "A11OY_HF_RUNTIME_BINDING",
 )
 
 
@@ -46,8 +47,13 @@ def test_cross_repository_shas_do_not_prove_alignment(
     v2 = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {})
     v1 = attestation.build_attestation("SZLHOLDINGS/a11oy", {})
 
-    assert v2["source_commit"] == {"value": source_sha, "evidence_class": "MEASURED"}
-    assert v2["deployed_commit"] == {"value": space_sha, "evidence_class": "MEASURED"}
+    assert v2["source_commit"] == {"value": source_sha, "evidence_class": "ENV_DECLARATION"}
+    assert v1["source"]["state"] == "ENV_DECLARATION"
+    assert v2["deployed_commit"] == {
+        "value": space_sha,
+        "evidence_class": "ENV_DECLARATION",
+    }
+    assert v2["deployed_commit"]["evidence_class"] != "MEASURED"
     assert v2["alignment_state"] == v1["alignment_state"] == "UNKNOWN"
     assert v1["claims"]["github_parity"] == "NOT_CLAIMED"
     assert v2["claims"]["artifact_equivalence"] == "NOT_CLAIMED"
@@ -74,7 +80,10 @@ def test_space_sha_is_not_misclassified_as_github_source(monkeypatch):
     result = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {})
 
     assert result["source_commit"] == {"value": None, "evidence_class": "UNKNOWN"}
-    assert result["deployed_commit"]["value"] == "a" * 40
+    assert result["deployed_commit"] == {
+        "value": "a" * 40,
+        "evidence_class": "ENV_DECLARATION",
+    }
     assert result["alignment_state"] == "UNKNOWN"
 
 
@@ -127,7 +136,52 @@ def test_get_routes_are_frozen_unsigned_and_read_only(monkeypatch):
 
     assert v1["alignment_state"] == v2["alignment_state"] == "UNKNOWN"
     assert v2["source_commit"]["value"] == v2["deployed_commit"]["value"] == "c" * 40
+    assert v2["source_commit"]["evidence_class"] == "ENV_DECLARATION"
+    assert v1["source"]["state"] == "ENV_DECLARATION"
+    assert v2["deployed_commit"]["evidence_class"] == "ENV_DECLARATION"
+    assert v1["deployment"]["revision_state"] == "ENV_DECLARATION"
+    assert v1["deployment"]["measurement_method"] == "PROCESS_ENVIRONMENT"
     assert v1["attestation_state"] == "UNSIGNED_STRUCTURAL"
     assert product["signer"] == "ABSENT"
     assert product["receipt_minted"] is False
     assert product["dsse"] is None
+
+
+def test_space_repository_commit_is_an_environment_declaration(monkeypatch):
+    present = "e" * 40
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", present)
+    measured = attestation.measure_hf_revision("SZLHOLDINGS/a11oy", force=True)
+    assert measured == {
+        "hf_revision": present,
+        "revision_state": "ENV_DECLARATION",
+        "measurement_method": "PROCESS_ENVIRONMENT",
+    }
+    v1 = attestation.build_attestation("SZLHOLDINGS/a11oy", {})
+    assert v1["deployment"]["revision_state"] == "ENV_DECLARATION"
+    assert v1["deployment"]["measurement_method"] == "PROCESS_ENVIRONMENT"
+
+    monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "a" * 40)
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["hf_revision"] == "a" * 40
+
+
+def test_deployed_alias_is_not_measured_and_helper_ignores_it(monkeypatch):
+    monkeypatch.setenv("A11OY_DEPLOYED_COMMIT", "f" * 40)
+    v2 = attestation.build_attestation_v2("SZLHOLDINGS/a11oy", {})
+    assert v2["deployed_commit"] == {
+        "value": "f" * 40,
+        "evidence_class": "ENV_DECLARATION",
+    }
+    assert v2["immutable_for_process"] is True
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy") == {
+        "hf_revision": None,
+        "revision_state": "UNAVAILABLE",
+        "measurement_method": "UNAVAILABLE",
+    }
+
+
+def test_missing_space_repository_commit_stays_unavailable():
+    assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy") == {
+        "hf_revision": None,
+        "revision_state": "UNAVAILABLE",
+        "measurement_method": "UNAVAILABLE",
+    }
