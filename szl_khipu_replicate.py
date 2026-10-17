@@ -187,10 +187,12 @@ def _organ_of(base: str) -> str:
 
 
 def verify_inbound(receipt: Dict[str, Any]) -> bool:
-    """Re-verify a foreign receipt's self-digest before accepting it."""
+    """Check payload and envelope integrity; this does not authenticate the sender."""
     import hashlib
 
-    required = {"organ", "ns", "seq", "action", "payload_digest", "prev", "digest"}
+    if type(receipt) is not dict:
+        return False
+    required = {"organ", "ns", "seq", "action", "payload", "payload_digest", "prev", "digest"}
     if not required.issubset(receipt.keys()):
         return False
     body = {
@@ -201,5 +203,13 @@ def verify_inbound(receipt: Dict[str, Any]) -> bool:
         "payload_digest": receipt["payload_digest"],
         "prev": receipt["prev"],
     }
-    raw = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha3_256(raw).hexdigest() == receipt["digest"]
+    try:
+        # Match KhipuLMDB's canonical encoding, but reject non-finite JSON.
+        payload_raw = json.dumps(receipt["payload"], sort_keys=True,
+                                 separators=(",", ":"), allow_nan=False).encode("utf-8")
+        raw = json.dumps(body, sort_keys=True, separators=(",", ":"),
+                         allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError, OverflowError, RecursionError, UnicodeError):
+        return False
+    return (hashlib.sha3_256(payload_raw).hexdigest() == receipt["payload_digest"]
+            and hashlib.sha3_256(raw).hexdigest() == receipt["digest"])
