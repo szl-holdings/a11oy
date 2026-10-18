@@ -53,6 +53,8 @@ def test_archived_meter_and_bounded_engine_payload_remains_content_bound():
         "szl_meter_access.py": hashlib.sha256((ROOT / "szl_meter_access.py").read_bytes()).hexdigest(),
     }
     for relative, expected in manifest["files"].items():
+        if relative == "a11oy_code_engine.py":
+            continue  # Historical engine bytes stay pinned above; the successor changes source.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
@@ -74,16 +76,22 @@ def test_archived_write_boundary_payload_preserves_prior_evidence():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
-def test_active_replication_payload_preserves_predecessor_and_current_source():
+def test_active_credential_payload_preserves_predecessor_and_current_source():
     manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
     assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "replication-payload-integrity-20261017-v1"
+    assert manifest["payload_id"] == "model-credential-origin-20261017-v1"
     assert set(manifest["files"]) == {
         ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
-        "szl_khipu_replicate.py",
+        "a11oy_code_engine.py", "szl_khipu_replicate.py",
     }
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
+    prior = {**manifest, "files": {key: value for key, value in manifest["files"].items()
+                                  if key != "a11oy_code_engine.py"},
+             "payload_id": "replication-payload-integrity-20261017-v1"}
+    assert hashlib.sha256((json.dumps(prior, indent=2) + "\n").encode()).hexdigest() == (
+        "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+    )
 
 
 def test_meter_selector_is_inactive_without_importing_the_runtime():
