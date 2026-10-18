@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - state store shutdown preservation
+
+- Await the existing state-store final snapshot and lease release during ASGI
+  shutdown, before Uvicorn re-raises a termination signal. Other cleanup failures
+  cannot skip this finalizer; the outer runtime cleanup remains a fallback.
+
 ### Fixed - atomic inbound replication replay
 
 - Commit the foreign receipt index and local mirror wrapper together, so an
