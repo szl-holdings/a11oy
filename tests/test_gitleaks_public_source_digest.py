@@ -65,7 +65,7 @@ class ExactSourceExceptionContract(unittest.TestCase):
         config = tomllib.loads((ROOT / ".gitleaks.toml").read_text())
         rule = next(rule for rule in config["rules"] if rule["id"] == "generic-api-key")
         self.assertEqual(set(rule), {"id", "allowlists"})
-        self.assertEqual(len(rule["allowlists"]), 4)
+        self.assertEqual(len(rule["allowlists"]), 5)
         allow = rule["allowlists"][0]
         meter_allow = rule["allowlists"][3]
         self.assertEqual(set(allow), {"description", "condition", "regexTarget", "paths", "regexes"})

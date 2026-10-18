@@ -1,5 +1,7 @@
 """Offline delivery accounting; fixtures never authorize a provider write."""
 
+import copy
+import hashlib
 import json
 import threading
 from unittest.mock import Mock
@@ -7,7 +9,8 @@ from urllib.error import HTTPError
 
 import pytest
 
-from szl_khipu_replicate import Replicator
+from szl_khipu_lmdb import KhipuLMDB
+from szl_khipu_replicate import Replicator, verify_inbound
 
 
 PEERS = ["https://szlholdings-a11oy.hf.space", "https://peer.example"]
@@ -202,3 +205,118 @@ def test_concurrent_pushes_serialize_cursor_and_do_not_send_the_same_batch_twice
     assert sorted(result["pushed"] for result in results) == [0, 2]
     assert cursors == [0, 2] and instance.status()["cursor"] == 2
     instance._post.assert_called_once()
+
+
+@pytest.fixture
+def produced_receipt(tmp_path):
+    store = KhipuLMDB(str(tmp_path / "producer"), organ="fixture", ns="fixture")
+    try:
+        return store.append("fixture", payload={
+            "nested": {"text": "Khipu \u03bb \U0001f9f6", "values": [None, True, 2, 0.25]},
+            "empty": {},
+        })
+    finally:
+        store.close()
+
+
+def envelope_digest(receipt):
+    body = {key: receipt[key] for key in (
+        "organ", "ns", "seq", "action", "payload_digest", "prev")}
+    return hashlib.sha3_256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def test_inbound_accepts_actual_lmdb_producer_without_changing_receipt(produced_receipt):
+    original = copy.deepcopy(produced_receipt)
+    assert verify_inbound(produced_receipt) is True
+    assert produced_receipt == original
+
+
+@pytest.mark.parametrize("payload", [["\u03bb", None, True, 2], "\u03bb", 17])
+def test_inbound_retains_json_payload_types_accepted_by_producer(tmp_path, payload):
+    store = KhipuLMDB(str(tmp_path / "producer"))
+    try:
+        receipt = store.append("fixture", payload=payload)
+    finally:
+        store.close()
+    assert verify_inbound(receipt) is True
+
+
+def test_inbound_rejects_payload_tampering_with_unchanged_valid_envelope(produced_receipt):
+    produced_receipt["payload"]["nested"]["text"] = "substituted"
+    assert envelope_digest(produced_receipt) == produced_receipt["digest"]
+    assert verify_inbound(produced_receipt) is False
+
+
+def test_inbound_rejects_wrong_payload_digest_even_with_rehashed_envelope(produced_receipt):
+    produced_receipt["payload_digest"] = "0" * 64
+    produced_receipt["digest"] = envelope_digest(produced_receipt)
+    assert verify_inbound(produced_receipt) is False
+
+
+def test_inbound_rejects_changed_envelope(produced_receipt):
+    produced_receipt["action"] = "substituted"
+    assert verify_inbound(produced_receipt) is False
+
+
+@pytest.mark.parametrize("field", [
+    "organ", "ns", "seq", "action", "payload", "payload_digest", "prev", "digest",
+])
+def test_inbound_rejects_missing_fields(produced_receipt, field):
+    del produced_receipt[field]
+    assert verify_inbound(produced_receipt) is False
+
+
+@pytest.mark.parametrize("receipt", [None, [], "receipt", 1, True])
+def test_inbound_rejects_non_object_receipts(receipt):
+    assert verify_inbound(receipt) is False
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
+def test_inbound_refuses_nonfinite_payload_even_if_legacy_producer_hashes_it(tmp_path, value):
+    store = KhipuLMDB(str(tmp_path / "producer"))
+    try:
+        receipt = store.append("fixture", payload={"nested": [value]})
+    finally:
+        store.close()
+    assert envelope_digest(receipt) == receipt["digest"]
+    assert verify_inbound(receipt) is False
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
+def test_inbound_refuses_nonfinite_envelope_even_if_digest_matches(produced_receipt, value):
+    produced_receipt["seq"] = value
+    produced_receipt["digest"] = envelope_digest(produced_receipt)
+    assert verify_inbound(produced_receipt) is False
+
+
+@pytest.mark.parametrize("payload", [{"bad": object()}, {"a": 1, 2: "mixed keys"}, {"bad": {1}}])
+def test_inbound_rejects_unserializable_payload(produced_receipt, payload):
+    produced_receipt["payload"] = payload
+    assert verify_inbound(produced_receipt) is False
+
+
+def test_inbound_rejects_unserializable_envelope(produced_receipt):
+    produced_receipt["action"] = object()
+    assert verify_inbound(produced_receipt) is False
+
+
+def test_inbound_rejects_circular_payload(produced_receipt):
+    payload = []
+    payload.append(payload)
+    produced_receipt["payload"] = payload
+    assert verify_inbound(produced_receipt) is False
+
+
+def test_inbound_rejects_excessively_nested_payload(produced_receipt):
+    payload = []
+    for _ in range(2000):
+        payload = [payload]
+    produced_receipt["payload"] = payload
+    assert verify_inbound(produced_receipt) is False
+
+
+def test_inbound_auxiliary_metadata_does_not_establish_authenticity(produced_receipt):
+    # The producer's digest excludes these fields. Integrity is not authority.
+    produced_receipt.update(ts=0, signature="untrusted", chain_verified=False)
+    assert verify_inbound(produced_receipt) is True

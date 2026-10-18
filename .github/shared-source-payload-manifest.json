@@ -1,10 +1,9 @@
 {
   "files": {
-    ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json": "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6",
-    "szl_khipu_replicate.py": "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1",
-    "szl_operator_auth.py": "5b511c270ebb0268974f144e2dc4d3754ad48803a9434f6976eb8c1681265c0d",
-    "szl_unay_routes.py": "22bb45839a8d1fded2aaf10e4d6e8be03427383a8d0f58ad7fd1b2e1d2fab0a8"
+    ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json": "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",
+    "a11oy_code_engine.py": "60b196bc7118ffb08a9ddf3ca1a006026aec969d3a1a8f10a5b8a0e454acc8b7",
+    "szl_khipu_replicate.py": "392b6dc7e2e5d9d8ac629de73df2a486f1fa17c19fc54d0bb323b23d07574ddd"
   },
-  "payload_id": "execution-observer-operator-auth-20261016-v1",
+  "payload_id": "model-credential-origin-20261017-v1",
   "schema": "szl-shared-source-payload/v1"
 }
