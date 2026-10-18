@@ -34,11 +34,11 @@ REPOSITORY = "szl-holdings/a11oy"
 RUNTIME_ROOT = "/app"
 PUBLISHER = {
     "repository": "szl-holdings/.github",
-    "revision": "fc71ae973a0f31b8e9ee793fc8545a354448d451",
+    "revision": "5f140bab8adb64fe25252d8832b67b1f43a56c36",
     "script_path": ".github/scripts/hf_deploy_from_dockerfile.py",
-    "script_sha256": "f2f7a6c1296493d034eebed596f4176c2928470a4ed7e23620da6cacf19b16e7",
+    "script_sha256": "373add34da38a219e5dafce52e7a86a417c019ac13b139678fc72c93c1ad1318",
 }
-MAX_PUBLISHER_BYTES = 80 * 1024
+MAX_PUBLISHER_BYTES = 96 * 1024  # exact SHA/hash pin remains mandatory
 MAX_MANIFEST_BYTES = 384 * 1024
 MAX_FILES = 2048
 MAX_PYTHON_PATHS = 4096
@@ -57,11 +57,16 @@ _HEREDOC = re.compile(r"<<(-?)(?:'([A-Za-z_][A-Za-z0-9_]*)'|\"([A-Za-z_][A-Za-z0
 _BUILD_INPUTS = {
     ("llama-build-1", "/tmp/fetch_owned_khipu_wheel.py", "scripts/fetch_owned_khipu_wheel.py"): "BUILD_STAGE_ONLY",
     ("runtime", "/tmp/requirements-runtime.txt", "requirements-runtime.txt"): "RUNTIME_INSTALL_INPUT",
+    # Generated selector is not an immutable source COPY file. Its actual bytes
+    # are verified separately by szl_runtime_identity against GitHub OIDC.
+    ("runtime", "/tmp/.szl-runtime-marker.json", ".szl-runtime-marker.json"): "RUNTIME_IDENTITY_SELECTOR",
 }
 # These exact logical RUN blocks were read at 84fbd5be. None rewrites a copied
 # source file. They install external dependencies, create directories, or fetch
 # the separately pinned GGUF. An altered/new command requires source review.
 _REVIEWED_RUNS = frozenset({
+    # Reviewed: GitHub CLI 2.102.0 apt pin and version check; source bytes unchanged.
+    "23d4cccf07567590c794c5538eadd881f72a4133b04bce76c628ab2c3c48bcd3",
     "390f3679f990ada5d981c2b137675744fda09c39bdceb5f39daae3177e0b5881",
     "a35a26a82f617413b433151e190dd1e9b95c26cdc7a12ca335dc0b058e649fea",
     "e39a2e3ea22b3b11ca25c0ff9a315699c10fab38fa5c724c4fd8531f9fa90e52",

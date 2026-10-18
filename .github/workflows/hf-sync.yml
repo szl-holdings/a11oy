@@ -259,12 +259,17 @@ jobs:
     name: Deploy, source-bind, and attest exact surface
     needs: [source-admission, preflight]
     if: ${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}
-    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     with:
       hf-repo: SZLHOLDINGS/a11oy
       ref: ${{ github.sha }}
       # Recheck next to the provider commit if main advances after admission.
       require-default-branch-tip: true
+      runtime-identity: true
       dockerfile-path: Dockerfile
       include-readme: true
       prune: true
@@ -858,6 +863,7 @@ jobs:
     if: ${{ needs.relock.outputs.current_main == 'true' }}
     permissions:
       contents: read
+      attestations: read
     uses: ./.github/workflows/hf-module-drift.yml
 
   terminal-source-authorization:

@@ -36,10 +36,17 @@ HEADERS = {"authorization": "Bearer producer-fixture-operator", "x-a11oy-tenant"
 
 
 class _SyntheticMeasuredRevision:
-    """Pipeline fixture only. Production does not return MEASURED for a binding file."""
+    """Synthetic authenticated source identity; not a live attestation result."""
 
     def __init__(self, revision):
         self.revision = revision
+        self.boot_id = None
+
+    def admitted(self):
+        if not self.revision:
+            raise observer.ObserverBlocked("IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE")
+        return SimpleNamespace(source_revision="a" * 40, hf_revision=self.revision,
+                               runtime_boot_id=self.boot_id, method="GITHUB_ATTESTED_SOURCE_COPY_SET")
 
     def __call__(self, space_id, force=False):
         del space_id, force
@@ -162,6 +169,8 @@ def world(tmp_path, monkeypatch):
     result.service = Service()
     result.hf_revision = hf_revision
     result.subject = observer.Observer(result.service, result.app, authority_file=authority_file)
+    hf_revision.boot_id = result.service.runtime_boot_id
+    result.subject.process_identity = hf_revision
     result.subject.adapters = SyntheticAdapters(result.app, result)
     observer.register(result.app, result.subject)
     yield result
@@ -240,7 +249,7 @@ def test_missing_external_admission_disables_before_reservation(world, monkeypat
 def test_environment_sha_cannot_satisfy_immutable_hf_gate(world, monkeypatch):
     import szl_source_attestation as attestation
 
-    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    world.subject.process_identity = observer.ProcessIdentity(world.service.runtime_boot_id)
     monkeypatch.delenv("A11OY_HF_RUNTIME_BINDING", raising=False)
     monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "b" * 40)
     with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
@@ -252,7 +261,7 @@ def test_local_digest_match_does_not_open_execution_gate(world, monkeypatch, tmp
     import szl_source_attestation as attestation
 
     path, _artifact = write_runtime_binding(tmp_path, "b" * 40)
-    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    world.subject.process_identity = observer.ProcessIdentity(world.service.runtime_boot_id)
     monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
     monkeypatch.delenv("SPACE_REPOSITORY_COMMIT", raising=False)
     reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
@@ -274,7 +283,7 @@ def test_conflicting_environment_sha_does_not_admit(world, monkeypatch, tmp_path
     import szl_source_attestation as attestation
 
     path, _artifact = write_runtime_binding(tmp_path, "b" * 40)
-    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    world.subject.process_identity = observer.ProcessIdentity(world.service.runtime_boot_id)
     monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
     monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "c" * 40)
     assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
@@ -290,7 +299,7 @@ def test_revision_only_tamper_does_not_open_execution_gate(world, monkeypatch, t
     payload = json.loads(path.read_text(encoding="utf-8"))
     payload["hf_revision"] = "c" * 40
     path.write_text(json.dumps(payload), encoding="utf-8")
-    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    world.subject.process_identity = observer.ProcessIdentity(world.service.runtime_boot_id)
     monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
     monkeypatch.delenv("SPACE_REPOSITORY_COMMIT", raising=False)
     reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
@@ -310,7 +319,7 @@ def test_unmatched_binding_bytes_do_not_admit(world, monkeypatch, tmp_path):
 
     path, artifact = write_runtime_binding(tmp_path, "b" * 40)
     artifact.write_bytes(b"tampered")
-    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    world.subject.process_identity = observer.ProcessIdentity(world.service.runtime_boot_id)
     monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(path))
     assert attestation.measure_hf_revision("SZLHOLDINGS/a11oy")["revision_state"] == "UNAVAILABLE"
     with pytest.raises(observer.ObserverBlocked, match="IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE"):
@@ -322,7 +331,7 @@ def test_missing_binding_file_does_not_open_execution_gate(world, monkeypatch, t
     import szl_source_attestation as attestation
 
     missing = tmp_path / "absent-binding.json"
-    monkeypatch.setattr(observer, "measure_hf_revision", attestation.measure_hf_revision)
+    world.subject.process_identity = observer.ProcessIdentity(world.service.runtime_boot_id)
     monkeypatch.setenv("A11OY_HF_RUNTIME_BINDING", str(missing))
     monkeypatch.setenv("SPACE_REPOSITORY_COMMIT", "c" * 40)
     reported = attestation.measure_hf_revision("SZLHOLDINGS/a11oy")
@@ -638,6 +647,7 @@ def test_authority_is_captured_once_without_authority_generation(world, monkeypa
         local_patch.setattr(ec, "generate_private_key", lambda *args: pytest.fail("startup must not mint authority"))
         result = observer.register_from_service(app)
     subject = app.state.szl_execution_observer
+    subject.process_identity = world.hf_revision
     admitted_pins = subject.pins
     assert result["authority_configured"] is True and result["configuration_error"] is None
     assert admitted_pins == world.subject.pins

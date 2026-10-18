@@ -43,6 +43,8 @@ RUNTIME_LAYER_BUDGET = 118
 # validator. The latter keeps its source path with a dedicated COPY instruction.
 # Historical baselines exclude these exact sources.
 # Preserve every prior source and the unchanged layer budget, not a broad COPY.
+RUNTIME_IDENTITY_COPY_ADDITIONS = {".szl-runtime-marker.json", "szl_runtime_identity.py", ".github/workflows/hf-sync.yml"}
+
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
     "371fbd0b54830459ce3096248a7ca33e4ffded466a5f538fd5996b3513947bf9"
@@ -162,6 +164,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= copy_sources
     assert READINESS_READER_COPY_ADDITIONS <= copy_sources
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= copy_sources
+    assert RUNTIME_IDENTITY_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
@@ -174,6 +177,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | PUBLIC_ESTATE_COPY_ADDITIONS
         | READINESS_READER_COPY_ADDITIONS
         | EXECUTION_OBSERVER_COPY_ADDITIONS
+        | RUNTIME_IDENTITY_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
@@ -202,6 +206,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
     assert READINESS_READER_COPY_ADDITIONS <= sources
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= sources
+    assert RUNTIME_IDENTITY_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -211,6 +216,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - READINESS_READER_COPY_ADDITIONS
         - EXECUTION_OBSERVER_COPY_ADDITIONS
+        - RUNTIME_IDENTITY_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
@@ -237,6 +243,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
     assert READINESS_READER_COPY_ADDITIONS <= sources
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= sources
+    assert RUNTIME_IDENTITY_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -246,6 +253,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - READINESS_READER_COPY_ADDITIONS
         - EXECUTION_OBSERVER_COPY_ADDITIONS
+        - RUNTIME_IDENTITY_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")

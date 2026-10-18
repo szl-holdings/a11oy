@@ -520,7 +520,9 @@ def test_dockerfile_ships_the_dependency_closure():
     dockerfile = (subject.ROOT / "Dockerfile").read_text(encoding="utf-8")
     for name in ("szl_readiness_artifact.py", ".github/scripts/publish_readiness_verdict.py"):
         assert any(name in line.split()[1:-1] for line in dockerfile.splitlines() if line.startswith("COPY "))
-    assert "COPY .github/scripts/publish_readiness_verdict.py ./.github/scripts/" in dockerfile
+    assert any(".github/scripts/publish_readiness_verdict.py" in line.split()[1:-1]
+               and line.split()[-1] == "./.github/scripts/"
+               for line in dockerfile.splitlines() if line.startswith("COPY "))
 
 
 @pytest.mark.parametrize("mutation",["missing-passive","failed-passive","skipped-passive","duplicate-passive","old-passive-attempt","passive-overlap","relock-overlap"])

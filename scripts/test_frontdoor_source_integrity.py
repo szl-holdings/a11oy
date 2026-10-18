@@ -32,6 +32,7 @@ on:
   workflow_call:
 permissions:
   contents: read
+  attestations: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -165,6 +166,39 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         temp, root = self.make_fixture()
         with temp:
             self.assertEqual(validator.validate(root), [])
+
+    def test_current_workflow_requires_exact_read_only_attestation_access(self) -> None:
+        workflow = (HERE.parent / validator.WORKFLOW_PATH).read_text(encoding="utf-8")
+        self.assertEqual(validator._validate_workflow_envelope(workflow), [])
+
+    def test_workflow_permission_writes_missing_or_extra_scopes_fail(self) -> None:
+        permissions = "permissions:\n  contents: read\n  attestations: read\n"
+        replacements = (
+            "permissions:\n  contents: write\n  attestations: read\n",
+            "permissions:\n  contents: read\n  attestations: write\n",
+            "permissions:\n  contents: read\n",
+            "permissions:\n  attestations: read\n",
+            permissions + "  actions: read\n",
+            permissions + "  actions: write\n",
+            permissions + "  id-token: write\n",
+            permissions + "  contents: write\n",
+            permissions + "  attestations: read\n",
+            "permissions: read-all\n",
+            "permissions: write-all\n",
+            "permissions: {contents: read, attestations: read}\n",
+            "permissions: *read_permissions\n",
+        )
+        self.assertIn(permissions, VALID_WORKFLOW)
+        for replacement in replacements:
+            with self.subTest(permissions=replacement):
+                temp, root = self.make_fixture()
+                with temp:
+                    workflow = VALID_WORKFLOW.replace(permissions, replacement, 1)
+                    (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+                    self.assertTrue(any(
+                        "permissions must be exactly" in error
+                        for error in validator.validate(root)
+                    ))
 
     def test_one_line_commented_workflow_fails(self) -> None:
         temp, root = self.make_fixture()
