@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - state store shutdown preservation
+
+- Await the existing state-store final snapshot and lease release during ASGI
+  shutdown, before Uvicorn re-raises a termination signal. Other cleanup failures
+  cannot skip this finalizer; the outer runtime cleanup remains a fallback.
+
 ### Added - bounded operator observations
 
 - Add a GET-only preflight and explicitly admitted three-case HTTP runner with
