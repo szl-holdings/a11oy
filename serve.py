@@ -5197,19 +5197,27 @@ async def startup() -> None:
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
-    if _rd_artifact is not None:
-        await asyncio.to_thread(_rd_artifact.reader.stop)
     try:
-        _a11oy_eval_autorun_stop()
-    except Exception as _eval_stop_error:
-        print(
-            f"[a11oy] eval-arena autorun stop failed honestly: {_eval_stop_error!r}",
-            file=sys.stderr,
-        )
-    if _node_proc:
-        _node_proc.terminate()
-    if _http_client:
-        await _http_client.aclose()
+        if _rd_artifact is not None:
+            await asyncio.to_thread(_rd_artifact.reader.stop)
+        try:
+            _a11oy_eval_autorun_stop()
+        except Exception as _eval_stop_error:
+            print(
+                f"[a11oy] eval-arena autorun stop failed honestly: {_eval_stop_error!r}",
+                file=sys.stderr,
+            )
+        if _node_proc:
+            _node_proc.terminate()
+        if _http_client:
+            await _http_client.aclose()
+    finally:
+        # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
+        # gdw_runtime finally may never run, so await the final snapshot and
+        # lease release here, while the process is still alive.
+        import a11oy_state_store
+
+        await asyncio.to_thread(a11oy_state_store.shutdown)
 
 
 # ---------------------------------------------------------------------------

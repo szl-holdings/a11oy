@@ -273,6 +273,8 @@ jobs:
         run: >-
           python -B -m pytest -q -p no:cacheprovider
           tests/test_state_store_hub_sdk.py
+          tests/test_state_store_asgi_shutdown.py
+          tests/test_state_store_handover_operator.py
           tests/test_state_store_handover.py
           tests/test_state_store_restore.py
           tests/test_state_store_wiring.py
