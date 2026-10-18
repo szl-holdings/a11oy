@@ -205,6 +205,74 @@ def test_investor_facing_pages_support_get_and_head(path):
     assert {"GET", "HEAD"}.issubset(_methods(path))
 
 
+def test_agent_page_has_one_owner_and_never_falls_back_to_spa(monkeypatch):
+    """Exercise Starlette's first matching route, not just route-table presence."""
+    from starlette.testclient import TestClient
+
+    owners = [route for route in serve.app.router.routes
+              if getattr(route, "path", None) == "/agent"]
+    assert len(owners) == 1
+    assert owners[0].endpoint is serve._ptg_agent
+    assert {"GET", "HEAD"}.issubset(owners[0].methods)
+
+    client = TestClient(serve.app, follow_redirects=False)
+    page = client.get("/agent")
+    assert page.status_code == 200
+    assert "text/html" in page.headers["content-type"]
+    assert 'id="voter-responses"' in page.text
+    assert 'fetch("/api/a11oy/v4/agent/ask"' in page.text
+    assert page.headers["cache-control"] == "no-store"
+    head = client.head("/agent")
+    assert head.status_code == 200
+    assert head.content == b""
+
+    monkeypatch.setattr(serve, "_V4_AGENT_ERR", "synthetic registration failure")
+    unavailable = client.get("/agent")
+    assert unavailable.status_code == 503
+    assert unavailable.json()["status"] == "UNAVAILABLE"
+    assert unavailable.headers["cache-control"] == "no-store"
+    assert client.head("/agent").status_code == 503
+
+
+def test_agent_api_wrong_methods_and_unknown_paths_never_reach_node(monkeypatch):
+    from fastapi import FastAPI
+    from starlette.testclient import TestClient
+
+    async def forbidden_proxy(*_args, **_kwargs):
+        raise AssertionError("v4 agent namespace reached Node proxy")
+
+    monkeypatch.setattr(serve, "proxy_to_backend", forbidden_proxy)
+    client = TestClient(serve.app, follow_redirects=False)
+    for method in ("GET", "HEAD", "PUT", "PATCH", "DELETE"):
+        response = client.request(method, "/api/a11oy/v4/agent/ask")
+        assert response.status_code == 405, method
+        assert response.headers["allow"] == "POST"
+    for method in ("POST", "PUT", "PATCH", "DELETE"):
+        response = client.request(method, "/api/a11oy/v4/agent/voters")
+        assert response.status_code == 405, method
+        assert response.headers["allow"] == "GET, HEAD"
+    # The app's CORS middleware owns preflight; it must still not invoke Node.
+    assert client.options("/api/a11oy/v4/agent/ask").status_code == 200
+    assert client.options("/api/a11oy/v4/agent/voters").status_code == 200
+    unknown = client.get("/api/a11oy/v4/agent/not-a-route")
+    assert unknown.status_code == 404
+
+    # Simulate optional v4 registration failing: the catch-all is then first.
+    # Correct methods must report an unavailable local service, not a false 405.
+    missing = FastAPI()
+    missing.add_api_route(
+        "/api/a11oy/{path:path}", serve.api_proxy,
+        methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+    )
+    missing_client = TestClient(missing, follow_redirects=False)
+    for method, path in (("POST", "/api/a11oy/v4/agent/ask"),
+                         ("GET", "/api/a11oy/v4/agent/voters"),
+                         ("HEAD", "/api/a11oy/v4/agent/voters")):
+        response = missing_client.request(method, path)
+        assert response.status_code == 503, (method, path)
+        assert response.headers["cache-control"] == "no-store"
+
+
 def test_frontier_now_routes_are_owned_and_precede_production_catchalls():
     """The assembled app must route the cockpit to its owning module, not a fallback."""
     intended = (
