@@ -42,6 +42,7 @@ class UnayOperatorAuthorization(unittest.TestCase):
             store.verify.return_value = {"ok": True}
             store.tail.return_value = []
             store.append.return_value = {"digest": "fixture-lmdb-receipt"}
+            store.append_replicated.return_value = {"receipt": {}, "duplicate": False}
             store.get_by_receipt.return_value = None
         self.verify = MagicMock(return_value=True)
         replicator = MagicMock(enabled=False)
@@ -74,6 +75,7 @@ class UnayOperatorAuthorization(unittest.TestCase):
         self.store.remember.assert_not_called()
         self.primary.append.assert_not_called()
         self.replica.append.assert_not_called()
+        self.replica.append_replicated.assert_not_called()
         self.verify.assert_not_called()
 
     def test_unauthorized_requests_never_parse_body_or_reach_stores(self):
@@ -136,7 +138,9 @@ class UnayOperatorAuthorization(unittest.TestCase):
                                    json={"receipts": [receipt]})
             self.assertEqual(response.status_code, 200)
             self.verify.assert_called_once_with(receipt)
-            self.replica.append.assert_called_once_with("replicated", payload={"origin": receipt})
+            self.replica.append_replicated.assert_called_once_with(receipt)
+            self.replica.append.assert_not_called()
+            self.replica.get_by_receipt.assert_not_called()
 
     def test_public_reads_remain_available_without_writes(self):
         app = self._app("a11oy")
