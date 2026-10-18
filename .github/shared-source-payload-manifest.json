@@ -1,8 +1,12 @@
 {
   "files": {
-    ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json": "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",
-    "szl_khipu_replicate.py": "392b6dc7e2e5d9d8ac629de73df2a486f1fa17c19fc54d0bb323b23d07574ddd"
+    ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json": "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc",
+    "scripts/sync_from_monorepo.sh": "fdd0775f1c57e79e091b6d7a8b25e116ba6d06010d230cb271dacdb78ebc1c73",
+    "szl_khipu_lmdb.py": "f0d34d36a7ffc7081668a0a5c6e427aa492373636db5818a83c21993b0af3f2c",
+    "szl_unay_routes.py": "1fefe85eb25a289c492bdb8b0ec17e69fa647a675e0b2caf8c579cdb1ca733f9",
+    "tests/test_unay_write_authorization.py": "ec36d86eed8e36d45d56cb00c67e7adc7a1976cb1185614fb5370f8ce7271adf",
+    "tests/test_vendor_sync_contract.py": "44b3d28b669abd479b3b9dd9817d827bf03b09e6e0227987d8e8fb7d00056cba"
   },
-  "payload_id": "replication-payload-integrity-20261017-v1",
+  "payload_id": "replication-origin-index-20261017-v1",
   "schema": "szl-shared-source-payload/v1"
 }

@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — packages/khipu-lmdb/khipu_lmdb/core.py
+# VENDORED FROM szl-holdings/platform@eaa4dc867c1e9f8f138c216fe9b040378858aafb — packages/khipu-lmdb/khipu_lmdb/core.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
@@ -27,6 +27,8 @@ Key layout in LMDB (a single unnamed DB, lexicographic order):
   b"rcpt:%s"    -> seq (as ascii int)    (receipt-hash -> seq index)
   b"meta:head"  -> head receipt digest
   b"meta:count" -> total receipts
+  b"origin:%s" -> first local seq for a foreign receipt digest
+  b"meta:origin-indexed-count" -> local prefix indexed by explicit replication writes
 
 Stdlib + lmdb only.
 """
@@ -43,6 +45,9 @@ import lmdb
 
 __version__ = "khipu-lmdb/1.0.0"
 _GENESIS = "0" * 64
+_MAX_ORIGIN_BYTES = 1024 * 1024
+_MAX_ORIGIN_BACKFILL = 1000
+_MAX_ORIGIN_BACKFILL_BYTES = 16 * 1024 * 1024
 
 # Process-wide registry of open LMDB environments keyed by absolute path. LMDB
 # forbids opening the SAME environment twice in one process (raises "already open
@@ -67,6 +72,42 @@ def _digest(obj: Any) -> str:
 
 def _seq_key(seq: int) -> bytes:
     return b"seq:%020d" % seq
+
+
+def _require_json_object_keys(obj: Any) -> None:
+    if isinstance(obj, dict):
+        if any(type(key) is not str for key in obj):
+            raise ValueError("REPLICATION_NON_STRING_JSON_KEY")
+        for value in obj.values():
+            _require_json_object_keys(value)
+    elif isinstance(obj, (list, tuple)):
+        for value in obj:
+            _require_json_object_keys(value)
+
+
+def _finite_canon(obj: Any) -> bytes:
+    try:
+        # JSON coercion of numeric keys can reorder a frozen/replayed receipt.
+        # Validate this strict write path without changing legacy append bytes.
+        _require_json_object_keys(obj)
+        return json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                          allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError, OverflowError, RecursionError, UnicodeError) as error:
+        raise ValueError("REPLICATION_INVALID_JSON") from error
+
+
+def _verified_origin(origin: Any, max_bytes: int = _MAX_ORIGIN_BYTES) -> bytes:
+    """Validate integrity and return canonical bytes, without authenticating a sender."""
+    fields = ("organ", "ns", "seq", "action", "payload_digest", "prev")
+    if type(origin) is not dict or not {*fields, "payload", "digest"} <= origin.keys():
+        raise ValueError("REPLICATION_INVALID_RECEIPT")
+    canonical = _finite_canon(origin)
+    if len(canonical) > max_bytes:
+        raise ValueError("REPLICATION_ORIGIN_TOO_LARGE")
+    if (_sha3(_finite_canon(origin["payload"])) != origin["payload_digest"]
+            or _sha3(_finite_canon({key: origin[key] for key in fields})) != origin["digest"]):
+        raise ValueError("REPLICATION_INTEGRITY_FAILED")
+    return canonical
 
 
 class KhipuLMDB:
@@ -124,31 +165,126 @@ class KhipuLMDB:
         """Append a hash-chained receipt durably to LMDB; return the receipt."""
         payload = payload or {}
         with self._lock, self._env.begin(write=True) as txn:
-            seq = self._count(txn)
-            prev = self._head(txn)
-            ts = time.time()
-            body = {
-                "organ": self.organ,
-                "ns": self.ns,
-                "seq": seq,
-                "action": action,
-                "payload_digest": _digest(payload),
-                "prev": prev,
-            }
-            digest = _digest(body)
-            receipt = {
-                **body,
-                "payload": payload,
-                "ts": ts,
-                "digest": digest,
-                "signature": "DSSE_PLACEHOLDER",  # honest: chain-verified, not signed
-                "chain_verified": True,
-            }
-            txn.put(_seq_key(seq), _canon(receipt))
-            txn.put(b"rcpt:" + digest.encode(), str(seq).encode())
-            txn.put(b"meta:head", digest.encode())
-            txn.put(b"meta:count", str(seq + 1).encode())
-            return receipt
+            return self._append_txn(txn, action, payload)
+
+    def _append_txn(self, txn: "lmdb.Transaction", action: str, payload: Any) -> Dict[str, Any]:
+        # Keep append's existing canonical bytes and receipt shape unchanged.
+        seq = self._count(txn)
+        prev = self._head(txn)
+        ts = time.time()
+        body = {
+            "organ": self.organ,
+            "ns": self.ns,
+            "seq": seq,
+            "action": action,
+            "payload_digest": _digest(payload),
+            "prev": prev,
+        }
+        digest = _digest(body)
+        receipt = {
+            **body,
+            "payload": payload,
+            "ts": ts,
+            "digest": digest,
+            "signature": "DSSE_PLACEHOLDER",  # honest: chain-verified, not signed
+            "chain_verified": True,
+        }
+        txn.put(_seq_key(seq), _canon(receipt))
+        txn.put(b"rcpt:" + digest.encode(), str(seq).encode())
+        txn.put(b"meta:head", digest.encode())
+        txn.put(b"meta:count", str(seq + 1).encode())
+        return receipt
+
+    def _replication_record(self, txn: "lmdb.Transaction", seq: int) -> Dict[str, Any]:
+        raw = txn.get(_seq_key(seq))
+        if raw is None or len(raw) > _MAX_ORIGIN_BYTES * 2:
+            raise ValueError("REPLICATION_HISTORY_INVALID")
+        try:
+            receipt = json.loads(raw)
+        except (ValueError, UnicodeError, RecursionError) as error:
+            raise ValueError("REPLICATION_HISTORY_INVALID") from error
+        _verified_origin(receipt, max_bytes=_MAX_ORIGIN_BYTES * 2)
+        if type(receipt["seq"]) is not int or receipt["seq"] != seq:
+            raise ValueError("REPLICATION_HISTORY_INVALID")
+        return receipt
+
+    def _origin_lookup(self, txn: "lmdb.Transaction", origin: dict,
+                       canonical: bytes) -> Optional[Dict[str, Any]]:
+        index = txn.get(b"origin:" + origin["digest"].encode("ascii"))
+        if index is None:
+            return None
+        try:
+            seq = int(index)
+        except ValueError as error:
+            raise ValueError("REPLICATION_INDEX_INVALID") from error
+        if str(seq).encode() != index or not 0 <= seq < self._count(txn):
+            raise ValueError("REPLICATION_INDEX_INVALID")
+        receipt = self._replication_record(txn, seq)
+        payload = receipt["payload"]
+        if receipt["action"] != "replicated" or type(payload) is not dict:
+            raise ValueError("REPLICATION_INDEX_INVALID")
+        existing = payload.get("origin")
+        existing_bytes = _verified_origin(existing)
+        if existing["digest"] != origin["digest"]:
+            raise ValueError("REPLICATION_INDEX_INVALID")
+        if existing_bytes != canonical:
+            raise ValueError("REPLICATION_ORIGIN_CONFLICT")
+        return receipt
+
+    def _backfill_origins(self, txn: "lmdb.Transaction") -> None:
+        total = self._count(txn)
+        raw_cursor = txn.get(b"meta:origin-indexed-count", b"0")
+        try:
+            cursor = int(raw_cursor)
+        except ValueError as error:
+            raise ValueError("REPLICATION_INDEX_INVALID") from error
+        if str(cursor).encode() != raw_cursor or not 0 <= cursor <= total:
+            raise ValueError("REPLICATION_INDEX_INVALID")
+        if total - cursor > _MAX_ORIGIN_BACKFILL:
+            raise ValueError("REPLICATION_HISTORY_RECONCILIATION_REQUIRED")
+        previous = (self._replication_record(txn, cursor - 1)["digest"]
+                    if cursor else _GENESIS)
+        scanned_bytes = 0
+        for seq in range(cursor, total):
+            raw = txn.get(_seq_key(seq))
+            scanned_bytes += len(raw) if raw is not None else 0
+            if scanned_bytes > _MAX_ORIGIN_BACKFILL_BYTES:
+                raise ValueError("REPLICATION_HISTORY_RECONCILIATION_REQUIRED")
+            receipt = self._replication_record(txn, seq)
+            if receipt["prev"] != previous:
+                raise ValueError("REPLICATION_HISTORY_INVALID")
+            previous = receipt["digest"]
+            if receipt["action"] != "replicated":
+                continue
+            payload = receipt["payload"]
+            origin = payload.get("origin") if type(payload) is dict else None
+            canonical = _verified_origin(origin)
+            if self._origin_lookup(txn, origin, canonical) is None:
+                txn.put(b"origin:" + origin["digest"].encode("ascii"), str(seq).encode())
+        if previous != self._head(txn):
+            raise ValueError("REPLICATION_HISTORY_INVALID")
+        txn.put(b"meta:origin-indexed-count", str(total).encode())
+
+    def append_replicated(self, origin: Dict[str, Any]) -> Dict[str, Any]:
+        """Atomically retain one mirror wrapper per exact foreign receipt.
+
+        All origin fields, including unauthenticated auxiliary metadata, must
+        match on replay. A conflicting digest fails closed. Historical duplicate
+        wrappers remain intact; bounded backfill runs only on this write path.
+        Sender authorization and durable outbound recovery remain separate.
+        """
+        canonical = _verified_origin(origin)
+        # Freeze caller-owned mutable data before the transaction and comparison.
+        origin = json.loads(canonical)
+        with self._lock, self._env.begin(write=True) as txn:
+            self._backfill_origins(txn)
+            existing = self._origin_lookup(txn, origin, canonical)
+            if existing is not None:
+                return {"receipt": existing, "duplicate": True}
+            receipt = self._append_txn(txn, "replicated", {"origin": origin})
+            txn.put(b"origin:" + origin["digest"].encode("ascii"), str(receipt["seq"]).encode())
+            txn.put(b"meta:origin-indexed-count", str(receipt["seq"] + 1).encode())
+            return {"receipt": receipt, "duplicate": False}
 
     # ---- read -------------------------------------------------------------
     def get_by_seq(self, seq: int) -> Optional[Dict[str, Any]]:

@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Test immutable vendor revision and full-check contracts
+        run: python3 tests/test_vendor_sync_contract.py
       - name: Verify vendored files match the monorepo pin
         env:
           GITHUB_TOKEN: ${{ github.token }}
