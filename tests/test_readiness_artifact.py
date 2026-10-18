@@ -502,7 +502,9 @@ def test_optional_import_failure_leaves_lifecycle_unavailable_without_crashing(m
         function = copy.deepcopy(next(node for node in tree.body
                                       if isinstance(node, ast.AsyncFunctionDef) and node.name == name))
         function.decorator_list = []
-        function.body = [node for node in function.body if isinstance(node, ast.If)
+        # Shutdown guards can sit inside a try/finally that preserves storage.
+        # Exercise the same optional-reader guard without depending on its depth.
+        function.body = [node for node in ast.walk(function) if isinstance(node, ast.If)
                          and any(isinstance(item, ast.Name) and item.id == "_rd_artifact"
                                  for item in ast.walk(node.test))]
         assert len(function.body) == 1
