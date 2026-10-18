@@ -336,6 +336,7 @@ def test_composed_producer_native_routes_store_snapshot_and_offline_consumer(wor
     import szl_dsse
     monkeypatch.setattr(szl_dsse, "active_public_key_pem", lambda: public_pem.decode())
     subject = runtime.Observer(sw.service, world.app, authority_file=sw.authority_file)
+    subject.process_identity = sw.hf_revision  # explicit synthetic authenticated identity
     assert subject.adapters is None
     world.app.state.execution_native_readbacks = NativeReadbacks(sw.service, public_pem, key_id)
     runtime.register(world.app, subject)

@@ -32,7 +32,7 @@ jobs:
       - name: Verify actual routes, native ownership and fail-closed consumers
         run: >-
           python -B -m pytest -q -p no:cacheprovider
-          tests/test_observer_runtime.py tests/test_native_readbacks.py
+          tests/test_runtime_identity.py tests/test_observer_runtime.py tests/test_native_readbacks.py
           tests/test_observer_adapters.py tests/test_real_execution_routes.py
           tests/test_execution_observer_registration.py
           tests/test_combined_consumers.py tests/test_readiness_artifact.py

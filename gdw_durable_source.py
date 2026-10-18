@@ -186,11 +186,12 @@ def validate_manifest(value: Any, source_revision: str) -> dict:
     _fixed(inventory["absent_count"], len(absent))
     _fixed(inventory["source_count"], len(python_paths) + len(absent))
     builds = value["build_inputs"]
-    if type(builds) is not list or len(builds) != 2:
+    if type(builds) is not list or len(builds) not in (2, 3):
         raise SourceBlocked("SOURCE_BUILD_SCOPE_INVALID")
     build_contracts = (
         ("llama-build-1", "/tmp/fetch_owned_khipu_wheel.py", "BUILD_STAGE_ONLY", "scripts/fetch_owned_khipu_wheel.py"),
         ("runtime", "/tmp/requirements-runtime.txt", "RUNTIME_INSTALL_INPUT", "requirements-runtime.txt"),
+        ("runtime", "/tmp/.szl-runtime-marker.json", "RUNTIME_IDENTITY_SELECTOR", ".szl-runtime-marker.json"),
     )
     for entry, expected in zip(builds, build_contracts):
         _identity_item(entry, {"stage", "destination", "scope", "source_path", "size", "sha256"})
@@ -200,6 +201,15 @@ def validate_manifest(value: Any, source_revision: str) -> dict:
             target = installed[entry["source_path"]]
             for key in ("size", "sha256"):
                 _fixed(entry[key], target[key])
+        elif entry["scope"] == "RUNTIME_IDENTITY_SELECTOR":
+            # Only the fixed source placeholder is classified here. Actual
+            # publisher-generated selector bytes grant no source authority;
+            # szl_runtime_identity separately verifies their OIDC binding.
+            placeholder = b'{"schema":"szl.runtime-source-marker/unavailable"}\n'
+            _fixed(entry["size"], len(placeholder))
+            _fixed(entry["sha256"], hashlib.sha256(placeholder).hexdigest())
+            if entry["source_path"] in installed:
+                raise SourceBlocked("SOURCE_BUILD_SCOPE_INVALID")
     overwrites = value["overwrites"]
     if type(overwrites) is not list or len(overwrites) > MAX_COPY_INSTRUCTIONS:
         raise SourceBlocked("SOURCE_OVERWRITE_BOUND_INVALID")

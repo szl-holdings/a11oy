@@ -148,6 +148,10 @@ def test_composed_observer_gets_do_not_sign_write_or_execute(composed_app, monke
 
     before = files()
     client = TestClient(app)
+    identity_status = client.get("/api/a11oy/v1/series-a/status").json()["runtime_source_identity"]
+    assert identity_status["status"] == "BLOCKED"
+    assert identity_status["execution_authority"] is False
+    assert subject.process_identity._thread is None
     headers = {"authorization": "Bearer registration-fixture-operator",
                "x-a11oy-tenant": "registration-fixture-tenant"}
     response = client.get(PREFIX + "/exports/absent", headers=headers)

@@ -5,6 +5,7 @@
 
 import copy
 import hashlib
+import json
 import os
 from pathlib import Path
 import time
@@ -278,3 +279,19 @@ def test_equal_bytes_from_different_source_preserve_ordered_overwrite_evidence()
     source.validate_manifest(value, "b" * 40)
     before["source_path"] = after["source_path"]
     with pytest.raises(source.SourceBlocked): source.validate_manifest(value, "b" * 40)
+
+
+def test_generated_identity_selector_is_exactly_scoped_outside_source_catalog():
+    value = manifest()
+    placeholder = b'{"schema":"szl.runtime-source-marker/unavailable"}\n'
+    selector = {"stage": "runtime", "destination": "/tmp/.szl-runtime-marker.json",
+                "scope": "RUNTIME_IDENTITY_SELECTOR", "source_path": ".szl-runtime-marker.json",
+                "size": len(placeholder), "sha256": hashlib.sha256(placeholder).hexdigest()}
+    value["build_inputs"].append(selector)
+    assert source.validate_manifest(value, "b" * 40)["build_inputs"][-1] == selector
+    for key, replacement in [("destination", "/app/serve.py"), ("source_path", "serve.py"),
+                             ("scope", "BUILD_STAGE_ONLY"), ("sha256", "e" * 64), ("size", 999)]:
+        changed = json.loads(json.dumps(value))
+        changed["build_inputs"][-1][key] = replacement
+        with pytest.raises(source.SourceBlocked):
+            source.validate_manifest(changed, "b" * 40)
