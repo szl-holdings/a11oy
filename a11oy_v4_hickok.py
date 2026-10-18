@@ -68,6 +68,7 @@ except Exception:  # pragma: no cover
 
 PAGES_DIR = Path("/app/pages")
 INDEX_HTML = Path("/app/static/index.html")
+AGENT_ASK_MAX_BODY_BYTES = 64 * 1024  # Keep in sync with a11oy_v4_agent.
 
 # ---------------------------------------------------------------------------
 # Citations (the cognitive-neuroscience provenance set)
@@ -428,7 +429,39 @@ def register(app: Any, ns: str = "a11oy") -> Dict[str, Any]:
         cls: Optional[Dict[str, Any]] = None
         if request.method == "POST" and _is_routed(path):
             try:
-                raw = await request.body()
+                if path.endswith("/agent/ask"):
+                    declared = request.headers.get("content-length")
+                    if declared is not None:
+                        try:
+                            declared_size = int(declared)
+                            if declared_size < 0:
+                                raise ValueError("negative content-length")
+                        except ValueError:
+                            return JSONResponse(
+                                {"status": "BLOCKED", "reason": "invalid content-length"},
+                                status_code=400, headers={"Cache-Control": "no-store"},
+                            )
+                        if declared_size > AGENT_ASK_MAX_BODY_BYTES:
+                            return JSONResponse(
+                                {"status": "BLOCKED", "reason": "request body too large"},
+                                status_code=413, headers={"Cache-Control": "no-store"},
+                            )
+                    chunks = []
+                    size = 0
+                    async for chunk in request.stream():
+                        size += len(chunk)
+                        if size > AGENT_ASK_MAX_BODY_BYTES:
+                            return JSONResponse(
+                                {"status": "BLOCKED", "reason": "request body too large"},
+                                status_code=413, headers={"Cache-Control": "no-store"},
+                            )
+                        chunks.append(chunk)
+                    raw = b"".join(chunks)
+                    # BaseHTTPMiddleware's cached receive path relies on the
+                    # same _body cache that Request.body() previously set.
+                    request._body = raw  # type: ignore[attr-defined]
+                else:
+                    raw = await request.body()
                 # Re-inject the body so downstream handlers can still read it.
                 async def _receive():
                     return {"type": "http.request", "body": raw, "more_body": False}
@@ -442,7 +475,9 @@ def register(app: Any, ns: str = "a11oy") -> Dict[str, Any]:
 
         response = await call_next(request)
 
-        if cls is not None:
+        # A refusal or validation failure did not run the agent. Never write a
+        # classification receipt for a denied, oversized or failed request.
+        if cls is not None and 200 <= response.status_code < 300:
             response.headers["X-A11oy-Stream"] = cls["stream"]
             response.headers["X-A11oy-Stream-Anchor"] = "A36"
             response.headers["X-A11oy-Stream-Gate"] = "pass" if cls["gate_pass"] else "fail"
