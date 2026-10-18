@@ -38,6 +38,7 @@ jobs:
           tests/test_combined_consumers.py tests/test_readiness_artifact.py
           tests/test_publish_readiness_verdict.py tests/test_canonical_a11oy_relock.py
           tests/test_execution_acceptance.py tests/test_dockerfile_layer_budget.py
+          tests/test_model_endpoint_credentials.py
 
   python-estate-rag:
     name: Estate RAG lifecycle and read-only route contracts
@@ -485,6 +486,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
       - name: Install test deps (serve.py boots in-process via Starlette TestClient)
         run: |
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
