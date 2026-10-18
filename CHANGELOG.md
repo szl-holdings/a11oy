@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shutdown, before Uvicorn re-raises a termination signal. Other cleanup failures
   cannot skip this finalizer; the outer runtime cleanup remains a fallback.
 
+### Fixed - atomic inbound replication replay
+
+- Commit the foreign receipt index and local mirror wrapper together, so an
+  exact replay uses the existing wrapper after a restart. Validate bounded
+  historical backfill and refuse corrupt history or conflicting origin bytes.
+- Update only the canonical Khipu-LMDB vendor entries using immutable per-file
+  revisions. The full strict vendor gate still checks every manifest entry.
+- Keep outbound replication disabled by default. This source repair does not
+  qualify provider persistence or sender recovery; see
+  [the replication integration receipt](docs/replication-origin-index-20261017.md).
+
 ### Added - bounded operator observations
 
 - Add a GET-only preflight and explicitly admitted three-case HTTP runner with
