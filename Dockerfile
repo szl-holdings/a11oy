@@ -90,8 +90,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # … (full rationale: docs/DOCKERFILE_NOTES.md §2)
 # Pins live ONLY in requirements-runtime.txt (single source of truth; the audit
 # closure includes it with -r). Never re-list them inline here.
-COPY .szl-runtime-marker.json /tmp/.szl-runtime-marker.json
 COPY requirements-runtime.txt /tmp/requirements-runtime.txt
+COPY .szl-runtime-marker.json /tmp/.szl-runtime-marker.json
 RUN pip install --no-cache-dir -r /tmp/requirements-runtime.txt
 
 # Canonical non-generative Nemo witness: exact immutable source revision,
