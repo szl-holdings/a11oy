@@ -4,23 +4,22 @@
 # Authored by Yachay (CTO). DCO: Signed-off-by: Yachay <yachay@szlholdings.dev>
 # Co-Authored-By: Perplexity Computer Agent
 """
-a11oy_v4_agent.py — ADDITIVE FastAPI module: multi-LLM ensemble for a11oy.
+a11oy_v4_agent.py — governed voter catalog and sovereign public ask.
 
 Registers two API routes BEFORE the generic /api/a11oy/{path:path} proxy.
 serve.py owns the single early GET/HEAD /agent operator-page route:
 
   GET  /agent                         — operator UI (served by serve.py)
   GET/HEAD /api/a11oy/v4/agent/voters — JSON list of voters + status
-  POST /api/a11oy/v4/agent/ask        — fan-out to selected voters + Λ-aggregate
+  POST /api/a11oy/v4/agent/ask        — Khipu public ask; other fan-out BLOCKED
 
 ARCHITECTURE
-  - 14 voters: khipu-gguf sovereign + qwen-local floor + 3 HF cloud + 9 roster
+  - 14 catalogued voters: khipu-gguf sovereign + qwen-local + 3 HF + 9 roster
   - Sovereign-default: khipu-gguf (pinned SZL-Khipu GGUF CPU lab) is ALWAYS included
-  - Llama / Mistral / Qwen HF voters are optional cloud, not the sovereign path
-  - Cloud voters: OFF by default; activate via voters list + env var
-  - Missing env var → {status: "unavailable", reason: "token_not_present"}
+  - Non-sovereign voters are BLOCKED even for operators until hard budget and
+    concurrency admission exists; an env var is not caller authorization
   - Λ-aggregator: UNCHANGED (Conjecture 1, 163 sorries, variance-weighted)
-  - DSSE receipt emitted per ask (honest UNSIGNED if no cosign key)
+  - An in-response receipt envelope is returned; it is not persistence proof
 
 DOCTRINE v11 LOCKED: 749/14/163 — NOT modified by this module.
 """
@@ -100,6 +99,7 @@ except Exception:
     _khipu = None  # type: ignore
 
 __version__ = "v4.2.0-khipu-gguf"
+AGENT_ASK_MAX_BODY_BYTES = 64 * 1024
 
 # ---------------------------------------------------------------------------
 # Λ-aggregator  (UNCHANGED — Conjecture 1, variance-weighted, 163 sorries)
@@ -198,14 +198,18 @@ def _lambda_aggregate(votes: List[Dict[str, Any]]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 class AgentAskRequest(BaseModel):
-    prompt: str = Field(..., description="User prompt to route to voter LLMs.")
-    system: Optional[str] = Field(None, description="Optional system prompt override.")
+    prompt: str = Field(..., min_length=1, max_length=4096,
+                        description="User prompt to route to voter LLMs.")
+    system: Optional[str] = Field(None, max_length=1024,
+                                  description="Optional system prompt override.")
     voters: Optional[List[str]] = Field(
         None,
+        max_length=VOTER_COUNT,
         description=(
             "Explicit list of voter IDs to activate. "
             "khipu-gguf (sovereign-default) is ALWAYS included. "
-            "Cloud voters only run when their env var is also present."
+            "Non-sovereign fan-out is BLOCKED until hard budget and concurrency "
+            "admission exists; operator authorization alone is insufficient."
         ),
     )
     max_tokens: int = Field(512, ge=1, le=8192)
@@ -225,13 +229,16 @@ def _build_agent_html() -> str:
     rows = ""
     for v in voters:
         avail = v.is_available()
-        dot_color = "#39d98a" if avail else "#556677"
-        dot_title = "env var detected — active" if avail else "env var not set — unavailable"
-        status_cls = "available" if avail else "unavailable"
+        is_sovereign = v.VOTER_ID == SOVEREIGN_VOTER_ID
+        dot_color = "#39d98a" if is_sovereign and avail else ("#ffcc66" if avail else "#556677")
+        dot_title = ("sovereign public demo" if is_sovereign else
+                     "BLOCKED — hard budget admission unavailable" if avail else
+                     "env var not set — unavailable")
+        status_cls = "available" if is_sovereign and avail else "unavailable"
         bfcl = f" · BFCL {v.BFCL_SCORE}" if v.BFCL_SCORE else ""
         tooltip = f"{v.LICENSE} · {v.PROVIDER} · ctx {v.CONTEXT_WINDOW:,}{bfcl}"
-        is_sovereign = v.VOTER_ID == SOVEREIGN_VOTER_ID
-        disabled_attr = 'checked disabled title="Sovereign-default: always active"' if is_sovereign else f'title="{tooltip}"'
+        disabled_attr = ('checked disabled title="Sovereign-default: always active"' if is_sovereign
+                         else f'disabled title="BLOCKED pending hard budget admission · {tooltip}"')
         rows += f"""
         <div class="voter-row {status_cls}">
           <label>
@@ -244,13 +251,13 @@ def _build_agent_html() -> str:
 
     return f"""<!DOCTYPE html>
 <!-- SPDX-License-Identifier: Apache-2.0  © 2026 SZL Holdings · Signed: Yachay -->
-<!-- a11oy · Multi-LLM Ensemble Agent · {VOTER_COUNT} voters · Doctrine v11 LOCKED 749/14/163 -->
+<!-- a11oy · Governed Agent · one public voter · Doctrine v11 LOCKED 749/14/163 -->
 <!-- Co-Authored-By: Perplexity Computer Agent -->
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>a11oy · Multi-LLM Ensemble Agent</title>
+<title>a11oy · Governed Agent</title>
 <style>
   :root{{
     --bg:#0a0e14;--panel:#121822;--panel2:#0e131b;--line:#1f2a3a;
@@ -305,15 +312,18 @@ def _build_agent_html() -> str:
 </head>
 <body>
 <header>
-  <h1>a11oy · Multi-LLM Ensemble Agent
-    <span class="badge">{VOTER_COUNT} voters</span>
+  <h1>a11oy · Governed Agent
+    <span class="badge">1 public voter</span>
     <span class="badge">Λ-aggregator</span>
     <span class="badge">Doctrine v11</span>
   </h1>
   <div class="sub">
-    Fan-out prompt to selected LLM voters → score across Yuyay-13 axes → Λ-aggregate → winner.
+    Public prompts route to one Khipu voter; its response receives a deterministic
+    Yuyay-13 score. This is not a multi-model ensemble result.
     Sovereign-default: <strong>{SOVEREIGN_VOTER_ID}</strong> always participates.
-    Cloud voters activate only when their env var is present.
+    This public page runs only the sovereign voter. Additional fan-out is BLOCKED
+    until a hard budget and concurrency admission is available; a provider token
+    or operator credential alone does not enable it.
   </div>
 </header>
 
@@ -321,7 +331,7 @@ def _build_agent_html() -> str:
   <!-- Left: voter selector + prompt -->
   <div>
     <div class="card">
-      <h2>Voters <span class="badge" style="font-size:10px">{VOTER_COUNT} total</span></h2>
+      <h2>Voter catalog <span class="badge" style="font-size:10px">{VOTER_COUNT} listed · 1 public</span></h2>
       <div id="voter-list">
         {rows}
       </div>
@@ -336,7 +346,7 @@ def _build_agent_html() -> str:
       <textarea id="prompt-input" placeholder="Enter your prompt…">Hello — which model are you and what can you do?</textarea>
       <label for="system-input">System prompt (optional)</label>
       <textarea id="system-input" style="min-height:40px" placeholder="You are a helpful assistant."></textarea>
-      <button id="btn-ask" onclick="doAsk()">Ask the ensemble</button>
+      <button id="btn-ask" onclick="doAsk()">Ask Khipu</button>
       <span id="ask-status" style="font-family:var(--mono);font-size:12px;color:var(--dim);margin-left:10px"></span>
     </div>
 
@@ -359,7 +369,7 @@ def _build_agent_html() -> str:
 
 <div class="foot">
   Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem; 163 sorries) ·
-  {SOVEREIGN_VOTER_ID} sovereign-default · cloud voters require env var · Co-Authored-By: Perplexity Computer Agent
+  {SOVEREIGN_VOTER_ID} sovereign-default · other fan-out BLOCKED · Co-Authored-By: Perplexity Computer Agent
 </div>
 
 <script>
@@ -467,9 +477,22 @@ def _make_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
 async def _handle_voters(request: Request) -> JSONResponse:
     """GET /api/a11oy/v4/agent/voters — all voters with status + metadata."""
     voters = get_all_voters()
+    catalog = []
+    for voter in voters:
+        entry = voter.metadata()
+        entry["requires_operator"] = voter.VOTER_ID != SOVEREIGN_VOTER_ID
+        # Permission is distinct from reachability and provider-token presence.
+        entry["anonymous_permitted"] = not entry["requires_operator"]
+        entry["hard_budget_admission"] = (
+            "UNAVAILABLE" if entry["requires_operator"] else None
+        )
+        if entry["requires_operator"]:
+            # A configured provider credential does not make this route callable.
+            entry["status"] = "BLOCKED"
+        catalog.append(entry)
     return JSONResponse({
         "count": len(voters),
-        "voters": [v.metadata() for v in voters],
+        "voters": catalog,
         "sovereign_default": SOVEREIGN_VOTER_ID,
         "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163},
         "lambda_aggregator": "Conjecture 1 (NOT a theorem; 163 sorries)",
@@ -481,9 +504,29 @@ async def _handle_voters(request: Request) -> JSONResponse:
 
 
 async def _handle_ask(request: Request) -> JSONResponse:
-    """POST /api/a11oy/v4/agent/ask — fan-out, Λ-aggregate, receipt."""
+    """POST /api/a11oy/v4/agent/ask — bounded sovereign ask; other fan-out BLOCKED."""
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            declared_size = int(declared)
+            if declared_size < 0:
+                raise ValueError("negative content-length")
+        except ValueError:
+            return JSONResponse({"status": "BLOCKED", "reason": "invalid content-length"},
+                                status_code=400, headers={"Cache-Control": "no-store"})
+        if declared_size > AGENT_ASK_MAX_BODY_BYTES:
+            return JSONResponse({"status": "BLOCKED", "reason": "request body too large"},
+                                status_code=413, headers={"Cache-Control": "no-store"})
     try:
-        body = await request.json()
+        chunks = []
+        size = 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > AGENT_ASK_MAX_BODY_BYTES:
+                return JSONResponse({"status": "BLOCKED", "reason": "request body too large"},
+                                    status_code=413, headers={"Cache-Control": "no-store"})
+            chunks.append(chunk)
+        body = json.loads(b"".join(chunks))
     except Exception as e:
         return JSONResponse({"error": f"invalid JSON: {e}"}, status_code=400)
 
@@ -495,6 +538,29 @@ async def _handle_ask(request: Request) -> JSONResponse:
 
     # Resolve voters list
     voter_instances = resolve_voters(req.voters)
+
+    # A server-held provider token is not caller authorization. The public demo
+    # remains sovereign-only; any other voter must be requested by an operator.
+    if any(v.VOTER_ID != SOVEREIGN_VOTER_ID for v in voter_instances):
+        try:
+            from szl_operator_auth import operator_refusal
+            denied = operator_refusal(request, "Non-sovereign voter inference")
+        except Exception:
+            return JSONResponse(
+                {"status": "BLOCKED", "reason": "operator authorization unavailable"},
+                status_code=503,
+                headers={"Cache-Control": "no-store"},
+            )
+        if denied is not None:
+            denied.headers["Cache-Control"] = "no-store"
+            return denied
+        # Credential presence does not qualify spend, quota or concurrency.
+        # There is no hard distributed admission for non-sovereign voters yet.
+        return JSONResponse(
+            {"status": "BLOCKED", "reason": "non-sovereign hard budget admission unavailable"},
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
 
     # Fan out in parallel (asyncio.gather, 30s timeout per voter honoured by httpx)
     t0 = time.monotonic()
@@ -564,12 +630,11 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
         _handle_ask,
         methods=["POST"],
         tags=["v4-agent"],
-        summary="Fan-out prompt to selected voters, Λ-aggregate, return winner",
+        summary="Bounded Khipu ask; non-sovereign fan-out blocked pending hard admission",
     )
 
-    available = sum(1 for v in voters if v.is_available())
     return (
-        f"ok — {voter_count} voters registered ({available} available); "
+        f"ok — {voter_count} voter descriptors; 1 public; non-sovereign BLOCKED; "
         f"sovereign-default={SOVEREIGN_VOTER_ID}; "
         f"ui=/agent (serve-owned); api=/api/{ns}/v4/agent/voters + /api/{ns}/v4/agent/ask; "
         f"version={__version__}"

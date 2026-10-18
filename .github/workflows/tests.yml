@@ -536,6 +536,7 @@ jobs:
           tests/test_khipu_chat_proxy.py
           tests/test_khipu_console_panel.py
           tests/test_v4_agent_voters.py
+          tests/test_v4_agent_operator_boundary.py
           tests/test_identity_lock.py
           tests/test_ledger_receipt_records.py
           tests/test_org_lambda_sample_inputs.py
