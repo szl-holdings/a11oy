@@ -18,11 +18,17 @@ catalog of final source `COPY` destinations. The selector is copied to the
 single fixed path `/tmp/.szl-runtime-marker.json`; it is outside the immutable
 source catalog. The checked-in placeholder deliberately cannot verify.
 
-After Hugging Face acknowledges the commit, the workflow attests
-`hf-runtime-binding.json` using GitHub's OIDC provenance action and uploads
-`hf-runtime-identity-<run_id>-<run_attempt>`. This occurs before the RUNNING and
+After Hugging Face acknowledges the commit, the workflow uploads
+`hf-runtime-identity-<run_id>-<run_attempt>`. A separate job downloads that exact
+artifact and attests `hf-runtime-binding.json` using GitHub's OIDC provenance
+action. This occurs before the RUNNING and
 smoke checks, so identity verification cannot deadlock startup. It reports
 publication only; a later deployment or smoke failure remains a failure.
+
+The effective `.dockerignore` narrowly re-includes the copied `hf-sync.yml`
+identity source while keeping other workflow files excluded. The catalog omits
+Docker-ignored directory members; a required explicit source excluded by the
+effective rules is a publication error, not an admissible partial identity.
 
 At process construction the verifier captures the selector bytes, source SHA,
 boot ID, copied workflow pin, and actual source-file hashes. The application
