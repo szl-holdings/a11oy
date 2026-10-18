@@ -2,23 +2,27 @@
 # sync_from_monorepo.sh — szl-holdings/platform is the explicit source of truth
 # for every vendored file in this flagship repo (STATUS.md open action, landed).
 #
-# Reads vendor.manifest.json (repo root): { monorepo, pin, files: { <local>: { source, header } } }
-# `pin` MUST be a full 40-hex commit SHA for check/sync (deterministic, fail-loud);
+# Reads vendor.manifest.json: { monorepo, pin, files: { <local>: { source, header, revision? } } }
+# The default `pin` and every optional per-file `revision` MUST be full 40-hex
+# commit SHAs for check/sync (deterministic, fail-loud);
 # use `pin <ref>` to freeze one.
 #
 # Modes:
-#   check                  verify every vendored file is byte-identical to monorepo@pin.
+#   check                  verify every vendored file against its declared revision.
 #                          For header:true entries the exact canonical 2-line attribution
 #                          header (if present) is removed before comparison; anything
 #                          header-shaped but non-canonical FAILS as tamper. Missing
 #                          headers WARN — flip to --strict-headers after the first `sync`.
 #   check --strict-headers same, but a missing attribution header is a FAILURE
-#   sync                   refresh every vendored file from monorepo@pin and apply
+#   sync                   refresh every vendored file from its declared revision and apply
 #                          attribution headers to header-eligible files
+#   sync --only <local>    refresh only that manifest entry; repeat for more entries.
+#                          check always checks the entire manifest, without selectors.
 #   pin <ref>              resolve <ref> (e.g. main) to a commit SHA and write it as pin
+#                          (explicit per-file revisions are preserved)
 #
 # Source resolution (no silent fallback — doctrine):
-#   PLATFORM_DIR=<path to local platform checkout>  -> read files from disk, fail loud if absent
+#   PLATFORM_DIR=<path to local platform checkout>  -> git show exact revision, never working-tree bytes
 #   otherwise                                       -> fetch raw.githubusercontent.com at pin
 #
 # Exit codes: 0 clean · 1 drift/tamper/missing · 2 usage or manifest error
@@ -26,17 +30,53 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 exec python3 - "$@" <<'PY'
-import hashlib, json, os, re, stat, sys, urllib.parse, urllib.request
+import argparse, hashlib, json, os, re, stat, subprocess, sys, urllib.parse, urllib.request
 
 MANIFEST = "vendor.manifest.json"
 if not os.path.exists(MANIFEST):
     print(f"FATAL: {MANIFEST} not found at repo root", file=sys.stderr); sys.exit(2)
-m = json.load(open(MANIFEST))
-MONO, PIN, FILES = m["monorepo"], m["pin"], m["files"]
+try:
+    with open(MANIFEST, encoding="utf-8") as manifest_file:
+        m = json.load(manifest_file)
+    MONO, PIN, FILES = m["monorepo"], m["pin"], m["files"]
+except (OSError, ValueError, KeyError, TypeError) as exc:
+    print(f"FATAL: invalid {MANIFEST}: {exc}", file=sys.stderr); sys.exit(2)
 
-args = sys.argv[1:]
-mode = args[0] if args else "check"
-strict = "--strict-headers" in args
+parser = argparse.ArgumentParser(description="Verify or sync immutable Platform vendor entries.")
+parser.add_argument("mode", nargs="?", default="check", choices=("check", "sync", "pin"))
+parser.add_argument("ref", nargs="?")
+parser.add_argument("--strict-headers", action="store_true")
+parser.add_argument("--only", action="append", default=[], metavar="LOCAL")
+args = parser.parse_args()
+mode, strict = args.mode, args.strict_headers
+if args.only and mode != "sync":
+    parser.error("--only is allowed only for sync; check always verifies every entry")
+if (mode == "pin") != (args.ref is not None) or (mode == "pin" and strict):
+    parser.error("pin requires exactly one ref; check/sync accept no positional ref")
+
+def relative_path(value):
+    return (isinstance(value, str) and bool(value) and not value.startswith("/")
+            and not any(part in ("", ".", "..") for part in value.split("/"))
+            and not any(char in value for char in ("\\", ":", "\x00", "\r", "\n")))
+
+def immutable_revision(value):
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value) is not None
+
+# Validate every entry before any sync writes, including entries outside --only.
+if not isinstance(MONO, str) or not re.fullmatch(r"[\w.-]+/[\w.-]+", MONO):
+    parser.error("monorepo must be an owner/repository name")
+if not isinstance(FILES, dict) or not FILES:
+    parser.error("manifest files must be a nonempty object")
+for local, entry in FILES.items():
+    if (not relative_path(local) or not isinstance(entry, dict)
+            or not relative_path(entry.get("source"))
+            or not isinstance(entry.get("header", False), bool)):
+        parser.error(f"invalid manifest entry: {local!r}")
+    if "revision" in entry and not immutable_revision(entry["revision"]):
+        parser.error(f"entry {local!r} revision must be a full 40-hex commit SHA")
+unknown = set(args.only) - FILES.keys()
+if unknown:
+    parser.error(f"unknown manifest entries: {', '.join(sorted(unknown))}")
 
 COMMENT = {  # extension -> (prefix, suffix)
     **{e: ("# ", "") for e in ("py sh bash yml yaml toml ps1 cfg ini editorconfig gitattributes txt").split()},
@@ -98,19 +138,25 @@ def resolve_ref(ref):
 def fetch_source(path, pin):
     pdir = os.environ.get("PLATFORM_DIR")
     if pdir:
-        full = os.path.join(pdir, path)
-        if not os.path.exists(full):
-            print(f"FATAL: PLATFORM_DIR set but {full} missing — refusing network fallback", file=sys.stderr)
-            sys.exit(1)
-        return open(full, "rb").read()
+        # A dirty checkout or another checked-out branch cannot change pinned bytes.
+        # Replacement refs cannot substitute objects under a declared SHA. A partial
+        # clone's missing blobs must fail, rather than trigger a hidden remote fetch.
+        git_env = dict(os.environ, GIT_NO_LAZY_FETCH="1")
+        resolved = subprocess.run(
+            ["git", "--no-replace-objects", "-C", pdir, "rev-parse", "--verify", pin + "^{commit}"],
+            check=True, capture_output=True, timeout=60, env=git_env).stdout.decode().strip()
+        if resolved != pin:
+            raise ValueError("PLATFORM_DIR revision is not the declared commit")
+        return subprocess.run(
+            ["git", "--no-replace-objects", "-C", pdir, "show", f"{pin}:{path}"],
+            check=True, capture_output=True, timeout=60, env=git_env).stdout
     url = f"https://raw.githubusercontent.com/{MONO}/{pin}/{urllib.parse.quote(path)}"
     req = urllib.request.Request(url, headers={"User-Agent": "sync-from-monorepo"})
     with urllib.request.urlopen(req, timeout=60) as r:
         return r.read()
 
 if mode == "pin":
-    ref = next((a for a in args[1:] if not a.startswith("-")), None)
-    if not ref: print("usage: sync_from_monorepo.sh pin <ref>", file=sys.stderr); sys.exit(2)
+    ref = args.ref
     sha = resolve_ref(ref)
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         print(f"FATAL: resolved '{ref}' to non-SHA '{sha}'", file=sys.stderr); sys.exit(2)
@@ -118,18 +164,18 @@ if mode == "pin":
     json.dump(m, open(MANIFEST, "w"), indent=2); open(MANIFEST, "a").write("\n")
     print(f"pinned {MONO}@{sha} (from {ref})"); sys.exit(0)
 
-if mode not in ("check", "sync"):
-    print(f"unknown mode: {mode}", file=sys.stderr); sys.exit(2)
-
-if not re.fullmatch(r"[0-9a-f]{40}", str(PIN)):
+if not immutable_revision(PIN):
     print(f"FATAL: manifest pin '{PIN}' is not a full 40-hex commit SHA. "
           f"Run scripts/sync_from_monorepo.sh pin main to freeze one "
           f"(doctrine: checks must be deterministic — no moving refs).", file=sys.stderr)
     sys.exit(2)
-pin = PIN
+selected = set(args.only) if args.only else set(FILES)
 
 fails, warns = 0, 0
 for local, entry in sorted(FILES.items()):
+    if local not in selected:
+        continue
+    pin = entry.get("revision", PIN)
     src, want_header = entry["source"], entry.get("header", False)
     try:
         upstream = fetch_source(src, pin)
@@ -178,7 +224,7 @@ for local, entry in sorted(FILES.items()):
         if strict: print(f"FAIL  {msg}"); fails += 1
         else: print(f"WARN  {msg}"); warns += 1
 
-total = len(FILES)
-print(f"\n{mode}: {total} vendored files · {fails} failures · {warns} warnings · monorepo={MONO}@{pin[:12]}")
+total = len(selected)
+print(f"\n{mode}: {total}/{len(FILES)} vendored files · {fails} failures · {warns} warnings · monorepo={MONO} default={PIN[:12]}")
 sys.exit(1 if fails else 0)
 PY
