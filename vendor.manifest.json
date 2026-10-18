@@ -210,7 +210,7 @@
     "organs/amaru/szl_khipu_lmdb.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
       "header": true,
-      "revision": "eaa4dc867c1e9f8f138c216fe9b040378858aafb"
+      "revision": "9d685a683984b7a0595a2a85bed930f961b94a53"
     },
     "organs/amaru/szl_live_wires.py": {
       "source": "packages/wire-d/wire_d/core.py",
@@ -267,7 +267,7 @@
     "organs/sentra/szl_khipu_lmdb.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
       "header": true,
-      "revision": "eaa4dc867c1e9f8f138c216fe9b040378858aafb"
+      "revision": "9d685a683984b7a0595a2a85bed930f961b94a53"
     },
     "organs/sentra/szl_live_wires.py": {
       "source": "packages/wire-d/wire_d/core.py",
@@ -604,7 +604,7 @@
     "szl_khipu_lmdb.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
       "header": true,
-      "revision": "eaa4dc867c1e9f8f138c216fe9b040378858aafb"
+      "revision": "9d685a683984b7a0595a2a85bed930f961b94a53"
     },
     "szl_unified_formulas.py": {
       "source": "replit-sync/szl_unified_formulas.py",

@@ -7,14 +7,16 @@ disabled by default; this repair does not qualify sender crash recovery.
 ## Source boundary
 
 This paired source change starts from A11oy protected main
-`5cd4cfe6237cf931753492750857632b348b6c28` and Killinchu protected main
-`10fb059a8277ea477b824a41f5f243f9b23581be`.
+`5900b6fb6f181c4420d51df295fb8ba389053664` and Killinchu protected main
+`8424d312254c869bc7c87cc90c87cedc7ccafc37`, preserving the endpoint-bound
+model credential fix and its immutable predecessor manifest.
 
-The currently staged Platform revision is
-`eaa4dc867c1e9f8f138c216fe9b040378858aafb`, from
+The protected merged Platform revision is
+`9d685a683984b7a0595a2a85bed930f961b94a53`, from
 [Platform PR 944](https://github.com/szl-holdings/platform/pull/944).
-This is an unmerged candidate used for local integration testing. Final vendor
-pins must be replaced with the protected merged source before publication.
+The protected merge and signature were read back. All seven changed source
+files match reviewed head `46ac8903900a1fc0e73959f266633189ac9a8908`;
+all 65 surfaced checks completed successfully or were intentionally skipped.
 Its canonical `packages/khipu-lmdb/khipu_lmdb/core.py` SHA256 is
 `4c0087bd9e35cf14e355fe8266ba1e4e2b3e7c4da9562e8f6f9132c011429417`.
 
@@ -89,7 +91,7 @@ working-tree bytes, add replacement refs, and create a filtered local clone.
 They verify immutable selection, target isolation, invalid input refusal,
 missing-blob refusal and header behavior without external network calls.
 
-## Local verification receipt
+## Earlier local candidate verification receipt
 
 Python 3.12, pytest 9.1.1, lmdb 2.3.0, FastAPI 0.139.0 and httpx 0.28.1.
 Pytest plugin autoload and bytecode writes were disabled. Every pytest run used
@@ -123,15 +125,17 @@ bytes, including entries outside the sparse working tree.
 four existing allowlisted differences and zero blocking differences.
 
 `python .github/validate-shared-payload.py . <peer-checkout>
---expected-manifest-sha256=<active-manifest-sha256>` binds the paired six-file
-payload. The preceding integrity manifest is preserved byte-exact at
+--expected-manifest-sha256=<active-manifest-sha256>` binds the paired payload, including both predecessor archives. The model
+credential archive is byte-exact at
+`.github/shared-source-payloads/model-credential-origin-20261017-v1.json`,
+SHA256 `e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c`. The preceding integrity manifest is preserved byte-exact at
 `.github/shared-source-payloads/replication-payload-integrity-20261017-v1.json`,
 SHA256 `1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc`.
 Historical source hashes remain historical; current-source checks are separate.
 
 The new archive keeps a public authentication-related source digest that the
 generic secret heuristic detects. The existing exception now permits its exact
-literal row/hash at the active manifest and the one preserved manifest path.
+literal row/hash at the active manifest and the two exact preserved manifest paths.
 It is still a rule-specific AND condition; no directory or general hexadecimal
 exception was added. With the verified Gitleaks 8.21.2 executable configured:
 
@@ -140,7 +144,7 @@ python -I -B tests/test_gitleaks_archived_payload_digest.py -v
 6 tests passed in each consumer
 ```
 
-These actual-scanner tests cover both permitted paths, another path, a changed
+These actual-scanner tests cover all three permitted paths, another path, a changed
 value, and adjacent/same-line credentials. Killinchu's existing public-digest
 scanner suite also passed its 10 tests. The A11oy broader scanner suite has seven
 unchanged Windows stylesheet-path subtest failures; independent Linux execution
@@ -153,3 +157,35 @@ validators and actual scanner controls. The reviewer also ran the focused
 receiver suites and verified every updated vendor body against the canonical
 Platform blob. Exact-head hosted consumer CI is pending. No claim of deployment,
 live replication, hardware readiness or AGI is made.
+
+
+## Protected-source reconciliation verification
+
+The final consumer pin is protected Platform `9d685a683984b7a0595a2a85bed930f961b94a53`.
+The endpoint-bound model credential release is preserved byte-exact, including
+its tests and predecessor archive. The active seven-file shared payload SHA256 is
+`3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce`.
+
+MEASURED local Windows Python 3.12 rerun with pytest plugin autoload disabled,
+no bytecode/cache writes, a fresh explicit basetemp, and verified Gitleaks8.21.2:
+
+- A11oy: `python -m pytest -q -p no:cacheprovider --basetemp=<fresh>
+  tests/test_vendor_sync_contract.py tests/test_unay_write_authorization.py
+  tests/test_khipu_replication_delivery.py tests/test_meter_shared_payload_history.py
+  tests/test_model_endpoint_credentials.py tests/test_gitleaks_archived_payload_digest.py`
+  completed with 185 passed and 21 subtests passed.
+- Killinchu: `python -m pytest -q -p no:cacheprovider --basetemp=<fresh>
+  tests/test_vendor_sync_contract.py tests/test_unay_write_authorization.py
+  tests/test_khipu_replication_delivery.py tests/test_shared_operator_boundary.py
+  tests/test_runtime_shared_boundary_peer_sync.py tests/test_shared_observer_operator_gate.py
+  tests/test_space_http_diagnostics.py tests/test_model_endpoint_credentials.py
+  tests/test_gitleaks_archived_payload_digest.py` completed with 264 passed,
+  25 skipped and 21 subtests passed. Those skips are the existing strict
+  execution-budget companion cases, which are absent in this repository.
+- Both exact payload validators passed with seven files; both drift checks
+  reported 160 candidates, 156 identical, four existing allowed differences
+  and zero blocking differences.
+
+This record establishes local source validation. Protected consumer merge,
+provider publication, runtime identity and cross-rebuild replication durability
+require separate readback.
