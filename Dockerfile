@@ -90,7 +90,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # … (full rationale: docs/DOCKERFILE_NOTES.md §2)
 # Pins live ONLY in requirements-runtime.txt (single source of truth; the audit
 # closure includes it with -r). Never re-list them inline here.
-COPY requirements-runtime.txt .szl-runtime-marker.json /tmp/
+COPY .szl-runtime-marker.json /tmp/.szl-runtime-marker.json
+COPY requirements-runtime.txt /tmp/requirements-runtime.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-runtime.txt
 
 # Canonical non-generative Nemo witness: exact immutable source revision,
@@ -154,8 +155,7 @@ COPY szl_numerics_adapter.py ./
 # Public Steward services/provenance dependency: fixed read-only bytes from
 # exact canonical Estate OS source. No private audit store or model adapter.
 COPY a11oy_steward_surface.py steward_public.py steward-public.json steward-source-lock.json ./
-COPY szl_numerics_dataset.py ./
-COPY szl_numerics_experiment.py ./
+COPY szl_numerics_dataset.py szl_numerics_experiment.py ./
 COPY numerics/ ./numerics/
 # Wave 23 Yupaq governed computation plane.  It ships only the strict routing
 # contract and delegates to already-copied engines; it installs no new runtime,

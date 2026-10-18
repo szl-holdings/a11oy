@@ -29,6 +29,7 @@ on:
 
 permissions:
   contents: read
+  attestations: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

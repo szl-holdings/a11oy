@@ -863,6 +863,7 @@ jobs:
     if: ${{ needs.relock.outputs.current_main == 'true' }}
     permissions:
       contents: read
+      attestations: read
     uses: ./.github/workflows/hf-module-drift.yml
 
   terminal-source-authorization:
