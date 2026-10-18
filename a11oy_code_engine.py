@@ -171,6 +171,19 @@ _FALLBACK_ROSTER = [
     {"tier": "T5", "id": "meta-llama/Llama-3.1-70B-Instruct", "params": "70B",
      "license": "Llama-3.1 Community (commercial-OK)", "role": "frontier-open",
      "use": "frontier open-weight reasoning; tower-GPU / sovereign-local fallback"},
+    {"tier": "T4", "id": "prism-ml/Ternary-Bonsai-2-27B-PQ2_0", "params": "27B",
+     "license": "Apache-2.0", "role": "external-quantized-chat", "provider": "Prism ML",
+     "use": "Explicit gateway alias for one pinned external GGUF; proposal generation only",
+     "transport": "custom-https-only",
+     "evidence_class": "DECLARED", "evaluation": "UNKNOWN", "artifact_equivalence": "UNKNOWN",
+     "upstream_artifact": {
+         "repo_id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+         "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+         "filename": "Ternary-Bonsai-2-27B-PQ2_0.gguf", "size_bytes": 7206168928,
+         "sha256": "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1",
+         "base_model": "Qwen/Qwen3.8-27B",
+         "attribution": "Created using Bonsai by Prism ML; built from Qwen by Alibaba Cloud",
+     }},
 ]
 
 
@@ -1052,6 +1065,17 @@ def _model_auth_headers():
     return {"Authorization": "Bearer " + token}
 
 
+def _model_selection_preflight(model_slug):
+    """A gateway alias cannot be dispatched to the default HF Router."""
+    custom_only = any(entry.get("id") == model_slug
+                      and entry.get("transport") == "custom-https-only"
+                      for entry in _FALLBACK_ROSTER)
+    if custom_only:
+        parsed, official = _model_endpoint()
+        if official or parsed.scheme != "https":
+            raise ValueError("MODEL_CUSTOM_HTTPS_REQUIRED")
+
+
 def _model_opener():
     import urllib.error
     import urllib.request
@@ -1067,6 +1091,7 @@ def strict_transport_preflight(model_slug):
     """Validate the configured direct transport without networking or signing."""
     from urllib.parse import urlsplit
     import ipaddress
+    _model_selection_preflight(model_slug)
     parsed = urlsplit(_MODEL_BASE_URL)
     own_hosts = {"a-11-oy.com", "www.a-11-oy.com", "szlholdings-a11oy.hf.space",
                  "localhost", "host.docker.internal"}
@@ -1187,6 +1212,7 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
     order += [m for m in _HF_ROSTER if m["hf_repo"] != want_model]
     headers = {"Content-Type": "application/json"}
     try:
+        _model_selection_preflight(want_model)
         headers.update(_model_auth_headers())
         opener = _model_opener()
     except ValueError:

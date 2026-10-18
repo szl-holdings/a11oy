@@ -1,9 +1,12 @@
 {
   "files": {
     ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json": "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",
-    "a11oy_code_engine.py": "60b196bc7118ffb08a9ddf3ca1a006026aec969d3a1a8f10a5b8a0e454acc8b7",
-    "szl_khipu_replicate.py": "392b6dc7e2e5d9d8ac629de73df2a486f1fa17c19fc54d0bb323b23d07574ddd"
+    ".github/shared-source-payloads/model-credential-origin-20261017-v1.json": "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c",
+    "a11oy_code_engine.py": "3a39b4ed589a060900c2ce60806ccfd90e69f297e778aee95b11d91b81b309fc",
+    "docs/bonsai-model-binding.md": "aeef1aed1d603df81216603091cbb269a4f72e4d6673e09e1b885fdcb0e5f3a2",
+    "szl_khipu_replicate.py": "392b6dc7e2e5d9d8ac629de73df2a486f1fa17c19fc54d0bb323b23d07574ddd",
+    "tests/test_model_endpoint_credentials.py": "f1fd03f3d733936495dd47b182d5503bcf78d5568709160505a97af42c82f31d"
   },
-  "payload_id": "model-credential-origin-20261017-v1",
+  "payload_id": "bonsai-model-catalog-20261017-v1",
   "schema": "szl-shared-source-payload/v1"
 }

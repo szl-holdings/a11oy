@@ -76,8 +76,10 @@ def test_archived_write_boundary_payload_preserves_prior_evidence():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
-def test_active_credential_payload_preserves_predecessor_and_current_source():
-    manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+def test_archived_credential_payload_preserves_predecessor_and_source_digest():
+    raw = (ROOT / ".github/shared-source-payloads/model-credential-origin-20261017-v1.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c"
+    manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "model-credential-origin-20261017-v1"
     assert set(manifest["files"]) == {
@@ -85,6 +87,9 @@ def test_active_credential_payload_preserves_predecessor_and_current_source():
         "a11oy_code_engine.py", "szl_khipu_replicate.py",
     }
     for relative, expected in manifest["files"].items():
+        if relative == "a11oy_code_engine.py":
+            assert expected == "60b196bc7118ffb08a9ddf3ca1a006026aec969d3a1a8f10a5b8a0e454acc8b7"
+            continue  # The predecessor remains immutable while the catalog advances.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
     prior = {**manifest, "files": {key: value for key, value in manifest["files"].items()
                                   if key != "a11oy_code_engine.py"},
@@ -92,6 +97,20 @@ def test_active_credential_payload_preserves_predecessor_and_current_source():
     assert hashlib.sha256((json.dumps(prior, indent=2) + "\n").encode()).hexdigest() == (
         "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
     )
+
+
+def test_active_bonsai_payload_preserves_prior_evidence_and_current_source():
+    manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "bonsai-model-catalog-20261017-v1"
+    assert set(manifest["files"]) == {
+        ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
+        ".github/shared-source-payloads/model-credential-origin-20261017-v1.json",
+        "a11oy_code_engine.py", "szl_khipu_replicate.py",
+        "tests/test_model_endpoint_credentials.py", "docs/bonsai-model-binding.md",
+    }
+    for relative, expected in manifest["files"].items():
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
 def test_meter_selector_is_inactive_without_importing_the_runtime():

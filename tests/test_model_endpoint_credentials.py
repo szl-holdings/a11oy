@@ -232,3 +232,86 @@ def test_official_label_describes_hf_authentication(configured):
     assert label["configured"] is True
     assert "HF token" in label["honest"]
     assert "A11OY_MODEL_API_KEY" not in label["honest"]
+
+
+BONSAI = "prism-ml/Ternary-Bonsai-2-27B-PQ2_0"
+
+
+def test_bonsai_catalog_identifies_quantized_external_artifact_without_equivalence_claim():
+    entry, = [item for item in engine._FALLBACK_ROSTER if item["id"] == BONSAI]
+    assert engine._is_open_weight(entry)
+    assert entry["provider"] == "Prism ML"
+    assert entry["license"] == "Apache-2.0"
+    assert entry["transport"] == "custom-https-only"
+    assert entry["evaluation"] == entry["artifact_equivalence"] == "UNKNOWN"
+    artifact = entry["upstream_artifact"]
+    assert artifact["repo_id"] == "prism-ml/Ternary-Bonsai-2-27B-gguf"
+    assert artifact["revision"] == "b072e1d3b35a0a630cece372c2127528e0994386"
+    assert artifact["filename"] == "Ternary-Bonsai-2-27B-PQ2_0.gguf"
+    assert artifact["size_bytes"] == 7206168928
+    assert artifact["sha256"] == "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1"
+    assert artifact["base_model"] != BONSAI
+    assert "SZLHOLDINGS" not in artifact["repo_id"]
+
+
+@pytest.mark.skipif(ExecutionBudget is None, reason="Strict companion is absent in this repository")
+def test_bonsai_strict_identity_requires_registered_alias_not_base_or_local_path():
+    from szl_router_client import ExecutionBudgetError, strict_model_slug
+    assert strict_model_slug(BONSAI) == BONSAI
+    for model in ("./models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf",
+                  "Ternary-Bonsai-2-27B-PQ2_0.gguf", "Qwen/Qwen3.8-27B",
+                  "prism-ml/Ternary-Bonsai-2-27B-gguf"):
+        with pytest.raises(ExecutionBudgetError):
+            strict_model_slug(model)
+
+
+@pytest.mark.skipif(ExecutionBudget is None, reason="Strict companion is absent in this repository")
+@pytest.mark.parametrize("returned_model", [BONSAI,
+    "./models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf", "Qwen/Qwen3.8-27B"])
+def test_bonsai_strict_response_identity_is_not_repaired_by_provider_provenance(configured, returned_model):
+    configured.setenv("A11OY_MODEL_API_KEY", CUSTOM_KEY)
+    seen = []
+
+    def provider(request):
+        seen.append(request)
+        body = completion()
+        body["model"] = returned_model
+        # An asserted artifact digest never overrides the response identity check.
+        body["provenance"] = {"sha256": "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1"}
+        return httpx.Response(200, json=body)
+
+    configured.setattr(httpx, "Client", lambda **kw: CLIENT(**kw, transport=httpx.MockTransport(provider)))
+    result = engine._hf_chat([{"role": "user", "content": "2 + 2"}], max_tokens=4,
+        want_model=BONSAI, execution_budget=ExecutionBudget({"max_model_requests": 1,
+            "max_output_tokens": 4, "max_elapsed_seconds": 10}))
+    assert len(seen) == 1
+    assert json.loads(seen[0].content)["model"] == BONSAI
+    assert authorization(seen[0]) == "Bearer " + CUSTOM_KEY
+    assert result["ok"] is (returned_model == BONSAI)
+    if returned_model != BONSAI:
+        assert result["error"] == "STRICT_MODEL_IDENTITY_MISMATCH"
+    assert HF_KEY not in json.dumps(result)
+
+
+@pytest.mark.parametrize("mode", ["strict", "legacy"])
+@pytest.mark.parametrize("base", ["https://router.huggingface.co/v1",
+    "https://ROUTER.HUGGINGFACE.CO:443/v1", "http://127.0.0.1:18080/v1"])
+def test_bonsai_alias_requires_custom_https_before_any_dispatch(configured, mode, base):
+    configured.setattr(engine, "_MODEL_BASE_URL", base)
+    configured.setattr(__import__(__name__, fromlist=["MODEL"]), "MODEL", BONSAI)
+    seen = install_transport(configured, mode)
+    result = call(mode)
+    assert result["ok"] is False
+    assert result["attempts"] == 0
+    assert seen == []
+
+
+@pytest.mark.parametrize("mode", ["strict", "legacy"])
+def test_bonsai_alias_dispatches_to_explicit_custom_https_only(configured, mode):
+    configured.setattr(__import__(__name__, fromlist=["MODEL"]), "MODEL", BONSAI)
+    configured.setenv("A11OY_MODEL_API_KEY", CUSTOM_KEY)
+    seen = install_transport(configured, mode)
+    result = call(mode)
+    assert result["ok"] is True
+    assert len(seen) == 1
+    assert authorization(seen[0]) == "Bearer " + CUSTOM_KEY
