@@ -1,7 +1,7 @@
 """Native write guards work in every namespace without the A11oy middleware.
 
-The actual router is registered with isolated store doubles. These tests do not
-open databases, restore snapshots, sign receipts, or send provider requests.
+The actual router is registered with isolated store doubles. Producer fixtures
+use temporary LMDB stores; no snapshots, signatures, or provider requests run.
 """
 
 from pathlib import Path
@@ -14,6 +14,8 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 import szl_unay_routes as subject
+from szl_khipu_lmdb import KhipuLMDB
+from szl_khipu_replicate import verify_inbound
 
 
 OPERATOR = "fixture-unay-operator"
@@ -123,6 +125,33 @@ def test_authorization_does_not_bypass_inbound_validation(native_routes):
     assert response.status_code == 200 and response.json()["rejected"] == 1
     native_routes.mirror.append.assert_not_called()
     native_routes.mirror.get_by_receipt.assert_not_called()
+
+
+@pytest.mark.parametrize("tampered", [False, True])
+def test_authorized_replication_checks_actual_payload_before_store_access(
+        native_routes, tmp_path, monkeypatch, tampered):
+    producer = KhipuLMDB(str(tmp_path / "producer"))
+    try:
+        receipt = producer.append("fixture", payload={"nested": {"text": "Khipu \u03bb"}})
+    finally:
+        producer.close()
+    if tampered:
+        receipt["payload"]["nested"]["text"] = "substituted"
+    monkeypatch.setattr(subject.szl_khipu_replicate, "verify_inbound", verify_inbound)
+    response = native_routes.client.post(
+        native_routes.prefix + "khipu/replicate", json={"receipts": [receipt]},
+        headers={"Authorization": "Bearer " + OPERATOR})
+    assert response.status_code == 200
+    assert response.json() == {
+        "accepted": 0 if tampered else 1, "rejected": 1 if tampered else 0,
+        "mirror_entries": 0,
+    }
+    if tampered:
+        native_routes.mirror.append.assert_not_called()
+        native_routes.mirror.get_by_receipt.assert_not_called()
+    else:
+        native_routes.mirror.get_by_receipt.assert_called_once_with(receipt["digest"])
+        native_routes.mirror.append.assert_called_once_with("replicated", payload={"origin": receipt})
 
 
 def test_public_reads_do_not_require_operator_or_write(native_routes, monkeypatch):
