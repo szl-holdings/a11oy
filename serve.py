@@ -4401,11 +4401,28 @@ def _ptg_serve(filename: str):
         return FileResponse(INDEX_HTML, media_type="text/html")
     return _h
 
+
+async def _ptg_agent(request: Request) -> Response:
+    """Own /agent before the SPA, but never substitute an unrelated page."""
+    agent = globals().get("_v4_agent")
+    if globals().get("_V4_AGENT_ERR") is not None or agent is None:
+        return JSONResponse(
+            {"status": "UNAVAILABLE", "reason": "v4 agent route did not register"},
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
+    if request.method == "HEAD":
+        return Response(status_code=200, media_type="text/html",
+                        headers={"Cache-Control": "no-store"})
+    response = await agent._handle_agent_ui(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
 try:
     # Upgraded genius surfaces (win over module + SPA handlers by ordered match).
     app.add_api_route("/conduction", lambda: _PTG_Redirect(url="/console", status_code=307), methods=["GET"], include_in_schema=False)
     app.add_api_route("/bridge",     _ptg_serve("bridge.html"),     methods=["GET"], include_in_schema=False)
-    app.add_api_route("/agent",      _ptg_serve("agent.html"),      methods=["GET"], include_in_schema=False)
+    app.add_api_route("/agent",      _ptg_agent,                    methods=["GET", "HEAD"], include_in_schema=False)
     app.add_api_route("/predict",    _ptg_serve("predict.html"),    methods=["GET"], include_in_schema=False)
     app.add_api_route("/papers",     _ptg_serve("papers.html"),     methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/papers", _ptg_serve("papers.html"),   methods=["GET"], include_in_schema=False)
@@ -13635,6 +13652,7 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/quantum-utility/",   # Proposal-only Quantum Utility Gate
                               "v1/compute/",           # Yupaq governed computation plane
                               "v1/formal-conjecture-lab/",  # Fail-closed formal receipt lab
+                              "v4/agent/",  # v4 voter/ask routes must never fall through to Node
                               )
 
 
@@ -13730,6 +13748,20 @@ async def a11oy_genome() -> JSONResponse:
 
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
+    if path in ("v4/agent/ask", "v4/agent/voters"):
+        allowed = {"POST"} if path == "v4/agent/ask" else {"GET", "HEAD"}
+        if request.method in allowed:
+            return JSONResponse(
+                {"status": "UNAVAILABLE", "reason": "v4 agent route did not register"},
+                status_code=503,
+                headers={"Cache-Control": "no-store"},
+            )
+        allow = "POST" if path == "v4/agent/ask" else "GET, HEAD"
+        return JSONResponse(
+            {"status": "METHOD_NOT_ALLOWED", "path": f"/api/a11oy/{path}"},
+            status_code=405,
+            headers={"Allow": allow, "Cache-Control": "no-store"},
+        )
     # DEV2: in-toto verify guide + inclusion proof — served in-process, NOT proxied
     if path == "v1/verify/intoto":
         return JSONResponse({
