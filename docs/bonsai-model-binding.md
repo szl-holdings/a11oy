@@ -35,6 +35,22 @@ accept the Windows loopback SSH URL. A gateway reached through the existing
 Windows Cloudflare tunnel depends on that computer, its SSH process, the tunnel,
 and the VM; stopping any of these makes inference UNAVAILABLE.
 
+Set the server-side `A11OY_MODEL_ID=prism-ml/Ternary-Bonsai-2-27B-PQ2_0`
+to make this model the default for ordinary frontend requests that omit an
+explicit model. The default must match an existing open-weight catalog entry;
+unknown, empty, whitespace-altered, or endpoint-incompatible values fail before
+dispatch. A configured local model retains its existing precedence. Explicit
+execution-budget callers retain their own selected model and limits.
+
+Both default and explicit Bonsai selections use the existing strict transport:
+one request, the requested output-token budget, and a 30-second elapsed bound.
+Requests include `stream: false`. Identity, usage, completion, HTTPS and redirect
+checks remain mandatory. Failures do not retry or select another model. This
+bounds the client request; remote provider internals remain UNKNOWN. A shared
+engine installation without the strict client companion refuses this path.
+The backend label reports the configured alias and the one-request policy,
+without claiming that the endpoint is reachable.
+
 The alias is admitted only with a configured custom HTTPS endpoint, in both
 strict and legacy explicit-model dispatch. Selecting it while the official HF
 Router or plain HTTP is configured fails before a request. It is absent from

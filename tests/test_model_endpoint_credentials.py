@@ -38,6 +38,7 @@ def configured(monkeypatch):
     monkeypatch.setattr(engine, "_HF_TOKEN", HF_KEY)
     monkeypatch.setattr(engine, "_LOCAL_MODEL_CMD", "")
     monkeypatch.delenv("A11OY_MODEL_API_KEY", raising=False)
+    monkeypatch.delenv("A11OY_MODEL_ID", raising=False)
     return monkeypatch
 
 
@@ -307,11 +308,100 @@ def test_bonsai_alias_requires_custom_https_before_any_dispatch(configured, mode
 
 
 @pytest.mark.parametrize("mode", ["strict", "legacy"])
+@pytest.mark.skipif(ExecutionBudget is None, reason="Strict companion is absent in this repository")
 def test_bonsai_alias_dispatches_to_explicit_custom_https_only(configured, mode):
     configured.setattr(__import__(__name__, fromlist=["MODEL"]), "MODEL", BONSAI)
     configured.setenv("A11OY_MODEL_API_KEY", CUSTOM_KEY)
-    seen = install_transport(configured, mode)
+    seen = install_transport(configured, "strict")
     result = call(mode)
     assert result["ok"] is True
     assert len(seen) == 1
     assert authorization(seen[0]) == "Bearer " + CUSTOM_KEY
+
+
+@pytest.mark.skipif(ExecutionBudget is None, reason="Strict companion is absent in this repository")
+@pytest.mark.parametrize("explicit", [False, True])
+def test_bonsai_default_and_explicit_legacy_calls_use_one_strict_request(configured, explicit):
+    configured.setenv("A11OY_MODEL_ID", BONSAI)
+    configured.setenv("A11OY_MODEL_API_KEY", CUSTOM_KEY)
+    configured.setattr(__import__(__name__, fromlist=["MODEL"]), "MODEL", BONSAI)
+    seen = install_transport(configured, "strict")
+    result = engine._hf_chat([{"role": "user", "content": "2 + 2"}], max_tokens=4,
+                             want_model=BONSAI if explicit else None)
+    assert result["ok"] is True
+    assert result["attempts"] == len(seen) == 1
+    assert json.loads(seen[0].content) == {"model": BONSAI,
+        "messages": [{"role": "user", "content": "2 + 2"}],
+        "max_tokens": 4, "temperature": 0.0, "stream": False}
+    limits = result["execution_limits"]
+    assert limits["limits"] == {"max_model_requests": 1,
+        "max_output_tokens": 4, "max_elapsed_seconds": 30}
+    label = engine._backend_label()
+    assert label["primary_model"] == BONSAI
+    assert "One bounded request; no retries or model fallback" in label["honest"]
+    assert "does not establish runtime availability" in label["honest"]
+
+
+@pytest.mark.skipif(ExecutionBudget is None, reason="Strict companion is absent in this repository")
+@pytest.mark.parametrize("failure", ["http", "identity"])
+def test_configured_bonsai_failure_never_retries_or_falls_back(configured, failure):
+    configured.setenv("A11OY_MODEL_ID", BONSAI)
+    # Default fixture returns a different model ID; neither failure may be repaired.
+    seen = install_transport(configured, "strict", status=503 if failure == "http" else 200)
+    result = engine._hf_chat([{"role": "user", "content": "2 + 2"}], max_tokens=4)
+    assert result["ok"] is False
+    assert result["attempts"] == len(seen) == 1
+    assert result["error"] == ("STRICT_MODEL_HTTP_FAILURE" if failure == "http"
+                               else "STRICT_MODEL_IDENTITY_MISMATCH")
+
+
+@pytest.mark.skipif(ExecutionBudget is None, reason="Strict companion is absent in this repository")
+@pytest.mark.parametrize("tokens", [0, True, 32769])
+def test_configured_bonsai_rejects_invalid_output_budget_without_dispatch(configured, tokens):
+    configured.setenv("A11OY_MODEL_ID", BONSAI)
+    seen = install_transport(configured, "strict")
+    result = engine._hf_chat([{"role": "user", "content": "2 + 2"}], max_tokens=tokens)
+    assert result["error"] == "INVALID_EXECUTION_LIMITS"
+    assert result["attempts"] == 0
+    assert seen == []
+
+
+@pytest.mark.parametrize("model,base", [("unknown/model", "https://gpu.example/v1"),
+    ("", "https://gpu.example/v1"), (BONSAI + " ", "https://gpu.example/v1"),
+    (BONSAI, "https://router.huggingface.co/v1"), (BONSAI, "http://gpu.example/v1")])
+def test_invalid_default_model_configuration_never_dispatches(configured, model, base):
+    configured.setenv("A11OY_MODEL_ID", model)
+    configured.setattr(engine, "_MODEL_BASE_URL", base)
+    strict_seen = install_transport(configured, "strict")
+    legacy_seen = install_transport(configured, "legacy")
+    result = engine._hf_chat([{"role": "user", "content": "2 + 2"}], max_tokens=4)
+    assert result["ok"] is False
+    assert result["attempts"] == 0
+    assert strict_seen == legacy_seen == []
+    assert engine._backend_label()["configured"] is False
+
+
+def test_local_model_configuration_keeps_precedence_over_default_model_label(configured):
+    configured.setenv("A11OY_MODEL_ID", "unknown/model")
+    configured.setattr(engine, "_LOCAL_MODEL_CMD", "configured-local-model")
+    assert engine._configured_default_model() is None
+    assert engine._backend_label()["backend"] == "local-weights"
+
+
+@pytest.mark.skipif(ExecutionBudget is None, reason="Strict companion is absent in this repository")
+def test_explicit_budget_preserves_caller_selection_despite_configured_default(configured):
+    configured.setenv("A11OY_MODEL_ID", "unknown/default")
+    seen = install_transport(configured, "strict")
+    assert call("strict")["ok"] is True
+    assert len(seen) == 1
+    assert json.loads(seen[0].content)["model"] == MODEL
+
+
+@pytest.mark.skipif(ExecutionBudget is not None, reason="Only the shared engine lacks the strict companion")
+def test_bonsai_without_strict_companion_fails_before_legacy_dispatch(configured):
+    configured.setenv("A11OY_MODEL_ID", BONSAI)
+    seen = install_transport(configured, "legacy")
+    result = engine._hf_chat([{"role": "user", "content": "2 + 2"}], max_tokens=4)
+    assert result["error"] == "STRICT_MODEL_CLIENT_UNAVAILABLE"
+    assert result["attempts"] == 0
+    assert seen == []

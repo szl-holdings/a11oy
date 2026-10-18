@@ -1076,6 +1076,21 @@ def _model_selection_preflight(model_slug):
             raise ValueError("MODEL_CUSTOM_HTTPS_REQUIRED")
 
 
+def _configured_default_model():
+    """An explicit server-side default is a declaration, never a liveness claim."""
+    if _LOCAL_MODEL_CMD:
+        return None  # Preserve the existing local-model configuration precedence.
+    model = os.environ.get("A11OY_MODEL_ID")
+    if model is None:
+        return None
+    allowed = {entry["id"] for entry in _FALLBACK_ROSTER if _is_open_weight(entry)}
+    allowed.update(entry["hf_repo"] for entry in _HF_ROSTER)
+    if model not in allowed:
+        raise ValueError("MODEL_ID_CONFIGURATION_INVALID")
+    _model_selection_preflight(model)
+    return model
+
+
 def _model_opener():
     import urllib.error
     import urllib.request
@@ -1197,12 +1212,31 @@ def _strict_hf_chat(messages, max_tokens, want_model, execution_budget):
 
 
 def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None):
-    """Call the OpenAI-compatible model endpoint server-side, with 2x retry and
-    automatic fallback down the open-weight roster. Returns a dict:
+    """Call the model endpoint server-side. Custom-only aliases use one bounded
+    strict request; other models retain the legacy retry roster. Returns a dict:
       {ok, text, model, license, attempts, rate_limited, error}
     NEVER fabricates: on total failure ok=False and text=None."""
     if execution_budget is not None:
         return _strict_hf_chat(messages, max_tokens, want_model, execution_budget)
+    try:
+        configured_model = _configured_default_model()
+        if want_model is None:
+            want_model = configured_model
+        _model_selection_preflight(want_model)
+        custom_only = any(entry.get("id") == want_model
+                          and entry.get("transport") == "custom-https-only"
+                          for entry in _FALLBACK_ROSTER)
+        if custom_only:
+            from szl_router_client import ExecutionBudget
+            budget = ExecutionBudget({"max_model_requests": 1,
+                "max_output_tokens": max_tokens, "max_elapsed_seconds": 30})
+            return _strict_hf_chat(messages, max_tokens, want_model, budget)
+    except (ValueError, ImportError) as exc:
+        code = str(exc) if isinstance(exc, ValueError) else "STRICT_MODEL_CLIENT_UNAVAILABLE"
+        if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", code) is None:
+            code = "MODEL_ID_CONFIGURATION_INVALID"
+        return {"ok": False, "text": None, "model": None, "attempts": 0,
+                "rate_limited": False, "error": code}
     import urllib.request, urllib.error, json as _json, time as _time
     # build the model try-order: requested model first (if open-weight), then roster
     order = []
@@ -1260,6 +1294,12 @@ def _backend_label() -> dict:
     if _LOCAL_MODEL_CMD:
         return {"backend": "local-weights", "model_serving": "real local model (LOCAL_MODEL_CMD)",
                 "offline": True, "honest": "Running your plugged-in local open-weight model."}
+    try:
+        configured_model = _configured_default_model()
+    except ValueError:
+        return {"backend": "unavailable", "configured": False,
+                "model_serving": "invalid model configuration",
+                "honest": "A11OY_MODEL_ID must name a registered model with an admitted endpoint."}
     if _model_configured():
         _is_local = not _model_endpoint()[1]
         tgt = "custom model endpoint" if _is_local else "Hugging Face Router"
@@ -1269,11 +1309,17 @@ def _backend_label() -> dict:
                       else "no Authorization header") if _is_local else "HF token"
         lab = {"backend": "generative", "endpoint": _MODEL_BASE_URL,
                 "model_serving": "%s — open-weight (server-side only)" % tgt,
-                "primary_model": _HF_ROSTER[0]["hf_repo"], "configured": True,
+                "primary_model": configured_model or _HF_ROSTER[0]["hf_repo"], "configured": True,
                 "offline": False,
                 "honest": "OpenAI-compatible endpoint configured with " + auth_label
                           + ". Configuration does not establish runtime availability."
                           + " 2x retry + roster fallback; never a fabricated answer."}
+        if any(entry.get("id") == configured_model
+               and entry.get("transport") == "custom-https-only"
+               for entry in _FALLBACK_ROSTER):
+            lab["honest"] = ("Custom HTTPS endpoint configured with " + auth_label
+                + ". Configuration does not establish runtime availability."
+                + " One bounded request; no retries or model fallback.")
         if _is_local and _GPU_LABEL:
             lab["gpu"] = _GPU_LABEL
         return lab
