@@ -1003,14 +1003,64 @@ _HF_ROSTER = [
 
 
 def _model_configured() -> bool:
-    """True iff a real generative endpoint is reachable-by-config (token present
-    for the HF router, OR a non-router base URL e.g. a local Hetzner model)."""
+    """Configuration admission only; this does not measure endpoint reachability."""
     if _LOCAL_MODEL_CMD:
         return True
-    if "router.huggingface.co" in _MODEL_BASE_URL:
-        return bool(_HF_TOKEN)
-    # a custom base url (Hetzner/local) is assumed reachable without an HF token
-    return True
+    try:
+        _model_auth_headers()
+    except ValueError:
+        return False
+    return True  # Configuration admission only; no endpoint reachability claim.
+
+
+def _model_endpoint():
+    """Parse one configured destination before choosing a credential."""
+    from urllib.parse import urlsplit
+    try:
+        parsed = urlsplit(_MODEL_BASE_URL)
+        port = parsed.port
+        if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                or parsed.username or parsed.password or parsed.query or parsed.fragment
+                or parsed.path.rstrip("/") not in {"", "/v1"}
+                or any(char.isspace() or ord(char) < 32 for char in _MODEL_BASE_URL)):
+            raise ValueError
+    except (TypeError, ValueError):
+        raise ValueError("MODEL_ENDPOINT_INVALID") from None
+    official_host = parsed.hostname.lower() == "router.huggingface.co"
+    official = official_host and parsed.scheme == "https" and port in {None, 443}
+    if official_host and not official:
+        raise ValueError("MODEL_ENDPOINT_INVALID")
+    return parsed, official
+
+
+def _model_auth_headers():
+    """HF credentials belong only to the official router's HTTPS origin.
+
+    Custom endpoints use a dedicated credential, never any HF token fallback.
+    An absent custom key admits existing anonymous local services; a configured
+    but empty or malformed key refuses dispatch instead of dropping auth.
+    """
+    parsed, official = _model_endpoint()
+    token = _HF_TOKEN if official else os.environ.get("A11OY_MODEL_API_KEY")
+    if token is None and not official:
+        return {}
+    if (not isinstance(token, str) or not 1 <= len(token) <= 4096
+            or re.fullmatch(r"[A-Za-z0-9._~+/\-]+=*", token) is None):
+        raise ValueError("MODEL_CREDENTIAL_INVALID")
+    if parsed.scheme != "https":
+        raise ValueError("MODEL_CREDENTIAL_REQUIRES_HTTPS")
+    return {"Authorization": "Bearer " + token}
+
+
+def _model_opener():
+    import urllib.error
+    import urllib.request
+
+    class NoModelRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            raise urllib.error.HTTPError(req.full_url, code, "MODEL_REDIRECT_DENIED", headers, fp)
+
+    return urllib.request.build_opener(NoModelRedirect())
 
 
 def strict_transport_preflight(model_slug):
@@ -1053,13 +1103,13 @@ def _strict_hf_chat(messages, max_tokens, want_model, execution_budget):
     try:
         execution_budget.check()
         strict_transport_preflight(want_model)
+        auth = _model_auth_headers()
         if type(max_tokens) is not int or max_tokens < 1:
             raise ValueError("STRICT_MODEL_CONFIGURATION_REQUIRED")
         timeout = execution_budget.claim_attempt(max_tokens)
         attempted = True
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
-        if _HF_TOKEN:
-            headers["Authorization"] = "Bearer " + _HF_TOKEN
+        headers.update(auth)
         payload = {"model": want_model, "messages": messages, "max_tokens": max_tokens,
                    "temperature": 0.0, "stream": False}
         chunks, size = [], 0
@@ -1136,8 +1186,12 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
                       "license": "declared open-weight", "role": "requested", "open_weight": True})
     order += [m for m in _HF_ROSTER if m["hf_repo"] != want_model]
     headers = {"Content-Type": "application/json"}
-    if _HF_TOKEN:
-        headers["Authorization"] = "Bearer " + _HF_TOKEN
+    try:
+        headers.update(_model_auth_headers())
+        opener = _model_opener()
+    except ValueError:
+        return {"ok": False, "text": None, "model": None, "attempts": 0,
+                "rate_limited": False, "error": "MODEL_AUTH_CONFIGURATION_INVALID"}
     url = _MODEL_BASE_URL + "/chat/completions"
     last_err = None
     rate_limited = False
@@ -1149,7 +1203,7 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
                                 "max_tokens": max_tokens, "temperature": 0.2}).encode()
             req = urllib.request.Request(url, data=body, headers=headers, method="POST")
             try:
-                with urllib.request.urlopen(req, timeout=45) as r:
+                with opener.open(req, timeout=45) as r:
                     data = _json.loads(r.read())
                 txt = (((data.get("choices") or [{}])[0].get("message") or {}).get("content")) or ""
                 if txt.strip():
@@ -1163,14 +1217,14 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
                 if code == 429:
                     rate_limited = True
                     _time.sleep(1.2)  # brief backoff then retry/fallback
-                elif code in (401, 403):
+                elif code in (301, 302, 303, 307, 308, 401, 403):
                     return {"ok": False, "text": None, "model": None, "attempts": attempts,
                             "rate_limited": False,
-                            "error": "auth rejected (HTTP %s) — HF_TOKEN missing or unauthorized" % code}
+                            "error": "MODEL_REDIRECT_DENIED" if 300 <= code < 400 else "MODEL_AUTH_REJECTED"}
                 else:
                     break  # try next model
-            except Exception as e:
-                last_err = "%s: %s" % (type(e).__name__, e)
+            except Exception:
+                last_err = "MODEL_TRANSPORT_FAILED"
         # next model in roster
     return {"ok": False, "text": None, "model": None, "attempts": attempts,
             "rate_limited": rate_limited, "error": last_err or "all models failed"}
@@ -1181,29 +1235,25 @@ def _backend_label() -> dict:
         return {"backend": "local-weights", "model_serving": "real local model (LOCAL_MODEL_CMD)",
                 "offline": True, "honest": "Running your plugged-in local open-weight model."}
     if _model_configured():
-        _is_local = "router.huggingface.co" not in _MODEL_BASE_URL
-        tgt = "local model (A11OY_MODEL_BASE_URL)" if _is_local else "Hugging Face Router"
+        _is_local = not _model_endpoint()[1]
+        tgt = "custom model endpoint" if _is_local else "Hugging Face Router"
         if _is_local and _GPU_LABEL:
-            tgt = "local open-weight model on %s (sovereign, A11OY_MODEL_BASE_URL)" % _GPU_LABEL
+            tgt = "custom model endpoint (declared hardware: %s)" % _GPU_LABEL
+        auth_label = ("A11OY_MODEL_API_KEY" if os.environ.get("A11OY_MODEL_API_KEY") is not None
+                      else "no Authorization header") if _is_local else "HF token"
         lab = {"backend": "generative", "endpoint": _MODEL_BASE_URL,
                 "model_serving": "%s — open-weight (server-side only)" % tgt,
                 "primary_model": _HF_ROSTER[0]["hf_repo"], "configured": True,
-                "offline": bool(_is_local),
-                "honest": "Real generative inference via the OpenAI-compatible endpoint"
-                          + ((" served locally on %s — sovereign, no third-party router." % _GPU_LABEL) if (_is_local and _GPU_LABEL)
-                             else " with the present HF_TOKEN (disclosed, never sent to browser).")
+                "offline": False,
+                "honest": "OpenAI-compatible endpoint configured with " + auth_label
+                          + ". Configuration does not establish runtime availability."
                           + " 2x retry + roster fallback; never a fabricated answer."}
         if _is_local and _GPU_LABEL:
             lab["gpu"] = _GPU_LABEL
-            lab["sovereign"] = True
         return lab
-    if _HF_TOKEN:
-        return {"backend": "hf-router", "model_serving": "Hugging Face Router (token present)",
-                "configured": True, "offline": False,
-                "honest": "Using the HF Router with the present token (disclosed)."}
     return {"backend": "local-deterministic", "configured": False,
-            "configure_hint": "Set the HF_TOKEN Space secret to enable live open-weight inference "
-                              "via the HF Router (server-side only). Governance is real either way.",
+            "configure_hint": "Configure the official HTTPS HF Router with an HF token, or a custom "
+                              "endpoint with its own A11OY_MODEL_API_KEY when required (server-side only).",
             "model_serving": "local deterministic, retrieval-grounded backend",
             "sandbox_isolation": ("Restricted subprocess here: separate process as the server's "
                                   "own non-root uid in a per-run user + network namespace, "
@@ -1216,7 +1266,7 @@ def _backend_label() -> dict:
                                   "container sandbox (the child can read what the server's uid "
                                   "can read); container/microVM isolation is ROADMAP."),
             "offline": True,
-            "honest": ("No model weights and no token in this env, so a11oy Code runs a "
+            "honest": ("No admitted model endpoint in this env, so a11oy Code runs a "
                        "DETERMINISTIC, retrieval-grounded backend (it never fakes generative "
                        "model output). Bring your own local open-weight model (LOCAL_MODEL_CMD) "
                        "or run on the tower GPU for full generation. The GOVERNANCE — the "
