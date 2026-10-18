@@ -67,6 +67,9 @@ LABEL org.opencontainers.image.version=${VERSION} \
 
 WORKDIR /app
 
+# Publisher-generated selector/catalog; developer images carry the unavailable
+# placeholder. This file grants no execution authority by itself.
+
 # Install Node 22 (for a11oy serve TypeScript runner)
 # … (full rationale: docs/DOCKERFILE_NOTES.md §1)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -79,7 +82,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
       > /etc/apt/sources.list.d/github-cli.list && \
-    apt-get update && apt-get install -y --no-install-recommends gh && \
+    apt-get update && apt-get install -y --no-install-recommends gh=2.102.0 && \
+    gh --version | head -n 1 | grep -F 'gh version 2.102.0 ' && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -87,6 +91,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Pins live ONLY in requirements-runtime.txt (single source of truth; the audit
 # closure includes it with -r). Never re-list them inline here.
 COPY requirements-runtime.txt /tmp/requirements-runtime.txt
+COPY .szl-runtime-marker.json /tmp/.szl-runtime-marker.json
 RUN pip install --no-cache-dir -r /tmp/requirements-runtime.txt
 
 # Canonical non-generative Nemo witness: exact immutable source revision,
@@ -150,8 +155,7 @@ COPY szl_numerics_adapter.py ./
 # Public Steward services/provenance dependency: fixed read-only bytes from
 # exact canonical Estate OS source. No private audit store or model adapter.
 COPY a11oy_steward_surface.py steward_public.py steward-public.json steward-source-lock.json ./
-COPY szl_numerics_dataset.py ./
-COPY szl_numerics_experiment.py ./
+COPY szl_numerics_dataset.py szl_numerics_experiment.py ./
 COPY numerics/ ./numerics/
 # Wave 23 Yupaq governed computation plane.  It ships only the strict routing
 # contract and delegates to already-copied engines; it installs no new runtime,
@@ -177,7 +181,7 @@ COPY model_release/m1/ ./model_release/m1/
 # Keep root-level sources explicit while batching them into one filesystem layer.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
+COPY szl_runtime_identity.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -512,7 +516,7 @@ COPY policy/colang/roe_core.co policy/colang/killinchu_threat.co policy/colang/g
 # GOVERNED AUTO-REVIEW (Integration I2) — keystone autonomy layer: governed +
 # … (full rationale: docs/DOCKERFILE_NOTES.md §68)
 COPY scripts/check_tau_eval.py scripts/verify_installed_authority.py ./scripts/
-COPY .github/scripts/publish_readiness_verdict.py ./.github/scripts/
+COPY .github/workflows/hf-sync.yml .github/scripts/publish_readiness_verdict.py ./.github/scripts/
 # Lean4Agent workflow-invariant scaffold (ROADMAP / EXPERIMENTAL — not a verified
 # proof yet; rendered as ROADMAP in the UI). Shipped so the .lean source is in
 # the image for audit; no Lean toolchain is invoked at runtime.

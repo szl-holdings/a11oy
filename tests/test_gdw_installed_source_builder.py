@@ -128,6 +128,23 @@ def test_build_stage_only_and_runtime_install_input_are_explicit():
     assert installed["requirements-runtime.txt"]["sha256"] == report["build_inputs"][1]["sha256"]
 
 
+def test_generated_selector_has_one_explicit_non_source_destination():
+    placeholder = b'{"schema":"szl.runtime-source-marker/unavailable"}\n'
+    docker = DOCKER.replace("WORKDIR /app\n", "WORKDIR /app\nCOPY .szl-runtime-marker.json /tmp/\n")
+    files = source_files(docker)
+    files[".szl-runtime-marker.json"] = placeholder
+    report = derive(files, sources=[*SOURCES, ".szl-runtime-marker.json"])
+    assert report["build_inputs"] == [{
+        "stage": "runtime", "destination": "/tmp/.szl-runtime-marker.json",
+        "scope": "RUNTIME_IDENTITY_SELECTOR", "source_path": ".szl-runtime-marker.json",
+        "size": len(placeholder), "sha256": hashlib.sha256(placeholder).hexdigest()}]
+    assert not any(row["source_path"] == ".szl-runtime-marker.json" for row in report["installed_files"])
+    files["Dockerfile"] = docker.replace("COPY .szl-runtime-marker.json /tmp/",
+                                          "COPY .szl-runtime-marker.json /tmp/other.json").encode()
+    with pytest.raises(builder.InstalledSourceError, match="UNQUALIFIED_BUILD_INPUT_DESTINATION"):
+        derive(files, sources=[*SOURCES, ".szl-runtime-marker.json"])
+
+
 def test_json_and_continued_copy_keep_the_same_destination_contract():
     docker = DOCKER.replace("COPY assets/ ./static/", 'COPY ["assets/", "./static/"]')
     assert any(row["path"] == "static/page.html" for row in derive(source_files(docker))["installed_files"])

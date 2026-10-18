@@ -220,7 +220,8 @@ test -s "$PLATFORM_CANDIDATE_ORIGIN_REPORT"
 test -s "$PLATFORM_CANDIDATE_PRODUCT_REPORT"
 test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
 RUN_VERDICT = "${{ needs.execution-readiness.outputs.verdict }}"
-REVIEWED_DEPLOY_JOB_SHA256 = "a30a6a0ed116101c998635538465ef55c0b97d134f0a4381a5ea4b4fb97a19fb"
+# Reviewed publisher 5f140bab: isolated identity attestation and exact-main gates.
+REVIEWED_DEPLOY_JOB_SHA256 = "472ec55d0cb1a4bfec47fd6053bedf5497c8dff2015482dc50ee2c6ebc34678d"
 REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c8762f3de244d5964f"
 
 
@@ -534,7 +535,7 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
         raise WorkflowContractError("relock credential contract changed")
     parity = jobs["post-deployment-parity"]
     if (parity.get("needs") != "relock" or parity.get("uses") != "./.github/workflows/hf-module-drift.yml"
-            or parity.get("permissions") != {"contents": "read"}):
+            or parity.get("permissions") != {"contents": "read", "attestations": "read"}):
         raise WorkflowContractError("parity must follow successful verification")
     terminal = jobs["terminal-source-authorization"]
     if (terminal.get("permissions") != {"contents": "read"} or "secrets." in json.dumps(terminal)
@@ -801,6 +802,36 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def test_actual_deploy_path_contract(self):
         jobs = assert_deploy_path_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
+
+    def test_runtime_identity_and_signer_permissions_are_exactly_reviewed(self):
+        block = re.search(r"(?ms)^  deploy:\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)", self.source).group(0)
+        for original, replacement in (
+            ("      runtime-identity: true\n", "      runtime-identity: false\n"),
+            ("      runtime-identity: true\n", ""),
+            ("      id-token: write\n", "      id-token: read\n"),
+            ("      attestations: write\n", ""),
+            ("      contents: read\n", "      contents: write\n"),
+            ("      contents: read\n", "      contents: read\n      actions: write\n"),
+        ):
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, block)
+                changed = self.source.replace(block, block.replace(original, replacement, 1), 1)
+                with self.assertRaisesRegex(WorkflowContractError, "deploy authority contract changed"):
+                    assert_deploy_path_contract(changed)
+
+    def test_parity_attestation_reader_permissions_are_exact(self):
+        block = re.search(r"(?ms)^  post-deployment-parity:\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)", self.source).group(0)
+        for original, replacement in (
+            ("      attestations: read\n", ""),
+            ("      attestations: read\n", "      attestations: write\n"),
+            ("      contents: read\n", "      contents: write\n"),
+            ("      contents: read\n", "      contents: read\n      actions: read\n"),
+        ):
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, block)
+                changed = self.source.replace(block, block.replace(original, replacement, 1), 1)
+                with self.assertRaisesRegex(WorkflowContractError, "parity must follow successful verification"):
+                    assert_deploy_path_contract(changed)
 
     def test_token_bearing_workflows_isolate_every_python_entrypoint(self):
         for workflow in (WORKFLOW, DRILL_WORKFLOW):

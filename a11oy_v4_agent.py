@@ -6,10 +6,11 @@
 """
 a11oy_v4_agent.py — ADDITIVE FastAPI module: multi-LLM ensemble for a11oy.
 
-Registers three routes BEFORE the generic /api/a11oy/{path:path} proxy:
+Registers two API routes BEFORE the generic /api/a11oy/{path:path} proxy.
+serve.py owns the single early GET/HEAD /agent operator-page route:
 
-  GET  /agent                         — operator UI (voter checkboxes)
-  GET  /api/a11oy/v4/agent/voters     — JSON list of voters + status
+  GET  /agent                         — operator UI (served by serve.py)
+  GET/HEAD /api/a11oy/v4/agent/voters — JSON list of voters + status
   POST /api/a11oy/v4/agent/ask        — fan-out to selected voters + Λ-aggregate
 
 ARCHITECTURE
@@ -394,18 +395,34 @@ async function doAsk() {{
 
     // Voter response cards
     const vr = document.getElementById("voter-responses");
-    vr.innerHTML = "";
+    vr.replaceChildren();
     (j.votes || []).forEach(v => {{
       const pillClass = v.status === "ok" ? "ok" : (v.status === "unavailable" ? "unavailable" : "error");
-      const text = v.status === "ok" ? (v.text || "").slice(0, 400) : (v.reason || "");
-      vr.innerHTML += `<div class="vr-card">
-        <div class="vr-header">
-          <span class="vr-id">${{v.voter_id}}</span>
-          <span class="status-pill ${{pillClass}}">${{v.status}}</span>
-          ${{v.latency_ms != null ? `<span style="font-size:10px;color:var(--dim)">${{v.latency_ms}}ms</span>` : ""}}
-        </div>
-        <div class="vr-text">${{text}}</div>
-      </div>`;
+      const card = document.createElement("div");
+      card.className = "vr-card";
+      const header = document.createElement("div");
+      header.className = "vr-header";
+      const id = document.createElement("span");
+      id.className = "vr-id";
+      id.textContent = String(v.voter_id ?? "");
+      const pill = document.createElement("span");
+      pill.className = "status-pill " + pillClass;
+      pill.textContent = String(v.status ?? "");
+      header.appendChild(id);
+      header.appendChild(pill);
+      if (v.latency_ms != null) {{
+        const latency = document.createElement("span");
+        latency.style.cssText = "font-size:10px;color:var(--dim)";
+        latency.textContent = String(v.latency_ms) + "ms";
+        header.appendChild(latency);
+      }}
+      const body = document.createElement("div");
+      body.className = "vr-text";
+      body.textContent = v.status === "ok"
+        ? String(v.text ?? "").slice(0, 400) : String(v.reason ?? "");
+      card.appendChild(header);
+      card.appendChild(body);
+      vr.appendChild(card);
     }});
 
     document.getElementById("full-json").textContent = JSON.stringify(j, null, 2);
@@ -531,20 +548,14 @@ async def _handle_agent_ui(request: Request) -> HTMLResponse:
 # ---------------------------------------------------------------------------
 
 def register(app: FastAPI, ns: str = "a11oy") -> str:
-    """Mount the v4 agent routes on `app`. Returns a status string."""
+    """Mount the v4 APIs; serve.py owns the single /agent page route."""
     voters = get_all_voters()
     voter_count = len(voters)
 
     app.add_api_route(
-        "/agent",
-        _handle_agent_ui,
-        methods=["GET"],
-        include_in_schema=False,
-    )
-    app.add_api_route(
         f"/api/{ns}/v4/agent/voters",
         _handle_voters,
-        methods=["GET"],
+        methods=["GET", "HEAD"],
         tags=["v4-agent"],
         summary="List all LLM voters with availability status",
     )
@@ -560,6 +571,6 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
     return (
         f"ok — {voter_count} voters registered ({available} available); "
         f"sovereign-default={SOVEREIGN_VOTER_ID}; "
-        f"/agent + /api/{ns}/v4/agent/voters + /api/{ns}/v4/agent/ask; "
+        f"ui=/agent (serve-owned); api=/api/{ns}/v4/agent/voters + /api/{ns}/v4/agent/ask; "
         f"version={__version__}"
     )

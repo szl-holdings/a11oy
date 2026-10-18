@@ -802,7 +802,7 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
     # Reviewed reusable-hf-deploy controller that expands Dockerfile COPY
     # sources into the HF payload. A generic 40-hex pin proves immutability,
     # not this capability; additions require an explicit guard review.
-    "fc71ae973a0f31b8e9ee793fc8545a354448d451",
+    "5f140bab8adb64fe25252d8832b67b1f43a56c36",
 })
 
 
@@ -868,7 +868,11 @@ REVIEWED_DEPLOY_GATES = {
     "needs": "[source-admission, preflight]",
     "if": "${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}",
 }
+REVIEWED_DEPLOY_PERMISSIONS = {
+    "contents": "read", "id-token": "write", "attestations": "write",
+}
 REVIEWED_DEPLOY_INPUTS = {
+    "runtime-identity": "true",
     "hf-repo": "SZLHOLDINGS/a11oy",
     "ref": "${{ github.sha }}",
     "require-default-branch-tip": "true",
@@ -914,6 +918,7 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
     direct = {}
     with_index = None
     secrets_index = None
+    permissions_index = None
     for index, raw in enumerate(block_lines[1:], start=1):
         stripped = raw.strip()
         indent = len(raw) - len(raw.lstrip())
@@ -931,6 +936,10 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
             if entry[1]:
                 return False
             secrets_index = index
+        elif entry[0] == "permissions":
+            if entry[1]:
+                return False
+            permissions_index = index
 
     expected_direct = {
         "name": "Deploy, source-bind, and attest exact surface",
@@ -938,12 +947,14 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
         "if": REVIEWED_DEPLOY_GATES["if"],
         "uses": (
             "szl-holdings/.github/.github/workflows/"
-            "reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451"
+            "reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36"
         ),
         "with": "",
         "secrets": "",
+        "permissions": "",
     }
-    if direct != expected_direct or with_index is None or secrets_index is None:
+    if (direct != expected_direct or with_index is None or secrets_index is None
+            or permissions_index is None):
         return False
     if not (admission_verified and preflight_verified and runtime_verified
             ):
@@ -983,9 +994,11 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
     if (set(matched_inputs) != set(REVIEWED_DEPLOY_INPUTS)
             or not all(matched_inputs.values())):
         return False
-    return _exact_yaml_child_mapping(
+    return (_exact_yaml_child_mapping(
         block_lines, secrets_index, property_indent, REVIEWED_DEPLOY_SECRETS
-    )
+    ) and _exact_yaml_child_mapping(
+        block_lines, permissions_index, property_indent, REVIEWED_DEPLOY_PERMISSIONS
+    ))
 
 
 def _job_body_sha256(lines):
