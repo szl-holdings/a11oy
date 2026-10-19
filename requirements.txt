@@ -4,7 +4,7 @@
 # This file declares the cross-pod tracing dependency for the mesh wire-up.
 # vsp-otel is also vendored per-file COPY under ./vsp_otel/ so the import
 # resolves offline (no PyPI dependency at build time) — honest, no-mock.
-vsp-otel>=0.1
+vsp-otel>=0.1.2
 # OpenTelemetry SDK + OTLP/gRPC exporter — the dependency closure that makes
 # vsp-otel's server spans actually EXPORTABLE. Without these _Tracer no-ops and
 # every span goes nowhere (shelfware). Export is GATED on OTEL_EXPORTER_OTLP_ENDPOINT:
