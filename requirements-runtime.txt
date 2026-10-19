@@ -13,7 +13,7 @@
 # Rationale for each dependency: docs/DOCKERFILE_NOTES.md §2.
 # Hub/Xet source compatibility is covered by tests/test_state_store_hub_sdk.py.
 # Historical Hub 1.31 evidence does not qualify this runtime. openai 3.x is not admitted.
-fastapi==0.143.0
+fastapi==0.143.2
 uvicorn[standard]==0.54.0
 httpx==0.28.1
 starlette==1.7.0
@@ -25,4 +25,4 @@ cryptography==50.0.2
 lmdb==2.3.0
 slowapi==0.1.10
 defusedxml==0.7.1
-numpy==2.5.3
+numpy==2.5.4
