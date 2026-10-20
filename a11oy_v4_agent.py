@@ -605,7 +605,7 @@ async def _handle_ask(request: Request) -> JSONResponse:
 
 
 async def _handle_agent_ui(request: Request) -> HTMLResponse:
-    """GET /agent — the multi-LLM ensemble operator UI."""
+    """GET /agent — the governed sovereign-voter operator UI."""
     return HTMLResponse(_build_agent_html())
 
 

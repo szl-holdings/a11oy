@@ -5256,30 +5256,26 @@ except Exception as _wh_e:  # never crash the app
 
 
 # ---------------------------------------------------------------------------
-# v4 MULTI-LLM ENSEMBLE VOTE (Yachay, 2026-06-01) — the SZL moat. ADDITIVE.
+# v4 GOVERNED AGENT SURFACE (Yachay, 2026-06-01) — additive.
 # Mounts POST /api/a11oy/v4/agent/ask + GET /api/a11oy/v4/agent/voters + the
-# operator UI page GET /agent. Fans one prompt out to N voter LLMs in parallel
-# (httpx async, 30s/voter), scores every response across the 13 DETERMINISTIC
-# Yuyay axes, combines them with the Lutar Λ-aggregator (variance-weighted
-# bounded combiner), picks the winner, and emits a DSSE-signed Khipu receipt.
-# HF Inference free-tier voters use the Space HF token (custom-cred proxy);
-# qwen-local degrades to a CLEARLY-LABELLED deterministic stub when the local
-# vLLM is unreachable (never a fabricated completion). Sovereign path is
-# khipu-gguf on the pinned CPU lab. Failed voters carry an
-# "error" field, never a fake response. Registered BEFORE the generic
-# /api/a11oy/{path:path} Node proxy and the SPA catch-all so /agent and the
-# v4 ask route resolve LOCALLY. Λ = Conjecture 1 (NOT a theorem; 163 sorries).
+# operator UI page GET /agent. Public asks use the sovereign Khipu voter only;
+# non-sovereign fan-out stays BLOCKED until a hard budget/concurrency admission
+# boundary exists. Failed voter calls carry an "error" field, never a fake
+# response. Any in-response receipt is honest and may be UNSIGNED; persistence
+# and signature verification are separate capabilities. Registered BEFORE the
+# generic /api/a11oy/{path:path} Node proxy and SPA catch-all so /agent and the
+# v4 routes resolve LOCALLY. Λ = Conjecture 1 (NOT a theorem; 163 sorries).
 # Doctrine v11 LOCKED 749/14/163 UNCHANGED. Co-Authored-By: Perplexity Computer Agent.
 # ---------------------------------------------------------------------------
 _V4_AGENT_ERR = None
 try:
     import a11oy_v4_agent as _v4_agent
     _v4_status = _v4_agent.register(app, "a11oy")
-    print(f"[a11oy] v4 ensemble agent registered: {_v4_status}", file=sys.stderr)
+    print(f"[a11oy] v4 governed agent registered: {_v4_status}", file=sys.stderr)
 except Exception as _v4_e:  # never crash the app — additive only
     import traceback as _v4_tb
     _V4_AGENT_ERR = _v4_tb.format_exc()
-    print(f"[a11oy] v4 ensemble agent NOT registered: {_v4_e!r}", file=sys.stderr)
+    print(f"[a11oy] v4 governed agent NOT registered: {_v4_e!r}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -6879,7 +6875,7 @@ try:
             response = await call_next(request)
             try:
                 p = request.url.path
-                if request.method == "POST" and (
+                if response.status_code >= 200 and response.status_code < 300 and request.method == "POST" and (
                     p.endswith("/v4/agent/ask") or p.endswith("/v4/predict")
                     or p == "/predict" or p == "/agent"
                 ):

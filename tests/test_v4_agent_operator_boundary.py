@@ -4,6 +4,7 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
+from pathlib import Path
 
 import a11oy_v4_agent as agent
 import a11oy_v4_hickok as hickok
@@ -231,3 +232,15 @@ def test_configured_cloud_voter_is_still_reported_blocked(agent_client, monkeypa
     assert by_id["khipu-gguf"]["status"] == "available"
     assert by_id["hf-inference-llama"]["status"] == "BLOCKED"
     assert by_id["hf-inference-llama"]["anonymous_permitted"] is False
+
+
+def test_serve_derivation_capture_never_records_denied_agent_requests():
+    """The outer derivation writer must follow the actual HTTP outcome."""
+    source = (Path(__file__).resolve().parents[1] / "serve.py").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        'if response.status_code >= 200 and response.status_code < 300 '
+        'and request.method == "POST"'
+    ) in source
+    assert 'decision="PASS", lambda_score=0.0' in source
