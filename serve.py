@@ -6863,10 +6863,12 @@ except Exception as _explorer_e:
         print(f"[a11oy] 4-lens Explorer NOT registered: {_explorer_e!r}", file=sys.stderr)
         _explorer_tb.print_exc(file=sys.stderr)
 
-# Every /agent/ask and /predict call writes the full Worker->Critic->Yuyay-13->Lambda->
-# Khipu derivation chain into the Khipu (Receipt) store as a graph (Palantir AIP Logic
-# pattern). Implemented as a lightweight ASGI middleware so the existing agent/predict
-# modules are NOT modified (purely additive). Best-effort; never fatal, never blocks.
+# Every successful 2xx /agent/ask and /predict call writes the full
+# Worker->Critic->Yuyay-13->Lambda->Khipu derivation chain into the Khipu (Receipt)
+# store as a graph (Palantir AIP Logic pattern). Denied, oversized, and failed
+# requests do not mint a PASS chain. Implemented as lightweight ASGI middleware so
+# the existing agent/predict modules are NOT modified (purely additive).
+# Best-effort; never fatal, never blocks.
 try:
     from starlette.middleware.base import BaseHTTPMiddleware as _BHM
 
