@@ -200,6 +200,23 @@ def test_native_docker_heredocs_preserve_stages_and_bind_generated_model_destina
         builder._instructions(changed)
 
 
+@pytest.mark.parametrize("before,after", [
+    (b"https://github.com/cli/cli/releases/download/v2.102.1/",
+     b"https://example.invalid/cli/cli/releases/download/v2.102.1/"),
+    (b"5b91c75d971509e96f673fa9f46e5d8ea294b6bbfedbc8ff458aedd88775d94c",
+     b"0" * 64),
+    (b"gh version 2.102.1 ", b"gh version 2.102.0 "),
+    (b'"$(dpkg --print-architecture)" = amd64', b'"$(dpkg --print-architecture)" = arm64'),
+    (b"sha256sum --check --strict -", b"true"),
+])
+def test_cli_acquisition_changes_require_exact_run_review(before, after):
+    original = (ROOT / "Dockerfile").read_bytes()
+    builder._instructions(original)
+    assert original.count(before) == 1
+    with pytest.raises(builder.InstalledSourceError, match="UNREVIEWED_DOCKER_RUN"):
+        builder._instructions(original.replace(before, after))
+
+
 @pytest.mark.parametrize("docker", ["# escape=`\nFROM python AS runtime\n",
                                     "FROM python AS runtime\nCOPY x " + chr(92) + "\n",
                                     "FROM python AS runtime\nRUN python <<'PY'\nfrom x import y\n"])
