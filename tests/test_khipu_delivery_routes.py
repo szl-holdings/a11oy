@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import secrets
 import threading
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI, Request
@@ -167,3 +168,44 @@ def test_image_contains_exact_package_and_adapter():
         assert item["revision"] == "d16b702ebe63042e05f41eacea4853afc59c7ab3"
         assert (root / relative).read_text().startswith(
             "# VENDORED FROM szl-holdings/platform@" + item["revision"])
+
+
+@pytest.mark.parametrize("namespace", ("a11oy", "killinchu"))
+def test_parent_register_wires_child_with_sole_live_handles(tmp_path, monkeypatch, namespace):
+    import szl_unay_routes as parent
+    operator, token = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", operator)
+    monkeypatch.setenv("SZL_TEST_DELIVERY_PEER", token)
+    peer = delivery.Peer("fixture", f"https://localhost/api/{namespace}/v2/khipu/replicate/batch/fixture",
+                         "khipu", namespace, "SZL_TEST_DELIVERY_PEER")
+    monkeypatch.setenv(routes.CONFIG_ENV, json.dumps([config(peer, direction) for direction in ("inbound", "outbound")]))
+    monkeypatch.setattr(parent, "_pick_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(parent, "_restore_snapshot", lambda *_: False)
+    monkeypatch.setattr(parent.szl_unay, "UnayStore", lambda **_: SimpleNamespace(backend="fixture"))
+    opened, observed = [], []
+    def open_store(**kwargs):
+        store = KhipuLMDB(**kwargs, map_size=8 * 1024 * 1024)
+        opened.append(store)
+        return store
+    monkeypatch.setattr(parent.szl_khipu_lmdb, "KhipuLMDB", open_store)
+    def unavailable(source, mirror):
+        assert opened == [source, mirror]
+        observed.append((source, mirror))
+        raise routes.StateOwnerUnavailable("qualified owner absent in fixture")
+    monkeypatch.setattr(routes, "_state", unavailable)
+    app = FastAPI()
+    parent.register(app, ns=namespace)
+    auth.install_gate(app)
+    try:
+        assert len(opened) == 2
+        with TestClient(app) as client:
+            for route, bearer in (("dispatch", operator), ("batch", token)):
+                response = client.post(f"/api/{namespace}/v2/khipu/replicate/{route}/fixture",
+                    content=b"{}", headers={"Authorization": "Bearer " + bearer})
+                assert response.status_code == 503
+                assert response.json()["reason"] == "QUALIFIED_STATE_OWNER_UNAVAILABLE"
+        assert len(observed) == 2
+        assert all(store.stats()["entries"] == 0 for store in opened)
+    finally:
+        for store in opened:
+            store.close()

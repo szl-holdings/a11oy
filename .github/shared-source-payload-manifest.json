@@ -18,7 +18,7 @@
     "szl_khipu_replicate.py": "392b6dc7e2e5d9d8ac629de73df2a486f1fa17c19fc54d0bb323b23d07574ddd",
     "szl_unay_routes.py": "a11310c27c0c9d93044041c4f0c3582f964e228f29828205a4d02be89767d5b7",
     "tests/test_gitleaks_archived_payload_digest.py": "d41d4a9e0b4ec19446c8fbc643b1b9f792b12701fc4fb1a51024385fd12e4b4c",
-    "tests/test_khipu_delivery_routes.py": "4c70e42d0088c56534c02d46bdba371ac3e955a5bd170d7c3f5c4c6b83a53847",
+    "tests/test_khipu_delivery_routes.py": "350f37b73e3c094f7fb41e8334c36f96f61795075e1b362740e27204197974b4",
     "tests/test_replication_shared_payload.py": "89f9d7bde3ef340119149e41e6fa92732473dc6e4b6de9dd8f855f7cb6770fa5",
     "tests/test_unay_write_authorization.py": "ec36d86eed8e36d45d56cb00c67e7adc7a1976cb1185614fb5370f8ce7271adf",
     "tests/test_vendor_sync_contract.py": "44b3d28b669abd479b3b9dd9817d827bf03b09e6e0227987d8e8fb7d00056cba"
