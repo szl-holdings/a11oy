@@ -13,5 +13,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 | PRISM Counsel | `szl-holdings/a11oy` | `SZLHOLDINGS/counsel` | `PUBLIC_SOURCE_EVIDENCE` |
 | PURIQ Finance | `szl-holdings/puriq-live` | `SZLHOLDINGS/finance` | `PUBLIC_SOURCE_EVIDENCE` |
 
-Contract alignment SHA-256: `15796543ad6b6e009b25c75f0bff67372e4737f3d50771329008dec73bec6187`.
+Contract alignment SHA-256: `7059246848fe56bb9fedacd6855059c0b6aa186bec81f6b7128f6128c9144153`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
