@@ -47,6 +47,7 @@ OBSERVATION_WRITES = tuple(OBSERVATION_PREFIX + suffix for suffix in
 PERSISTENT_V2_WRITES = (
     "/api/a11oy/v2/khipu/lmdb/append",
     "/api/a11oy/v2/khipu/replicate",
+    "/api/a11oy/v2/khipu/replicate/dispatch/fixture",
     "/api/a11oy/v2/unay/remember",
 )
 
@@ -731,6 +732,8 @@ class GateMiddleware(unittest.TestCase):
 # persistence, or their own credential registry. A NEW route caught by the keyword
 # net must be gated in PROTECTED_ROUTES or reviewed here; the test fails otherwise.
 REVIEWED_PUBLIC_WRITE_ROUTES = {
+    "/api/a11oy/v2/khipu/replicate/batch/{peer_id}":
+        "own fixed peer bearer before body/write; exact durable snapshot before ACK; test_khipu_delivery_routes.py",
     "/api/a11oy/v1/atelier/turn":
         "own gdw_auth credential registry (atelier:write); anonymous refusal tested in test_atelier_grok.py",
     "/api/a11oy/v1/atelier/local/turn":
@@ -822,8 +825,11 @@ class ServeAppGate(unittest.TestCase):
         # Verify that entry against its real registered handler, not an A11oy
         # alias invented solely to satisfy the inventory test.
         import szl_restraint
+        import szl_khipu_delivery_routes
         peer = FastAPI()
         szl_restraint.register(peer, ns="killinchu")
+        with patch.dict(os.environ, {szl_khipu_delivery_routes.CONFIG_ENV: "[]"}):
+            szl_khipu_delivery_routes.register(peer, ns="killinchu", source=None, mirror=None)
         cls.peer_write_routes = [
             (route.path, frozenset(route.methods)) for route in peer.routes
             if getattr(route, "methods", None)
@@ -907,12 +913,12 @@ class ServeAppGate(unittest.TestCase):
         sign.assert_not_called()
 
     def test_observation_and_persistence_refusals_have_no_native_effects(self):
-        import szl_khipu_lmdb
+        import khipu_lmdb
         import szl_khipu_replicate
         import szl_unay
         observer = self.serve.app.state.szl_execution_observer
         with patch.object(observer, "_caller") as caller, \
-                patch.object(szl_khipu_lmdb.KhipuLMDB, "append") as append, \
+                patch.object(khipu_lmdb.KhipuLMDB, "append") as append, \
                 patch.object(szl_unay.UnayStore, "remember") as remember, \
                 patch.object(szl_khipu_replicate, "verify_inbound") as replicate:
             for path in OBSERVATION_WRITES + PERSISTENT_V2_WRITES:

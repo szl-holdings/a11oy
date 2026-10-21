@@ -71,7 +71,7 @@ def test_archived_write_boundary_payload_preserves_prior_evidence():
     } <= set(manifest["files"])
     assert manifest["files"]["szl_khipu_replicate.py"] == "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1"
     for relative, expected in manifest["files"].items():
-        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py"):
+        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py", "szl_operator_auth.py"):
             continue  # The original source remains pinned in this immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
@@ -127,11 +127,15 @@ def test_archived_replication_origin_payload_binds_current_source_and_predecesso
         "tests/test_unay_write_authorization.py", "tests/test_vendor_sync_contract.py",
     }
     for relative, expected in manifest["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # Historical route is pinned in the immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
-def test_active_bonsai_payload_binds_current_source_and_predecessors():
-    manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+def test_archived_bonsai_payload_binds_predecessors():
+    raw = (ROOT / ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
+    manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "bonsai-model-catalog-20261017-v1"
     assert set(manifest["files"]) == {
@@ -149,6 +153,8 @@ def test_active_bonsai_payload_binds_current_source_and_predecessors():
         'tests/test_vendor_sync_contract.py',
     }
     for relative, expected in manifest["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # Historical route is pinned in the immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
