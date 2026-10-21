@@ -26,7 +26,7 @@ def renderer():
     return load("hf_publish_vertical_flagships_v4_impl")
 
 
-@pytest.mark.parametrize("line", ["fastapi==0.141.1", "starlette==1.6.0", "pip==26.2.1"])
+@pytest.mark.parametrize("line", ["fastapi==0.141.1", "starlette==1.6.0", "pip==26.2.1", "certifi==2026.10.19"])
 def test_emitted_runtime_uses_qualified_versions(line):
     assert line in renderer().REQ.splitlines()
 

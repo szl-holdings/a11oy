@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+
 # Standalone Vite dependency repair - 2026-10-21
 
 Evidence class: MEASURED for commands below. Provider publication, production deployment and runtime readiness: NOT RUN.

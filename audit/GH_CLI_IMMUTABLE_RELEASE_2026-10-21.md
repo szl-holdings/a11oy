@@ -115,3 +115,44 @@ Existing PR #2930 covers overlapping immutable acquisition for 2.102.0. This
 repair uses the independently verified 2.102.1 security release and leaves that
 PR untouched. The exact-head full application build and normal protected merge
 checks remain required; local source qualification is not live readiness.
+
+## Required dependency and fixture companions
+
+The first isolated recovery head `50945dd38fbaa7270b8a6bcde53e941682ad2227`
+passed all eight protected status contexts but exposed existing security and
+fixture failures in additional checks. Their logs and artifacts are preserved:
+
+- Grype run 39565357265 found only Vite 6.4.3: one High and two Medium
+  advisories. The reviewed exact 6.4.4 override/lock repair is included; see
+  `audit/VITE_ADVISORY_2026-10-21.md` for frozen-install, consumer tests and
+  old/new same-database scan evidence. No unrelated package graph changes.
+- Finance run 39565357383 artifact 12329795947 identifies only generated
+  `certifi==2026.7.22`, PYSEC-2026-4320 / GHSA-6q48-6c7w-9gw2. Apply the
+  reviewed 2026.10.19 requirement, its expected-version assertion and exact
+  generated requirements hash. The earlier actual generated Linux image
+  qualification checked 23 installed pins, 15 route outcomes and zero audit
+  findings. Its receipt is `outputs/finance-certifi-image-linux-20261021/receipt.json`,
+  SHA-256 `f9488e2f4aab73550135a891927e5196ec5c4f2133f4094c43de10335944fca4`.
+- GDW run 39565357743 job 119106205804 reported 1 failed, 3,096 passed,
+  22 skipped and 11 passing subtests:
+  the historical rehearsal expected the old upload-artifact SHA, while main
+  already uses v7.0.2. Refresh only that exact expected SHA, as in existing
+  PR #2931; leave the workflow and assertion strictness unchanged. That PR
+  remains untouched. Fresh selected historical tests: 10 passed, 91 deselected.
+
+MEASURED: the recovery's Finance source and exact generated-file mutation tests
+ran in a network-disabled Linux container with read-only source/root:
+`python -B -m pytest tests/test_finance_emitted_runtime.py tests/test_hf_publish_vertical_flagships_v4.py -q -p no:cacheprovider --basetemp /tmp/pytest`.
+Result: **96 passed, zero skipped, two existing deprecation warnings, 26.35 seconds**.
+The command receipt is `outputs/a11oy-gh-main-recovery-20261021/finance-companion-test-command.json`;
+log SHA-256 `9b0443a68fdf7b61e906c00fe518bb1826c2f7fdf6e83e89fb778818c1ee39c6`.
+These companions contain no replication implementation or authentication changes.
+
+The canonical deploy-window observation above applies only to Space
+`SZLHOLDINGS/a11oy`. The separate unchanged
+`.github/workflows/hf-publish-vertical-flagships.yml` triggers on this Finance
+contract path, hourly, and after a successful hf-sync workflow (including a
+closed canonical window). Its plan may publish changed vertical Spaces without
+the canonical window input. Therefore the closed canonical window is not a
+global provider hold. Merge remains held pending review of those target-state
+effects, the exact-head full image build, required checks and security checks.
