@@ -20,6 +20,15 @@ from a one-line marker at the original location.
 # lists were cleaned by the Node block, exactly as before. Build-time tooling only.
 ```
 
+Node 22 comes from NodeSource's signed apt repository, configured the same way
+as the gh repository. The build no longer pipes `setup_22.x` into a root shell.
+It downloads the repository key, refuses any key whose primary fingerprint is not
+`6F71F525282841EEDAF851B42F59B5F99B1BE0B4`, writes the `node_22.x nodistro`
+source with `signed-by`, and pins `nodejs` to that origin, which is what the setup
+script did. The build then fails unless `node --version` reports v22.
+`tests/test_dockerfile_remote_script_guard.py` keeps remote-script pipes out of the
+Dockerfile.
+
 ## §2 — Install Python dependencies
 
 ```
