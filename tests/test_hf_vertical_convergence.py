@@ -16,6 +16,7 @@ import hashlib
 import http.client
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -283,6 +284,81 @@ def test_publish_steps_keep_exact_main_live_verification_and_honest_supersession
 def test_sentra_is_published_last_under_the_lock(conv):
     assert conv.TARGETS[-1] == "sentra"
     assert set(conv.TARGETS) == {"terra", "counsel", "finance", "lyte", "sentra"}
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Runs the Linux Actions bash process contract")
+@pytest.mark.parametrize("entries,expected_code,attempted", [
+    ([("finance", False, 0), ("sentra", False, 0)], 0, ["finance", "sentra"]),
+    ([("finance", False, 75), ("sentra", False, 0)], 0, ["finance"]),
+    ([("finance", True, 75)], 1, ["finance"]),
+    ([("finance", False, 1), ("sentra", False, 0)], 1, ["finance", "sentra"]),
+    ([("finance", False, 0), ("sentra", False, 2)], 1, ["finance", "sentra"]),
+    ([("lyte", False, 1), ("sentra", False, 0)], 1, ["lyte", "sentra"]),
+    ([("terra", False, 1), ("finance", False, 75), ("sentra", False, 0)],
+     1, ["terra", "finance"]),
+])
+def test_publisher_shell_preserves_receipts_and_exit_semantics(tmp_path, entries, expected_code, attempted):
+    """Execute the actual workflow under Actions' inherited errexit, without providers."""
+    step = next(s for s in _load_workflow(PUBLISH_WORKFLOW)["jobs"]["publish-targets"]["steps"]
+                if s.get("id") == "publish")
+    assert step["shell"] == "bash"
+    script = tmp_path / "step.sh"
+    script.write_text(step["run"], encoding="utf-8")
+    binaries = tmp_path / "bin"
+    binaries.mkdir()
+    fake_python = binaries / "python"
+    fake_python.write_text(f"#!{sys.executable}\n" + textwrap.dedent('''\
+        import json, os, pathlib, sys
+        entries = json.loads(os.environ["TEST_ENTRIES"])
+        args = sys.argv[1:]
+        if "scripts/hf_vertical_convergence.py" in args:
+            assert "HF_ORG_TOKEN" not in os.environ
+            command = args[args.index("scripts/hf_vertical_convergence.py") + 1]
+            if command == "targets":
+                print("\\n".join(f"{target} {str(forced).lower()}" for target, forced, code in entries))
+            elif command in ("check", "wait-sentra"):
+                pathlib.Path(os.environ["GITHUB_OUTPUT"]).write_text(
+                    "state=ADMISSIBLE\\n" if command == "wait-sentra" else "state=DRIFT\\npublish=true\\n")
+            else:
+                raise AssertionError(command)
+        elif args == ["scripts/hf_publish_vertical_flagships_v4.py"]:
+            assert os.environ["HF_ORG_TOKEN"] == "SIMULATED_TEST_ONLY"
+            target = os.environ["SZL_FLAGSHIP_SCOPE"]
+            code = next(code for slug, forced, code in entries if slug == target)
+            with pathlib.Path("attempted.txt").open("a") as log:
+                log.write(target + "\\n")
+            files = ["hf-vertical-flagships-receipt.json"]
+            if target == "lyte":
+                files += ["hf-lyte-enterprise-receipt.json", "hf-lyte-enterprise-manifest.failed.json"]
+            for name in files:
+                pathlib.Path(name).write_text(json.dumps({"target": target, "exit": code, "complete": code == 0}))
+            sys.exit(code)
+        else:
+            raise AssertionError(args)
+        '''), encoding="utf-8")
+    fake_python.chmod(0o700)
+    runner = tmp_path / "runner"
+    runner.mkdir()
+    env = {"PATH": str(binaries) + os.pathsep + os.defpath, "RUNNER_TEMP": str(runner),
+           "TEST_ENTRIES": json.dumps(entries), "HF_ORG_TOKEN": "SIMULATED_TEST_ONLY"}
+    result = subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", str(script)],
+                            cwd=tmp_path, env=env, capture_output=True, text=True, timeout=15)
+    assert result.returncode == expected_code, (result.stdout, result.stderr)
+    assert (tmp_path / "attempted.txt").read_text().splitlines() == attempted
+    archive = tmp_path / "hf-vertical-receipts"
+    assert sorted(p.name for p in archive.iterdir()) == sorted(attempted)
+    for target in attempted:
+        code = next(code for slug, forced, code in entries if slug == target)
+        expected = {"target": target, "exit": code, "complete": code == 0}
+        files = list((archive / target).iterdir())
+        assert len(files) == (3 if target == "lyte" else 1)
+        assert all(json.loads(p.read_text()) == expected for p in files)
+    assert not list(tmp_path.glob("hf-*-receipt.json"))
+    if any(code == 75 and not forced for _, forced, code in entries):
+        assert "superseded by a newer main" in result.stdout
+        assert "its receipt is not complete" in result.stdout
+    if expected_code:
+        assert "vertical publication did not complete for:" in result.stdout
 
 
 def test_contract_suite_runs_on_every_publisher_input_change(conv):
