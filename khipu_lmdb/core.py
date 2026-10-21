@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@544513bb4b920a197e1cf1e71fb91f042b2038ca — packages/khipu-lmdb/khipu_lmdb/core.py
+# VENDORED FROM szl-holdings/platform@a7071642fc902e0aa4af075cddb71626104ab6b1 — packages/khipu-lmdb/khipu_lmdb/core.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173

@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@544513bb4b920a197e1cf1e71fb91f042b2038ca — packages/khipu-lmdb/khipu_lmdb/outbox.py
+# VENDORED FROM szl-holdings/platform@a7071642fc902e0aa4af075cddb71626104ab6b1 — packages/khipu-lmdb/khipu_lmdb/outbox.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # SPDX-License-Identifier: Apache-2.0
 """Bounded local delivery state. No transport, peer authentication or activation."""

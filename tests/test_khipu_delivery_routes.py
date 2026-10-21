@@ -191,7 +191,7 @@ def test_image_contains_exact_package_and_adapter():
         relative = f"khipu_lmdb/{name}.py"
         item = manifest["files"][relative]
         assert item["source"] == f"packages/khipu-lmdb/{relative}"
-        assert item["revision"] == "544513bb4b920a197e1cf1e71fb91f042b2038ca"
+        assert item["revision"] == "a7071642fc902e0aa4af075cddb71626104ab6b1"
         assert (root / relative).read_text().startswith(
             "# VENDORED FROM szl-holdings/platform@" + item["revision"])
 
