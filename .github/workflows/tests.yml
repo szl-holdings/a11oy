@@ -72,6 +72,8 @@ jobs:
           tests/test_operator_auth_code_routes.py
           tests/test_unay_operator_auth.py
           tests/test_khipu_replication_delivery.py
+          tests/test_khipu_delivery_routes.py
+          tests/test_replication_shared_payload.py
           tests/test_unay_write_authorization.py
           tests/test_second_brain_bridge.py
           tests/test_code_completion_boundaries.py
@@ -275,6 +277,8 @@ jobs:
         run: >-
           python -B -m pytest -q -p no:cacheprovider
           tests/test_state_store_hub_sdk.py
+          tests/test_replication_snapshot_delivery.py
+          tests/test_replication_snapshot_https.py
           tests/test_state_store_asgi_shutdown.py
           tests/test_state_store_handover_operator.py
           tests/test_state_store_handover.py

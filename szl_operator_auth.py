@@ -163,6 +163,8 @@ PROTECTED_ROUTES = (
     (r"/api/a11oy/v1/be/khipu/append", "Khipu append", "state"),
     (r"/api/a11oy/v2/khipu/lmdb/append", "Khipu LMDB append", "state"),
     (r"/api/a11oy/v2/khipu/replicate", "Khipu replication writes", "state"),
+    (r"/api/a11oy/v2/khipu/replicate/dispatch/[^/]+", "Khipu replication dispatch", "state"),
+    (r"/api/killinchu/v2/khipu/replicate/dispatch/[^/]+", "Khipu replication dispatch", "state"),
     (r"/api/a11oy/v2/unay/remember", "UNAY memory writes", "state"),
     (r"/api/a11oy/v1/wires/inject", "Cross-Space wire injection", "state"),
     (r"/api/a11oy/v4/inbox", "Organ inbox writes", "state"),
