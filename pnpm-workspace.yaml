@@ -16,7 +16,7 @@ allowBuilds:
 
 # pnpm 11 reads workspace-wide overrides here.
 overrides:
-  vite: ^6.4.2
+  vite: 6.4.4
   esbuild: 0.28.1
   js-yaml@<4.3.2: 4.3.2
   brace-expansion: 5.0.12
