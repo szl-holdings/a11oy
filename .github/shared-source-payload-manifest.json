@@ -1,18 +1,28 @@
 {
   "files": {
+    ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json": "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc",
     ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json": "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",
     ".github/shared-source-payloads/model-credential-origin-20261017-v1.json": "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c",
     ".github/shared-source-payloads/replication-origin-index-20261017-v1.json": "3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce",
     ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json": "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc",
     "a11oy_code_engine.py": "5994454fb6b699f94aec417ea637dec4459a6d2abcc1654df4a7f4bfba0ee67c",
     "docs/bonsai-model-binding.md": "f1e4791000f515604f9576abd454038546d86dd43fed705357dd2e5a0beb5fb7",
+    "docs/replication-snapshot-delivery.md": "ed5ad29d3bc62b0251b227df53d2711027867d4d50101e64b70675bce680c0b6",
+    "khipu_lmdb/__init__.py": "eb1bde40fac4db87c3039eb0db1355a67b86d7723c9f3e8290d3bf548b1f24d0",
+    "khipu_lmdb/core.py": "1a3558f6feb53ca30a82ffed014a71016bcea49dd7cb44ebd2d941b3a18fd861",
+    "khipu_lmdb/delivery.py": "4804bc7d262c4505304a224cbfad3f94002503cf5c47adeeaa2c60a2ea19b1a6",
+    "khipu_lmdb/outbox.py": "f597d702bfabd0c866312faa3a943bf9191ab900556ad922798b339d8bb5cfaf",
     "scripts/sync_from_monorepo.sh": "fdd0775f1c57e79e091b6d7a8b25e116ba6d06010d230cb271dacdb78ebc1c73",
+    "szl_khipu_delivery_routes.py": "3d70ff0ca212ea3ed450098f2c8de4c94a9a1c268629e6df7a795d3a0715c928",
     "szl_khipu_lmdb.py": "2a915a03b9092b7f6ddab84609e0108c70ce0371323084193f6b5c9fc690435c",
     "szl_khipu_replicate.py": "392b6dc7e2e5d9d8ac629de73df2a486f1fa17c19fc54d0bb323b23d07574ddd",
-    "szl_unay_routes.py": "1fefe85eb25a289c492bdb8b0ec17e69fa647a675e0b2caf8c579cdb1ca733f9",
+    "szl_unay_routes.py": "a11310c27c0c9d93044041c4f0c3582f964e228f29828205a4d02be89767d5b7",
+    "tests/test_gitleaks_archived_payload_digest.py": "d41d4a9e0b4ec19446c8fbc643b1b9f792b12701fc4fb1a51024385fd12e4b4c",
+    "tests/test_khipu_delivery_routes.py": "4c70e42d0088c56534c02d46bdba371ac3e955a5bd170d7c3f5c4c6b83a53847",
+    "tests/test_replication_shared_payload.py": "89f9d7bde3ef340119149e41e6fa92732473dc6e4b6de9dd8f855f7cb6770fa5",
     "tests/test_unay_write_authorization.py": "ec36d86eed8e36d45d56cb00c67e7adc7a1976cb1185614fb5370f8ce7271adf",
     "tests/test_vendor_sync_contract.py": "44b3d28b669abd479b3b9dd9817d827bf03b09e6e0227987d8e8fb7d00056cba"
   },
-  "payload_id": "bonsai-model-catalog-20261017-v1",
+  "payload_id": "replication-snapshot-delivery-20261021-v1",
   "schema": "szl-shared-source-payload/v1"
 }

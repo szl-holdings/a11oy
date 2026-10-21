@@ -657,6 +657,26 @@
     "web/src/data/releases.ts": {
       "source": "artifacts/a11oy/src/data/releases.ts",
       "header": true
+    },
+    "khipu_lmdb/__init__.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/__init__.py",
+      "header": true,
+      "revision": "d16b702ebe63042e05f41eacea4853afc59c7ab3"
+    },
+    "khipu_lmdb/core.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
+      "header": true,
+      "revision": "d16b702ebe63042e05f41eacea4853afc59c7ab3"
+    },
+    "khipu_lmdb/outbox.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/outbox.py",
+      "header": true,
+      "revision": "d16b702ebe63042e05f41eacea4853afc59c7ab3"
+    },
+    "khipu_lmdb/delivery.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/delivery.py",
+      "header": true,
+      "revision": "d16b702ebe63042e05f41eacea4853afc59c7ab3"
     }
   }
 }
