@@ -66,9 +66,10 @@ _BUILD_INPUTS = {
 # the separately pinned GGUF. An altered/new command requires source review.
 _REVIEWED_RUNS = frozenset({
     # Reviewed: Node 22 from the fingerprint-checked signed NodeSource apt repo
-    # (no remote script piped to a shell), then the GitHub CLI 2.102.0 apt pin and
-    # version check; source bytes unchanged.
-    "6560e19517501d5203c5aa67485a68dde4d1e1c76e2cbe76533ac36897b39099",
+    # (no remote script piped to a shell), then GitHub CLI 2.102.0 from the
+    # sha256-pinned cli/cli release .deb (amd64 only) and version check; source
+    # bytes unchanged.
+    "24961dedee281ce14073dd9e361d91dc12977bb9ef422254bef746d7e07113f1",
     "390f3679f990ada5d981c2b137675744fda09c39bdceb5f39daae3177e0b5881",
     "a35a26a82f617413b433151e190dd1e9b95c26cdc7a12ca335dc0b058e649fea",
     "e39a2e3ea22b3b11ca25c0ff9a315699c10fab38fa5c724c4fd8531f9fa90e52",
