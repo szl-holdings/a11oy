@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-17T00:06:28Z",
+  "observedAt": "2026-10-21T08:19:49Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -28,7 +28,7 @@
     "huggingFacePublic": {
       "models": 48,
       "datasets": 37,
-      "spaces": 38,
+      "spaces": 39,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -1659,6 +1659,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/counsel"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/curation-atlas",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/curation-atlas"
       ]
     },
     {
