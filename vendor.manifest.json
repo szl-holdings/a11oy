@@ -661,22 +661,22 @@
     "khipu_lmdb/__init__.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/__init__.py",
       "header": true,
-      "revision": "d16b702ebe63042e05f41eacea4853afc59c7ab3"
+      "revision": "544513bb4b920a197e1cf1e71fb91f042b2038ca"
     },
     "khipu_lmdb/core.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
       "header": true,
-      "revision": "d16b702ebe63042e05f41eacea4853afc59c7ab3"
+      "revision": "544513bb4b920a197e1cf1e71fb91f042b2038ca"
     },
     "khipu_lmdb/outbox.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/outbox.py",
       "header": true,
-      "revision": "d16b702ebe63042e05f41eacea4853afc59c7ab3"
+      "revision": "544513bb4b920a197e1cf1e71fb91f042b2038ca"
     },
     "khipu_lmdb/delivery.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/delivery.py",
       "header": true,
-      "revision": "d16b702ebe63042e05f41eacea4853afc59c7ab3"
+      "revision": "544513bb4b920a197e1cf1e71fb91f042b2038ca"
     }
   }
 }

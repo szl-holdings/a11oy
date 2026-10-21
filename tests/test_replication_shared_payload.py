@@ -15,7 +15,7 @@ def test_snapshot_replication_payload_binds_current_files_and_prior_manifest():
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "replication-snapshot-delivery-20261021-v1"
     assert set(manifest["files"]) == set(json.loads(prior)["files"]) | {
-        archive, "szl_khipu_delivery_routes.py", "docs/replication-snapshot-delivery.md",
+        archive, "szl_khipu_delivery_routes.py", "szl_operator_auth.py", "szl_operator_auth.py", "docs/replication-snapshot-delivery.md",
         "tests/test_khipu_delivery_routes.py", "tests/test_replication_shared_payload.py",
         "tests/test_gitleaks_archived_payload_digest.py",
         "khipu_lmdb/__init__.py", "khipu_lmdb/core.py", "khipu_lmdb/outbox.py", "khipu_lmdb/delivery.py",

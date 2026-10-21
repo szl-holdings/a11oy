@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@d16b702ebe63042e05f41eacea4853afc59c7ab3 — packages/khipu-lmdb/khipu_lmdb/delivery.py
+# VENDORED FROM szl-holdings/platform@544513bb4b920a197e1cf1e71fb91f042b2038ca — packages/khipu-lmdb/khipu_lmdb/delivery.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # SPDX-License-Identifier: Apache-2.0
 """Explicit, one-attempt delivery. No peer provisioning or automatic activation."""

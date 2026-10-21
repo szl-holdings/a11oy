@@ -16,10 +16,10 @@ import szl_khipu_delivery_routes as routes
 import szl_operator_auth as auth
 
 
-def app_for(source, mirror, monkeypatch, configs):
+def app_for(source, mirror, monkeypatch, configs, namespace="a11oy"):
     monkeypatch.setenv(routes.CONFIG_ENV, json.dumps(configs))
     app = FastAPI()
-    result = routes.register(app, ns="a11oy", source=source, mirror=mirror)
+    result = routes.register(app, ns=namespace, source=source, mirror=mirror)
     auth.install_gate(app)
     return TestClient(app), result
 
@@ -56,6 +56,32 @@ def test_authenticated_stream_is_bounded_before_owner_or_lmdb(monkeypatch):
         response = client.post("/api/a11oy/v2/khipu/replicate/batch/fixture",
                                headers={"Authorization": "Bearer " + token})
     assert response.status_code == 413
+
+
+@pytest.mark.parametrize("namespace", ("a11oy", "killinchu"))
+def test_peer_bearer_is_checked_before_stream_or_store(monkeypatch, namespace):
+    operator, token = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", operator)
+    monkeypatch.setenv("SZL_TEST_DELIVERY_PEER", token)
+    peer = delivery.Peer("fixture", f"https://localhost/api/{namespace}/v2/khipu/replicate/batch/fixture",
+                         "khipu", namespace, "SZL_TEST_DELIVERY_PEER")
+    client, _ = app_for(None, None, monkeypatch, [config(peer, "inbound")], namespace)
+    assert auth.protected_action("POST", f"/api/{namespace}/v2/khipu/replicate/batch/fixture") is None
+    assert auth.protected_action("POST", f"/api/{namespace}/v2/khipu/replicate/dispatch/fixture")
+    async def forbidden_stream(_request):
+        pytest.fail("unauthorized peer must not read the body")
+        yield b""
+    monkeypatch.setattr(Request, "stream", forbidden_stream)
+    monkeypatch.setattr(routes, "_state", lambda *_: pytest.fail("unauthorized peer must not open state"))
+    monkeypatch.setattr(delivery, "accept_batch", lambda *_args, **_kwargs: pytest.fail("must not write"))
+    with client:
+        for headers in ({}, {"Authorization": "Bearer " + operator},
+                        {"Authorization": "Bearer wrong"}, {"Authorization": "Basic " + token}):
+            response = client.post(f"/api/{namespace}/v2/khipu/replicate/batch/fixture", headers=headers, content=b"{")
+            assert response.status_code == 401
+        for headers in ({}, {"Authorization": "Bearer " + token}):
+            response = client.post(f"/api/{namespace}/v2/khipu/replicate/dispatch/fixture", headers=headers, content=b"{")
+            assert response.status_code == 401
 
 
 @pytest.mark.parametrize("raw", ['[{"direction":"inbound","direction":"outbound"}]',
@@ -165,7 +191,7 @@ def test_image_contains_exact_package_and_adapter():
         relative = f"khipu_lmdb/{name}.py"
         item = manifest["files"][relative]
         assert item["source"] == f"packages/khipu-lmdb/{relative}"
-        assert item["revision"] == "d16b702ebe63042e05f41eacea4853afc59c7ab3"
+        assert item["revision"] == "544513bb4b920a197e1cf1e71fb91f042b2038ca"
         assert (root / relative).read_text().startswith(
             "# VENDORED FROM szl-holdings/platform@" + item["revision"])
 
