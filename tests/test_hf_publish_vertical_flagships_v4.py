@@ -30,7 +30,9 @@ SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
 # PURIQ 91717976275b685bef5f6ba9caa40b43fc1efff5; these are generated-file hashes,
 # not a signature or a fresh vulnerability-database clearance.
 REVIEWED_DOCKER_SHA256 = "7184015f0d0c58f58a67ade27d71e40a6b2f7ca1d6af670794d2dc9da4cc516e"
-REVIEWED_REQUIREMENTS_SHA256 = "a68dadf1194259c52c37c9fa52bde3ecd48ffc1c69bf1addfe8cfe43442cd351"
+# Reviewed successor changes only certifi to 2026.10.19; the generated Linux
+# image passed installed-package audit. Retain exact-byte mutation rejection.
+REVIEWED_REQUIREMENTS_SHA256 = "ae02f2b493ac143ba0fd6807094032f128874cac4c8015f055cc4810305c66d5"
 
 
 def assert_reviewed_runtime(module) -> None:
