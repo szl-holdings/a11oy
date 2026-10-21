@@ -84,12 +84,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get update && apt-get install -y --no-install-recommends nodejs && \
     node --version | grep -E '^v22\.' && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
-    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-      > /etc/apt/sources.list.d/github-cli.list && \
-    apt-get update && apt-get install -y --no-install-recommends gh=2.102.0 && \
+    test "$(dpkg --print-architecture)" = "amd64" && \
+    curl -fsSL -o /tmp/gh_2.102.0_linux_amd64.deb \
+      https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.deb && \
+    echo "7e54a307f90afdc59796c325ec0c49fb09e6c18537727207a8ac7513584ea5b0  /tmp/gh_2.102.0_linux_amd64.deb" \
+      | sha256sum -c - && \
+    apt-get update && apt-get install -y --no-install-recommends /tmp/gh_2.102.0_linux_amd64.deb && \
+    rm -f /tmp/gh_2.102.0_linux_amd64.deb && \
     gh --version | head -n 1 | grep -F 'gh version 2.102.0 ' && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
