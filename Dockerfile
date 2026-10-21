@@ -74,8 +74,15 @@ WORKDIR /app
 # … (full rationale: docs/DOCKERFILE_NOTES.md §1)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates gnupg git && \
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o /tmp/nodesource-repo.gpg.key && \
+    test "$(gpg --show-keys --with-colons /tmp/nodesource-repo.gpg.key | awk -F: '$1 == "fpr" { print $10; exit }')" = "6F71F525282841EEDAF851B42F59B5F99B1BE0B4" && \
+    gpg --dearmor -o /usr/share/keyrings/nodesource.gpg /tmp/nodesource-repo.gpg.key && \
+    chmod go+r /usr/share/keyrings/nodesource.gpg && rm -f /tmp/nodesource-repo.gpg.key && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+      > /etc/apt/sources.list.d/nodesource.list && \
+    printf 'Package: nodejs\nPin: origin deb.nodesource.com\nPin-Priority: 600\n' > /etc/apt/preferences.d/nodejs && \
+    apt-get update && apt-get install -y --no-install-recommends nodejs && \
+    node --version | grep -E '^v22\.' && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
