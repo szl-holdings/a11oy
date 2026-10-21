@@ -74,16 +74,25 @@ WORKDIR /app
 # … (full rationale: docs/DOCKERFILE_NOTES.md §1)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates gnupg git && \
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o /tmp/nodesource-repo.gpg.key && \
+    test "$(gpg --show-keys --with-colons /tmp/nodesource-repo.gpg.key | awk -F: '$1 == "fpr" { print $10; exit }')" = "6F71F525282841EEDAF851B42F59B5F99B1BE0B4" && \
+    gpg --dearmor -o /usr/share/keyrings/nodesource.gpg /tmp/nodesource-repo.gpg.key && \
+    chmod go+r /usr/share/keyrings/nodesource.gpg && rm -f /tmp/nodesource-repo.gpg.key && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+      > /etc/apt/sources.list.d/nodesource.list && \
+    printf 'Package: nodejs\nPin: origin deb.nodesource.com\nPin-Priority: 600\n' > /etc/apt/preferences.d/nodejs && \
+    apt-get update && apt-get install -y --no-install-recommends nodejs && \
+    node --version | grep -E '^v22\.' && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
-    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-      > /etc/apt/sources.list.d/github-cli.list && \
-    apt-get update && apt-get install -y --no-install-recommends gh=2.102.0 && \
-    gh --version | head -n 1 | grep -F 'gh version 2.102.0 ' && \
+    test "$(dpkg --print-architecture)" = amd64 && \
+    curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
+      https://github.com/cli/cli/releases/download/v2.102.1/gh_2.102.1_linux_amd64.deb \
+      -o /tmp/gh_2.102.1_linux_amd64.deb && \
+    printf '%s  %s\n' '5b91c75d971509e96f673fa9f46e5d8ea294b6bbfedbc8ff458aedd88775d94c' \
+      '/tmp/gh_2.102.1_linux_amd64.deb' | sha256sum --check --strict - && \
+    dpkg -i /tmp/gh_2.102.1_linux_amd64.deb && \
+    rm /tmp/gh_2.102.1_linux_amd64.deb && \
+    gh --version | head -n 1 | grep -F 'gh version 2.102.1 ' && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
