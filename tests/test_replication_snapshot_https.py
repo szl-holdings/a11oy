@@ -1,4 +1,6 @@
+#!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Real TLS/process loss with consumer handlers and SIMULATED storage providers."""
 import hashlib
 from http.server import BaseHTTPRequestHandler, HTTPServer
