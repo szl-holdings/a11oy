@@ -1,0 +1,44 @@
+name: Space runtime drift watch
+
+# Read-only. Turns red when the live Space SZLHOLDINGS/a11oy serves a commit that lags
+# protected main for longer than the grace period. hf-sync.yml ends green when its deploy
+# window is closed, and hf-drift-check.yml does not compare the runtime commit, so without
+# this check the live Space can drift behind main with every check green.
+# This workflow never writes, deploys, restarts or opens a deploy window.
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      max_lag_hours:
+        description: Grace period before lag fails the check
+        required: false
+        default: "24"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: space-runtime-drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Unit tests for the drift check (stdlib, network-free)
+        run: python3 -I -B tests/test_space_runtime_drift.py -v
+      - name: Compare the live Space commit with protected main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MAX_LAG_HOURS: ${{ inputs.max_lag_hours || '24' }}
+        run: >-
+          python3 -I -B .github/scripts/check_space_runtime_drift.py
+          --origin https://szlholdings-a11oy.hf.space
+          --repository "$GITHUB_REPOSITORY"
+          --max-lag-hours "$MAX_LAG_HOURS"
