@@ -273,8 +273,12 @@ jobs:
               fi
             fi
             rm -f "${receipts[@]}"
-            SZL_FLAGSHIP_SCOPE="$target" python scripts/hf_publish_vertical_flagships_v4.py < /dev/null
-            code=$?
+            # Actions invokes bash with -e; capture failure before archiving its receipt.
+            if SZL_FLAGSHIP_SCOPE="$target" python scripts/hf_publish_vertical_flagships_v4.py < /dev/null; then
+              code=0
+            else
+              code=$?
+            fi
             mkdir -p "hf-vertical-receipts/$target"
             for receipt in "${receipts[@]}"; do
               if [ -f "$receipt" ]; then mv "$receipt" "hf-vertical-receipts/$target/"; fi

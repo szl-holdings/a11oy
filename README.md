@@ -90,7 +90,7 @@ is a failed verification, not a display error.
 | Runtime location | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) |
 | Source | this repository |
 | Doctrine | v11 LOCKED |
-| Λ | Conjecture 1 (OPEN — not a theorem) |
+| Λ | Conjecture 1 — not a theorem; the unconditional form under A1–A5 is false ([status](https://github.com/szl-holdings/lutar-lean/blob/0970b2f1a5f98d748abe86fdb8f040229f8846e0/Lutar/Puriq/Formulas/F23_Uniqueness.lean)) |
 | Kernel | `c7c0ba17` (Doctrine v11 count 749/14/163) |
 | Formulas | locked-8 (lutar-lean `ProvedFormulas.lean` @ `3a886349`, not present at `c7c0ba17`) · never authority |
 | Trust ceiling | 0.97 |
@@ -104,14 +104,16 @@ with GET-only public observations under `/api/a11oy/v1/civilian/`. Availability
 requires the canonical publisher to deploy the matching source revision; a
 source link is not deployment evidence. This service loads no model, grants
 no action authority, and changes no model release gate. See
-[`docs/CIVILIAN_OBSERVATORY.md`](docs/CIVILIAN_OBSERVATORY.md) for scope and tests.
+[`docs/CIVILIAN_OBSERVATORY.md`](https://github.com/szl-holdings/a11oy/blob/1b05d180bf41ee56163e72f0846be5ad6485bf10/docs/CIVILIAN_OBSERVATORY.md) for scope and tests.
 
 ## Live surfaces
+
+Measured 2026-10-20 from an automated client: the Space twin answers HTTP 200 on every documented path, and `/api/a11oy/v1/honest` returns `doctrine_lock.lambda = "Conjecture 1"`. `a-11-oy.com` returned Cloudflare HTTP 403, so the apex rows below were not re-measured.
 
 Measured 2026-09-04: the apex `a-11-oy.com` serves the Space runtime
 (`server=szl`, `x-szl-space: a11oy`). Hugging Face `runtime.domains`
 lists `a-11-oy.com` as **READY**. HTTP 200 is reachability, not a
-production certificate. `www.a-11-oy.com` TLS is **UNAVAILABLE**.
+production certificate. `www.a-11-oy.com` completes TLS but returns Cloudflare HTTP 403 to automated clients (measured 2026-10-20).
 
 | Surface | URL | Class |
 |---|---|---|
@@ -135,7 +137,7 @@ Archive: [Warhacker v1.0.0](https://github.com/szl-holdings/a11oy/releases/tag/v
 The trust math behind a11oy is pinned in **Lean 4** and checked by a proof machine:
 
 - **8 formulas locked-proven** in lutar-lean [`Lutar/Puriq/Formulas/ProvedFormulas.lean` @ `3a886349`](https://github.com/szl-holdings/lutar-lean/blob/3a8863491f688956f2fae7796e31404d6b21c8a6/Lutar/Puriq/Formulas/ProvedFormulas.lean) (file added 2026-06-04, last changed 2026-06-10; not present at `c7c0ba17`). What they state: pure-function replay determinism (F1, `f x = f x`), acyclicity kept when backward-pointing edges are appended to a Khipu DAG (F4), FIFO drain order on a list-modelled queue (F7), integer add-then-subtract cancellation (F11), `Nat` distributivity (F12), RS(10,6) parity-count arithmetic (F18, `10 − 6 = 4`), `Nat` additive monotonicity (F19), and strictly increasing indices in a `List.range` sequence log (F22). They do not prove receipt-replay integrity or Reed–Solomon recovery. The Doctrine v11 figure 749/14/163 @ `c7c0ba17` is a separate count: its 163 counts `sorry` text including comments, and the 149 variant drops only lines that start with `--`, so neither is a count of open proof holes.
-- **Λ unconditional uniqueness = Conjecture 1** — machine-checked false (we found a counterexample). Conditional uniqueness is proven axiom-free (Theorem U). We say both out loud.
+- **Λ uniqueness = Conjecture 1, not a theorem.** Under axioms A1–A5 the unconditional statement is machine-checked false (counterexample [`maxAgg_ne_Lambda`](https://github.com/szl-holdings/lutar-lean/blob/0970b2f1a5f98d748abe86fdb8f040229f8846e0/Lutar/Round13/Lambda_Uniqueness.lean#L188)); it closes only under the declared axiom A6. Conditional uniqueness is proven axiom-free (Theorem U). We say both out loud.
 - **SLSA L1 source-declared · L2/L3 not established**. No government authorization or accreditation is claimed.
 
 Full proof library: **[szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)**
@@ -208,20 +210,22 @@ deployment still requires the canonical publisher and live readback.
 
 | Claim | Status |
 |---|---|
-| Signed receipts on every governed action | **PARTIAL — healthz signer ABSENT; HMAC placeholder; non_repudiation false** |
+| Signed receipts on every governed action | **UNVERIFIED — runtime reports disagree (measured 2026-10-20): `/healthz` signer ABSENT; `/api/a11oy/v1/signing-status` persistent key, HMAC real, non_repudiation true. Both name key `9926bf69b799ea66` (SHA-256 of the stripped `/cosign.pub` PEM text). No GET endpoint returns a signed envelope to verify.** |
 | 8 formulas locked-proven (Lean 4) | **LOCKED · lutar-lean `ProvedFormulas.lean` @ `3a886349` (not present at c7c0ba17)** |
 | Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
 | SLSA supply chain | **L1 source-declared · L2/L3 not established** |
 | Apex `/console` on a-11-oy.com | **MEASURED reachable 2026-09-04 · Space front** |
 | HF custom domain `a-11-oy.com` | **READY** (provider row; not DSSE-LIVE) |
-| `www.a-11-oy.com` | **UNAVAILABLE** (TLS alert) |
+| `www.a-11-oy.com` | **UNAVAILABLE to automated clients** (TLS completes; Cloudflare HTTP 403, measured 2026-10-20) |
 | Government authorization / accreditation | **ROADMAP — none claimed** |
 | EXECUTION guard | **ROADMAP** |
-| Atelier command centre and Python Grok route | **SOURCE PRESENT — [configuration and proof gates](docs/ATELIER_COMMAND_CENTRE.md); live inference not established** |
+| Atelier command centre and Python Grok route | **SOURCE PRESENT — [configuration and proof gates](https://github.com/szl-holdings/a11oy/blob/1b05d180bf41ee56163e72f0846be5ad6485bf10/docs/ATELIER_COMMAND_CENTRE.md); live inference not established** |
 
 ---
 
 ## Truth gates
+
+> The paths in this section are in the source repository [szl-holdings/a11oy](https://github.com/szl-holdings/a11oy/tree/1b05d180bf41ee56163e72f0846be5ad6485bf10) (present at `1b05d180`); the Hugging Face mirror does not include them.
 
 Round-10 payload wiring: three stdlib-first gates plus the 12-step acceptance
 demo, run by the `truth-gates` workflow on every PR and push.
@@ -251,6 +255,8 @@ created non-destructively with `python3 tools/szl_master_bootstrap.py --run`.
 ---
 
 ## Shared modules (must not drift)
+
+> `.shared_module_hashes.json` and `.github/shared-module-hash-check.py` are in [szl-holdings/a11oy](https://github.com/szl-holdings/a11oy/tree/1b05d180bf41ee56163e72f0846be5ad6485bf10) (present at `1b05d180`); the Hugging Face mirror does not include them.
 
 `a11oy_agent_loop.py`, `a11oy_mcp_client.py`, and `operator_shell_v4.py` are **SHARED
 byte-identical** with the sibling [killinchu](https://github.com/szl-holdings/killinchu)
@@ -283,7 +289,7 @@ python3 .github/shared-module-hash-check.py --update
 
 The authenticated runtime, Postman collection, load tools, offline dashboard,
 memory benchmark, proof-input bridge, and fail-closed readiness conditions are documented in
-[`docs/gdw-frontier.md`](docs/gdw-frontier.md). A checked theorem is reported
+[`docs/gdw-frontier.md`](https://github.com/szl-holdings/a11oy/blob/1b05d180bf41ee56163e72f0846be5ad6485bf10/docs/gdw-frontier.md). A checked theorem is reported
 separately from an exported theorem input, and every throughput result is scoped
 to its captured run.
 

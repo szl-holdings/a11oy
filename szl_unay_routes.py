@@ -59,7 +59,7 @@ for _p in _IMPORT_PATHS:
         sys.path.insert(0, _p)
 
 import szl_unay  # noqa: E402
-import szl_khipu_lmdb  # noqa: E402
+import khipu_lmdb as szl_khipu_lmdb  # noqa: E402
 import szl_khipu_replicate  # noqa: E402
 from szl_operator_auth import operator_refusal  # noqa: E402
 
@@ -151,6 +151,10 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
     replicator = szl_khipu_replicate.Replicator(
         local_organ=ns, peers=[], source_fn=_source_fn
     )
+
+    # The existing sole opener owns both live handles; the adapter opens no live DB.
+    import szl_khipu_delivery_routes
+    szl_khipu_delivery_routes.register(app, ns=ns, source=klmdb, mirror=repl_store)
 
     # ---------------------------------------------------------------- UNAY
     @app.get(f"/api/{ns}/v2/unay/healthz")

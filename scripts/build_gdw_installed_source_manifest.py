@@ -65,8 +65,11 @@ _BUILD_INPUTS = {
 # source file. They install external dependencies, create directories, or fetch
 # the separately pinned GGUF. An altered/new command requires source review.
 _REVIEWED_RUNS = frozenset({
-    # Reviewed: GitHub CLI 2.102.0 apt pin and version check; source bytes unchanged.
-    "23d4cccf07567590c794c5538eadd881f72a4133b04bce76c628ab2c3c48bcd3",
+    # Reviewed: Node 22 from the fingerprint-checked signed NodeSource apt repo
+    # (no remote script piped to a shell), then the official immutable GitHub
+    # CLI 2.102.1 amd64 package: reviewed release digest before dpkg, exact
+    # version after install, no fallback; source bytes unchanged.
+    "4f419e3db1a8e5176e265daea5880d65dde18c5c26d9f6f704d4c5f61cd42789",
     "390f3679f990ada5d981c2b137675744fda09c39bdceb5f39daae3177e0b5881",
     "a35a26a82f617413b433151e190dd1e9b95c26cdc7a12ca335dc0b058e649fea",
     "e39a2e3ea22b3b11ca25c0ff9a315699c10fab38fa5c724c4fd8531f9fa90e52",
