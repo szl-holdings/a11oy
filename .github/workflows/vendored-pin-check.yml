@@ -1,0 +1,35 @@
+name: vendored-pin-check
+
+# Guard: proofs/lutar-lean is a vendored copy of szl-holdings/lutar-lean (not a
+# submodule). proofs/UPSTREAM_PIN.json pins it to one upstream commit with the
+# sha256 of every vendored file and every declared local delta. Any unpinned
+# change under the prefix fails here. Regenerate the pin in the same PR:
+#   python3 scripts/vendored_pin_check.py --generate --repo szl-holdings/lutar-lean \
+#     --commit <40-hex> --prefix proofs/lutar-lean/ --reasons <reasons.json> --out proofs/UPSTREAM_PIN.json
+on:
+  pull_request: null
+  push:
+    branches:
+    - main
+  merge_group:
+    types:
+    - checks_requested
+  workflow_dispatch: null
+permissions:
+  contents: read
+
+jobs:
+  vendored-pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Self-test the pin checker (synthetic fixtures)
+        run: python3 -I -B tests/test_vendored_pin_check.py
+      - name: Local pin check (no network, fail-closed)
+        run: python3 -I -B scripts/vendored_pin_check.py --pin proofs/UPSTREAM_PIN.json --root .
+      - name: Upstream pin check (fetches the pinned lutar-lean commit from codeload.github.com)
+        run: python3 -I -B scripts/vendored_pin_check.py --pin proofs/UPSTREAM_PIN.json --root . --upstream
