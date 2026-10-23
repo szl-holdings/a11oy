@@ -82,7 +82,7 @@ class BaseVoter(abc.ABC):
     PROVIDER: str = ""
     CONTEXT_WINDOW: int = 4096
     MODEL_ID: str = ""
-    BFCL_SCORE: Optional[str] = None  # e.g. "#1" or None
+    BFCL_SCORE: Optional[str] = None  # UNKNOWN without model-bound benchmark evidence.
 
     def is_available(self) -> bool:
         """True iff at least one required env var is present."""
