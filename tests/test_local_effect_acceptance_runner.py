@@ -165,9 +165,10 @@ def test_offline_loop_rejects_incomplete_or_contradictory_evidence(change):
     assert runner.offline_loop_passed(200, body, before, after, payload) is False
 
 
-def test_ephemeral_signature_is_measured_with_only_same_process_trust():
+def test_ephemeral_signature_is_simulated_with_only_same_process_trust():
     composite, pem = signed_composite()
     result = runner.verify_ephemeral_receipt(composite, pem)
+    assert result["evidenceClass"] == "SIMULATED"
     assert result["signatureVerified"] is True
     assert result["keyScope"] == "PROCESS_BOOT_EPHEMERAL"
     assert result["keyTrust"] == "SAME_LOCAL_PROCESS_ONLY"
@@ -178,6 +179,7 @@ def test_signature_controls_reject_each_tamper_without_changing_input():
     composite, pem = signed_composite()
     original = copy.deepcopy(composite)
     result = runner.signature_controls(composite, pem)
+    assert result["evidenceClass"] == "SIMULATED"
     assert result["contractPassed"] is True
     assert result["tamperRejected"] == dict.fromkeys(["payload", "signature", "outer_body", "fingerprint"], True)
     assert composite == original

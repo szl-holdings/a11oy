@@ -238,13 +238,13 @@ def verify_ephemeral_receipt(composite, pem):
             or envelope.get("_pae_sha256") != hashlib.sha256(pae).hexdigest()
             or composite["signing"].get("pae_sha256") != hashlib.sha256(pae).hexdigest()):
         raise ValueError("local_envelope_binding_mismatch")
-    return {"evidenceClass": "MEASURED", "signatureVerified": True,
+    return {"evidenceClass": "SIMULATED", "signatureVerified": True,
             "keyScope": "PROCESS_BOOT_EPHEMERAL", "keyTrust": "SAME_LOCAL_PROCESS_ONLY",
             "publicKeySha256": fingerprint, "paeSha256": hashlib.sha256(pae).hexdigest()}
 
 
 def signature_controls(composite, pem):
-    measured = verify_ephemeral_receipt(composite, pem)
+    verified = verify_ephemeral_receipt(composite, pem)
     controls = {}
     for field in ("payload", "signature", "outer_body", "fingerprint"):
         changed = copy.deepcopy(composite)
@@ -264,7 +264,7 @@ def signature_controls(composite, pem):
             controls[field] = False
         except Exception:
             controls[field] = True
-    return {**measured, "tamperRejected": controls, "contractPassed": all(controls.values())}
+    return {**verified, "tamperRejected": controls, "contractPassed": all(controls.values())}
 
 
 def install_guards(scratch):
