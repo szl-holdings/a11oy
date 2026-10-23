@@ -47,6 +47,9 @@ RUNTIME_IDENTITY_COPY_ADDITIONS = {".szl-runtime-marker.json", "szl_runtime_iden
 # One adapter and one canonical package, with adjacent root COPY lines batched
 # to retain the existing layer ceiling and every previous source identity.
 REPLICATION_COPY_ADDITIONS = {"szl_khipu_delivery_routes.py", "khipu_lmdb/"}
+# Shared passive signer observation adds one provenance module to the existing
+# runtime-identity COPY. All three historical counts and digests stay unchanged.
+SIGNING_STATE_COPY_ADDITIONS = {"szl_signing_state.py"}
 
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
@@ -169,6 +172,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= copy_sources
     assert RUNTIME_IDENTITY_COPY_ADDITIONS <= copy_sources
     assert REPLICATION_COPY_ADDITIONS <= copy_sources
+    assert SIGNING_STATE_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
@@ -183,6 +187,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | EXECUTION_OBSERVER_COPY_ADDITIONS
         | RUNTIME_IDENTITY_COPY_ADDITIONS
         | REPLICATION_COPY_ADDITIONS
+        | SIGNING_STATE_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
@@ -213,6 +218,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= sources
     assert RUNTIME_IDENTITY_COPY_ADDITIONS <= sources
     assert REPLICATION_COPY_ADDITIONS <= sources
+    assert SIGNING_STATE_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -224,6 +230,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - EXECUTION_OBSERVER_COPY_ADDITIONS
         - RUNTIME_IDENTITY_COPY_ADDITIONS
         - REPLICATION_COPY_ADDITIONS
+        - SIGNING_STATE_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
@@ -252,6 +259,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= sources
     assert RUNTIME_IDENTITY_COPY_ADDITIONS <= sources
     assert REPLICATION_COPY_ADDITIONS <= sources
+    assert SIGNING_STATE_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -263,6 +271,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - EXECUTION_OBSERVER_COPY_ADDITIONS
         - RUNTIME_IDENTITY_COPY_ADDITIONS
         - REPLICATION_COPY_ADDITIONS
+        - SIGNING_STATE_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
@@ -289,3 +298,12 @@ def test_public_estate_binding_ships_at_the_runtime_reader_path() -> None:
                 target /= Path(source).name
             destinations.append(target.as_posix())
     assert destinations == [source]
+
+
+def test_signing_state_is_batched_once_with_runtime_identity() -> None:
+    rows = [instruction for _line, instruction in _logical_instructions()
+            if instruction.upper().startswith("COPY ")
+            and "szl_signing_state.py" in _copy_sources(instruction)]
+    assert len(rows) == 1
+    assert "szl_runtime_identity.py" in _copy_sources(rows[0])
+    assert shlex.split(rows[0])[-1] == "./"

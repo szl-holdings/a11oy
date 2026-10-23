@@ -19,6 +19,9 @@ import a11oy_state_store as ss
 
 def _serve_shutdown(**overrides):
     """Run the real shutdown hook without importing the full serving estate."""
+    async def stop_signing_sampler():
+        await asyncio.sleep(0)
+
     source = Path(__file__).resolve().parents[1] / "serve.py"
     tree = ast.parse(source.read_text(encoding="utf-8"))
     hook = next(node for node in tree.body
@@ -26,6 +29,7 @@ def _serve_shutdown(**overrides):
     hook.decorator_list = []
     scope = {
         "asyncio": asyncio, "sys": sys, "_rd_artifact": None,
+        "_stop_a11oy_signing_state": stop_signing_sampler,
         "_a11oy_eval_autorun_stop": lambda: None,
         "_node_proc": None, "_http_client": None,
         **overrides,
@@ -38,9 +42,18 @@ def test_asgi_shutdown_awaits_state_release_outside_event_loop(monkeypatch):
     calls = []
     loop_thread = threading.get_ident()
     monkeypatch.setattr(ss, "shutdown", lambda: calls.append(("release", threading.get_ident())))
-    hook = _serve_shutdown(_a11oy_eval_autorun_stop=lambda: calls.append(("stop", loop_thread)))
+    async def stop_signing_sampler():
+        calls.append(("signer-stop-start", threading.get_ident()))
+        await asyncio.sleep(0)
+        calls.append(("signer-stop-finished", threading.get_ident()))
+
+    hook = _serve_shutdown(
+        _stop_a11oy_signing_state=stop_signing_sampler,
+        _a11oy_eval_autorun_stop=lambda: calls.append(("stop", loop_thread)))
     asyncio.run(hook())
-    assert [name for name, _ in calls] == ["stop", "release"]
+    assert [name for name, _ in calls] == [
+        "signer-stop-start", "signer-stop-finished", "stop", "release"]
+    assert calls[0][1] == calls[1][1] == loop_thread
     assert calls[-1][1] != loop_thread
 
 
@@ -53,6 +66,20 @@ def test_other_shutdown_failure_cannot_skip_state_release(monkeypatch):
     monkeypatch.setattr(ss, "shutdown", lambda: calls.append("release"))
     hook = _serve_shutdown(_rd_artifact=SimpleNamespace(reader=SimpleNamespace(stop=fail_stop)))
     with pytest.raises(RuntimeError, match="reader stop failed"):
+        asyncio.run(hook())
+    assert calls == ["release"]
+
+
+def test_signing_sampler_shutdown_failure_cannot_skip_state_release(monkeypatch):
+    calls = []
+
+    async def fail_sampler_stop():
+        await asyncio.sleep(0)
+        raise RuntimeError("signing sampler stop failed")
+
+    monkeypatch.setattr(ss, "shutdown", lambda: calls.append("release"))
+    hook = _serve_shutdown(_stop_a11oy_signing_state=fail_sampler_stop)
+    with pytest.raises(RuntimeError, match="signing sampler stop failed"):
         asyncio.run(hook())
     assert calls == ["release"]
 
@@ -71,8 +98,12 @@ def test_asgi_state_release_precedes_uvicorn_sigterm_reraise():
         source = Path(sys.argv[1])
         hook = next(node for node in ast.parse(source.read_text(encoding="utf-8")).body
                     if isinstance(node, ast.AsyncFunctionDef) and node.name == "shutdown")
+        async def stop_signing_sampler():
+            await asyncio.sleep(0)
+            print("SIGNER_STOP_FINISHED", flush=True)
         scope = {"app": app, "asyncio": asyncio, "sys": sys,
                  "_rd_artifact": None, "_a11oy_eval_autorun_stop": lambda: None,
+                 "_stop_a11oy_signing_state": stop_signing_sampler,
                  "_node_proc": None, "_http_client": None}
         def release():
             print("STATE_RELEASE_FINISHED", flush=True)
@@ -97,6 +128,7 @@ def test_asgi_state_release_precedes_uvicorn_sigterm_reraise():
         capture_output=True, text=True, timeout=15, check=False,
     )
     assert result.returncode == -signal.SIGTERM, (result.returncode, result.stdout, result.stderr)
-    assert result.stdout.splitlines() == ["STATE_RELEASE_FINISHED"], result.stderr
+    assert result.stdout.splitlines() == [
+        "SIGNER_STOP_FINISHED", "STATE_RELEASE_FINISHED"], result.stderr
 
 
