@@ -545,6 +545,14 @@ class CodeRunloopAdmission(unittest.TestCase):
         def recording(_purpose, _query, _sign_fn, _ns, **kwargs):
             calls.append({"sandbox": kwargs.get("sandbox") is True})
             sandbox = kwargs.get("sandbox") is True
+            # Committed retry results require a real hash check, even for this
+            # unsigned SIMULATED engine double.
+            record = {
+                "seq": 0, "kind": "fixture",
+                "body": {"evidence_class": "SIMULATED", "sandbox": sandbox},
+                "prev_hash": "GENESIS",
+            }
+            record["hash"] = engine._sha(record)
             return {
                 "decision": "ALLOW",
                 "executed": sandbox,
@@ -558,7 +566,7 @@ class CodeRunloopAdmission(unittest.TestCase):
                     {"isolation": "recording-double", "stdout": "2\n"}
                     if sandbox else None
                 ),
-                "receipt_chain": [],
+                "receipt_chain": [record],
                 "signed_receipt": {"signed": False, "signatures": []},
                 "inference": {"mode": "recording-double", "attempts": 0},
                 "retrieval": {
@@ -617,6 +625,9 @@ class CodeRunloopAdmission(unittest.TestCase):
             self.assertFalse(execution.json().get("duplicate"))
             self.assertEqual(len(calls), 2)
             self.assertEqual([item["sandbox"] for item in calls], [False, True])
+            for response in (synthesis, execution):
+                self.assertTrue(response.json()["restart_receipt"]["persisted"])
+                self.assertEqual(response.json()["restart_receipt"]["state"], "COMMITTED")
 
             retry_synthesis = post_step(body, steps[2])
             retry_execution = post_step(body, steps[3])
