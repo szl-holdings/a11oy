@@ -547,6 +547,8 @@ jobs:
           tests/test_ledger_receipt_records.py
           tests/test_org_lambda_sample_inputs.py
           tests/test_runtime_verifying_key_surfaces.py
+          tests/test_signing_state.py
+          tests/test_signing_state_routes.py
           tests/test_platform_candidate_preview.py
           tests/test_platform_candidate_no_transform_middleware.py
           tests/test_zero_cdn_guard.py
