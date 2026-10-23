@@ -108,19 +108,21 @@ no action authority, and changes no model release gate. See
 
 ## Live surfaces
 
-Measured 2026-10-20 from an automated client: the Space twin answers HTTP 200 on every documented path, and `/api/a11oy/v1/honest` returns `doctrine_lock.lambda = "Conjecture 1"`. `a-11-oy.com` returned Cloudflare HTTP 403, so the apex rows below were not re-measured.
+These are historical observations carried from the dated source record below. This README does not perform live checks; current reachability, provider configuration and signing state are UNKNOWN until freshly verified.
 
-Measured 2026-09-04: the apex `a-11-oy.com` serves the Space runtime
+REPORTED in the [dated source record](https://github.com/szl-holdings/a11oy/blob/bedffee35bc1e979d9333dfded572c5478796db7/README.md#live-surfaces), 2026-10-20, from an automated client: the Space twin answered HTTP 200 on every documented path, and `/api/a11oy/v1/honest` returned `doctrine_lock.lambda = "Conjecture 1"`. `a-11-oy.com` returned Cloudflare HTTP 403, so the apex rows below were not re-measured.
+
+REPORTED in that source record, 2026-09-04: the apex `a-11-oy.com` served the Space runtime
 (`server=szl`, `x-szl-space: a11oy`). Hugging Face `runtime.domains`
-lists `a-11-oy.com` as **READY**. HTTP 200 is reachability, not a
-production certificate. `www.a-11-oy.com` completes TLS but returns Cloudflare HTTP 403 to automated clients (measured 2026-10-20).
+listed `a-11-oy.com` as **READY**. HTTP 200 is reachability, not a
+production certificate. `www.a-11-oy.com` completed TLS but returned Cloudflare HTTP 403 to automated clients (REPORTED 2026-10-20).
 
 | Surface | URL | Class |
 |---|---|---|
-| Command Center | [a-11-oy.com/console](https://a-11-oy.com/console) | MEASURED reachable |
-| Interactive verify | [a-11-oy.com/verify](https://a-11-oy.com/verify) | MEASURED reachable |
-| Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) | MEASURED runtime JSON |
-| Space twin | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) | MEASURED reachable |
+| Command Center | [a-11-oy.com/console](https://a-11-oy.com/console) | REPORTED historical reachability |
+| Interactive verify | [a-11-oy.com/verify](https://a-11-oy.com/verify) | REPORTED historical reachability |
+| Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) | REPORTED historical runtime JSON |
+| Space twin | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) | REPORTED historical reachability |
 | Proof registry | [a11oy.net](https://a11oy.net) | static RECORD |
 
 [a11oy-factory](https://github.com/szl-holdings/a11oy-factory) is a bind
@@ -210,13 +212,13 @@ deployment still requires the canonical publisher and live readback.
 
 | Claim | Status |
 |---|---|
-| Signed receipts on every governed action | **UNVERIFIED — runtime reports disagree (measured 2026-10-20): `/healthz` signer ABSENT; `/api/a11oy/v1/signing-status` persistent key, HMAC real, non_repudiation true. Both name key `9926bf69b799ea66` (SHA-256 of the stripped `/cosign.pub` PEM text). No GET endpoint returns a signed envelope to verify.** |
+| Signed receipts on every governed action | **UNKNOWN — the dated source record reports disagreement on 2026-10-20: `/healthz` signer ABSENT; `/api/a11oy/v1/signing-status` persistent key, HMAC real, non_repudiation true. Both named key `9926bf69b799ea66` (SHA-256 of the stripped `/cosign.pub` PEM text). That observation included no signed action envelope for independent verification.** |
 | 8 formulas locked-proven (Lean 4) | **LOCKED · lutar-lean `ProvedFormulas.lean` @ `3a886349` (not present at c7c0ba17)** |
 | Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
 | SLSA supply chain | **L1 source-declared · L2/L3 not established** |
-| Apex `/console` on a-11-oy.com | **MEASURED reachable 2026-09-04 · Space front** |
-| HF custom domain `a-11-oy.com` | **READY** (provider row; not DSSE-LIVE) |
-| `www.a-11-oy.com` | **UNAVAILABLE to automated clients** (TLS completes; Cloudflare HTTP 403, measured 2026-10-20) |
+| Apex `/console` on a-11-oy.com | **REPORTED reachable 2026-09-04 · Space front** |
+| HF custom domain `a-11-oy.com` | **REPORTED READY on 2026-09-04** (provider row; current state UNKNOWN here) |
+| `www.a-11-oy.com` | **REPORTED UNAVAILABLE to automated clients on 2026-10-20** (TLS completed; Cloudflare HTTP 403; current state UNKNOWN here) |
 | Government authorization / accreditation | **ROADMAP — none claimed** |
 | EXECUTION guard | **ROADMAP** |
 | Atelier command centre and Python Grok route | **SOURCE PRESENT — [configuration and proof gates](https://github.com/szl-holdings/a11oy/blob/1b05d180bf41ee56163e72f0846be5ad6485bf10/docs/ATELIER_COMMAND_CENTRE.md); live inference not established** |
