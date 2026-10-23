@@ -20,6 +20,8 @@ from starlette.applications import Starlette
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import a11oy_code_engine as engine
 
+_offline_loop = None
+
 
 @pytest.fixture(scope="session")
 def offline_loop():
@@ -81,6 +83,7 @@ def post(run, verifier, wrapped=True):
                                      base_url="http://in-process.invalid") as client:
             return await client.post("/api/a11oy/v1/code/verify",
                                      json={"run": run} if wrapped else run)
+    assert _offline_loop is not None
     response = _offline_loop.run_until_complete(request())
     assert response.status_code == 200
     return response.json()
