@@ -8,7 +8,7 @@ glm_4_6.py — GLM-4.6 voter (Zhipu AI / z.ai).
 
 Backend: z.ai (primary) or OpenRouter (secondary).
 Env vars: ZAI_API_KEY or OPENROUTER_API_KEY.
-BFCL #1 function caller. Off by default.
+Benchmark ranking is UNKNOWN: no model/revision-bound evaluation evidence. Off by default.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ class GLM46Voter(BaseVoter):
     PROVIDER = "Zhipu AI (z.ai) / OpenRouter"
     CONTEXT_WINDOW = 131072
     MODEL_ID = "THUDM/GLM-4.6-9B-Chat"
-    BFCL_SCORE = "#1"
+    BFCL_SCORE = None
 
     async def _call(
         self,

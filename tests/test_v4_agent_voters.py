@@ -39,6 +39,26 @@ from packages.inference.src.voters.kimi_k2 import KimiK2Voter
 from packages.inference.src.voters.nemotron_super_49b import NemotronSuper49BVoter
 
 
+def test_voter_catalog_has_no_unverified_benchmark_rankings():
+    """Absent model-bound benchmark evidence stays null, not a ranking."""
+    for voter in get_all_voters():
+        assert voter.BFCL_SCORE is None, voter.VOTER_ID
+        assert voter.metadata()["bfcl_score"] is None, voter.VOTER_ID
+
+
+def test_public_agent_surfaces_omit_unverified_benchmark_rankings():
+    """Exercise the catalog handler and generated HTML without inference."""
+    import a11oy_v4_agent as agent_mod
+
+    response = asyncio.run(agent_mod._handle_voters(None))
+    assert response.status_code == 200
+    catalog = json.loads(response.body)
+    assert catalog["count"] == VOTER_COUNT
+    assert len(catalog["voters"]) == VOTER_COUNT
+    assert all(voter["bfcl_score"] is None for voter in catalog["voters"])
+    assert "BFCL" not in agent_mod._build_agent_html()
+
+
 def test_missing_env_var_returns_unavailable():
     """A cloud voter with no env var must return status='unavailable', not raise."""
     voter = DeepSeekR1Voter()

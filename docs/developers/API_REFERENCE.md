@@ -207,7 +207,7 @@ Live endpoints newly surfaced (all verified `200` at `https://a-11-oy.com`, 2026
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/a11oy/v1/honest` | Full doctrine status: `doctrine_lock` (v11, 749/14/163, `c7c0ba17`), 8 locked-proven IDs, Λ advisory, persistence note. The canonical machine-readable "what we claim" endpoint. |
-| GET | `/api/a11oy/v1/signing-status` | Receipt signing posture: `key_source` (`ephemeral` or `persistent`), `dsse_keyid`, `hmac_layer` status, `non_repudiation` flag, honest note. Set `A11OY_RECEIPT_KEY_PATH` + `A11OY_HMAC_KEY` as Space secrets for persistent non-repudiation. |
+| GET, HEAD | `/api/a11oy/v1/signing-status` | Passive `szl.signing-state/v1` observation shared with `/healthz` and the signer rollup. `key_persistent` is a compatibility predicate for fresh, matching persistent local key metadata only. Permission, retained signing capability, HMAC status and non-repudiation remain UNKNOWN; configuring secrets establishes none of them. |
 | GET | `/api/a11oy/v1/frontier/manifest` | Live roll-up of all 8 frontier capabilities as tiles, each with `MEASURED`/`MODELED`/`ROADMAP`/`SAMPLE`/`UNAVAILABLE` label. Includes `universal_verifier` address, `labels_legend`, `summary` (`tiles:8`, `label_counts`), and a per-capability `capabilities[]` array. |
 | GET | `/api/a11oy/v1/energy/ledger` | Hash-chained NVML joule receipt chain. Returns `chain_length`, `links_intact`, `persistence` note. `chain_length:0` is correct when no sovereign GPU job ran this process — honest, not an error. |
 | GET | `/api/a11oy/v1/energy/sci` | Software Carbon Intensity score (GSF SCI / ISO 21031:2024). Returns `label` (`UNAVAILABLE` when no NVML), `sci_score_gco2_per_call`, `grid_intensity_gco2_per_kwh` (MODELED, EPA eGRID 2023 default; set `ELECTRICITY_MAPS_API_KEY` for MEASURED), and `meter_reachable` flag. Energy never fabricated. |
@@ -229,16 +229,44 @@ Live endpoints newly surfaced (all verified `200` at `https://a-11-oy.com`, 2026
 }
 ```
 
-### `GET /api/a11oy/v1/signing-status` — example response
+### `GET /api/a11oy/v1/signing-status` — SIMULATED abbreviated response
+
+Source contract, not a live observation or deployment claim. GET/HEAD never
+reload a key, sign, probe a backend or renew an observation; responses are
+`Cache-Control: no-store`. The lifecycle owner samples captured local key
+metadata every 15 seconds. Each read recomputes monotonic age and rejects
+availability at the 60-second expiry boundary. The record includes the existing
+runtime boot ID, generation, observation sequence and timestamp; unknown boot
+identity remains null. Fingerprints retain SHA-256 over stripped ASCII PEM,
+not a silent DER-hash migration. Verification-key knowledge is scoped to
+`CAPTURED_SHARED_SIGNER_IDENTITY`; historical/organizational fallback keys are
+not evaluated and cannot be promoted to an active signer. Liveness remains HTTP 200 independently of
+signing readiness. Legacy liveness ABSENT and rollup DSSE-LIVE are deprecated
+sentinels/key-availability labels, not authorization or receipt verification.
+
 ```json
 {
-  "key_source": "ephemeral",
+  "key_source": "unavailable",
   "key_persistent": false,
-  "dsse_keyid": "dc4ddfdb0969ef86",
-  "hmac_layer": "placeholder",
+  "key_persistent_scope": "FRESH_MATCHING_PERSISTENT_LOCAL_KEY_METADATA",
+  "dsse_keyid": null,
+  "hmac_layer": "UNKNOWN",
+  "hmac_key_id": null,
   "non_repudiation": false,
+  "non_repudiation_state": "UNKNOWN",
+  "signing_state": {
+    "schema": "szl.signing-state/v1",
+    "verification_key_known": false,
+    "configuration_state": "UNKNOWN",
+    "key_material_available": false,
+    "permission": {"state": "UNKNOWN", "evidence": null},
+    "observed_capability": {"state": "UNKNOWN", "evidence": null},
+    "signing_ready": false,
+    "execution_authorized": false,
+    "non_repudiation": "UNKNOWN"
+  },
   "doctrine": "v11",
-  "honesty": "PARTIAL -- ECDSA-P256 key is ephemeral; HMAC layer is placeholder. Set A11OY_RECEIPT_KEY_PATH/DIR and A11OY_HMAC_KEY as HF Space secrets for full non-repudiation."
+  "honesty": "DECLARED local signer metadata, not observed signing capability. Key possession, persistence and HMAC configuration do not establish permission, independent custody or non-repudiation. No signing on read."
 }
 ```
 
