@@ -5,7 +5,8 @@
     ".github/shared-source-payloads/model-credential-origin-20261017-v1.json": "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c",
     ".github/shared-source-payloads/replication-origin-index-20261017-v1.json": "3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce",
     ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json": "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc",
-    "a11oy_code_engine.py": "5994454fb6b699f94aec417ea637dec4459a6d2abcc1654df4a7f4bfba0ee67c",
+    ".github/shared-source-payloads/replication-snapshot-delivery-20261021-v1.json": "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166",
+    "a11oy_code_engine.py": "6968839865154818babe7e85c2bf37c944b9d0e90eb6fc600bf0e6c2d25bf73e",
     "docs/bonsai-model-binding.md": "f1e4791000f515604f9576abd454038546d86dd43fed705357dd2e5a0beb5fb7",
     "docs/replication-snapshot-delivery.md": "26f32f02f1dbd621b7eadcf3c5ca1cf4d441ac5df8991384b4d180c434d5a569",
     "khipu_lmdb/__init__.py": "1dd51e8cc49c5688f81d9c1b549ddc284c3695654b50b49f5f34877150c5ba8b",
@@ -18,12 +19,13 @@
     "szl_khipu_replicate.py": "392b6dc7e2e5d9d8ac629de73df2a486f1fa17c19fc54d0bb323b23d07574ddd",
     "szl_operator_auth.py": "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6",
     "szl_unay_routes.py": "a11310c27c0c9d93044041c4f0c3582f964e228f29828205a4d02be89767d5b7",
-    "tests/test_gitleaks_archived_payload_digest.py": "d41d4a9e0b4ec19446c8fbc643b1b9f792b12701fc4fb1a51024385fd12e4b4c",
+    "tests/test_code_receipt_binding.py": "a7e835f0b52bb39394cf6bfe4fb160c0770a06bf4750360e79e9850c13eba8c9",
+    "tests/test_gitleaks_archived_payload_digest.py": "651e88e0cfcb5a8c78e0709fe6bf2b96fc443412a30df319952042f17bbd5113",
     "tests/test_khipu_delivery_routes.py": "8b6653a77583bca4e423ff9d2052a31c8b80f8b38325a1d04ea0edcd23832d13",
-    "tests/test_replication_shared_payload.py": "44e6b7436ac9d927712dabe3f8d811f37ccb82de6048d2ccd62db20b8893aace",
+    "tests/test_replication_shared_payload.py": "095a8db287cee6aee8d5eaa8def346d793631227d1505aa9482d94ce8e0489e6",
     "tests/test_unay_write_authorization.py": "ec36d86eed8e36d45d56cb00c67e7adc7a1976cb1185614fb5370f8ce7271adf",
     "tests/test_vendor_sync_contract.py": "44b3d28b669abd479b3b9dd9817d827bf03b09e6e0227987d8e8fb7d00056cba"
   },
-  "payload_id": "replication-snapshot-delivery-20261021-v1",
+  "payload_id": "code-receipt-binding-20261023-v1",
   "schema": "szl-shared-source-payload/v1"
 }

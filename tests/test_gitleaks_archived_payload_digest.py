@@ -15,6 +15,7 @@ MANIFEST = ".github/shared-source-payload-manifest.json"
 HISTORY = ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json"
 MODEL_HISTORY = ".github/shared-source-payloads/model-credential-origin-20261017-v1.json"
 BONSAI_HISTORY = ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json"
+SNAPSHOT_HISTORY = ".github/shared-source-payloads/replication-snapshot-delivery-20261021-v1.json"
 ARCHIVE = ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json"
 
 
@@ -41,12 +42,14 @@ class ArchiveExceptionContract(unittest.TestCase):
             r"(^|[\\/])\.github[\\/]shared-source-payloads[\\/]replication-payload-integrity-20261017-v1\.json$",
             r"(^|[\\/])\.github[\\/]shared-source-payloads[\\/]model-credential-origin-20261017-v1\.json$",
             r"(^|[\\/])\.github[\\/]shared-source-payloads[\\/]bonsai-model-catalog-20261017-v1\.json$",
+            r"(^|[\\/])\.github[\\/]shared-source-payloads[\\/]replication-snapshot-delivery-20261021-v1\.json$",
         ])
         self.assertEqual(len(allow["regexes"]), 1)
         row = archive_row()
         self.assertIn(row, (ROOT / HISTORY).read_text(encoding="utf-8"))
         self.assertIn(row, (ROOT / MODEL_HISTORY).read_text(encoding="utf-8"))
         self.assertIn(row, (ROOT / BONSAI_HISTORY).read_text(encoding="utf-8"))
+        self.assertIn(row, (ROOT / SNAPSHOT_HISTORY).read_text(encoding="utf-8"))
         self.assertRegex(row, allow["regexes"][0])
         self.assertIsNone(re.search(allow["regexes"][0], row.rstrip() + ' "private_api_key": "' + disposable_credential() + '"'))
         self.assertIsNone(re.search(allow["regexes"][0], f'    "{ARCHIVE}": "{disposable_credential()}",\n'))
@@ -69,7 +72,7 @@ class ArchiveScannerBoundary(unittest.TestCase):
             return result.returncode
 
     def test_exact_public_archive_row_passes(self):
-        for path in (MANIFEST, HISTORY, MODEL_HISTORY, BONSAI_HISTORY):
+        for path in (MANIFEST, HISTORY, MODEL_HISTORY, BONSAI_HISTORY, SNAPSHOT_HISTORY):
             with self.subTest(path=path):
                 self.assertEqual(self.scan(archive_row(), path), 0)
 
@@ -78,17 +81,17 @@ class ArchiveScannerBoundary(unittest.TestCase):
         self.assertEqual(self.scan(archive_row(), ".github/shared-source-payloads/unreviewed-successor.json"), 1)
 
     def test_changed_digest_remains_detected(self):
-        for path in (MANIFEST, HISTORY, MODEL_HISTORY, BONSAI_HISTORY):
+        for path in (MANIFEST, HISTORY, MODEL_HISTORY, BONSAI_HISTORY, SNAPSHOT_HISTORY):
             with self.subTest(path=path):
                 self.assertEqual(self.scan(f'    "{ARCHIVE}": "{disposable_credential()}",\n', path), 1)
 
     def test_adjacent_credential_remains_detected(self):
-        for path in (MANIFEST, HISTORY, MODEL_HISTORY, BONSAI_HISTORY):
+        for path in (MANIFEST, HISTORY, MODEL_HISTORY, BONSAI_HISTORY, SNAPSHOT_HISTORY):
             with self.subTest(path=path):
                 self.assertEqual(self.scan(archive_row() + '    "private_api_key": "' + disposable_credential() + '"\n', path), 1)
 
     def test_same_line_credential_remains_detected(self):
-        for path in (MANIFEST, HISTORY, MODEL_HISTORY, BONSAI_HISTORY):
+        for path in (MANIFEST, HISTORY, MODEL_HISTORY, BONSAI_HISTORY, SNAPSHOT_HISTORY):
             with self.subTest(path=path):
                 self.assertEqual(self.scan(archive_row().rstrip() + ' "private_api_key": "' + disposable_credential() + '"\n', path), 1)
 

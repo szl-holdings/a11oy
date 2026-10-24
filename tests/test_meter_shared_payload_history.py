@@ -152,9 +152,10 @@ def test_archived_bonsai_payload_binds_predecessors():
         'tests/test_unay_write_authorization.py',
         'tests/test_vendor_sync_contract.py',
     }
+    assert manifest["files"]["a11oy_code_engine.py"] == "5994454fb6b699f94aec417ea637dec4459a6d2abcc1654df4a7f4bfba0ee67c"
     for relative, expected in manifest["files"].items():
-        if relative == "szl_unay_routes.py":
-            continue  # Historical route is pinned in the immutable archive.
+        if relative in ("a11oy_code_engine.py", "szl_unay_routes.py"):
+            continue  # Historical source stays pinned in the immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
