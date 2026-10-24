@@ -87,6 +87,7 @@ jobs:
           tests/test_readiness_artifact.py
           tests/test_code_engine_isolation.py
           tests/test_code_engine_mandatory_limits.py
+          tests/test_code_receipt_binding.py
           tests/test_sandbox_fail_closed_followups.py
 
   code-runloop-admission:

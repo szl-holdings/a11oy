@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - code receipt verification binding
+
+- Bind code-receipt verification to the authenticated chain prefix and its
+  terminal event. Report chain integrity, signature validity, and payload
+  binding separately; missing verifiers keep the composite result false.
+
 ### Fixed - state store shutdown preservation
 
 - Await the existing state-store final snapshot and lease release during ASGI
