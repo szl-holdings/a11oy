@@ -24,7 +24,7 @@ NAV = ROOT / "a11oy_nav_wireup.py"
 
 def test_front_door_hamburger_is_44px_and_opens_hidden_links() -> None:
     html = FRONT_DOOR.read_text(encoding="utf-8")
-    assert '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell" />' in html
+    assert '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=61c132098e06" id="szl-homepage-shell" />' in html
     css = (ROOT / "console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
     compact = "".join(css.split())
     owner = 'html[data-szl-shell-owner="homepage"]'
