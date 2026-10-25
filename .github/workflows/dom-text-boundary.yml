@@ -18,7 +18,8 @@ concurrency:
 jobs:
   browser:
     name: Verify literal text, local controls, and explicit route dispatch
-    runs-on: ubuntu-latest
+    # Playwright 1.57.0 has no Chromium host build for ubuntu-26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Harden runner
