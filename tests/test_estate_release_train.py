@@ -115,6 +115,45 @@ class EstateReleaseTrainTests(unittest.TestCase):
             cloudflare_other_path.result()["semantic_sha256"],
         )
 
+        def feed_variant(tag: str) -> release.SemanticHTML:
+            page = release.SemanticHTML()
+            page.feed(
+                '<html data-szl-public-experience-v3="true"><head>'
+                '<title>A11oy</title><script src="/app.js"></script>'
+                + tag
+                + '</head><body><a href="/trust">Trust</a></body></html>'
+            )
+            return page
+
+        for variant in (
+            "https://static.cloudflareinsights.com/beacon.min.js/not-the-fixture",
+            beacon + "?x=1",
+            beacon + "#frag",
+        ):
+            with self.subTest(src=variant):
+                page = feed_variant(f'<script src="{variant}"></script>')
+                self.assertNotEqual(
+                    baseline.result()["semantic_sha256"],
+                    page.result()["semantic_sha256"],
+                )
+                self.assertEqual(page.result()["provider_scripts"], [])
+                self.assertIn(variant, page.result()["scripts"])
+
+        for tag in (
+            f'<script src="{beacon}" onclick="changed()"></script>',
+            f'<script onclick="changed()" src="{beacon}"></script>',
+            f'<script async src="{beacon}"></script>',
+            f'<script src="{beacon}" src="{beacon}"></script>',
+        ):
+            with self.subTest(tag=tag):
+                page = feed_variant(tag)
+                self.assertNotEqual(
+                    baseline.result()["semantic_sha256"],
+                    page.result()["semantic_sha256"],
+                )
+                self.assertEqual(page.result()["provider_scripts"], [])
+                self.assertIn(beacon, page.result()["scripts"])
+
     def test_semantic_html_retains_exact_cloudflare_webmcp_as_provider_evidence(self) -> None:
         baseline = release.SemanticHTML()
         baseline.feed('<title>A11oy</title><script src="/app.js"></script>')
