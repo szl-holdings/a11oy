@@ -284,6 +284,7 @@ jobs:
           tests/test_state_store_handover_operator.py
           tests/test_state_store_handover.py
           tests/test_state_store_restore.py
+          tests/test_current_state_snapshot_rehearsal.py
           tests/test_state_store_wiring.py
           tests/test_sqlite_orphan_repair.py
           tests/test_sqlite_logical_fingerprint.py
