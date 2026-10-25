@@ -6,7 +6,7 @@
     "core.py": "5532020e4513a3b38672c79ff52a96f9acaea796cb18e26857d59d713e78dd67",
     "data/estate.json": "9e0866bb222dac9657e2084f62edb33a9ebe87459ce115aee652ec145914752e",
     "feeds.py": "897f3c89d1e27cac1381900bf000df8b21cec1a35557fb9d90c268cb8eb49dd5",
-    "static/assets/dependencies-B2cuOcNb.js": "b75af85cb062bd369024f4a9ae48aec4c30a43ac08537522469217cbeb51b22e",
+    "static/assets/dependencies-CM0DJIsD.js": "34607d332a9b4f46e0465667d4a1838dc361108c7494c102535ea454bb93d1d0",
     "static/assets/dependencies-DyqX6lRK.css": "4c3f4aaa0186c9cddb26d6d595b0efbaf79ff1a05d1ac87039faea46ba3bfea8",
     "static/assets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2": "2317fa4bb293c9c0b110e18315d529235c47a0ddd3338cea3d8c7955e927899e",
     "static/assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2": "6894439694946a589d157ece003086960a6a4013d74a813dab7602efdb3d8c09",
@@ -20,10 +20,10 @@
     "static/assets/geist-mono-vietnamese-wght-normal-DadHysG0.woff2": "d39b60889a94a527a7f73c7988a2d6efb6c081614aef683b0b386c02d74c2175",
     "static/assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2": "8fa40e5d248247735eb97a0bd593b8852440430600d6ba01364c31fe0abc1fe1",
     "static/assets/index-CCK0F0oL.css": "c0842b92ae91d65419a0deda20a541a4fbfec97ee8658914536cb8db85ee3457",
-    "static/assets/index-CIUNfMW1.js": "70fadffdd3c43319ce4a8dbd5ea72e56bff4c571ac9758aa855b3c5485fb06fc",
+    "static/assets/index-CdAmcMyx.js": "4b365b9155af547a59c2bcb970911f5ba8d9e6ac8f1e357b621bce5c38c1d205",
     "static/favicon.svg": "99a23f6e8a7ea28df458c9c2b91e41fa978158c69e288b0c7f732463d524ed6a",
-    "static/index.html": "96126b753a2df7de33c9dd6a5e3f13a0d3dafa900a6b361595fae116802dd444",
-    "static/third-party-notices.txt": "cc9be39ee7298eafb8b5f7d2d5aa746d07879bcd2ccd6528cda722522fb2f938"
+    "static/index.html": "59ec0b29c06a9ccb59e50acf5fcc4e9092025be58ead0b7cd18a970ffdc4aec7",
+    "static/third-party-notices.txt": "75bb1afa11c7dcb1b7b5ab607412981e4b8f9e80d0983d84fc86ce5e93b2f5fa"
   },
   "model_loaded": false,
   "schema": "szl.civilian.payload.v1",
