@@ -38,6 +38,12 @@
   <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
 <link rel="stylesheet" href="/assets/szl-spectral-v2.css" data-szl-spectral-v2="true" />
 <link rel="stylesheet" href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell" />
+<style>
+html[data-szl-shell-owner="homepage"] #main:focus{
+  outline:3px solid var(--focus, #0f726e);
+  outline-offset:4px;
+}
+</style>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
@@ -64,7 +70,7 @@
     </nav>
   </div>
 </header>
-<main id="main">
+<main id="main" tabindex="-1">
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="wrap hero-grid">
@@ -676,24 +682,37 @@
 <script>
 (function(){
   var drawer=document.getElementById("full-record");
-  if(!drawer) return;
+  function focusMain(){
+    var main=document.getElementById("main");
+    if(main) main.focus({preventScroll:true});
+  }
   function revealHashTarget(moveFocus){
     var id;
     try { id=decodeURIComponent(window.location.hash.slice(1)); } catch (_) { return; }
     var target=id&&document.getElementById(id);
-    if(target&&drawer.contains(target)){
-      drawer.open=true;
-      requestAnimationFrame(function(){
-        target.scrollIntoView({block:"start"});
-        if(moveFocus){
-          var heading=target.querySelector("h2,h3")||target;
-          var temporary=!heading.hasAttribute("tabindex");
-          if(temporary) heading.setAttribute("tabindex","-1");
-          heading.focus({preventScroll:true});
-          if(temporary) heading.addEventListener("blur",function(){heading.removeAttribute("tabindex");},{once:true});
-        }
-      });
+    if(!target) return;
+    if(target.id==="main"){
+      if(moveFocus) focusMain();
+      return;
     }
+    if(!(drawer&&drawer.contains(target))) return;
+    drawer.open=true;
+    requestAnimationFrame(function(){
+      target.scrollIntoView({block:"start"});
+      if(moveFocus){
+        var heading=target.querySelector("h2,h3")||target;
+        var temporary=!heading.hasAttribute("tabindex");
+        if(temporary) heading.setAttribute("tabindex","-1");
+        heading.focus({preventScroll:true});
+        if(temporary) heading.addEventListener("blur",function(){heading.removeAttribute("tabindex");},{once:true});
+      }
+    });
+  }
+  var skip=document.querySelector('a.skip-link[href="#main"]');
+  if(skip){
+    skip.addEventListener("click",function(){
+      requestAnimationFrame(focusMain);
+    });
   }
   window.addEventListener("hashchange",function(){revealHashTarget(true);});
   revealHashTarget(false);
