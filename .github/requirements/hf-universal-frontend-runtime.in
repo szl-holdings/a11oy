@@ -1,2 +1,4 @@
 huggingface_hub==1.23.0
 certifi>=2026.10.19
+# Dependabot GHSA-v4x8-3wr5-3wq8 — pin patched filelock for resolved lock
+filelock>=4.2.1
