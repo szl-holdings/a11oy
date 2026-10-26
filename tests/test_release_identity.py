@@ -155,6 +155,32 @@ def test_zenodo_metadata_and_company_page_tag_both_domains_and_existing_dois():
     assert application["subjectOf"]["url"] == release.REGISTRY_URL
 
 
+def test_company_page_distinguishes_simulation_samples_and_runtime_authority():
+    company = (ROOT / "pages" / "company.html").read_text(encoding="utf-8")
+    for unsupported_claim in (
+        "every verdict",
+        "every airspace verdict",
+        "two shipping products",
+        "two products are live",
+        "ed25519/dsse-signed",
+        "tampering is impossible",
+        "proven and running today",
+        "proven &amp; running",
+        "proven receipt core",
+        "proven in lean",
+    ):
+        assert unsupported_claim not in company.lower()
+
+    for section_id in ("proven", "flagships"):
+        section = company.split(f'id="{section_id}"', 1)[1].split("</section>", 1)[0]
+        assert ">SIMULATED</span>" in section
+        assert ">DECLARED</span>" in section
+        assert ">Live" not in section
+    receipt_rows = company.split("<tbody>", 1)[1].split("</tbody>", 1)[0]
+    assert receipt_rows.count(">SAMPLE</td>") == receipt_rows.count("<tr>") > 0
+    assert 'href="/api/a11oy/healthz"' in company
+
+
 def test_hf_space_sha_readback_fails_closed(monkeypatch):
     monkeypatch.setattr(
         release.urllib.request,
