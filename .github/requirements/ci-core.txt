@@ -24,7 +24,9 @@ attrs==26.1.0 \
     # via
     #   jsonschema
     #   referencing
-certifi==2026.10.19
+certifi==2026.10.19 \
+    --hash=sha256:42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b \
+    --hash=sha256:035c1e85572b141bf1c3a3eff0e33a8eb74917522f2559075ff8d2fea780a1ae
     # via
     #   httpcore
     #   httpx
