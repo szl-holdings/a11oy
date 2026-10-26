@@ -91,7 +91,7 @@ class ContractTests(unittest.TestCase):
 
     def test_rejects_missing_remote_or_ambiguous_visual_owner(self):
         html = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
-        owner = '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell" />'
+        owner = '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=61c132098e06" id="szl-homepage-shell" />'
         for replacement in ("", owner + owner, owner.replace("/assets/a11oy-homepage.css", "https://example.invalid/page.css"), owner.replace("/assets/a11oy-homepage.css", "../../outside.css")):
             with self.subTest(replacement=replacement):
                 path, _ = self.write_owned(html.replace(owner, replacement))

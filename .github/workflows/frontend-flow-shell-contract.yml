@@ -67,7 +67,8 @@ permissions:
 jobs:
   shared-shell-browser:
     name: Shared shell source qualification
-    runs-on: ubuntu-latest
+    # Playwright 1.57.0 has no Chromium host build for ubuntu-26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -16,7 +16,8 @@ concurrency:
 jobs:
   contracts:
     name: Finance source contract (${{ matrix.python }})
-    runs-on: ubuntu-latest
+    # Playwright 1.57.0 has no Chromium host build for ubuntu-26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
       fail-fast: false
