@@ -15,7 +15,7 @@
 <meta name="author" content="Stephen P. Lutar Jr., SZL Holdings LLC">
 <meta name="citation_author_orcid" content="https://orcid.org/0009-0001-0110-4173">
 <meta name="a11oy:canonical-domain" content="https://a-11-oy.com">
-<meta name="a11oy:legacy-alias" content="https://a11oy.net">
+<meta name="a11oy:registry-origin" content="https://a11oy.net">
 <meta name="a11oy:concept-doi" content="10.5281/zenodo.19944926">
 <meta name="a11oy:formal-artifact-doi" content="10.5281/zenodo.20434276">
 <script type="application/ld+json">
@@ -27,9 +27,11 @@
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "codeRepository": "https://github.com/szl-holdings/a11oy",
   "url": "https://a-11-oy.com",
-  "sameAs": [
-    "https://a11oy.net"
-  ],
+  "subjectOf": {
+    "@type": "WebPage",
+    "name": "A11oy proof registry",
+    "url": "https://a11oy.net"
+  },
   "citation": [
     {
       "@type": "CreativeWork",
@@ -385,8 +387,8 @@ footer{border-top:1px solid var(--line);padding:54px 0 40px}
       <div class="card">
         <div class="tag-row"><span class="code">product surfaces</span><span class="pill pill-live">canonical</span></div>
         <h3>a-11-oy.com</h3>
-        <p><a href="https://a-11-oy.com">a-11-oy.com</a> is the canonical product surface. <a href="https://a11oy.net">a11oy.net</a> is retained as a legacy alias and permanently redirects here.</p>
-        <div class="meta">canonical + legacy-domain continuity</div>
+        <p><a href="https://a-11-oy.com">a-11-oy.com</a> is the canonical product surface. <a href="https://a11oy.net">a11oy.net</a> is a separate proof registry for receipts and evidence.</p>
+        <div class="meta">product surface + separate proof registry</div>
       </div>
     </div>
     <table class="rt">
