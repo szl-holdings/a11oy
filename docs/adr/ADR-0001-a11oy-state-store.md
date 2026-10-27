@@ -53,6 +53,9 @@ a11oy storage is a **local state store with immutable bucket snapshots and a CAS
    - A store that changed is captured after 30 s without further change.
    - Under continuous writes, a capture happens at least every 300 s.
    - Container stop and handover take a final snapshot.
+   - ASGI shutdown awaits the existing state-store close operation before
+     Uvicorn re-raises SIGTERM. The outer runtime `finally` remains a fallback;
+     it alone cannot guarantee cleanup when the process receives SIGTERM.
 
    **When a snapshot fails:**
    - The live database is never touched. The failure retries with backoff.

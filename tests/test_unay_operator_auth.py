@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from starlette.applications import Starlette
 
 import szl_operator_auth as opauth
+import khipu_lmdb
 
 ROOT = Path(__file__).resolve().parents[1]
 OPERATOR = "unay-fixture-operator-not-real"
@@ -42,18 +43,19 @@ class UnayOperatorAuthorization(unittest.TestCase):
             store.verify.return_value = {"ok": True}
             store.tail.return_value = []
             store.append.return_value = {"digest": "fixture-lmdb-receipt"}
+            store.append_replicated.return_value = {"receipt": {}, "duplicate": False}
             store.get_by_receipt.return_value = None
         self.verify = MagicMock(return_value=True)
         replicator = MagicMock(enabled=False)
         replicator.status.return_value = {"enabled": False}
         self.dependencies = {
             "szl_unay": types.SimpleNamespace(__version__="fixture", UnayStore=MagicMock(return_value=self.store)),
-            "szl_khipu_lmdb": types.SimpleNamespace(KhipuLMDB=MagicMock(side_effect=[self.primary, self.replica])),
             "szl_khipu_replicate": types.SimpleNamespace(
                 Replicator=MagicMock(return_value=replicator), verify_inbound=self.verify),
             "lmdb": types.SimpleNamespace(version=lambda: (0, 0, 0)),
         }
-        environment = patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: OPERATOR, "GDW_DURABLE_STORAGE": ""})
+        environment = patch.dict(os.environ, {opauth.OPERATOR_KEY_ENV: OPERATOR, "GDW_DURABLE_STORAGE": "",
+                                               "KHIPU_HTTPS_PEERS_JSON": "[]"})
         environment.start()
         self.addCleanup(environment.stop)
 
@@ -62,7 +64,8 @@ class UnayOperatorAuthorization(unittest.TestCase):
         # configured credential resolver are the actual implementation.
         spec = importlib.util.spec_from_file_location("_unay_auth_route_fixture", ROOT / "szl_unay_routes.py")
         module = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, {**self.dependencies, spec.name: module}):
+        with patch.dict(sys.modules, {**self.dependencies, spec.name: module}), \
+                patch.object(khipu_lmdb, "KhipuLMDB", side_effect=[self.primary, self.replica]):
             spec.loader.exec_module(module)
             with patch.object(module, "_pick_data_dir", return_value=self.temporary.name), \
                     patch.object(module, "_restore_snapshot", return_value=False):
@@ -74,6 +77,7 @@ class UnayOperatorAuthorization(unittest.TestCase):
         self.store.remember.assert_not_called()
         self.primary.append.assert_not_called()
         self.replica.append.assert_not_called()
+        self.replica.append_replicated.assert_not_called()
         self.verify.assert_not_called()
 
     def test_unauthorized_requests_never_parse_body_or_reach_stores(self):
@@ -136,7 +140,9 @@ class UnayOperatorAuthorization(unittest.TestCase):
                                    json={"receipts": [receipt]})
             self.assertEqual(response.status_code, 200)
             self.verify.assert_called_once_with(receipt)
-            self.replica.append.assert_called_once_with("replicated", payload={"origin": receipt})
+            self.replica.append_replicated.assert_called_once_with(receipt)
+            self.replica.append.assert_not_called()
+            self.replica.get_by_receipt.assert_not_called()
 
     def test_public_reads_remain_available_without_writes(self):
         app = self._app("a11oy")

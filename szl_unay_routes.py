@@ -59,7 +59,7 @@ for _p in _IMPORT_PATHS:
         sys.path.insert(0, _p)
 
 import szl_unay  # noqa: E402
-import szl_khipu_lmdb  # noqa: E402
+import khipu_lmdb as szl_khipu_lmdb  # noqa: E402
 import szl_khipu_replicate  # noqa: E402
 from szl_operator_auth import operator_refusal  # noqa: E402
 
@@ -152,6 +152,10 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
         local_organ=ns, peers=[], source_fn=_source_fn
     )
 
+    # The existing sole opener owns both live handles; the adapter opens no live DB.
+    import szl_khipu_delivery_routes
+    szl_khipu_delivery_routes.register(app, ns=ns, source=klmdb, mirror=repl_store)
+
     # ---------------------------------------------------------------- UNAY
     @app.get(f"/api/{ns}/v2/unay/healthz")
     async def unay_healthz() -> Any:  # noqa: ANN401
@@ -227,8 +231,16 @@ def register(app: Any, ns: str = "szl") -> Dict[str, Any]:
         accepted, rejected = 0, 0
         for r in receipts:
             if szl_khipu_replicate.verify_inbound(r):
-                if repl_store.get_by_receipt(r["digest"]) is None:
-                    repl_store.append("replicated", payload={"origin": r})
+                try:
+                    # The foreign digest index, local wrapper and migration cursor
+                    # commit together. A replay is accepted only after this returns.
+                    repl_store.append_replicated(r)
+                except ValueError:
+                    # Invalid/conflicting origins or unreconciled history must not
+                    # advance the sender's acknowledgement. LMDB I/O errors still
+                    # fail the request instead of being reported as successful writes.
+                    rejected += 1
+                    continue
                 accepted += 1
             else:
                 rejected += 1

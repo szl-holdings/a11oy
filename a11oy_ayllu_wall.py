@@ -29,9 +29,12 @@ KEY HONESTY (do not soften this):
   published cosign.pub is still pending — this wall verifies against the
   pinned RUNTIME key and says exactly that.
 
-Optional env pin: A11OY_COUNCIL_PUB_SHA256 = sha256 hex of the pinned PEM
-bytes. Set-but-different → keyTrust "PIN_MISMATCH" and the wall FAILS CLOSED.
-Unset → "REPO_DECLARED". Matching → "PINNED".
+Key pin. The PEM is fetched from the mutable main branch at request time, so the
+expected fingerprint is bound to the DEPLOYED code (_BUILTIN_PIN, sha256 of the
+pinned PEM bytes). Optional env override: A11OY_COUNCIL_PUB_SHA256. Fetched key
+equal to the env pin -> "PINNED"; env unset and equal to _BUILTIN_PIN ->
+"CODE_PINNED"; anything else -> "PIN_MISMATCH" and the wall FAILS CLOSED.
+Rotating the key therefore requires changing _BUILTIN_PIN in the same commit.
 
 Additive module per Space convention: register(app) adds routes and
 front-moves them so exact paths win over the SPA history fallback. No new
@@ -56,6 +59,9 @@ _RAW = "https://raw.githubusercontent.com/szl-holdings/a11oy/main"
 _INDEX_PATH = "ayllu/decisions/index.json"
 _KEY_PATH = "ayllu/keys/council-runtime-2026-07-21.pub"
 _PIN_ENV = "A11OY_COUNCIL_PUB_SHA256"
+# sha256 of ayllu/keys/council-runtime-2026-07-21.pub as committed; a key swapped on the
+# fetched branch no longer verifies unless this deployed constant changes too.
+_BUILTIN_PIN = "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe"
 _CACHE_TTL_SECONDS = 300  # bytes only; verification always re-runs
 _MAX_DECISIONS = 24
 
@@ -190,11 +196,10 @@ async def _wall_payload() -> dict:
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
             pem = await _fetch(client, _KEY_PATH)
             pinned_fpr = _sha256_hex(pem)
-            pin = os.environ.get(_PIN_ENV, "").strip()
-            if not pin:
-                key_trust, pin_ok = "REPO_DECLARED", True
-            elif pin.lower() == pinned_fpr:
-                key_trust, pin_ok = "PINNED", True
+            pin = os.environ.get(_PIN_ENV, "").strip().lower()
+            expected = pin or _BUILTIN_PIN
+            if pinned_fpr == expected:
+                key_trust, pin_ok = ("PINNED" if pin else "CODE_PINNED"), True
             else:
                 key_trust, pin_ok = "PIN_MISMATCH", False  # fail CLOSED
             public_key = load_pem_public_key(pem)

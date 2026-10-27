@@ -11,6 +11,9 @@ node_modules
 !.github/scripts/
 .github/scripts/*
 !.github/scripts/publish_readiness_verdict.py
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/hf-sync.yml
 .devcontainer
 
 # Build outputs (the builder regenerates dist/)

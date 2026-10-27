@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - read-only current state snapshot rehearsal
+
+- Verify the seven snapshots named by the current v2 HEAD in scratch.
+  The Space keeps running. A pass does not admit restore, deployment, or
+  execution, and it does not repair a failed snapshot.
+
+### Fixed - code receipt verification binding
+
+- Bind code-receipt verification to the authenticated chain prefix and its
+  terminal event. Report chain integrity, signature validity, and payload
+  binding separately; missing verifiers keep the composite result false.
+
+### Fixed - state store shutdown preservation
+
+- Await the existing state-store final snapshot and lease release during ASGI
+  shutdown, before Uvicorn re-raises a termination signal. Other cleanup failures
+  cannot skip this finalizer; the outer runtime cleanup remains a fallback.
+
+### Fixed - atomic inbound replication replay
+
+- Commit the foreign receipt index and local mirror wrapper together, so an
+  exact replay uses the existing wrapper after a restart. Validate bounded
+  historical backfill and refuse corrupt history or conflicting origin bytes.
+- Update only the canonical Khipu-LMDB vendor entries using immutable per-file
+  revisions. The full strict vendor gate still checks every manifest entry.
+- Keep outbound replication disabled by default. This source repair does not
+  qualify provider persistence or sender recovery; see
+  [the replication integration receipt](docs/replication-origin-index-20261017.md).
+
 ### Added - bounded operator observations
 
 - Add a GET-only preflight and explicitly admitted three-case HTTP runner with

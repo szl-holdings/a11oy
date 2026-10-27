@@ -16,7 +16,9 @@ Hermetic: no live LLM calls. The CPU lab is never contacted.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -35,6 +37,26 @@ from packages.inference.src.voters import (
 from packages.inference.src.voters.deepseek_r1 import DeepSeekR1Voter
 from packages.inference.src.voters.kimi_k2 import KimiK2Voter
 from packages.inference.src.voters.nemotron_super_49b import NemotronSuper49BVoter
+
+
+def test_voter_catalog_has_no_unverified_benchmark_rankings():
+    """Absent model-bound benchmark evidence stays null, not a ranking."""
+    for voter in get_all_voters():
+        assert voter.BFCL_SCORE is None, voter.VOTER_ID
+        assert voter.metadata()["bfcl_score"] is None, voter.VOTER_ID
+
+
+def test_public_agent_surfaces_omit_unverified_benchmark_rankings():
+    """Exercise the catalog handler and generated HTML without inference."""
+    import a11oy_v4_agent as agent_mod
+
+    response = asyncio.run(agent_mod._handle_voters(None))
+    assert response.status_code == 200
+    catalog = json.loads(response.body)
+    assert catalog["count"] == VOTER_COUNT
+    assert len(catalog["voters"]) == VOTER_COUNT
+    assert all(voter["bfcl_score"] is None for voter in catalog["voters"])
+    assert "BFCL" not in agent_mod._build_agent_html()
 
 
 def test_missing_env_var_returns_unavailable():
@@ -240,3 +262,77 @@ def test_qwen_local_returns_stub_when_vllm_unreachable():
     assert result["status"] == "ok"
     assert result["text"] is not None
     assert "STUB" in result["text"] or "stub" in result["text"].lower() or len(result["text"]) > 0
+
+
+def test_agent_page_renders_adversarial_vote_fields_as_text_only():
+    """Execute the served page script against a DOM that rejects HTML parsing.
+
+    A model response, error reason, or other API field must never become markup.
+    This test is local: Node runs the page JavaScript with a minimal DOM and a
+    synthetic response; it makes no browser or voter-network request.
+    """
+    import a11oy_v4_agent as agent_mod
+
+    html = agent_mod._build_agent_html()
+    script = html.split("<script>", 1)[1].split("</script>", 1)[0]
+    program = r"""
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const source = SOURCE_SCRIPT;
+const attack = '<img src=x onerror="globalThis.__injected=true">';
+let htmlParseAttempts = 0;
+class Element {
+  constructor(tagName) {
+    this.tagName = tagName;
+    this.className = '';
+    this.children = [];
+    this.style = {};
+    this.value = '';
+    this._text = '';
+  }
+  set textContent(value) { this._text = String(value); this.children = []; }
+  get textContent() { return this._text + this.children.map(child => child.textContent).join(''); }
+  set innerHTML(_value) { htmlParseAttempts += 1; throw new Error('HTML parsing attempted'); }
+  replaceChildren(...children) { this._text = ''; this.children = children; }
+  appendChild(child) { this.children.push(child); return child; }
+}
+const nodes = new Map();
+const document = {
+  createElement: tagName => new Element(tagName),
+  getElementById: id => {
+    if (!nodes.has(id)) nodes.set(id, new Element('div'));
+    return nodes.get(id);
+  },
+  querySelectorAll: () => [],
+};
+document.getElementById('prompt-input').value = 'local test';
+const response = {
+  aggregator: {winner_id: attack, lambda_score: 0.5},
+  votes: [
+    {voter_id: attack, status: 'ok', text: attack, latency_ms: attack},
+    {voter_id: 'second', status: 'unavailable', reason: attack, latency_ms: null},
+  ],
+};
+const context = vm.createContext({document, fetch: async () => ({json: async () => response})});
+vm.runInContext(source, context);
+(async () => {
+  await vm.runInContext('doAsk()', context);
+  assert.equal(htmlParseAttempts, 0);
+  const cards = document.getElementById('voter-responses').children;
+  assert.equal(cards.length, 2);
+  assert.deepEqual(cards.map(card => card.className), ['vr-card', 'vr-card']);
+  assert.equal(cards[0].children[0].children[0].textContent, attack);
+  assert.equal(cards[0].children[0].children[1].className, 'status-pill ok');
+  assert.equal(cards[0].children[0].children[2].textContent, attack + 'ms');
+  assert.equal(cards[0].children[1].textContent, attack);
+  assert.equal(cards[1].children[0].children[1].className, 'status-pill unavailable');
+  assert.equal(cards[1].children[1].textContent, attack);
+  assert.equal(document.getElementById('lambda-winner').textContent, attack + ' · Λ=0.500000');
+  assert.equal(context.__injected, undefined);
+  const tags = cards.flatMap(card => [card, ...card.children, ...card.children.flatMap(node => node.children)]);
+  assert(tags.every(node => node.tagName === 'div' || node.tagName === 'span'));
+})().catch(error => { process.stderr.write(String(error.stack || error)); process.exitCode = 1; });
+""".replace("SOURCE_SCRIPT", json.dumps(script))
+    result = subprocess.run(["node", "-"], input=program, text=True, encoding="utf-8",
+                            capture_output=True, timeout=15, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr

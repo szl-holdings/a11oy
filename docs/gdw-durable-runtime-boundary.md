@@ -88,8 +88,8 @@ and they do not probe an old or paused service.
 
 `scripts/build_gdw_installed_source_manifest.py` uses the exact public COPY
 parser and expander from `szl-holdings/.github` at
-`fc71ae973a0f31b8e9ee793fc8545a354448d451`, script SHA-256
-`f2f7a6c1296493d034eebed596f4176c2928470a4ed7e23620da6cacf19b16e7`.
+`5f140bab8adb64fe25252d8832b67b1f43a56c36`, script SHA-256
+`373add34da38a219e5dafce52e7a86a417c019ac13b139678fc72c93c1ad1318`.
 It compiles only the parser, expander and their exception class from the pinned
 AST. Publisher mutations, application imports, provider calls and credential
 reads are outside this helper. Git reads are bounded to local immutable objects;
@@ -98,7 +98,7 @@ source object fails. COPY inputs must still match the immutable Git blobs, and
 each COPY directory's complete membership is checked before and after reading.
 
 The `szl.gdw-installed-source/v1` record describes the final `/app` files in
-Docker COPY order, exact overwrites, the two declared build inputs and every
+Docker COPY order, exact overwrites, the declared build inputs and every
 source Python path not installed. Python relocation, unknown RUN commands,
 ambiguous destinations, symlinks and untracked COPY inputs fail. No extra
 provider object or automatic publisher is added: the canonical record and its

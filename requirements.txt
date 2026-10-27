@@ -4,7 +4,7 @@
 # This file declares the cross-pod tracing dependency for the mesh wire-up.
 # vsp-otel is also vendored per-file COPY under ./vsp_otel/ so the import
 # resolves offline (no PyPI dependency at build time) — honest, no-mock.
-vsp-otel>=0.1
+vsp-otel>=0.1.2
 # OpenTelemetry SDK + OTLP/gRPC exporter — the dependency closure that makes
 # vsp-otel's server spans actually EXPORTABLE. Without these _Tracer no-ops and
 # every span goes nowhere (shelfware). Export is GATED on OTEL_EXPORTER_OTLP_ENDPOINT:
@@ -25,7 +25,7 @@ py_ecc>=8.0.0
 # ECDSA-P256 cert + Rekor transparency log. Optional at runtime — only CI jobs
 # with `id-token: write` can mint a real signature; every other runtime keeps the
 # HONEST dsse_envelope() placeholder (DsseSigningUnavailable, never a fake sig).
-sigstore>=4.5.0
+sigstore>=4.5.1
 # ADDITIVE (szl-substrate extraction POC): the shared substrate package is the
 # single source of truth for modules duplicated across a11oy + killinchu
 # (szl-holdings/szl-substrate). a11oy_autoreview.py (szl_calibration) and

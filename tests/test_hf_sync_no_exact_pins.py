@@ -191,7 +191,7 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
         for line in pinned:
             self.assertRegex(line, USES_LINE)
         self.assertIn(
-            "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451",
+            "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36",
             self.text,
         )
 

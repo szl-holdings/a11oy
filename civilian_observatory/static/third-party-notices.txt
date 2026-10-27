@@ -1803,7 +1803,7 @@ The published package declares Unlicense and includes no separate license file.
 
 ========================================
 
-zod@4.6.5
+zod@4.6.7
 License: MIT
 
 MIT License

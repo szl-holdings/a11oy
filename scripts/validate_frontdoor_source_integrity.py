@@ -390,8 +390,9 @@ def _validate_workflow_envelope(workflow: str) -> list[str]:
     if _structural_block_lines(workflow, "permissions:") != [
         "permissions:",
         "contents: read",
+        "attestations: read",
     ]:
-        errors.append("HF drift workflow permissions must remain read-only")
+        errors.append("HF drift workflow permissions must be exactly contents: read and attestations: read")
     for forbidden in ("env", "defaults"):
         if any(
             parsed is not None

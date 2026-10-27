@@ -502,7 +502,9 @@ def test_optional_import_failure_leaves_lifecycle_unavailable_without_crashing(m
         function = copy.deepcopy(next(node for node in tree.body
                                       if isinstance(node, ast.AsyncFunctionDef) and node.name == name))
         function.decorator_list = []
-        function.body = [node for node in function.body if isinstance(node, ast.If)
+        # Shutdown guards can sit inside a try/finally that preserves storage.
+        # Exercise the same optional-reader guard without depending on its depth.
+        function.body = [node for node in ast.walk(function) if isinstance(node, ast.If)
                          and any(isinstance(item, ast.Name) and item.id == "_rd_artifact"
                                  for item in ast.walk(node.test))]
         assert len(function.body) == 1
@@ -518,7 +520,9 @@ def test_dockerfile_ships_the_dependency_closure():
     dockerfile = (subject.ROOT / "Dockerfile").read_text(encoding="utf-8")
     for name in ("szl_readiness_artifact.py", ".github/scripts/publish_readiness_verdict.py"):
         assert any(name in line.split()[1:-1] for line in dockerfile.splitlines() if line.startswith("COPY "))
-    assert "COPY .github/scripts/publish_readiness_verdict.py ./.github/scripts/" in dockerfile
+    assert any(".github/scripts/publish_readiness_verdict.py" in line.split()[1:-1]
+               and line.split()[-1] == "./.github/scripts/"
+               for line in dockerfile.splitlines() if line.startswith("COPY "))
 
 
 @pytest.mark.parametrize("mutation",["missing-passive","failed-passive","skipped-passive","duplicate-passive","old-passive-attempt","passive-overlap","relock-overlap"])

@@ -4401,11 +4401,28 @@ def _ptg_serve(filename: str):
         return FileResponse(INDEX_HTML, media_type="text/html")
     return _h
 
+
+async def _ptg_agent(request: Request) -> Response:
+    """Own /agent before the SPA, but never substitute an unrelated page."""
+    agent = globals().get("_v4_agent")
+    if globals().get("_V4_AGENT_ERR") is not None or agent is None:
+        return JSONResponse(
+            {"status": "UNAVAILABLE", "reason": "v4 agent route did not register"},
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
+    if request.method == "HEAD":
+        return Response(status_code=200, media_type="text/html",
+                        headers={"Cache-Control": "no-store"})
+    response = await agent._handle_agent_ui(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
 try:
     # Upgraded genius surfaces (win over module + SPA handlers by ordered match).
     app.add_api_route("/conduction", lambda: _PTG_Redirect(url="/console", status_code=307), methods=["GET"], include_in_schema=False)
     app.add_api_route("/bridge",     _ptg_serve("bridge.html"),     methods=["GET"], include_in_schema=False)
-    app.add_api_route("/agent",      _ptg_serve("agent.html"),      methods=["GET"], include_in_schema=False)
+    app.add_api_route("/agent",      _ptg_agent,                    methods=["GET", "HEAD"], include_in_schema=False)
     app.add_api_route("/predict",    _ptg_serve("predict.html"),    methods=["GET"], include_in_schema=False)
     app.add_api_route("/papers",     _ptg_serve("papers.html"),     methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/papers", _ptg_serve("papers.html"),   methods=["GET"], include_in_schema=False)
@@ -5089,6 +5106,7 @@ _http_client: httpx.AsyncClient = None  # type: ignore[assignment]
 @app.on_event("startup")
 async def startup() -> None:
     global _node_proc, _http_client
+    _start_a11oy_signing_state()
     if _rd_artifact is not None:
         _execution_observer = getattr(app.state, "szl_execution_observer", None)
         if _execution_observer is not None:
@@ -5180,19 +5198,28 @@ async def startup() -> None:
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
-    if _rd_artifact is not None:
-        await asyncio.to_thread(_rd_artifact.reader.stop)
     try:
-        _a11oy_eval_autorun_stop()
-    except Exception as _eval_stop_error:
-        print(
-            f"[a11oy] eval-arena autorun stop failed honestly: {_eval_stop_error!r}",
-            file=sys.stderr,
-        )
-    if _node_proc:
-        _node_proc.terminate()
-    if _http_client:
-        await _http_client.aclose()
+        await _stop_a11oy_signing_state()
+        if _rd_artifact is not None:
+            await asyncio.to_thread(_rd_artifact.reader.stop)
+        try:
+            _a11oy_eval_autorun_stop()
+        except Exception as _eval_stop_error:
+            print(
+                f"[a11oy] eval-arena autorun stop failed honestly: {_eval_stop_error!r}",
+                file=sys.stderr,
+            )
+        if _node_proc:
+            _node_proc.terminate()
+        if _http_client:
+            await _http_client.aclose()
+    finally:
+        # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
+        # gdw_runtime finally may never run, so await the final snapshot and
+        # lease release here, while the process is still alive.
+        import a11oy_state_store
+
+        await asyncio.to_thread(a11oy_state_store.shutdown)
 
 
 # ---------------------------------------------------------------------------
@@ -5231,30 +5258,26 @@ except Exception as _wh_e:  # never crash the app
 
 
 # ---------------------------------------------------------------------------
-# v4 MULTI-LLM ENSEMBLE VOTE (Yachay, 2026-06-01) — the SZL moat. ADDITIVE.
+# v4 GOVERNED AGENT SURFACE (Yachay, 2026-06-01) — additive.
 # Mounts POST /api/a11oy/v4/agent/ask + GET /api/a11oy/v4/agent/voters + the
-# operator UI page GET /agent. Fans one prompt out to N voter LLMs in parallel
-# (httpx async, 30s/voter), scores every response across the 13 DETERMINISTIC
-# Yuyay axes, combines them with the Lutar Λ-aggregator (variance-weighted
-# bounded combiner), picks the winner, and emits a DSSE-signed Khipu receipt.
-# HF Inference free-tier voters use the Space HF token (custom-cred proxy);
-# qwen-local degrades to a CLEARLY-LABELLED deterministic stub when the local
-# vLLM is unreachable (never a fabricated completion). Sovereign path is
-# khipu-gguf on the pinned CPU lab. Failed voters carry an
-# "error" field, never a fake response. Registered BEFORE the generic
-# /api/a11oy/{path:path} Node proxy and the SPA catch-all so /agent and the
-# v4 ask route resolve LOCALLY. Λ = Conjecture 1 (NOT a theorem; 163 sorries).
+# operator UI page GET /agent. Public asks use the sovereign Khipu voter only;
+# non-sovereign fan-out stays BLOCKED until a hard budget/concurrency admission
+# boundary exists. Failed voter calls carry an "error" field, never a fake
+# response. Any in-response receipt is honest and may be UNSIGNED; persistence
+# and signature verification are separate capabilities. Registered BEFORE the
+# generic /api/a11oy/{path:path} Node proxy and SPA catch-all so /agent and the
+# v4 routes resolve LOCALLY. Λ = Conjecture 1 (NOT a theorem; 163 sorries).
 # Doctrine v11 LOCKED 749/14/163 UNCHANGED. Co-Authored-By: Perplexity Computer Agent.
 # ---------------------------------------------------------------------------
 _V4_AGENT_ERR = None
 try:
     import a11oy_v4_agent as _v4_agent
     _v4_status = _v4_agent.register(app, "a11oy")
-    print(f"[a11oy] v4 ensemble agent registered: {_v4_status}", file=sys.stderr)
+    print(f"[a11oy] v4 governed agent registered: {_v4_status}", file=sys.stderr)
 except Exception as _v4_e:  # never crash the app — additive only
     import traceback as _v4_tb
     _V4_AGENT_ERR = _v4_tb.format_exc()
-    print(f"[a11oy] v4 ensemble agent NOT registered: {_v4_e!r}", file=sys.stderr)
+    print(f"[a11oy] v4 governed agent NOT registered: {_v4_e!r}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -5447,16 +5470,14 @@ def _ledger_storage_signal(ttl: float = 15.0) -> dict:
 #       tiles are live vs degraded, read from szl_frontier_manifest's already-
 #       cached, real-probe-only manifest summary. A down sub-source is reported
 #       honestly (UNAVAILABLE), never faked green.
-# Both are guarded + cached (never block the health path, never crash it, never
-# fabricate). Λ = Conjecture 1; no label is upgraded here.
+# Both are guarded. Signer freshness is recomputed on every read, never cached.
+# Λ = Conjecture 1; no label is upgraded here.
+# Retained for compatibility only; no health decision reads this legacy cache.
 _SIGNER_HEALTH_CACHE: dict = {}
 
 
 def _signer_availability_signal(ttl: float = 30.0) -> dict:
-    now = _hz_time.time()
-    ca = _SIGNER_HEALTH_CACHE.get("checked_at")
-    if ca is not None and (now - ca) < ttl:
-        return _SIGNER_HEALTH_CACHE.get("value", {})
+    # Compatibility parameter only: derived freshness must never be cached.
     try:
         provider = getattr(app.state, "szl_signer_status", None)
         if not callable(provider):
@@ -5474,7 +5495,6 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
                "error": f"{type(exc).__name__}: {exc}"}
     val = {**val, "scope": "RUNTIME_KEY_AVAILABILITY",
            "receipt_verification_asserted": False}
-    _SIGNER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
 
 
@@ -5681,7 +5701,7 @@ async def healthz() -> JSONResponse:
         # on a stock CPU Space (optional provider secrets absent) is expected and
         # honest, not a fault. Also mirrored into rollup.preflight.
         "preflight": _preflight,
-    })
+    }, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/a11oy/v1/preflight")
@@ -6847,10 +6867,12 @@ except Exception as _explorer_e:
         print(f"[a11oy] 4-lens Explorer NOT registered: {_explorer_e!r}", file=sys.stderr)
         _explorer_tb.print_exc(file=sys.stderr)
 
-# Every /agent/ask and /predict call writes the full Worker->Critic->Yuyay-13->Lambda->
-# Khipu derivation chain into the Khipu (Receipt) store as a graph (Palantir AIP Logic
-# pattern). Implemented as a lightweight ASGI middleware so the existing agent/predict
-# modules are NOT modified (purely additive). Best-effort; never fatal, never blocks.
+# Every successful 2xx /agent/ask and /predict call writes the full
+# Worker->Critic->Yuyay-13->Lambda->Khipu derivation chain into the Khipu (Receipt)
+# store as a graph (Palantir AIP Logic pattern). Denied, oversized, and failed
+# requests do not mint a PASS chain. Implemented as lightweight ASGI middleware so
+# the existing agent/predict modules are NOT modified (purely additive).
+# Best-effort; never fatal, never blocks.
 try:
     from starlette.middleware.base import BaseHTTPMiddleware as _BHM
 
@@ -6859,7 +6881,7 @@ try:
             response = await call_next(request)
             try:
                 p = request.url.path
-                if request.method == "POST" and (
+                if response.status_code >= 200 and response.status_code < 300 and request.method == "POST" and (
                     p.endswith("/v4/agent/ask") or p.endswith("/v4/predict")
                     or p == "/predict" or p == "/agent"
                 ):
@@ -7396,77 +7418,33 @@ except Exception as _lb_e:  # pragma: no cover — guarded; never take down the 
 
 # ============================================================================
 # HARDEN/ECOSYSTEM-1: /api/a11oy/v1/signing-status
-# Machine-readable signing-key health check. Reports key_source
-# (persistent/ephemeral) and hmac_layer (real/placeholder) so the honesty label
-# is observable without reading source code.
+# Machine-readable passive signer observation. Configuration is not permission,
+# observed signing capability, independent custody or non-repudiation.
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # ============================================================================
-@app.get("/api/a11oy/v1/signing-status")
+@app.api_route("/api/a11oy/v1/signing-status", methods=["GET", "HEAD"])
 async def _a11oy_signing_status():
-    """Machine-readable signing-key honesty: key_source + hmac_layer.
-
-    Returns:
-        key_source: "persistent:<path>" | "ephemeral" | "unavailable"
-        key_persistent: bool -- True only when a Secret-mounted key is loaded
-        hmac_layer: "real" | "placeholder"
-        hmac_key_id: short identifier for the active HMAC key
-        dsse_keyid: SHA-256[:16] of the ECDSA public key
-        non_repudiation: bool -- True only when BOTH signing layers are real
-        doctrine: "v11"
-        honesty: human-readable explanation
-    """
-    # --- ECDSA / DSSE key status ---
-    _key_source = "unavailable"
-    _key_persistent = False
-    _dsse_keyid = u"—"
-    try:
-        from a11oy_signing_key import load_signing_key as _load_sk
-        import hashlib as _hs
-        _priv, _pub_pem, _ks, _err = _load_sk()
-        if _ks:
-            _key_source = _ks
-            _key_persistent = isinstance(_ks, str) and _ks.startswith("persistent:")
-        if _pub_pem:
-            _dsse_keyid = _hs.sha256(_pub_pem.strip().encode()).hexdigest()[:16]
-    except Exception as _e:
-        _key_source = "unavailable:%s" % type(_e).__name__
-
-    # --- HMAC layer status ---
-    _hmac_layer = "placeholder"
-    _hmac_key_id = "hmac-sha256:PLACEHOLDER"
-    try:
-        import szl_receipt_substrate as _srs
-        if getattr(_srs, "_SIGNING_KEY", None):
-            _hmac_layer = "real"
-            _hmac_key_id = getattr(_srs, "_KEY_ID", "hmac-sha256:env-injected")
-        else:
-            _hmac_key_id = getattr(_srs, "_KEY_ID", "hmac-sha256:PLACEHOLDER")
-    except Exception:
-        pass
-
-    _non_repudiation = _key_persistent and (_hmac_layer == "real")
-    _honesty = (
-        "REAL signing -- ECDSA-P256 key mounted from a Secret; HMAC key env-injected."
-        if _non_repudiation else
-        (
-            "PARTIAL -- ECDSA-P256 key is %s; HMAC layer is %s. "
-            "Set SZL_COSIGN_PRIVATE_PEM and A11OY_HMAC_KEY as HF Space secrets, "
-            "then enable A11OY_REQUIRE_PERSISTENT_SIGNING for fail-closed "
-            "non-repudiation. See /api/a11oy/v1/honest for doctrine labels."
-            % (_key_source, _hmac_layer)
-        )
-    )
-
+    """Passive metadata read; configuration is not signing qualification."""
+    from szl_signing_state import read_state
+    state = read_state(app)
+    fingerprint = state["public_key_fingerprint"]
     return JSONResponse({
-        "key_source": _key_source,
-        "key_persistent": _key_persistent,
-        "dsse_keyid": _dsse_keyid,
-        "hmac_layer": _hmac_layer,
-        "hmac_key_id": _hmac_key_id,
-        "non_repudiation": _non_repudiation,
+        "key_source": state["key_source"],
+        "key_persistent": (state["key_material_available"]
+                           and state["key_source"].startswith("persistent:")),
+        "key_persistent_scope": "FRESH_MATCHING_PERSISTENT_LOCAL_KEY_METADATA",
+        "dsse_keyid": fingerprint[:16] if fingerprint else None,
+        "hmac_layer": "UNKNOWN",
+        "hmac_key_id": None,
+        "hmac_status_note": "NOT_EVALUATED_BY_SHARED_ECDSA_SIGNER_OBSERVER",
+        "non_repudiation": False,
+        "non_repudiation_state": "UNKNOWN",
+        "signing_state": state,
         "doctrine": "v11",
-        "honesty": _honesty,
-    })
+        "honesty": ("DECLARED local signer metadata, not observed signing capability. "
+                    "Key possession, persistence and HMAC configuration do not establish "
+                    "permission, independent custody or non-repudiation. No signing on read."),
+    }, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/a11oy/v1/honest")
@@ -7548,6 +7526,7 @@ async def _a11oy_pr_honest_v2():
         "formulas_index": "/api/a11oy/v1/formulas/index",
         "formulas_provenance": "thesis_v22.pdf §2 + real Lean theorem/obligation per module",
         "honest_disclosures": [
+            "Signer status is DECLARED local metadata. Permission, retained signing capability and non-repudiation remain UNKNOWN; GET/HEAD never sign or reload keys.",
             "Λ remains an unproven conjecture — CAUCHY_ND sorry open",
             "Audit log is in-memory (ring buffer maxlen=200), resets on rebuild",
             "No Iron Bank / FedRAMP / CMMC certification claimed",
@@ -10332,6 +10311,77 @@ except Exception as _e:  # pragma: no cover
     _A11OY_KEY_ERR = "%s: shared signing key unavailable" % type(_e).__name__
 
 
+from szl_signing_state import SigningState as _SigningState, legacy_signer_view as _legacy_signer_view
+
+_A11OY_SIGNING_STATE = _SigningState()
+app.state.szl_signing_state = _A11OY_SIGNING_STATE
+_A11OY_SIGNER_CONFIGURED = any(name in os.environ for name in (
+    "SZL_COSIGN_PRIVATE_PEM", "SZL_COSIGN_PRIVATE_KEY_PEM", "A11OY_RECEIPT_KEY_PEM",
+    "A11OY_RECEIPT_KEY_PATH", "A11OY_RECEIPT_KEY_DIR"))
+_A11OY_SIGNING_STATE_TASK = None
+
+
+def _refresh_a11oy_signing_state():
+    """Lifecycle observation of captured local objects; never reparse secrets."""
+    from cryptography.hazmat.primitives import serialization
+    service = getattr(app.state, "szl_series_a_service", None)
+    boot_id = getattr(service, "runtime_boot_id", None)
+    verification = loaded = expected = None
+    backend_loaded = _A11OY_PRIV is not None
+    backend_state = "LOADED_LOCAL" if backend_loaded else (
+        "UNAVAILABLE" if _A11OY_KEY_ERR else "ABSENT")
+    try:
+        if _A11OY_PUB_PEM:
+            verification = _hashv2.sha256(_A11OY_PUB_PEM.strip().encode("ascii")).hexdigest()
+        if _A11OY_KEYID != "unavailable":
+            expected = _A11OY_KEYID
+        if backend_loaded:
+            public = _A11OY_PRIV.public_key().public_bytes(
+                serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+            loaded = _hashv2.sha256(public.strip()).hexdigest()
+    except Exception:
+        backend_loaded, backend_state = False, "UNAVAILABLE"
+    return _A11OY_SIGNING_STATE.sample(
+        boot_id=boot_id, observed_at=_dtv2.now(_tzv2.utc).isoformat(),
+        # The loader's conventional mount can fail without an explicit env name.
+        # Its failure tuple does not identify configuration origin: do not claim absence.
+        configured=(True if _A11OY_SIGNER_CONFIGURED or _A11OY_KEY_SOURCE.startswith("persistent:")
+                    else None if _A11OY_KEY_ERR else False),
+        key_source=_A11OY_KEY_SOURCE, backend_loaded=backend_loaded,
+        backend_state=backend_state, verification_key_fingerprint=verification,
+        loaded_key_fingerprint=loaded, expected_key_fingerprint=expected)
+
+
+async def _a11oy_signing_state_loop():
+    while True:
+        await asyncio.sleep(15)
+        try:
+            _refresh_a11oy_signing_state()
+        except Exception:
+            _A11OY_SIGNING_STATE.invalidate()
+
+
+def _start_a11oy_signing_state():
+    global _A11OY_SIGNING_STATE_TASK
+    try:
+        _refresh_a11oy_signing_state()
+    except Exception:
+        _A11OY_SIGNING_STATE.invalidate()
+    if _A11OY_SIGNING_STATE_TASK is None or _A11OY_SIGNING_STATE_TASK.done():
+        _A11OY_SIGNING_STATE_TASK = asyncio.create_task(_a11oy_signing_state_loop())
+
+
+async def _stop_a11oy_signing_state():
+    global _A11OY_SIGNING_STATE_TASK
+    task, _A11OY_SIGNING_STATE_TASK = _A11OY_SIGNING_STATE_TASK, None
+    if task is not None:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
 def _a11oy_pae(payload_type: str, body: bytes) -> bytes:
     """DSSE Pre-Authentication Encoding (DSSEv1)."""
     t = payload_type.encode("utf-8")
@@ -10424,25 +10474,9 @@ def _a11oy_sign_receipt(payload_obj) -> dict:
 
 
 def _a11oy_signer_status() -> dict:
-    """Pure status of the key that _a11oy_sign_receipt actually uses."""
-    key_present = _A11OY_PRIV is not None
-    verifiable = key_present and bool(_A11OY_PUB_PEM)
-    persistent = (isinstance(_A11OY_KEY_SOURCE, str)
-                  and _A11OY_KEY_SOURCE.startswith("persistent:"))
-    return {
-        "status": "DSSE-LIVE" if verifiable else (
-            "UNAVAILABLE" if key_present else "ABSENT"),
-        "signing_available": bool(verifiable),
-        "scheme": "DSSEv1 / ECDSA-P256-SHA256" if verifiable else "UNAVAILABLE",
-        "public_key_fingerprint": _A11OY_KEYID if _A11OY_PUB_PEM else None,
-        "key_scope": ("DEPLOYMENT_PERSISTENT" if persistent else
-                      "PROCESS_BOOT_EPHEMERAL" if _A11OY_KEY_SOURCE == "ephemeral"
-                      else "UNAVAILABLE"),
-        "key_source": _A11OY_KEY_SOURCE,
-        "key_lifetime": ("UNTIL_SECRET_ROTATION" if persistent else
-                         "UNTIL_PROCESS_RESTART" if _A11OY_KEY_SOURCE == "ephemeral"
-                         else "UNAVAILABLE"),
-    }
+    """Compatibility view of the same passive record used by both status routes."""
+    from szl_signing_state import read_state
+    return _legacy_signer_view(read_state(app))
 
 
 # Ayllu registers earlier in this module, before the shared signer exists.
@@ -13647,6 +13681,7 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/quantum-utility/",   # Proposal-only Quantum Utility Gate
                               "v1/compute/",           # Yupaq governed computation plane
                               "v1/formal-conjecture-lab/",  # Fail-closed formal receipt lab
+                              "v4/agent/",  # v4 voter/ask routes must never fall through to Node
                               )
 
 
@@ -13742,6 +13777,20 @@ async def a11oy_genome() -> JSONResponse:
 
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
+    if path in ("v4/agent/ask", "v4/agent/voters"):
+        allowed = {"POST"} if path == "v4/agent/ask" else {"GET", "HEAD"}
+        if request.method in allowed:
+            return JSONResponse(
+                {"status": "UNAVAILABLE", "reason": "v4 agent route did not register"},
+                status_code=503,
+                headers={"Cache-Control": "no-store"},
+            )
+        allow = "POST" if path == "v4/agent/ask" else "GET, HEAD"
+        return JSONResponse(
+            {"status": "METHOD_NOT_ALLOWED", "path": f"/api/a11oy/{path}"},
+            status_code=405,
+            headers={"Allow": allow, "Cache-Control": "no-store"},
+        )
     # DEV2: in-toto verify guide + inclusion proof — served in-process, NOT proxied
     if path == "v1/verify/intoto":
         return JSONResponse({
@@ -17679,6 +17728,13 @@ _atelier_grok.register(app)
 import szl_operator_auth as _szl_operator_gate  # noqa: E402
 
 _szl_operator_gate.install_gate(app)
+
+# Import finishes after route registration, including the existing boot identity.
+# No sampler task starts until ASGI startup. This observation is not a key reload.
+try:
+    _refresh_a11oy_signing_state()
+except Exception:
+    _A11OY_SIGNING_STATE.invalidate()
 
 
 if __name__ == "__main__":

@@ -37,8 +37,10 @@ VOTER_INPUT_SCHEMA: Dict[str, Any] = {
     "required": ["prompt"],
     "additionalProperties": False,
     "properties": {
-        "prompt": {"type": "string", "description": "The user prompt to route to this voter."},
-        "system": {"type": "string", "description": "Optional system prompt override."},
+        "prompt": {"type": "string", "minLength": 1, "maxLength": 4096,
+                   "description": "The user prompt to route to this voter."},
+        "system": {"type": "string", "maxLength": 1024,
+                   "description": "Optional system prompt override."},
         "max_tokens": {"type": "integer", "default": 512, "minimum": 1, "maximum": 8192},
         "temperature": {"type": "number", "default": 0.7, "minimum": 0.0, "maximum": 2.0},
     },
@@ -80,7 +82,7 @@ class BaseVoter(abc.ABC):
     PROVIDER: str = ""
     CONTEXT_WINDOW: int = 4096
     MODEL_ID: str = ""
-    BFCL_SCORE: Optional[str] = None  # e.g. "#1" or None
+    BFCL_SCORE: Optional[str] = None  # UNKNOWN without model-bound benchmark evidence.
 
     def is_available(self) -> bool:
         """True iff at least one required env var is present."""

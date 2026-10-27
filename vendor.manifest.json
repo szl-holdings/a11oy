@@ -209,7 +209,8 @@
     },
     "organs/amaru/szl_khipu_lmdb.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
-      "header": true
+      "header": true,
+      "revision": "9d685a683984b7a0595a2a85bed930f961b94a53"
     },
     "organs/amaru/szl_live_wires.py": {
       "source": "packages/wire-d/wire_d/core.py",
@@ -265,7 +266,8 @@
     },
     "organs/sentra/szl_khipu_lmdb.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
-      "header": true
+      "header": true,
+      "revision": "9d685a683984b7a0595a2a85bed930f961b94a53"
     },
     "organs/sentra/szl_live_wires.py": {
       "source": "packages/wire-d/wire_d/core.py",
@@ -601,7 +603,8 @@
     },
     "szl_khipu_lmdb.py": {
       "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
-      "header": true
+      "header": true,
+      "revision": "9d685a683984b7a0595a2a85bed930f961b94a53"
     },
     "szl_unified_formulas.py": {
       "source": "replit-sync/szl_unified_formulas.py",
@@ -654,6 +657,26 @@
     "web/src/data/releases.ts": {
       "source": "artifacts/a11oy/src/data/releases.ts",
       "header": true
+    },
+    "khipu_lmdb/__init__.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/__init__.py",
+      "header": true,
+      "revision": "a7071642fc902e0aa4af075cddb71626104ab6b1"
+    },
+    "khipu_lmdb/core.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/core.py",
+      "header": true,
+      "revision": "a7071642fc902e0aa4af075cddb71626104ab6b1"
+    },
+    "khipu_lmdb/outbox.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/outbox.py",
+      "header": true,
+      "revision": "a7071642fc902e0aa4af075cddb71626104ab6b1"
+    },
+    "khipu_lmdb/delivery.py": {
+      "source": "packages/khipu-lmdb/khipu_lmdb/delivery.py",
+      "header": true,
+      "revision": "a7071642fc902e0aa4af075cddb71626104ab6b1"
     }
   }
 }

@@ -1,10 +1,12 @@
 """Native write guards work in every namespace without the A11oy middleware.
 
-The actual router is registered with isolated store doubles. These tests do not
-open databases, restore snapshots, sign receipts, or send provider requests.
+The actual router is registered with isolated store doubles. Producer fixtures
+use temporary LMDB stores; no snapshots, signatures, or provider requests run.
 """
 
 from pathlib import Path
+from contextlib import contextmanager
+from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -14,6 +16,8 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 import szl_unay_routes as subject
+from szl_khipu_lmdb import KhipuLMDB
+from szl_khipu_replicate import verify_inbound
 
 
 OPERATOR = "fixture-unay-operator"
@@ -39,6 +43,7 @@ def native_routes(request, tmp_path, monkeypatch):
         assert Path(path).parent == tmp_path and ns == namespace
         store = SimpleNamespace(
             append=Mock(return_value={"receipt": "fixture-khipu"}),
+            append_replicated=Mock(return_value={"receipt": {}, "duplicate": False}),
             get_by_receipt=Mock(return_value=None), get_by_seq=Mock(return_value=None),
             stats=Mock(return_value={"entries": 0}), verify=Mock(return_value={"ok": True}),
             tail=Mock(return_value=[]),
@@ -52,7 +57,8 @@ def native_routes(request, tmp_path, monkeypatch):
     inbound = Mock(return_value=True)
     monkeypatch.setattr(subject.szl_khipu_replicate, "verify_inbound", inbound)
     app = FastAPI()
-    assert subject.register(app, ns=namespace)["registered"] is True
+    registration = subject.register(app, ns=namespace)
+    assert registration["registered"] is True
     assert app.user_middleware == []
     memory_factory.assert_called_once_with(
         path=str(tmp_path / f"unay_{namespace}.sqlite"), organ="unay", ns=namespace)
@@ -67,6 +73,7 @@ def assert_no_writes(routes):
     routes.memory.remember.assert_not_called()
     routes.primary.append.assert_not_called()
     routes.mirror.append.assert_not_called()
+    routes.mirror.append_replicated.assert_not_called()
     routes.inbound.assert_not_called()
     routes.mirror.get_by_receipt.assert_not_called()
 
@@ -111,8 +118,9 @@ def test_authorized_native_writes_reach_the_existing_handlers(native_routes):
     assert response.status_code == 200
     assert response.json() == {"accepted": 1, "rejected": 0, "mirror_entries": 0}
     routes.inbound.assert_called_once_with(receipt)
-    routes.mirror.get_by_receipt.assert_called_once_with("fixture-origin")
-    routes.mirror.append.assert_called_once_with("replicated", payload={"origin": receipt})
+    routes.mirror.append_replicated.assert_called_once_with(receipt)
+    routes.mirror.get_by_receipt.assert_not_called()
+    routes.mirror.append.assert_not_called()
 
 
 def test_authorization_does_not_bypass_inbound_validation(native_routes):
@@ -122,7 +130,158 @@ def test_authorization_does_not_bypass_inbound_validation(native_routes):
         headers={"Authorization": "Bearer " + OPERATOR})
     assert response.status_code == 200 and response.json()["rejected"] == 1
     native_routes.mirror.append.assert_not_called()
+    native_routes.mirror.append_replicated.assert_not_called()
     native_routes.mirror.get_by_receipt.assert_not_called()
+
+
+@pytest.mark.parametrize("tampered", [False, True])
+def test_authorized_replication_checks_actual_payload_before_store_access(
+        native_routes, tmp_path, monkeypatch, tampered):
+    producer = KhipuLMDB(str(tmp_path / "producer"))
+    try:
+        receipt = producer.append("fixture", payload={"nested": {"text": "Khipu \u03bb"}})
+    finally:
+        producer.close()
+    if tampered:
+        receipt["payload"]["nested"]["text"] = "substituted"
+    monkeypatch.setattr(subject.szl_khipu_replicate, "verify_inbound", verify_inbound)
+    response = native_routes.client.post(
+        native_routes.prefix + "khipu/replicate", json={"receipts": [receipt]},
+        headers={"Authorization": "Bearer " + OPERATOR})
+    assert response.status_code == 200
+    assert response.json() == {
+        "accepted": 0 if tampered else 1, "rejected": 1 if tampered else 0,
+        "mirror_entries": 0,
+    }
+    if tampered:
+        native_routes.mirror.append.assert_not_called()
+        native_routes.mirror.append_replicated.assert_not_called()
+        native_routes.mirror.get_by_receipt.assert_not_called()
+    else:
+        native_routes.mirror.append_replicated.assert_called_once_with(receipt)
+        native_routes.mirror.get_by_receipt.assert_not_called()
+        native_routes.mirror.append.assert_not_called()
+
+
+def test_origin_reconciliation_refusal_is_not_acknowledged(native_routes):
+    native_routes.mirror.append_replicated.side_effect = ValueError("REPLICATION_RECONCILE_REQUIRED")
+    response = native_routes.client.post(
+        native_routes.prefix + "khipu/replicate", json={"receipts": [{"digest": "fixture"}]},
+        headers={"Authorization": "Bearer " + OPERATOR})
+    assert response.status_code == 200
+    assert response.json() == {"accepted": 0, "rejected": 1, "mirror_entries": 0}
+    native_routes.mirror.append.assert_not_called()
+
+
+def test_unexpected_storage_failure_cannot_return_an_acknowledgement(native_routes):
+    native_routes.mirror.append_replicated.side_effect = OSError("fixture storage unavailable")
+    with pytest.raises(OSError, match="fixture storage unavailable"):
+        native_routes.client.post(
+            native_routes.prefix + "khipu/replicate", json={"receipts": [{"digest": "fixture"}]},
+            headers={"Authorization": "Bearer " + OPERATOR})
+
+
+@pytest.fixture(params=("a11oy", "killinchu"))
+def real_mirror_routes(request, tmp_path, monkeypatch):
+    """Run the actual receiver and LMDB implementation; reopen the same store."""
+    namespace = request.param
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", OPERATOR)
+    monkeypatch.delenv("KHIPU_REPLICATION", raising=False)
+    monkeypatch.setattr(subject, "_pick_data_dir", lambda: str(tmp_path))
+    monkeypatch.setattr(subject, "_restore_snapshot", lambda *_: False)
+    monkeypatch.setattr(subject.szl_khipu_replicate, "verify_inbound", verify_inbound)
+    monkeypatch.setattr(subject.szl_unay, "UnayStore", lambda **_: SimpleNamespace(backend="fixture"))
+    primary = SimpleNamespace(stats=lambda: {"entries": 0})
+
+    @contextmanager
+    def open_routes(history=()):
+        mirror = KhipuLMDB(str(tmp_path / f"khipu_repl_{namespace}"), organ="khipu-repl", ns=namespace)
+        try:
+            for origin in history:
+                mirror.append("replicated", payload={"origin": origin})
+            monkeypatch.setattr(subject.szl_khipu_lmdb, "KhipuLMDB",
+                                lambda **kw: mirror if kw["organ"] == "khipu-repl" else primary)
+            app = FastAPI()
+            result = subject.register(app, ns=namespace)
+            assert result["registered"] and result["replication_enabled"] is False
+            with TestClient(app) as client:
+                yield SimpleNamespace(
+                    client=client, mirror=mirror, prefix=f"/api/{namespace}/v2/",
+                    post=lambda origins: client.post(
+                        f"/api/{namespace}/v2/khipu/replicate", json={"receipts": origins},
+                        headers={"Authorization": "Bearer " + OPERATOR}),
+                )
+        finally:
+            mirror.close()
+
+    return open_routes
+
+
+@pytest.fixture
+def produced_origin(tmp_path):
+    producer = KhipuLMDB(str(tmp_path / "actual-producer"))
+    try:
+        return producer.append("fixture", payload={"nested": {"text": "Khipu \u03bb"}})
+    finally:
+        producer.close()
+
+
+def mirror_bytes(store):
+    with store._env.begin() as txn:
+        return list(txn.cursor())
+
+
+def test_actual_receiver_replay_survives_reopen_with_one_wrapper(real_mirror_routes, produced_origin):
+    with real_mirror_routes() as routes:
+        first = routes.post([produced_origin, produced_origin])
+        assert first.status_code == 200
+        assert first.json() == {"accepted": 2, "rejected": 0, "mirror_entries": 1}
+        initial = mirror_bytes(routes.mirror)
+        wrapper = routes.mirror.get_by_seq(0)
+        assert wrapper["payload"]["origin"] == produced_origin
+        assert wrapper["digest"] != produced_origin["digest"]
+    with real_mirror_routes() as reopened:
+        replay = reopened.post([produced_origin])
+        assert replay.json() == {"accepted": 1, "rejected": 0, "mirror_entries": 1}
+        assert mirror_bytes(reopened.mirror) == initial
+
+
+def test_actual_receiver_conflicting_metadata_is_rejected_without_writes(real_mirror_routes, produced_origin):
+    with real_mirror_routes() as routes:
+        first = routes.post([produced_origin])
+        assert first.json()["accepted"] == 1
+        initial = mirror_bytes(routes.mirror)
+        conflict = deepcopy(produced_origin)
+        conflict["auxiliary"] = {"changed": True}
+        assert verify_inbound(conflict) is True  # Auxiliary metadata is not digest authenticated.
+        response = routes.post([conflict])
+        assert response.json() == {"accepted": 0, "rejected": 1, "mirror_entries": 1}
+        assert mirror_bytes(routes.mirror) == initial
+
+
+def test_actual_receiver_backfills_historical_duplicate_and_reads_never_migrate(
+        real_mirror_routes, produced_origin):
+    with real_mirror_routes(history=[produced_origin, produced_origin]) as routes:
+        initial = mirror_bytes(routes.mirror)
+        response = routes.client.get(routes.prefix + "khipu/replicate/status")
+        assert response.status_code == 200
+        assert mirror_bytes(routes.mirror) == initial
+        response = routes.post([produced_origin])
+        assert response.json() == {"accepted": 1, "rejected": 0, "mirror_entries": 2}
+        assert routes.mirror.get_by_seq(0)["payload"]["origin"] == produced_origin
+        with routes.mirror._env.begin() as txn:
+            assert txn.get(("origin:" + produced_origin["digest"]).encode()) == b"0"
+
+
+def test_actual_receiver_corrupt_history_refuses_without_partial_migration(
+        real_mirror_routes, produced_origin):
+    corrupt = deepcopy(produced_origin)
+    corrupt["payload"]["nested"]["text"] = "tampered historical payload"
+    with real_mirror_routes(history=[produced_origin, corrupt]) as routes:
+        initial = mirror_bytes(routes.mirror)
+        response = routes.post([produced_origin])
+        assert response.json() == {"accepted": 0, "rejected": 1, "mirror_entries": 2}
+        assert mirror_bytes(routes.mirror) == initial
 
 
 def test_public_reads_do_not_require_operator_or_write(native_routes, monkeypatch):
