@@ -152,9 +152,9 @@ paths = [
 ]
 regexes = ['''^\s*"szl_meter_access\.py"\s*:\s*"e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",?\s*$''']
 
-# Immutable public SHA-256 of the byte-preserved predecessor payload manifest.
-# Exempt only this complete literal row at the five declared manifest paths. Changed
-# bytes, another path, and adjacent credentials remain subject to detection.
+# Forward-ported from current protected main: the execution observer row is an
+# immutable public source digest, not secret material. Keep the exemption exact
+# to this manifest path and complete literal row.
 [[rules.allowlists]]
 description = "Exact archived execution observer identity in active or preserved manifest"
 condition = "AND"

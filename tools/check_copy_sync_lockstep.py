@@ -860,7 +860,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     ".github/scripts/publish_readiness_verdict.py": "e823c027fa3be4e440fdbbe99681fa903da70b86aecf785f3f7a795045f439a5",
     "tools/readiness-harness/probe_runner.mjs": "85936fa56b87d7269e4085b4ca0592df1f03516d5db0a5d2b1a6d054f772ab50",
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
-    "tools/readiness-harness/tabs.json": "04c4fc6f6f9c38c580d1d10cb2ac418588cf47951fa275727eac296ef8ceeff1",
+    "tools/readiness-harness/tabs.json": "1a966eb1944536d27e5f90edfdd0f7e8e3c67b28fddec206729f8ce4b3bf008f",
     # Read-only terminal verifier used by the exact relock job.
     ".github/scripts/verify_canonical_a11oy.py": "30285b3887cfde3043fd6ea189ca24741da11ebeeebc1345f50f3322cf1cdcad",
 }
