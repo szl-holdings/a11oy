@@ -102,15 +102,24 @@ def mcp_inventory_snapshot(space: str) -> dict:
     age = None
     reason = "MCP_MANIFEST_NOT_OBSERVED"
     if observation:
-        try:
-            elapsed = time.monotonic() - observation[0]
-            if not math.isfinite(elapsed) or elapsed < 0:
-                raise ValueError("invalid observation age")
-            age = elapsed
-            reason = "MCP_MANIFEST_OBSERVATION_EXPIRED"
-        except Exception:
-            reason = "MCP_MANIFEST_CLOCK_UNAVAILABLE"
-    fresh = age is not None and age <= _MCP_INVENTORY_MAX_AGE_S
+        # Invalid observations carry an explicit reason and no age/count.
+        if len(observation) >= 5:
+            reason = observation[4]
+        else:
+            try:
+                elapsed = time.monotonic() - observation[0]
+                if not math.isfinite(elapsed) or elapsed < 0:
+                    raise ValueError("invalid observation age")
+                age = elapsed
+                reason = "MCP_MANIFEST_OBSERVATION_EXPIRED"
+            except Exception:
+                reason = "MCP_MANIFEST_CLOCK_UNAVAILABLE"
+    fresh = (
+        bool(observation)
+        and len(observation) < 5
+        and age is not None
+        and age <= _MCP_INVENTORY_MAX_AGE_S
+    )
     return {
         "count": observation[2] if fresh else None,
         "label": "CACHED" if fresh else "UNAVAILABLE",
