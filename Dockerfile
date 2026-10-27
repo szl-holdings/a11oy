@@ -84,15 +84,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get update && apt-get install -y --no-install-recommends nodejs && \
     node --version | grep -E '^v22\.' && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    test "$(dpkg --print-architecture)" = amd64 && \
-    curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
-      https://github.com/cli/cli/releases/download/v2.102.1/gh_2.102.1_linux_amd64.deb \
-      -o /tmp/gh_2.102.1_linux_amd64.deb && \
-    printf '%s  %s\n' '5b91c75d971509e96f673fa9f46e5d8ea294b6bbfedbc8ff458aedd88775d94c' \
-      '/tmp/gh_2.102.1_linux_amd64.deb' | sha256sum --check --strict - && \
-    dpkg -i /tmp/gh_2.102.1_linux_amd64.deb && \
-    rm /tmp/gh_2.102.1_linux_amd64.deb && \
-    gh --version | head -n 1 | grep -F 'gh version 2.102.1 ' && \
+    test "$(dpkg --print-architecture)" = "amd64" && \
+    curl -fsSL -o /tmp/gh_2.102.0_linux_amd64.deb \
+      https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.deb && \
+    echo "7e54a307f90afdc59796c325ec0c49fb09e6c18537727207a8ac7513584ea5b0  /tmp/gh_2.102.0_linux_amd64.deb" \
+      | sha256sum -c - && \
+    apt-get update && apt-get install -y --no-install-recommends /tmp/gh_2.102.0_linux_amd64.deb && \
+    rm -f /tmp/gh_2.102.0_linux_amd64.deb && \
+    gh --version | head -n 1 | grep -F 'gh version 2.102.0 ' && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
