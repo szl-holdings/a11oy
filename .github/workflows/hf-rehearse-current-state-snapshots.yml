@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: Apache-2.0
+# Read-only rehearsal of the seven snapshots named by the current v2 HEAD.
+# The Space keeps running. Restore and deployment stay unadmitted.
+name: Rehearse current A11oy state snapshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: Exact current protected main SHA; read-only snapshot rehearsal
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a11oy-current-snapshot-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_source_sha && github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - name: Checkout exact requested main source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Use pinned Python runtime
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Require exact protected current main before private credentials
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = szl-holdings/a11oy
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/branches/main" |
+            python3 -c 'import json, os, sys; b=json.load(sys.stdin); sys.exit(0 if b.get("name")=="main" and b.get("protected") is True and b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"] else 1)'
+      - name: Install the reviewed Hub and LMDB pins
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          huggingface_hub==1.33.0 hf-xet==1.7.0 lmdb==2.3.0
+      - name: Rehearse the pinned current snapshots without provider writes
+        env:
+          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/rehearse_current_state_snapshots.py --fetch \
+            --evidence "$RUNNER_TEMP/private-current-snapshot-rehearsal.json" \
+            --public "$RUNNER_TEMP/public-current-snapshot-rehearsal.json"
+      - name: Recheck protected main before publishing status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/branches/main" |
+            python3 -c 'import json, os, sys; b=json.load(sys.stdin); sys.exit(0 if b.get("name")=="main" and b.get("protected") is True and b.get("commit",{}).get("sha")==os.environ["GITHUB_SHA"] else 1)'
+      - name: Retain only the public-safe snapshot rehearsal status
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: current-state-snapshot-rehearsal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/public-current-snapshot-rehearsal.json
+          if-no-files-found: warn
+          retention-days: 90

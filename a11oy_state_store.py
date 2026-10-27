@@ -367,7 +367,7 @@ def _lmdb():
 def lmdb_logical_digest(directory: Path) -> dict[str, Any]:
     """Every key and value, in LMDB order, from a read-only lock-free open."""
     lmdb = _lmdb()
-    env = lmdb.open(str(directory), readonly=True, lock=False, subdir=True, max_dbs=0)
+    env = lmdb.open(str(directory), readonly=True, lock=False, subdir=True, max_dbs=0, create=False)
     digest = hashlib.sha256(b"szl.lmdb-logical/v1\n")
     entries = 0
     try:
@@ -383,11 +383,15 @@ def lmdb_logical_digest(directory: Path) -> dict[str, Any]:
 
 
 def _registered_lmdb_env(path: Path) -> Any:
-    module = sys.modules.get("szl_khipu_lmdb")
-    registry = getattr(module, "_ENV_REGISTRY", None)
-    if not isinstance(registry, dict):
-        return None
-    return registry.get(os.path.abspath(str(path)))
+    environments = []
+    for name in ("szl_khipu_lmdb", "khipu_lmdb.core"):
+        registry = getattr(sys.modules.get(name), "_ENV_REGISTRY", None)
+        env = registry.get(os.path.abspath(str(path))) if isinstance(registry, dict) else None
+        if env is not None and all(env is not known for known in environments):
+            environments.append(env)
+    if len(environments) > 1:
+        raise StorageBlocked("STATE_LMDB_ENVIRONMENT_AMBIGUOUS")
+    return environments[0] if environments else None
 
 
 # --------------------------------------------------------------------------- #
@@ -1579,7 +1583,7 @@ class StateStore:
 
     def snapshot_confirmed(self, label: str,
                            contains: Callable[[Path], bool]) -> dict[str, Any]:
-        """Acknowledge an exact SQLite observation in immutable storage and HEAD.
+        """Acknowledge exact managed-store bytes in immutable storage and HEAD.
 
         ``contains`` is the owning module's fixed read-only predicate over the
         downloaded snapshot, never caller SQL. Ordinary periodic snapshots keep
@@ -1599,8 +1603,11 @@ class StateStore:
                         raise StorageBlocked("STATE_CONFIRMED_HEAD_CHANGED")
             self.confirmed_writer()
             state = self.stores.get(label)
-            if state is None or state.spec.kind != "sqlite" or state.health == "BLOCKED":
-                raise StorageBlocked("STATE_CONFIRMED_SQLITE_REQUIRED")
+            if state is None or state.spec.kind not in ("sqlite", "lmdb") or state.health == "BLOCKED":
+                raise StorageBlocked("STATE_CONFIRMED_STORE_REQUIRED")
+            if (state.spec.kind == "lmdb"
+                    and _registered_lmdb_env(self.local_path(label)) is None):
+                raise StorageBlocked("STATE_CONFIRMED_LMDB_HANDLE_REQUIRED")
             work = self._work("confirmed-" + label)
             try:
                 entry = self._capture(state.spec, work, self.epoch)
@@ -1609,14 +1616,21 @@ class StateStore:
                     raise StorageBlocked("STATE_CONFIRMED_SNAPSHOT_MISSING")
                 # _capture may reuse previously uploaded but unpublished bytes.
                 # Always inspect the actual object selected for the HEAD entry.
-                readback = work / "confirmed.sqlite3"
+                if state.spec.kind == "sqlite":
+                    readback = work / "confirmed.sqlite3"
+                    predicate_path = readback
+                else:
+                    predicate_path = work / "confirmed-lmdb"
+                    predicate_path.mkdir()
+                    readback = predicate_path / "data.mdb"
                 self._download(entry["path"], readback)
                 if (readback.stat().st_size != entry["size"]
                         or gdw_sqlite_repair.file_sha256(readback) != entry["sha256"]):
                     raise StorageBlocked("STATE_CONFIRMED_READBACK_MISMATCH")
-                report = verify_sqlite(readback, full=True)
+                report = (verify_sqlite(readback, full=True) if state.spec.kind == "sqlite"
+                          else {"ok": True, **lmdb_logical_digest(predicate_path)})
                 if (not report["ok"] or report["logical_sha256"] != entry["logical_sha256"]
-                        or contains(readback) is not True):
+                        or contains(predicate_path) is not True):
                     raise StorageBlocked("STATE_CONFIRMED_CONTENT_MISMATCH")
                 acknowledged = self.confirmed_writer()
                 if acknowledged["snapshots"].get(label) != entry:
