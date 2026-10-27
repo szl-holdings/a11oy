@@ -206,6 +206,10 @@ COPY a11oy_model_support.py ./
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
 # degrades to an honest labeled 503 (never a faked payload), the panel shows it.
 COPY data/genome.json ./data/genome.json
+# Bounded master implementation workcell: validated read-only DAG/status
+# artifact. Missing or malformed bytes remain honest UNAVAILABLE at runtime.
+COPY szl_master_workcell.py ./
+COPY data/master_workcell_dag_20261027.json ./data/master_workcell_dag_20261027.json
 # ---------------------------------------------------------------------------
 # … (full rationale: docs/DOCKERFILE_NOTES.md §9)
 
