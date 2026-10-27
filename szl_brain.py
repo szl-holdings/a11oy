@@ -75,7 +75,11 @@ def observe_mcp_inventory(manifest: dict, *, space: str) -> None:
             or any(not isinstance(tool, dict)
                    or not isinstance(tool.get("name"), str)
                    or not tool["name"].strip() for tool in tools)):
-        _MCP_INVENTORY_OBSERVATION = None
+        # Preserve the distinction between a malformed observed manifest and
+        # a cold start with no observation. The count remains unavailable.
+        _MCP_INVENTORY_OBSERVATION = (
+            None, None, None, space, "MCP_MANIFEST_INVALID",
+        )
         return
     # One immutable assignment keeps concurrent readers on a complete observation.
     try:
