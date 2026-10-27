@@ -67,12 +67,13 @@ of those components.
    pins, lease, state-store, and effect authorization requirements still apply.
 4. Publish through the sole canonical writer and verify its exact source/HF
    binding, CI, provider build, and runtime status separately. The Dockerfile
-   installs the exact official immutable `gh` 2.102.1 amd64 release package.
-   Its SHA-256 is pinned in source and checked before installation, followed
-   by an exact version check. The reviewed digest was authenticated using
-   `gh release verify-asset` against `cli/cli`; future builds fail closed on
-   unavailable or changed bytes. The moving apt index is not an archive of
-   old releases. See [the acquisition evidence](../audit/GH_CLI_IMMUTABLE_RELEASE_2026-10-21.md).
+   installs gh 2.102.0 from the immutable `cli/cli` v2.102.0 release asset
+   `gh_2.102.0_linux_amd64.deb`, refuses it unless its SHA-256 is
+   `7e54a307f90afdc59796c325ec0c49fb09e6c18537727207a8ac7513584ea5b0`, and
+   checks its version. The apt repository was dropped because its index keeps
+   only the newest gh, so an exact apt pin stops resolving at the next release.
+   A missing or changed asset fails the build rather than installing an
+   unverified replacement executable.
 
 `GET /api/a11oy/v1/series-a/status` exposes `runtime_source_identity` as a
 read-only snapshot. It starts no verification, writes no receipt, and performs
