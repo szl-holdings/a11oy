@@ -55,3 +55,12 @@ def test_failed_wall_clock_does_not_interrupt_manifest_observation(monkeypatch):
     monkeypatch.setattr(brain, "datetime", SimpleNamespace(now=fail))
     brain.observe_mcp_inventory({"tools": [{"name": "synthetic"}]}, space="killinchu")
     assert brain.mcp_inventory_snapshot("killinchu")["count"] is None
+
+
+def test_malformed_manifest_is_unknown_with_explicit_reason():
+    brain.observe_mcp_inventory({"tools": [{"name": None}]}, space="a11oy")
+    inventory = brain.mcp_inventory_snapshot("a11oy")
+    assert inventory["count"] is None
+    assert inventory["label"] == "UNAVAILABLE"
+    assert inventory["reason"] == "MCP_MANIFEST_INVALID"
+    assert inventory["source"] == "/api/a11oy/v1/mcp/tools"
