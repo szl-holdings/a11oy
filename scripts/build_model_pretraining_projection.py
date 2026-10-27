@@ -15,14 +15,25 @@ sys.path.insert(0, str(ROOT))
 from routers.model_pretraining import MANIFEST, SOURCE_MANIFEST, MAX_BYTES, build_projection
 
 
+def canonical_source_bytes(path: Path) -> bytes:
+    """Read source bytes with Git-style LF normalization on every host.
+
+    The projection embeds the source manifest digest.  Windows checkouts can
+    expose CRLF bytes through ``core.autocrlf`` while the committed Git blob
+    and Linux CI use LF, so hashing the raw working-tree bytes makes the
+    generated projection drift across platforms.  Normalize only line
+    endings; the JSON parser remains responsible for validating the content.
+    """
+    return path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--check', action='store_true')
     mode.add_argument('--write', action='store_true')
     args = parser.parse_args()
-    with SOURCE_MANIFEST.open('rb') as stream:
-        expected = build_projection(stream.read(MAX_BYTES + 1))
+    expected = build_projection(canonical_source_bytes(SOURCE_MANIFEST)[:MAX_BYTES + 1])
     if args.check:
         try:
             with MANIFEST.open('rb') as stream:
