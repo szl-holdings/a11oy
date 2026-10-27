@@ -146,3 +146,10 @@ def test_readiness_contract_describes_variable_inventory():
     note = matrix["endpoints"]["/api/a11oy/v1/mcp/tools"]["note"]
     assert "count is derived from the returned inventory" in note
     assert "4 real" not in note and "fabricated 12" not in note
+
+
+def test_manifest_is_serialized_before_inventory_observation():
+    source = (Path(__file__).resolve().parents[1] / "serve.py").read_text(encoding="utf-8")
+    response_at = source.index("response = JSONResponse(manifest)")
+    observe_at = source.index("observe_mcp_inventory(manifest, space=\"a11oy\")")
+    assert response_at < observe_at
