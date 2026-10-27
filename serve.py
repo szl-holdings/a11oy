@@ -1687,6 +1687,18 @@ try:
 except Exception as _szl_status_e:  # pragma: no cover
     print(f"[a11oy] Operational STATUS aggregate NOT registered: {_szl_status_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# MASTER IMPLEMENTATION WORKCELL — read-only, source-bound cross-repo DAG and
+# integration posture.  The artifact is validated at request time; missing or
+# malformed bytes return honest UNAVAILABLE rather than a fabricated empty or
+# ready response.  GET performs no provider probe, inference, write, or signing.
+# Additive and registered before all catch-alls.
+try:
+    import szl_master_workcell as _szl_master_workcell
+    _szl_master_workcell.register(app, ns="a11oy")
+    print("[a11oy] Master workcell status registered: /api/a11oy/v1/workcell/status", file=__import__("sys").stderr)
+except Exception as _szl_master_workcell_e:  # pragma: no cover
+    print(f"[a11oy] Master workcell status NOT registered: {_szl_master_workcell_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
 # receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
 # envelope binding every guarantee for a single governed action: the REAL immune verdict
@@ -14315,11 +14327,15 @@ async def canonical_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
-# /status — System Status (live pillar tiles). web/status.html COPYed to
-# /app/web/status.html by the Dockerfile already; just needs an explicit route.
+# /status — System Status (live pillar tiles). Prefer the canonical web page when
+# present, with the source-tree pages/status.html as the bounded local fallback.
+# Keeping the fallback explicit prevents a missing image COPY from silently
+# serving the SPA shell instead of the honest status surface.
 @app.get("/status")
 async def status_page() -> Response:
     f = _szl_doc("web/status.html")
+    if not f.is_file():
+        f = _szl_doc("pages/status.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
