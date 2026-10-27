@@ -8342,9 +8342,13 @@ async def a11oy_mcp_tools_inline():
         "kernel_commit": "c7c0ba17", "slsa_level": _A11OY_SLSA_TEXT,
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
     }
+    # Construct the response before recording the observation. JSONResponse
+    # rejects NaN/non-serializable payloads; failed responses must not publish
+    # a cached inventory count as if the manifest had been served.
+    response = JSONResponse(manifest)
     from szl_brain import observe_mcp_inventory
     observe_mcp_inventory(manifest, space="a11oy")
-    return JSONResponse(manifest)
+    return response
 
 @app.post("/api/a11oy/v1/mcp/call")
 async def a11oy_mcp_call_inline(request: Request):
