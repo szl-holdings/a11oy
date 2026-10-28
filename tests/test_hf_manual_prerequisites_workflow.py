@@ -68,7 +68,7 @@ def exact_step(actual, expected, diagnostic):
 
 
 CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
+SETUP_PYTHON = "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0"
 UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 HF_CREDENTIAL = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
 CONTROL_CLIENT = 'python -I -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
@@ -222,7 +222,7 @@ test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
 RUN_VERDICT = "${{ needs.execution-readiness.outputs.verdict }}"
 # Reviewed publisher 5f140bab: isolated identity attestation and exact-main gates.
 REVIEWED_DEPLOY_JOB_SHA256 = "472ec55d0cb1a4bfec47fd6053bedf5497c8dff2015482dc50ee2c6ebc34678d"
-REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c8762f3de244d5964f"
+REVIEWED_RELOCK_JOB_SHA256 = "5dbfdd8403d193d61e07e1e91ab6e3a542a88a9930c0d8df508b1e83e74aa96e"
 
 
 def exact_job_digest(source: str, name: str) -> str:
