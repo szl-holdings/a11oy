@@ -176,7 +176,6 @@ PROTECTED_ROUTES = (
     (r"/api/a11oy/v1/llm/forum/ingest", "LLM forum ingest", "state"),
     (r"(/api/lake/v1|/v1/lake)/receipts", "Lake receipt ingest", "state"),
     (r"/api/a11oy/v1/series-a/(refresh|passports/(evaluate|execute))", "Series-A passport writes", "state"),
-    (r"/api/a11oy/v3/kernels/[^/]+/(tick|start|stop)", "Kernel lifecycle control", "state"),
     # Observer handlers retain their tenant, fixed-plan and independent-authority
     # checks. This outer gate refuses callers before parsing or native dispatch.
     (r"/api/a11oy/v1/series-a/execution-observations/(challenge|run|cancel/[^/]+)",

@@ -745,6 +745,52 @@ def build_kernels(organ: str) -> list:
 # ────────────────────────── lifecycle API + register ──────────────────────────
 _MANAGERS: dict[str, KernelManager] = {}
 
+_KERNEL_LIFECYCLE_PROTECTION = (
+    (
+        r"/api/a11oy/v3/kernels/[^/]+/(tick|start|stop)",
+        "Kernel lifecycle control",
+        "state",
+    ),
+)
+
+
+def _install_operator_gate_patterns() -> None:
+    """Register lifecycle writes with the host's existing deny-by-default gate.
+
+    The host application keeps its operator-auth table in a historical,
+    hash-bound source payload. Extending that table here preserves the payload
+    while still making these routes visible to the same global middleware. The
+    kernel's dedicated admin bearer check remains a second, independent gate.
+    """
+    try:
+        import szl_operator_auth as operator_auth
+    except Exception as error:  # pragma: no cover - standalone host fallback
+        print(
+            f"[szl_kernels_organ] global lifecycle gate unavailable: {error!r}",
+            file=sys.stderr,
+        )
+        return
+
+    existing = set(operator_auth.PROTECTED_ROUTES)
+    additions = tuple(
+        item for item in _KERNEL_LIFECYCLE_PROTECTION if item not in existing
+    )
+    if not additions:
+        return
+    operator_auth.PROTECTED_ROUTES = (
+        *operator_auth.PROTECTED_ROUTES,
+        *additions,
+    )
+    regex = getattr(operator_auth, "_re", re)
+    operator_auth._COMPILED_ROUTES = tuple(
+        (
+            regex.compile(r"\A" + pattern + r"\Z"),
+            action,
+            category,
+        )
+        for pattern, action, category in operator_auth.PROTECTED_ROUTES
+    )
+
 
 def register(
     app,
@@ -763,6 +809,7 @@ def register(
 
     mgr = KernelManager(organ=organ, kernels=build_kernels(organ))
     _MANAGERS[organ] = mgr
+    _install_operator_gate_patterns()
     admin_token = _configured_bearer_token(
         admin_token if admin_token is not None else os.environ.get("SZL_ADMIN_TOKEN")
     )

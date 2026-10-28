@@ -140,6 +140,11 @@ def test_wake_receipt_requires_bearer_and_appends_one_bounded_entry(tmp_path, mo
         context.setitem(sys.modules, "starlette.requests", _framework_stubs()["starlette.requests"])
         manager = module.register(app, organ="a11oy", wake_receipt_token=TOKEN)
 
+    import szl_operator_auth
+
+    assert szl_operator_auth.protected_action(
+        "POST", "/api/a11oy/v3/kernels/sign/start"
+    ) == ("Kernel lifecycle control", "state")
     handler = app.routes[("POST", ENDPOINT)]
     denied = asyncio.run(handler(_request(module, _payload())))
     assert denied.status_code == 401
