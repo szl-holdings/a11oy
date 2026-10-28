@@ -33,6 +33,8 @@ RUNTIME_LAYER_BUDGET = 118
 # Historical baselines exclude it, so their counts and digests stay put.
 # Action identity is one module copied beside that journey witness.
 # Historical baselines exclude it, so their counts and digests stay put.
+# The A11oy wake-receipt route is one module batched into an existing root COPY.
+# Historical baselines exclude it, so their counts and digests stay put.
 # Org-RAG reference auth is one module batched beside szl_meter_access.py.
 # Historical baselines exclude it, so their counts and digests stay put.
 # The a11oy state store (ADR-0001) is one module copied into the existing GDW
@@ -97,6 +99,7 @@ GDW_ORPHAN_REPAIR_COPY_ADDITIONS = {"gdw_sqlite_repair.py"}
 METER_ACCESS_COPY_ADDITIONS = {"szl_meter_access.py"}
 RUNLOOP_JOURNEY_COPY_ADDITIONS = {"a11oy_code_runloop_journey.py"}
 ACTION_IDENTITY_COPY_ADDITIONS = {"szl_action_identity.py"}
+WAKE_ROUTE_COPY_ADDITIONS = {"szl_kernels_organ.py"}
 RAG_REFERENCE_AUTH_COPY_ADDITIONS = {"a11oy_rag_reference_auth.py"}
 STATE_STORE_COPY_ADDITIONS = {"a11oy_state_store.py"}
 PUBLIC_ESTATE_COPY_ADDITIONS = {"static/shared/public-estate-contract.v1.json"}
@@ -172,6 +175,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert METER_ACCESS_COPY_ADDITIONS <= copy_sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= copy_sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= copy_sources
+    assert WAKE_ROUTE_COPY_ADDITIONS <= copy_sources
     assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= copy_sources
     assert STATE_STORE_COPY_ADDITIONS <= copy_sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= copy_sources
@@ -188,6 +192,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | METER_ACCESS_COPY_ADDITIONS
         | RUNLOOP_JOURNEY_COPY_ADDITIONS
         | ACTION_IDENTITY_COPY_ADDITIONS
+        | WAKE_ROUTE_COPY_ADDITIONS
         | RAG_REFERENCE_AUTH_COPY_ADDITIONS
         | STATE_STORE_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
@@ -220,6 +225,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert METER_ACCESS_COPY_ADDITIONS <= sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= sources
+    assert WAKE_ROUTE_COPY_ADDITIONS <= sources
     assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= sources
     assert STATE_STORE_COPY_ADDITIONS <= sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
@@ -234,6 +240,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
         - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
+        - WAKE_ROUTE_COPY_ADDITIONS
         - STATE_STORE_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - READINESS_READER_COPY_ADDITIONS
@@ -263,6 +270,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert METER_ACCESS_COPY_ADDITIONS <= sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= sources
+    assert WAKE_ROUTE_COPY_ADDITIONS <= sources
     assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= sources
     assert STATE_STORE_COPY_ADDITIONS <= sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
@@ -277,6 +285,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
         - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
+        - WAKE_ROUTE_COPY_ADDITIONS
         - STATE_STORE_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - READINESS_READER_COPY_ADDITIONS

@@ -79,9 +79,16 @@ def source_revision(payload: Any, expected: str) -> None:
     require(type(payload) is dict and payload.get('status') == 'OBSERVED', 'build-info unavailable')
     require(payload.get('receipt_minted') is False, 'build-info authority')
     build = payload.get('build')
-    require(type(build) is dict and build.get('state') == 'OBSERVED'
-            and build.get('revision') == expected
-            and build.get('revision_source') == 'env:SZL_GIT_SHA', 'source witness differs')
+    require(type(build) is dict and build.get('state') == 'OBSERVED',
+            'build-info witness unavailable')
+    observed = build.get('revision')
+    witness_source = build.get('revision_source')
+    if observed != expected:
+        raise VerificationError(
+            'source witness differs: '
+            f'expected={expected} observed={observed!r} source={witness_source!r}'
+        )
+    require(witness_source == 'env:SZL_GIT_SHA', 'source witness source differs')
 
 
 def validate_catalog(value: Any, manifest_raw: bytes, projection_raw: bytes, expected: str,
