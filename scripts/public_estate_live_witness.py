@@ -11,8 +11,11 @@ reachable or explicitly unverified.
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime as dt
+import functools
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -32,7 +35,13 @@ USER_AGENT = "SZLHOLDINGS-PublicEstateWitness/1.0"
 MAX_RESPONSE_BYTES = 1_048_576
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA64 = re.compile(r"^[0-9a-f]{64}$")
-ALLOWED_REVISION_POLICIES = {"exact-default-branch", "declared-commit"}
+PAYLOAD_EQUIVALENT_POLICY = "payload-equivalent-default-branch"
+ALLOWED_REVISION_POLICIES = {"exact-default-branch", "declared-commit", PAYLOAD_EQUIVALENT_POLICY}
+DEFAULT_TIP_POLICIES = {"exact-default-branch", PAYLOAD_EQUIVALENT_POLICY}
+# The Space deployer publishes the Dockerfile's COPY sources plus these paths.
+DEPLOYER_FIXED_PATHS = frozenset({"Dockerfile", "README.md", ".dockerignore"})
+# GitHub's compare response lists at most 300 files; a full page may be truncated.
+COMPARE_FILE_LIMIT = 300
 ALLOWED_SOURCE_REPOSITORY_POLICIES = {
     "runtime-declared",
     "manifest-fixed-runtime-revision",
@@ -167,7 +176,7 @@ def validate_surface(
     )
     policy = require_string(value.get("revision_policy"), f"{surface_id}.revision_policy")
     require(policy in ALLOWED_REVISION_POLICIES, f"{surface_id} has unknown revision policy")
-    if policy == "exact-default-branch":
+    if policy in DEFAULT_TIP_POLICIES:
         require_string(value.get("default_branch"), f"{surface_id}.default_branch")
 
     source_policy = str(
@@ -179,8 +188,17 @@ def validate_surface(
     )
     if source_policy == "manifest-fixed-runtime-revision":
         require(
-            policy == "exact-default-branch",
+            policy in DEFAULT_TIP_POLICIES,
             f"{surface_id} manifest-fixed source policy requires exact-default-branch",
+        )
+    if policy == PAYLOAD_EQUIVALENT_POLICY:
+        # Shipped paths come from this repository's reviewed Dockerfile parser,
+        # so the policy only fits the Space deployed from that Dockerfile.
+        require(
+            surface_id == "a11oy"
+            and value["deployment_source_repository"] == "szl-holdings/a11oy"
+            and source_policy == "manifest-fixed-runtime-revision",
+            "payload-equivalent revision policy is limited to the a11oy Space",
         )
     if source_policy == "lyte-source-bound-build":
         require(
@@ -548,6 +566,140 @@ def github_commit_exists(
     return observation.receipt()
 
 
+def github_compare(
+    opener: urllib.request.OpenerDirector,
+    repository: str,
+    base: str,
+    head: str,
+    *,
+    timeout: float,
+    token: str | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    observation, payload = request_json(
+        opener,
+        github_api_url(repository, f"/compare/{base}...{head}"),
+        timeout=timeout,
+        token=token,
+    )
+    return payload, observation.receipt()
+
+
+def github_file_bytes(
+    opener: urllib.request.OpenerDirector,
+    repository: str,
+    path: str,
+    revision: str,
+    *,
+    timeout: float,
+    token: str | None,
+) -> tuple[bytes, dict[str, Any]]:
+    encoded_path = urllib.parse.quote(path, safe="/")
+    observation, payload = request_json(
+        opener,
+        github_api_url(repository, f"/contents/{encoded_path}?ref={revision}"),
+        timeout=timeout,
+        token=token,
+    )
+    require(
+        payload.get("type") == "file" and payload.get("encoding") == "base64",
+        f"GitHub did not return {path}@{revision} as a file",
+    )
+    try:
+        data = base64.b64decode(str(payload.get("content", "")))
+    except ValueError as exc:
+        raise ContractError(f"GitHub returned invalid content for {path}@{revision}") from exc
+    blob = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+    require(blob == str(payload.get("sha", "")).lower(), f"GitHub blob proof mismatch for {path}@{revision}")
+    return data, observation.receipt()
+
+
+@functools.lru_cache(maxsize=1)
+def installed_source_parser() -> Any:
+    # Reuse the reviewed Dockerfile parser rather than a second, looser one.
+    path = Path(__file__).with_name("build_gdw_installed_source_manifest.py")
+    spec = importlib.util.spec_from_file_location("_witness_installed_source_parser", path)
+    require(spec is not None and spec.loader is not None, "Dockerfile parser is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def dockerfile_copy_sources(data: bytes) -> list[str]:
+    parser = installed_source_parser()
+    try:
+        _text, instructions = parser._instructions(data)
+        sources: list[str] = []
+        for instruction, arguments, _line in instructions:
+            if instruction == "COPY":
+                sources.extend(parser._copy_parts(arguments)[0])
+    except parser.InstalledSourceError as exc:
+        raise ContractError(f"Dockerfile COPY sources are not provable: {exc}") from exc
+    return sources
+
+
+def payload_equivalence(
+    opener: urllib.request.OpenerDirector,
+    repository: str,
+    observed: str,
+    tip: str,
+    *,
+    timeout: float,
+    token: str | None,
+) -> dict[str, Any]:
+    """Decide whether the default tip ships the same Space files as ``observed``.
+
+    The deployer publishes only Dockerfile COPY sources and the fixed deployer
+    paths, so a later commit that touches none of them leaves the running bytes
+    unchanged and the deploy correctly does nothing. Anything the witness
+    cannot prove (diverged history, a possibly truncated compare, an unparsable
+    Dockerfile) is not equivalent.
+    """
+    compare, compare_receipt = github_compare(
+        opener, repository, observed, tip, timeout=timeout, token=token
+    )
+    status = str(compare.get("status", ""))
+    result: dict[str, Any] = {
+        "equivalent": False,
+        "compare_status": status or None,
+        "compare": compare_receipt,
+        "changed_paths": [],
+        "shipped_paths_changed": [],
+    }
+    if status != "ahead" or compare.get("behind_by") != 0:
+        result["reason"] = f"observed is not an ancestor of the default tip (compare status {status or 'MISSING'})"
+        return result
+    files = compare.get("files")
+    if not isinstance(files, list) or len(files) >= COMPARE_FILE_LIMIT:
+        result["reason"] = "compare file list is missing or may be truncated"
+        return result
+    changed: set[str] = set()
+    for item in files:
+        require(isinstance(item, dict), "GitHub compare returned an invalid file entry")
+        for key in ("filename", "previous_filename"):
+            value = item.get(key)
+            if isinstance(value, str) and value:
+                changed.add(value)
+    dockerfile, dockerfile_receipt = github_file_bytes(
+        opener, repository, "Dockerfile", tip, timeout=timeout, token=token
+    )
+    sources = dockerfile_copy_sources(dockerfile)
+    shipped = sorted(
+        path
+        for path in changed
+        if path in DEPLOYER_FIXED_PATHS
+        or any(path == source or path.startswith(source + "/") for source in sources)
+    )
+    result["changed_paths"] = sorted(changed)
+    result["shipped_paths_changed"] = shipped
+    result["dockerfile"] = dockerfile_receipt
+    if shipped:
+        result["reason"] = "shipped paths changed: " + ", ".join(shipped[:10])
+        return result
+    result["equivalent"] = True
+    result["reason"] = "no shipped path changed between observed and the default tip"
+    return result
+
+
 def hf_space_revision(
     opener: urllib.request.OpenerDirector,
     hf_repository: str,
@@ -633,7 +785,7 @@ def observe_surface(
     source_proof: dict[str, Any] | None = None
     if SHA40.fullmatch(observed_revision):
         try:
-            if surface["revision_policy"] == "exact-default-branch":
+            if surface["revision_policy"] in DEFAULT_TIP_POLICIES:
                 expected_revision, proof = github_default_tip(
                     opener,
                     expected_repository,
@@ -642,11 +794,33 @@ def observe_surface(
                     token=token,
                 )
                 source_proof = {
-                    "policy": "exact-default-branch",
+                    "policy": surface["revision_policy"],
                     "expected_revision": expected_revision,
                     "github": proof,
                 }
-                if observed_revision != expected_revision:
+                if surface["revision_policy"] == PAYLOAD_EQUIVALENT_POLICY:
+                    source_proof["match"] = "EXACT" if observed_revision == expected_revision else "NONE"
+                if observed_revision == expected_revision:
+                    pass  # Both policies accept the exact default tip.
+                elif surface["revision_policy"] == PAYLOAD_EQUIVALENT_POLICY:
+                    equivalence = payload_equivalence(
+                        opener,
+                        expected_repository,
+                        observed_revision,
+                        expected_revision,
+                        timeout=timeout,
+                        token=token,
+                    )
+                    source_proof["payload_equivalence"] = equivalence
+                    if equivalence["equivalent"]:
+                        source_proof["match"] = "PAYLOAD_EQUIVALENT"
+                    else:
+                        failures.append(
+                            f"source_revision: expected default tip {expected_revision} or a "
+                            f"payload-equivalent ancestor, observed {observed_revision} "
+                            f"({equivalence['reason']})"
+                        )
+                else:
                     failures.append(
                         f"source_revision: expected default tip {expected_revision}, observed {observed_revision}"
                     )
