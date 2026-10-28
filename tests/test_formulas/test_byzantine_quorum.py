@@ -14,14 +14,14 @@ def test_quorum_size():
 
 def test_threshold_5_organ_mesh():
     out = bq.quorum_threshold(5, 1)
-    assert out["value"] == 3
+    assert out["value"] == 4  # n - f (Wave23 conditional rule); 2f+1 = 3 admits split-brain
     assert out["bft_feasible"] is True
     assert out["citation"] == "thesis_v22.pdf §2"
 
 
 def test_infeasible_when_too_few():
-    out = bq.quorum_threshold(3, 1)  # 3 < 3*1+1=4
-    assert out["bft_feasible"] is False
+    with pytest.raises(ValueError):
+        bq.quorum_threshold(3, 1)  # 3 < 3*1+1=4 -> refused (fail-closed)
 
 
 def test_invalid():
