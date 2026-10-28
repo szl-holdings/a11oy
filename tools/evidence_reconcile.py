@@ -16,6 +16,11 @@ text, or an abbreviated revision, is UNKNOWN, so two placeholders are never
 reported as equal. Optional pinned digests bind the inputs to bytes the caller
 already trusts. This tool verifies no signature, so it never reports a binding
 as authenticated.
+
+binding.level is the first that applies: PINNED_DIGEST_MISMATCH when a pinned
+digest differs, IDENTITY_MISMATCH when either identity comparison is MISMATCH,
+UNKNOWN when either is UNKNOWN, PINNED_DIGESTS_MATCHED when every input is
+pinned and matched, and LOCAL_CONSISTENCY otherwise.
 """
 
 from __future__ import annotations
@@ -145,9 +150,12 @@ def reconcile(
     }
 
     digest_states = {entry["digest_status"] for entry in files.values()}
+    identity_states = {protected_main["status"], runtime_hf_binding["status"]}
     if "MISMATCHED" in digest_states:
         level = "PINNED_DIGEST_MISMATCH"
-    elif "UNKNOWN" in (protected_main["status"], runtime_hf_binding["status"]):
+    elif "MISMATCH" in identity_states:
+        level = "IDENTITY_MISMATCH"
+    elif "UNKNOWN" in identity_states:
         level = "UNKNOWN"
     elif digest_states == {"MATCHED"}:
         level = "PINNED_DIGESTS_MATCHED"

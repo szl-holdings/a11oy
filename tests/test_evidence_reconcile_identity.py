@@ -144,5 +144,67 @@ class IdentityFormTests(unittest.TestCase):
                          {"status": "MISMATCH", "equal": False})
 
 
+class BindingLevelTests(unittest.TestCase):
+    def test_consistent_identities_with_all_pins_matched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = _write(Path(directory), _values())
+            report = _run(paths, pinned_digests=_all_pins(paths))
+        self.assertEqual(report["protected_main"]["status"], "MATCH")
+        self.assertEqual(report["runtime_hf_binding"]["status"], "MATCH")
+        self.assertEqual(report["binding"]["level"], "PINNED_DIGESTS_MATCHED")
+        self.assertFalse(report["binding"]["authenticated"])
+
+    def test_runtime_drift_with_all_pins_matched_is_identity_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = _write(Path(directory), _values(hf=OTHER))
+            report = _run(paths, pinned_digests=_all_pins(paths))
+        self.assertEqual({f["digest_status"] for f in report["files"].values()}, {"MATCHED"})
+        self.assertEqual(report["runtime_hf_binding"]["status"], "MISMATCH")
+        self.assertEqual(report["binding"]["level"], "IDENTITY_MISMATCH")
+        self.assertFalse(report["binding"]["authenticated"])
+
+    def test_protected_main_mismatch_with_all_pins_matched_is_identity_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = _write(Path(directory), _values(manifest_main=OTHER))
+            report = _run(paths, pinned_digests=_all_pins(paths))
+        self.assertEqual(report["protected_main"]["status"], "MISMATCH")
+        self.assertEqual(report["binding"]["level"], "IDENTITY_MISMATCH")
+
+    def test_identity_mismatch_without_pins_is_identity_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = _run(_write(Path(directory), _values(hf=OTHER)))
+        self.assertEqual(report["binding"]["level"], "IDENTITY_MISMATCH")
+
+    def test_identity_mismatch_outranks_unknown(self):
+        with tempfile.TemporaryDirectory() as directory:
+            values = _values(main=None, manifest_main=None, hf=OTHER)
+            report = _run(_write(Path(directory), values))
+        self.assertEqual(report["protected_main"]["status"], "UNKNOWN")
+        self.assertEqual(report["runtime_hf_binding"]["status"], "MISMATCH")
+        self.assertEqual(report["binding"]["level"], "IDENTITY_MISMATCH")
+
+    def test_pinned_digest_mismatch_outranks_identity_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = _write(Path(directory), _values(hf=OTHER))
+            pins = _all_pins(paths)
+            pins["manifest"] = "0" * 64
+            report = _run(paths, pinned_digests=pins)
+        self.assertEqual(report["binding"]["level"], "PINNED_DIGEST_MISMATCH")
+
+    def test_command_line_reports_identity_mismatch_with_matching_pin_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = _write(root, _values(hf=OTHER))
+            pins = root / "pins.json"
+            pins.write_text(json.dumps(_all_pins(paths)), encoding="utf-8")
+            output = root / "out" / "report.json"
+            with mock.patch("sys.argv", _argv(paths, output, "--pinned-digests", str(pins))), \
+                    mock.patch("builtins.print"):
+                code = evidence_reconcile.main()
+            report = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(code, 0)
+        self.assertEqual(report["binding"]["level"], "IDENTITY_MISMATCH")
+
+
 if __name__ == "__main__":
     unittest.main()
