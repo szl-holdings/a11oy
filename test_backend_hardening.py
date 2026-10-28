@@ -523,6 +523,162 @@ def test_anchor_preference_env_override():
         _clear_node_env()
 
 
+# ===========================================================================
+# 7. Rented GPU nodes (A11OY_RENTED_GPU_NODES) — probed like every other node,
+#    labeled rented, NEVER sovereign or owned; invalid entries fail closed.
+#    Hosts are RFC 5737 documentation addresses and the TCP probe is replaced by
+#    a recorder, so no real VM or network is contacted.
+# ===========================================================================
+_RENTED_ENV = "A11OY_RENTED_GPU_NODES"
+
+
+def _with_rented_env(value, fn):
+    old = os.environ.get(_RENTED_ENV)
+    try:
+        if value is None:
+            os.environ.pop(_RENTED_ENV, None)
+        else:
+            os.environ[_RENTED_ENV] = value
+        return fn()
+    finally:
+        if old is None:
+            os.environ.pop(_RENTED_ENV, None)
+        else:
+            os.environ[_RENTED_ENV] = old
+
+
+def _recording_tcp_probe(down=()):
+    calls = []
+
+    def probe(host, port, timeout, retries=0):
+        calls.append((host, port))
+        if host in down:
+            return False, "timeout"
+        return True, "tcp reachable"
+    return calls, probe
+
+
+def _probe_default_pool():
+    return bh.probe_fabric_pool(timeout=0.5, cache=bh.TTLCache(ttl=30.0),
+                                force=True, retries=0)
+
+
+def test_rented_gpu_env_accepts_valid_entries_and_rejects_the_rest():
+    entries = [
+        # sovereign/ownership flags in the config are ignored, never trusted
+        {"name": "massed-a6000-1", "host": "192.0.2.10", "port": 8000,
+         "provider": "Massed Compute", "sovereign": True, "ownership_verified": True},
+        {"name": "rtx-betterwithage", "host": "192.0.2.11", "port": 8000,
+         "provider": "Massed Compute"},                                   # reserved name
+        {"name": "massed-a6000-1", "host": "192.0.2.12", "port": 8000,
+         "provider": "Massed Compute"},                                   # duplicate
+        {"name": "bad-port", "host": "192.0.2.13", "port": "8000", "provider": "x"},
+        {"name": "bad-host", "host": "http://192.0.2.14", "port": 8000, "provider": "x"},
+        {"name": "no-provider", "host": "192.0.2.15", "port": 8000},
+        "not-an-object",
+    ]
+    nodes, rejected = _with_rented_env(json.dumps(entries), bh.rented_gpu_nodes)
+    assert [n["name"] for n in nodes] == ["massed-a6000-1"], nodes
+    node = nodes[0]
+    assert node["kind"] == "rented-gpu" and node["rented"] is True
+    assert node["sovereign"] is False
+    assert node["probe"] == ("192.0.2.10", 8000)
+    assert node["provider"] == "Massed Compute"
+    assert len(rejected) == 6, rejected
+    assert not any("192.0.2." in reason for reason in rejected), "rejections echo a host"
+
+    assert _with_rented_env(None, bh.rented_gpu_nodes) == ([], [])
+    bad_json_nodes, bad_json_rejected = _with_rented_env("{not json", bh.rented_gpu_nodes)
+    assert bad_json_nodes == [] and bad_json_rejected
+    not_list_nodes, not_list_rejected = _with_rented_env('{"name": "x"}', bh.rented_gpu_nodes)
+    assert not_list_nodes == [] and not_list_rejected
+
+
+def test_rented_gpu_is_probed_labeled_rented_and_never_sovereign():
+    _clear_node_env()
+    entries = [
+        {"name": "massed-a6000-1", "host": "192.0.2.20", "port": 8000,
+         "provider": "Massed Compute", "sovereign": True},
+        {"name": "massed-a6000-2", "host": "192.0.2.21", "port": 8000,
+         "provider": "Massed Compute"},
+    ]
+    calls, probe = _recording_tcp_probe(down={"192.0.2.21"})
+    orig = bh.tcp_connect_probe
+    try:
+        bh.tcp_connect_probe = probe
+        # A tailnet IP pin for the same name must NOT redirect a rented probe.
+        os.environ["A11OY_GPU_NODE_MASSED_A6000_1_IP"] = "192.0.2.99"
+        baseline = _with_rented_env(None, _probe_default_pool)
+        payload = _with_rented_env(json.dumps(entries), _probe_default_pool)
+    finally:
+        bh.tcp_connect_probe = orig
+        _clear_node_env()
+
+    by = {n["name"]: n for n in payload["nodes"]}
+    up, down = by["massed-a6000-1"], by["massed-a6000-2"]
+    assert ("192.0.2.20", 8000) in calls and ("192.0.2.21", 8000) in calls
+    assert ("192.0.2.99", 8000) not in calls, "rented probe was redirected"
+    for node in (up, down):
+        assert node["kind"] == "rented-gpu"
+        assert node["rented"] is True
+        assert node["provider"] == "Massed Compute"
+        assert node["sovereign"] is False
+        assert node["ownership_verified"] is False
+        assert node["inference_verified"] is False
+        assert node["probe_kind"] == "TCP_CONNECT"
+        assert node["endpoint"] == "rented GPU · Massed Compute"
+    assert up["reachable"] is True and up["status_label"] == "reachable"
+    assert down["reachable"] is False and down["status_label"] == "unreachable (rented)"
+    assert all(n["rented"] is False for name, n in by.items()
+               if name not in ("massed-a6000-1", "massed-a6000-2"))
+
+    # Rented capacity is counted as rented GPU capacity, never as sovereign.
+    counts, base = payload["counts"], baseline["counts"]
+    assert counts["sovereign_gpu_nodes_reachable"] == base["sovereign_gpu_nodes_reachable"]
+    assert counts["gpu_nodes_reachable"] == base["gpu_nodes_reachable"] + 1
+    assert counts["rented_gpu_nodes_reachable"] == 1
+    assert base["rented_gpu_nodes_reachable"] == 0
+    assert payload["rented_gpu_config"] == {
+        "env": "A11OY_RENTED_GPU_NODES", "accepted": 2, "rejected": []}
+    assert "192.0.2." not in json.dumps(payload), "configured rented host leaked"
+
+
+def test_malformed_rented_gpu_env_fails_closed_and_is_reported():
+    calls, probe = _recording_tcp_probe()
+    orig = bh.tcp_connect_probe
+    try:
+        bh.tcp_connect_probe = probe
+        payload = _with_rented_env('[{"name": "massed-a6000-1", "host": "192.0.2.40"}]',
+                                   _probe_default_pool)
+    finally:
+        bh.tcp_connect_probe = orig
+    assert not any(n["rented"] for n in payload["nodes"])
+    assert not any(host == "192.0.2.40" for host, _port in calls), "rejected entry was probed"
+    assert payload["rented_gpu_config"]["accepted"] == 0
+    assert len(payload["rented_gpu_config"]["rejected"]) == 1
+    assert "192.0.2." not in json.dumps(payload)
+
+
+def test_rented_flag_forces_non_sovereign_for_explicit_node_lists():
+    calls, probe = _recording_tcp_probe()
+    orig = bh.tcp_connect_probe
+    nodes = [{"name": "rented-explicit", "kind": "rented-gpu", "rented": True,
+              "sovereign": True, "provider": "Massed Compute",
+              "probe": ("192.0.2.30", 8000), "endpoint": "192.0.2.30:8000"}]
+    try:
+        bh.tcp_connect_probe = probe
+        payload = bh.probe_fabric_pool(nodes=nodes, timeout=0.5, cache=bh.TTLCache(ttl=30.0),
+                                       force=True, retries=0)
+    finally:
+        bh.tcp_connect_probe = orig
+    node = payload["nodes"][0]
+    assert node["reachable"] is True
+    assert node["sovereign"] is False and node["rented"] is True
+    assert payload["counts"]["sovereign_gpu_nodes_reachable"] == 0
+    assert payload["counts"]["rented_gpu_nodes_reachable"] == 1
+    assert "rented_gpu_config" not in payload  # only the default sweep reads the env
+
+
 def _run_all() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     failed = []
