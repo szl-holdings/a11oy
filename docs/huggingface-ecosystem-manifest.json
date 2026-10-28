@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-10-27T15:30:24Z",
+  "observedAt": "2026-10-28T06:53:59Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -176,7 +176,7 @@
         "license": "apache-2.0",
         "sha": "0c01b8d15a48b4c0609661029b3964b9a5e9bf24",
         "lastModified": "2026-10-25T06:54:21.000Z",
-        "cardSemanticSha256": "4d429b27ba8dd1808630e9c7bc0352e151ce68062f41fb05f2e822d4230ce598",
+        "cardSemanticSha256": "3f5d6d04ef08d19cb0beaa1cd5f05363a5e59b61c3bdcb4419d53c4dfb2c4bc0",
         "createdAt": "2026-08-29T01:17:06.000Z",
         "tags": [
           "numpy",
@@ -362,7 +362,7 @@
         "license": "apache-2.0",
         "sha": "a9589d058bec47d9b81f9999e97b6118ae081238",
         "lastModified": "2026-10-25T06:54:19.000Z",
-        "cardSemanticSha256": "6b9cfed3ce00cc2612c8ceff534a05a11a394f9b2a0211245a9d6f096877c0ec",
+        "cardSemanticSha256": "0a7eab85c7cd5792767ea5c5a340c7fa5097d1ff7fbe02c16eeb2554c899c4e7",
         "createdAt": "2026-08-29T01:17:05.000Z",
         "tags": [
           "numpy",
@@ -936,8 +936,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "ff9d54d852ffb02560fdef9f9663428826c19a55",
-        "lastModified": "2026-10-25T06:54:27.000Z",
+        "sha": "942b723769c726299b9c865a4911be61e57c1d0d",
+        "lastModified": "2026-10-27T16:31:45.000Z",
         "cardSemanticSha256": "6700c6a65ad9d8fb91b3432ab606d25cd015764d799505077292eab70236c769",
         "createdAt": "2026-08-29T01:17:03.000Z",
         "tags": [
@@ -967,14 +967,15 @@
         "license": "apache-2.0",
         "sha": "c8c8832d6a11688c284de8c0bc0baa784532251c",
         "lastModified": "2026-10-25T06:54:25.000Z",
-        "cardSemanticSha256": "5938f0ea8f1e5b11f27334a1104c153efd3e1a09c20d94c5662ef43de0a52e39",
+        "cardSemanticSha256": "0589dc4fa861f82b45af503eda3ddc641cf681a002b36d36b53033f31557053c",
         "createdAt": "2026-08-29T01:17:07.000Z",
         "tags": [
           "kernels",
           "governed-ai",
-          "szl-holdings",
-          "doctrine-v11",
-          "kernel",
+          "khipu",
+          "lambda-gate",
+          "yarqa",
+          "numpy",
           "license:apache-2.0",
           "region:us"
         ],
@@ -1542,7 +1543,7 @@
         "license": "apache-2.0",
         "sha": "a7937e0e559b4b1a699892a48d2075411f403ad8",
         "lastModified": "2026-10-26T01:16:20.000Z",
-        "cardSemanticSha256": "c97815a30204a306961a50092e2bea6e077c8af97067b573595202a8a7b30307",
+        "cardSemanticSha256": "c1344dd63e1787d5201aa8e6cd1ef8b83a09cdac542afa4b7bceb3eb0eec3de9",
         "createdAt": "2026-07-28T17:22:41.000Z",
         "tags": [
           "task_categories:other",
@@ -1653,8 +1654,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "687a7ef508ef79a90b65aba5ebeba39673c6ce0d",
-        "lastModified": "2026-10-27T15:25:50.000Z",
+        "sha": "aa97787def2d6c6b95a10c04b5ec34b0ffd64e6b",
+        "lastModified": "2026-10-28T06:51:56.000Z",
         "cardSemanticSha256": "2062f8a7461392e79949029144cffe0e7690821603c87c95e7a8db2146056ab5",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2177,8 +2178,8 @@
         "disabled": false,
         "sdk": null,
         "license": "cc-by-4.0",
-        "sha": "7e6d089aa90f65723bbfca63bf36cadf9b5cb962",
-        "lastModified": "2026-10-13T19:19:01.000Z",
+        "sha": "7d7c2b24b661678766e41e80e7b3f1edf0976c41",
+        "lastModified": "2026-10-27T16:44:22.000Z",
         "cardSemanticSha256": "f2a86efb3fa015eee18d8f82bb0e55fda6fbb63e450516d15576710c45dacbad",
         "createdAt": "2026-06-02T02:15:41.000Z",
         "tags": [
@@ -2695,8 +2696,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "5da5202a5377f1324890b59a83b326ed624f6552",
-        "lastModified": "2026-10-27T14:27:42.000Z",
+        "sha": "15e6b9a9417addb7b86bdcc4999879a6a5c95c90",
+        "lastModified": "2026-10-28T06:45:35.000Z",
         "cardSemanticSha256": "59819161df6542cf7a1ae71d6f3151c65df47924184ad7a18f49590cd7895e9f",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -2723,8 +2724,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "ce85af9f6d96ef4f3cc8c6312fd46b43883cf6c5",
-        "lastModified": "2026-10-22T13:04:25.000Z",
+        "sha": "500657127e047059e7677b1930f023ddd0a5e93c",
+        "lastModified": "2026-10-27T16:49:29.000Z",
         "cardSemanticSha256": "3a9ba06752ad3d658b2ca3e6b1e8306b59106d1cdc73101d996fa8351076c65d",
         "createdAt": "2026-09-04T21:10:09.000Z",
         "tags": [
@@ -2898,7 +2899,7 @@
         "license": "apache-2.0",
         "sha": "343d8aacd4f2200ca73c9f5a9aab4641dd818935",
         "lastModified": "2026-10-26T01:16:23.000Z",
-        "cardSemanticSha256": "a52f49144a9410034bb963c1f12fbd9a7419b35ca442d1f024dbd2157278d5b0",
+        "cardSemanticSha256": "c5e178fc1bfa9972f31c4c5a6f6d439981dda48b57c5aa4c343f7d350a949fba",
         "createdAt": "2026-10-13T18:37:48.000Z",
         "tags": [
           "gradio",
@@ -3012,8 +3013,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "a534a3e1ffab1621b8a56e8eee53bc2ba7fb7ed9",
-        "lastModified": "2026-10-24T01:17:31.000Z",
+        "sha": "a27d5d4f85225974f9d0ec3959b5d06e6f671aec",
+        "lastModified": "2026-10-28T06:53:48.000Z",
         "cardSemanticSha256": "1630aaebce2abc982cace834c0197202bc286d0aef2a4ffccb44771bd67f0289",
         "createdAt": "2026-06-01T05:46:37.000Z",
         "tags": [
@@ -3043,8 +3044,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "292e871c3b4fed6367c12e6dca456e7a43ebe526",
-        "lastModified": "2026-10-13T23:01:33.000Z",
+        "sha": "d70e4326adee24e876219763986a08c95e9d5448",
+        "lastModified": "2026-10-27T16:44:03.000Z",
         "cardSemanticSha256": "75ca3aaad21b639cd83604771242c8fbb8ce18ba1a1f6aac5c2bfdd92b41f02d",
         "createdAt": "2026-09-08T12:21:55.000Z",
         "tags": [
@@ -3196,8 +3197,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "314fe1b18da21a2bb63513dc078a171e9d45a254",
-        "lastModified": "2026-10-22T13:04:51.000Z",
+        "sha": "ad41941c0d5926f54d9c3415f44afa56994d6f38",
+        "lastModified": "2026-10-27T16:44:29.000Z",
         "cardSemanticSha256": "e77fef039babd444a6b948ab11289b2dd9950ae4defdc9be96a31ab1765cee38",
         "createdAt": "2026-09-07T20:03:57.000Z",
         "tags": [
@@ -3240,8 +3241,8 @@
         "disabled": false,
         "sdk": "static",
         "license": "apache-2.0",
-        "sha": "e7bcabce47c7cd1f66cfb43b062601fcbfb96b80",
-        "lastModified": "2026-10-27T14:46:32.000Z",
+        "sha": "d604f0e5c9522444bd94fcf95d6b53bcbdff1c4d",
+        "lastModified": "2026-10-27T16:37:14.000Z",
         "cardSemanticSha256": "89c3737ee329cd0c5183884afa6ceb1b1b409030847b2ae651b661e1c0997cc3",
         "createdAt": "2026-09-30T20:09:31.000Z",
         "tags": [
@@ -3295,8 +3296,8 @@
         "disabled": false,
         "sdk": "gradio",
         "license": "apache-2.0",
-        "sha": "1ff7a724c082d9401dfec8053de8ae46c3ae4698",
-        "lastModified": "2026-10-13T17:13:13.000Z",
+        "sha": "392b2f8ae5d303b5046b3341afbd2a8c3549a1bf",
+        "lastModified": "2026-10-27T16:31:18.000Z",
         "cardSemanticSha256": "02bffe744382b9ad1924fab7949d88ad566a707d530662b76e8d397f77f976b1",
         "createdAt": "2026-09-04T01:54:30.000Z",
         "tags": [
@@ -3322,8 +3323,8 @@
         "disabled": false,
         "sdk": "static",
         "license": "apache-2.0",
-        "sha": "cd1fbec42e87a4d04cc9e31f4919cc070b10af58",
-        "lastModified": "2026-10-14T17:38:36.000Z",
+        "sha": "92f06925477efe5a6e212fd3cba2c7968e00e1ba",
+        "lastModified": "2026-10-28T03:04:37.000Z",
         "cardSemanticSha256": "9a3602b03838e6d695fb9ed824c0ea79faaf1e2ba0e0acd1094f0448391d1a83",
         "createdAt": "2026-09-29T02:07:36.000Z",
         "tags": [
@@ -3398,8 +3399,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "fc66ac9fe6eeea6ea6fde79aee165cd3312a3cce",
-        "lastModified": "2026-10-25T06:54:43.000Z",
+        "sha": "62422bc56e048e800da5a1153a5faee85a61efa7",
+        "lastModified": "2026-10-27T16:32:02.000Z",
         "cardSemanticSha256": "469806191c33734de3648e2dc751af6f261098771b1c9a9bde8533714ee66e33",
         "createdAt": "2026-09-08T04:49:19.000Z",
         "tags": [
@@ -3420,8 +3421,8 @@
         "disabled": false,
         "sdk": "gradio",
         "license": "apache-2.0",
-        "sha": "c87461cf4cf20cb418450037757ee34b59fc2ec9",
-        "lastModified": "2026-10-27T14:46:31.000Z",
+        "sha": "75962b235469306c08e2509611702d52cca86a93",
+        "lastModified": "2026-10-27T16:37:07.000Z",
         "cardSemanticSha256": "94bdd07b1fc9fdf813e119ba5a3e57679c78eb3afbf4c9d7b7d9218a21963d3a",
         "createdAt": "2026-09-30T19:38:06.000Z",
         "tags": [
@@ -3495,8 +3496,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "23678edbfb0039d9eb6210d69a1656184ab00635",
-        "lastModified": "2026-10-23T22:54:26.000Z",
+        "sha": "04ef19e6210c7ff256b1d5ba62e2032e57aabcc8",
+        "lastModified": "2026-10-27T17:15:42.000Z",
         "cardSemanticSha256": "f7c6fd2c9d2e011f7d6b6ea5d66a44ef7e574d486ad1703cc22a876bca3070e3",
         "createdAt": "2026-10-05T13:57:51.000Z",
         "tags": [
@@ -3586,8 +3587,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "87aa6b7c2573875ce5d44b84fbc7ca43db94747d",
-        "lastModified": "2026-10-22T13:06:57.000Z",
+        "sha": "4b118a5113a922a1dd5237c76682574086ce5353",
+        "lastModified": "2026-10-28T06:11:28.000Z",
         "cardSemanticSha256": "6121288d360e5ec7ef5be5a53791bea0b775645f1ae2f8c50b5dd8af00a90898",
         "createdAt": "2026-09-03T22:26:50.000Z",
         "tags": [
@@ -4035,6 +4036,5 @@
       "target": "counsel-source/terra-source/carlota-jo-source",
       "action": "Mark funded-roadmap scaffold and remove from active-demo collections until funded."
     }
-  ],
-  "source_sha256": "dd201e810d3894a0db8cbd157112f09ab93522fabb9a313a4e86765a209a72e4"
+  ]
 }
