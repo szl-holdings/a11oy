@@ -29,8 +29,6 @@ Heartbeat cadences are configured at 30 seconds for the universal SIGN/MEMORY/WI
 When the loop is registered and running, freshness establishes scheduler/loop health only; it
 does not establish that an unavailable substrate adapter performed external work.
 """
-from __future__ import annotations
-
 import asyncio
 import base64
 import calendar
