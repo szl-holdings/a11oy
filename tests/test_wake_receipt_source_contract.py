@@ -122,7 +122,10 @@ def test_source_wires_reviewed_module_before_fallback_and_into_image():
     proxy = serve_source.index('@app.api_route("/api/a11oy/{path:path}"')
     assert registration < proxy
     assert "_kernels.register(app, organ=\"a11oy\")" in serve_source
-    assert "COPY szl_kernels_organ.py ./" in dockerfile
+    assert any(
+        line.startswith("COPY ") and "szl_kernels_organ.py" in line
+        for line in dockerfile.splitlines()
+    )
     assert MODULE_PATH.is_file()
 
 
