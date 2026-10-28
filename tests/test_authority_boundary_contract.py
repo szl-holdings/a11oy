@@ -411,6 +411,24 @@ def test_collector_success_shape_stays_unauthorized():
     assert "execution_authorized\": true" not in source
 
 
+@pytest.mark.parametrize("field", ["--runtime-sha", "--boot-id", "--run-nonce"])
+def test_collector_names_missing_operator_context(field, monkeypatch, capsys, tmp_path):
+    context = {"--runtime-sha": RUNTIME, "--boot-id": BOOT, "--run-nonce": NONCE}
+    context[field] = ""
+    out_dir = tmp_path / "execution-evidence"
+    argv = ["collect_execution_readiness.py", "--source-sha", SOURCE, "--out-dir", str(out_dir)]
+    for flag, value in context.items():
+        argv += [flag, value]
+    monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.delenv("A11OY_EXECUTION_AUTHORITY_PINS_JSON", raising=False)
+    assert collector.main() == 2
+    assert json.loads(capsys.readouterr().err) == {
+        "collected": False,
+        "error": "EXECUTION_CONTEXT_REQUIRED",
+        "execution_authorized": False,
+    }
+    assert not out_dir.exists()
+
 def test_organization_card_binds_its_own_source_revision():
     expected = SOURCE
     card = OTHER
