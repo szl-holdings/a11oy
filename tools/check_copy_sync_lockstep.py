@@ -833,7 +833,7 @@ REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c876
 REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "598dc56af57eafb9a27ed35c0051df14a0c07ad43868c20ce8b60b4c69af138a"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only collection, public authority materialization and crypto closure.
-    ".github/scripts/collect_execution_readiness.py": "e2ea59576b2533a2b397674568578d989a7018174cae891b4afff2697a76dc46",
+    ".github/scripts/collect_execution_readiness.py": "5421fd1a54adb29cd0a4c1b3ececa07ce28b8458a0a8a9c6fb75074d7178b162",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
     "observer_adapters.py": "84b80c124c8e6e70c0292934f150873ea93340a8995795e48cab477628e90b66",
