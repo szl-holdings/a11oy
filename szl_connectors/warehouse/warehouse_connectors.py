@@ -78,16 +78,28 @@ class SnowflakeConnector(ReadyConnector):
         return self.provider_base.replace("{account}",
                                           os.environ.get("SZL_SNOWFLAKE_ACCOUNT", ""))
 
+    # OAuth access tokens are short-lived; a service deployment needs a PAT or key-pair JWT.
+    _token_types = ("OAUTH", "KEYPAIR_JWT", "PROGRAMMATIC_ACCESS_TOKEN")
+
+    def _token_type(self):
+        return os.environ.get("SZL_SNOWFLAKE_TOKEN_TYPE", "OAUTH").strip().upper()
+
     def _auth_header(self):
         tok = os.environ.get("SZL_SNOWFLAKE_ACCESS_TOKEN")
         return ({"Authorization": f"Bearer {tok}",
-                 "X-Snowflake-Authorization-Token-Type": "OAUTH"} if tok else {})
+                 "X-Snowflake-Authorization-Token-Type": self._token_type()} if tok else {})
 
     def read(self, query=None):
         if self._primary_missing():
             return self._ready_records(
                 "provide credentials to activate — set SZL_SNOWFLAKE_ACCOUNT, "
                 "SZL_SNOWFLAKE_ACCESS_TOKEN. POSTs SHOW TABLES via /api/v2/statements.")
+        if self._token_type() not in self._token_types:
+            return Records(connector_id=self.id, category=self.category, state=State.ERROR,
+                           records=[], source=self.provider_base, live=False,
+                           note="SZL_SNOWFLAKE_TOKEN_TYPE must be one of "
+                                + ", ".join(self._token_types) + "; no request sent",
+                           schema_preview=self.schema_preview)
         import json as _json
         body = {"statement": "SHOW TABLES LIMIT 10", "timeout": 30}
         url = self._base_url() + "/statements"
