@@ -1013,7 +1013,7 @@ def _assert_historical_rehearsal_workflow(source):
     assert len(steps) == 7
     assert [s["uses"] for s in steps if "uses" in s] == [
         "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-        "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+        "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",
         "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
     ]
     assert steps[0]["with"] == {"ref": "${{ github.sha }}", "persist-credentials": "false"}
