@@ -50,6 +50,13 @@ REPLICATION_COPY_ADDITIONS = {"szl_khipu_delivery_routes.py", "khipu_lmdb/"}
 # Shared passive signer observation adds one provenance module to the existing
 # runtime-identity COPY. All three historical counts and digests stay unchanged.
 SIGNING_STATE_COPY_ADDITIONS = {"szl_signing_state.py"}
+# The master implementation workcell adds one module to the root COPY batch and
+# one DAG artifact to the genome data COPY. All three historical counts and
+# digests stay unchanged.
+MASTER_WORKCELL_COPY_ADDITIONS = {
+    "szl_master_workcell.py",
+    "data/master_workcell_dag_20261027.json",
+}
 
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
@@ -173,6 +180,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert RUNTIME_IDENTITY_COPY_ADDITIONS <= copy_sources
     assert REPLICATION_COPY_ADDITIONS <= copy_sources
     assert SIGNING_STATE_COPY_ADDITIONS <= copy_sources
+    assert MASTER_WORKCELL_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
@@ -188,6 +196,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | RUNTIME_IDENTITY_COPY_ADDITIONS
         | REPLICATION_COPY_ADDITIONS
         | SIGNING_STATE_COPY_ADDITIONS
+        | MASTER_WORKCELL_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
@@ -219,6 +228,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert RUNTIME_IDENTITY_COPY_ADDITIONS <= sources
     assert REPLICATION_COPY_ADDITIONS <= sources
     assert SIGNING_STATE_COPY_ADDITIONS <= sources
+    assert MASTER_WORKCELL_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -231,6 +241,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - RUNTIME_IDENTITY_COPY_ADDITIONS
         - REPLICATION_COPY_ADDITIONS
         - SIGNING_STATE_COPY_ADDITIONS
+        - MASTER_WORKCELL_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
@@ -260,6 +271,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert RUNTIME_IDENTITY_COPY_ADDITIONS <= sources
     assert REPLICATION_COPY_ADDITIONS <= sources
     assert SIGNING_STATE_COPY_ADDITIONS <= sources
+    assert MASTER_WORKCELL_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -272,6 +284,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - RUNTIME_IDENTITY_COPY_ADDITIONS
         - REPLICATION_COPY_ADDITIONS
         - SIGNING_STATE_COPY_ADDITIONS
+        - MASTER_WORKCELL_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
@@ -307,3 +320,17 @@ def test_signing_state_is_batched_once_with_runtime_identity() -> None:
     assert len(rows) == 1
     assert "szl_runtime_identity.py" in _copy_sources(rows[0])
     assert shlex.split(rows[0])[-1] == "./"
+
+
+def test_master_workcell_is_batched_into_existing_layers() -> None:
+    rows = [instruction for _line, instruction in _logical_instructions()
+            if instruction.upper().startswith("COPY ")
+            and MASTER_WORKCELL_COPY_ADDITIONS & set(_copy_sources(instruction))]
+    assert len(rows) == 2
+    module_row = next(row for row in rows if "szl_master_workcell.py" in _copy_sources(row))
+    assert "szl_runtime_identity.py" in _copy_sources(module_row)
+    assert shlex.split(module_row)[-1] == "./"
+    data_row = next(row for row in rows
+                    if "data/master_workcell_dag_20261027.json" in _copy_sources(row))
+    assert "data/genome.json" in _copy_sources(data_row)
+    assert shlex.split(data_row)[-1] == "./data/"
