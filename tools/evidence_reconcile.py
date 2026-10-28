@@ -6,6 +6,12 @@ retained JSON files' own SHA-256 values, compares protected-main identity with
 the retained manifest, and reports runtime/HF drift and authority status. It
 does not discover credentials, make HTTP requests, create receipts, or grant
 execution authority.
+
+Each input is read once, so the reported SHA-256 is of the same bytes that were
+parsed. An identity comparison is UNKNOWN when either side is missing, empty or
+not text; two absent values are never reported as equal. Optional pinned
+digests bind the inputs to bytes the caller already trusts. This tool verifies
+no signature, so it never reports a binding as authenticated.
 """
 
 from __future__ import annotations
@@ -13,31 +19,57 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import string
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 
 SCHEMA = "szl.local.evidence-reconciliation/v1"
+_HEX_DIGITS = frozenset(string.hexdigits)
 
 
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest().upper()
-
-
-def load(path: Path) -> dict[str, Any]:
-    value = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise ValueError("JSON object required")
-    return value
+def sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest().upper()
 
 
 def required(path: Path) -> None:
     if path.is_symlink() or not path.is_file():
         raise FileNotFoundError(path)
+
+
+def read_once(path: Path) -> bytes:
+    """Return the file's bytes from one open that refuses a swapped-in symlink."""
+    required(path)
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    with os.fdopen(descriptor, "rb") as handle:
+        return handle.read()
+
+
+def load(data: bytes) -> dict[str, Any]:
+    value = json.loads(data.decode("utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("JSON object required")
+    return value
+
+
+def compare_identity(left: Any, right: Any) -> dict[str, Any]:
+    """MATCH or MISMATCH only when both sides are non-empty text, else UNKNOWN."""
+    known = [value for value in (left, right) if isinstance(value, str) and value.strip()]
+    if len(known) != 2:
+        status = "UNKNOWN"
+    else:
+        status = "MATCH" if left == right else "MISMATCH"
+    return {"status": status, "equal": status == "MATCH"}
+
+
+def checked_pins(pins: Mapping[str, Any], names: Any) -> dict[str, str]:
+    if not isinstance(pins, Mapping) or set(pins) - set(names):
+        raise ValueError("pinned digests must map known input names")
+    for value in pins.values():
+        if not isinstance(value, str) or len(value) != 64 or not set(value) <= _HEX_DIGITS:
+            raise ValueError("pinned digest must be 64 hex characters")
+    return {name: value.upper() for name, value in pins.items()}
 
 
 def reconcile(
@@ -46,6 +78,7 @@ def reconcile(
     gap_path: Path,
     authority_path: Path,
     gpu_path: Path,
+    pinned_digests: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     paths = {
         "summary": summary_path,
@@ -54,14 +87,14 @@ def reconcile(
         "authority_review": authority_path,
         "gpu_preflight": gpu_path,
     }
-    for path in paths.values():
-        required(path)
+    raw = {name: read_once(path) for name, path in paths.items()}
+    pins = checked_pins(pinned_digests or {}, paths)
 
-    summary = load(summary_path)
-    manifest = load(manifest_path)
-    gap = load(gap_path)
-    authority = load(authority_path)
-    gpu = load(gpu_path)
+    summary = load(raw["summary"])
+    manifest = load(raw["manifest"])
+    gap = load(raw["preservation_gap"])
+    authority = load(raw["authority_review"])
+    gpu = load(raw["gpu_preflight"])
 
     manifest_main = manifest.get("github_main")
     if not isinstance(manifest_main, dict):
@@ -76,6 +109,38 @@ def reconcile(
     if hf_runs and isinstance(hf_runs[0], dict):
         latest_hf_sha = hf_runs[0].get("headSha")
 
+    files = {}
+    for name, path in paths.items():
+        actual = sha256(raw[name])
+        pinned = pins.get(name)
+        if pinned is None:
+            digest_status = "NOT_PINNED"
+        else:
+            digest_status = "MATCHED" if pinned == actual else "MISMATCHED"
+        files[name] = {"path": str(path), "sha256": actual,
+                       "pinned_sha256": pinned, "digest_status": digest_status}
+
+    protected_main = {
+        "summary_sha": summary.get("canonical_main"),
+        "manifest_sha": manifest_main.get("sha"),
+        **compare_identity(summary.get("canonical_main"), manifest_main.get("sha")),
+    }
+    runtime_hf_binding = {
+        "runtime_source_sha": runtime_identity.get("source_revision"),
+        "latest_hf_sync_sha": latest_hf_sha,
+        **compare_identity(runtime_identity.get("source_revision"), latest_hf_sha),
+    }
+
+    digest_states = {entry["digest_status"] for entry in files.values()}
+    if "MISMATCHED" in digest_states:
+        level = "PINNED_DIGEST_MISMATCH"
+    elif "UNKNOWN" in (protected_main["status"], runtime_hf_binding["status"]):
+        level = "UNKNOWN"
+    elif digest_states == {"MATCHED"}:
+        level = "PINNED_DIGESTS_MATCHED"
+    else:
+        level = "LOCAL_CONSISTENCY"
+
     result = {
         "schema": SCHEMA,
         "evidence_class": "MEASURED",
@@ -84,20 +149,10 @@ def reconcile(
         "provider_writes": 0,
         "gpu_mutations": 0,
         "credentials_read": False,
-        "files": {
-            name: {"path": str(path), "sha256": sha256(path)}
-            for name, path in paths.items()
-        },
-        "protected_main": {
-            "summary_sha": summary.get("canonical_main"),
-            "manifest_sha": manifest_main.get("sha"),
-            "equal": summary.get("canonical_main") == manifest_main.get("sha"),
-        },
-        "runtime_hf_binding": {
-            "runtime_source_sha": runtime_identity.get("source_revision"),
-            "latest_hf_sync_sha": latest_hf_sha,
-            "equal": runtime_identity.get("source_revision") == latest_hf_sha,
-        },
+        "files": files,
+        "binding": {"level": level, "authenticated": False},
+        "protected_main": protected_main,
+        "runtime_hf_binding": runtime_hf_binding,
         "acceptance": {
             "tests_run": summary.get("acceptance_tests_run"),
             "disposition": summary.get("acceptance_disposition"),
@@ -125,15 +180,19 @@ def main() -> int:
     parser.add_argument("--preservation-gap", type=Path, required=True)
     parser.add_argument("--authority-review", type=Path, required=True)
     parser.add_argument("--gpu-preflight", type=Path, required=True)
+    parser.add_argument("--pinned-digests", type=Path,
+                        help="JSON object mapping input names to trusted SHA-256 values")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
+        pins = load(read_once(args.pinned_digests)) if args.pinned_digests else None
         report = reconcile(
             args.summary,
             args.manifest,
             args.preservation_gap,
             args.authority_review,
             args.gpu_preflight,
+            pinned_digests=pins,
         )
     except (OSError, ValueError, json.JSONDecodeError):
         # Fixed diagnostic: do not echo local paths, parser details, or file
