@@ -1,5 +1,14 @@
 """Fail-closed contracts for Frontier reachability versus runtime readiness."""
 
+import base64
+import hashlib
+import json
+from datetime import datetime, timedelta, timezone
+
+import pytest
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+
 import szl_energy_ledger
 import szl_khipu
 import szl_uds_fleet as uds
@@ -346,6 +355,125 @@ def test_fabric_summary_flags_cannot_substitute_for_node_or_inference_evidence(m
     assert tile["counts_consistent"] is False
     assert ready is False
     assert "fabric_probe_counts_missing_or_inconsistent" in reasons
+
+
+_RENTED_NODE = "massed-a6000-test"
+
+
+def _rented_pool(reachable=True, sovereign=False, reported_sovereign=0):
+    return {
+        "scope": "TRANSPORT_REACHABILITY",
+        "cached_at": "2026-10-28T00:00:00Z",
+        "nodes": [{"name": _RENTED_NODE, "kind": "rented-gpu", "reachable": reachable,
+                   "sovereign": sovereign, "rented": True, "provider": "Massed Compute",
+                   "endpoint": "rented GPU · Massed Compute", "probe_kind": "TCP_CONNECT",
+                   "inference_verified": False, "ownership_verified": False}],
+        "counts": {"nodes_total": 1, "nodes_reachable": int(reachable),
+                   "gpu_nodes_reachable": int(reachable),
+                   "sovereign_gpu_nodes_reachable": reported_sovereign,
+                   "rented_gpu_nodes_reachable": int(reachable),
+                   "inference_verified_nodes": 0},
+    }
+
+
+def _write_pool_receipt(tmp_path, monkeypatch, *, node_id=_RENTED_NODE, age=timedelta(0),
+                        signer=None):
+    """Write one compute-pool/v1 inference receipt signed by a synthetic attester key."""
+    import szl_compute_pool_contract as contract
+    import szl_dsse
+
+    trusted = ec.generate_private_key(ec.SECP256R1())
+    public = trusted.public_key()
+    monkeypatch.setenv("A11OY_POOL_RECEIPT_PUBLIC_KEY_PEM", public.public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode())
+    monkeypatch.setenv("A11OY_POOL_RECEIPT_PUBLIC_KEY_SHA256", hashlib.sha256(public.public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)).hexdigest())
+    monkeypatch.setenv("A11OY_COMPUTE_POOL_RECEIPT_DIR", str(tmp_path))
+    observed = datetime.now(timezone.utc).replace(microsecond=0) - age
+    payload = {
+        "schema_version": contract.RECEIPT_SCHEMA,
+        "node_id": node_id,
+        "model_id": "qwen3-8b:test",
+        "model_digest_sha256": "a" * 64,
+        "observed_at": observed.isoformat().replace("+00:00", "Z"),
+        "request_sha256": "b" * 64,
+        "response_sha256": "c" * 64,
+        "duration_ms": 41.5,
+        "success": True,
+        "serving": False,
+        "bounds": {"timeout_ms": 5000, "max_input_tokens": 64, "max_output_tokens": 32},
+        "issuer": "a11oy-pool-attester",
+        "audience": "a11oy-compute-pool",
+        "predicate_type": "szl.compute-pool.inference-qualification/v1",
+        "measurement_contract": "szl.compute-pool.measurement-contract/v1",
+    }
+    body = szl_dsse.canonical_json(payload)
+    signature = (signer or trusted).sign(
+        szl_dsse.pae(contract.RECEIPT_PAYLOAD_TYPE, body), ec.ECDSA(hashes.SHA256()))
+    (tmp_path / "receipt.dsse.json").write_text(json.dumps({
+        "payloadType": contract.RECEIPT_PAYLOAD_TYPE,
+        "payload": base64.b64encode(body).decode("ascii"),
+        "signatures": [{"keyid": "a11oy-pool-attester-v1",
+                        "sig": base64.b64encode(signature).decode("ascii")}],
+    }), encoding="utf-8")
+
+
+def test_verified_inference_receipt_on_reachable_rented_gpu_clears_only_inference_reason(
+        tmp_path, monkeypatch):
+    import szl_backend_hardening as bh
+
+    monkeypatch.setattr(bh, "probe_fabric_pool", lambda: _rented_pool())
+    _write_pool_receipt(tmp_path, monkeypatch)
+
+    tile = manifest._tile_compute_fabric()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["inference_verified"] is True
+    assert tile["inference_verified_nodes"] == 1
+    assert tile["inference_evidence"][0]["node"] == _RENTED_NODE
+    assert tile["inference_evidence"][0]["model_id"] == "qwen3-8b:test"
+    assert "model_inference_not_verified_by_transport_probe" not in reasons
+    # Rented capacity never satisfies sovereignty or ownership.
+    assert tile["sovereign_gpu_reachable"] == 0
+    assert tile["rented_gpu_reachable"] == 1
+    assert tile["ownership_verified"] is False
+    assert "no_sovereign_gpu_reachable" in reasons
+    assert "sovereign_ownership_not_verified" in reasons
+    assert ready is False
+
+
+@pytest.mark.parametrize("case", ["unreachable", "untrusted_key", "stale", "other_node"])
+def test_inference_reason_stays_without_bound_fresh_verified_receipt(tmp_path, monkeypatch, case):
+    import szl_backend_hardening as bh
+
+    monkeypatch.setattr(bh, "probe_fabric_pool",
+                        lambda: _rented_pool(reachable=case != "unreachable"))
+    _write_pool_receipt(
+        tmp_path, monkeypatch,
+        node_id="some-other-node" if case == "other_node" else _RENTED_NODE,
+        age=timedelta(hours=2) if case == "stale" else timedelta(0),
+        signer=ec.generate_private_key(ec.SECP256R1()) if case == "untrusted_key" else None)
+
+    tile = manifest._tile_compute_fabric()
+    _ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["inference_verified"] is False
+    assert tile["inference_verified_nodes"] == 0
+    assert "model_inference_not_verified_by_transport_probe" in reasons
+
+
+def test_rented_gpu_marked_sovereign_never_counts_as_sovereign(monkeypatch):
+    import szl_backend_hardening as bh
+
+    monkeypatch.setattr(bh, "probe_fabric_pool",
+                        lambda: _rented_pool(sovereign=True, reported_sovereign=1))
+
+    tile = manifest._tile_compute_fabric()
+    _ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["sovereign_gpu_reachable"] == 0
+    assert "no_sovereign_gpu_reachable" in reasons
+    assert "sovereign_ownership_not_verified" in reasons
 
 
 def test_importable_uds_source_does_not_establish_signed_bundle(monkeypatch):
