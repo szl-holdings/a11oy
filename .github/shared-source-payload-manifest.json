@@ -1,10 +1,10 @@
 {
   "files": {
-    ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json": "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",
-    "docs/mcp-advertised-inventory-20261016.md": "1c9e22ba02cb3ccc5e30ac5d19e0dffeb4cc515b2a59cdf6ac956f4bdbe855eb",
-    "szl_brain.py": "af7028d1ce5a473ae937846e2cc6b4b2a029a0918faa7a3a82e14c01bbdbe208",
-    "tests/test_mcp_inventory_observation.py": "10a015c982ba92b906e92c755fc0e70e26682e01474062c48a8b2913c8795abe"
+    ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json": "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35",
+    "szl_connectors/warehouse/warehouse_connectors.py": "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f",
+    "tests/test_gitleaks_archived_payload_digest.py": "8ede2847f5a77426485f88747e7ffa238c24a6c4662905433fc3695940204a4a",
+    "tests/test_snowflake_sql_result_classification.py": "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
   },
-  "payload_id": "mcp-advertised-inventory-20261016-v1",
+  "payload_id": "snowflake-sql-result-classification-20261028-v1",
   "schema": "szl-shared-source-payload/v1"
 }
