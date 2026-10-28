@@ -11,14 +11,14 @@ from tools.evidence_reconcile import reconcile
 
 BASE = {
     "summary": {
-        "canonical_main": "main-sha",
-        "runtime_identity": {"source_revision": "runtime-sha"},
+        "canonical_main": "a" * 40,
+        "runtime_identity": {"source_revision": "b" * 40},
         "acceptance_tests_run": 0,
         "acceptance_disposition": "BLOCKED",
     },
     "manifest": {
-        "github_main": {"sha": "main-sha"},
-        "latest_hf_sync": [{"headSha": "hf-sha"}],
+        "github_main": {"sha": "a" * 40},
+        "latest_hf_sync": [{"headSha": "b" * 40}],
     },
     "preservation_gap": {"blocker": "REAL_POST_RESTART_VERIFIER_NOT_WIRED"},
     "authority_review": {
@@ -90,13 +90,14 @@ class IdentityComparisonTests(unittest.TestCase):
         self.assertFalse(report["runtime_hf_binding"]["equal"])
 
     def test_known_identities_report_match_and_mismatch(self):
+        manifest = dict(BASE["manifest"], latest_hf_sync=[{"headSha": "c" * 40}])
         with tempfile.TemporaryDirectory() as directory:
-            report = _run(_write(Path(directory)))
+            report = _run(_write(Path(directory), {"manifest": manifest}))
         self.assertEqual(report["protected_main"]["status"], "MATCH")
         self.assertTrue(report["protected_main"]["equal"])
         self.assertEqual(report["runtime_hf_binding"]["status"], "MISMATCH")
         self.assertFalse(report["runtime_hf_binding"]["equal"])
-        self.assertEqual(report["binding"]["level"], "LOCAL_CONSISTENCY")
+        self.assertEqual(report["binding"]["level"], "IDENTITY_MISMATCH")
         self.assertFalse(report["binding"]["authenticated"])
 
 
