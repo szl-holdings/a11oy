@@ -561,6 +561,10 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
     }
 
 
+_BEACON_SRC = (
+    "https://static.cloudflareinsights.com/"
+    "beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+)
 _WEBMCP_SRC = "https://a-11-oy.com/.webmcp/bridge.js"
 _WEBMCP_IDENTITY = {
     "src": _WEBMCP_SRC,
@@ -584,6 +588,9 @@ def _provider_script_kind(
     is not. Cloudflare may therefore append its own external analytics beacon to
     otherwise byte-equivalent product HTML. That provider-owned script is not an
     SZL product asset and must not create product/Space semantic drift.
+    The beacon exclusion is only _BEACON_SRC with a single src attribute.
+    A different path, query, fragment, event handler, boolean attribute, or
+    duplicate attribute stays in the product semantic contract.
     The WebMCP tag is injected by the zone settings webmcp_enabled and
     webmcp_packs, not by the repository template or the Space publisher:
     https://developers.cloudflare.com/api/resources/zones/subresources/settings/
@@ -594,14 +601,19 @@ def _provider_script_kind(
     attribute stays in the product semantic contract and fails parity.
     """
     parsed = urllib.parse.urlsplit(src)
-    if (
-        parsed.scheme == "https"
-        and parsed.netloc == "static.cloudflareinsights.com"
-        and parsed.path.startswith("/beacon.min.js/")
-        and not parsed.query
-        and not parsed.fragment
-    ):
-        return "beacon"
+    if src == _BEACON_SRC:
+        if (
+            parsed.scheme == "https"
+            and parsed.netloc == "static.cloudflareinsights.com"
+            and parsed.path
+            == "/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+            and not parsed.query
+            and not parsed.fragment
+            and len(attrs) == len(dict(attrs))
+            and list(attrs) == [("src", _BEACON_SRC)]
+        ):
+            return "beacon"
+        return ""
     if not (
         parsed.scheme == "https"
         and parsed.netloc == "a-11-oy.com"

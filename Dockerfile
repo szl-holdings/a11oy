@@ -84,15 +84,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get update && apt-get install -y --no-install-recommends nodejs && \
     node --version | grep -E '^v22\.' && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    test "$(dpkg --print-architecture)" = amd64 && \
-    curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL \
-      https://github.com/cli/cli/releases/download/v2.102.1/gh_2.102.1_linux_amd64.deb \
-      -o /tmp/gh_2.102.1_linux_amd64.deb && \
-    printf '%s  %s\n' '5b91c75d971509e96f673fa9f46e5d8ea294b6bbfedbc8ff458aedd88775d94c' \
-      '/tmp/gh_2.102.1_linux_amd64.deb' | sha256sum --check --strict - && \
-    dpkg -i /tmp/gh_2.102.1_linux_amd64.deb && \
-    rm /tmp/gh_2.102.1_linux_amd64.deb && \
-    gh --version | head -n 1 | grep -F 'gh version 2.102.1 ' && \
+    test "$(dpkg --print-architecture)" = "amd64" && \
+    curl -fsSL -o /tmp/gh_2.102.0_linux_amd64.deb \
+      https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.deb && \
+    echo "7e54a307f90afdc59796c325ec0c49fb09e6c18537727207a8ac7513584ea5b0  /tmp/gh_2.102.0_linux_amd64.deb" \
+      | sha256sum -c - && \
+    apt-get update && apt-get install -y --no-install-recommends /tmp/gh_2.102.0_linux_amd64.deb && \
+    rm -f /tmp/gh_2.102.0_linux_amd64.deb && \
+    gh --version | head -n 1 | grep -F 'gh version 2.102.0 ' && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -190,7 +189,7 @@ COPY model_release/m1/ ./model_release/m1/
 # Keep root-level sources explicit while batching them into one filesystem layer.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY szl_runtime_identity.py szl_signing_state.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
+COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -206,7 +205,11 @@ COPY a11oy_model_support.py ./
 # Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
 # degrades to an honest labeled 503 (never a faked payload), the panel shows it.
-COPY data/genome.json ./data/genome.json
+# Bounded master implementation workcell: validated read-only DAG/status
+# artifact. Missing or malformed bytes remain honest UNAVAILABLE at runtime.
+# Its module rides the batched root COPY above and its DAG shares this data
+# layer, keeping the runtime stage inside the daemon layer-depth budget.
+COPY data/genome.json data/master_workcell_dag_20261027.json ./data/
 # ---------------------------------------------------------------------------
 # … (full rationale: docs/DOCKERFILE_NOTES.md §9)
 

@@ -1,31 +1,10 @@
 {
   "files": {
-    ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json": "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc",
-    ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json": "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",
-    ".github/shared-source-payloads/model-credential-origin-20261017-v1.json": "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c",
-    ".github/shared-source-payloads/replication-origin-index-20261017-v1.json": "3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce",
-    ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json": "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc",
-    ".github/shared-source-payloads/replication-snapshot-delivery-20261021-v1.json": "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166",
-    "a11oy_code_engine.py": "6968839865154818babe7e85c2bf37c944b9d0e90eb6fc600bf0e6c2d25bf73e",
-    "docs/bonsai-model-binding.md": "f1e4791000f515604f9576abd454038546d86dd43fed705357dd2e5a0beb5fb7",
-    "docs/replication-snapshot-delivery.md": "26f32f02f1dbd621b7eadcf3c5ca1cf4d441ac5df8991384b4d180c434d5a569",
-    "khipu_lmdb/__init__.py": "1dd51e8cc49c5688f81d9c1b549ddc284c3695654b50b49f5f34877150c5ba8b",
-    "khipu_lmdb/core.py": "b5a9c210982d375c55a018a88e55fa9bc318d0a030ac5dccdbdc4dd2bdcf68ff",
-    "khipu_lmdb/delivery.py": "48b713fb8a07bd51696fe4e2d5dd2be67320a25929d4747e73f3c8b95e85ca40",
-    "khipu_lmdb/outbox.py": "4ce802b94a8dd33dde20fb378b0f095ae0718c7ff5ba16ff8653a30f84867626",
-    "scripts/sync_from_monorepo.sh": "fdd0775f1c57e79e091b6d7a8b25e116ba6d06010d230cb271dacdb78ebc1c73",
-    "szl_khipu_delivery_routes.py": "753da9dd8af80c00c79159ea32d956ccae7f5cf2410d8598674c2c27d61fc57a",
-    "szl_khipu_lmdb.py": "2a915a03b9092b7f6ddab84609e0108c70ce0371323084193f6b5c9fc690435c",
-    "szl_khipu_replicate.py": "392b6dc7e2e5d9d8ac629de73df2a486f1fa17c19fc54d0bb323b23d07574ddd",
-    "szl_operator_auth.py": "c06458a8c846cdd2ff75efaf2dba06e3a9b9b996465e1035531c2715c73d13c6",
-    "szl_unay_routes.py": "a11310c27c0c9d93044041c4f0c3582f964e228f29828205a4d02be89767d5b7",
-    "tests/test_code_receipt_binding.py": "a7e835f0b52bb39394cf6bfe4fb160c0770a06bf4750360e79e9850c13eba8c9",
-    "tests/test_gitleaks_archived_payload_digest.py": "651e88e0cfcb5a8c78e0709fe6bf2b96fc443412a30df319952042f17bbd5113",
-    "tests/test_khipu_delivery_routes.py": "8b6653a77583bca4e423ff9d2052a31c8b80f8b38325a1d04ea0edcd23832d13",
-    "tests/test_replication_shared_payload.py": "095a8db287cee6aee8d5eaa8def346d793631227d1505aa9482d94ce8e0489e6",
-    "tests/test_unay_write_authorization.py": "ec36d86eed8e36d45d56cb00c67e7adc7a1976cb1185614fb5370f8ce7271adf",
-    "tests/test_vendor_sync_contract.py": "44b3d28b669abd479b3b9dd9817d827bf03b09e6e0227987d8e8fb7d00056cba"
+    ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json": "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35",
+    "szl_connectors/warehouse/warehouse_connectors.py": "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f",
+    "tests/test_gitleaks_archived_payload_digest.py": "8ede2847f5a77426485f88747e7ffa238c24a6c4662905433fc3695940204a4a",
+    "tests/test_snowflake_sql_result_classification.py": "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
   },
-  "payload_id": "code-receipt-binding-20261023-v1",
+  "payload_id": "snowflake-sql-result-classification-20261028-v1",
   "schema": "szl-shared-source-payload/v1"
 }

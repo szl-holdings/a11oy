@@ -204,6 +204,17 @@ elif args[:5] == ["api", "--hostname", "github.com", "--method", "GET"] and len(
                     if os.environ["VERTICAL_REQUESTED"] == "true" else "skipped")
                 jobs[-1]["steps"] = [{"name": vertical_gate, "status": "completed",
                                       "conclusion": os.environ.get("FAKE_GATE_CONCLUSION", "success")}]
+                if os.environ.get("FAKE_WINDOW_CLOSED") == "true":
+                    # A green hf-sync whose window step ran closed: nothing deployed.
+                    for job in jobs:
+                        job["conclusion"] = "skipped"
+                    jobs.append({**identity, "id": match * 10 + len(jobs),
+                                 "name": "Classify the canonical runtime and converge configuration before deploy",
+                                 "conclusion": "success", "steps": [
+                                     {"name": "Require an open deploy window while SQLite lives on the bucket mount",
+                                      "status": "completed", "conclusion": "success"},
+                                     {"name": "Re-admit current protected main immediately before deploy",
+                                      "status": "completed", "conclusion": "skipped"}]})
             else:
                 jobs[-1]["conclusion"] = os.environ.get("FAKE_EDGE_JOB_CONCLUSION", "success")
                 jobs[-1]["steps"] = [{"name": "Enforce proved live edge", "status": "completed",
@@ -295,6 +306,51 @@ class ExecutedWorkflowTests(unittest.TestCase):
         self.assertNotIn("publish_vertical_flagships=true", self.writers()[0])
         for child in ("hf", "edge"):
             self.assertEqual(self.records(child)[-1]["state"], "CHILD_COMPLETION_VERIFIED")
+
+    def test_caller_wires_window_input_as_env_data(self) -> None:
+        block = step(ESTATE, CALLER)
+        self.assertIn("OPEN_DEPLOY_WINDOW: ${{ inputs.open_deploy_window }}", block)
+        self.assertIn('--open-deploy-window "${OPEN_DEPLOY_WINDOW:-false}"', run_block(ESTATE, CALLER))
+
+    def test_window_stays_closed_by_default(self) -> None:
+        self.env["VERTICAL_REQUESTED"] = "false"
+        result = self.execute(ESTATE, CALLER)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(all("open_deploy_window" not in arg for arg in self.writers()[0]))
+        self.assertIs(self.records("hf")[-1]["open_deploy_window"], False)
+
+    def assert_window_reaches_only_hf_sync(self) -> None:
+        self.env["OPEN_DEPLOY_WINDOW"] = "true"
+        result = self.execute(ESTATE, CALLER)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        hf, edge = self.writers()
+        self.assertEqual(hf[-2:], ["-f", "open_deploy_window=true"])
+        self.assertTrue(all("open_deploy_window" not in arg for arg in edge))
+        self.assertIs(self.records("hf")[-1]["open_deploy_window"], True)
+        receipt = json.loads((self.directory / "estate-repair-dispatch.json").read_text())
+        self.assertIs(receipt["open_deploy_window"], True)
+        self.assertIs(receipt["production_authorization"], False)
+
+    def test_open_deploy_window_reaches_only_the_product_hf_sync_writer(self) -> None:
+        self.env["VERTICAL_REQUESTED"] = "false"
+        self.assert_window_reaches_only_hf_sync()
+
+    def test_open_deploy_window_composes_with_an_approved_vertical_plan(self) -> None:
+        self.env["VERTICAL_PLAN_JSON"] = json.dumps(PLAN)
+        self.assert_window_reaches_only_hf_sync()
+        self.assertIn("publish_vertical_flagships=true", self.writers()[0])
+
+    def test_closed_window_repair_fails_naming_the_gate(self) -> None:
+        # The run 40608737955 shape: hf-sync ends green, its deploy path skipped.
+        self.env["VERTICAL_REQUESTED"] = "false"
+        self.env["FAKE_WINDOW_CLOSED"] = "true"
+        result = self.execute(ESTATE, CALLER)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("DEPLOY_WINDOW_CLOSED", result.stderr)
+        self.assertNotIn("canonical product completion job missing/skipped", result.stderr)
+        self.assertEqual([args[2] for args in self.writers()], ["hf-sync.yml"])
+        self.assertEqual(self.records("hf")[-1]["state"], "HOLD")
+        self.assertNotIn("CHILD_STAGE_VERIFIED", json.dumps(self.records("hf")))
 
     def test_explicit_vertical_without_plan_fails_before_any_writer(self) -> None:
         result = self.execute(ESTATE, CALLER)

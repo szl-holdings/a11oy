@@ -4,8 +4,9 @@
 
 Ordinary product repair never implies six sibling Space publications.
 An incomplete or unapproved vertical plan stays NOT_REQUESTED and cannot
-become whole-estate PASS. This helper does not dispatch, mutate providers,
-or authorize production.
+become whole-estate PASS. The hf-sync deploy window is forwarded only when
+the operator explicitly asks for it; this helper never opens it. This helper
+does not dispatch, mutate providers, or authorize production.
 """
 from __future__ import annotations
 
@@ -116,10 +117,12 @@ def plan_repair_dispatch(
     expected_sha: str | None = None,
     plan: Mapping[str, Any] | None = None,
     duplicate_dispatch: Any = False,
+    open_deploy_window: Any = False,
 ) -> dict[str, Any]:
     """Return a fail-closed dispatch decision. Never writes remotes."""
     repair_on = _flag(repair)
     vertical_on = _flag(vertical_requested)
+    window_on = _flag(open_deploy_window)
     moved = _flag(source_moved)
     if (
         not moved
@@ -176,6 +179,7 @@ def plan_repair_dispatch(
             "vertical_flagships": False,
             "vertical_state": "NOT_REQUESTED",
             "reason": "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED",
+            "open_deploy_window": window_on,
             "production_authorization": False,
         }
     # Forward only the admitted source contract, never arbitrary plan fields.
@@ -192,6 +196,7 @@ def plan_repair_dispatch(
         "vertical_state": "REQUESTED" if vertical_on else "NOT_REQUESTED",
         "reason": "PRODUCT_AND_VERTICAL" if vertical_on else "PRODUCT_ONLY",
         "approved_plan": approved_plan,
+        "open_deploy_window": window_on,
         "production_authorization": False,
     }
 
@@ -207,11 +212,13 @@ def hf_sync_command(decision: Mapping[str, Any], *, repo: str) -> list[str] | No
         return None
     revision = decision.get("expected_source_revision")
     vertical = decision.get("vertical_flagships")
+    window = decision.get("open_deploy_window")
     reason = decision.get("reason")
     if (
         not _sha(revision)
         or decision.get("product_scope") is not True
         or type(vertical) is not bool
+        or type(window) is not bool
         or decision.get("production_authorization") is not False
         or decision.get("vertical_state") != ("REQUESTED" if vertical else "NOT_REQUESTED")
         or not isinstance(reason, str)
@@ -255,6 +262,10 @@ def hf_sync_command(decision: Mapping[str, Any], *, repo: str) -> list[str] | No
             "-f", "publish_vertical_flagships=true",
             "-f", "vertical_plan_json=" + json.dumps(public_plan, sort_keys=True),
         ])
+    if window:
+        # Operator-attested maintenance window, forwarded as data. hf-sync still
+        # decides; a closed window there deploys nothing and fails this repair.
+        command.extend(["-f", "open_deploy_window=true"])
     return command
 
 
@@ -269,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     plan_input.add_argument("--plan-from-env", action="store_true")
     parser.add_argument("--require-vertical", action="store_true")
     parser.add_argument("--duplicate-dispatch", default="false")
+    parser.add_argument("--open-deploy-window", default="false")
     parser.add_argument("--github-output", type=Path, default=None)
     parser.add_argument("--repo", default="szl-holdings/a11oy")
     args = parser.parse_args(argv)
@@ -280,6 +292,7 @@ def main(argv: list[str] | None = None) -> int:
         plan=(parse_plan(os.environ.get("VERTICAL_PLAN_JSON", ""))
               if args.plan_from_env else load_plan(args.plan)),
         duplicate_dispatch=args.duplicate_dispatch,
+        open_deploy_window=args.open_deploy_window,
     )
     command = hf_sync_command(decision, repo=args.repo)
     decision = {
@@ -296,6 +309,7 @@ def main(argv: list[str] | None = None) -> int:
             f"vertical_flagships={str(decision['vertical_flagships']).lower()}",
             f"vertical_state={decision['vertical_state']}",
             f"reason={decision['reason']}",
+            f"open_deploy_window={str(decision.get('open_deploy_window') is True).lower()}",
         ]
         args.github_output.parent.mkdir(parents=True, exist_ok=True)
         with args.github_output.open("a", encoding="utf-8") as handle:
