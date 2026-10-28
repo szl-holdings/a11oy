@@ -563,6 +563,7 @@ COPY szl_lyte_lattice.py ./
 COPY szl_khipu_organ.py ./
 COPY szl_five_space.py ./
 COPY szl_nexus.py ./
+COPY szl_kernels_organ.py ./
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)
 # … (full rationale: docs/DOCKERFILE_NOTES.md §74)
 
