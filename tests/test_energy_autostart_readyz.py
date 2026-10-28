@@ -224,3 +224,22 @@ def test_autostart_boots_loop_running_when_lung_reachable():
         op.stop()
         _install_singleton(prev)
         lung.stop()
+
+
+def test_start_refuses_without_a_reachable_gpu_lung(monkeypatch, tmp_path):
+    """Press-play fails closed: no reachable lung, no running loop, even with stub allowed."""
+    monkeypatch.setattr(OP, "_http_reachable", lambda *_args, **_kwargs: False)
+    unreachable = OP.NodeCfg("rtx-betterwithage", "http://192.0.2.1:11434/v1",
+                             "llama3.1:8b", "bge-large", "betterwithage")
+    for index, nodes in enumerate(([], [unreachable])):
+        op = OP.OperatorDaemon(nodes=nodes, allow_stub=True,
+                               state_path=str(tmp_path / f"ledger-{index}.json"))
+        try:
+            out = op.start()
+            assert out["started"] is False, out
+            assert out["reason"] == "no_lung_reachable", out
+            assert out["running"] is False, out
+            assert op.is_running() is False
+            assert op.status()["jobs_done"] == 0
+        finally:
+            op.stop()

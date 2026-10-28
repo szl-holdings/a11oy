@@ -224,6 +224,12 @@ def _tile_energy_operator() -> dict:
     running = bool(st.get("running"))
     measured_total = st.get("joules_measured_total")
     measured_jobs = st.get("measured_jobs")
+    # A GPU counts only when a configured node answered the operator's latest sweep
+    # probe. A stub sweep ("computing (STUB)") is never GPU evidence.
+    node_status = st.get("node_status") if isinstance(st.get("node_status"), dict) else {}
+    gpu_reachable = 0 if st.get("stub_mode") else sum(
+        1 for state in node_status.values() if state == "computing")
+    measured = int(measured_jobs or 0)
     # Honest status: MEASURED label always (the operator's billable figure is MEASURED),
     # but the human status reflects whether the loop is actually running right now.
     if running:
@@ -243,10 +249,18 @@ def _tile_energy_operator() -> dict:
         joules_measured_total=measured_total,
         measured_jobs=measured_jobs,
         jobs_done=st.get("jobs_done"),
+        gpu_nodes_reachable=gpu_reachable,
         operational_evidence={
-            "predicate": "energy operator reports running=true",
-            "satisfied": running,
-            "reasons": [] if running else ["operator_stopped"],
+            "predicate": ("energy operator reports running=true + a configured GPU "
+                          "node answered its latest sweep probe + measured_jobs >= 1"),
+            "satisfied": bool(running and gpu_reachable and measured),
+            "reasons": [
+                reason for failed, reason in (
+                    (not running, "operator_stopped"),
+                    (not gpu_reachable, "no_gpu_reachable"),
+                    (not measured, "no_measured_jobs"),
+                ) if failed
+            ],
         },
     )
 
@@ -302,11 +316,22 @@ def _tile_energy_ledger() -> dict:
     )
 
 
+def _provenance_entry_is_measured(entry: dict) -> bool:
+    """Only a MEASURED, non-sample receipt is operational energy evidence."""
+    label = str(entry.get("joules_est_label") or "").strip().upper()
+    source = str(entry.get("energy_source") or "").strip().lower()
+    return label.startswith(MEASURED) and "SAMPLE" not in label and "sample" not in source
+
+
 def _tile_energy_provenance() -> dict:
     import szl_energy_provenance as ep
     summ = ep._CHAIN.summary()
     length = summ.get("length", 0)
     verify = summ.get("verify", {}) or {}
+    # Every receipt append() mints today is SAMPLE/ESTIMATE; an integrity-valid
+    # chain of sample receipts is never operational energy evidence.
+    measured_entries = sum(1 for entry in ep._CHAIN.entries()
+                           if isinstance(entry, dict) and _provenance_entry_is_measured(entry))
     status = (f"INTEGRITY-VERIFIED ({length} tamper-evident receipts)" if length
               else "EMPTY (no receipts this process)")
     return _tile(
@@ -322,15 +347,18 @@ def _tile_energy_provenance() -> dict:
             "verify": f"{_API}/energy/provenance",
         },
         length=length,
+        measured_entries=measured_entries,
         integrity_chain_status=summ.get("status"),
         verification_scope="content and hash-link integrity only; authorship not verified",
         operational_evidence={
-            "predicate": "non-empty provenance chain + computed chain verification",
-            "satisfied": bool(length and verify.get("ok") is True),
+            "predicate": ("non-empty provenance chain + computed chain verification + "
+                          "at least one MEASURED non-sample receipt"),
+            "satisfied": bool(length and verify.get("ok") is True and measured_entries),
             "reasons": [
                 reason for failed, reason in (
                     (not length, "no_chain_entries"),
                     (verify.get("ok") is not True, "chain_not_verified"),
+                    (not measured_entries, "no_measured_entries"),
                 ) if failed
             ],
         },
