@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 from pathlib import Path
+import re
 import tempfile
 import unittest
 
@@ -307,14 +310,108 @@ class CommandBoundaryTests(unittest.TestCase):
 
     def test_missing_required_decision_fields_are_not_defaulted(self) -> None:
         for field in ("product_scope", "vertical_flagships", "production_authorization",
-                      "vertical_state", "reason"):
+                      "vertical_state", "reason", "open_deploy_window"):
             value = self.decision()
             value.pop(field)
             with self.subTest(field=field), self.assertRaises(ValueError):
                 self.command(value)
 
 
+class DeployWindowForwardingTests(unittest.TestCase):
+    """The deploy window is an operator gate: forwarded only when asked, never opened here."""
+
+    WINDOW = ["-f", "open_deploy_window=true"]
+
+    def decision(self, **overrides) -> dict:
+        arguments = {"repair": True, "vertical_requested": False,
+                     "current_sha": SHA, "expected_sha": SHA, **overrides}
+        return dispatch.plan_repair_dispatch(**arguments)
+
+    def command(self, decision: dict) -> list[str] | None:
+        return dispatch.hf_sync_command(decision, repo="szl-holdings/a11oy")
+
+    def test_window_stays_closed_unless_explicitly_opened(self) -> None:
+        cases = [self.decision()] + [self.decision(open_deploy_window=value)
+                                     for value in (False, "false", "", "0", None, "TRUE ish")]
+        for decision in cases:
+            with self.subTest(decision=decision):
+                self.assertIs(decision["open_deploy_window"], False)
+                self.assertTrue(all("open_deploy_window" not in arg for arg in self.command(decision)))
+
+    def test_explicit_window_is_forwarded_once_as_data(self) -> None:
+        for value in (True, "true"):
+            with self.subTest(value=value):
+                decision = self.decision(open_deploy_window=value)
+                self.assertIs(decision["open_deploy_window"], True)
+                argv = self.command(decision)
+                self.assertEqual(argv, ["gh", "workflow", "run", "hf-sync.yml", "--repo",
+                                        "szl-holdings/a11oy", "--ref", "main", *self.WINDOW])
+                self.assertIs(decision["production_authorization"], False)
+
+    def test_window_composes_after_the_admitted_vertical_plan(self) -> None:
+        decision = self.decision(
+            vertical_requested=True, open_deploy_window=True,
+            plan={"complete": True, "approved": True, "expected_source_revision": SHA},
+        )
+        argv = self.command(decision)
+        self.assertEqual(argv[8:10], ["-f", "publish_vertical_flagships=true"])
+        self.assertTrue(argv[11].startswith("vertical_plan_json="))
+        self.assertEqual(argv[12:], self.WINDOW)
+
+    def test_denied_repairs_never_forward_a_window(self) -> None:
+        for overrides in ({"repair": False}, {"duplicate_dispatch": True},
+                          {"current_sha": "b" * 40}, {"current_sha": None, "expected_sha": None}):
+            with self.subTest(overrides=overrides):
+                decision = self.decision(open_deploy_window=True, **overrides)
+                self.assertFalse(decision["dispatch"])
+                self.assertIsNone(self.command(decision))
+                self.assertIs(decision.get("open_deploy_window", False), False)
+
+    def test_boundary_requires_a_real_boolean_window(self) -> None:
+        for value in (None, 0, 1, "true", "false", [], {}):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.command({**self.decision(open_deploy_window=True), "open_deploy_window": value})
+
+    def test_cli_forwards_the_window_and_records_it(self) -> None:
+        for flag, expected in ((None, "false"), ("false", "false"), ("true", "true")):
+            with self.subTest(flag=flag), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "out.txt"
+                argv = ["--repair", "true", "--expected-sha", SHA, "--current-sha", SHA,
+                        "--github-output", str(output)]
+                if flag is not None:
+                    argv += ["--open-deploy-window", flag]
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    self.assertEqual(dispatch.main(argv), 0)
+                receipt = json.loads(stdout.getvalue())
+                self.assertIs(receipt["open_deploy_window"], expected == "true")
+                self.assertEqual(receipt["hf_sync_command"][8:], self.WINDOW if expected == "true" else [])
+                self.assertIn(f"open_deploy_window={expected}\n", output.read_text(encoding="utf-8"))
+
+
 class WorkflowContractTests(unittest.TestCase):
+    def test_release_train_window_input_is_explicit_and_closed_by_default(self) -> None:
+        text = ESTATE.read_text(encoding="utf-8")
+        inputs = text.split("  workflow_dispatch:\n    inputs:\n", 1)[1].split("\npermissions:", 1)[0]
+        match = re.search(r"(?m)^      open_deploy_window:\n((?:        .*\n)+)", inputs)
+        self.assertIsNotNone(match)
+        block = match.group(1)
+        self.assertIn("        type: boolean\n", block)
+        self.assertIn("        default: false\n", block)
+        self.assertNotIn("default: true", block)
+        # Only the operator input opens the window; nothing here hard-codes it open.
+        self.assertNotIn("open_deploy_window=true", text)
+        self.assertNotIn("open_deploy_window: true", text)
+
+    def test_release_train_forwards_window_as_env_data(self) -> None:
+        text = ESTATE.read_text(encoding="utf-8")
+        caller = text.split("      - name: Dispatch only the established canonical writers\n", 1)[1]
+        caller = caller.split("\n      - name: ", 1)[0]
+        self.assertIn("OPEN_DEPLOY_WINDOW: ${{ inputs.open_deploy_window }}", caller)
+        self.assertIn('--open-deploy-window "${OPEN_DEPLOY_WINDOW:-false}"', caller)
+        self.assertIn('open_deploy_window=receipt["open_deploy_window"]', caller)
+
+
     def test_hf_sync_vertical_job_remains_opt_in(self) -> None:
         text = HF_SYNC.read_text(encoding="utf-8")
         job = text.split("  publish-vertical-flagships:\n", 1)[1].split("\n  readiness-verdict:", 1)[0]
