@@ -8,10 +8,14 @@ does not discover credentials, make HTTP requests, create receipts, or grant
 execution authority.
 
 Each input is read once, so the reported SHA-256 is of the same bytes that were
-parsed. An identity comparison is UNKNOWN when either side is missing, empty or
-not text; two absent values are never reported as equal. Optional pinned
-digests bind the inputs to bytes the caller already trusts. This tool verifies
-no signature, so it never reports a binding as authenticated.
+parsed. An identity comparison is MATCH or MISMATCH only when both sides are
+revisions in the form the identity sources emit: 40 or 64 lowercase hex
+characters, both the same length and not all zeros. Anything else, including a
+missing value, a placeholder such as "unknown" or "null", uppercase or padded
+text, or an abbreviated revision, is UNKNOWN, so two placeholders are never
+reported as equal. Optional pinned digests bind the inputs to bytes the caller
+already trusts. This tool verifies no signature, so it never reports a binding
+as authenticated.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import string
 from pathlib import Path
 from typing import Any, Mapping
@@ -27,6 +32,7 @@ from typing import Any, Mapping
 
 SCHEMA = "szl.local.evidence-reconciliation/v1"
 _HEX_DIGITS = frozenset(string.hexdigits)
+_REVISION = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
 
 
 def sha256(data: bytes) -> str:
@@ -53,10 +59,17 @@ def load(data: bytes) -> dict[str, Any]:
     return value
 
 
+def revision(value: Any) -> str | None:
+    """The value if it is a full lowercase hex revision, else None."""
+    if isinstance(value, str) and _REVISION.fullmatch(value) and value.strip("0"):
+        return value
+    return None
+
+
 def compare_identity(left: Any, right: Any) -> dict[str, Any]:
-    """MATCH or MISMATCH only when both sides are non-empty text, else UNKNOWN."""
-    known = [value for value in (left, right) if isinstance(value, str) and value.strip()]
-    if len(known) != 2:
+    """MATCH or MISMATCH only for two revisions of one length, else UNKNOWN."""
+    left, right = revision(left), revision(right)
+    if left is None or right is None or len(left) != len(right):
         status = "UNKNOWN"
     else:
         status = "MATCH" if left == right else "MISMATCH"

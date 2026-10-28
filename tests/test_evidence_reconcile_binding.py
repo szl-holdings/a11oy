@@ -11,14 +11,14 @@ from tools.evidence_reconcile import reconcile
 
 BASE = {
     "summary": {
-        "canonical_main": "main-sha",
-        "runtime_identity": {"source_revision": "runtime-sha"},
+        "canonical_main": "a" * 40,
+        "runtime_identity": {"source_revision": "b" * 40},
         "acceptance_tests_run": 0,
         "acceptance_disposition": "BLOCKED",
     },
     "manifest": {
-        "github_main": {"sha": "main-sha"},
-        "latest_hf_sync": [{"headSha": "hf-sha"}],
+        "github_main": {"sha": "a" * 40},
+        "latest_hf_sync": [{"headSha": "c" * 40}],
     },
     "preservation_gap": {"blocker": "REAL_POST_RESTART_VERIFIER_NOT_WIRED"},
     "authority_review": {
