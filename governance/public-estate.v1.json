@@ -25,7 +25,7 @@
       "hf_repository": "SZLHOLDINGS/a11oy",
       "base_url": "https://szlholdings-a11oy.hf.space",
       "deployment_source_repository": "szl-holdings/a11oy",
-      "revision_policy": "exact-default-branch",
+      "revision_policy": "payload-equivalent-default-branch",
       "default_branch": "main",
       "build_info_path": "/api/build-info",
       "required_paths": [
