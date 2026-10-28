@@ -167,6 +167,16 @@ class TransportTests(unittest.TestCase):
         for b in (b'{"a":1,"a":2}', b'{"a":NaN}', b'{"a":1e999}', b'\xff', b'', b'{'*(2000), b'[]'+b' '*(M.LIMIT)):
             with self.subTest(body=b[:20]),self.assertRaises(M.VerificationError): M.strict_json(b)
 
+    def test_build_witness_reports_observed_revision(self):
+        value={'status':'OBSERVED','receipt_minted':False,
+               'build':{'state':'OBSERVED','revision':'b'*40,
+                         'revision_source':'env:SZL_GIT_SHA'}}
+        with self.assertRaises(M.VerificationError) as caught:
+            M.source_revision(value,SHA)
+        self.assertIn('expected=' + SHA, str(caught.exception))
+        self.assertIn('observed=' + repr('b'*40), str(caught.exception))
+        self.assertIn("source='env:SZL_GIT_SHA'", str(caught.exception))
+
     def test_build_witness_rejects_empty_object(self):
         with self.assertRaises(M.VerificationError): M.source_revision({},SHA)
 
