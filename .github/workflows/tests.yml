@@ -986,6 +986,8 @@ jobs:
         run: python3 -m unittest tests.test_szl_dsse_parity -v
       - name: Verify shared credential and receipt hardening
         run: pytest tests/test_shared_security_hardening.py -q
+      - name: Verify Snowflake token type is operator-selected
+        run: pytest tests/test_snowflake_token_type.py -q
       - name: Verify offline execution observation bindings
         run: python -m pytest tests/test_execution_acceptance.py -q
       - name: Verify bounded operator capture and offline semantic evidence
