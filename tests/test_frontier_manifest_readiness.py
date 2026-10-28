@@ -404,3 +404,130 @@ def test_frontier_page_renders_both_contracts_without_legacy_live_inference():
     assert "all_sources_live=" not in html
     assert "s.source_reachability" in html
     assert "s.operational_readiness" in html
+
+
+def test_anonymous_anatomy_loop_read_does_not_append_energy_provenance(monkeypatch):
+    """A public GET must not mint the receipts the provenance tile counts."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import szl_anatomy_loop as anatomy
+    import szl_energy_provenance as ep
+
+    def unexpected_network(*_args, **_kwargs):
+        raise AssertionError("an anatomy read must stay offline in this test")
+
+    monkeypatch.setattr(anatomy.urllib.request, "urlopen", unexpected_network)
+    monkeypatch.setattr(anatomy, "_read_intake", lambda: anatomy._sample_posture())
+    monkeypatch.setattr(anatomy, "_probe_merged_meter_joules", lambda: None)
+    monkeypatch.setattr(ep, "_CHAIN", ep.EnergyProvenanceChain())
+    app = FastAPI()
+    anatomy.register(app)
+    client = TestClient(app)
+
+    for _ in range(2):
+        response = client.get("/api/a11oy/v1/anatomy/loop")
+        assert response.status_code == 200
+        assert response.json()["last_receipt_id"]
+
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert len(ep._CHAIN) == 0
+    assert ready is False
+    assert "no_chain_entries" in reasons
+
+
+def test_sample_provenance_receipts_never_satisfy_the_provenance_tile(monkeypatch):
+    import szl_energy_provenance as ep
+
+    chain = ep.EnergyProvenanceChain()
+    chain.append(output="cycle", energy_source="curtailed-sample", joules_est=0.0)
+    chain.append(output="job", energy_source="grid", joules_est=1.5)
+    monkeypatch.setattr(ep, "_CHAIN", chain)
+
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert chain.verify()["ok"] is True
+    assert ready is False
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert "no_measured_entries" in reasons
+    assert tile["length"] == 2
+    assert tile["measured_entries"] == 0
+
+
+def test_provenance_tile_counts_only_measured_non_sample_entries(monkeypatch):
+    import szl_energy_provenance as ep
+
+    class Chain:
+        def __init__(self, entries):
+            self._entries = entries
+
+        def summary(self):
+            return {"length": len(self._entries), "verify": {"ok": True},
+                    "status": "VERIFIED", "head_hash": "d" * 64, "link_rule": "test"}
+
+        def entries(self):
+            return list(self._entries)
+
+    mislabeled = {"energy_source": "curtailed-sample", "joules_est_label": "MEASURED"}
+    measured = {"energy_source": "grid", "joules_est_label": "MEASURED"}
+
+    monkeypatch.setattr(ep, "_CHAIN", Chain([mislabeled]))
+    blocked = manifest._tile_energy_provenance()
+    monkeypatch.setattr(ep, "_CHAIN", Chain([mislabeled, measured]))
+    satisfied = manifest._tile_energy_provenance()
+
+    assert blocked["measured_entries"] == 0
+    assert manifest._tile_operational_readiness(blocked)[0] is False
+    assert satisfied["measured_entries"] == 1
+    assert manifest._tile_operational_readiness(satisfied) == (True, [])
+
+
+def _operator_status(**overrides):
+    status = {
+        "running": True,
+        "stub_mode": False,
+        "jobs_done": 4,
+        "joules_measured_total": 0.0,
+        "measured_jobs": 0,
+        "node_status": {"rtx": "computing"},
+    }
+    status.update(overrides)
+    return status
+
+
+def test_running_stub_operator_without_a_gpu_is_not_ready(monkeypatch):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        stub_mode=True,
+        node_status={"rtx": "DEGRADED", "local-stub": "computing (STUB)"},
+    ))
+
+    tile = manifest._tile_energy_operator()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert ready is False
+    assert "no_gpu_reachable" in reasons
+    assert "no_measured_jobs" in reasons
+    assert tile["gpu_nodes_reachable"] == 0
+
+
+def test_running_operator_with_a_gpu_needs_a_measured_job(monkeypatch):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status())
+    tile = manifest._tile_energy_operator()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert ready is False
+    assert reasons == ["no_measured_jobs"]
+    assert tile["gpu_nodes_reachable"] == 1
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        measured_jobs=1, joules_measured_total=2.5))
+    measured = manifest._tile_energy_operator()
+
+    assert manifest._tile_operational_readiness(measured) == (True, [])

@@ -21,6 +21,8 @@ Honesty (Doctrine v11 — NEVER violate):
   - Sandbox / no-GPU: a faithful local STUB of the Ollama API does REAL CPU work
     (so wall-time + jobs_done are honest) but its energy is ALWAYS labeled SAMPLE
     and never billable. Stub mode is announced loudly in every status payload.
+  - start() refuses with reason "no_lung_reachable" unless a configured GPU node
+    answers a real liveness probe; it never presses play on the stub alone.
 
 Interface other devs build against (STABLE — Dev2 receipts / Dev3 projection /
 Dev4 dashboard consume this):
@@ -1140,6 +1142,17 @@ class OperatorDaemon:
         return self._thread is not None and self._thread.is_alive()
 
     def start(self) -> dict:
+        with self._lock:
+            if self.is_running():
+                return self.status()
+        # Fail closed: without a reachable GPU lung the loop could only run the
+        # stub and would read as running while no GPU computes. Same stable code
+        # autostart_if_lung_reachable() reports. Probed outside the lock so
+        # status readers never wait on the network.
+        if not self.any_lung_reachable():
+            refused = self.status()
+            refused.update({"started": False, "reason": "no_lung_reachable"})
+            return refused
         with self._lock:
             if self.is_running():
                 return self.status()
