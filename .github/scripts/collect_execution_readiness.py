@@ -176,6 +176,9 @@ def main():
     parser.add_argument("--out-dir", required=True)
     args = parser.parse_args()
     try:
+        require(all(type(value) is str and bool(value.strip())
+                    for value in (args.runtime_sha, args.boot_id, args.run_nonce)),
+                "EXECUTION_CONTEXT_REQUIRED")
         import httpx
         pins_raw = os.environ.get("A11OY_EXECUTION_AUTHORITY_PINS_JSON", "")
         require(bool(pins_raw) and len(pins_raw.encode()) <= 16384, "INDEPENDENT_AUTHORITY_PINS_REQUIRED")
