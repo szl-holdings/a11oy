@@ -84,6 +84,12 @@ except Exception as _exc:  # pragma: no cover
 else:
     _AGENT_IMPORT_ERROR = ""
 try:
+    # R6: controller capability factory for admitted source-answer synthesis.
+    # Absent grants keep every agent call site at CONTENT_ADMISSION_UNAVAILABLE.
+    import a11oy_rag_synthesis_controller as _synthctl
+except Exception:  # pragma: no cover
+    _synthctl = None
+try:
     import a11oy_org_rag as _orgrag  # agentic RAG over the org
 except Exception as _exc:  # pragma: no cover
     _orgrag = None
@@ -1698,6 +1704,22 @@ def _agent_rag_query(q: str, **kw) -> dict[str, Any]:
     return _orgrag.query(q, k=kw.get("k", 6), emit_receipt=khipu_emit)
 
 
+def _answer_synthesizer_for(request: Any, who: dict):
+    """Admitted synthesis capability for this verified caller, or None.
+
+    Only the controller-installed grant source and fixed destination can make
+    this non-None. The generic fallback-walking model path is never admitted.
+    """
+    if _synthctl is None or _orgrag is None:
+        return None
+    try:
+        return _synthctl.build_answer_synthesizer(
+            request, who, hydrate=_orgrag.hydrate_answer_evidence,
+            forbidden_transports=(agent_model_complete, _call_model_resilient))
+    except Exception:
+        return None
+
+
 def agent_rag_context(q: str, *, k: int = 6) -> dict[str, Any]:
     """Return evidence-bound Brain handles for a governed navigator model.
 
@@ -3193,7 +3215,8 @@ async def agent_run(request: Request) -> JSONResponse:
         khipu_emit=khipu_emit, puriq_decide=_principal_puriq(who),
         execute_tool=_principal_tool_runner(client, who),
         model_complete=agent_model_complete, rag_query=_agent_rag_query,
-        two_person_attested=who["two_person_attested"])
+        two_person_attested=who["two_person_attested"],
+        answer_synthesizer=_answer_synthesizer_for(request, who))
     return JSONResponse(result)
 
 
@@ -3228,6 +3251,7 @@ async def agent_stream(request: Request):
             execute_tool=_principal_tool_runner(client, who),
             model_complete=agent_model_complete, rag_query=_agent_rag_query,
             two_person_attested=two_person,
+            answer_synthesizer=_answer_synthesizer_for(request, who),
             emit=lambda ev, d: _q.append((ev, d)))
         for ev, d in _q:
             yield sse(ev, d)
@@ -3669,7 +3693,8 @@ async def chat_stream(request: Request):
                     khipu_emit=khipu_emit, puriq_decide=_principal_puriq(who),
                     execute_tool=_principal_tool_runner(client, who),
                     model_complete=agent_model_complete, rag_query=_agent_rag_query,
-                    two_person_attested=two_person, emit=_agent_emit)
+                    two_person_attested=two_person, emit=_agent_emit,
+                    answer_synthesizer=_answer_synthesizer_for(request, who))
             except Exception:
                 yield sse("error", {"error": "AGENT_LOOP_UNAVAILABLE"})
                 return
