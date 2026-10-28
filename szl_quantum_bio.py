@@ -85,13 +85,28 @@ def pmf_two_ion(d_psi, d_pH, d_pK, w=0.18, T=310.0):
 # ---------------------------------------------------------------------------
 # 4. Lindblad/GKSL coherence decay  [VERIFIED]
 # ---------------------------------------------------------------------------
+def _require_positive_finite(name, value):
+    """Fail closed unless ``value`` is a finite real number > 0."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a real number, got {type(value).__name__}")
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be finite and > 0, got {value!r}")
+    return value
+
+
 def lindblad_coherence_series(tau_c=6.05, steps=60, dt=0.25, c0=1.0):
     """
     Off-diagonal 'coherence mass' decaying under a pure-dephasing Lindblad channel:
     C(t) = C0 · exp(-t/τ_c). Returns the decay series + fitted τ_c. Closed-form so it
     runs with or without numpy (the full density-matrix integrator lives in the
     payload .py; this exposes its VERIFIED decay envelope, τ_c ≈ 6.05).
+
+    Refuses (``ValueError``) tau_c <= 0, c0 <= 0 and non-finite values: the Lean
+    counterpart ``Lutar/QuantumBio/CoherenceDecay.lean`` (``coh_strictAnti``,
+    ``lambda_single_crossing``) assumes 0 < C0 and 0 < γ = 1/τ_c.
     """
+    _require_positive_finite("tau_c", tau_c)
+    _require_positive_finite("c0", c0)
     ts = [round(i * dt, 4) for i in range(steps)]
     cs = [round(c0 * math.exp(-t / tau_c), 6) for t in ts]
     return {"t": ts, "C": cs, "tau_c": tau_c, "closure_steady_state": "dρ/dt = 0 (decohered)"}
@@ -181,7 +196,14 @@ def _h_pmf(req: Request):
 
 def _h_coherence(req: Request):
     tau_c = _f(req, "tau_c", 6.05); steps = int(_f(req, "steps", 60))
-    s = lindblad_coherence_series(tau_c, max(2, min(steps, 400)))
+    try:
+        s = lindblad_coherence_series(tau_c, max(2, min(steps, 400)))
+    except ValueError as e:
+        return JSONResponse({
+            "model": "Lindblad / GKSL open-quantum-system coherence",
+            "status": "REFUSED", "error": str(e),
+            "requires": "0 < tau_c < inf (Lean: 0 < gamma = 1/tau_c)",
+        }, status_code=400)
     return JSONResponse({
         "model": "Lindblad / GKSL open-quantum-system coherence",
         "equation": "dρ/dt = −(i/ħ)[H,ρ] + Σ γ_k (L_k ρ L_k† − ½{L_k†L_k, ρ})",
