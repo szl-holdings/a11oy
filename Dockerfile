@@ -189,7 +189,7 @@ COPY model_release/m1/ ./model_release/m1/
 # Keep root-level sources explicit while batching them into one filesystem layer.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY szl_runtime_identity.py szl_signing_state.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
+COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -205,7 +205,11 @@ COPY a11oy_model_support.py ./
 # Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
 # degrades to an honest labeled 503 (never a faked payload), the panel shows it.
-COPY data/genome.json ./data/genome.json
+# Bounded master implementation workcell: validated read-only DAG/status
+# artifact. Missing or malformed bytes remain honest UNAVAILABLE at runtime.
+# Its module rides the batched root COPY above and its DAG shares this data
+# layer, keeping the runtime stage inside the daemon layer-depth budget.
+COPY data/genome.json data/master_workcell_dag_20261027.json ./data/
 # ---------------------------------------------------------------------------
 # … (full rationale: docs/DOCKERFILE_NOTES.md §9)
 

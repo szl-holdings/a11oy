@@ -201,13 +201,13 @@ def test_native_docker_heredocs_preserve_stages_and_bind_generated_model_destina
 
 
 @pytest.mark.parametrize("before,after", [
-    (b"https://github.com/cli/cli/releases/download/v2.102.1/",
-     b"https://example.invalid/cli/cli/releases/download/v2.102.1/"),
-    (b"5b91c75d971509e96f673fa9f46e5d8ea294b6bbfedbc8ff458aedd88775d94c",
+    (b"https://github.com/cli/cli/releases/download/v2.102.0/",
+     b"https://example.invalid/cli/cli/releases/download/v2.102.0/"),
+    (b"7e54a307f90afdc59796c325ec0c49fb09e6c18537727207a8ac7513584ea5b0",
      b"0" * 64),
-    (b"gh version 2.102.1 ", b"gh version 2.102.0 "),
-    (b'"$(dpkg --print-architecture)" = amd64', b'"$(dpkg --print-architecture)" = arm64'),
-    (b"sha256sum --check --strict -", b"true"),
+    (b"gh version 2.102.0 ", b"gh version 2.102.1 "),
+    (b'"$(dpkg --print-architecture)" = "amd64"', b'"$(dpkg --print-architecture)" = "arm64"'),
+    (b"sha256sum -c -", b"true"),
 ])
 def test_cli_acquisition_changes_require_exact_run_review(before, after):
     original = (ROOT / "Dockerfile").read_bytes()
