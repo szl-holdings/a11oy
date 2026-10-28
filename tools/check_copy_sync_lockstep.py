@@ -819,18 +819,18 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "1d47071a0e9e50356e34d55528e7887fef145bf37c439cec5775068648f06e5f"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "3bd53226e383f4637f928d4706492d4d7f0823ea0b36b33ec389830afc6fc450"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "1aa044e4341857d87c61a7dd3a9db51236a0aa52d059658312f53b984e09e90f"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "f31c0be60794030747539b9f60037698b3c26bc8930dc9d0fe1e2612c1ef9e1a"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
 # package-bound Chromium revision, and gates relock on success.
-REVIEWED_READINESS_VERDICT_JOB_SHA256 = "fa40f6f29bc71f7b3222645adbc6aa0d39bb3ff9660b49d3b67700e667f4f92b"
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "d7476d59b9ca2073b9bb7f83505429be951be3a1993b59b7a4f124f5c7cb4d5b"
 # The relock job holds the provider read credential and consumes the readiness
 # verdict.  Bind its complete job body so an extra step, secret, permission, or
 # failure bypass cannot inherit that authority unnoticed.
-REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c8762f3de244d5964f"
+REVIEWED_RELOCK_JOB_SHA256 = "5dbfdd8403d193d61e07e1e91ab6e3a542a88a9930c0d8df508b1e83e74aa96e"
 # The separate collection job is authenticated only for the fixed GET export.
-REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "598dc56af57eafb9a27ed35c0051df14a0c07ad43868c20ce8b60b4c69af138a"
+REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "824a38e51480554ad78e310588cde1936ff94eb9b5da5f6da010ef8d706d057a"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only collection, public authority materialization and crypto closure.
     ".github/scripts/collect_execution_readiness.py": "5421fd1a54adb29cd0a4c1b3ececa07ce28b8458a0a8a9c6fb75074d7178b162",
