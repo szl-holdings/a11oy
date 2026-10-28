@@ -1013,6 +1013,8 @@ jobs:
         run: python3 -m unittest tests.test_szl_dsse_parity -v
       - name: Verify shared credential and receipt hardening
         run: pytest tests/test_shared_security_hardening.py -q
+      - name: Verify Ayllu wall key pin, payload-type scope and untrusted isolation
+        run: python -B -m pytest tests/test_ayllu_wall_pin.py tests/test_ayllu_wall_negative.py -q -p no:cacheprovider
       - name: Verify Snowflake token type is operator-selected
         run: pytest tests/test_snowflake_token_type.py -q
       - name: Verify offline execution observation bindings
