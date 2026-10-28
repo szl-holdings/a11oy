@@ -208,8 +208,10 @@ COPY a11oy_model_support.py ./
 COPY data/genome.json ./data/genome.json
 # Bounded master implementation workcell: validated read-only DAG/status
 # artifact. Missing or malformed bytes remain honest UNAVAILABLE at runtime.
-COPY szl_master_workcell.py ./
-COPY data/master_workcell_dag_20261027.json ./data/master_workcell_dag_20261027.json
+# Keep the module and its immutable artifact in one filesystem layer. The
+# module resolves the source-tree data path locally and the image-root copy at
+# runtime; both sources remain explicit for the import-vs-COPY guard.
+COPY szl_master_workcell.py data/master_workcell_dag_20261027.json ./
 # ---------------------------------------------------------------------------
 # … (full rationale: docs/DOCKERFILE_NOTES.md §9)
 

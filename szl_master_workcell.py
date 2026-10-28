@@ -20,7 +20,13 @@ from fastapi.responses import JSONResponse
 
 
 BASE = Path(__file__).resolve().parent
-ARTIFACT_PATH = BASE / "data" / "master_workcell_dag_20261027.json"
+_SOURCE_ARTIFACT_PATH = BASE / "data" / "master_workcell_dag_20261027.json"
+_IMAGE_ARTIFACT_PATH = BASE / "master_workcell_dag_20261027.json"
+# The source checkout keeps the report under data/. The Dockerfile batches the
+# module and JSON into one layer at the image root to preserve its layer budget.
+ARTIFACT_PATH = (
+    _SOURCE_ARTIFACT_PATH if _SOURCE_ARTIFACT_PATH.is_file() else _IMAGE_ARTIFACT_PATH
+)
 SCHEMA = "szl.master-workcell.v1"
 HONEST_LABELS = frozenset({
     "MEASURED", "REPORTED", "DECLARED", "SIMULATED", "SAMPLE", "MODELED",
