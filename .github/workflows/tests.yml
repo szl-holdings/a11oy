@@ -460,6 +460,33 @@ jobs:
         # tier=experimental/live-data are reported but allowed. Λ stays Conjecture 1.
         run: pytest tests/test_formula_registry_guard.py -q
 
+  python-formula-input-guards:
+    name: Formula input guards match their Lean hypotheses (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions policy). setup-python is github-owned.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest and starlette (hash-locked ci-core; numpy is optional here)
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: n-f quorum and coherence input guards (byzantine_quorum, szl_quantum_bio)
+        # Tests added with a11oy#3029 and not run by any other workflow. The quorum tests pin
+        # quorum = n - f and refuse n < 3f + 1 (khipu_quorum_safety_conditional); the coherence
+        # tests refuse tau_c <= 0, non-finite tau_c and c0 <= 0 (coh_strictAnti, coh_tendsto_zero).
+        # Against the code before #3029 the new tests fail (12 failures, measured on an SZL VM).
+        # The notice carries pytest's summary line so the executed count is visible in the API.
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python -B -m pytest -q -p no:cacheprovider \
+            tests/test_formulas/test_byzantine_quorum.py \
+            tests/test_formulas/test_byzantine_quorum_lean_conditional.py \
+            tests/test_quantum_bio_coherence_guards.py | tee "$RUNNER_TEMP/formula-input-guards.txt"
+          echo "::notice title=formula input guards::$(tail -n 1 "$RUNNER_TEMP/formula-input-guards.txt")"
+
   python-lambda-kernel-parity:
     name: Λ parity — flagship inline vs published universal kernel (pytest, offline)
     runs-on: ubuntu-latest
