@@ -206,5 +206,33 @@ class BindingLevelTests(unittest.TestCase):
         self.assertEqual(report["binding"]["level"], "IDENTITY_MISMATCH")
 
 
+class PinnedDigestTypeTests(unittest.TestCase):
+    def test_falsy_non_mapping_pins_are_rejected(self):
+        for pins in ([], (), "", 0, False):
+            with self.subTest(pins=pins), tempfile.TemporaryDirectory() as directory:
+                with self.assertRaises(ValueError):
+                    _run(_write(Path(directory), _values()), pinned_digests=pins)
+
+    def test_absent_pins_mean_nothing_is_pinned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = _run(_write(Path(directory), _values()), pinned_digests=None)
+        self.assertEqual({f["digest_status"] for f in report["files"].values()}, {"NOT_PINNED"})
+        self.assertEqual(report["binding"]["level"], "LOCAL_CONSISTENCY")
+
+    def test_zero_byte_pin_file_blocks_without_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = _write(root, _values())
+            pins = root / "pins.json"
+            pins.write_bytes(b"")
+            output = root / "report.json"
+            with mock.patch("sys.argv", _argv(paths, output, "--pinned-digests", str(pins))), \
+                    mock.patch("builtins.print") as printed:
+                code = evidence_reconcile.main()
+            self.assertEqual(code, 2)
+            self.assertFalse(output.exists())
+            self.assertIn('"BLOCKED"', printed.call_args[0][0])
+
+
 if __name__ == "__main__":
     unittest.main()

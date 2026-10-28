@@ -106,7 +106,7 @@ def reconcile(
         "gpu_preflight": gpu_path,
     }
     raw = {name: read_once(path) for name, path in paths.items()}
-    pins = checked_pins(pinned_digests or {}, paths)
+    pins = checked_pins({} if pinned_digests is None else pinned_digests, paths)
 
     summary = load(raw["summary"])
     manifest = load(raw["manifest"])
