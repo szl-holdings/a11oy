@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/szl-router
-          ref: 091346fd29b8fec4e0f1ce056a97b66933a6a8f2
+          ref: 6819d2aa616adb42d8257202df94059eff761bed
           path: .router-contract-peer
           persist-credentials: false
       - name: Python
