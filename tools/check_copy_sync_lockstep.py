@@ -735,7 +735,7 @@ def workflow_has_unfiltered_main_push(workflow_text):
 
 
 REVIEWED_WORKFLOW_DISPATCH_SHA256 = (
-    "9d7b950df6099c2c1d3284ab98a6e91dbff6d38ad32a18e2c1ea8011665852bf"
+    "25e89c0ccce352f583a2c2e00a3cde6bd3672e2fd4d6492d4e07c733a3d34000"
 )
 
 
@@ -806,7 +806,7 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
 })
 
 
-REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "4fdb91169b94ccf548612edcf5e58748532ffe32962cba51fde20a08838a22f9"
+REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "8e63792c9770acdc6bb1c6e9fa9ed651bc2fd1718d63d2519ef956fdea5ac56e"
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
 # The deploy path is source-admission -> preflight -> deploy -> runtime-config.
 # Preflight admits current main before any provider effect, reads the runtime
@@ -819,20 +819,24 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "1aa044e4341857d87c61a7dd3a9db51236a0aa52d059658312f53b984e09e90f"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "72892e954caa111b717b9fc73a619f47ec61c202ff5b41d4a4e0098c52dfed1b"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "f31c0be60794030747539b9f60037698b3c26bc8930dc9d0fe1e2612c1ef9e1a"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
 # package-bound Chromium revision, and gates relock on success.
-REVIEWED_READINESS_VERDICT_JOB_SHA256 = "d7476d59b9ca2073b9bb7f83505429be951be3a1993b59b7a4f124f5c7cb4d5b"
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "74e3eb9a62bf2720e4f7a844ca3341eb7998154a322e13a4212e16f64d736d75"
 # The relock job holds the provider read credential and consumes the readiness
 # verdict.  Bind its complete job body so an extra step, secret, permission, or
 # failure bypass cannot inherit that authority unnoticed.
-REVIEWED_RELOCK_JOB_SHA256 = "5dbfdd8403d193d61e07e1e91ab6e3a542a88a9930c0d8df508b1e83e74aa96e"
+REVIEWED_RELOCK_JOB_SHA256 = "8debe2a787278449dc5a50a1e946169129179e5655d8eefac2a7fa3dc7cc6975"
 # The separate collection job is authenticated only for the fixed GET export.
-REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "824a38e51480554ad78e310588cde1936ff94eb9b5da5f6da010ef8d706d057a"
+REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "7590b85e303209c953e267aa5bd8b861e557e221674d26d5d32690440115db01"
+# The GET-only handoff freezes independent expected context and authority pins.
+# Its manual verification branch excludes every provider configuration/deploy job.
+REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "58ebd551d9c2bc93f90e217a150eca4d66ef3ff619ef43feb5cb470861b92bf3"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
-    # Reviewed GET-only collection, public authority materialization and crypto closure.
+    # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
+    ".github/scripts/admit_execution_handoff.py": "806161162b9f4fcf7f901e97ee199d2e362c97a63ee8aeb728070f0ca2b1e4cf",
     ".github/scripts/collect_execution_readiness.py": "5421fd1a54adb29cd0a4c1b3ececa07ce28b8458a0a8a9c6fb75074d7178b162",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
@@ -1005,8 +1009,13 @@ def _job_body_sha256(lines):
     return hashlib.sha256("\n".join(lines).strip().encode("utf-8")).hexdigest()
 
 
-def job_requires_successful_needs(block_lines, job_indent, expected_needs):
-    """Require an exact needs list and the default success-only job condition."""
+def job_requires_successful_needs(block_lines, job_indent, expected_needs,
+                                  expected_condition=None):
+    """Require exact dependencies and their reviewed success-only condition.
+
+    An explicit condition is accepted only when the caller names the complete
+    reviewed expression. The default still refuses any explicit condition.
+    """
     property_indents = []
     for raw in block_lines[1:]:
         stripped = raw.strip()
@@ -1030,7 +1039,9 @@ def job_requires_successful_needs(block_lines, job_indent, expected_needs):
         if not entry or entry[0] in properties:
             return False
         properties[entry[0]] = entry[1]
-    if set(properties) & {"<<", "if", "continue-on-error"}:
+    if set(properties) & {"<<", "continue-on-error"}:
+        return False
+    if properties.get("if") != expected_condition:
         return False
     return yaml_scalar_matches(properties.get("needs", ""), expected_needs)
 
@@ -1080,6 +1091,12 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         and len(runtimes) == 1
         and _job_body_sha256(runtimes[0]) == REVIEWED_RUNTIME_CONFIG_JOB_SHA256
     )
+    handoff_jobs = [lines for job_id, lines, _indent in jobs if job_id == "execution-handoff"]
+    handoff_verified = (
+        helpers_verified
+        and len(handoff_jobs) == 1
+        and _job_body_sha256(handoff_jobs[0]) == REVIEWED_EXECUTION_HANDOFF_JOB_SHA256
+    )
     readiness_jobs = [
         lines for job_id, lines, _indent in jobs
         if job_id == "readiness-verdict"
@@ -1098,7 +1115,10 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         helpers_verified
         and len(execution_jobs) == 1
         and _job_body_sha256(execution_jobs[0][0]) == REVIEWED_EXECUTION_READINESS_JOB_SHA256
-        and job_requires_successful_needs(*execution_jobs[0], "readiness-verdict")
+        and job_requires_successful_needs(
+            *execution_jobs[0], "[readiness-verdict, execution-handoff]",
+            "${{ always() && needs.readiness-verdict.result == 'success' && needs.execution-handoff.result == 'success' }}",
+        )
     )
     relock_jobs = [
         (lines, indent) for job_id, lines, indent in jobs
@@ -1109,13 +1129,15 @@ def has_source_derived_deploy_contract(hf_sync_text, *, ownership_helper=None,
         and helpers_verified
         and _job_body_sha256(relock_jobs[0][0]) == REVIEWED_RELOCK_JOB_SHA256
         and job_requires_successful_needs(
-            *relock_jobs[0], "[runtime-config, execution-readiness]"
+            *relock_jobs[0], "[execution-handoff, execution-readiness]",
+            "${{ always() && needs.execution-handoff.result == 'success' && needs.execution-readiness.result == 'success' }}",
         )
     )
     deploys = [(lines, indent) for job_id, lines, indent in jobs if job_id == "deploy"]
     return (workflow_has_reviewed_inherited_context(hf_sync_text)
             and workflow_has_unfiltered_main_push(hf_sync_text)
             and workflow_has_reviewed_event_scope(hf_sync_text)
+            and handoff_verified
             and readiness_verified
             and execution_verified
             and readiness_gates_relock

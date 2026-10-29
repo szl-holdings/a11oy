@@ -37,7 +37,7 @@ jobs:
           tests/test_execution_observer_registration.py
           tests/test_combined_consumers.py tests/test_readiness_artifact.py
           tests/test_publish_readiness_verdict.py tests/test_canonical_a11oy_relock.py
-          tests/test_execution_acceptance.py tests/test_dockerfile_layer_budget.py
+          tests/test_execution_acceptance.py tests/test_hf_execution_handoff.py tests/test_dockerfile_layer_budget.py
           tests/test_model_endpoint_credentials.py
       - name: Verify authenticated VM model gateway contracts
         run: python -B -m unittest discover -s ops/vm-model-gateway -p 'test_*.py' -v
