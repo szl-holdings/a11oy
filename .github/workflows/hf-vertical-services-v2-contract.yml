@@ -48,6 +48,7 @@ on:
     - tests/test_sentra_upstream_backoff.py
     - tests/test_vertical_publication_scope.py
     - tests/test_vertical_shell_healthz_process_scoped.py
+    - tests/test_w46_durability_admission.py
   push:
     branches:
     - main
@@ -89,6 +90,7 @@ on:
     - tests/test_sentra_upstream_backoff.py
     - tests/test_vertical_publication_scope.py
     - tests/test_vertical_shell_healthz_process_scoped.py
+    - tests/test_w46_durability_admission.py
   workflow_dispatch: null
   merge_group:
     types:
@@ -134,6 +136,7 @@ jobs:
           tests/test_hf_publish_vertical_flagships_v4.py
           tests/test_vertical_shell_healthz_process_scoped.py
           tests/test_hf_vertical_convergence.py
+          tests/test_w46_durability_admission.py
           tests/test_sentra_upstream_backoff.py
           tests/test_vertical_publication_scope.py
           tests/test_hf_publish_vertical_flagships_v3.py -q
