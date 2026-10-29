@@ -562,6 +562,22 @@ def test_anonymous_anatomy_loop_read_does_not_append_energy_provenance(monkeypat
     ready, reasons = manifest._tile_operational_readiness(tile)
 
     assert len(ep._CHAIN) == 0
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert ready is False
+    assert "no_chain_entries" in reasons
+
+
+def test_empty_energy_provenance_chain_is_unavailable(monkeypatch):
+    import szl_energy_provenance as ep
+
+    monkeypatch.setattr(ep, "_CHAIN", ep.EnergyProvenanceChain())
+
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["status"] == "EMPTY (no receipts this process)"
+    assert tile["measured_entries"] == 0
     assert ready is False
     assert "no_chain_entries" in reasons
 
@@ -578,6 +594,8 @@ def test_sample_provenance_receipts_never_satisfy_the_provenance_tile(monkeypatc
     ready, reasons = manifest._tile_operational_readiness(tile)
 
     assert chain.verify()["ok"] is True
+    assert tile["label"] == manifest.SAMPLE
+    assert "sample receipts" in tile["status"]
     assert ready is False
     assert tile["operational_evidence"]["satisfied"] is False
     assert "no_measured_entries" in reasons
@@ -585,32 +603,40 @@ def test_sample_provenance_receipts_never_satisfy_the_provenance_tile(monkeypatc
     assert tile["measured_entries"] == 0
 
 
-def test_provenance_tile_counts_only_measured_non_sample_entries(monkeypatch):
+def test_unbound_measured_label_cannot_promote_provenance(monkeypatch):
     import szl_energy_provenance as ep
 
-    class Chain:
-        def __init__(self, entries):
-            self._entries = entries
+    chain = ep.EnergyProvenanceChain()
+    entry = chain.append(output="job", energy_source="grid", joules_est=1.5)
+    entry["joules_est_label"] = "MEASURED"  # outside the current hash-bound schema
+    monkeypatch.setattr(ep, "_CHAIN", chain)
 
-        def summary(self):
-            return {"length": len(self._entries), "verify": {"ok": True},
-                    "status": "VERIFIED", "head_hash": "d" * 64, "link_rule": "test"}
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
 
-        def entries(self):
-            return list(self._entries)
+    assert chain.verify()["ok"] is True
+    assert tile["label"] == manifest.SAMPLE
+    assert tile["measured_entries"] == 0
+    assert ready is False
+    assert "no_measured_entries" in reasons
 
-    mislabeled = {"energy_source": "curtailed-sample", "joules_est_label": "MEASURED"}
-    measured = {"energy_source": "grid", "joules_est_label": "MEASURED"}
 
-    monkeypatch.setattr(ep, "_CHAIN", Chain([mislabeled]))
-    blocked = manifest._tile_energy_provenance()
-    monkeypatch.setattr(ep, "_CHAIN", Chain([mislabeled, measured]))
-    satisfied = manifest._tile_energy_provenance()
+def test_broken_energy_provenance_chain_is_unavailable(monkeypatch):
+    import szl_energy_provenance as ep
 
-    assert blocked["measured_entries"] == 0
-    assert manifest._tile_operational_readiness(blocked)[0] is False
-    assert satisfied["measured_entries"] == 1
-    assert manifest._tile_operational_readiness(satisfied) == (True, [])
+    chain = ep.EnergyProvenanceChain()
+    entry = chain.append(output="job", energy_source="grid", joules_est=1.5)
+    entry["joules_est"] = 2.0  # hash-bound content was changed after append
+    monkeypatch.setattr(ep, "_CHAIN", chain)
+
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert chain.verify()["ok"] is False
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert "verification failed" in tile["status"]
+    assert ready is False
+    assert "chain_not_verified" in reasons
 
 
 def _operator_status(**overrides):
