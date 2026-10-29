@@ -1,6 +1,6 @@
 as_of: "2026-09-04T03:55:00Z"
 state: APPLY
-policy_amended_at: "2026-10-01"
+policy_amended_at: "2026-10-28"
 action: pause_and_private_then_gated_delete
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
@@ -9,10 +9,10 @@ counts:
   # The 57-Space observation is the retained September 4 census, not a fresh inventory.
   spaces_total_observed_org: 57
   spaces_total_observed_org_as_of: "2026-09-04T03:55:00Z"
-  spaces_public_target_org: 8
+  spaces_public_target_org: 9
   spaces_private_target_org: 49
   spaces_public_target_creator: 1
-  spaces_public_target_total: 9
+  spaces_public_target_total: 10
 keep:
   - id: SZLHOLDINGS/a11oy
     role: command
@@ -35,6 +35,13 @@ keep:
     role: finance
   - id: SZLHOLDINGS/lyte
     role: business_observability
+  - id: SZLHOLDINGS/curation-atlas
+    owner_class: organization
+    role: read_only_public_curation_audit_api
+    source: szl-holdings/curation-atlas
+    source_path: backend
+    live_origin: https://szlholdings-curation-atlas.hf.space
+    hardware_target: cpu-basic
   - id: SZLHOLDINGS/david-leads
     role: insurance
   - id: SZLHOLDINGS/szl-foundation-confirmation
@@ -89,4 +96,4 @@ retirement_gate:
   - replacement_verified
   - no_unique_secret_dependency
   - secret_free_retirement_receipt
-note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience runtime. Sentra, IMMUNE, Vessels and Aegis are capability planes, not separate flagships. Policy amended 2026-10-01 to retain eight organization Spaces, including the separately qualified exploratory Confirmation CPU lab, plus the creator-profile Living Anatomy Space. The target/private counts apply to the retained September 4 census and are not a current visibility observation. Confirmation remains a laboratory with a FAILED registered scientific gate and no wider-system qualification. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Living Anatomy is source-bound to szl-holdings/anatomy, published at betterwithage/anatomy, and exposes only the handles-only public Second Brain projection."
+note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience runtime. Sentra, IMMUNE, Vessels and Aegis are capability planes, not separate flagships. Policy amended 2026-10-01 to retain eight organization Spaces, including the separately qualified exploratory Confirmation CPU lab, plus the creator-profile Living Anatomy Space. Owner selected retention of the newly created Curation Atlas public CPU-basic, read-only GitHub metadata audit API on 2026-10-28 EDT, increasing the target to nine organization Spaces plus one creator-profile Space. The 57-Space observation is the September 4 census; target counts are policy, not a current visibility observation or a statement that the newly added Space existed in that census. Atlas source, process liveness, product deployment, and independent proof remain separate evidence states. Confirmation remains a laboratory with a FAILED registered scientific gate and no wider-system qualification. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Living Anatomy is source-bound to szl-holdings/anatomy, published at betterwithage/anatomy, and exposes only the handles-only public Second Brain projection."
