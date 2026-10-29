@@ -65,11 +65,19 @@ jobs:
     steps:
       - name: Resolve tag name
         id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_TAG_NAME: ${{ inputs.tag_name }}
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG="${{ inputs.tag_name }}"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            TAG="$DISPATCH_TAG_NAME"
           else
-            TAG="${{ github.event.release.tag_name }}"
+            TAG="$RELEASE_TAG_NAME"
+          fi
+          if [[ ! "$TAG" =~ ^uds-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo '::error::UDS tag must be uds-vMAJOR.MINOR.PATCH with an optional prerelease suffix.'
+            exit 1
           fi
           # Extract version: uds-v0.3.0 -> 0.3.0
           VERSION="${TAG#uds-v}"

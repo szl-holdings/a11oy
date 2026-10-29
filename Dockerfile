@@ -199,8 +199,7 @@ COPY research/ ./research/
 COPY routers/ ./routers/
 # The canonical HF sync publishes Dockerfile COPY sources. Keep these public
 # inventory docs in the same source-derived Space set as the runtime.
-COPY docs/huggingface-ecosystem-manifest.json docs/huggingface-ecosystem-manifest.schema.json docs/huggingface.md ./docs/
-COPY docs/model-inference-support.json ./docs/
+COPY docs/huggingface-ecosystem-manifest.json docs/huggingface-ecosystem-manifest.schema.json docs/huggingface.md docs/model-inference-support.json ./docs/
 COPY a11oy_model_support.py ./
 # Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
@@ -519,7 +518,8 @@ COPY szl_connectors/ ./szl_connectors/
 
 # --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
 # … (full rationale: docs/DOCKERFILE_NOTES.md §66)
-COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js static/shared/szl_command_bar.js static/shared/szl_command_bar.css static/shared/puriq_receipt_v1.js static/shared/public-estate-contract.v1.json ./static/shared/
+COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js static/shared/szl_command_bar.js static/shared/szl_command_bar.css static/shared/puriq_receipt_v1.js ./static/shared/
+COPY static/shared/public-estate-contract.v1.json ./static/shared/public-estate-contract.v1.json
 COPY schemas/puriq-receipt-v1.json ./schemas/puriq-receipt-v1.json
 
 # --- GOVERNANCE / EVAL / CALIBRATION layer (Dev B, 2026-06): ADDITIVE ---
@@ -716,3 +716,4 @@ CMD ["python", "-B", "gdw_runtime.py"]
 
 # Canonical reviewed package; outbound remains explicit and snapshot-gated.
 COPY khipu_lmdb/ ./khipu_lmdb/
+
