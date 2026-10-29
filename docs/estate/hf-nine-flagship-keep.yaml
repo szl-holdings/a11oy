@@ -1,7 +1,7 @@
 as_of: "2026-09-04"
 state: APPLY
-policy_amended_at: "2026-10-01"
-policy_version: cyber-resilience-consolidation-v2
+policy_amended_at: "2026-10-28"
+policy_version: cyber-resilience-consolidation-v3
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 organization_hub: https://huggingface.co/SZLHOLDINGS
@@ -31,6 +31,13 @@ keep:
   - id: SZLHOLDINGS/lyte
     owner_class: organization
     role: business_observability
+  - id: SZLHOLDINGS/curation-atlas
+    owner_class: organization
+    role: read_only_public_curation_audit_api
+    source: szl-holdings/curation-atlas
+    source_path: backend
+    live_origin: https://szlholdings-curation-atlas.hf.space
+    hardware_target: cpu-basic
   - id: SZLHOLDINGS/david-leads
     owner_class: organization
     role: insurance

@@ -52,7 +52,8 @@ def test_audited_inventory_is_exact_and_in_lockstep():
     assert proxy.SPACE_INVENTORY is not surface.SPACES
     assert len({row[0] for row in EXPECTED}) == 5
     assert len({row[1] for row in EXPECTED}) == 5
-    assert len(surface.PUBLIC_ORG_KEEP_POLICY) == 8
+    assert len(surface.PUBLIC_ORG_KEEP_POLICY) == 9
+    assert "curation-atlas" in surface.PUBLIC_ORG_KEEP_POLICY
     assert {"counsel", "david-leads", "finance", "terra"} <= surface.PUBLIC_ORG_KEEP_POLICY
     assert {"immune", "vertical-services"}.isdisjoint(surface.PUBLIC_ORG_KEEP_POLICY)
     policy = (Path(__file__).parents[1] / surface.PUBLIC_ORG_KEEP_POLICY_SOURCE).read_text(
@@ -61,7 +62,7 @@ def test_audited_inventory_is_exact_and_in_lockstep():
     keep_block = policy.split("keep:\n", 1)[1].split("retire_into_killinchu:", 1)[0]
     names = set(re.findall(r"^  - id: SZLHOLDINGS/([^\n]+)$", keep_block, re.M))
     assert names == surface.PUBLIC_ORG_KEEP_POLICY
-    assert 'policy_amended_at: "2026-10-01"' in policy
+    assert 'policy_amended_at: "2026-10-28"' in policy
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
     assert "governed-agent-bench" not in {row[0] for row in EXPECTED}
     assert "cosmos" not in {row[0] for row in EXPECTED}
@@ -148,7 +149,7 @@ def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
         assert title in fallback
         assert name in fallback
     assert "5 configured runtime doors are probed" in tiles
-    assert "current organization keep policy lists 8 Spaces" in tiles
+    assert "current organization keep policy lists 9 Spaces" in tiles
     assert "5 configured runtime doors" in fallback
     assert "stage: <span>pending</span>" in tiles
     assert ">CHECKING</strong>" in tiles
@@ -270,8 +271,8 @@ def test_visible_nonkeepers_degrade_overall_even_when_runtime_doors_are_live(mon
     import asyncio
 
     async def inventory(_client):
-        return {"state": "DEGRADED", "canonical_count": 8,
-                "observed_count": 9, "missing": [], "unexpected": ["extra"]}
+        return {"state": "DEGRADED", "canonical_count": 9,
+                "observed_count": 10, "missing": [], "unexpected": ["extra"]}
 
     async def runtime(_client, sp):
         return {"name": sp["name"], "app_reachable": True, "stage": "RUNNING"}
@@ -398,7 +399,7 @@ def test_inventory_set_equality_detects_missing_and_unexpected_spaces():
         surface._probe_inventory(Client(canonical[1:] + ["README", "rogue-space"]))
     )
     assert exact["state"] == "LIVE"
-    assert exact["canonical_count"] == 8
+    assert exact["canonical_count"] == 9
     assert exact["configured_runtime_count"] == 5
     assert exact["missing"] == exact["unexpected"] == []
     assert exact_with_profile["state"] == "LIVE"
