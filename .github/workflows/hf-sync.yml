@@ -28,6 +28,11 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      verify_current_deployment:
+        description: Verify an independently approved completed execution on the unchanged current deployment; performs no deployment or configuration writes.
+        type: boolean
+        default: false
+
       publish_vertical_flagships:
         description: Publish six domain-native flagship Spaces. Default false until plan complete=true.
         type: boolean
@@ -75,6 +80,13 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           fetch-depth: 1
+      - name: Validate the bounded workflow invocation
+        env:
+          VERIFY_CURRENT_DEPLOYMENT: ${{ inputs.verify_current_deployment || false }}
+          OPEN_DEPLOY_WINDOW: ${{ inputs.open_deploy_window || false }}
+          PUBLISH_VERTICAL_FLAGSHIPS: ${{ inputs.publish_vertical_flagships || false }}
+          VERTICAL_PLAN_JSON: ${{ inputs.vertical_plan_json }}
+        run: python3 -I -B .github/scripts/admit_execution_handoff.py --validate-invocation
       - name: Require main and classify current source ownership
         id: owner
         env:
@@ -100,7 +112,7 @@ jobs:
   preflight:
     name: Classify the canonical runtime and converge configuration before deploy
     needs: source-admission
-    if: ${{ needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}
+    if: ${{ !inputs.verify_current_deployment && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -505,9 +517,109 @@ jobs:
           if-no-files-found: error
           retention-days: 180
 
+  execution-handoff:
+    name: Admit the unchanged runtime and freeze independent execution context
+    needs: [source-admission, runtime-config]
+    if: ${{ always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && ((github.event_name == 'workflow_dispatch' && inputs.verify_current_deployment && needs.runtime-config.result == 'skipped') || (!inputs.verify_current_deployment && needs.runtime-config.result == 'success')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      hf_revision: ${{ steps.context.outputs.hf_revision }}
+      boot_id: ${{ steps.context.outputs.boot_id }}
+      run_nonce: ${{ steps.context.outputs.run_nonce }}
+      authority_pins: ${{ steps.context.outputs.authority_pins }}
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact execution evidence verification clients
+        run: >-
+          python -I -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0" "requests==2.32.5"
+          "cryptography==50.0.2" "httpx==0.28.1"
+
+      - name: Re-admit protected main before runtime handoff
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/execution-handoff-owner-before.json" \
+            --github-output "$RUNNER_TEMP/execution-handoff-owner-before.out"
+          grep -Fqx 'publish=true' "$RUNNER_TEMP/execution-handoff-owner-before.out"
+
+      # Expected context is selected before this run. Neither live health nor
+      # the export can select its own authority. No challenge or execution POST.
+      - name: Admit exact current runtime with independent context
+        id: context
+        env:
+          A11OY_EXECUTION_HF_REVISION: ${{ vars.A11OY_EXECUTION_HF_REVISION }}
+          A11OY_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}
+          A11OY_EXECUTION_RUN_NONCE: ${{ vars.A11OY_EXECUTION_RUN_NONCE }}
+          A11OY_EXECUTION_AUTHORITY_PINS_JSON: ${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}
+        run: >-
+          python -I -B .github/scripts/admit_execution_handoff.py
+          --source-sha "$GITHUB_SHA"
+          --github-output "$GITHUB_OUTPUT"
+          --output "$RUNNER_TEMP/execution-handoff.json"
+
+      - name: Re-admit protected main after runtime handoff
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/execution-handoff-owner-after.json" \
+            --github-output "$RUNNER_TEMP/execution-handoff-owner-after.out"
+          grep -Fqx 'publish=true' "$RUNNER_TEMP/execution-handoff-owner-after.out"
+
+      - name: Explain the external execution handoff when admission is blocked
+        if: failure()
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'HANDOFF'
+          Execution handoff blocked. Preserve the final runtime boot. Through the
+          established independent approval mechanism, complete the approved bounded
+          execution on that exact source, HF revision and boot. Set the three
+          independently approved execution-context variables, then manually dispatch
+          hf-sync with verify_current_deployment=true on the same protected main.
+          Leave open_deploy_window and publish_vertical_flagships false and the
+          vertical plan empty. This verification mode makes no provider writes.
+          It collects fresh passive evidence for its own run and attempt. Existing
+          expiry, source, storage, signature and relock gates remain mandatory.
+          HANDOFF
+
+      - name: Retain secret-free execution handoff evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: canonical-a11oy-execution-handoff-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/execution-handoff.json
+            ${{ runner.temp }}/execution-handoff-owner-before.json
+            ${{ runner.temp }}/execution-handoff-owner-after.json
+          if-no-files-found: error
+          retention-days: 90
+
   readiness-verdict:
     name: Probe and ingest exact post-deploy readiness verdict
-    needs: runtime-config
+    needs: execution-handoff
+    if: ${{ always() && needs.execution-handoff.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -622,7 +734,8 @@ jobs:
 
   execution-readiness:
     name: Collect and verify admitted execution evidence
-    needs: readiness-verdict
+    needs: [readiness-verdict, execution-handoff]
+    if: ${{ always() && needs.readiness-verdict.result == 'success' && needs.execution-handoff.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -633,9 +746,9 @@ jobs:
     env:
       SOURCE_SHA: ${{ github.sha }}
       # Independently selected context; evidence cannot select its own authority.
-      EXPECTED_EXECUTION_HF_REVISION: ${{ vars.A11OY_EXECUTION_HF_REVISION }}
-      EXPECTED_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}
-      EXPECTED_EXECUTION_RUN_NONCE: ${{ vars.A11OY_EXECUTION_RUN_NONCE }}
+      EXPECTED_EXECUTION_HF_REVISION: ${{ needs.execution-handoff.outputs.hf_revision }}
+      EXPECTED_EXECUTION_BOOT_ID: ${{ needs.execution-handoff.outputs.boot_id }}
+      EXPECTED_EXECUTION_RUN_NONCE: ${{ needs.execution-handoff.outputs.run_nonce }}
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -666,7 +779,7 @@ jobs:
       - name: Collect the independently admitted completed execution export
         env:
           EXECUTION_EVIDENCE_DIR: ${{ runner.temp }}/execution-evidence
-          A11OY_EXECUTION_AUTHORITY_PINS_JSON: ${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}
+          A11OY_EXECUTION_AUTHORITY_PINS_JSON: ${{ needs.execution-handoff.outputs.authority_pins }}
           A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}
           A11OY_CODE_TENANT: ${{ secrets.A11OY_CODE_TENANT }}
         run: >-
@@ -717,7 +830,8 @@ jobs:
 
   relock:
     name: Prove exact live source, runtime, routes, and singleton state
-    needs: [runtime-config, execution-readiness]
+    needs: [execution-handoff, execution-readiness]
+    if: ${{ always() && needs.execution-handoff.result == 'success' && needs.execution-readiness.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -730,9 +844,9 @@ jobs:
       SOURCE_SHA: ${{ github.sha }}
       # Independent operator-selected context for an already completed run.
       # Empty/missing values fail closed; neither the plan nor export selects them.
-      EXPECTED_EXECUTION_HF_REVISION: ${{ vars.A11OY_EXECUTION_HF_REVISION }}
-      EXPECTED_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}
-      EXPECTED_EXECUTION_RUN_NONCE: ${{ vars.A11OY_EXECUTION_RUN_NONCE }}
+      EXPECTED_EXECUTION_HF_REVISION: ${{ needs.execution-handoff.outputs.hf_revision }}
+      EXPECTED_EXECUTION_BOOT_ID: ${{ needs.execution-handoff.outputs.boot_id }}
+      EXPECTED_EXECUTION_RUN_NONCE: ${{ needs.execution-handoff.outputs.run_nonce }}
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -761,7 +875,7 @@ jobs:
 
       - name: Materialize independently configured public authority pins
         env:
-          A11OY_EXECUTION_AUTHORITY_PINS_JSON: ${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}
+          A11OY_EXECUTION_AUTHORITY_PINS_JSON: ${{ needs.execution-handoff.outputs.authority_pins }}
         run: >-
           python -I -B .github/scripts/materialize_execution_authority_pins.py
           --source-sha "$SOURCE_SHA"
@@ -860,7 +974,7 @@ jobs:
     needs: relock
     # A superseded source is not current main, so repository parity belongs
     # to the newer run that deploys it.
-    if: ${{ needs.relock.outputs.current_main == 'true' }}
+    if: ${{ always() && needs.relock.result == 'success' && needs.relock.outputs.current_main == 'true' }}
     permissions:
       contents: read
       attestations: read

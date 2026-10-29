@@ -29,3 +29,38 @@ The runtime may receive the independently admitted public document through its o
 The runtime additionally requires the persistent signer, native storage owners, an immutable source/HF/boot identity verified through [authenticated publisher provenance](runtime-source-identity.md), current fenced StateStore and confirmed snapshots described in [execution-observer.md](execution-observer.md). This implementation does not generate those production authorities or make a live model call automatically.
 
 A newly deployed boot invalidates old execution evidence. An independently approved completed bounded run must exist on the exact new boot before the workflow's GET-only collection stage. Missing configuration or completed evidence remains unavailable. Local fixture tests prove implementation behavior; they do not claim that the external prerequisites or live deployment are complete.
+
+## Handoff after the final restart
+
+The normal publisher still deploys and converges configuration before it verifies
+execution. Its `execution-handoff` job freezes the three independently configured
+execution variables and the public pins once. It checks the protected source and
+two matching live source/HF/boot/storage readbacks. This readback grants no
+execution authority and creates no challenge, signed plan, or observation.
+Downstream collection and relock consume the frozen outputs; they do not reread
+mutable repository variables.
+
+If the final restart changed the boot, preserve that runtime while the designated
+independent custodian approves the exact bounded plan and the authorized operator
+completes it. Configure the three variables through that established admission
+process. Do not select a nonce or expected identity from an export to make it pass.
+An environment approval pause does not guarantee that a running job will refresh
+repository variables, so continuing a paused run is not the supported handoff.
+
+After the approved execution, manually dispatch the existing `hf-sync.yml` on
+current protected main with `verify_current_deployment=true`. Leave
+`open_deploy_window` and `publish_vertical_flagships` false and `vertical_plan_json`
+empty. Contradictory inputs are refused. Verification mode skips preflight,
+deployment, runtime configuration and vertical publication. It verifies the
+already deployed runtime against the checked-out current source, produces fresh
+passive evidence for its own run and attempt, collects the existing exact export,
+and runs the existing relock and parity gates. It neither restarts the Space nor
+writes a verdict into its environment.
+
+Source drift, reboot, storage changes, missing credentials, invalid signatures,
+incomplete cases, or expired observations still block completion. The existing
+fifteen-minute evidence lifetime is unchanged; a verification run that misses
+that window must obtain fresh contract-valid execution rather than reuse expired
+evidence. No earlier run's passive artifact is accepted as a substitute. This
+mode is a verification path within the sole canonical publisher, not a second
+publisher or a replacement approval mechanism.
