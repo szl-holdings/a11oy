@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - release-train repair deploy window
+
+- The manual estate release-train repair can now forward the operator's
+  maintenance window to hf-sync through a new `open_deploy_window` input. It
+  defaults to false, and nothing opens it automatically. With the window
+  closed, the repair still fails, now with `DEPLOY_WINDOW_CLOSED` instead of
+  a generic missing or skipped completion job.
+
+### Added - read-only current state snapshot rehearsal
+
+- Verify the seven snapshots named by the current v2 HEAD in scratch.
+  The Space keeps running. A pass does not admit restore, deployment, or
+  execution, and it does not repair a failed snapshot.
+
+### Fixed - code receipt verification binding
+
+- Bind code-receipt verification to the authenticated chain prefix and its
+  terminal event. Report chain integrity, signature validity, and payload
+  binding separately; missing verifiers keep the composite result false.
+
 ### Fixed - state store shutdown preservation
 
 - Await the existing state-store final snapshot and lease release during ASGI

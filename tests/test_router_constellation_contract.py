@@ -98,7 +98,7 @@ def test_constellation_is_high_contrast_and_honors_reduced_motion():
 def test_mobile_nav_uses_a_bounded_short_cta_without_hiding_overflow_as_the_fix():
     landing = source(ROOT / "a11oy_landing.html")
 
-    assert 'href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell"' in landing
+    assert 'href="/assets/a11oy-homepage.css?v=61c132098e06" id="szl-homepage-shell"' in landing
     css = source(ROOT / "console/assets/a11oy-homepage.css")
     assert '@media(max-width:1100px)' in css
     assert '[data-szl-menu-ready="true"] .nav nav { display:none; }' in css

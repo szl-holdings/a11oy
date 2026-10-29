@@ -56,12 +56,82 @@ CANONICAL = {
     "sorries": 163,
     "sorries_baseline": 112,
     "sorries_putnam": 51,
-    "mcp_tools": 12,
+    "mcp_tools": None,
     "policy_gates": 46,
     "anchor_formula_gates": 44,
     "lambda_uniqueness": "Conjecture (CAUCHY_ND sorry @ Uniqueness.lean:120 + missing symmetry axiom)",
     "source": "HONEST_SNAPSHOT from lean_numbers.json @ c7c0ba17 (lean_numbers.py canonical counter)",
 }
+
+_MCP_INVENTORY_OBSERVATION = None
+_MCP_INVENTORY_MAX_AGE_S = 30.0
+
+
+def observe_mcp_inventory(manifest: dict, *, space: str) -> None:
+    """Remember the advertised inventory, never a configured or padded total."""
+    global _MCP_INVENTORY_OBSERVATION
+    tools = manifest.get("tools") if isinstance(manifest, dict) else None
+    if (not isinstance(tools, list)
+            or any(not isinstance(tool, dict)
+                   or not isinstance(tool.get("name"), str)
+                   or not tool["name"].strip() for tool in tools)):
+        # Preserve the distinction between a malformed observed manifest and
+        # a cold start with no observation. The count remains unavailable.
+        _MCP_INVENTORY_OBSERVATION = (
+            None, None, None, space, "MCP_MANIFEST_INVALID",
+        )
+        return
+    # One immutable assignment keeps concurrent readers on a complete observation.
+    try:
+        checked = time.monotonic()
+        if not math.isfinite(checked):
+            raise ValueError("non-finite clock")
+        _MCP_INVENTORY_OBSERVATION = (
+            checked, datetime.now(timezone.utc).isoformat(), len(tools), space,
+        )
+    except Exception:
+        # Observational metadata must not prevent the manifest from being served.
+        _MCP_INVENTORY_OBSERVATION = None
+
+
+def mcp_inventory_snapshot(space: str) -> dict:
+    """Read the latest manifest count without probing siblings on health reads."""
+    observation = _MCP_INVENTORY_OBSERVATION
+    if observation and observation[3] != space:
+        observation = None
+    age = None
+    reason = "MCP_MANIFEST_NOT_OBSERVED"
+    if observation:
+        # Invalid observations carry an explicit reason and no age/count.
+        if len(observation) >= 5:
+            reason = observation[4]
+        else:
+            try:
+                elapsed = time.monotonic() - observation[0]
+                if not math.isfinite(elapsed) or elapsed < 0:
+                    raise ValueError("invalid observation age")
+                age = elapsed
+                reason = "MCP_MANIFEST_OBSERVATION_EXPIRED"
+            except Exception:
+                reason = "MCP_MANIFEST_CLOCK_UNAVAILABLE"
+    fresh = (
+        bool(observation)
+        and len(observation) < 5
+        and age is not None
+        and age <= _MCP_INVENTORY_MAX_AGE_S
+    )
+    return {
+        "count": observation[2] if fresh else None,
+        "label": "CACHED" if fresh else "UNAVAILABLE",
+        "source": f"/api/{observation[3]}/v1/mcp/tools" if observation else None,
+        "scope": "ADVERTISED_MANIFEST_ONLY",
+        "checked_at": observation[1] if observation else None,
+        "age_s": round(age, 3) if age is not None else None,
+        "max_age_s": _MCP_INVENTORY_MAX_AGE_S,
+        "reason": None if fresh else reason,
+        "capability_readiness_asserted": False,
+    }
+
 
 SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired (Doctrine v11)"
 
@@ -237,11 +307,13 @@ ROLE_SLICES = {
 
 def brain_payload(space: str) -> dict[str, Any]:
     slice_ = ROLE_SLICES.get(space, {"role": "unknown"})
+    inventory = mcp_inventory_snapshot(space)
     return {
         "space": space,
         "brain": slice_,
         "llm_tiers": TIERS,
-        "canonical": CANONICAL,
+        "canonical": {**CANONICAL, "mcp_tools": inventory["count"],
+                      "mcp_inventory": inventory},
         "doctrine": DOCTRINE,
         "honesty": {
             "lambda_receipt_signature": SIGNATURE_PLACEHOLDER,

@@ -113,6 +113,13 @@
       "githubRepository": "szl-holdings/vertical-services",
       "huggingFaceRepositories": ["SZLHOLDINGS/vertical-services"],
       "classification": "SHARED_EVIDENCE_RUNTIME"
+    },
+    {
+      "id": "curation-atlas",
+      "name": "Curation Atlas",
+      "githubRepository": "szl-holdings/curation-atlas",
+      "huggingFaceRepositories": ["SZLHOLDINGS/curation-atlas"],
+      "classification": "READ_ONLY_PUBLIC_REPOSITORY_AUDIT_API"
     }
   ],
   "laboratorySurfaces": [
@@ -126,13 +133,6 @@
   "inventoryOnlyHuggingFaceRepositories": [
     {
       "id": "SZLHOLDINGS/ayllu",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/curation-atlas",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",

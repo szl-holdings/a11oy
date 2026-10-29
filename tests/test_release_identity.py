@@ -132,7 +132,7 @@ def test_zenodo_metadata_and_company_page_tag_both_domains_and_existing_dois():
 
     for value in (
         release.CANONICAL_URL,
-        release.LEGACY_ALIAS,
+        release.REGISTRY_URL,
         release.CONCEPT_DOI,
         release.FORMAL_ARTIFACT_DOI,
         release.REPOSITORY_URL,
@@ -144,6 +144,41 @@ def test_zenodo_metadata_and_company_page_tag_both_domains_and_existing_dois():
     assert 'id="software-release-card"' in company
     assert "release.release_state !== 'VERIFIED'" in company
     assert "a11oy:software-version-doi" in company
+    assert f'<meta name="a11oy:registry-origin" content="{release.REGISTRY_URL}">' in company
+    assert 'name="a11oy:legacy-alias"' not in company
+    assert "permanently redirects" not in company.lower()
+    application = json.loads(
+        company.split('<script type="application/ld+json">', 1)[1].split("</script>", 1)[0]
+    )
+    assert application["url"] == release.CANONICAL_URL
+    assert release.REGISTRY_URL not in application.get("sameAs", [])
+    assert application["subjectOf"]["url"] == release.REGISTRY_URL
+
+
+def test_company_page_distinguishes_simulation_samples_and_runtime_authority():
+    company = (ROOT / "pages" / "company.html").read_text(encoding="utf-8")
+    for unsupported_claim in (
+        "every verdict",
+        "every airspace verdict",
+        "two shipping products",
+        "two products are live",
+        "ed25519/dsse-signed",
+        "tampering is impossible",
+        "proven and running today",
+        "proven &amp; running",
+        "proven receipt core",
+        "proven in lean",
+    ):
+        assert unsupported_claim not in company.lower()
+
+    for section_id in ("proven", "flagships"):
+        section = company.split(f'id="{section_id}"', 1)[1].split("</section>", 1)[0]
+        assert ">SIMULATED</span>" in section
+        assert ">DECLARED</span>" in section
+        assert ">Live" not in section
+    receipt_rows = company.split("<tbody>", 1)[1].split("</tbody>", 1)[0]
+    assert receipt_rows.count(">SAMPLE</td>") == receipt_rows.count("<tr>") > 0
+    assert 'href="/api/a11oy/healthz"' in company
 
 
 def test_hf_space_sha_readback_fails_closed(monkeypatch):

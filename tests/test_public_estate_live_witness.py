@@ -2,6 +2,7 @@
 """Contract tests for the fixed-origin SZL public-estate witness."""
 from __future__ import annotations
 
+import base64
 import copy
 import hashlib
 import importlib.util
@@ -577,3 +578,160 @@ def test_lyte_v2_policy_does_not_mutate_selected_fields():
     result = witness.apply_source_repository_policy(fields, payload, lyte_surface())
     assert fields == before
     assert result is not fields
+
+
+A11OY_REVISION = "a" * 40
+A11OY_TIP = "b" * 40
+SHIPPED_DOCKERFILE = (
+    b"FROM python:3.12-slim AS runtime\n"
+    b"WORKDIR /app\n"
+    b"COPY app.py szl_master_workcell.py ./\n"
+    b"COPY routers/ ./routers/\n"
+    b"COPY .github/workflows/hf-sync.yml ./.github/scripts/\n"
+)
+
+
+def a11oy_surface() -> dict:
+    manifest = witness.load_and_validate_manifest(MANIFEST)
+    return next(item for item in manifest["platforms"] if item["id"] == "a11oy")
+
+
+def install_a11oy_observations(monkeypatch, *, tip, compare=None, dockerfile=SHIPPED_DOCKERFILE):
+    payload = {
+        "status": "OBSERVED", "service": "a11oy", "receipt_minted": False,
+        "build": {"state": "OBSERVED", "revision": A11OY_REVISION,
+                  "revision_source": "env:SZL_GIT_SHA"},
+    }
+
+    def read(_opener, url, *, timeout, token=None):
+        assert token is None  # Never send GitHub authority to a public app.
+        body = json.dumps(payload if url.endswith("/api/build-info") else {}).encode()
+        return witness.HttpObservation(url, 200, "application/json", witness.sha256_hex(body), body)
+
+    def github_tip(_opener, repository, branch, *, timeout, token):
+        assert (repository, branch) == ("szl-holdings/a11oy", "main")
+        return tip, {"status": 200}
+
+    def github_compare(_opener, repository, base, head, *, timeout, token):
+        assert (repository, base, head) == ("szl-holdings/a11oy", A11OY_REVISION, tip)
+        assert compare is not None, "an exact default tip needs no compare"
+        return compare, {"status": 200}
+
+    def github_file(_opener, repository, path, revision, *, timeout, token):
+        assert (repository, path, revision) == ("szl-holdings/a11oy", "Dockerfile", tip)
+        return dockerfile, {"status": 200}
+
+    monkeypatch.setattr(witness, "request_bytes", read)
+    monkeypatch.setattr(witness, "github_default_tip", github_tip)
+    monkeypatch.setattr(witness, "github_compare", github_compare)
+    monkeypatch.setattr(witness, "github_file_bytes", github_file)
+    monkeypatch.setattr(witness, "hf_space_revision", lambda *a, **kw: ("f" * 40, {"status": 200}))
+
+
+def ahead_by_one(*files: dict) -> dict:
+    return {"status": "ahead", "ahead_by": 1, "behind_by": 0, "files": list(files)}
+
+
+def test_a11oy_uses_the_payload_equivalent_policy_only_for_its_own_space(tmp_path):
+    assert a11oy_surface()["revision_policy"] == "payload-equivalent-default-branch"
+    manifest = raw_manifest()
+    item = next(row for row in manifest["public_products"] if row["id"] == "killinchu")
+    item["revision_policy"] = "payload-equivalent-default-branch"
+    with pytest.raises(witness.ContractError, match="limited to the a11oy Space"):
+        witness.load_and_validate_manifest(write_manifest(tmp_path, manifest))
+
+
+def test_a11oy_exact_default_tip_needs_no_compare(monkeypatch):
+    install_a11oy_observations(monkeypatch, tip=A11OY_REVISION)
+    row = witness.observe_surface(None, a11oy_surface(), timeout=1, token=None)
+    assert row["verified"] is True, row["failures"]
+    assert row["source_proof"]["match"] == "EXACT"
+    assert "payload_equivalence" not in row["source_proof"]
+
+
+def test_a11oy_tip_that_ships_nothing_new_is_payload_equivalent(monkeypatch):
+    compare = ahead_by_one(
+        {"filename": ".github/workflows/tests.yml", "status": "modified"},
+        {"filename": "tests/test_evidence_reconcile_identity.py", "status": "added"},
+        {"filename": "tools/evidence_reconcile.py", "status": "modified"},
+    )
+    install_a11oy_observations(monkeypatch, tip=A11OY_TIP, compare=compare)
+    row = witness.observe_surface(None, a11oy_surface(), timeout=1, token=None)
+    assert row["verified"] is True, row["failures"]
+    proof = row["source_proof"]
+    assert proof["match"] == "PAYLOAD_EQUIVALENT"
+    assert proof["expected_revision"] == A11OY_TIP
+    assert row["build"]["source_revision"] == A11OY_REVISION
+    assert proof["payload_equivalence"]["shipped_paths_changed"] == []
+    assert len(proof["payload_equivalence"]["changed_paths"]) == 3
+
+
+@pytest.mark.parametrize("changed", [
+    {"filename": "szl_master_workcell.py", "status": "modified"},
+    {"filename": "routers/new_route.py", "status": "added"},
+    {"filename": ".github/workflows/hf-sync.yml", "status": "modified"},
+    {"filename": "Dockerfile", "status": "modified"},
+    {"filename": "README.md", "status": "modified"},
+    {"filename": "docs/moved.py", "status": "renamed", "previous_filename": "app.py"},
+])
+def test_a11oy_tip_that_changes_a_shipped_path_is_drift(monkeypatch, changed):
+    install_a11oy_observations(monkeypatch, tip=A11OY_TIP, compare=ahead_by_one(changed))
+    row = witness.observe_surface(None, a11oy_surface(), timeout=1, token=None)
+    assert row["verified"] is False
+    assert row["source_proof"]["match"] == "NONE"
+    assert any("shipped paths changed" in message for message in row["failures"])
+
+
+@pytest.mark.parametrize("compare", [
+    {"status": "diverged", "ahead_by": 1, "behind_by": 2, "files": []},
+    {"status": "behind", "ahead_by": 0, "behind_by": 1, "files": []},
+    {"status": "ahead", "ahead_by": 1, "behind_by": 0},
+    {"status": "ahead", "ahead_by": 1, "behind_by": 0,
+     "files": [{"filename": f"tests/test_{index}.py"} for index in range(300)]},
+])
+def test_a11oy_unprovable_ancestry_or_file_list_is_not_equivalent(monkeypatch, compare):
+    install_a11oy_observations(monkeypatch, tip=A11OY_TIP, compare=compare)
+    row = witness.observe_surface(None, a11oy_surface(), timeout=1, token=None)
+    assert row["verified"] is False
+    assert row["source_proof"]["match"] == "NONE"
+
+
+def test_a11oy_unparsable_dockerfile_fails_closed(monkeypatch):
+    compare = ahead_by_one({"filename": "tests/test_only.py", "status": "modified"})
+    install_a11oy_observations(
+        monkeypatch, tip=A11OY_TIP, compare=compare,
+        dockerfile=b"FROM python:3.12-slim\nRUN echo unreviewed\n",
+    )
+    row = witness.observe_surface(None, a11oy_surface(), timeout=1, token=None)
+    assert row["verified"] is False
+    assert row["source_proof"]["match"] == "NONE"
+    assert any("Dockerfile COPY sources are not provable" in message for message in row["failures"])
+
+
+def test_real_dockerfile_copy_sources_separate_shipped_from_repository_only_paths():
+    sources = witness.dockerfile_copy_sources((ROOT / "Dockerfile").read_bytes())
+    for shipped in ("szl_master_workcell.py", ".github/workflows/hf-sync.yml", "data/genome.json"):
+        assert shipped in sources
+    for path in (".github/workflows/tests.yml", "tests/test_public_estate_live_witness.py"):
+        assert not any(path == source or path.startswith(source + "/") for source in sources)
+
+
+def test_github_file_bytes_requires_the_matching_blob_sha(monkeypatch):
+    data = b"FROM python:3.12-slim\n"
+    payload = {
+        "type": "file", "encoding": "base64",
+        "content": base64.b64encode(data).decode(),
+        "sha": hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest(),
+    }
+
+    def read_json(_opener, url, *, timeout, token=None):
+        body = json.dumps(payload).encode()
+        return witness.HttpObservation(url, 200, "application/json", witness.sha256_hex(body), body), payload
+
+    monkeypatch.setattr(witness, "request_json", read_json)
+    assert witness.github_file_bytes(None, "szl-holdings/a11oy", "Dockerfile", A11OY_TIP,
+                                     timeout=1, token=None)[0] == data
+    payload["sha"] = "0" * 40
+    with pytest.raises(witness.ContractError, match="blob proof mismatch"):
+        witness.github_file_bytes(None, "szl-holdings/a11oy", "Dockerfile", A11OY_TIP,
+                                  timeout=1, token=None)

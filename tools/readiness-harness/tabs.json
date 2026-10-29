@@ -110,7 +110,7 @@
           "placeholder"
         ]
       },
-      "note": "Returns the 4 real flagship tools; never the fabricated 12."
+      "note": "Returns the advertised in-process and reachable sibling tools; count is derived from the returned inventory, not a fixed capability claim."
     },
     "/api/a11oy/v1/llm/registry": {
       "method": "GET",

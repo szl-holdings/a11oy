@@ -17,6 +17,7 @@ from scripts.hf_keep_policy import load_keep_ids
 
 ROOT = Path(__file__).resolve().parents[1]
 SPACE = 'SZLHOLDINGS/szl-foundation-confirmation'
+ATLAS = 'SZLHOLDINGS/curation-atlas'
 POLICIES = (
     ROOT / 'docs/series-a/hf-space-keep-list.yaml',
     ROOT / 'docs/estate/hf-nine-flagship-keep.yaml',
@@ -29,8 +30,9 @@ class ConfirmationRetentionPolicyTest(unittest.TestCase):
             with self.subTest(policy=policy.name):
                 kept = load_keep_ids(policy)
                 self.assertEqual(kept.count(SPACE), 1)
-                self.assertEqual(len([x for x in kept if x.startswith('SZLHOLDINGS/')]), 8)
-                self.assertEqual(len(kept), 9)
+                self.assertEqual(kept.count(ATLAS), 1)
+                self.assertEqual(len([x for x in kept if x.startswith('SZLHOLDINGS/')]), 9)
+                self.assertEqual(len(kept), 10)
                 for folded in ('SZLHOLDINGS/yarqa', 'SZLHOLDINGS/szl-forge-lab', 'SZLHOLDINGS/unknown-new-space'):
                     self.assertNotIn(folded, kept)
                 text = policy.read_text(encoding='utf-8')
@@ -103,7 +105,7 @@ class ConfirmationRetentionPolicyTest(unittest.TestCase):
                     self.assertIn((space, 'pause'), operations)
                     self.assertTrue(state[space]['private'])
                     self.assertEqual(state[space]['stage'], 'PAUSED')
-                self.assertEqual(report['keep_count'], 8)
+                self.assertEqual(report['keep_count'], 9)
                 self.assertEqual(report['fold_count'], 2)
                 self.assertTrue(report['terminal_green'])
                 self.assertFalse(report['token_value_persisted'])

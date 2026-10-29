@@ -28,8 +28,9 @@ THE LOOP (one cycle):
                   WAQAYCHAQ (guard/store), KAMAY (act/animate), RIKUY (observe).
     -> EnergyReservoir store the metabolized work_credits (a tank, not a battery
                   of electrons — it holds proven WORK + its receipt).
-    -> provenance receipt  bind the cycle into the tamper-evident chain
-                  (szl_energy_provenance, #331).
+    -> provenance receipt  digest the cycle's SAMPLE receipt. This loop serves
+                  anonymous GET reads, so it NEVER appends to the shared
+                  szl_energy_provenance (#331) chain.
     -> validate   verify the provenance chain + heart beats (offline-checkable).
     -> Ayni F11   balance the books: intake == output + stored + proven. The loop
                   is reciprocal, NEVER net-positive. (Ayni = direct reciprocity,
@@ -56,7 +57,7 @@ without serve.py running. Pure stdlib + whatever a11oy already imports (FastAPI)
 
 It WRAPS — never rewrites — the shipped organ modules:
   - a11oy_harvest_endpoints (#harvest posture)   -> INTAKE
-  - szl_energy_provenance   (#331 receipt chain) -> receipt + validate
+  - szl_energy_provenance   (#331 receipt chain) -> never appended by a read
   - szl_heart_blood         (#332 heart/pulse)   -> the beat
 when importable; otherwise it falls back to the live HTTP surfaces, and finally to
 an honest SAMPLE snapshot — always labeled.
@@ -553,26 +554,23 @@ _RESERVOIR = EnergyReservoir()
 
 
 # ---------------------------------------------------------------------------
-# provenance receipt + validate — wrap szl_energy_provenance (#331) when present.
+# provenance receipt — a cycle digest only; a read never appends to #331.
 # ---------------------------------------------------------------------------
 def _provenance_receipt(metab: dict) -> dict:
-    """Bind this cycle into the tamper-evident provenance chain; return receipt id."""
+    """Digest this cycle's SAMPLE receipt WITHOUT appending it to any chain.
+
+    run_loop backs the anonymous GET /anatomy/loop and /anatomy/vitals reads. A read
+    must never grow the shared szl_energy_provenance (#331) chain that the Frontier
+    "Energy provenance chain" tile reads, so nothing is bound or validated here.
+    """
     payload = json.dumps(
         {"work_credits": metab.get("work_credits", 0), "joules_label": SAMPLE_LABEL},
         sort_keys=True, separators=(",", ":"),
     )
-    try:
-        from szl_energy_provenance import append_receipt  # shipped organ (#331)
-        entry = append_receipt(output=payload, energy_source="curtailed-sample", joules_est=0.0)
-        if isinstance(entry, dict) and entry.get("receipt_hash"):
-            return {"last_receipt_id": entry.get("receipt_hash"),
-                    "validated": True, "source": "szl_energy_provenance (#331)"}
-    except Exception:
-        pass
     import hashlib
     rid = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-    return {"last_receipt_id": rid, "validated": True,
-            "source": "local fallback (szl_energy_provenance not importable)"}
+    return {"last_receipt_id": rid, "validated": False,
+            "source": "cycle digest only (a read never appends to szl_energy_provenance #331)"}
 
 
 # ---------------------------------------------------------------------------

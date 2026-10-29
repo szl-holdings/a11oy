@@ -5,7 +5,7 @@ import re
 
 def owned_css() -> str:
     html = Path("a11oy_landing.html").read_text(encoding="utf-8")
-    assert 'href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell"' in html
+    assert 'href="/assets/a11oy-homepage.css?v=61c132098e06" id="szl-homepage-shell"' in html
     return Path("console/assets/a11oy-homepage.css").read_text(encoding="utf-8")
 
 
