@@ -79,7 +79,13 @@ FINANCE_MANIFEST = "finance-projection-manifest.json"
 # to come up on its own (the RUNNING_* stages still serve the previous build).
 RUNNING_STAGES = ("RUNNING", "RUNNING_BUILDING", "RUNNING_APP_STARTING")
 STARTING_STAGES = ("BUILDING", "APP_STARTING", "RUNNING_BUILDING", "RUNNING_APP_STARTING")
-# Lyte persistence that a release restart would lose (or that is not reported).
+# Lyte persistence that survives a release restart. Admission is an exact,
+# case-sensitive match against this allowlist: any other value (an unknown or
+# new label, "", whitespace, a case variant, None, a non-string) is treated as
+# non-durable, so the automatic writer fails closed. lyte-services reports
+# DEPLOYMENT_MANAGED for a postgresql backend (lyte/app.py persistence_contract).
+DURABLE_PERSISTENCE = ("DEPLOYMENT_MANAGED", "DURABLE_VOLUME")
+# Known non-durable labels, kept for reference only; they are not the gate.
 NON_DURABLE_PERSISTENCE = ("FILE_OR_PROCESS_SCOPED", "PROCESS_SCOPED", "EPHEMERAL")
 DEFAULT_ALERT_HOURS = 6.0
 TRACKER_MARKER = "<!-- szl:vertical-drift-tracker:v1 -->"
@@ -594,7 +600,7 @@ def assess_lyte(*, resolve: Callable[[], tuple[str, dict[str, Any]]] | None = No
             f"{type(exc).__name__}: {exc}"))
         return row
     row["expected_revision"] = expected
-    if not isinstance(durability, str) or durability in NON_DURABLE_PERSISTENCE:
+    if not isinstance(durability, str) or durability not in DURABLE_PERSISTENCE:
         # The Lyte release restarts the Space. With process- or file-scoped
         # persistence that restart drops every acknowledged ingest, so an
         # automatic republish is withheld; an operator dispatch (scope lyte)
