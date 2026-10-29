@@ -409,8 +409,12 @@ def test_sole_workflow_passes_raw_separate_evidence_and_independent_context():
     fragment = text[text.index("  readiness-verdict:"):text.index("  post-deployment-parity:")]
     assert fragment.count("collect_execution_readiness.py") == 1
     assert "--passive-verdict" in fragment and fragment.count("--execution-bundle") == 2
-    assert fragment.count("vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON") == 2
-    assert fragment.count("vars.A11OY_EXECUTION_RUN_NONCE") == 2
+    handoff = text[text.index("  execution-handoff:"):text.index("  readiness-verdict:")]
+    assert handoff.count("vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON") == 1
+    assert handoff.count("vars.A11OY_EXECUTION_RUN_NONCE") == 1
+    assert "vars.A11OY_EXECUTION_" not in fragment
+    assert fragment.count("needs.execution-handoff.outputs.authority_pins") == 2
+    assert fragment.count("needs.execution-handoff.outputs.run_nonce") == 2
     assert "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333" in fragment
     assert 'name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}' in fragment
     upload = fragment[fragment.index("      - name: Upload immutable full probe evidence"):fragment.index("      # The same fail-closed")]
@@ -526,7 +530,9 @@ def test_passive_browser_job_keeps_credentials_separate_from_execution_reads():
     assert "secrets." not in passive and "A11OY_CODE_ADMIN_KEY" not in passive
     assert "collect_execution_readiness.py" not in passive and "publish_readiness_verdict.py" not in passive
     assert "canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}" in passive
-    assert "needs: readiness-verdict" in execution
+    assert "needs: [readiness-verdict, execution-handoff]" in execution
+    assert "needs.readiness-verdict.result == 'success'" in execution
+    assert "needs.execution-handoff.result == 'success'" in execution
     assert "Collect and verify admitted execution evidence" in execution
     assert "node " not in execution and "playwright" not in execution.lower()
     assert 'python -I -c' not in text
