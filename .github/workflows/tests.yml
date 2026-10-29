@@ -579,7 +579,7 @@ jobs:
           tests/test_org_lambda_sample_inputs.py
           tests/test_runtime_verifying_key_surfaces.py
           tests/test_signing_state.py
-          tests/test_signing_state_routes.py
+          tests/test_signing_workflow_isolation.py
           tests/test_platform_candidate_preview.py
           tests/test_platform_candidate_no_transform_middleware.py
           tests/test_zero_cdn_guard.py
@@ -588,6 +588,14 @@ jobs:
           tests/test_platform_candidate_browser_witness_cli.py
           test_canonical_domain.py
           -q
+      - name: Verify signing state route no-write guard in isolation
+        # The original process-wide no-write assertion is unchanged and the
+        # startup warmer is disabled only in this separate pytest process.
+        # The combined route suite above retains its default-on behavior.
+        # Writes intercepted by the existing guard still fail, on any thread.
+        env:
+          SZL_EVIDENCE_WARM: "0"
+        run: python -B -m pytest -q -p no:cacheprovider tests/test_signing_state_routes.py
 
   python-energy-autostart-readyz:
     name: Energy-operator autostart + /readyz redeploy-stall guard (pytest)
