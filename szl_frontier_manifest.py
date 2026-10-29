@@ -316,26 +316,25 @@ def _tile_energy_ledger() -> dict:
     )
 
 
-def _provenance_entry_is_measured(entry: dict) -> bool:
-    """Only a MEASURED, non-sample receipt is operational energy evidence."""
-    label = str(entry.get("joules_est_label") or "").strip().upper()
-    source = str(entry.get("energy_source") or "").strip().lower()
-    return label.startswith(MEASURED) and "SAMPLE" not in label and "sample" not in source
-
-
 def _tile_energy_provenance() -> dict:
     import szl_energy_provenance as ep
     summ = ep._CHAIN.summary()
     length = summ.get("length", 0)
     verify = summ.get("verify", {}) or {}
-    # Every receipt append() mints today is SAMPLE/ESTIMATE; an integrity-valid
-    # chain of sample receipts is never operational energy evidence.
-    measured_entries = sum(1 for entry in ep._CHAIN.entries()
-                           if isinstance(entry, dict) and _provenance_entry_is_measured(entry))
-    status = (f"INTEGRITY-VERIFIED ({length} tamper-evident receipts)" if length
-              else "EMPTY (no receipts this process)")
+    # The current chain records joules_est only: append() always emits SAMPLE,
+    # and joules_est_label is not hash-bound. A changed label cannot prove a
+    # meter reading, even when the chain's content integrity verifies.
+    measured_entries = 0
+    verified = verify.get("ok") is True
+    if not length:
+        status, label = "EMPTY (no receipts this process)", UNAVAILABLE
+    elif verified:
+        status = f"INTEGRITY-VERIFIED ({length} tamper-evident sample receipts)"
+        label = SAMPLE
+    else:
+        status, label = "UNAVAILABLE (energy provenance chain verification failed)", UNAVAILABLE
     return _tile(
-        "Energy provenance chain", "provenance", status=status, label=MEASURED,
+        "Energy provenance chain", "provenance", status=status, label=label,
         provenance={
             "endpoint": f"{_API}/energy/provenance",
             "kind": "tamper-evident hash-linked + Bekenstein-gated chain",
@@ -353,12 +352,12 @@ def _tile_energy_provenance() -> dict:
         operational_evidence={
             "predicate": ("non-empty provenance chain + computed chain verification + "
                           "at least one MEASURED non-sample receipt"),
-            "satisfied": bool(length and verify.get("ok") is True and measured_entries),
+            "satisfied": False,
             "reasons": [
                 reason for failed, reason in (
                     (not length, "no_chain_entries"),
-                    (verify.get("ok") is not True, "chain_not_verified"),
-                    (not measured_entries, "no_measured_entries"),
+                    (not verified, "chain_not_verified"),
+                    (True, "no_measured_entries"),
                 ) if failed
             ],
         },
