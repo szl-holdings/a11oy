@@ -50,8 +50,13 @@ ENDPOINTS (dual-registered under /api/{ns}/v1/provenance/* AND /v1/provenance/*)
                               (SZL.Provenance.Composite.v1, organ="provenance") into
                               the SHARED szl_khipu DAG and return
                               {digest, prev, chain_verified} + the full composed
-                              envelope. The receipt SIGNATURE is the honest
-                              DSSE_PLACEHOLDER (cosign founder-gated; never faked).
+                              envelope. When a runtime signer is configured
+                              (szl_dsse: SZL_COSIGN_PRIVATE_PEM or another
+                              persistent a11oy_signing_key source) the receipt is
+                              DSSE-signed, verified in-process, and the result is
+                              recorded as cryptographic_verification. With no
+                              signer the SIGNATURE stays DSSE_PLACEHOLDER
+                              (UNSIGNED) — a signature is never faked.
   GET/HEAD /provenance/receipt
       Observe the highest-sequence composite already indexed in this process.
       An empty index is UNAVAILABLE; a read NEVER composes or mints a receipt.
@@ -151,8 +156,10 @@ def _honesty() -> dict[str, Any]:
                             "Apache-2.0) + identity-hash; NOT a claim that inference "
                             "ran in this request",
         "receipt_chain": "REAL (szl_khipu SHA3-256 hash chain; tamper-evident)",
-        "receipt_signature": "DSSE_PLACEHOLDER (cosign signing is founder-gated; "
-                             "signature is NEVER faked)",
+        "receipt_signature": "DSSE over the Khipu receipt when a runtime signer is "
+                             "configured, verified in-process (cryptographic_verification); "
+                             "otherwise DSSE_PLACEHOLDER (UNSIGNED). A signature is NEVER "
+                             "faked",
         "lambda": "Conjecture 1 (NOT a theorem)",
         "khipu": "Conjecture 2",
         "trust_ceiling": "never 100%",
@@ -324,6 +331,73 @@ def _compose_lean() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# DSSE signature over the composite Khipu receipt (szl_dsse, the platform signer).
+# ---------------------------------------------------------------------------
+_SIGNED_RECEIPT_FIELDS = ("organ", "ns", "seq", "action", "payload_digest", "ts",
+                          "prev", "digest")
+_DSSE_VERIFY_METHOD = "DSSE ECDSA-P256-SHA256 (szl_dsse.verify_envelope)"
+
+
+def _sign_composite(receipt: dict[str, Any]) -> dict[str, Any]:
+    """Sign + verify the composite receipt with the configured DSSE signer.
+
+    The signed statement binds the receipt type and the Khipu chain fields
+    (digest, prev, seq, payload_digest, ts, ...). Returns the fields to record:
+    signature, dsse, cryptographic_verification. With no signer, or on any
+    signing/verification error, nothing is presented as verified: no signer
+    keeps DSSE_PLACEHOLDER with status UNSIGNED; a failed check is UNVERIFIED.
+    """
+    statement = {"receipt_type": _RECEIPT_TYPE,
+                 **{k: receipt.get(k) for k in _SIGNED_RECEIPT_FIELDS}}
+    unsigned = {
+        "signature": "DSSE_PLACEHOLDER",
+        "dsse": None,
+        "cryptographic_verification": {
+            "status": "UNSIGNED", "observed_this_process": False, "verified": False,
+            "signature_count": 0, "method": None, "keyid": None,
+            "reason": "no runtime DSSE signer configured; no signature fabricated",
+        },
+    }
+    try:
+        import szl_dsse
+        if not szl_dsse.signing_available():
+            return unsigned
+        env = szl_dsse.sign_payload(statement, szl_dsse.KHIPU_PAYLOAD_TYPE)
+        sigs = env.get("signatures") or []
+        if env.get("signed") is not True or not sigs:
+            unsigned["cryptographic_verification"]["reason"] = (
+                "signer returned no signature; no signature fabricated")
+            return unsigned
+        verdict = szl_dsse.verify_envelope(env)
+        bound = verdict.get("payload_decoded") == statement
+        verified = verdict.get("verified") is True and bound
+        if verdict.get("verified") is not True:
+            reason = verdict.get("reason") or "signature did not verify"
+        elif not bound:
+            reason = "signed payload does not match the receipt"
+        else:
+            reason = None
+        return {
+            "signature": sigs[0].get("sig"),
+            "dsse": env,
+            "cryptographic_verification": {
+                "status": "VERIFIED" if verified else "UNVERIFIED",
+                "observed_this_process": True,
+                "verified": verified,
+                "signature_count": (sum(1 for s in verdict.get("signatures") or []
+                                        if s.get("verified") is True) if verified else 0),
+                "method": _DSSE_VERIFY_METHOD,
+                "keyid": sigs[0].get("keyid"),
+                "reason": reason,
+            },
+        }
+    except Exception as e:  # noqa: BLE001 — never present an error as a signature
+        unsigned["cryptographic_verification"]["reason"] = (
+            f"DSSE signing unavailable: {type(e).__name__}; no signature fabricated")
+        return unsigned
+
+
+# ---------------------------------------------------------------------------
 # The composite — compose every sub-guarantee, then sign ONE Khipu receipt into
 # the SHARED provenance chain. Returns the full envelope. NEVER raises on a single
 # sub-source failure (that field becomes UNAVAILABLE); always returns an envelope.
@@ -372,6 +446,10 @@ def build_composite(body: dict) -> dict[str, Any]:
         "doctrine": "v11",
     }
     receipt = dag.emit("provenance.composite", receipt_payload)
+    # emit() returns the stored chain record; recording the signature on it lets
+    # chain readers (the frontier manifest) see the same evidence. Signature fields
+    # are outside the sealed body, so chain integrity is unaffected.
+    receipt.update(_sign_composite(receipt))
     chain = dag.verify_chain()
 
     envelope = {
@@ -393,7 +471,9 @@ def build_composite(body: dict) -> dict[str, Any]:
             "digest": receipt["digest"],
             "prev": receipt["prev"],
             "payload_digest": receipt["payload_digest"],
-            "signature": receipt.get("signature"),  # DSSE_PLACEHOLDER — never faked
+            "signature": receipt.get("signature"),  # DSSE sig, or DSSE_PLACEHOLDER
+            "dsse": receipt.get("dsse"),
+            "cryptographic_verification": receipt.get("cryptographic_verification"),
             "chain_verified": chain.get("ok"),
             "chain_depth": dag.depth(),
             "chain_head": dag.head(),
@@ -615,8 +695,13 @@ def _selftest() -> dict:
     assert lb["locked_proven"]["count"] == 8 and lb["locked_proven"]["set"] == _LOCKED8
     out["lean_ok"] = True
 
-    # 6) signature is the honest placeholder (never faked) + composite re-fetch works.
-    assert env["khipu"]["signature"] == "DSSE_PLACEHOLDER", env["khipu"]
+    # 6) signature is real-and-verified or the honest placeholder (never faked).
+    _cv = env["khipu"]["cryptographic_verification"]
+    if _cv["status"] == "UNSIGNED":
+        assert env["khipu"]["signature"] == "DSSE_PLACEHOLDER", env["khipu"]
+    else:
+        assert _cv["status"] in ("VERIFIED", "UNVERIFIED"), _cv
+        assert _cv["verified"] is (_cv["status"] == "VERIFIED"), _cv
     refetch = fetch_composite(env["digest"])
     assert refetch["ok"] is True and refetch["chain_verified"] is True, refetch
     assert refetch["found_in_chain"] is True, refetch

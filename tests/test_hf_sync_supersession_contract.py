@@ -1,7 +1,7 @@
 """Livelock-free hf-sync supersession and dependency contract (stdlib only).
 
 The canonical deploy graph is source-admission -> preflight -> deploy ->
-runtime-config -> readiness-verdict -> execution-readiness -> relock -> post-deployment-parity ->
+runtime-config -> execution-handoff -> readiness-verdict -> execution-readiness -> relock -> post-deployment-parity ->
 terminal-source-authorization. Every gate is an invariant: protected main only,
 the newest main wins and a superseded run ends neutral, reruns and manual
 dispatch on main may deploy, and no job depends on an exact run, artifact,
@@ -36,22 +36,24 @@ EXPECTED_DEPENDENCIES = {
     "deploy": ["source-admission", "preflight"],
     "runtime-config": ["preflight", "deploy"],
     "publish-vertical-flagships": ["source-admission", "deploy"],
-    "readiness-verdict": ["runtime-config"],
-    "execution-readiness": ["readiness-verdict"],
-    "relock": ["runtime-config", "execution-readiness"],
+    "execution-handoff": ["source-admission", "runtime-config"],
+    "readiness-verdict": ["execution-handoff"],
+    "execution-readiness": ["readiness-verdict", "execution-handoff"],
+    "relock": ["execution-handoff", "execution-readiness"],
     "post-deployment-parity": ["relock"],
     "terminal-source-authorization": ["relock", "post-deployment-parity", "publish-vertical-flagships"],
 }
 EXPECTED_CONDITIONS = {
     "source-admission": None,
-    "preflight": "${{ needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}",
+    "preflight": "${{ !inputs.verify_current_deployment && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}",
     "deploy": "${{ needs.source-admission.outputs.publish == 'true' && needs.preflight.result == 'success' && needs.preflight.outputs.publish == 'true' }}",
     "runtime-config": None,
     "publish-vertical-flagships": "${{ needs.source-admission.outputs.publish == 'true' && needs.deploy.result == 'success' && github.event_name == 'workflow_dispatch' && inputs.publish_vertical_flagships }}",
-    "readiness-verdict": None,
-    "execution-readiness": None,
-    "relock": None,
-    "post-deployment-parity": "${{ needs.relock.outputs.current_main == 'true' }}",
+    "execution-handoff": "${{ always() && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' && ((github.event_name == 'workflow_dispatch' && inputs.verify_current_deployment && needs.runtime-config.result == 'skipped') || (!inputs.verify_current_deployment && needs.runtime-config.result == 'success')) }}",
+    "readiness-verdict": "${{ always() && needs.execution-handoff.result == 'success' }}",
+    "execution-readiness": "${{ always() && needs.readiness-verdict.result == 'success' && needs.execution-handoff.result == 'success' }}",
+    "relock": "${{ always() && needs.execution-handoff.result == 'success' && needs.execution-readiness.result == 'success' }}",
+    "post-deployment-parity": "${{ always() && needs.relock.result == 'success' && needs.relock.outputs.current_main == 'true' }}",
     "terminal-source-authorization": "${{ always() && needs.relock.result == 'success' && (needs.post-deployment-parity.result == 'success' || (needs.post-deployment-parity.result == 'skipped' && needs.relock.outputs.current_main != 'true')) && (needs.publish-vertical-flagships.result == 'success' || needs.publish-vertical-flagships.result == 'skipped') }}",
 }
 # Only these reviewed steps tolerate a failed command, and only by recording it:
@@ -283,12 +285,12 @@ def explicit_condition_allows(job: dict, context: dict) -> bool:
     return eval(compile(parsed, "<reviewed-workflow-condition>", "eval"), {"__builtins__": {}}, {})
 
 
-def simulate(jobs: dict, *, event="push", attempt=1, vertical=False,
-             outputs=None, failures=()) -> dict:
+def simulate(jobs: dict, *, event="push", attempt=1, vertical=False, verify=False,
+             outputs=None, failures=(), cancelled=()) -> dict:
     """Model the job graph, including GitHub's implicit success() rule.
 
     ``outputs`` supplies job outputs (missing outputs read as empty strings);
-    ``failures`` names jobs whose execution fails when they are scheduled.
+    ``failures`` and ``cancelled`` name jobs whose scheduled execution does not succeed.
     """
     produced = {"source-admission": {"publish": "true"},
                 "preflight": {"publish": "true", "restart_required": "false", "converged": "true"},
@@ -296,7 +298,8 @@ def simulate(jobs: dict, *, event="push", attempt=1, vertical=False,
     for name, values in (outputs or {}).items():
         produced.setdefault(name, {}).update(values)
     context = {"github.event_name": event, "github.run_attempt": attempt,
-               "inputs.publish_vertical_flagships": vertical}
+               "inputs.publish_vertical_flagships": vertical,
+               "inputs.verify_current_deployment": verify}
     results, pending = {}, set(jobs)
     while pending:
         ready = sorted(name for name in pending
@@ -309,7 +312,8 @@ def simulate(jobs: dict, *, event="push", attempt=1, vertical=False,
             allows = condition is None or explicit_condition_allows(job, context)
             if condition is None or "always()" not in condition:
                 allows = allows and all(results[parent] == "success" for parent in needs_of(job))
-            result = ("failure" if name in failures else "success") if allows else "skipped"
+            result = ("cancelled" if name in cancelled else
+                      "failure" if name in failures else "success") if allows else "skipped"
             results[name] = result
             context["needs." + name + ".result"] = result
             for key in OUTPUT_KEYS.get(name, ()):
@@ -319,7 +323,7 @@ def simulate(jobs: dict, *, event="push", attempt=1, vertical=False,
     return results
 
 
-DEPLOY_PATH = ("preflight", "deploy", "runtime-config", "readiness-verdict", "execution-readiness", "relock",
+DEPLOY_PATH = ("preflight", "deploy", "runtime-config", "execution-handoff", "readiness-verdict", "execution-readiness", "relock",
                "post-deployment-parity", "terminal-source-authorization")
 
 
@@ -345,6 +349,45 @@ class HFSyncLivelockFreeGraphTests(unittest.TestCase):
                         self.assertEqual(results[name], "success", name)
                     self.assertEqual(results["publish-vertical-flagships"], "skipped")
 
+    def test_verification_dispatch_reaches_fresh_evidence_without_provider_jobs(self) -> None:
+        results = simulate(self.jobs, event="workflow_dispatch", verify=True)
+        for name in ("preflight", "deploy", "runtime-config", "publish-vertical-flagships"):
+            self.assertEqual(results[name], "skipped", name)
+        for name in ("source-admission", "execution-handoff", "readiness-verdict",
+                     "execution-readiness", "relock", "post-deployment-parity",
+                     "terminal-source-authorization"):
+            self.assertEqual(results[name], "success", name)
+
+    def test_verification_mode_cannot_admit_a_push_or_a_superseded_source(self) -> None:
+        for kwargs in ({"event": "push", "verify": True},
+                       {"event": "workflow_dispatch", "verify": True,
+                        "outputs": {"source-admission": {"publish": "false"}}}):
+            with self.subTest(kwargs=kwargs):
+                results = simulate(self.jobs, **kwargs)
+                for name in DEPLOY_PATH:
+                    self.assertEqual(results[name], "skipped", name)
+
+    def test_failed_or_cancelled_source_and_handoff_never_admit_verification(self) -> None:
+        for state in ("failures", "cancelled"):
+            for failed in ("source-admission", "execution-handoff", "readiness-verdict",
+                           "execution-readiness", "relock", "post-deployment-parity"):
+                with self.subTest(state=state, failed=failed):
+                    results = simulate(self.jobs, event="workflow_dispatch", verify=True,
+                                       **{state: (failed,)})
+                    self.assertEqual(results[failed], "failure" if state == "failures" else "cancelled")
+                    self.assertNotEqual(results["terminal-source-authorization"], "success")
+                    if failed in ("source-admission", "execution-handoff"):
+                        for name in ("readiness-verdict", "execution-readiness", "relock"):
+                            self.assertEqual(results[name], "skipped", name)
+
+    def test_failed_or_cancelled_runtime_config_is_not_a_verification_shortcut(self) -> None:
+        for state in ("failures", "cancelled"):
+            with self.subTest(state=state):
+                results = simulate(self.jobs, **{state: ("runtime-config",)})
+                self.assertEqual(results["execution-handoff"], "skipped")
+                self.assertEqual(results["readiness-verdict"], "skipped")
+                self.assertEqual(results["relock"], "skipped")
+
     def test_superseded_admission_skips_every_effect_neutrally(self) -> None:
         results = simulate(self.jobs, outputs={"source-admission": {"publish": "false"}})
         self.assertEqual(results["source-admission"], "success")
@@ -366,7 +409,7 @@ class HFSyncLivelockFreeGraphTests(unittest.TestCase):
         self.assertEqual(results["terminal-source-authorization"], "success")
 
     def test_failed_effects_never_reach_terminal_authorization(self) -> None:
-        for failed in ("preflight", "deploy", "runtime-config", "readiness-verdict",
+        for failed in ("preflight", "deploy", "runtime-config", "execution-handoff", "readiness-verdict",
                        "execution-readiness", "relock", "post-deployment-parity"):
             with self.subTest(failed=failed):
                 results = simulate(self.jobs, failures=(failed,))
@@ -410,14 +453,14 @@ class HFSyncLivelockFreeGraphTests(unittest.TestCase):
         mutations = (
             ("    needs: [source-admission, preflight]\n", "    needs: source-admission\n", "dependency gate: deploy"),
             ("    needs: [preflight, deploy]\n", "    needs: deploy\n", "dependency gate: runtime-config"),
-            ("    needs: [runtime-config, execution-readiness]\n", "    needs: runtime-config\n", "dependency gate: relock"),
+            ("    needs: [execution-handoff, execution-readiness]\n", "    needs: execution-handoff\n", "dependency gate: relock"),
             ("    needs: [relock, post-deployment-parity, publish-vertical-flagships]\n",
              "    needs: [post-deployment-parity, publish-vertical-flagships]\n", "dependency gate: terminal-source-authorization"),
             ("    if: " + EXPECTED_CONDITIONS["deploy"] + "\n",
              "    if: ${{ github.event_name == 'push' && github.run_attempt == 1 && needs.preflight.result == 'success' }}\n", "condition gate: deploy"),
             ("    if: " + EXPECTED_CONDITIONS["preflight"] + "\n", "    if: always()\n", "condition gate: preflight"),
             ("    if: " + EXPECTED_CONDITIONS["post-deployment-parity"] + "\n", "", "condition gate: post-deployment-parity"),
-            ("    needs: runtime-config\n", "    needs: runtime-config\n    if: ${{ always() }}\n", "condition gate: readiness-verdict"),
+            ("    if: " + EXPECTED_CONDITIONS["readiness-verdict"] + "\n", "    if: ${{ always() }}\n", "condition gate: readiness-verdict"),
         )
         for original, replacement, diagnostic in mutations:
             with self.subTest(diagnostic=diagnostic):
@@ -511,6 +554,52 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         self.assertIn("if: always()", receipt)
         self.assertIn("if-no-files-found: error", receipt)
         self.assertIn("canonical-source-admission-${{ github.run_id }}-${{ github.run_attempt }}", receipt)
+
+    def test_verification_invocation_is_explicit_and_checked_before_source_admission(self) -> None:
+        dispatch = workflow_document(self.workflow)["on"]["workflow_dispatch"]["inputs"]
+        self.assertEqual(dispatch["verify_current_deployment"]["type"], "boolean")
+        self.assertIs(dispatch["verify_current_deployment"]["default"], False)
+        job = job_block(self.workflow, "Admit the queued source before provider mutation")
+        invocation = step_block(job, "Validate the bounded workflow invocation")
+        self.assertIn(".github/scripts/admit_execution_handoff.py --validate-invocation", invocation)
+        for key, value in {
+            "VERIFY_CURRENT_DEPLOYMENT": "${{ inputs.verify_current_deployment || false }}",
+            "OPEN_DEPLOY_WINDOW": "${{ inputs.open_deploy_window || false }}",
+            "PUBLISH_VERTICAL_FLAGSHIPS": "${{ inputs.publish_vertical_flagships || false }}",
+            "VERTICAL_PLAN_JSON": "${{ inputs.vertical_plan_json }}",
+        }.items():
+            self.assertIn(f"{key}: {value}", invocation)
+        self.assertLess(job.index(invocation), job.index("Require main and classify current source ownership"))
+
+    def test_handoff_freezes_context_between_current_source_admissions(self) -> None:
+        job = job_block(self.workflow, "Admit the unchanged runtime and freeze independent execution context")
+        context = step_block(job, "Admit exact current runtime with independent context")
+        before = step_block(job, "Re-admit protected main before runtime handoff")
+        after = step_block(job, "Re-admit protected main after runtime handoff")
+        self.assertIn("contents: read", job)
+        self.assertNotIn("secrets.", job)
+        for step in (before, after):
+            self.assertIn("scripts/hf_exact_main_ownership.py", step)
+            self.assertIn('--expected-sha "$GITHUB_SHA"', step)
+            self.assertIn("grep -Fqx 'publish=true'", step)
+        self.assertLess(job.index(before), job.index(context))
+        self.assertLess(job.index(context), job.index(after))
+        self.assertIn('--github-output "$GITHUB_OUTPUT"', context)
+        for output, variable in (("hf_revision", "HF_REVISION"), ("boot_id", "BOOT_ID"),
+                                 ("run_nonce", "RUN_NONCE"), ("authority_pins", "AUTHORITY_PINS_JSON")):
+            self.assertIn(f"{output}: ${{{{ steps.context.outputs.{output} }}}}", job)
+            self.assertEqual(self.workflow.count(f"${{{{ vars.A11OY_EXECUTION_{variable} }}}}"), 1)
+            for consumer in ("Collect and verify admitted execution evidence", "Prove exact live source, runtime, routes, and singleton state"):
+                block = job_block(self.workflow, consumer)
+                self.assertIn(f"${{{{ needs.execution-handoff.outputs.{output} }}}}", block)
+                self.assertNotIn("vars.A11OY_EXECUTION_", block)
+        passive = job_block(self.workflow, "Probe and ingest exact post-deploy readiness verdict")
+        execution = job_block(self.workflow, "Collect and verify admitted execution evidence")
+        artifact = "canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}"
+        self.assertIn(artifact, passive)
+        self.assertIn(artifact, execution)
+        self.assertNotIn("run-id:", execution)
+        self.assertIn("verify_current_deployment=true", job)
 
     def test_preflight_readmits_main_immediately_before_deploy(self) -> None:
         job = job_block(self.workflow, "Classify the canonical runtime and converge configuration before deploy")

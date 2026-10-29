@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Harden the runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
       - name: Checkout exact requested main source
@@ -34,7 +34,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - name: Use pinned Python runtime
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
       - name: Require exact protected current main before private credentials
@@ -54,7 +54,7 @@ jobs:
       - name: Install the reviewed Hub and LMDB pins
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
-          huggingface_hub==1.33.0 hf-xet==1.7.0 lmdb==2.3.0
+          huggingface_hub==1.33.0 hf-xet==1.7.0 lmdb==3.0.0
       - name: Rehearse the pinned current snapshots without provider writes
         env:
           HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}

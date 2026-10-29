@@ -5,6 +5,7 @@ thumbnail: "https://a-11-oy.com/og-card.png"
 colorFrom: indigo
 colorTo: gray
 sdk: docker
+source_repo: https://github.com/szl-holdings/a11oy
 app_port: 7860
 pinned: true
 license: apache-2.0

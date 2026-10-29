@@ -189,7 +189,7 @@ COPY model_release/m1/ ./model_release/m1/
 # Keep root-level sources explicit while batching them into one filesystem layer.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY szl_runtime_identity.py szl_signing_state.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
+COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -199,19 +199,16 @@ COPY research/ ./research/
 COPY routers/ ./routers/
 # The canonical HF sync publishes Dockerfile COPY sources. Keep these public
 # inventory docs in the same source-derived Space set as the runtime.
-COPY docs/huggingface-ecosystem-manifest.json docs/huggingface-ecosystem-manifest.schema.json docs/huggingface.md ./docs/
-COPY docs/model-inference-support.json ./docs/
+COPY docs/huggingface-ecosystem-manifest.json docs/huggingface-ecosystem-manifest.schema.json docs/huggingface.md docs/model-inference-support.json ./docs/
 COPY a11oy_model_support.py ./
 # Genome registry served to the console Genome panel + /api/a11oy/v1/genome.
 # Per-file COPY (this Dockerfile uses no `COPY . .`); a missing line -> the endpoint
 # degrades to an honest labeled 503 (never a faked payload), the panel shows it.
-COPY data/genome.json ./data/genome.json
 # Bounded master implementation workcell: validated read-only DAG/status
 # artifact. Missing or malformed bytes remain honest UNAVAILABLE at runtime.
-# Keep the module and its immutable artifact in one filesystem layer. The
-# module resolves the source-tree data path locally and the image-root copy at
-# runtime; both sources remain explicit for the import-vs-COPY guard.
-COPY szl_master_workcell.py data/master_workcell_dag_20261027.json ./
+# Its module rides the batched root COPY above and its DAG shares this data
+# layer, keeping the runtime stage inside the daemon layer-depth budget.
+COPY data/genome.json data/master_workcell_dag_20261027.json ./data/
 # ---------------------------------------------------------------------------
 # … (full rationale: docs/DOCKERFILE_NOTES.md §9)
 
@@ -521,7 +518,8 @@ COPY szl_connectors/ ./szl_connectors/
 
 # --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
 # … (full rationale: docs/DOCKERFILE_NOTES.md §66)
-COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js static/shared/szl_command_bar.js static/shared/szl_command_bar.css static/shared/puriq_receipt_v1.js static/shared/public-estate-contract.v1.json ./static/shared/
+COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js static/shared/szl_command_bar.js static/shared/szl_command_bar.css static/shared/puriq_receipt_v1.js ./static/shared/
+COPY static/shared/public-estate-contract.v1.json ./static/shared/public-estate-contract.v1.json
 COPY schemas/puriq-receipt-v1.json ./schemas/puriq-receipt-v1.json
 
 # --- GOVERNANCE / EVAL / CALIBRATION layer (Dev B, 2026-06): ADDITIVE ---
@@ -561,7 +559,7 @@ COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-hol
 # Command/Loop/Queue/Memory/Ledger. Not a Vite dump. Not a second flagship.
 # NEXUS analog vanity path (AO-2026-08-29-003). Same class as /five-space.
 # Not a flagship. Not a landing door. Hub Space private.
-COPY szl_lyte_lattice.py ./
+COPY szl_lyte_lattice.py szl_kernels_organ.py ./
 COPY szl_khipu_organ.py ./
 COPY szl_five_space.py ./
 COPY szl_nexus.py ./
@@ -718,3 +716,4 @@ CMD ["python", "-B", "gdw_runtime.py"]
 
 # Canonical reviewed package; outbound remains explicit and snapshot-gated.
 COPY khipu_lmdb/ ./khipu_lmdb/
+

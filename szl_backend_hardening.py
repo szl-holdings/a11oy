@@ -528,6 +528,72 @@ DEFAULT_FABRIC_NODES: List[Dict[str, Any]] = [
 ]
 
 # ---------------------------------------------------------------------------
+# Rented GPU nodes — operator-configured capacity that is NEVER owned/sovereign.
+# A11OY_RENTED_GPU_NODES is a JSON list of {"name", "host", "port", "provider"}
+# objects (e.g. a rented cloud GPU VM serving a model). Each accepted entry is
+# probed exactly like the other fabric nodes (one real TCP connect to host:port,
+# no tailnet re-resolution) and is labeled rented in the output. sovereign and
+# ownership are forced False here whatever the JSON says, so rented capacity can
+# never change the sovereign count. Invalid entries are rejected (fail closed)
+# and reported by index only; a rejection reason never echoes the host.
+# ---------------------------------------------------------------------------
+RENTED_GPU_NODES_ENV = "A11OY_RENTED_GPU_NODES"
+RENTED_GPU_KIND = "rented-gpu"
+MAX_RENTED_GPU_NODES = 8
+_RENTED_NAME_RE = _re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+_RENTED_HOST_RE = _re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$")
+_RENTED_PROVIDER_RE = _re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$")
+
+
+def _rented_entry_error(entry: Any, taken: set) -> Optional[str]:
+    if not isinstance(entry, dict):
+        return "not an object"
+    name, host, port, provider = (entry.get(k) for k in ("name", "host", "port", "provider"))
+    if not isinstance(name, str) or not _RENTED_NAME_RE.match(name):
+        return "name missing or invalid"
+    if name in taken:
+        return "name duplicates another fabric node"
+    if not isinstance(host, str) or not _RENTED_HOST_RE.match(host):
+        return "host must be a bare hostname or IPv4 address"
+    if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+        return "port must be an integer 1-65535"
+    if not isinstance(provider, str) or not _RENTED_PROVIDER_RE.match(provider):
+        return "provider missing or invalid"
+    return None
+
+
+def rented_gpu_nodes() -> Tuple[List[Dict[str, Any]], List[str]]:
+    """Parse A11OY_RENTED_GPU_NODES -> (node descriptors, rejection reasons)."""
+    raw = (_os.environ.get(RENTED_GPU_NODES_ENV) or "").strip()
+    if not raw:
+        return [], []
+    try:
+        entries = _json.loads(raw)
+    except ValueError:
+        return [], ["not valid JSON; no rented node configured"]
+    if not isinstance(entries, list):
+        return [], ["must be a JSON list; no rented node configured"]
+    taken = {n["name"] for n in DEFAULT_FABRIC_NODES}
+    nodes: List[Dict[str, Any]] = []
+    rejected: List[str] = []
+    for i, entry in enumerate(entries):
+        error = _rented_entry_error(entry, taken)
+        if error is None and len(nodes) >= MAX_RENTED_GPU_NODES:
+            error = f"over the {MAX_RENTED_GPU_NODES}-node limit"
+        if error:
+            rejected.append(f"entry {i}: {error}")
+            continue
+        taken.add(entry["name"])
+        nodes.append({
+            "name": entry["name"], "kind": RENTED_GPU_KIND, "sovereign": False,
+            "rented": True, "provider": entry["provider"],
+            "probe": (entry["host"], entry["port"]),
+            "endpoint": f"{entry['host']}:{entry['port']}",
+            "detail": f"rented GPU capacity ({entry['provider']}); not owned, not sovereign",
+        })
+    return nodes, rejected
+
+# ---------------------------------------------------------------------------
 # Egress scrub (2026-06-18) — NEVER leak private addressing to clients.
 # The fabric probes raw 100.x tailnet IPs / :11434 ports / the box public IP
 # INTERNALLY (that is how reachability is honestly measured), but the JSON
@@ -558,6 +624,9 @@ def _safe_endpoint_label(node: Dict[str, Any]) -> str:
     changes reachable/sovereign."""
     kind = str(node.get("kind", ""))
     raw = str(node.get("endpoint", "") or "")
+    if node.get("rented") is True:
+        # rented capacity — name the provider, never the configured host
+        return f"rented GPU · {node.get('provider') or 'unspecified provider'}"
     if kind == "cpu":
         # the box itself — drop the public IP, keep the honest self label
         return "host running this service"
@@ -621,7 +690,7 @@ def _probe_fabric_uncached(
     for _n in nodes:
         _t = _n.get("probe")
         _kind = str(_n.get("kind", ""))
-        if _t and "gpu" in _kind:
+        if _t and "gpu" in _kind and _n.get("rented") is not True:
             _host, _port = _t
             _ip, _src = _resolve_node_ip(_n["name"], _host)
             if _ip != _host:
@@ -647,7 +716,9 @@ def _probe_fabric_uncached(
         inner = env.get("result") if isinstance(env.get("result"), dict) else None
         reachable = bool(inner["reachable"]) if inner is not None else bool(env.get("reachable"))
         detail = (inner.get("detail") if inner else None) or env.get("detail") or n.get("detail")
-        sovereign = bool(n.get("sovereign", False))
+        rented = n.get("rented") is True
+        # Rented capacity is never sovereign, whatever the descriptor claims.
+        sovereign = False if rented else bool(n.get("sovereign", False))
         # EGRESS SCRUB: emit only a safe label — never the raw 100.x IP / :11434 /
         # box IP. reachable/sovereign are the REAL probe/property values, untouched.
         endpoint_label = _safe_endpoint_label(n)
@@ -655,6 +726,8 @@ def _probe_fabric_uncached(
         # WITHOUT a spacing bug): "(tailnet private)" for unreachable private GPU nodes.
         if reachable:
             status_label = "reachable"
+        elif rented:
+            status_label = "unreachable (rented)"
         elif "gpu" in str(n.get("kind", "")):
             status_label = "unreachable (tailnet private)"
         else:
@@ -673,7 +746,11 @@ def _probe_fabric_uncached(
                            "STATIC_CONFIGURATION"),
             "inference_verified": False,
             "ownership_verified": False,
+            "rented": rented,
         })
+        if rented:
+            out_nodes[-1]["provider"] = n.get("provider")
+            out_nodes[-1]["ownership_scope"] = "RENTED_NOT_OWNED"
 
     reachable_n = sum(1 for x in out_nodes if x["reachable"])
     gpu_reachable = sum(1 for x in out_nodes
@@ -682,6 +759,7 @@ def _probe_fabric_uncached(
         1 for x in out_nodes
         if x["reachable"] and x["sovereign"] and "gpu" in str(x.get("kind", ""))
     )
+    rented_gpu_reachable = sum(1 for x in out_nodes if x["reachable"] and x["rented"])
     return {
         "status": "live",
         "scope": "TRANSPORT_REACHABILITY",
@@ -692,6 +770,7 @@ def _probe_fabric_uncached(
             "nodes_reachable": reachable_n,
             "gpu_nodes_reachable": gpu_reachable,
             "sovereign_gpu_nodes_reachable": sovereign_gpu_reachable,
+            "rented_gpu_nodes_reachable": rented_gpu_reachable,
             "inference_verified_nodes": 0,
         },
         "inference_readiness": {
@@ -708,7 +787,9 @@ def _probe_fabric_uncached(
             "(after any retries) is reachable=False with the reason. retries are extra "
             "REAL connect attempts (a cold node may answer the 2nd) — never fabricated "
             "green. sovereign is configured inventory, not ownership verification; "
-            "the service host defaults to unverified ownership. TCP reachability does "
+            "the service host defaults to unverified ownership. Rented GPU nodes "
+            "(A11OY_RENTED_GPU_NODES) are probed the same way but are never sovereign "
+            "or owned. TCP reachability does "
             "not verify credentials, a model, GPU execution, or inference. No node "
             "fabricated. No energy/joule claim "
             "(joules MEASURED only via on-box exporter). Λ = Conjecture 1; locked = 8; no key."
@@ -733,13 +814,22 @@ def probe_fabric_pool(
     the payload tells the caller how fresh the reachability data is. The retry budget
     only gives a slow node time to answer honestly — it NEVER fabricates reachable.
     """
-    use_nodes = list(nodes) if nodes is not None else DEFAULT_FABRIC_NODES
+    use_nodes = list(nodes) if nodes is not None else None
     use_cache = cache if cache is not None else _FABRIC_CACHE
     if ttl is not None:
         use_cache.ttl = float(ttl)
     if force:
         use_cache.invalidate()
-    return use_cache.get_or_compute(lambda: _probe_fabric_uncached(use_nodes, timeout, retries))
+
+    def _produce() -> Dict[str, Any]:
+        if use_nodes is not None:
+            return _probe_fabric_uncached(use_nodes, timeout, retries)
+        rented, rejected = rented_gpu_nodes()
+        payload = _probe_fabric_uncached(DEFAULT_FABRIC_NODES + rented, timeout, retries)
+        payload["rented_gpu_config"] = {
+            "env": RENTED_GPU_NODES_ENV, "accepted": len(rented), "rejected": rejected}
+        return payload
+    return use_cache.get_or_compute(_produce)
 
 
 # ===========================================================================

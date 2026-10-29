@@ -62,6 +62,9 @@ _PIN_ENV = "A11OY_COUNCIL_PUB_SHA256"
 # sha256 of ayllu/keys/council-runtime-2026-07-21.pub as committed; a key swapped on the
 # fetched branch no longer verifies unless this deployed constant changes too.
 _BUILTIN_PIN = "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe"
+# The council signer (a11oy_ayllu.py) seals decisions with this media type. A
+# signature made by the same key for any other payload type is not a decision.
+_EXPECTED_PAYLOAD_TYPE = "application/vnd.szl.receipt+json"
 _CACHE_TTL_SECONDS = 300  # bytes only; verification always re-runs
 _MAX_DECISIONS = 24
 
@@ -154,6 +157,7 @@ def _verify_decision(doc: dict, public_key, pinned_fpr: str) -> dict:
         except Exception:
             sig_ok = False
     checks["ecdsaSignatureVerifiesOverPae"] = sig_ok
+    checks["payloadTypeExpected"] = payload_type == _EXPECTED_PAYLOAD_TYPE
     body = payload.get("body") if isinstance(payload, dict) else None
     checks["payloadDigestReproduces"] = (
         isinstance(body, dict)
@@ -226,8 +230,16 @@ async def _wall_payload() -> dict:
                     doc = json.loads(raw)
                     band = _verify_decision(doc, public_key, pinned_fpr)
                     if not pin_ok:
+                        # Results computed against an unpinned key are kept only as
+                        # labelled diagnostics; no decision content is carried.
+                        band["untrustedDiagnostics"] = {
+                            "label": "UNTRUSTED: computed against a key that does not match the pin",
+                            "checksAgainstUnpinnedKey": band.get("checks"),
+                        }
                         band["verified"] = False
                         band["status"] = "PIN_MISMATCH_FAILED_CLOSED"
+                        band["derived"] = None
+                        band["checks"] = {"keyPinned": False}
                     band["file"] = name
                     band["fileSha256"] = _sha256_hex(raw)
                     decisions.append(band)
