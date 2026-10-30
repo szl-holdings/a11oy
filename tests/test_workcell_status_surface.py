@@ -33,6 +33,8 @@ def test_status_page_binds_the_declared_workcell_contract() -> None:
     assert "WORKCELL_URL='/api/a11oy/v1/workcell/status'" in page
     assert "WORKCELL_SCHEMA='szl.master-workcell.v1'" in page
     assert "integration_summary" in page
+    assert "name==='overall'&&typeof item==='string'" in page
+    assert "escWorkcell(body.label||'DECLARED')" in page
     assert "Array.isArray(body.nodes)" in page
     assert "source-bound declaration only" in page
 
