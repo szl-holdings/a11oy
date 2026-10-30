@@ -864,10 +864,18 @@ def _chunk(text: str) -> list[str]:
 
 def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                 emit_receipt: Callable[[str, dict], dict] | None = None,
-                include_hf: bool = True) -> dict[str, Any]:
+                include_hf: bool = True,
+                rights_registry: Any = None) -> dict[str, Any]:
     """Enumerate org repos → trees → blobs → symbols; build the org graph + FTS5
     + (best-effort) dense vectors.  Returns build stats. Receipted via the
-    ``emit_receipt`` callback (the orchestrator passes ``khipu_emit``)."""
+    ``emit_receipt`` callback (the orchestrator passes ``khipu_emit``).
+
+    ``rights_registry`` (PROPOSED, opt-in, default None): a controller-owned
+    ``a11oy_rag_source_rights.SourceRightsRegistry``.  When supplied, a repo is
+    read only at its registry-pinned commit, every file is admitted BEFORE its
+    bytes are fetched, fetched bytes are checked against the admitted blob id,
+    and admitted/denied/quarantined/partial counts are reported under
+    ``source_rights``.  When None, behaviour is unchanged."""
     with _lock:
         token = _gh_token()
         if not token:
@@ -894,20 +902,59 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
             except Exception as exc:
                 return {"ok": False, "honest_error": f"repo enumeration failed: {exc}", "org": ORG}
 
+        rights: dict[str, Any] | None = None
+        if rights_registry is not None:
+            rights = {"mode": "registry", "store": "shared_public_default",
+                      "repos_admitted": 0, "repos_denied": 0, "repos_quarantined": 0,
+                      "repo_errors": 0, "truncated_trees": 0, "files_admitted": 0,
+                      "files_denied": 0, "files_quarantined": 0, "files_fetch_errors": 0,
+                      "files_skipped_size": 0, "embed_denied": 0, "reasons": {}}
+
+        def _rights_count(adm: Any, kind: str) -> None:
+            bucket = "quarantined" if adm.decision == "QUARANTINE" else "denied"
+            rights[f"{kind}_{bucket}"] += 1
+            rights["reasons"][adm.reason] = rights["reasons"].get(adm.reason, 0) + 1
+
         chunk_count = 0
         embed_fn = _maybe_embedder()
         for repo in repos:
             full = f"{ORG}/{repo}"
+            if rights is not None:
+                # Admit the source before any tree read and before naming it in the graph.
+                src_adm = rights_registry.admit_source(
+                    ORG, repo, None, "index", rights_registry.ingest_principal)
+                if not src_adm.admitted:
+                    _rights_count(src_adm, "repos")
+                    continue
+                pinned_commit = rights_registry.entry(ORG, repo).commit_sha
             graph.add_node(full, "repo", repo=repo, org=ORG)
             graph.add_node(f"hf:{HF_ORG}/{repo}", "hf_space", repo=repo, org=HF_ORG)
             graph.add_edge(full, f"hf:{HF_ORG}/{repo}", "mirrors")
             try:
-                # default branch then recursive tree
-                info = _gh_get(f"/repos/{full}", token)
-                branch = info.get("default_branch", "main")
-                tree = _gh_get(f"/repos/{full}/git/trees/{branch}", token, {"recursive": "1"})
+                if rights is None:
+                    # default branch then recursive tree
+                    info = _gh_get(f"/repos/{full}", token)
+                    branch = info.get("default_branch", "main")
+                    tree = _gh_get(f"/repos/{full}/git/trees/{branch}", token, {"recursive": "1"})
+                else:
+                    # immutable registry-pinned commit, never the mutable default branch
+                    branch = pinned_commit
+                    tree = _gh_get(f"/repos/{full}/git/trees/{pinned_commit}", token,
+                                   {"recursive": "1"})
             except Exception:
+                if rights is not None:
+                    rights["repo_errors"] += 1
                 continue
+            if rights is not None:
+                if tree.get("truncated"):
+                    rights["truncated_trees"] += 1
+                pinned_tree = rights_registry.entry(ORG, repo).tree_sha
+                if pinned_tree is not None and tree.get("sha") != pinned_tree:
+                    rights["repos_quarantined"] += 1
+                    rights["reasons"]["TREE_DIGEST_MISMATCH"] = (
+                        rights["reasons"].get("TREE_DIGEST_MISMATCH", 0) + 1)
+                    continue
+                rights["repos_admitted"] += 1
             files = [t for t in tree.get("tree", []) if t.get("type") == "blob"]
             files = [f for f in files if os.path.splitext(f["path"])[1].lower() in _TEXT_EXT]
             files = files[:max_files_per_repo]
@@ -915,17 +962,41 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                 path = f["path"]
                 ext = os.path.splitext(path)[1].lower()
                 fid = f"{full}:{path}"
+                if rights is not None:
+                    file_adm = rights_registry.admit_for_ingest(
+                        ORG, repo, pinned_commit, path, f.get("sha"), "index")
+                    if not file_adm.admitted:
+                        _rights_count(file_adm, "files")
+                        continue
                 graph.add_node(fid, "file", repo=repo, path=path)
                 graph.add_edge(full, fid, "documents")
                 # fetch blob (size-guard: skip very large)
                 if f.get("size", 0) > 200_000:
+                    if rights is not None:
+                        rights["files_skipped_size"] += 1
                     continue
                 try:
                     blob = _gh_get(f"/repos/{full}/contents/{path}", token, {"ref": branch})
                     import base64
-                    raw = base64.b64decode(blob.get("content", "")).decode("utf-8", "replace")
+                    raw_bytes = base64.b64decode(blob.get("content", ""))
+                    raw = raw_bytes.decode("utf-8", "replace")
                 except Exception:
+                    if rights is not None:
+                        rights["files_fetch_errors"] += 1
                     continue
+                file_embed_fn = embed_fn
+                if rights is not None:
+                    content_adm = rights_registry.verify_blob_bytes(f.get("sha"), raw_bytes)
+                    if not content_adm.admitted:
+                        _rights_count(content_adm, "files")
+                        continue
+                    rights["files_admitted"] += 1
+                    if embed_fn is not None:
+                        embed_adm = rights_registry.admit_for_ingest(
+                            ORG, repo, pinned_commit, path, f.get("sha"), "embed")
+                        if not embed_adm.admitted:
+                            file_embed_fn = None
+                            rights["embed_denied"] += 1
                 # symbols + imports → graph nodes/edges
                 for s in _extract_symbols(raw, ext):
                     sid = f"{fid}#{s}"
@@ -948,9 +1019,11 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                         "corpus,source,title,body,sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                         (generation_id, cid, fid, repo, path, "file", _cat,
                          f"gh:{ORG}/{repo}", path, seg, csha))
-                    if embed_fn is not None:
+                    if rights is not None:
+                        rights_registry.bind_chunk(generation_id, cid, csha, file_adm.source_id)
+                    if file_embed_fn is not None:
                         try:
-                            v = embed_fn(seg)
+                            v = file_embed_fn(seg)
                             conn.execute(
                                 "INSERT OR REPLACE INTO org_vectors_gen("
                                 "generation_id,chunk_id,dim,vec) VALUES(?,?,?,?)",
@@ -974,6 +1047,14 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
             "honest_note": ("dense vectors present" if embed_fn is not None
                             else "FTS5/lexical only — embedding model unavailable in this runtime (honest)"),
         }
+        if rights is not None:
+            rights["registry_revision"] = rights_registry.revision
+            rights["partial"] = any(rights[k] for k in (
+                "repos_denied", "repos_quarantined", "repo_errors", "truncated_trees",
+                "files_denied", "files_quarantined", "files_fetch_errors",
+                "files_skipped_size", "embed_denied"))
+            rights["brain_handle_plane_rights_admitted"] = False
+            meta["source_rights"] = rights
         _persist_runtime_state(conn, graph, meta, generation_id)
         conn.close()
         rec = emit_receipt("org_rag.index.built", meta) if emit_receipt else None

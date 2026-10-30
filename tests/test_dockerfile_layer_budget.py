@@ -60,6 +60,10 @@ MASTER_WORKCELL_COPY_ADDITIONS = {
     "data/master_workcell_dag_20261027.json",
 }
 
+# The RAG synthesis controller is imported by a11oy_code_orchestrator and copied
+# on that same root COPY line. Historical allowlist counts and digests stay put.
+RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS = {"a11oy_rag_synthesis_controller.py"}
+
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
     "371fbd0b54830459ce3096248a7ca33e4ffded466a5f538fd5996b3513947bf9"
@@ -185,6 +189,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert REPLICATION_COPY_ADDITIONS <= copy_sources
     assert SIGNING_STATE_COPY_ADDITIONS <= copy_sources
     assert MASTER_WORKCELL_COPY_ADDITIONS <= copy_sources
+    assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
@@ -202,6 +207,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | REPLICATION_COPY_ADDITIONS
         | SIGNING_STATE_COPY_ADDITIONS
         | MASTER_WORKCELL_COPY_ADDITIONS
+        | RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
@@ -235,6 +241,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert REPLICATION_COPY_ADDITIONS <= sources
     assert SIGNING_STATE_COPY_ADDITIONS <= sources
     assert MASTER_WORKCELL_COPY_ADDITIONS <= sources
+    assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -249,6 +256,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - REPLICATION_COPY_ADDITIONS
         - SIGNING_STATE_COPY_ADDITIONS
         - MASTER_WORKCELL_COPY_ADDITIONS
+        - RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
@@ -280,6 +288,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert REPLICATION_COPY_ADDITIONS <= sources
     assert SIGNING_STATE_COPY_ADDITIONS <= sources
     assert MASTER_WORKCELL_COPY_ADDITIONS <= sources
+    assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -294,6 +303,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - REPLICATION_COPY_ADDITIONS
         - SIGNING_STATE_COPY_ADDITIONS
         - MASTER_WORKCELL_COPY_ADDITIONS
+        - RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
