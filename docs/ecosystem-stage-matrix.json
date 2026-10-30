@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-23T16:50:41Z",
+  "observedAt": "2026-10-27T15:30:24Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,7 +26,7 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 48,
+      "models": 41,
       "datasets": 37,
       "spaces": 39,
       "kernels": 14
@@ -970,36 +970,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/oac-clinical-transport-health-v1",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/oac-clinical-transport-health-v1"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/oac-ops-health-v2",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/oac-system-health-v1",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/szl-block-kv",
       "repoType": "model",
       "stage": "inventory",
@@ -1190,36 +1160,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/szl-training-scripts",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/szl-training-scripts"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/szl-triage-linear-development-v1",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/szl-triage-linear-development-v1"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
       "repoType": "model",
       "stage": "inventory",
@@ -1237,16 +1177,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/szl-triage-retrain",
-      "repoType": "model",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/SZLHOLDINGS/szl-triage-retrain"
       ]
     },
     {

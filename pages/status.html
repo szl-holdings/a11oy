@@ -37,7 +37,15 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
 <header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
 <nav><a href="/hub">Hub</a><a href="/api/a11oy/code/ide">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status" class="active">Status</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
 <main><h1>Status — live flagship feed</h1><p class="sub">Each flagship is probed through a11oy's <strong>same-origin organ-health proxy</strong>, which performs the real upstream health check server-side. HTTP 200 is <strong>REACHABLE</strong>. A retired or unreachable backend shows as UNAVAILABLE / a non-200 code — never UP, LIVE, or MEASURED.</p>
-<table><tr><th>Flagship</th><th>State</th><th>Latency</th></tr><tbody id="tb"></tbody></table><div class="note">Authoritative status will move to status.szlholdings.com with server-side synthetic probes (per the resilience layer). This client-side feed is the honest interim.</div><script>
+<table><tr><th>Flagship</th><th>State</th><th>Latency</th></tr><tbody id="tb"></tbody></table>
+<section class="card" id="workcell-panel" aria-live="polite">
+ <h2>Master implementation workcell</h2>
+ <p class="sub">Machine-readable integration posture from <code>/api/a11oy/v1/workcell/status</code>. The contract reports source-bound declarations and blockers; this panel never upgrades a transport success into readiness.</p>
+ <div id="workcell-summary"><span class="pill n">probing…</span></div>
+ <table><tr><th>Integration area</th><th>Status</th><th>Evidence class</th><th>Source</th></tr><tbody id="workcell-tb"></tbody></table>
+ <p class="note" id="workcell-note">UNAVAILABLE until the workcell status contract returns valid JSON.</p>
+</section>
+<div class="note">Authoritative status will move to status.szlholdings.com with server-side synthetic probes (per the resilience layer). This client-side feed is the honest interim.</div><script>
 // HONEST role slugs only. The health probe targets a SAME-ORIGIN a11oy proxy
 // (/api/a11oy/v1/organ-health/<role>) that resolves each honest role to the real
 // backend healthz SERVER-SIDE and returns honest {up, latency_ms}. The browser
@@ -71,6 +79,60 @@ FLAGS.forEach(([n,u,kind])=>{const tr=document.createElement('tr');
     setS(r.ok?'<span class="pill a">REACHABLE</span>':'<span class="pill a">'+r.status+'</span>');})
    .catch(()=>{setS('<span class="pill r">UNAVAILABLE</span>');setL(Math.round(performance.now()-t0));});
  }});
+
+// Bounded master-workcell projection. This is a read-only source/status view:
+// HTTP success only permits parsing the declared payload. It never turns r.ok
+// into LIVE, MEASURED, or readiness, and transport/malformed responses stay
+// UNAVAILABLE.
+const WORKCELL_URL='/api/a11oy/v1/workcell/status';
+const WORKCELL_SCHEMA='szl.master-workcell.v1';
+const workcellSummary=document.getElementById('workcell-summary');
+const workcellTable=document.getElementById('workcell-tb');
+const workcellNote=document.getElementById('workcell-note');
+const escWorkcell=(value)=>String(value==null?'':value).replace(/[&<>\"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+const workcellClass=(value)=>{
+ const token=String(value||'UNKNOWN').toUpperCase();
+ return token==='MEASURED'||token==='REPORTED'?'g':(token==='DECLARED'||token==='MODELED'?'a':(token==='BLOCKED'||token==='UNAVAILABLE'?'r':'n'));
+};
+function paintWorkcellUnavailable(reason){
+ workcellSummary.innerHTML='<span class="pill r">UNAVAILABLE</span>';
+ workcellTable.innerHTML='';
+ workcellNote.textContent='UNAVAILABLE · '+(reason||'workcell status could not be verified');
+}
+function paintWorkcell(body){
+ const label=String(body.label||'UNKNOWN');
+ const status=String(body.status||'UNKNOWN');
+ workcellSummary.innerHTML='<span class="pill '+workcellClass(status)+'">'+escWorkcell(status)+'</span> <span class="pill '+workcellClass(label)+'">label: '+escWorkcell(label)+'</span>';
+ const rows=[];
+ const summary=body.integration_summary;
+ if(summary&&typeof summary==='object'&&!Array.isArray(summary)){
+  Object.entries(summary).forEach(([name,item])=>{
+   if(name==='overall'&&typeof item==='string'){
+    rows.push('<tr><td>overall</td><td><span class="pill '+workcellClass(item)+'">'+escWorkcell(item)+'</span></td><td>'+escWorkcell(body.label||'DECLARED')+'</td><td>—</td></tr>');
+    return;
+   }
+   const value=item&&typeof item==='object'?item:{};
+   rows.push('<tr><td>'+escWorkcell(name)+'</td><td><span class="pill '+workcellClass(value.status)+'">'+escWorkcell(value.status||'UNKNOWN')+'</span></td><td>'+escWorkcell(value.evidence_class||'DECLARED')+'</td><td>'+escWorkcell(value.source||'—')+'</td></tr>');
+  });
+ }
+ if(Array.isArray(body.nodes)){
+  body.nodes.forEach((node)=>{
+   if(!node||typeof node!=='object')return;
+   const nodeSource=node.source||(Array.isArray(node.evidence_refs)?node.evidence_refs[0]:'—');
+   rows.push('<tr><td>'+escWorkcell(node.title||node.id||'unknown')+'<br><small>'+escWorkcell(node.repo||node.owner_repo||'')+'</small></td><td><span class="pill '+workcellClass(node.status)+'">'+escWorkcell(node.status||'UNKNOWN')+'</span></td><td>'+escWorkcell(node.evidence_class||'UNKNOWN')+'</td><td>'+escWorkcell(nodeSource)+'</td></tr>');
+  });
+ }
+ workcellTable.innerHTML=rows.join('')||'<tr><td colspan="4">UNKNOWN · no integration rows were declared</td></tr>';
+ const blockers=Array.isArray(body.blockers)?body.blockers.length:0;
+ workcellNote.textContent=(status||'UNKNOWN')+' · '+(blockers?blockers+' blocker(s) recorded':'no blocker list supplied')+' · source-bound declaration only; no deployment or runtime claim.';
+}
+fetch(WORKCELL_URL,{cache:'no-store',headers:{accept:'application/json'}}).then(async(r)=>{
+ const body=await r.json().catch(()=>null);
+ if(!r.ok||!body||typeof body!=='object'||Array.isArray(body)||body.schema!==WORKCELL_SCHEMA){
+  paintWorkcellUnavailable(!r.ok?'HTTP '+r.status:'invalid or missing workcell contract'); return;
+ }
+ paintWorkcell(body);
+}).catch(()=>paintWorkcellUnavailable('network error'));
 </script>
 </main>
 <footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>

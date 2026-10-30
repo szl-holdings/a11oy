@@ -58,9 +58,9 @@ def test_archived_meter_and_bounded_engine_payload_remains_content_bound():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
-def test_archived_write_boundary_payload_preserves_prior_evidence():
-    archive = ROOT / ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json"
-    raw = archive.read_bytes()
+def test_archived_write_boundary_payload_preserves_prior_evidence_and_source():
+    raw = (ROOT / ".github/shared-source-payloads/"
+           "execution-observer-operator-auth-20261016-v1.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
     manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"

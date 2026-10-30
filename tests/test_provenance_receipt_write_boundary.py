@@ -3,9 +3,13 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Local request-boundary proof, not deployment or cryptographic readiness."""
 import asyncio
+import base64
 import copy
+import json
 
 import pytest
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.requests import Request
@@ -143,8 +147,10 @@ def test_missing_configuration_or_resolver_error_denies(isolated, monkeypatch, f
 
 
 @pytest.mark.parametrize("prefix", PREFIXES)
-def test_admitted_post_records_one_integrity_only_composite(isolated, monkeypatch, prefix):
+def test_admitted_post_records_one_integrity_only_composite(isolated, monkeypatch, prefix,
+                                                            tmp_path):
     _app, client, dag = isolated
+    _isolate_signer_state(monkeypatch, tmp_path)  # no signer -> integrity-only
     _stub_external_composers(monkeypatch)
     response = client.post(prefix + "/receipt", headers={
         "Authorization": "Bearer " + OPERATOR,
@@ -157,6 +163,116 @@ def test_admitted_post_records_one_integrity_only_composite(isolated, monkeypatc
     assert envelope["digest"] == dag.head()
     assert envelope["khipu"]["signature"] == "DSSE_PLACEHOLDER"
     assert "DSSE_PLACEHOLDER" in envelope["honesty"]["receipt_signature"]
+
+
+_SIGNER_ENV_VARS = ("SZL_COSIGN_PRIVATE_PEM", "SZL_COSIGN_PRIVATE_KEY_PEM",
+                    "A11OY_RECEIPT_KEY_PEM", "A11OY_RECEIPT_KEY_PATH", "szlcosig",
+                    "szlcosig1", "SZLCOSIG", "SZLCOSIG1")
+
+
+def _isolate_signer_state(monkeypatch, tmp_path):
+    """No inherited signer; fresh key caches; an empty key directory (fail closed)."""
+    import a11oy_signing_key
+    import szl_dsse
+
+    for name in _SIGNER_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("A11OY_RECEIPT_KEY_DIR", str(tmp_path))
+    monkeypatch.setattr(a11oy_signing_key, "_KEY_CACHE", {})
+    monkeypatch.setattr(szl_dsse, "_RUNTIME_PUBLIC_KEYS", {})
+    monkeypatch.setattr(szl_dsse, "_ACTIVE_RUNTIME_KEYID", None)
+
+
+@pytest.fixture
+def synthetic_signer(monkeypatch, tmp_path):
+    """A throwaway P-256 key generated here and supplied as the runtime secret."""
+    _isolate_signer_state(monkeypatch, tmp_path)
+    key = ec.generate_private_key(ec.SECP256R1())
+    monkeypatch.setenv("SZL_COSIGN_PRIVATE_PEM", key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption()).decode("ascii"))
+    return key
+
+
+def test_configured_signer_signs_and_verifies_the_composite(isolated, monkeypatch,
+                                                             synthetic_signer):
+    import szl_dsse
+    import szl_frontier_manifest as manifest
+
+    _app, client, dag = isolated
+    _stub_external_composers(monkeypatch)
+    response = client.post(PREFIXES[0] + "/receipt", headers={
+        "Authorization": "Bearer " + OPERATOR,
+    }, json={"action": "signed composite test", "request_id": "fixture-signed"})
+    assert response.status_code == 200
+    khipu = response.json()["khipu"]
+
+    verification = khipu["cryptographic_verification"]
+    assert verification["status"] == "VERIFIED"
+    assert verification["verified"] is True
+    assert verification["observed_this_process"] is True
+    assert verification["signature_count"] == 1
+    assert verification["method"] and "PLACEHOLDER" not in verification["method"].upper()
+    assert khipu["signature"] not in (None, "", "DSSE_PLACEHOLDER")
+
+    # Independent check with the synthetic public key over the DSSE PAE bytes.
+    dsse = khipu["dsse"]
+    body = base64.b64decode(dsse["payload"])
+    assert dsse["signatures"][0]["sig"] == khipu["signature"]
+    synthetic_signer.public_key().verify(
+        base64.b64decode(khipu["signature"]), szl_dsse.pae(dsse["payloadType"], body),
+        ec.ECDSA(hashes.SHA256()))
+    statement = json.loads(body)
+    assert statement["receipt_type"] == provenance._RECEIPT_TYPE
+    assert statement["digest"] == khipu["digest"] == dag.head()
+    assert statement["payload_digest"] == khipu["payload_digest"]
+    assert statement["prev"] == khipu["prev"] and statement["seq"] == khipu["seq"]
+
+    # The chain record carries the same evidence; chain integrity is unchanged.
+    record = dag.tail(1)[0]
+    assert record["signature"] == khipu["signature"]
+    assert record["cryptographic_verification"]["verified"] is True
+    assert dag.verify_chain()["ok"] is True
+    tile = manifest._concept_tile_inference_provenance()
+    assert tile["signature_verified"] is True
+
+
+def test_failed_verification_is_recorded_not_upgraded(isolated, monkeypatch, synthetic_signer):
+    import szl_dsse
+    import szl_frontier_manifest as manifest
+
+    _app, _client, dag = isolated
+    _stub_external_composers(monkeypatch)
+    monkeypatch.setattr(szl_dsse, "verify_envelope", lambda _env: {
+        "verified": False, "reason": "signature mismatch"})
+    envelope = provenance.build_composite({"action": "tampered", "request_id": "fixture-bad"})
+
+    verification = envelope["khipu"]["cryptographic_verification"]
+    assert verification["status"] == "UNVERIFIED"
+    assert verification["verified"] is False
+    assert verification["signature_count"] == 0
+    assert dag.tail(1)[0]["cryptographic_verification"]["verified"] is False
+    assert manifest._concept_tile_inference_provenance()["signature_verified"] is False
+
+
+def test_no_signer_keeps_explicit_unsigned_state(isolated, monkeypatch, tmp_path):
+    import szl_frontier_manifest as manifest
+
+    _isolate_signer_state(monkeypatch, tmp_path)
+    _app, _client, dag = isolated
+    _stub_external_composers(monkeypatch)
+    envelope = provenance.build_composite({"action": "unsigned", "request_id": "fixture-unsigned"})
+
+    khipu = envelope["khipu"]
+    assert khipu["signature"] == "DSSE_PLACEHOLDER"
+    assert khipu["dsse"] is None
+    verification = khipu["cryptographic_verification"]
+    assert verification["status"] == "UNSIGNED"
+    assert verification["verified"] is False
+    assert verification["signature_count"] == 0
+    assert verification["method"] is None
+    assert dag.tail(1)[0]["signature"] == "DSSE_PLACEHOLDER"
+    assert manifest._concept_tile_inference_provenance()["signature_verified"] is False
 
 
 def test_standalone_peer_is_gated_without_middleware(isolated, monkeypatch):

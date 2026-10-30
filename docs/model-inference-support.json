@@ -8,7 +8,7 @@
   },
   "generated_at": "2026-10-09T15:43:25.693184+00:00",
   "inventory_source": {
-    "model_ids_sha256": "771880ea44e30e044fb27969a392ba29051f1d4cf34c2513aa07520f44b2242e",
+    "model_ids_sha256": "5b5e668c8b1c9b69b8e0d9562d74f9265080d8ddc9a28319fda56dfc5c03e5d5",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -705,87 +705,6 @@
     },
     {
       "assessment": {
-        "artifact_class": "non_provider_artifact",
-        "hub_revision": "8a6cd25ed8121af4e99118cd874bb89f50cff981",
-        "observed_at": "2026-10-04T15:32:26.121230+00:00",
-        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
-        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
-        "source_url": "https://huggingface.co/SZLHOLDINGS/oac-clinical-transport-health-v1/blob/8a6cd25ed8121af4e99118cd874bb89f50cff981/README.md",
-        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
-      },
-      "id": "SZLHOLDINGS/oac-clinical-transport-health-v1",
-      "inference": {
-        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "316a831383e10802f9c9a1e9c077ffef81d87a467d2074c2c69afe0582d2b59e",
-        "error": null,
-        "hub_revision": "8a6cd25ed8121af4e99118cd874bb89f50cff981",
-        "observed_at": "2026-10-04T16:22:47.082932+00:00",
-        "providers": [],
-        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-clinical-transport-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-        "state": "NO_PROVIDER_MAPPING"
-      },
-      "repo_type": "model",
-      "support": {
-        "requests": [],
-        "state": "NO_RECORDED_REQUEST"
-      }
-    },
-    {
-      "assessment": {
-        "artifact_class": "non_provider_artifact",
-        "hub_revision": "a824a32d91a383d33a1e1e595f11b8362d1b4efa",
-        "observed_at": "2026-10-09T15:37:49.483008+00:00",
-        "qualification_note": "The exact model card describes a deterministic Python standard-library scorer and fitted JSON coefficients, with reported evaluation on synthetic generated data only. No hosted neural-model, real-transport, or clinical qualification is inferred from that card; the receipt is unsigned and its declared research origin is not independently authenticated.",
-        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
-        "source_url": "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2/blob/a824a32d91a383d33a1e1e595f11b8362d1b4efa/README.md",
-        "suggested_route": "Use the repository-specific local advisory route with authored synthetic inputs for inspection; this source grants no provider routing, device control, result release, or deployment authority."
-      },
-      "id": "SZLHOLDINGS/oac-ops-health-v2",
-      "inference": {
-        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "a141dbf2c8b6ffa02f29801b285feeafe2feefc95852374e9bc4a0cd20071a1a",
-        "error": null,
-        "hub_revision": "a824a32d91a383d33a1e1e595f11b8362d1b4efa",
-        "observed_at": "2026-10-09T15:37:52.828658+00:00",
-        "providers": [],
-        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-ops-health-v2?expand[]=inferenceProviderMapping&expand[]=sha",
-        "state": "NO_PROVIDER_MAPPING"
-      },
-      "repo_type": "model",
-      "support": {
-        "requests": [],
-        "state": "NO_RECORDED_REQUEST"
-      }
-    },
-    {
-      "assessment": {
-        "artifact_class": "non_provider_artifact",
-        "hub_revision": "dd7d109813abcd90c5250106dc2eabd2804e7ac3",
-        "observed_at": "2026-10-04T15:32:26.136078+00:00",
-        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
-        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
-        "source_url": "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1/blob/dd7d109813abcd90c5250106dc2eabd2804e7ac3/README.md",
-        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
-      },
-      "id": "SZLHOLDINGS/oac-system-health-v1",
-      "inference": {
-        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "e845f7df091f4656096ff9bf465b2496a55784f1811ec242fa2bfd9ce780e8b2",
-        "error": null,
-        "hub_revision": "dd7d109813abcd90c5250106dc2eabd2804e7ac3",
-        "observed_at": "2026-10-04T16:22:47.036384+00:00",
-        "providers": [],
-        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-system-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-        "state": "NO_PROVIDER_MAPPING"
-      },
-      "repo_type": "model",
-      "support": {
-        "requests": [],
-        "state": "NO_RECORDED_REQUEST"
-      }
-    },
-    {
-      "assessment": {
         "artifact_class": "kernel_library",
         "hub_revision": "b5e86e4038e630eda94e3bd83cee1c5729d6d826",
         "observed_at": "2026-10-04T15:32:26.137476+00:00",
@@ -1374,87 +1293,6 @@
     },
     {
       "assessment": {
-        "artifact_class": "non_provider_artifact",
-        "hub_revision": "af86a187f507a5423f5236c7cf77cf48ca67d077",
-        "observed_at": "2026-10-04T15:33:00.147066+00:00",
-        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
-        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
-        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated/blob/af86a187f507a5423f5236c7cf77cf48ca67d077/README.md",
-        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
-      },
-      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated",
-      "inference": {
-        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "eb144584705db7ee6b8c948ffa765e191fff114b265eb6fd1c0eaf26aaae0406",
-        "error": null,
-        "hub_revision": "af86a187f507a5423f5236c7cf77cf48ca67d077",
-        "observed_at": "2026-10-04T16:23:06.699159+00:00",
-        "providers": [],
-        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated?expand[]=inferenceProviderMapping&expand[]=sha",
-        "state": "NO_PROVIDER_MAPPING"
-      },
-      "repo_type": "model",
-      "support": {
-        "requests": [],
-        "state": "NO_RECORDED_REQUEST"
-      }
-    },
-    {
-      "assessment": {
-        "artifact_class": "non_provider_artifact",
-        "hub_revision": "923bc096c1e9f93daece720315c078ef5020fe68",
-        "observed_at": "2026-10-04T15:33:13.786694+00:00",
-        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
-        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
-        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-training-scripts/blob/923bc096c1e9f93daece720315c078ef5020fe68/README.md",
-        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
-      },
-      "id": "SZLHOLDINGS/szl-training-scripts",
-      "inference": {
-        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "35fd0bd49ffdb0d9d3996bc91f63f17a9094572ef962298ed33907b650913e0b",
-        "error": null,
-        "hub_revision": "923bc096c1e9f93daece720315c078ef5020fe68",
-        "observed_at": "2026-10-04T16:23:06.664468+00:00",
-        "providers": [],
-        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-training-scripts?expand[]=inferenceProviderMapping&expand[]=sha",
-        "state": "NO_PROVIDER_MAPPING"
-      },
-      "repo_type": "model",
-      "support": {
-        "requests": [],
-        "state": "NO_RECORDED_REQUEST"
-      }
-    },
-    {
-      "assessment": {
-        "artifact_class": "non_provider_artifact",
-        "hub_revision": "b6ec192000d38e6a29787410f8bc077266b62a22",
-        "observed_at": "2026-10-04T15:33:13.807168+00:00",
-        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
-        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
-        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-linear-development-v1/blob/b6ec192000d38e6a29787410f8bc077266b62a22/README.md",
-        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
-      },
-      "id": "SZLHOLDINGS/szl-triage-linear-development-v1",
-      "inference": {
-        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "db5610f7322c16ceba7c1754cb1c5994ae9b3d5fe1f4e30621fbd41f1d2a1a4a",
-        "error": null,
-        "hub_revision": "b6ec192000d38e6a29787410f8bc077266b62a22",
-        "observed_at": "2026-10-04T16:23:06.653811+00:00",
-        "providers": [],
-        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-linear-development-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-        "state": "NO_PROVIDER_MAPPING"
-      },
-      "repo_type": "model",
-      "support": {
-        "requests": [],
-        "state": "NO_RECORDED_REQUEST"
-      }
-    },
-    {
-      "assessment": {
         "artifact_class": "adapter_bundle",
         "hub_revision": "d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5",
         "observed_at": "2026-10-04T15:33:13.809182+00:00",
@@ -1499,33 +1337,6 @@
         "observed_at": "2026-10-04T16:23:10.310795+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5?expand[]=inferenceProviderMapping&expand[]=sha",
-        "state": "NO_PROVIDER_MAPPING"
-      },
-      "repo_type": "model",
-      "support": {
-        "requests": [],
-        "state": "NO_RECORDED_REQUEST"
-      }
-    },
-    {
-      "assessment": {
-        "artifact_class": "non_provider_artifact",
-        "hub_revision": "c078b86bafd81ddf055c3af775ed8b43398164c5",
-        "observed_at": "2026-10-04T15:33:13.809573+00:00",
-        "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
-        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
-        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-retrain/blob/c078b86bafd81ddf055c3af775ed8b43398164c5/README.md",
-        "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
-      },
-      "id": "SZLHOLDINGS/szl-triage-retrain",
-      "inference": {
-        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "b3d235c413a3dc0669ad8fbc59c7c2c8cd2e4204352cca0bdda116edb0469311",
-        "error": null,
-        "hub_revision": "c078b86bafd81ddf055c3af775ed8b43398164c5",
-        "observed_at": "2026-10-04T16:23:10.390219+00:00",
-        "providers": [],
-        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-retrain?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",

@@ -31,14 +31,27 @@ HF_SYNC_COMPLETION_JOBS = (
     "Prove exact live source, runtime, routes, and singleton state",
     "Probe and ingest exact post-deploy readiness verdict",
 )
+# Exact hf-sync.yml preflight names showing its deploy window stayed closed: the
+# window step ran and the re-admission it gates did not. They only pick the
+# failure message. tests/test_estate_child_completion.py fails on a rename.
+HF_SYNC_PREFLIGHT_JOB = "Classify the canonical runtime and converge configuration before deploy"
+HF_SYNC_WINDOW_STEP = "Require an open deploy window while SQLite lives on the bucket mount"
+HF_SYNC_READMIT_STEP = "Re-admit current protected main immediately before deploy"
+DEPLOY_WINDOW_CLOSED = (
+    "DEPLOY_WINDOW_CLOSED: deploy skipped because the deploy window was closed (the Space was "
+    "not PAUSED and open_deploy_window was not true); nothing was deployed. Re-dispatch with "
+    "open_deploy_window=true inside an agreed maintenance window, or pause the Space."
+)
 MAX_BYTES = 8 * 1024 * 1024
 
 
 def dispatch_hf_then_edge(command: list[str], revision: str,
-                          vertical_requested: bool, reports: Path) -> None:
+                          vertical_requested: bool, reports: Path, *,
+                          open_deploy_window: bool = False) -> None:
     """Require exact canonical publication completion before the domain writer."""
     hf_path = reports / "estate-child-hf.jsonl"
-    hf = dispatch_child(command, "hf-sync.yml", revision, vertical_requested, hf_path)
+    hf = dispatch_child(command, "hf-sync.yml", revision, vertical_requested, hf_path,
+                        open_deploy_window=open_deploy_window)
     wait_for_children([(hf, hf_path)], stage_only=True)
     edge_path = reports / "estate-child-edge.jsonl"
     edge_command = ["gh", "workflow", "run", "repair-cloudflare-product-edge.yml",
@@ -133,9 +146,9 @@ def dispatch_id(stdout: bytes) -> int:
 
 
 def dispatch_child(command: list[str], workflow: str, source: str, vertical: bool,
-                   output: Path) -> dict:
-    require(workflow in WORKFLOWS and sha40(source) and type(vertical) is bool,
-            "unadmitted child identity")
+                   output: Path, *, open_deploy_window: bool = False) -> dict:
+    require(workflow in WORKFLOWS and sha40(source) and type(vertical) is bool
+            and type(open_deploy_window) is bool, "unadmitted child identity")
     prefix = ["gh", "workflow", "run", workflow, "--repo", REPOSITORY, "--ref", "main"]
     expected = list(prefix)
     if vertical:
@@ -143,11 +156,16 @@ def dispatch_child(command: list[str], workflow: str, source: str, vertical: boo
         plan = {"complete": True, "approved": True, "expected_source_revision": source}
         expected += ["-f", "publish_vertical_flagships=true", "-f",
                      "vertical_plan_json=" + json.dumps(plan, sort_keys=True)]
+    if open_deploy_window:
+        # The operator's window request, forwarded as data; hf-sync's own gate decides.
+        require(workflow == "hf-sync.yml", "deploy window belongs to hf-sync only")
+        expected += ["-f", "open_deploy_window=true"]
     require(command == expected, "command differs from canonical source-bound plan")
     require(api("git/ref/heads/main").get("object", {}).get("sha") == source,
             "source moved before canonical dispatch")
     record = {"schema": "szl.estate-child-completion/v1", "workflow": workflow,
               "source_revision": source, "vertical_requested": vertical,
+              "open_deploy_window": open_deploy_window,
               "parent_run_id": os.environ.get("GITHUB_RUN_ID"),
               "state": "UNKNOWN_AFTER_ATTEMPT", "run_id": None,
               "production_authorization": False}
@@ -184,6 +202,26 @@ def validate_run(run: dict, child: dict) -> str:
     return status
 
 
+def deploy_window_closed(jobs: list[dict]) -> bool:
+    """True only if hf-sync's window step ran and the re-admission it gates did not.
+
+    Diagnostic only: it chooses the failure message and never admits completion.
+    """
+    preflight = [job for job in jobs if job.get("name") == HF_SYNC_PREFLIGHT_JOB]
+    if len(preflight) != 1 or preflight[0].get("conclusion") != "success":
+        return False
+    steps = preflight[0].get("steps")
+    if type(steps) is not list:
+        return False
+
+    def conclusion(name: str) -> object:
+        found = [step for step in steps if type(step) is dict and step.get("name") == name]
+        return found[0].get("conclusion") if len(found) == 1 else None
+
+    return (conclusion(HF_SYNC_WINDOW_STEP) == "success"
+            and conclusion(HF_SYNC_READMIT_STEP) == "skipped")
+
+
 def validate_jobs(jobs: list[dict], child: dict) -> None:
     require(bool(jobs), "missing child jobs")
     ids = [job.get("id") for job in jobs]
@@ -200,8 +238,10 @@ def validate_jobs(jobs: list[dict], child: dict) -> None:
     if child["workflow"] == "hf-sync.yml":
         for name in HF_SYNC_COMPLETION_JOBS:
             matched = [job for job in jobs if job.get("name") == name]
-            require(len(matched) == 1 and matched[0]["conclusion"] == "success",
-                    "canonical product completion job missing/skipped")
+            done = len(matched) == 1 and matched[0]["conclusion"] == "success"
+            # The same failure either way; name the operator gate when it is the cause.
+            require(done or not deploy_window_closed(jobs), DEPLOY_WINDOW_CLOSED)
+            require(done, "canonical product completion job missing/skipped")
     if child["workflow"] == "repair-cloudflare-product-edge.yml":
         # The contract-test job can pass while the requested writer is skipped.
         # Require the actual canonical repair and its exit-code enforcement.

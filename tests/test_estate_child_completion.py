@@ -49,17 +49,28 @@ class CompletionTests(unittest.TestCase):
     def test_domain_dispatch_follows_verified_hf_completion(self):
         events=[]
         command=['gh','workflow','run','hf-sync.yml','--repo',gate.REPOSITORY,'--ref','main']
-        def dispatch(argv, workflow, revision, vertical, path):
-            events.append(('dispatch',workflow,revision,vertical))
+        def dispatch(argv, workflow, revision, vertical, path, *, open_deploy_window=False):
+            events.append(('dispatch',workflow,revision,vertical,open_deploy_window))
             return {'workflow':workflow}
         def wait(pairs, **bounds):
             events.append(('verified',tuple(pair[0]['workflow'] for pair in pairs),bounds))
         with patch.object(gate,'dispatch_child',side_effect=dispatch), patch.object(gate,'wait_for_children',side_effect=wait):
             gate.dispatch_hf_then_edge(command,SOURCE,False,Path('reports'))
-        self.assertEqual(events,[('dispatch','hf-sync.yml',SOURCE,False),
+        self.assertEqual(events,[('dispatch','hf-sync.yml',SOURCE,False,False),
                                  ('verified',('hf-sync.yml',),{'stage_only':True}),
-                                 ('dispatch','repair-cloudflare-product-edge.yml',SOURCE,False),
+                                 ('dispatch','repair-cloudflare-product-edge.yml',SOURCE,False,False),
                                  ('verified',('hf-sync.yml','repair-cloudflare-product-edge.yml'),{'seconds':1200})])
+
+    def test_window_flag_reaches_only_the_hf_child(self):
+        seen=[]
+        command=['gh','workflow','run','hf-sync.yml','--repo',gate.REPOSITORY,'--ref','main',
+                 '-f','open_deploy_window=true']
+        def dispatch(argv, workflow, revision, vertical, path, *, open_deploy_window=False):
+            seen.append((workflow,open_deploy_window))
+            return {'workflow':workflow}
+        with patch.object(gate,'dispatch_child',side_effect=dispatch), patch.object(gate,'wait_for_children'):
+            gate.dispatch_hf_then_edge(command,SOURCE,False,Path('reports'),open_deploy_window=True)
+        self.assertEqual(seen,[('hf-sync.yml',True),('repair-cloudflare-product-edge.yml',False)])
 
     def test_hf_rerun_during_edge_keeps_parent_incomplete(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -90,7 +101,8 @@ class CompletionTests(unittest.TestCase):
 
     def test_release_workflow_uses_sequential_barrier(self):
         source=(ROOT/'.github/workflows/estate-release-train.yml').read_text()
-        self.assertIn('dispatch_hf_then_edge(command, revision, receipt["vertical_flagships"], Path("reports"))',source)
+        call=source.split('dispatch_hf_then_edge(command, revision, receipt["vertical_flagships"], Path("reports"),',1)[1]
+        self.assertEqual(call.split(')',1)[0].split(),['open_deploy_window=receipt["open_deploy_window"]'])
         self.assertNotIn('children.append(',source)
 
     def test_publication_stage_does_not_record_final_child_completion(self):
@@ -201,6 +213,45 @@ class CompletionTests(unittest.TestCase):
             self.assertEqual(execute.call_count, 1)
             self.assertEqual(json.loads(path.read_text().splitlines()[-1])["state"], "UNKNOWN_AFTER_ATTEMPT")
 
+    def test_window_flag_must_match_the_admitted_dispatch(self):
+        base = ["gh", "workflow", "run", "hf-sync.yml", "--repo", gate.REPOSITORY, "--ref", "main"]
+        opened = base + ["-f", "open_deploy_window=true"]
+        edge = ["gh", "workflow", "run", "repair-cloudflare-product-edge.yml", "--repo",
+                gate.REPOSITORY, "--ref", "main"]
+        url = f"https://github.com/{gate.REPOSITORY}/actions/runs/{RUN}\n".encode()
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(gate, "api", return_value={"object": {"sha": SOURCE}}), \
+                patch.object(gate, "cli", return_value=url) as execute:
+            record = gate.dispatch_child(opened, "hf-sync.yml", SOURCE, False,
+                                         Path(temp) / "open.jsonl", open_deploy_window=True)
+            self.assertIs(record["open_deploy_window"], True)
+            self.assertEqual(execute.call_args.args[0], opened)
+            # Neither side may imply the other, and only a real bool is admitted.
+            for index, (command, flag) in enumerate(((opened, False), (base, True), (opened, 1),
+                                                     (opened, "true"), (opened, None))):
+                with self.subTest(flag=flag), self.assertRaises(RuntimeError):
+                    gate.dispatch_child(command, "hf-sync.yml", SOURCE, False,
+                                        Path(temp) / f"bad-{index}.jsonl", open_deploy_window=flag)
+            with self.assertRaises(RuntimeError):
+                gate.dispatch_child(edge + ["-f", "open_deploy_window=true"],
+                                    "repair-cloudflare-product-edge.yml", SOURCE, False,
+                                    Path(temp) / "edge.jsonl", open_deploy_window=True)
+            self.assertEqual(execute.call_count, 1)
+
+    def test_vertical_and_window_compose_in_one_fixed_order(self):
+        plan = {"complete": True, "approved": True, "expected_source_revision": SOURCE}
+        command = ["gh", "workflow", "run", "hf-sync.yml", "--repo", gate.REPOSITORY, "--ref", "main",
+                   "-f", "publish_vertical_flagships=true",
+                   "-f", "vertical_plan_json=" + json.dumps(plan, sort_keys=True),
+                   "-f", "open_deploy_window=true"]
+        url = f"https://github.com/{gate.REPOSITORY}/actions/runs/{RUN}\n".encode()
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(gate, "api", return_value={"object": {"sha": SOURCE}}), \
+                patch.object(gate, "cli", return_value=url):
+            record = gate.dispatch_child(command, "hf-sync.yml", SOURCE, True,
+                                         Path(temp) / "j.jsonl", open_deploy_window=True)
+        self.assertEqual(record["state"], "DISPATCH_BOUND")
+
     def test_source_movement_or_mutated_command_before_write(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(gate, "cli") as execute:
             path = Path(temp)/"journal.jsonl"
@@ -282,6 +333,71 @@ class CompletionTests(unittest.TestCase):
         self.assertIn("python tests/test_estate_child_completion.py",parent)
         self.assertNotIn("subprocess.run(command, check=True)",parent)
         self.assertIn("inputs.publish_vertical_flagships == true",parent)
+
+
+GENERIC_SKIP = "canonical product completion job missing/skipped"
+
+
+def hf_job(job_id, name, conclusion="success", steps=()):
+    """Names come from the existing canonical hf-sync workflow, not the validator."""
+    return {"id": job_id, "name": name, "run_id": RUN, "head_sha": SOURCE, "run_attempt": 1,
+            "status": "completed", "conclusion": conclusion, "steps": list(steps)}
+
+
+def preflight_job(window="success", readmit="skipped", job_id=70):
+    return hf_job(job_id, "Classify the canonical runtime and converge configuration before deploy",
+                  steps=[{"name": "Require an open deploy window while SQLite lives on the bucket mount",
+                          "status": "completed", "conclusion": window},
+                         {"name": "Re-admit current protected main immediately before deploy",
+                          "status": "completed", "conclusion": readmit}])
+
+
+def closed_window_jobs(readmit="skipped"):
+    """hf-sync ends green with the window step run and its deploy path skipped."""
+    return [hf_job(60, "Admit the queued source before provider mutation"),
+            preflight_job(readmit=readmit),
+            *({**row, "conclusion": "skipped"} for row in jobs())]
+
+
+class DeployWindowTests(unittest.TestCase):
+    def test_closed_window_fails_naming_the_gate(self):
+        for value in (child(False), child(True), {**child(False), "open_deploy_window": True}):
+            with self.subTest(child=value), self.assertRaises(RuntimeError) as caught:
+                gate.validate_jobs(closed_window_jobs(), value)
+            message = str(caught.exception)
+            self.assertIn("DEPLOY_WINDOW_CLOSED", message)
+            self.assertIn("open_deploy_window=true", message)
+            self.assertIn("pause the Space", message)
+            self.assertNotIn(GENERIC_SKIP, message)
+
+    def test_other_skips_keep_the_generic_message(self):
+        rows = closed_window_jobs()
+        cases = {
+            "window opened, superseded before deploy": closed_window_jobs("success"),
+            "admission denied before the window step": [rows[0], preflight_job(window="skipped"), *rows[2:]],
+            "no preflight evidence": [rows[0], *rows[2:]],
+            "duplicate preflight evidence": rows + [preflight_job(job_id=71)],
+        }
+        for label, value in cases.items():
+            with self.subTest(case=label), self.assertRaises(RuntimeError) as caught:
+                gate.validate_jobs(value, child(False))
+            self.assertIn(GENERIC_SKIP, str(caught.exception))
+            self.assertNotIn("DEPLOY_WINDOW_CLOSED", str(caught.exception))
+
+    def test_window_evidence_names_exist_in_hf_sync(self):
+        # A rename must not silently turn the named gate back into a generic skip.
+        hf = (ROOT / ".github/workflows/hf-sync.yml").read_text()
+        header = "    name: " + gate.HF_SYNC_PREFLIGHT_JOB + "\n"
+        self.assertEqual(hf.count(header), 1)
+        preflight = hf.split(header, 1)[1].split("\n  deploy:\n", 1)[0]
+
+        def body(name):
+            marker = "      - name: " + name + "\n"
+            self.assertEqual(preflight.count(marker), 1)
+            return preflight.split(marker, 1)[1].split("\n      - name: ", 1)[0]
+
+        self.assertIn("id: window", body(gate.HF_SYNC_WINDOW_STEP))
+        self.assertIn("if: ${{ steps.window.outputs.open == 'true' }}", body(gate.HF_SYNC_READMIT_STEP))
 
 
 def edge_jobs(run_id=RUN):

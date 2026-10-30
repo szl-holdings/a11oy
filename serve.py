@@ -1687,6 +1687,18 @@ try:
 except Exception as _szl_status_e:  # pragma: no cover
     print(f"[a11oy] Operational STATUS aggregate NOT registered: {_szl_status_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# MASTER IMPLEMENTATION WORKCELL — read-only, source-bound cross-repo DAG and
+# integration posture.  The artifact is validated at request time; missing or
+# malformed bytes return honest UNAVAILABLE rather than a fabricated empty or
+# ready response.  GET performs no provider probe, inference, write, or signing.
+# Additive and registered before all catch-alls.
+try:
+    import szl_master_workcell as _szl_master_workcell
+    _szl_master_workcell.register(app, ns="a11oy")
+    print("[a11oy] Master workcell status registered: /api/a11oy/v1/workcell/status", file=__import__("sys").stderr)
+except Exception as _szl_master_workcell_e:  # pragma: no cover
+    print(f"[a11oy] Master workcell status NOT registered: {_szl_master_workcell_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Composite inference-provenance receipt (THE CAPSTONE) — POST /api/a11oy/v1/provenance/
 # receipt composes, by CALLING the already-live surfaces IN-PROCESS, ONE signed Khipu
 # envelope binding every guarantee for a single governed action: the REAL immune verdict
@@ -5586,6 +5598,8 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
 
 @app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
+    from szl_brain import mcp_inventory_snapshot
+    _mcp_inventory = mcp_inventory_snapshot("a11oy")
     # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
     # stamp DSSE-LIVE (pure status of the actual a11oy runtime key). Other /healthz
     # bodies must stay ABSENT/UNAVAILABLE — never copy this stamp.
@@ -5677,7 +5691,8 @@ async def healthz() -> JSONResponse:
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "axioms": 14,
         "sorries": 163,
-        "mcp_tools": 12,
+        "mcp_tools": _mcp_inventory["count"],
+        "mcp_inventory": _mcp_inventory,
         "policy_gates": 46,
         "anchor_formula_gates": 44,
         "hatun_willay": True,
@@ -5906,6 +5921,8 @@ async def proxy_to_backend(request: Request, backend_path: str) -> Response:
 @app.get("/api/a11oy/v1/gates")
 async def list_gates() -> JSONResponse:
     """List all 46 policy gates with name + description + lean_theorem. Doctrine v11."""
+    from szl_brain import mcp_inventory_snapshot
+    _mcp_inventory = mcp_inventory_snapshot("a11oy")
     summary = [
         {
             "name": g["name"],
@@ -5928,7 +5945,7 @@ async def list_gates() -> JSONResponse:
         "count": len(summary),
         "gates": summary,
         "doctrine": "v11",
-        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "mcp_tools": 12, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
+        "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "mcp_tools": _mcp_inventory["count"], "mcp_inventory": _mcp_inventory, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "lean_citation_audit": {
             "verified_against": "LEAN_PROOF_CITATION_MATRIX.csv",
             "real_theorem_citations": verified,
@@ -8308,14 +8325,21 @@ async def a11oy_mcp_tools_inline():
             # Sibling unreachable — omit honestly, never fabricate a cluster.
             pass
     _flagships = sorted({t["flagship"] for t in tools})
-    return JSONResponse({
+    manifest = {
         "count": len(tools), "tools": tools, "doctrine": "v11",
         "flagship": "a11oy",  # host flagship (backward-compatible field)
         "flagships": _flagships,  # every flagship that contributed live tools
         "sources": _sources,
         "kernel_commit": "c7c0ba17", "slsa_level": _A11OY_SLSA_TEXT,
         "lambda_uniqueness": "Conjecture 1 — NOT a theorem",
-    })
+    }
+    # Construct the response before recording the observation. JSONResponse
+    # rejects NaN/non-serializable payloads; failed responses must not publish
+    # a cached inventory count as if the manifest had been served.
+    response = JSONResponse(manifest)
+    from szl_brain import observe_mcp_inventory
+    observe_mcp_inventory(manifest, space="a11oy")
+    return response
 
 @app.post("/api/a11oy/v1/mcp/call")
 async def a11oy_mcp_call_inline(request: Request):
@@ -14303,11 +14327,15 @@ async def canonical_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
-# /status — System Status (live pillar tiles). web/status.html COPYed to
-# /app/web/status.html by the Dockerfile already; just needs an explicit route.
+# /status — System Status (live pillar tiles). Prefer the canonical web page when
+# present, with the source-tree pages/status.html as the bounded local fallback.
+# Keeping the fallback explicit prevents a missing image COPY from silently
+# serving the SPA shell instead of the honest status surface.
 @app.get("/status")
 async def status_page() -> Response:
     f = _szl_doc("web/status.html")
+    if not f.is_file():
+        f = _szl_doc("pages/status.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")

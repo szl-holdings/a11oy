@@ -1,0 +1,10 @@
+{
+  "files": {
+    ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json": "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",
+    "docs/mcp-advertised-inventory-20261016.md": "1c9e22ba02cb3ccc5e30ac5d19e0dffeb4cc515b2a59cdf6ac956f4bdbe855eb",
+    "szl_brain.py": "af7028d1ce5a473ae937846e2cc6b4b2a029a0918faa7a3a82e14c01bbdbe208",
+    "tests/test_mcp_inventory_observation.py": "10a015c982ba92b906e92c755fc0e70e26682e01474062c48a8b2913c8795abe"
+  },
+  "payload_id": "mcp-advertised-inventory-20261016-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

@@ -34,7 +34,7 @@ jobs:
       artifact_id: ${{ steps.snapshot_artifact.outputs.artifact-id }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
       - name: Checkout protected main
@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Resolve and validate the fixed-source handle snapshot
@@ -108,7 +108,7 @@ jobs:
       CANDIDATE_SET: ${{ needs.materialize.outputs.candidate_set }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
       - name: Checkout the validated source revision
@@ -118,7 +118,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Load inputs from the successful read-only job
@@ -130,6 +130,9 @@ jobs:
           path: .
       - name: Reconcile one content-addressed branch and open review PR
         id: proposal
+        # A held credential still exits 1 so the receipt stays REVIEW_PR_BLOCKED.
+        # verify-receipt accepts that recorded skip and still fails FAILED_CLOSED.
+        continue-on-error: true
         if: needs.materialize.result == 'success' && needs.materialize.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.BRAIN_FRONTIER_PR_TOKEN || github.token }}
