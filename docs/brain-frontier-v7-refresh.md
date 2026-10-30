@@ -29,13 +29,15 @@ renewal through the existing credential owner. No credential is printed or inclu
 in the receipt. Administration read is optional for observing the Actions policy.
 The controller never changes that policy.
 
-Without that secret the workflow uses `GITHUB_TOKEN`, but refuses to push until the
-repository policy can be read and explicitly allows Actions to create PRs. GitHub's
-policy read endpoint requires Administration read, which the workflow token normally
-cannot request. A missing observation is `UNAVAILABLE`, so a scoped automation
-credential is the practical operational path. A repository setting alone does not
-provide that read capability. Repository policy was observed as disabled on
-2026-09-08; this dated observation is not a statement about future configuration.
+Without that secret the workflow uses `GITHUB_TOKEN` and still refuses to push.
+When the policy cannot be read (`UNAVAILABLE`), or the observed policy disallows
+Actions pull-request creation, the run records `REVIEW_PR_BLOCKED` and the
+scheduled job succeeds. GitHub's policy read endpoint requires Administration
+read, which the workflow token normally cannot request. A scoped automation
+credential remains the path that can open the review PR. A repository setting
+alone does not provide that read capability. Repository policy was observed as
+disabled on 2026-09-08; this dated observation is not a statement about future
+configuration.
 
 Actions events created with an ordinary automation credential can trigger the PR
 validation workflows. Events created with `GITHUB_TOKEN` normally do not trigger
@@ -54,8 +56,12 @@ deployment.
 - `NO_CHANGE` requires successful materialization and validation.
 - `REVIEW_PR_OPEN` requires an open PR at the observed branch head with every source
   and digest binding intact.
-- `FAILED_CLOSED` includes missing inputs, blocked credentials, failed validation,
-  stale main, a conflicting branch, failed PR creation, and failed readback.
+- `REVIEW_PR_BLOCKED` is the recorded skip for a missing or unusable proposal
+  credential. It has no branch push and no pull request, and it leaves the
+  scheduled job green.
+- `FAILED_CLOSED` includes missing inputs, failed validation, stale main, a
+  conflicting branch, failed PR creation, and failed readback. That outcome still
+  fails the job.
 
 An existing branch without a PR is never a successful terminal state. A receipt
 upload failure also leaves the job failed. Workflow cancellation and runner loss can
