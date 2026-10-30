@@ -130,6 +130,9 @@ jobs:
           path: .
       - name: Reconcile one content-addressed branch and open review PR
         id: proposal
+        # A held credential still exits 1 so the receipt stays REVIEW_PR_BLOCKED.
+        # verify-receipt accepts that recorded skip and still fails FAILED_CLOSED.
+        continue-on-error: true
         if: needs.materialize.result == 'success' && needs.materialize.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.BRAIN_FRONTIER_PR_TOKEN || github.token }}
