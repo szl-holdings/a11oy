@@ -63,6 +63,14 @@ def test_console_claims_fail_closed() -> None:
     assert "every inference turn mints a signed energy receipt here" not in console
 
 
+def test_grid_carbon_stays_roadmap() -> None:
+    grid = _between(_console(), "V['energyGrid']", "function injectNav")
+    assert "badge:'CARBON ROADMAP · NO LIVE GRID FEED'" in grid
+    assert "var label='ROADMAP'" in grid
+    assert "grid_intensity_label==='MEASURED'" not in grid
+    assert "real-time MEASURED" not in grid
+
+
 def test_energy_receipts_runtime_never_promotes_unbound_billing_metadata() -> None:
     """Execute the renderer against honest and adversarial unbound metadata."""
     node = shutil.which("node")

@@ -15692,11 +15692,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     };
     V['energyGrid']={
       title:'Grid Settings',
-      badge:'READ-ONLY GRID INTENSITY · SOURCE LABEL',
-      sub:'Grid carbon intensity (I in SCI formula). Default: 436 gCO₂eq/kWh (US avg, MODELED). '
-         +'Wire ELECTRICITY_MAPS_API_KEY for real-time MEASURED intensity per zone. '
-         +'Grid intensity is independent of per-inference SCI availability. '
-         +'Honest labels: MEASURED (live API), MODELED (static default), UNAVAILABLE (invalid or absent intensity). '
+      badge:'CARBON ROADMAP · NO LIVE GRID FEED',
+      sub:'Grid carbon intensity (I in SCI formula) is ROADMAP. '
+         +'There is no admitted live grid feed. '
+         +'A finite intensity figure is not a MEASURED carbon result. '
+         +'Grid intensity does not establish per-inference SCI. '
          +'Λ = Conjecture 1.',
       render: function(c){
         c.innerHTML='<div style="padding:1.5rem 2rem"><h2 style="font-family:var(--display);color:var(--teal);margin:0 0 .5rem">Grid Settings</h2>'
@@ -15707,14 +15707,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           var gi=d.grid_intensity_gco2_per_kwh;
           var gridValid=typeof gi==='number'&&Number.isFinite(gi)&&gi>=0;
           var src=d.grid_source||'UNAVAILABLE';
-          var label=gridValid&&(d.grid_intensity_label==='MEASURED'||d.grid_intensity_label==='MODELED')?d.grid_intensity_label:'UNAVAILABLE';
+          var label='ROADMAP';
           var html='<div style="display:grid;gap:.6rem">';
           html+='<div><span style="color:var(--dim)">grid_intensity_gco2_per_kwh · </span><b style="color:var(--teal)">'+(gridValid?gi:'UNAVAILABLE')+'</b> <span style="color:var(--muted)">gCO₂eq/kWh</span></div>';
           html+='<div><span style="color:var(--dim)">source · </span><span style="color:var(--gold)">'+esc(src)+'</span></div>';
           html+='<div><span style="color:var(--dim)">label · </span><span style="color:var(--warn)">'+esc(label)+'</span></div>';
           html+='<div style="border-top:1px solid var(--gold-line);padding-top:.7rem;color:var(--muted);font-size:.78rem">'
-               +'Operator configuration: <code>ELECTRICITY_MAPS_API_KEY</code> enables live lookup; failed lookup retains a MODELED fallback. '
-               +'The endpoint reports the grid source and its own label; neither establishes per-inference SCI.</div>';
+               +'Carbon stays ROADMAP until a reviewed source-of-truth contract admits a live grid feed. '
+               +'Neither this figure nor the endpoint label establishes per-inference SCI.</div>';
           html+='</div>';
           c.querySelector('div').insertAdjacentHTML('beforeend', html);
         }).catch(function(e){ c.querySelector('div').insertAdjacentHTML('beforeend','<p style="color:var(--err)">UNAVAILABLE — '+esc((e&&e.message)||e)+'</p>'); });
