@@ -15595,10 +15595,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        F19/Bekenstein APPLIED not re-claimed. Λ = Conjecture 1. */
     V['energySci']={
       title:'SCI Scores',
-      badge:'GSF SCI · ISO 21031:2024 · UNAVAILABLE until GPU + meter online',
+      badge:'GSF SCI · ISO 21031:2024 · PER-INFERENCE ATTRIBUTION REQUIRED',
       sub:'Software Carbon Intensity (SCI = (E×I + M) / R) per-inference, per-model. '
-         +'When the sovereign GPU meter is live: MEASURED joules → real SCI scores. '
-         +'When meter is offline: UNAVAILABLE — we never fabricate a carbon number. '
+         +'Cumulative MEASURED joules alone do not establish per-inference SCI. '
+         +'A matched inference window and denominator are required; otherwise SCI is UNAVAILABLE. '
          +'Formula source: Green Software Foundation SCI (MIT/CC-BY-4.0, now ISO 21031:2024). '
          +'Λ = Conjecture 1.',
       render: function(c){
@@ -15607,37 +15607,36 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         c.innerHTML='<div style="padding:1.5rem 2rem"><h2 style="font-family:var(--display);color:var(--teal);margin:0 0 .5rem">SCI Scores <span style="font-size:.7em;color:var(--dim);font-family:var(--mono)">GSF · ISO 21031:2024</span></h2>'
           +'<p style="color:var(--muted);font-family:var(--mono);font-size:.8rem;margin:0 0 1.2rem">SCI = (E × I + M) / R   ·   E=energy kWh · I=grid intensity gCO₂eq/kWh · M=embodied · R=1 inference call</p>'
           +'<div id="sci-panel" style="color:var(--muted);font-family:var(--mono)">Loading…</div></div>';
-        _szlFetch(url).then(function(d){
+        getJSON(url).then(function(d){
+          if(!d||typeof d!=='object'||Array.isArray(d)) throw new Error('invalid SCI response');
           var p=document.getElementById('sci-panel'); if(!p) return;
-          var label=d.label||'UNAVAILABLE';
-          var labelColor=label==='MEASURED'?'var(--teal)':label==='MODELED'?'var(--warn)':'var(--err)';
+          // This API pin defines no positive per-inference attribution contract.
+          // A future numeric SCI requires a separately reviewed explicit contract.
+          var label='UNAVAILABLE';
+          var labelColor='var(--err)';
           var html='<div style="display:grid;gap:.6rem;max-width:560px">';
           html+='<div style="border:1px solid '+labelColor+';border-radius:8px;padding:1rem;background:rgba(0,0,0,.4)">';
           html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">';
           html+='<span style="font-family:var(--display);font-size:1.05rem;color:var(--cream)">SCI Score</span>';
-          html+='<span style="font-family:var(--mono);font-size:.75rem;color:'+labelColor+';border:1px solid '+labelColor+';padding:2px 8px;border-radius:4px">'+label+'</span>';
+          html+='<span style="font-family:var(--mono);font-size:.75rem;color:'+labelColor+';border:1px solid '+labelColor+';padding:2px 8px;border-radius:4px">'+esc(label)+'</span>';
           html+='</div>';
-          if(d.sci_score_gco2_per_call!==null&&d.sci_score_gco2_per_call!==undefined){
-            html+='<div style="font-size:1.8rem;font-weight:700;color:var(--teal);font-family:var(--mono)">'+d.sci_score_gco2_per_call.toFixed(6)+' <span style="font-size:.9rem;color:var(--muted)">gCO₂eq/call</span></div>';
-          } else {
-            html+='<div style="font-size:1.1rem;color:var(--err);font-family:var(--mono)">UNAVAILABLE — sovereign GPU + meter offline</div>';
-            html+='<p style="color:var(--muted);font-size:.8rem;margin:.5rem 0 0">Start the sovereign GPU + Cloudflare meter tunnel to populate SCI scores. When live: MEASURED joules → SCI. When offline: this card, honestly.</p>';
-          }
+          html+='<div style="font-size:1.1rem;color:var(--err);font-family:var(--mono)">UNAVAILABLE — per-inference SCI not established</div>';
+          html+='<p style="color:var(--muted);font-size:.8rem;margin:.5rem 0 0">'+esc(d.note||'A matched inference window and denominator are required; cumulative energy alone is insufficient.')+'</p>';
           html+='</div>';
           // Field breakdown
-          var fields=[['energy_joules',d.energy_joules,'J'],['energy_kwh',d.energy_kwh,'kWh'],['carbon_gco2eq',d.carbon_gco2eq,'gCO₂eq'],['grid_intensity_gco2_per_kwh',d.grid_intensity_gco2_per_kwh,'gCO₂/kWh'],['measurement_source',d.measurement_source,''],['methodology',d.methodology,'']];
+          var fields=[['energy_joules',d.energy_joules,'J'],['energy_kwh',d.energy_kwh,'kWh'],['energy_label',d.energy_label,''],['energy_scope',d.energy_scope,''],['per_inference_attribution','UNAVAILABLE',''],['carbon_gco2eq',d.carbon_gco2eq,'gCO₂eq'],['grid_intensity_gco2_per_kwh',d.grid_intensity_gco2_per_kwh,'gCO₂/kWh'],['measurement_source',d.measurement_source,''],['methodology',d.methodology,'']];
           html+='<table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.8rem">';
           fields.forEach(function(f){
             var val=f[1];
-            var disp=(val===null||val===undefined)?'<span style="color:var(--err)">UNAVAILABLE</span>':('<span style="color:var(--teal)">'+val+'</span>'+(f[2]?' <span style="color:var(--muted)">'+f[2]+'</span>':''));
+            var disp=(val===null||val===undefined||val==='UNAVAILABLE')?'<span style="color:var(--err)">UNAVAILABLE</span>':('<span style="color:var(--teal)">'+esc(val)+'</span>'+(f[2]?' <span style="color:var(--muted)">'+f[2]+'</span>':''));
             html+='<tr style="border-bottom:1px solid var(--gold-line)"><td style="padding:.35rem .5rem;color:var(--dim)">'+f[0]+'</td><td style="padding:.35rem .5rem">'+disp+'</td></tr>';
           });
           html+='</table>';
           html+='<p style="font-family:var(--mono);font-size:.75rem;color:var(--dim);margin:.5rem 0 0">';
-          html+='Label: MEASURED = live NVML joules. MODELED = static default grid intensity. UNAVAILABLE = meter offline.</p>';
+          html+='Labels apply only to their own fields. Cumulative energy and grid intensity do not establish per-inference SCI.</p>';
           html+='</div>';
           p.innerHTML=html;
-        }).catch(function(e){ var p=document.getElementById('sci-panel'); if(p) p.innerHTML='<span style="color:var(--err)">'+e+'</span>'; });
+        }).catch(function(e){ var p=document.getElementById('sci-panel'); if(p) p.innerHTML='<span style="color:var(--err)">UNAVAILABLE — '+esc((e&&e.message)||e)+'</span>'; });
       }
     };
     V['energyReceipts']={
@@ -15693,30 +15692,32 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     };
     V['energyGrid']={
       title:'Grid Settings',
-      badge:'MODELED DEFAULT · wire Electricity Maps for MEASURED',
-      sub:'Grid carbon intensity (I in SCI formula). Default: 436 gCO₂eq/kWh (US avg, MODELED). '
-         +'Wire ELECTRICITY_MAPS_API_KEY for real-time MEASURED intensity per zone. '
-         +'UNAVAILABLE when GPU + meter are offline — SCI scores require measured energy first. '
-         +'Honest labels: MEASURED (live API), MODELED (static default), UNAVAILABLE (no meter). '
+      badge:'CARBON ROADMAP · NO LIVE GRID FEED',
+      sub:'Grid carbon intensity (I in SCI formula) is ROADMAP. '
+         +'There is no admitted live grid feed. '
+         +'A finite intensity figure is not a MEASURED carbon result. '
+         +'Grid intensity does not establish per-inference SCI. '
          +'Λ = Conjecture 1.',
       render: function(c){
         c.innerHTML='<div style="padding:1.5rem 2rem"><h2 style="font-family:var(--display);color:var(--teal);margin:0 0 .5rem">Grid Settings</h2>'
           +'<p style="color:var(--muted);font-family:var(--mono);font-size:.8rem;margin:0 0 1.2rem">Grid carbon intensity feeds for the SCI formula (I parameter).</p>'
           +'<div style="border:1px solid var(--gold-line);border-radius:8px;padding:1.2rem;font-family:var(--mono);font-size:.85rem">';
-        _szlFetch('/api/a11oy/v1/energy/sci').then(function(d){
+        getJSON('/api/a11oy/v1/energy/sci').then(function(d){
+          if(!d||typeof d!=='object'||Array.isArray(d)) throw new Error('invalid SCI response');
           var gi=d.grid_intensity_gco2_per_kwh;
-          var src=d.grid_source||'static default';
-          var label=d.label||'UNAVAILABLE';
+          var gridValid=typeof gi==='number'&&Number.isFinite(gi)&&gi>=0;
+          var src=d.grid_source||'UNAVAILABLE';
+          var label='ROADMAP';
           var html='<div style="display:grid;gap:.6rem">';
-          html+='<div><span style="color:var(--dim)">grid_intensity_gco2_per_kwh · </span><b style="color:var(--teal)">'+(gi||'UNAVAILABLE')+'</b> <span style="color:var(--muted)">gCO₂eq/kWh</span></div>';
-          html+='<div><span style="color:var(--dim)">source · </span><span style="color:var(--gold)">'+src+'</span></div>';
-          html+='<div><span style="color:var(--dim)">label · </span><span style="color:var(--warn)">'+label+'</span></div>';
+          html+='<div><span style="color:var(--dim)">grid_intensity_gco2_per_kwh · </span><b style="color:var(--teal)">'+(gridValid?gi:'UNAVAILABLE')+'</b> <span style="color:var(--muted)">gCO₂eq/kWh</span></div>';
+          html+='<div><span style="color:var(--dim)">source · </span><span style="color:var(--gold)">'+esc(src)+'</span></div>';
+          html+='<div><span style="color:var(--dim)">label · </span><span style="color:var(--warn)">'+esc(label)+'</span></div>';
           html+='<div style="border-top:1px solid var(--gold-line);padding-top:.7rem;color:var(--muted);font-size:.78rem">'
-               +'To upgrade from MODELED to MEASURED: set <code>ELECTRICITY_MAPS_API_KEY</code> env var. '
-               +'The /api/a11oy/v1/energy/sci endpoint will then query the Electricity Maps API and label the intensity as MEASURED.</div>';
+               +'Carbon stays ROADMAP until a reviewed source-of-truth contract admits a live grid feed. '
+               +'Neither this figure nor the endpoint label establishes per-inference SCI.</div>';
           html+='</div>';
           c.querySelector('div').insertAdjacentHTML('beforeend', html);
-        }).catch(function(){});
+        }).catch(function(e){ c.querySelector('div').insertAdjacentHTML('beforeend','<p style="color:var(--err)">UNAVAILABLE — '+esc((e&&e.message)||e)+'</p>'); });
         c.querySelector('div').insertAdjacentHTML('beforeend','</div></div>');
       }
     };
@@ -17145,7 +17146,7 @@ window.a11oyInvestor = (function(){
           var lockedCount=H&&H.locked_formula_count;
           var canonicalLockedIds=['F1','F4','F7','F11','F12','F18','F19','F22'];
           var idsCanonical=canonicalLockedIds.every(function(id){ return lockedIds.indexOf(id)!==-1; });
-          var honestValid=H&&H.doctrine==='v11'&&lockedCount===8&&lockedIds.length===8&&
+          var honestValid=H&&H.doctrine_lock&&H.doctrine_lock.doctrine==='v11'&&lockedCount===8&&lockedIds.length===8&&
             lockedIds.every(function(id){ return typeof id==='string'; })&&(new Set(lockedIds)).size===8&&idsCanonical;
           if(honestValid){
             var lockedEp=document.getElementById('inv-locked-ep');
