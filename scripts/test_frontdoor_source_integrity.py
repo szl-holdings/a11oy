@@ -32,6 +32,7 @@ on:
   workflow_call:
 permissions:
   contents: read
+  attestations: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -43,7 +44,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2
         with:
           egress-policy: audit
       - name: Checkout exact protected base verifier
@@ -60,7 +61,7 @@ jobs:
           path: tools
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: "3.12"
       - name: Prove stable immutable deployed-base repository parity
@@ -102,7 +103,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2
         with:
           egress-policy: audit
       - name: Checkout exact protected-base verifier
@@ -119,7 +120,7 @@ jobs:
           path: tools
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: "3.12"
       - name: Prove the candidate introduces no unmanaged deployed-byte drift
@@ -165,6 +166,39 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         temp, root = self.make_fixture()
         with temp:
             self.assertEqual(validator.validate(root), [])
+
+    def test_current_workflow_requires_exact_read_only_attestation_access(self) -> None:
+        workflow = (HERE.parent / validator.WORKFLOW_PATH).read_text(encoding="utf-8")
+        self.assertEqual(validator._validate_workflow_envelope(workflow), [])
+
+    def test_workflow_permission_writes_missing_or_extra_scopes_fail(self) -> None:
+        permissions = "permissions:\n  contents: read\n  attestations: read\n"
+        replacements = (
+            "permissions:\n  contents: write\n  attestations: read\n",
+            "permissions:\n  contents: read\n  attestations: write\n",
+            "permissions:\n  contents: read\n",
+            "permissions:\n  attestations: read\n",
+            permissions + "  actions: read\n",
+            permissions + "  actions: write\n",
+            permissions + "  id-token: write\n",
+            permissions + "  contents: write\n",
+            permissions + "  attestations: read\n",
+            "permissions: read-all\n",
+            "permissions: write-all\n",
+            "permissions: {contents: read, attestations: read}\n",
+            "permissions: *read_permissions\n",
+        )
+        self.assertIn(permissions, VALID_WORKFLOW)
+        for replacement in replacements:
+            with self.subTest(permissions=replacement):
+                temp, root = self.make_fixture()
+                with temp:
+                    workflow = VALID_WORKFLOW.replace(permissions, replacement, 1)
+                    (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
+                    self.assertTrue(any(
+                        "permissions must be exactly" in error
+                        for error in validator.validate(root)
+                    ))
 
     def test_one_line_commented_workflow_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -554,7 +588,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             VALID_WORKFLOW.replace(
                 "    steps:\n",
                 "    steps:\n      - uses: &action "
-                "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25\n",
+                "step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2\n",
                 1,
             ),
             VALID_WORKFLOW.replace(
@@ -728,7 +762,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         self.assertEqual(validator._validate_parity_jobs(workflow), [])
 
     def test_both_current_jobs_keep_the_exact_reviewed_hardener(self) -> None:
-        expected = "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25"
+        expected = "step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2"
         self.assertEqual(validator.HARDEN_RUNNER_ACTION, expected)
         workflow = (HERE.parent / validator.WORKFLOW_PATH).read_text(encoding="utf-8")
         for job_name in (validator.BASELINE_JOB, validator.CANDIDATE_JOB):
@@ -741,7 +775,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
                 self.assertEqual(validator._nested_mapping(steps[0], "with"), {"egress-policy": "audit"})
 
     def test_unreviewed_or_mutable_runner_identity_is_rejected(self) -> None:
-        approved = "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25"
+        approved = "step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2"
         replacements = (
             "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1",
             "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920",
@@ -749,7 +783,8 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             "step-security/harden-runner@v2.21.1",
             "step-security/harden-runner@main",
             "step-security/harden-runner@" + "0" * 40,
-            "attacker/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25",
+            "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25",
+            "attacker/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2",
         )
         self.assertEqual(VALID_WORKFLOW.count(approved), 2)
         for replacement in replacements:
@@ -772,7 +807,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
     def test_missing_hardener_cannot_be_replaced_by_a_comment(self) -> None:
         step = (
             "      - name: Harden runner\n"
-            "        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25\n"
+            "        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2\n"
             "        with:\n"
             "          egress-policy: audit\n"
         )
@@ -789,7 +824,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             workflow = VALID_WORKFLOW.replace(
                 "    steps:\n",
                 "    steps:\n      - name: Extra hardener\n"
-                "        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25\n",
+                "        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2\n",
                 1,
             )
             (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")

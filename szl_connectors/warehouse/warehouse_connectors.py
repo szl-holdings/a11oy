@@ -21,6 +21,44 @@ from ..ready import ReadyConnector
 from ..registry import register
 
 
+def _snowflake_completed_rows(status, raw):
+    """Validate only a complete, bounded jsonv2 result; never poll or infer success."""
+    if status == 202:
+        return None, "statement pending; completion unproved"
+    if status != 200:
+        return None, f"Snowflake HTTP {status}; no completed result"
+    if not isinstance(raw, dict):
+        return None, "malformed Snowflake response; expected object"
+    if raw.get("code") != "090001" or raw.get("sqlState") != "00000":
+        return None, "Snowflake completion status not proven"
+    if "statementHandles" in raw:
+        return None, "multiple-statement response is unsupported"
+    meta, rows = raw.get("resultSetMetaData"), raw.get("data")
+    if not isinstance(meta, dict) or meta.get("format") != "jsonv2":
+        return None, "missing or unsupported Snowflake result metadata"
+    if not isinstance(rows, list):
+        return None, "missing or malformed Snowflake data"
+    count, columns = meta.get("numRows"), meta.get("rowType")
+    if type(count) is not int or not 0 <= count <= 10 or count != len(rows):
+        return None, "incomplete or out-of-bound Snowflake result"
+    if (not isinstance(columns, list) or not columns
+            or any(not isinstance(c, dict) or not isinstance(c.get("name"), str)
+                   or not c["name"] for c in columns)):
+        return None, "malformed Snowflake column metadata"
+    if any(not isinstance(row, list) or len(row) != len(columns)
+           or any(cell is not None and not isinstance(cell, str) for cell in row)
+           for row in rows):
+        return None, "malformed Snowflake result rows"
+    if "partitionInfo" in meta:
+        parts = meta["partitionInfo"]
+        if (not isinstance(parts, list) or len(parts) > 1
+                or (not parts and count != 0)
+                or any(not isinstance(p, dict) or type(p.get("rowCount")) is not int
+                       or p["rowCount"] != count for p in parts)):
+            return None, "incomplete or malformed Snowflake partition metadata"
+    return rows, None
+
+
 # ── Snowflake (SQL API v2; oauth2/keypair; free 30-day trial) ─────────────────
 @register
 class SnowflakeConnector(ReadyConnector):
@@ -40,31 +78,44 @@ class SnowflakeConnector(ReadyConnector):
         return self.provider_base.replace("{account}",
                                           os.environ.get("SZL_SNOWFLAKE_ACCOUNT", ""))
 
+    # OAuth access tokens are short-lived; a service deployment needs a PAT or key-pair JWT.
+    _token_types = ("OAUTH", "KEYPAIR_JWT", "PROGRAMMATIC_ACCESS_TOKEN")
+
+    def _token_type(self):
+        return os.environ.get("SZL_SNOWFLAKE_TOKEN_TYPE", "OAUTH").strip().upper()
+
     def _auth_header(self):
         tok = os.environ.get("SZL_SNOWFLAKE_ACCESS_TOKEN")
         return ({"Authorization": f"Bearer {tok}",
-                 "X-Snowflake-Authorization-Token-Type": "OAUTH"} if tok else {})
+                 "X-Snowflake-Authorization-Token-Type": self._token_type()} if tok else {})
 
     def read(self, query=None):
         if self._primary_missing():
             return self._ready_records(
                 "provide credentials to activate — set SZL_SNOWFLAKE_ACCOUNT, "
                 "SZL_SNOWFLAKE_ACCESS_TOKEN. POSTs SHOW TABLES via /api/v2/statements.")
+        if self._token_type() not in self._token_types:
+            return Records(connector_id=self.id, category=self.category, state=State.ERROR,
+                           records=[], source=self.provider_base, live=False,
+                           note="SZL_SNOWFLAKE_TOKEN_TYPE must be one of "
+                                + ", ".join(self._token_types) + "; no request sent",
+                           schema_preview=self.schema_preview)
         import json as _json
         body = {"statement": "SHOW TABLES LIMIT 10", "timeout": 30}
         url = self._base_url() + "/statements"
         st, raw = http_json(url, method="POST",
-                            headers={"Content-Type": "application/json", **self._auth_header()},
+                            headers={"Accept": "application/json", "Content-Type": "application/json",
+                                     **self._auth_header()},
                             data=_json.dumps(body).encode())
-        if st in (200, 202) and isinstance(raw, dict):
-            rows = raw.get("data", []) or []
-            proj = [{"row": r} for r in rows[:10]] if rows else []
+        rows, reason = _snowflake_completed_rows(st, raw)
+        if rows is not None:
+            proj = [{"row": r} for r in rows]
             return Records(connector_id=self.id, category=self.category, state=State.CONNECTED,
                            records=proj, source="Snowflake SQL API SHOW TABLES", live=True,
                            note=f"live · {len(rows)} rows", schema_preview=self.schema_preview)
         return Records(connector_id=self.id, category=self.category, state=State.ERROR,
                        records=[], source=self.provider_base, live=False,
-                       note=f"credentials present but Snowflake HTTP {st}", schema_preview=self.schema_preview)
+                       note=reason, schema_preview=self.schema_preview)
 
 
 # ── Databricks (Statement Execution API 2.0; PAT; free Community/trial) ───────

@@ -224,6 +224,12 @@ def _tile_energy_operator() -> dict:
     running = bool(st.get("running"))
     measured_total = st.get("joules_measured_total")
     measured_jobs = st.get("measured_jobs")
+    # A GPU counts only when a configured node answered the operator's latest sweep
+    # probe. A stub sweep ("computing (STUB)") is never GPU evidence.
+    node_status = st.get("node_status") if isinstance(st.get("node_status"), dict) else {}
+    gpu_reachable = 0 if st.get("stub_mode") else sum(
+        1 for state in node_status.values() if state == "computing")
+    measured = int(measured_jobs or 0)
     # Honest status: MEASURED label always (the operator's billable figure is MEASURED),
     # but the human status reflects whether the loop is actually running right now.
     if running:
@@ -243,10 +249,18 @@ def _tile_energy_operator() -> dict:
         joules_measured_total=measured_total,
         measured_jobs=measured_jobs,
         jobs_done=st.get("jobs_done"),
+        gpu_nodes_reachable=gpu_reachable,
         operational_evidence={
-            "predicate": "energy operator reports running=true",
-            "satisfied": running,
-            "reasons": [] if running else ["operator_stopped"],
+            "predicate": ("energy operator reports running=true + a configured GPU "
+                          "node answered its latest sweep probe + measured_jobs >= 1"),
+            "satisfied": bool(running and gpu_reachable and measured),
+            "reasons": [
+                reason for failed, reason in (
+                    (not running, "operator_stopped"),
+                    (not gpu_reachable, "no_gpu_reachable"),
+                    (not measured, "no_measured_jobs"),
+                ) if failed
+            ],
         },
     )
 
@@ -307,10 +321,20 @@ def _tile_energy_provenance() -> dict:
     summ = ep._CHAIN.summary()
     length = summ.get("length", 0)
     verify = summ.get("verify", {}) or {}
-    status = (f"INTEGRITY-VERIFIED ({length} tamper-evident receipts)" if length
-              else "EMPTY (no receipts this process)")
+    # The current chain records joules_est only: append() always emits SAMPLE,
+    # and joules_est_label is not hash-bound. A changed label cannot prove a
+    # meter reading, even when the chain's content integrity verifies.
+    measured_entries = 0
+    verified = verify.get("ok") is True
+    if not length:
+        status, label = "EMPTY (no receipts this process)", UNAVAILABLE
+    elif verified:
+        status = f"INTEGRITY-VERIFIED ({length} tamper-evident sample receipts)"
+        label = SAMPLE
+    else:
+        status, label = "UNAVAILABLE (energy provenance chain verification failed)", UNAVAILABLE
     return _tile(
-        "Energy provenance chain", "provenance", status=status, label=MEASURED,
+        "Energy provenance chain", "provenance", status=status, label=label,
         provenance={
             "endpoint": f"{_API}/energy/provenance",
             "kind": "tamper-evident hash-linked + Bekenstein-gated chain",
@@ -322,15 +346,18 @@ def _tile_energy_provenance() -> dict:
             "verify": f"{_API}/energy/provenance",
         },
         length=length,
+        measured_entries=measured_entries,
         integrity_chain_status=summ.get("status"),
         verification_scope="content and hash-link integrity only; authorship not verified",
         operational_evidence={
-            "predicate": "non-empty provenance chain + computed chain verification",
-            "satisfied": bool(length and verify.get("ok") is True),
+            "predicate": ("non-empty provenance chain + computed chain verification + "
+                          "at least one MEASURED non-sample receipt"),
+            "satisfied": False,
             "reasons": [
                 reason for failed, reason in (
                     (not length, "no_chain_entries"),
-                    (verify.get("ok") is not True, "chain_not_verified"),
+                    (not verified, "chain_not_verified"),
+                    (True, "no_measured_entries"),
                 ) if failed
             ],
         },
@@ -398,19 +425,59 @@ def _tile_orbital() -> dict:
     )
 
 
+def _fabric_inference_evidence(pool: dict) -> list[dict]:
+    """GPU nodes reachable this sweep that hold a fresh, verified inference receipt.
+
+    Reuses the compute-pool/v1 contract (szl_compute_pool_contract): a DSSE
+    receipt signed by the dedicated pool-attester key (pinned SHA-256), with a
+    bounded payload naming node_id + model_id + model digest, fresh and
+    successful. Reachability alone never counts; any evaluation failure yields
+    no evidence (fail closed). Ownership is never inferred from a receipt.
+    """
+    try:
+        import szl_compute_pool_contract as cpc
+        contract = cpc.build_compute_pool_contract(pool)
+    except Exception:  # noqa: BLE001 — no evidence beats invented evidence
+        return []
+    reachable_gpu = {
+        str(n.get("name")) for n in pool.get("nodes", []) or []
+        if isinstance(n, dict) and n.get("reachable") is True
+        and "gpu" in str(n.get("kind", ""))
+    }
+    evidence = []
+    for node in contract.get("nodes", []) or []:
+        receipt = node.get("inference_receipt") or {}
+        if (node.get("ready") is True and node.get("node_id") in reachable_gpu
+                and receipt.get("verified") is True and receipt.get("fresh") is True
+                and receipt.get("model_id")):
+            evidence.append({
+                "node": node["node_id"],
+                "model_id": receipt["model_id"],
+                "receipt_sha256": receipt.get("receipt_sha256"),
+                "observed_at": receipt.get("observed_at"),
+            })
+    return evidence
+
+
 def _tile_compute_fabric() -> dict:
-    # This producer tests process/TCP reachability only. It cannot supply proof
-    # of GPU ownership, a loaded model, or completed inference.
+    # The transport probe tests process/TCP reachability only. Inference is
+    # credited only from a verified compute-pool/v1 receipt bound to a reachable
+    # node and a named model; nothing here can prove GPU ownership.
     import szl_backend_hardening as bh
     pool = bh.probe_fabric_pool()
     nodes = pool.get("nodes", []) or []
     reachable_n = sum(1 for n in nodes if n.get("reachable") is True)
     gpu_reachable = sum(1 for n in nodes
                         if n.get("reachable") is True and "gpu" in str(n.get("kind", "")))
+    # Rented capacity is excluded from the sovereign count whatever its flags say.
     sovereign_gpu_reachable = sum(
         1 for n in nodes if n.get("reachable") is True and n.get("sovereign") is True
-        and "gpu" in str(n.get("kind", ""))
+        and n.get("rented") is not True and "gpu" in str(n.get("kind", ""))
     )
+    rented_gpu_reachable = sum(1 for n in nodes
+                               if n.get("reachable") is True and n.get("rented") is True)
+    inference_evidence = _fabric_inference_evidence(pool)
+    inference_verified = bool(inference_evidence)
     total = len(nodes)
     expected_counts = {
         "nodes_total": total,
@@ -424,8 +491,10 @@ def _tile_compute_fabric() -> dict:
         for key, value in expected_counts.items()
     )
     if reachable_n:
+        inference_note = (f"verified inference receipt on {len(inference_evidence)} node(s)"
+                          if inference_verified else "inference unverified")
         status = (f"DEGRADED ({reachable_n}/{total} nodes transport reachable, "
-                  f"{sovereign_gpu_reachable} configured sovereign GPU; inference unverified)")
+                  f"{sovereign_gpu_reachable} configured sovereign GPU; {inference_note})")
     else:
         # Empty fabric is UNAVAILABLE, not a live IDLE of 0. The probe count is
         # real; do not invent node numbers or stamp LIVE on an empty pool.
@@ -435,7 +504,9 @@ def _tile_compute_fabric() -> dict:
         label=MEASURED if reachable_n else UNAVAILABLE,
         provenance={
             "endpoint": f"{_API}/compute-pool-hardened",
-            "kind": "process/TCP reachability probe only; no inference or ownership verification",
+            "kind": ("process/TCP reachability probe; inference credited only from "
+                     "verified compute-pool/v1 receipts; no ownership verification"),
+            "inference_receipts": f"{_API}/compute-pool/v1",
             "cached_at": pool.get("cached_at"),
         },
         measurement_scope="TRANSPORT_REACHABILITY_ONLY",
@@ -444,10 +515,13 @@ def _tile_compute_fabric() -> dict:
         nodes_reachable=reachable_n,
         gpu_reachable=gpu_reachable,
         sovereign_gpu_reachable=sovereign_gpu_reachable,
+        rented_gpu_reachable=rented_gpu_reachable,
         counts_consistent=counts_consistent,
-        sovereignty_scope="configured node property; ownership not verified by this probe",
-        inference_verified=False,
-        inference_verified_nodes=0,
+        sovereignty_scope=("configured node property; ownership not verified by this "
+                           "probe; rented nodes are never sovereign"),
+        inference_verified=inference_verified,
+        inference_verified_nodes=len(inference_evidence),
+        inference_evidence=inference_evidence,
         ownership_verified=False,
         operational_evidence={
             "predicate": "owned sovereign GPU and deployed-model inference independently verified",
@@ -457,7 +531,8 @@ def _tile_compute_fabric() -> dict:
                     (sovereign_gpu_reachable < 1, "no_sovereign_gpu_reachable"),
                     (not counts_consistent, "fabric_probe_counts_missing_or_inconsistent"),
                     (True, "sovereign_ownership_not_verified"),
-                    (True, "model_inference_not_verified_by_transport_probe"),
+                    (not inference_verified,
+                     "model_inference_not_verified_by_transport_probe"),
                 ) if failed
             ],
             "verification_required": [

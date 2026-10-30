@@ -46,6 +46,10 @@ html[data-szl-shell-owner="homepage"] :is(a,button,summary):focus-visible {
   outline:3px solid var(--focus) !important; outline-offset:4px !important;
   box-shadow:none; border-radius:var(--radius-sm);
 }
+html[data-szl-shell-owner="homepage"] #main:focus{
+  outline:3px solid var(--focus);
+  outline-offset:4px;
+}
 html[data-szl-shell-owner="homepage"] :is(button,summary,a) { touch-action:manipulation; }
 html[data-szl-shell-owner="homepage"] a { color:var(--link); min-height:44px; max-width:100%; display:inline-flex; align-items:center; vertical-align:middle; }
 html[data-szl-shell-owner="homepage"] a:hover { color:var(--link-hover); }

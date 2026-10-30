@@ -1,13 +1,10 @@
 {
   "files": {
-    ".github/shared-source-payloads/model-credential-origin-20261017-v1.json": "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c",
-    ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json": "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc",
-    "scripts/sync_from_monorepo.sh": "fdd0775f1c57e79e091b6d7a8b25e116ba6d06010d230cb271dacdb78ebc1c73",
-    "szl_khipu_lmdb.py": "2a915a03b9092b7f6ddab84609e0108c70ce0371323084193f6b5c9fc690435c",
-    "szl_unay_routes.py": "1fefe85eb25a289c492bdb8b0ec17e69fa647a675e0b2caf8c579cdb1ca733f9",
-    "tests/test_unay_write_authorization.py": "ec36d86eed8e36d45d56cb00c67e7adc7a1976cb1185614fb5370f8ce7271adf",
-    "tests/test_vendor_sync_contract.py": "44b3d28b669abd479b3b9dd9817d827bf03b09e6e0227987d8e8fb7d00056cba"
+    ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json": "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35",
+    "szl_connectors/warehouse/warehouse_connectors.py": "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f",
+    "tests/test_gitleaks_archived_payload_digest.py": "8ede2847f5a77426485f88747e7ffa238c24a6c4662905433fc3695940204a4a",
+    "tests/test_snowflake_sql_result_classification.py": "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
   },
-  "payload_id": "replication-origin-index-20261017-v1",
+  "payload_id": "snowflake-sql-result-classification-20261028-v1",
   "schema": "szl-shared-source-payload/v1"
 }

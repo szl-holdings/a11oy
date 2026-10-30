@@ -36,6 +36,7 @@ from routers.series_a_control_plane import Service, Store, _git_revision
 from szl_dsse import pae
 from szl_operator_auth import principal_from_headers
 from szl_source_attestation import measure_hf_revision
+from szl_runtime_identity import ProcessIdentity
 from tools import execution_acceptance as acceptance
 
 
@@ -147,6 +148,7 @@ class Observer:
         self._active_task = None
         self._installed_manager = None
         self.adapters = None
+        self.process_identity = ProcessIdentity(service.runtime_boot_id)
 
     def _fixed_adapters(self):
         if self.adapters is None:
@@ -177,12 +179,17 @@ class Observer:
     def _identity(self, nonce):
         require(self.pins is not None, "APPROVAL_AUTHORITY_UNAVAILABLE")
         self.pins.validate()
-        source = _git_revision()
-        revision = measure_hf_revision("SZLHOLDINGS/a11oy")
+        try:
+            identity = self.process_identity.admitted()
+        except Exception as exc:
+            raise ObserverBlocked(error_code(exc)) from None
+        source = identity.source_revision
         require(acceptance.SHA40.fullmatch(source or "") is not None, "PROTECTED_SOURCE_IDENTITY_UNAVAILABLE")
-        require(revision.get("measurement_method") == "SPACE_REPOSITORY_COMMIT"
-                and revision.get("revision_state") == "MEASURED"
-                and acceptance.SHA40.fullmatch(revision.get("hf_revision") or "") is not None,
+        # A mutable declaration can refuse admission on conflict, never grant it.
+        require(_git_revision() == source, "PROCESS_SOURCE_DECLARATION_CHANGED")
+        require(identity.method == "GITHUB_ATTESTED_SOURCE_COPY_SET"
+                and acceptance.SHA40.fullmatch(identity.hf_revision or "") is not None
+                and identity.runtime_boot_id == self.service.runtime_boot_id,
                 "IMMUTABLE_PROCESS_HF_REVISION_UNAVAILABLE")
         signer = self.service.signer
         require(str(signer.source).startswith("persistent:")
@@ -201,7 +208,7 @@ class Observer:
                 "REGISTERED_SERIES_A_PATH_REQUIRED")
         require(bool(self.service.runtime_boot_id), "PROCESS_BOOT_ID_REQUIRED")
         manager.confirmed_writer()
-        return acceptance.AdmissionContext(source, revision["hf_revision"], self.service.runtime_boot_id,
+        return acceptance.AdmissionContext(source, identity.hf_revision, self.service.runtime_boot_id,
             nonce, self.pins.approval_public_key, self.pins.approval_key_id,
             self.pins.runtime_public_key, self.pins.runtime_key_id), manager
 
@@ -709,8 +716,12 @@ def register_from_service(app):
     @asynccontextmanager
     async def lifespan(application):
         async with prior_lifespan(application) as state:
-            await restore_archives()
-            yield state
+            subject.process_identity.start()
+            try:
+                await restore_archives()
+                yield state
+            finally:
+                subject.process_identity.stop()
     app.router.lifespan_context = lifespan
     return {**result, "authority_configured": subject.pins is not None,
             "configuration_error": subject.configuration_error, "sign_on_read": False}

@@ -128,6 +128,23 @@ def test_build_stage_only_and_runtime_install_input_are_explicit():
     assert installed["requirements-runtime.txt"]["sha256"] == report["build_inputs"][1]["sha256"]
 
 
+def test_generated_selector_has_one_explicit_non_source_destination():
+    placeholder = b'{"schema":"szl.runtime-source-marker/unavailable"}\n'
+    docker = DOCKER.replace("WORKDIR /app\n", "WORKDIR /app\nCOPY .szl-runtime-marker.json /tmp/\n")
+    files = source_files(docker)
+    files[".szl-runtime-marker.json"] = placeholder
+    report = derive(files, sources=[*SOURCES, ".szl-runtime-marker.json"])
+    assert report["build_inputs"] == [{
+        "stage": "runtime", "destination": "/tmp/.szl-runtime-marker.json",
+        "scope": "RUNTIME_IDENTITY_SELECTOR", "source_path": ".szl-runtime-marker.json",
+        "size": len(placeholder), "sha256": hashlib.sha256(placeholder).hexdigest()}]
+    assert not any(row["source_path"] == ".szl-runtime-marker.json" for row in report["installed_files"])
+    files["Dockerfile"] = docker.replace("COPY .szl-runtime-marker.json /tmp/",
+                                          "COPY .szl-runtime-marker.json /tmp/other.json").encode()
+    with pytest.raises(builder.InstalledSourceError, match="UNQUALIFIED_BUILD_INPUT_DESTINATION"):
+        derive(files, sources=[*SOURCES, ".szl-runtime-marker.json"])
+
+
 def test_json_and_continued_copy_keep_the_same_destination_contract():
     docker = DOCKER.replace("COPY assets/ ./static/", 'COPY ["assets/", "./static/"]')
     assert any(row["path"] == "static/page.html" for row in derive(source_files(docker))["installed_files"])
@@ -181,6 +198,23 @@ def test_native_docker_heredocs_preserve_stages_and_bind_generated_model_destina
     changed = original.replace(b'dest      = "/app/models"', b'dest      = "/app"')
     with pytest.raises(builder.InstalledSourceError, match="UNREVIEWED_DOCKER_RUN"):
         builder._instructions(changed)
+
+
+@pytest.mark.parametrize("before,after", [
+    (b"https://github.com/cli/cli/releases/download/v2.102.0/",
+     b"https://example.invalid/cli/cli/releases/download/v2.102.0/"),
+    (b"7e54a307f90afdc59796c325ec0c49fb09e6c18537727207a8ac7513584ea5b0",
+     b"0" * 64),
+    (b"gh version 2.102.0 ", b"gh version 2.102.1 "),
+    (b'"$(dpkg --print-architecture)" = "amd64"', b'"$(dpkg --print-architecture)" = "arm64"'),
+    (b"sha256sum -c -", b"true"),
+])
+def test_cli_acquisition_changes_require_exact_run_review(before, after):
+    original = (ROOT / "Dockerfile").read_bytes()
+    builder._instructions(original)
+    assert original.count(before) == 1
+    with pytest.raises(builder.InstalledSourceError, match="UNREVIEWED_DOCKER_RUN"):
+        builder._instructions(original.replace(before, after))
 
 
 @pytest.mark.parametrize("docker", ["# escape=`\nFROM python AS runtime\n",

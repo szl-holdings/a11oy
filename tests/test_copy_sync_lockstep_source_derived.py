@@ -65,6 +65,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             "tools/readiness-harness/tabs.json",
             ".github/scripts/verify_canonical_a11oy.py",
             ".github/scripts/collect_execution_readiness.py",
+            ".github/scripts/admit_execution_handoff.py",
             ".github/scripts/materialize_execution_authority_pins.py",
             "szl_execution_readiness.py",
             "observer_adapters.py",
@@ -113,7 +114,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 )
                 workflow = workflow.replace("\njobs:\n", "\n" + inherited + "jobs:\n", 1)
             jobs = "".join(self.fixture_job(name) + "\n" for name in (
-                "source-admission", "preflight", "runtime-config",
+                "source-admission", "preflight", "runtime-config", "execution-handoff",
                 "readiness-verdict", "execution-readiness", "relock"))
             workflow = workflow.replace("\njobs:\n", "\njobs:\n" + jobs, 1)
             workflow = workflow.replace("\n  deploy:\n", "\n  deploy:\n"
@@ -131,6 +132,10 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                         "    name: Deploy, source-bind, and attest exact surface\n",
                         1,
                     )
+                if not re.search(r"(?m)^    permissions:", block):
+                    block = block.replace("  deploy:\n", "  deploy:\n"
+                        "    permissions:\n      contents: read\n"
+                        "      id-token: write\n      attestations: write\n", 1)
                 reviewed = self.fixture_job("deploy")
                 reviewed_with = reviewed.split("    with:\n", 1)[1].split(
                     "    secrets:\n", 1
@@ -171,6 +176,20 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
 
     def test_reviewed_workflow_is_recognized(self) -> None:
         self.assertTrue(self.strict_contract(self.reviewed_workflow))
+
+    def test_identity_permissions_and_opt_in_are_exact(self) -> None:
+        mutations = (
+            ("      runtime-identity: true", "      runtime-identity: false"),
+            ("      runtime-identity: true\n", ""),
+            ("      id-token: write", "      id-token: read"),
+            ("      attestations: write", "      attestations: read"),
+            ("      attestations: write", "      attestations: write\n      contents: write"),
+            ("      attestations: write", "      attestations: write\n      actions: write"),
+        )
+        for before, after in mutations:
+            with self.subTest(after=after):
+                self.assertIn(before, self.reviewed_workflow)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(before, after, 1)))
 
     def test_inherited_provider_context_is_exact_and_has_no_run_defaults(self) -> None:
         mutations = (
@@ -338,7 +357,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         self.assertNotIn("HF_TOKEN", job)
         self.assertNotIn("secrets.", job)
         mutations = (
-            ("    needs: runtime-config\n", "    needs: deploy\n"),
+            ("    needs: execution-handoff\n", "    needs: deploy\n"),
             ("    runs-on: ubuntu-latest\n",
              "    continue-on-error: true\n    runs-on: ubuntu-latest\n"),
             ("      contents: read\n", "      contents: write\n"),
@@ -364,12 +383,12 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
 
     def test_readiness_success_is_required_before_relock(self) -> None:
         job = self.fixture_job("relock")
-        exact = "    needs: [runtime-config, execution-readiness]\n"
+        exact = "    needs: [execution-handoff, execution-readiness]\n"
         self.assertIn(exact, job)
         replacements = (
-            "    needs: runtime-config\n",
+            "    needs: execution-handoff\n",
             "    needs: execution-readiness\n",
-            "    needs: [execution-readiness, runtime-config]\n",
+            "    needs: [execution-readiness, execution-handoff]\n",
             exact + "    if: ${{ always() }}\n",
             exact + "    continue-on-error: true\n",
             exact + "    <<: *unreviewed\n",
@@ -386,8 +405,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         job = self.fixture_job("execution-readiness")
         self.assertNotIn("HF_TOKEN", job)
         mutations = (
-            ("    needs: readiness-verdict\n", "    needs: runtime-config\n"),
-            ("    needs: readiness-verdict\n", "    needs: readiness-verdict\n    if: ${{ always() }}\n"),
+            ("    needs: [readiness-verdict, execution-handoff]\n", "    needs: runtime-config\n"),
+            ("    needs: [readiness-verdict, execution-handoff]\n", "    needs: [readiness-verdict, execution-handoff]\n    if: ${{ always() }}\n"),
             ("    env:\n", "    env:\n      A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n"),
             ("      actions: read\n", "      actions: write\n"),
             ("python -I -B .github/scripts/collect_execution_readiness.py",
@@ -400,7 +419,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
              "canonical-a11oy-passive-${{ github.run_id }}-1"),
             ("            ${{ runner.temp }}/execution-evidence/execution-observations.json\n",
              "            ${{ runner.temp }}/execution-evidence/**\n"),
-            ("      EXPECTED_EXECUTION_BOOT_ID: ${{ vars.A11OY_EXECUTION_BOOT_ID }}\n",
+            ("      EXPECTED_EXECUTION_BOOT_ID: ${{ needs.execution-handoff.outputs.boot_id }}\n",
              "      EXPECTED_EXECUTION_BOOT_ID: ${{ steps.gate.outputs.boot_id }}\n"),
             ("          --validate-only\n", ""),
             ("          --expected-run-nonce \"$EXPECTED_EXECUTION_RUN_NONCE\"\n",
@@ -411,6 +430,65 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 self.assertIn(original, job)
                 changed = self.reviewed_workflow.replace(job, job.replace(original, replacement, 1), 1)
                 self.assertFalse(self.strict_contract(changed))
+
+    def test_verification_input_and_invocation_cannot_enable_provider_effects(self) -> None:
+        block = re.search(
+            r"(?ms)^      verify_current_deployment:\n.*?(?=^      [A-Za-z0-9_-]+:\n|\Z)",
+            self.reviewed_workflow,
+        ).group(0)
+        for original, replacement in (("type: boolean", "type: string"),
+                                      ("default: false", "default: true")):
+            with self.subTest(replacement=replacement):
+                changed = self.reviewed_workflow.replace(block, block.replace(original, replacement), 1)
+                self.assertFalse(self.strict_contract(changed))
+        mutations = (
+            ("--validate-invocation", "--unreviewed-mode"),
+            ("          OPEN_DEPLOY_WINDOW: ${{ inputs.open_deploy_window || false }}\n", ""),
+            ("          PUBLISH_VERTICAL_FLAGSHIPS: ${{ inputs.publish_vertical_flagships || false }}\n", ""),
+            ("          VERTICAL_PLAN_JSON: ${{ inputs.vertical_plan_json }}\n", ""),
+            ("!inputs.verify_current_deployment && ", ""),
+        )
+        for original, replacement in mutations:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, self.reviewed_workflow)
+                self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(original, replacement, 1)))
+
+    def test_handoff_cannot_gain_credentials_execute_or_skip_independent_admission(self) -> None:
+        job = self.fixture_job("execution-handoff")
+        self.assertNotIn("secrets.", job)
+        self.assertNotIn("HF_TOKEN", job)
+        mutations = (
+            ("    needs: [source-admission, runtime-config]\n", "    needs: source-admission\n"),
+            ("needs.runtime-config.result == 'skipped'", "needs.runtime-config.result != 'success'"),
+            ("needs.source-admission.result == 'success'", "true"),
+            ("github.event_name == 'workflow_dispatch'", "true"),
+            ("needs.runtime-config.result == 'success'", "true"),
+            ("    permissions:\n", "    env:\n      HF_TOKEN: ${{ secrets.HF_TOKEN }}\n    permissions:\n"),
+            ("      contents: read\n", "      contents: write\n"),
+            ('--source-sha "$GITHUB_SHA"', "--source-sha main"),
+            (".github/scripts/admit_execution_handoff.py", "scripts/execute_acceptance_plan.py"),
+            ('--output "$RUNNER_TEMP/execution-handoff.json"', '--output "$RUNNER_TEMP/execution-handoff.json" --execute'),
+            ("grep -Fqx 'publish=true'", "true # grep -Fqx 'publish=true'"),
+            ("${{ vars.A11OY_EXECUTION_BOOT_ID }}", "${{ steps.context.outputs.boot_id }}"),
+            ("    outputs:\n", "    continue-on-error: true\n    outputs:\n"),
+        )
+        for original, replacement in mutations:
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, job)
+                changed = self.reviewed_workflow.replace(job, job.replace(original, replacement, 1), 1)
+                self.assertFalse(self.strict_contract(changed))
+
+    def test_downstream_jobs_cannot_reread_mutable_execution_context(self) -> None:
+        for name in ("execution-readiness", "relock"):
+            job = self.fixture_job(name)
+            for output, variable in (("hf_revision", "HF_REVISION"), ("boot_id", "BOOT_ID"),
+                                     ("run_nonce", "RUN_NONCE"), ("authority_pins", "AUTHORITY_PINS_JSON")):
+                original = f"${{{{ needs.execution-handoff.outputs.{output} }}}}"
+                replacement = f"${{{{ vars.A11OY_EXECUTION_{variable} }}}}"
+                with self.subTest(job=name, output=output):
+                    self.assertIn(original, job)
+                    changed = self.reviewed_workflow.replace(job, job.replace(original, replacement, 1), 1)
+                    self.assertFalse(self.strict_contract(changed))
 
     def test_escaped_push_filter_keys_cannot_hide_from_the_guard(self) -> None:
         anchor = "    branches: [main]\n"
@@ -436,7 +514,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 self.assertFalse(self.strict_contract(self.reviewed_workflow.rstrip("\n") + "\n\n" + retired))
 
     def test_missing_duplicate_jobs_and_duplicate_controller_fields_fail(self) -> None:
-        for name in ("source-admission", "preflight", "runtime-config",
+        for name in ("source-admission", "preflight", "runtime-config", "execution-handoff",
                      "readiness-verdict", "execution-readiness", "relock", "deploy"):
             job = self.fixture_job(name)
             self.assertFalse(self.strict_contract(self.reviewed_workflow.replace(job, "", 1)))
@@ -448,7 +526,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             self.reviewed_workflow + "\n" + escaped_relock))
         deploy = self.fixture_job("deploy")
         for header in ("    needs: " + self.deploy_needs + "\n", "    if: " + self.deploy_if + "\n",
-                       "    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451\n",
+                       "    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36\n",
                        "    <<: *hidden\n", "    continue-on-error: true\n",
                        "    ? continue-on-error\n    : true\n",
                        "    &bypass continue-on-error: true\n"):
@@ -556,7 +634,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -575,7 +653,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -598,7 +676,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
             """,
             """
             jobs:
@@ -623,7 +701,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -642,7 +720,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               INERT_DEPLOY_EXAMPLE: |
                 jobs:
                   deploy:
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{ github.sha }}
@@ -667,7 +745,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                   - run: echo no-op
               deploy:
                 name: Deploy, source-bind, and attest exact surface
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -730,7 +808,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     """
                     jobs:
                       deploy:
-                        uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                        uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                         with:
                     """
                 )
@@ -756,7 +834,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 jobs:
                   deploy:
                     {condition_entry}
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{{{ github.sha }}}}
@@ -785,7 +863,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                       - run: echo skipped
                   deploy:
                     {needs_entry}
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{{{ github.sha }}}}
@@ -808,7 +886,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -867,7 +945,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -952,7 +1030,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}

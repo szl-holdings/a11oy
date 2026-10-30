@@ -566,7 +566,7 @@ def test_workflow_separates_pr_contract_from_trusted_live_authority() -> None:
 
 def _owned_landing_css() -> str:
     landing = LANDING.read_text(encoding="utf-8")
-    binding = '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=dab2353006c8" id="szl-homepage-shell" />'
+    binding = '<link rel="stylesheet" href="/assets/a11oy-homepage.css?v=61c132098e06" id="szl-homepage-shell" />'
     assert landing.count(binding) == 1
     assert landing.index('/assets/szl/szl-design-system.css') < landing.index(binding)
     # Inspect the fixed shipped path, never an arbitrary URL extracted from HTML.

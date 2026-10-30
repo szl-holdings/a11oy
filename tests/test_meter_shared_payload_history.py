@@ -58,9 +58,9 @@ def test_archived_meter_and_bounded_engine_payload_remains_content_bound():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
-def test_archived_write_boundary_payload_preserves_prior_evidence():
-    archive = ROOT / ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json"
-    raw = archive.read_bytes()
+def test_archived_write_boundary_payload_preserves_prior_evidence_and_source():
+    raw = (ROOT / ".github/shared-source-payloads/"
+           "execution-observer-operator-auth-20261016-v1.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
     manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
@@ -71,7 +71,7 @@ def test_archived_write_boundary_payload_preserves_prior_evidence():
     } <= set(manifest["files"])
     assert manifest["files"]["szl_khipu_replicate.py"] == "c3f1a5e76e7c6df0c19b932afca30d99fbdd12e508e95ed9f7dfa9fd798dbbf1"
     for relative, expected in manifest["files"].items():
-        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py"):
+        if relative in ("szl_khipu_replicate.py", "szl_unay_routes.py", "szl_operator_auth.py"):
             continue  # The original source remains pinned in this immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
@@ -90,7 +90,7 @@ def test_archived_replication_payload_preserves_predecessor_and_current_verifier
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 
-def test_archived_credential_payload_preserves_predecessor_and_current_source():
+def test_archived_credential_payload_preserves_predecessor_and_source_digest():
     raw = (ROOT / ".github/shared-source-payloads/model-credential-origin-20261017-v1.json").read_bytes()
     assert hashlib.sha256(raw).hexdigest() == "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c"
     manifest = json.loads(raw)
@@ -100,7 +100,10 @@ def test_archived_credential_payload_preserves_predecessor_and_current_source():
         ".github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json",
         "a11oy_code_engine.py", "szl_khipu_replicate.py",
     }
+    assert manifest["files"]["a11oy_code_engine.py"] == "60b196bc7118ffb08a9ddf3ca1a006026aec969d3a1a8f10a5b8a0e454acc8b7"
     for relative, expected in manifest["files"].items():
+        if relative == "a11oy_code_engine.py":
+            continue  # The original engine remains pinned in this immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
     prior = {**manifest, "files": {key: value for key, value in manifest["files"].items()
                                   if key != "a11oy_code_engine.py"},
@@ -111,8 +114,10 @@ def test_archived_credential_payload_preserves_predecessor_and_current_source():
 
 
 
-def test_active_replication_origin_payload_binds_current_source_and_predecessor():
-    manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
+def test_archived_replication_origin_payload_binds_current_source_and_predecessor():
+    raw = (ROOT / ".github/shared-source-payloads/replication-origin-index-20261017-v1.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce"
+    manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "replication-origin-index-20261017-v1"
     assert set(manifest["files"]) == {
@@ -122,6 +127,35 @@ def test_active_replication_origin_payload_binds_current_source_and_predecessor(
         "tests/test_unay_write_authorization.py", "tests/test_vendor_sync_contract.py",
     }
     for relative, expected in manifest["files"].items():
+        if relative == "szl_unay_routes.py":
+            continue  # Historical route is pinned in the immutable archive.
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
+
+
+def test_archived_bonsai_payload_binds_predecessors():
+    raw = (ROOT / ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
+    manifest = json.loads(raw)
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "bonsai-model-catalog-20261017-v1"
+    assert set(manifest["files"]) == {
+        '.github/shared-source-payloads/execution-observer-operator-auth-20261016-v1.json',
+        '.github/shared-source-payloads/model-credential-origin-20261017-v1.json',
+        '.github/shared-source-payloads/replication-origin-index-20261017-v1.json',
+        '.github/shared-source-payloads/replication-payload-integrity-20261017-v1.json',
+        'a11oy_code_engine.py',
+        'docs/bonsai-model-binding.md',
+        'scripts/sync_from_monorepo.sh',
+        'szl_khipu_lmdb.py',
+        'szl_khipu_replicate.py',
+        'szl_unay_routes.py',
+        'tests/test_unay_write_authorization.py',
+        'tests/test_vendor_sync_contract.py',
+    }
+    assert manifest["files"]["a11oy_code_engine.py"] == "5994454fb6b699f94aec417ea637dec4459a6d2abcc1654df4a7f4bfba0ee67c"
+    for relative, expected in manifest["files"].items():
+        if relative in ("a11oy_code_engine.py", "szl_unay_routes.py"):
+            continue  # Historical source stays pinned in the immutable archive.
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
 
 

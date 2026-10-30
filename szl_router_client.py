@@ -300,8 +300,16 @@ def _source(client, base, revision, headers):
     receipt = value.get("receipt")
     body = {key: item for key, item in value.items() if key != "receipt"}
     files = value.get("controlled_files")
-    expected_files = {"router_control/app.py", "router_control/static/index.html",
-                      "router_control/static/app.js", "router_control/static/styles.css"}
+    # Exact router-source/v1 closure; additions or omissions require review.
+    expected_files = {
+        "router_control/app.py", "router_control/local_store.py",
+        "router_control/verification.py", "router_control/free_tier.py",
+        "router_control/static/index.html", "router_control/static/app.js",
+        "router_control/static/styles.css", "router_control/static/free-options.js",
+        "router_control/static/free-options.css", "router_control/static/szl/szl-tokens.css",
+        "router_control/static/szl/szl-icon-32.svg", "router_control/static/szl/SOURCE.json",
+        "router_control/static/szl/PROJECTION.json",
+    }
     if (status != 200 or value.get("schema") != "szl.router-source/v1"
             or value.get("repository") != "szl-holdings/szl-router"
             or value.get("revision") != revision or not isinstance(receipt, dict)
@@ -423,7 +431,8 @@ def complete(prompt, *, classification, request_id=None, request_origin="",
             "model": model, "messages": [{"role": "user", "content": prompt, "name": None}],
             "temperature": None, "top_p": None, "max_tokens": 1200, "stream": False,
             "stop": None, "user": request_id, "data_classification": classification.lower(),
-            "max_cost_tier": 0,
+            # Match ChatRequest's normalized default while hashing the exact request.
+            "max_cost_tier": 0, "required_provider_id": None,
         }
         # Source probes carry no bearer credential. Credentials go only to the pinned gateway.
         headers = {"Accept": "application/json", "Cache-Control": "no-store", "X-Request-ID": request_id}

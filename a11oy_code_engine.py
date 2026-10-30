@@ -171,6 +171,19 @@ _FALLBACK_ROSTER = [
     {"tier": "T5", "id": "meta-llama/Llama-3.1-70B-Instruct", "params": "70B",
      "license": "Llama-3.1 Community (commercial-OK)", "role": "frontier-open",
      "use": "frontier open-weight reasoning; tower-GPU / sovereign-local fallback"},
+    {"tier": "T4", "id": "prism-ml/Ternary-Bonsai-2-27B-PQ2_0", "params": "27B",
+     "license": "Apache-2.0", "role": "external-quantized-chat", "provider": "Prism ML",
+     "use": "Explicit gateway alias for one pinned external GGUF; proposal generation only",
+     "transport": "custom-https-only",
+     "evidence_class": "DECLARED", "evaluation": "UNKNOWN", "artifact_equivalence": "UNKNOWN",
+     "upstream_artifact": {
+         "repo_id": "prism-ml/Ternary-Bonsai-2-27B-gguf",
+         "revision": "b072e1d3b35a0a630cece372c2127528e0994386",
+         "filename": "Ternary-Bonsai-2-27B-PQ2_0.gguf", "size_bytes": 7206168928,
+         "sha256": "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1",
+         "base_model": "Qwen/Qwen3.8-27B",
+         "attribution": "Created using Bonsai by Prism ML; built from Qwen by Alibaba Cloud",
+     }},
 ]
 
 
@@ -1052,6 +1065,32 @@ def _model_auth_headers():
     return {"Authorization": "Bearer " + token}
 
 
+def _model_selection_preflight(model_slug):
+    """A gateway alias cannot be dispatched to the default HF Router."""
+    custom_only = any(entry.get("id") == model_slug
+                      and entry.get("transport") == "custom-https-only"
+                      for entry in _FALLBACK_ROSTER)
+    if custom_only:
+        parsed, official = _model_endpoint()
+        if official or parsed.scheme != "https":
+            raise ValueError("MODEL_CUSTOM_HTTPS_REQUIRED")
+
+
+def _configured_default_model():
+    """An explicit server-side default is a declaration, never a liveness claim."""
+    if _LOCAL_MODEL_CMD:
+        return None  # Preserve the existing local-model configuration precedence.
+    model = os.environ.get("A11OY_MODEL_ID")
+    if model is None:
+        return None
+    allowed = {entry["id"] for entry in _FALLBACK_ROSTER if _is_open_weight(entry)}
+    allowed.update(entry["hf_repo"] for entry in _HF_ROSTER)
+    if model not in allowed:
+        raise ValueError("MODEL_ID_CONFIGURATION_INVALID")
+    _model_selection_preflight(model)
+    return model
+
+
 def _model_opener():
     import urllib.error
     import urllib.request
@@ -1067,6 +1106,7 @@ def strict_transport_preflight(model_slug):
     """Validate the configured direct transport without networking or signing."""
     from urllib.parse import urlsplit
     import ipaddress
+    _model_selection_preflight(model_slug)
     parsed = urlsplit(_MODEL_BASE_URL)
     own_hosts = {"a-11-oy.com", "www.a-11-oy.com", "szlholdings-a11oy.hf.space",
                  "localhost", "host.docker.internal"}
@@ -1172,12 +1212,31 @@ def _strict_hf_chat(messages, max_tokens, want_model, execution_budget):
 
 
 def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None):
-    """Call the OpenAI-compatible model endpoint server-side, with 2x retry and
-    automatic fallback down the open-weight roster. Returns a dict:
+    """Call the model endpoint server-side. Custom-only aliases use one bounded
+    strict request; other models retain the legacy retry roster. Returns a dict:
       {ok, text, model, license, attempts, rate_limited, error}
     NEVER fabricates: on total failure ok=False and text=None."""
     if execution_budget is not None:
         return _strict_hf_chat(messages, max_tokens, want_model, execution_budget)
+    try:
+        configured_model = _configured_default_model()
+        if want_model is None:
+            want_model = configured_model
+        _model_selection_preflight(want_model)
+        custom_only = any(entry.get("id") == want_model
+                          and entry.get("transport") == "custom-https-only"
+                          for entry in _FALLBACK_ROSTER)
+        if custom_only:
+            from szl_router_client import ExecutionBudget
+            budget = ExecutionBudget({"max_model_requests": 1,
+                "max_output_tokens": max_tokens, "max_elapsed_seconds": 30})
+            return _strict_hf_chat(messages, max_tokens, want_model, budget)
+    except (ValueError, ImportError) as exc:
+        code = str(exc) if isinstance(exc, ValueError) else "STRICT_MODEL_CLIENT_UNAVAILABLE"
+        if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", code) is None:
+            code = "MODEL_ID_CONFIGURATION_INVALID"
+        return {"ok": False, "text": None, "model": None, "attempts": 0,
+                "rate_limited": False, "error": code}
     import urllib.request, urllib.error, json as _json, time as _time
     # build the model try-order: requested model first (if open-weight), then roster
     order = []
@@ -1187,6 +1246,7 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
     order += [m for m in _HF_ROSTER if m["hf_repo"] != want_model]
     headers = {"Content-Type": "application/json"}
     try:
+        _model_selection_preflight(want_model)
         headers.update(_model_auth_headers())
         opener = _model_opener()
     except ValueError:
@@ -1234,6 +1294,12 @@ def _backend_label() -> dict:
     if _LOCAL_MODEL_CMD:
         return {"backend": "local-weights", "model_serving": "real local model (LOCAL_MODEL_CMD)",
                 "offline": True, "honest": "Running your plugged-in local open-weight model."}
+    try:
+        configured_model = _configured_default_model()
+    except ValueError:
+        return {"backend": "unavailable", "configured": False,
+                "model_serving": "invalid model configuration",
+                "honest": "A11OY_MODEL_ID must name a registered model with an admitted endpoint."}
     if _model_configured():
         _is_local = not _model_endpoint()[1]
         tgt = "custom model endpoint" if _is_local else "Hugging Face Router"
@@ -1243,11 +1309,17 @@ def _backend_label() -> dict:
                       else "no Authorization header") if _is_local else "HF token"
         lab = {"backend": "generative", "endpoint": _MODEL_BASE_URL,
                 "model_serving": "%s — open-weight (server-side only)" % tgt,
-                "primary_model": _HF_ROSTER[0]["hf_repo"], "configured": True,
+                "primary_model": configured_model or _HF_ROSTER[0]["hf_repo"], "configured": True,
                 "offline": False,
                 "honest": "OpenAI-compatible endpoint configured with " + auth_label
                           + ". Configuration does not establish runtime availability."
                           + " 2x retry + roster fallback; never a fabricated answer."}
+        if any(entry.get("id") == configured_model
+               and entry.get("transport") == "custom-https-only"
+               for entry in _FALLBACK_ROSTER):
+            lab["honest"] = ("Custom HTTPS endpoint configured with " + auth_label
+                + ". Configuration does not establish runtime availability."
+                + " One bounded request; no retries or model fallback.")
         if _is_local and _GPU_LABEL:
             lab["gpu"] = _GPU_LABEL
         return lab
@@ -1849,34 +1921,126 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     }
 
 
+def _code_receipt_binding(run: dict, chain: list, env: dict) -> tuple[bool, str]:
+    """Compare the existing signed prefix and its deterministic emit postlude.
+
+    governed_turn signs before appending emit, whose signed flag cannot itself
+    be included in the signature. Keep that format: exactly one terminal emit
+    must be derivable from the signed decision, with no unbound extra body data.
+    This comparison alone does not authenticate the payload.
+    """
+    import base64
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate payload key")
+            result[key] = value
+        return result
+
+    def nonfinite(_value):
+        raise ValueError("nonfinite payload value")
+
+    try:
+        if env.get("payloadType") != "application/vnd.szl.receipt+json":
+            return False, "unexpected payload type"
+        raw = base64.b64decode(env["payload"], validate=True)
+        payload = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_object,
+                             parse_constant=nonfinite)
+        if not isinstance(payload, dict):
+            return False, "signed payload must be an object"
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"),
+                               ensure_ascii=False, allow_nan=False).encode("utf-8")
+        if raw != canonical:
+            return False, "payload does not match the producer canonicalization"
+        depth = payload.get("chain_depth")
+        if type(depth) is not int or depth < 1 or len(chain) != depth + 1:
+            return False, "signed prefix depth does not bind the submitted chain"
+        if payload.get("chain_final_hash") != chain[depth - 1]["hash"]:
+            return False, "signed prefix root does not match the submitted chain"
+        for field in ("run_id", "mode", "issuer"):
+            if (not isinstance(payload.get(field), str) or not payload[field]
+                    or run.get(field) != payload[field]):
+                return False, "run context does not match the signed payload"
+        for field in ("decision", "emitted", "executed", "execution_status"):
+            if (field not in payload or field not in run
+                    or type(run[field]) is not type(payload[field])
+                    or run[field] != payload[field]):
+                return False, "run outcome does not match the signed payload"
+        if (type(payload["emitted"]) is not bool or type(payload["executed"]) is not bool
+                or payload["decision"] not in ("ALLOW", "DENY")
+                or not isinstance(payload["execution_status"], str)
+                or "sandbox_exit" not in payload
+                or (payload["sandbox_exit"] is not None and type(payload["sandbox_exit"]) is not int)):
+            return False, "missing or malformed signed outcome"
+        if (type(run.get("chain_depth")) is not int or run["chain_depth"] != len(chain)
+                or run.get("chain_final_hash") != chain[-1]["hash"]):
+            return False, "submitted chain summary does not match its records"
+        expected_emit = {"decision": payload["decision"], "emitted": payload["emitted"],
+                         "signed": True, "sandbox_exit": payload["sandbox_exit"],
+                         "executed": payload["executed"]}
+        terminal = chain[-1]
+        # JSON comparison preserves bool/int distinctions (True must not equal 1).
+        if (terminal["kind"] != "emit" or
+                json.dumps(terminal["body"], sort_keys=True, allow_nan=False) !=
+                json.dumps(expected_emit, sort_keys=True, allow_nan=False)):
+            return False, "terminal emit does not match the signed outcome"
+        return True, "signed prefix and exact terminal emit match the submitted run"
+    except (KeyError, TypeError, ValueError, UnicodeError, OverflowError, RecursionError):
+        return False, "malformed receipt binding"
+
+
 def verify_run(run: dict, verify_fn=None) -> dict:
-    """Re-verify a governed-turn run: (1) chain integrity recomputed from bodies,
-    (2) signature on the final receipt. Same contract as the proven loop."""
-    chain = run.get("receipt_chain") or []
-    chain_ok = True
+    """Verify chain hashes, envelope signature, and their binding separately."""
+    run = run if isinstance(run, dict) else {}
+    chain = run.get("receipt_chain")
+    chain = chain if isinstance(chain, list) else []
+    chain_ok = bool(chain)
     broken_at = None
     prev = "GENESIS"
-    for r in chain:
-        expect = _sha({"seq": r["seq"], "kind": r["kind"], "body": r["body"], "prev_hash": prev})
-        if r.get("prev_hash") != prev or r.get("hash") != expect:
-            chain_ok = False; broken_at = r.get("seq"); break
-        prev = r["hash"]
-    env = run.get("signed_receipt") or {}
-    sig = None
+    for index, record in enumerate(chain):
+        try:
+            if (not isinstance(record, dict) or type(record.get("seq")) is not int
+                    or record["seq"] != index or not isinstance(record.get("kind"), str)
+                    or not isinstance(record.get("body"), dict)):
+                raise ValueError("malformed chain record")
+            expect = _sha({"seq": index, "kind": record["kind"], "body": record["body"],
+                           "prev_hash": prev})
+            if record.get("prev_hash") != prev or record.get("hash") != expect:
+                raise ValueError("chain hash mismatch")
+            prev = record["hash"]
+        except (KeyError, TypeError, ValueError, OverflowError, RecursionError):
+            chain_ok = False
+            broken_at = index
+            break
+    env = run.get("signed_receipt")
+    env = env if isinstance(env, dict) else {}
+    sig = {"signature_valid": False, "detail": "signature verifier unavailable"}
     if verify_fn is not None:
         try:
-            sig = verify_fn(env)
-        except Exception as e:
-            sig = {"signature_valid": False, "detail": "verifier error: %s" % e}
-    if sig is None:
-        sig = {"signature_valid": bool(env.get("signed")),
-               "detail": "structural check: signed=%s, signature bytes present=%s"
-                         % (env.get("signed"), bool(env.get("signatures")))}
+            result = verify_fn(env)
+            if isinstance(result, dict):
+                sig = result
+            else:
+                sig = {"signature_valid": False, "detail": "invalid verifier result"}
+        except Exception as exc:
+            sig = {"signature_valid": False,
+                   "detail": "verifier error: %s" % type(exc).__name__}
+    signature_valid = sig.get("signature_valid") is True
+    payload_bound, binding_detail = (
+        _code_receipt_binding(run, chain, env) if chain_ok
+        else (False, "submitted chain is empty, malformed, or hash-invalid")
+    )
     return {"chain_intact": chain_ok, "chain_depth": len(chain), "chain_break_at_seq": broken_at,
-            "final_hash": (chain[-1]["hash"] if chain else None),
-            "signature_valid": sig.get("signature_valid"), "signature_detail": sig.get("detail"),
-            "verified": bool(chain_ok and sig.get("signature_valid")),
-            "note": "Chain integrity recomputed independently from receipt bodies. Flip any byte -> chain_intact false."}
+            "final_hash": prev if chain_ok else None,
+            "signature_valid": signature_valid, "signature_detail": sig.get("detail"),
+            "payload_bound": payload_bound, "binding_detail": binding_detail,
+            "verified": bool(chain_ok and signature_valid and payload_bound),
+            "verification_scope": "hashed chain fields and signed run identity/outcome; "
+                                  "not unbound timestamps, other response data, or execution authority",
+            "note": "Chain hashes, signature validity, and payload binding are separate checks. "
+                    "The producer signs the prefix before its single deterministic emit record."}
 
 
 def capabilities(ns: str) -> dict:
@@ -2071,7 +2235,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
             b = await request.json()
         except Exception:
             b = {}
-        run = b.get("run") if isinstance(b.get("run"), dict) else b
+        run = b.get("run") if isinstance(b, dict) and isinstance(b.get("run"), dict) else b
         return JSONResponse(verify_run(run, verify_fn=verify_fn))
 
     async def _caps(request):

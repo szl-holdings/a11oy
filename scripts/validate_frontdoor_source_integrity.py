@@ -102,9 +102,9 @@ CANONICAL_GITHUB_REPO = "$GITHUB_REPOSITORY"
 CANONICAL_HF_REPO = "SZLHOLDINGS/a11oy"
 CHECKOUT_ACTION = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 HARDEN_RUNNER_ACTION = (
-    "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25"
+    "step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2"
 )
-SETUP_PYTHON_ACTION = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
+SETUP_PYTHON_ACTION = "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0"
 UPLOAD_ARTIFACT_ACTION = (
     "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 )
@@ -390,8 +390,9 @@ def _validate_workflow_envelope(workflow: str) -> list[str]:
     if _structural_block_lines(workflow, "permissions:") != [
         "permissions:",
         "contents: read",
+        "attestations: read",
     ]:
-        errors.append("HF drift workflow permissions must remain read-only")
+        errors.append("HF drift workflow permissions must be exactly contents: read and attestations: read")
     for forbidden in ("env", "defaults"):
         if any(
             parsed is not None

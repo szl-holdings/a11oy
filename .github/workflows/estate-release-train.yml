@@ -44,6 +44,12 @@ name: Estate release train
         type: string
         default: ""
 
+      open_deploy_window:
+        description: Forward an operator-attested maintenance window to the hf-sync repair dispatch. Default false. Until durable storage lands, hf-sync deploys onto a running or crashed Space only inside this window (a PAUSED Space is itself the window); a closed window deploys nothing and fails the repair with DEPLOY_WINDOW_CLOSED.
+        required: false
+        type: boolean
+        default: false
+
 permissions: read-all
 concurrency:
   # PRs only observe. Do not queue them behind up to 50 minutes of canonical repair.
@@ -67,7 +73,7 @@ jobs:
     timeout-minutes: 55
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
 
@@ -79,7 +85,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -165,7 +171,7 @@ jobs:
     timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && inputs.repair && 110 || 55 }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
         with:
           egress-policy: audit
 
@@ -177,7 +183,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -230,6 +236,7 @@ jobs:
           EXPECTED_SHA: ${{ steps.initial.outputs.expected_sha }}
           VERTICAL_REQUESTED: ${{ inputs.publish_vertical_flagships }}
           VERTICAL_PLAN_JSON: ${{ inputs.vertical_plan_json }}
+          OPEN_DEPLOY_WINDOW: ${{ inputs.open_deploy_window }}
         run: |
           set -euo pipefail
           current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
@@ -237,6 +244,7 @@ jobs:
             --repair true \
             --plan-from-env \
             --vertical-requested "${VERTICAL_REQUESTED:-false}" \
+            --open-deploy-window "${OPEN_DEPLOY_WINDOW:-false}" \
             --expected-sha "$EXPECTED_SHA" \
             --current-sha "$current" \
             --repo "$GITHUB_REPOSITORY" \
@@ -258,8 +266,12 @@ jobs:
           requested = os.environ.get("VERTICAL_REQUESTED", "false") == "true"
           require(not requested or receipt.get("vertical_flagships") is True,
                   "Explicit vertical plan was not admitted")
+          window = os.environ.get("OPEN_DEPLOY_WINDOW", "false") == "true"
+          require(receipt.get("open_deploy_window") is window,
+                  "Deploy window request was not carried into the canonical dispatch")
           revision = receipt["expected_source_revision"]
-          dispatch_hf_then_edge(command, revision, receipt["vertical_flagships"], Path("reports"))
+          dispatch_hf_then_edge(command, revision, receipt["vertical_flagships"], Path("reports"),
+                                open_deploy_window=receipt["open_deploy_window"])
           PY
 
       - name: Reobserve after an explicit repair dispatch

@@ -38,6 +38,7 @@ RETIRED_JOBS = (
 )
 POST_DEPLOY_JOBS = (
     "runtime-config",
+    "execution-handoff",
     "readiness-verdict",
     "execution-readiness",
     "relock",
@@ -127,6 +128,31 @@ def verdict_channel_violations(blocks: dict[str, str]) -> list[str]:
     return violations
 
 
+def execution_handoff_violations(blocks: dict[str, str]) -> list[str]:
+    """Verification may reuse the runtime, never mutable expected context."""
+    violations = []
+    handoff = blocks.get("execution-handoff", "")
+    if (job_needs(handoff) != ["source-admission", "runtime-config"]
+            or "needs.runtime-config.result == 'skipped'" not in handoff
+            or "needs.runtime-config.result == 'success'" not in handoff
+            or "github.event_name == 'workflow_dispatch'" not in handoff):
+        violations.append("execution handoff lacks exclusive admitted branches")
+    if "!inputs.verify_current_deployment" not in blocks.get("preflight", ""):
+        violations.append("verification can reach preflight provider writes")
+    if "--validate-invocation" not in blocks.get("source-admission", ""):
+        violations.append("verification invocation is not validated before provider writes")
+    if "secrets." in handoff or "HF_TOKEN" in handoff:
+        violations.append("execution handoff has provider write credentials")
+    for name in ("execution-readiness", "relock"):
+        consumer = blocks.get(name, "")
+        if "vars.A11OY_EXECUTION_" in consumer:
+            violations.append("mutable execution context reread in " + name)
+        for output in ("hf_revision", "boot_id", "run_nonce", "authority_pins"):
+            if f"${{{{ needs.execution-handoff.outputs.{output} }}}}" not in consumer:
+                violations.append(f"frozen execution context missing in {name}: {output}")
+    return violations
+
+
 def contract_violations(text: str) -> list[str]:
     violations = exact_identity_violations(text)
     if "run_attempt == 1" in text:
@@ -162,6 +188,7 @@ def contract_violations(text: str) -> list[str]:
                     and "await_hf_runtime_serving.py" not in blocks[name]):
                 violations.append(f"post-deploy convergence without a serving wait in {name}")
         violations.extend(verdict_channel_violations(blocks))
+        violations.extend(execution_handoff_violations(blocks))
         preflight = blocks["preflight"]
         # Admission precedes every provider effect, and the deploy window gates
         # every write and the deploy itself while SQLite lives on the bucket.
@@ -191,7 +218,7 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
         for line in pinned:
             self.assertRegex(line, USES_LINE)
         self.assertIn(
-            "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451",
+            "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36",
             self.text,
         )
 
@@ -203,6 +230,34 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
             with self.subTest(job=name):
                 self.assertIn("deploy", ancestors(blocks, name))
                 self.assertIn("source-admission", ancestors(blocks, name))
+
+    def test_handoff_context_and_provider_exclusion_mutations_are_detected(self) -> None:
+        cases = {
+            "provider path in verification": self.text.replace(
+                "!inputs.verify_current_deployment && needs.source-admission.result",
+                "needs.source-admission.result", 1),
+            "unchecked invocation": self.text.replace("--validate-invocation", "--unreviewed-mode", 1),
+            "mutable HF revision": self.text.replace(
+                "${{ needs.execution-handoff.outputs.hf_revision }}",
+                "${{ vars.A11OY_EXECUTION_HF_REVISION }}", 1),
+            "mutable boot": self.text.replace(
+                "${{ needs.execution-handoff.outputs.boot_id }}",
+                "${{ vars.A11OY_EXECUTION_BOOT_ID }}", 1),
+            "mutable nonce": self.text.replace(
+                "${{ needs.execution-handoff.outputs.run_nonce }}",
+                "${{ vars.A11OY_EXECUTION_RUN_NONCE }}", 1),
+            "mutable pins": self.text.replace(
+                "${{ needs.execution-handoff.outputs.authority_pins }}",
+                "${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}", 1),
+            "write credential in handoff": self.text.replace(
+                "  execution-handoff:\n", "  execution-handoff:\n    env:\n      HF_TOKEN: ${{ secrets.HF_TOKEN }}\n", 1),
+            "failed runtime accepted": self.text.replace(
+                "needs.runtime-config.result == 'skipped'", "needs.runtime-config.result != 'success'", 1),
+        }
+        for label, changed in cases.items():
+            with self.subTest(case=label):
+                self.assertNotEqual(changed, self.text)
+                self.assertTrue(contract_violations(changed))
 
     def test_restart_proofs_live_only_in_the_manual_drill(self) -> None:
         for script in ("prove_hf_series_a_restart.py", "prove_hf_gdw_runtime.py"):
@@ -221,7 +276,7 @@ class HfSyncNoExactPinsTests(unittest.TestCase):
         sha = "f4a1a45f" + "0" * 32
         anchor = '          python3 -I -B scripts/hf_exact_main_ownership.py \\\n'
         self.assertIn(anchor, self.text)
-        preflight_if = "    if: ${{ needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}\n"
+        preflight_if = "    if: ${{ !inputs.verify_current_deployment && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}\n"
         self.assertIn(preflight_if, self.text)
         cases = {
             "40-hex literal": self.text.replace(anchor, f"          test \"$PARENT\" = {sha}\n" + anchor, 1),

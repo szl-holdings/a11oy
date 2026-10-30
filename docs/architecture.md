@@ -194,6 +194,18 @@ modules already exist and run live. They are named, not invented.
 `szl_provenance.py` · `szl_dsse.py` · `szl_khipu.py` · `szl_khipu_consensus.py` ·
 `szl_receipt_substrate.py` · `szl_ietf_receipt.py` · `szl_functor_receipt.py` ·
 `szl_trajectory_sign.py` · `pq_signing.py` · `a11oy_signing_key.py` · `szl_khipu_verify.py`.
+`szl_signing_state.py` owns the versioned, immutable local signer observations
+shared by `/healthz`, signing-status, and the service-health signer rollup.
+This source contract distinguishes verification keys and loaded key material
+from permission, retained observed signing capability and non-repudiation;
+the latter remain UNKNOWN. Lifecycle sampling rechecks captured local objects
+every 15 seconds, expires after 60 seconds, and never reloads secrets. GET/HEAD
+only recompute monotonic freshness; they never sign, refresh or probe a backend.
+Verification-key knowledge is scoped to the captured shared-signer identity;
+historical and organizational verification-key fallbacks are not evaluated here.
+Legacy liveness ABSENT and key-availability DSSE-LIVE fields are deprecated and
+explicitly scoped, not production readiness. Source tests do not prove deployment.
+
 Every action (agent step, route hit, eval run, deploy) mints a DSSE-enveloped,
 ECDSA-P256-SHA256-signed receipt on a SHA-256 hash-linked Merkle DAG. Invariant
 **`receipts.in ≡ receipts.out`**. Real signatures when `SZL_COSIGN_PRIVATE_PEM` is present;

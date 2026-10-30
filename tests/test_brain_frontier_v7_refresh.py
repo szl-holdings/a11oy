@@ -150,6 +150,9 @@ def test_old_orphan_terminal_is_rejected_even_with_a_success_job(tmp_path):
     receipt = refresh.build_receipt(receipt_args(tmp_path, changed="true", proposal_result="success"))
     assert receipt["outcome"] == "FAILED_CLOSED"
     assert "proposal_url_missing_or_invalid" in receipt["failures"]
+    path = tmp_path / "receipt.json"
+    refresh.write_json(path, receipt)
+    assert refresh.verify_receipt_command(argparse.Namespace(receipt=str(path))) == 1
 
 
 def blocked_authorization_proposal():
@@ -190,7 +193,7 @@ def test_authorization_hold_is_one_terminal_source_bound_failure(tmp_path):
     path = tmp_path / "receipt.json"
     refresh.write_json(path, receipt)
     assert refresh.verify_receipt(path)["outcome"] == refresh.BLOCKED_RECEIPT_OUTCOME
-    assert refresh.verify_receipt_command(argparse.Namespace(receipt=str(path))) == 1
+    assert refresh.verify_receipt_command(argparse.Namespace(receipt=str(path))) == 0
 
 
 def test_authorization_hold_cannot_hide_binding_or_write_evidence(tmp_path):
@@ -367,3 +370,5 @@ def test_workflow_separates_reader_from_writer_and_always_enforces_receipt():
     assert writer["steps"][-1]["if"] == "always()"
     assert "verify-receipt" in writer["steps"][-1]["run"]
     assert writer["steps"][-2]["uses"].startswith("actions/upload-artifact@")
+    proposal = next(step for step in writer["steps"] if step.get("id") == "proposal")
+    assert proposal.get("continue-on-error") is True

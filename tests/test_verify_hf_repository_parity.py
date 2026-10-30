@@ -666,6 +666,7 @@ class ImmutableRepositoryParityTests(unittest.TestCase):
             hf_repo=HF_REPO,
             hf_ref=hf_ref,
             tree=base_tree,
+            derived_artifacts={},
         )
         self.assertEqual(
             [call.kwargs["github_ref"] for call in comparator.call_args_list],
@@ -886,8 +887,10 @@ class DerivedDotCopyTests(unittest.TestCase):
                 'COPY --from=builder .hidden-stage-file ./\n')
         self.assertEqual(MODULE.docker_dot_copy_paths(text, tree), tuple(sorted((self.SECURITY, self.PUBLISHER))))
 
-    def test_current_dockerfile_has_both_derived_sources(self):
-        tree = {self.SECURITY: "a" * 40, self.PUBLISHER: "b" * 40}
+    def test_current_dockerfile_has_all_guarded_hidden_sources(self):
+        tree = {self.SECURITY: "a" * 40, self.PUBLISHER: "b" * 40,
+                ".github/workflows/hf-sync.yml": "c" * 40,
+                MODULE.RUNTIME_MARKER: "d" * 40}
         self.assertEqual(MODULE.docker_dot_copy_paths((ROOT / "Dockerfile").read_text(), tree),
                          tuple(sorted(tree)))
 
@@ -926,6 +929,158 @@ class DerivedDotCopyTests(unittest.TestCase):
                              "--base-ref", "1" * 40, "--github-ref", "2" * 40,
                              "--hf-repo", HF_REPO, "--report-out", str(Path(directory) / "report.json")])
             comparator.assert_not_called()
+
+
+class AuthenticatedDerivedMarkerTests(unittest.TestCase):
+    """Offline signature boundary fixtures; no live attestation is claimed."""
+
+    def setUp(self):
+        self.source, self.hf, self.publisher = "a" * 40, "b" * 40, "c" * 40
+        self.files = {
+            MODULE.RUNTIME_MARKER: MODULE.RUNTIME_PLACEHOLDER,
+            ".github/workflows/hf-sync.yml": f"uses: {MODULE.RUNTIME_SIGNER}@{self.publisher}\n".encode(),
+            "szl_readiness_artifact.py": (ROOT / "szl_readiness_artifact.py").read_bytes(),
+            "szl_runtime_identity.py": (ROOT / "szl_runtime_identity.py").read_bytes(),
+        }
+        self.tree = {path: DerivedDotCopyTests.oid(body) for path, body in self.files.items()}
+        self.marker = {"schema": "szl.runtime-source-marker/v1", "source_repository": GITHUB_REPO,
+                       "source_sha": self.source, "target": HF_REPO, "run_id": 123, "run_attempt": 2,
+                       "publisher_sha": self.publisher, "nonce": "d" * 64,
+                       "catalog": {name: {"source_path": name, "sha256": "e" * 64, "size": 1}
+                                   for name in ("observer_runtime.py", "szl_runtime_identity.py", "serve.py",
+                                                "gdw_runtime.py", ".github/scripts/hf-sync.yml")}}
+        self.raw = self.canonical(self.marker)
+        self.expected_binding = self.canonical({"schema": "szl.runtime-source-binding/v1",
+            "marker": self.marker, "hf_revision": self.hf, "scope": "FINAL_APP_SOURCE_COPY_FILES",
+            "image_attestation": False, "hardware_attestation": False, "execution_authority": False})
+        self.invocation = f"https://github.com/{GITHUB_REPO}/actions/runs/123/attempts/2"
+        self.commands = []
+
+    @staticmethod
+    def canonical(value):
+        return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+
+    def opener(self, request, timeout):
+        self.assertEqual(timeout, 30)
+        prefix = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{self.source}/"
+        if request.full_url.startswith(prefix):
+            return io.BytesIO(self.files[request.full_url.removeprefix(prefix)])
+        self.assertEqual(request.full_url,
+            f"https://huggingface.co/spaces/{HF_REPO}/resolve/{self.hf}/{MODULE.RUNTIME_MARKER}")
+        return io.BytesIO(self.raw)
+
+    def verified_cli(self, command, **kwargs):
+        self.commands.append(command)
+        self.assertEqual(command[:3], ["gh", "attestation", "verify"])
+        self.assertEqual(kwargs["timeout"], 45)
+        self.assertEqual(kwargs["env"]["GH_TOKEN"], "fixture-job-read-token")
+        self.assertNotIn("GITHUB_TOKEN", kwargs["env"])
+        self.assertNotIn("HF_TOKEN", kwargs["env"])
+        body = Path(command[3]).read_bytes()
+        kwargs["stdout"].write(self.canonical([{"verificationResult": {"signature": {
+            "certificate": {"runInvocationURI": self.invocation}}}}]))
+        return MODULE.subprocess.CompletedProcess(command, 0 if body == self.expected_binding else 1)
+
+    def verify(self):
+        with mock.patch.dict(MODULE.os.environ, {"GITHUB_TOKEN": "fixture-job-read-token"}), \
+                mock.patch.object(MODULE.subprocess, "run", side_effect=self.verified_cli):
+            return MODULE.verify_derived_runtime_marker(github_repo=GITHUB_REPO,
+                github_ref=self.source, hf_repo=HF_REPO, hf_ref=self.hf,
+                tree=self.tree, opener=self.opener)
+
+    def test_exact_binding_is_authenticated_and_never_labeled_source_equality(self):
+        proof = self.verify()
+        self.assertEqual(proof["status"], "authenticated-derived")
+        self.assertEqual(proof["evidence_class"], "REPORTED")
+        self.assertFalse(proof["source_byte_equality"])
+        self.assertFalse(proof["execution_authority"])
+        self.assertEqual(proof["binding_sha256"], MODULE.hashlib.sha256(self.expected_binding).hexdigest())
+        command = self.commands[0]
+        for flag, expected in (("--repo", GITHUB_REPO), ("--signer-workflow", MODULE.RUNTIME_SIGNER),
+                               ("--signer-digest", self.publisher), ("--source-digest", self.source),
+                               ("--source-ref", "refs/heads/main")):
+            self.assertEqual(command[command.index(flag) + 1], expected)
+
+    def test_changed_nonce_or_catalog_cannot_reuse_the_original_signature(self):
+        for field, value in (("nonce", "f" * 64), ("catalog", {**self.marker["catalog"],
+                "extra.py": {"source_path": "extra.py", "sha256": "f" * 64, "size": 1}})):
+            with self.subTest(field=field):
+                self.raw = self.canonical({**self.marker, field: value})
+                with self.assertRaisesRegex(MODULE.ParityError, "attestation was not verified"):
+                    self.verify()
+
+    def test_wrong_source_publisher_target_attempt_or_noncanonical_bytes_fail(self):
+        for field, value in (("source_sha", "f" * 40), ("publisher_sha", "f" * 40),
+                             ("target", "SZLHOLDINGS/other"), ("run_attempt", 3)):
+            with self.subTest(field=field):
+                self.raw = self.canonical({**self.marker, field: value})
+                with self.assertRaises(MODULE.ParityError):
+                    self.verify()
+        self.raw = self.canonical(self.marker) + b"\n"
+        with self.assertRaisesRegex(MODULE.ParityError, "differs from canonical"):
+            self.verify()
+
+    def test_certificate_invocation_must_match_even_after_signature_success(self):
+        self.invocation = self.invocation.replace("attempts/2", "attempts/1")
+        with self.assertRaisesRegex(MODULE.ParityError, "attestation was not verified"):
+            self.verify()
+
+    def test_source_placeholder_workflow_and_loaded_contract_are_git_blob_bound(self):
+        for path in self.files:
+            before = self.files[path]
+            self.files[path] += b"\n"
+            with self.subTest(path=path), self.assertRaisesRegex(MODULE.ParityError, "do not match Git tree"):
+                self.verify()
+            self.files[path] = before
+        self.files[MODULE.RUNTIME_MARKER] = b'{"schema":"different"}\n'
+        self.tree[MODULE.RUNTIME_MARKER] = DerivedDotCopyTests.oid(self.files[MODULE.RUNTIME_MARKER])
+        with self.assertRaisesRegex(MODULE.ParityError, "exact unavailable placeholder"):
+            self.verify()
+
+    def test_missing_job_credential_has_no_generic_token_fallback(self):
+        with mock.patch.dict(MODULE.os.environ, {"GH_TOKEN": "must-not-be-used"}, clear=True), \
+                mock.patch.object(MODULE.subprocess, "run") as run:
+            with self.assertRaisesRegex(MODULE.ParityError, "job's GitHub read credential"):
+                MODULE.verify_derived_runtime_marker(github_repo=GITHUB_REPO,
+                    github_ref=self.source, hf_repo=HF_REPO, hf_ref=self.hf,
+                    tree=self.tree, opener=self.opener)
+            run.assert_not_called()
+
+    def test_oversized_or_duplicate_marker_is_rejected(self):
+        for raw in (b"x" * (1024 * 1024 + 1), b'{"schema":"x","schema":"y"}', MODULE.RUNTIME_PLACEHOLDER):
+            self.raw = raw
+            with self.subTest(size=len(raw)), self.assertRaises(MODULE.ParityError):
+                self.verify()
+
+    def test_strict_report_keeps_derived_artifact_out_of_exact_source_list(self):
+        proof = self.verify()
+        paths = (".well-known/security.txt", MODULE.RUNTIME_MARKER)
+        report = ImmutableRepositoryParityTests.candidate_report(
+            github_ref=self.source, hf_ref=self.hf, findings=[])
+        report.update(findings=MODULE.dot_copy_warnings(paths), warn_count=len(paths))
+
+        def compare(**kwargs):
+            kwargs["report_out"].write_text(json.dumps(report), encoding="utf-8")
+            return MODULE.subprocess.CompletedProcess([], 0, stdout="")
+
+        def hidden(**kwargs):
+            kwargs["derived_artifacts"][MODULE.RUNTIME_MARKER] = proof
+            return {".well-known/security.txt": "f" * 64, MODULE.RUNTIME_MARKER: proof["sha256"]}
+
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(MODULE, "resolve_stable_revision", return_value=self.hf), \
+                mock.patch.object(MODULE, "github_blob_tree", return_value=self.tree), \
+                mock.patch.object(MODULE, "run_comparator", side_effect=compare), \
+                mock.patch.object(MODULE, "verify_docker_dot_copies", side_effect=hidden), \
+                mock.patch.object(MODULE.sys, "stdout", io.StringIO()):
+            output = Path(temporary) / "proof.json"
+            self.assertEqual(MODULE.main(["--tools-script", str(SCRIPT), "--github-repo", GITHUB_REPO,
+                "--github-ref", self.source, "--hf-repo", HF_REPO, "--report-out", str(output)]), 0)
+            observed = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(observed["proof_status"], "exact-source-and-authenticated-derived")
+        self.assertEqual(observed["derived_artifacts"], [proof])
+        self.assertEqual([item["path"] for item in observed["leading_dot_copies"]],
+                         [".well-known/security.txt"])
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ REQUIREMENTS = """# Generated flagship Linux runtime. Source: admitted PURIQ 917
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
-certifi==2026.7.22
+certifi==2026.10.19
 click==8.5.0
 fastapi==0.141.1
 h11==0.16.0

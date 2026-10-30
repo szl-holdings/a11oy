@@ -5,7 +5,7 @@
 
 ADDITIVE, self-contained, SHARED across a11oy + killinchu. The console companion to
 the canonical handoff module: a health view of five configured runtime doors
-alongside the current eight-org visibility policy, plus a clean tiles page,
+alongside the current nine-org visibility policy, plus a clean tiles page,
 Unify flock ledger, and ONE idempotent nav item, following the
 additive-injector pattern (a11oy_nav_wireup.py / killinchu_nav_wireup.py).
 
@@ -74,7 +74,7 @@ PROOF = "https://a11oy.net"
 
 # Legacy five-door runtime probe roster. README is a profile card, not an
 # application Space. The current organization keep policy is declared below;
-# it has eight names and must not be conflated with this narrower probe roster.
+# it has nine names and must not be conflated with this narrower probe roster.
 # RECORD: https://a11oy.net/spaces.json. /verify is not cloned.
 # Hub write is off in-repo. Do not create Space SZLHOLDINGS/unify.
 SPACES: list[dict[str, str]] = [
@@ -91,14 +91,14 @@ SPACES: list[dict[str, str]] = [
 ]
 KEEP_TARGET = 5
 
-# Current organization visibility policy, amended 2026-10-01 in
+# Current organization visibility policy, amended 2026-10-28 in
 # docs/estate/hf-nine-flagship-keep.yaml. The five configured runtime tiles above
 # are a narrower, older probe roster. Keep the scopes distinct: a reachable tile
 # does not clear public visibility drift, and a policy keeper is not necessarily
 # qualified to run a workload (notably the Confirmation laboratory).
 PUBLIC_ORG_KEEP_POLICY = frozenset({
     "a11oy", "killinchu", "terra", "counsel", "finance", "lyte",
-    "david-leads", "szl-foundation-confirmation",
+    "curation-atlas", "david-leads", "szl-foundation-confirmation",
 })
 PUBLIC_ORG_KEEP_POLICY_SOURCE = "docs/estate/hf-nine-flagship-keep.yaml"
 
@@ -233,6 +233,11 @@ FOLD_SPACES: list[dict[str, str]] = [
      "dest": "https://szlholdings-szl-foundation-confirmation.hf.space",
      "honesty": "Registered scientific gate FAILED; wider system unqualified",
      "why": "Current organization keep policy; laboratory status is not qualification."},
+    {"name": "curation-atlas", "slug": "curation-atlas",
+     "title": "Curation Atlas — read-only public metadata audit", "sdk": "docker",
+     "action": "KEEP_POLICY", "sink": "policy",
+     "dest": "https://szlholdings-curation-atlas.hf.space",
+     "why": "Current organization keep policy; process liveness does not qualify product deployment or proof."},
     {"name": "szl-khipu", "slug": "szl-khipu", "title": "szl-khipu", "sdk": "docker",
      "action": "FOLD", "sink": "product", "dest": PRODUCT + "/khipu",
      "why": "Not a FLOCK door. Evaluate on product /khipu. RECORD on a11oy.net/khipu/."},
@@ -787,7 +792,7 @@ def _aggregate_health_state(spaces: list[dict[str, Any]]) -> str:
 
 
 async def spaces_health() -> dict[str, Any]:
-    """Keep five runtime probes separate from eight-org visibility policy."""
+    """Keep five runtime probes separate from nine-org visibility policy."""
     now = time.monotonic()
     if _HEALTH_CACHE["payload"] is not None and (now - _HEALTH_CACHE["ts"]) < _HEALTH_CACHE_TTL:
         cached = _HEALTH_CACHE["payload"]
@@ -829,7 +834,7 @@ async def spaces_health() -> dict[str, Any]:
             "state": "Fresh overall LIVE requires configured runtime LIVE and public organization inventory LIVE. TTL reuse is CACHED with cached_state.",
             "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING and every configured exact API contract LIVE; partial evidence is DEGRADED",
             "contract_state": "Killinchu, Anatomy, and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
-            "inventory": "Current eight-org keep policy is compared with the unauthenticated Hub author list; extra public Spaces remain DEGRADED. README is a special organization card, not an application Space. Runtime probes cover only five configured doors.",
+            "inventory": "Current nine-org keep policy is compared with the unauthenticated Hub author list; extra public Spaces remain DEGRADED. README is a special organization card, not an application Space. Runtime probes cover only five configured doors.",
             "custom_domain": "HF API provider state; PENDING remains DEGRADED even when a separate edge currently routes traffic",
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
             "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
@@ -906,7 +911,7 @@ def unify_ledger() -> dict[str, Any]:
                         for name in sorted(PUBLIC_ORG_KEEP_POLICY)],
         "configured_runtime_doors": [sp["slug"] for sp in SPACES],
         # Keep the v1 field for consumers; it describes the five configured
-        # runtime doors, not the current eight-org visibility policy.
+        # runtime doors, not the current nine-org visibility policy.
         "keep": [{"slug": sp["slug"], "act": "KEEP", "dest": sp["dest"]} for sp in SPACES],
         "fold": [
             {"slug": sp["slug"], "act": "FOLD", "into": sp.get("sink") or sp["dest"]}
@@ -1337,7 +1342,7 @@ if __name__ == "__main__":
     assert b"http://" not in tp, "tiles must be 0 CDN (no http://)"
     assert b'href="/spaces/' not in tp, "tiles must not execute an app under this origin"
     assert b"5 configured runtime doors are probed" in tp
-    assert b"current organization keep policy lists 8 Spaces" in tp
+    assert b"current organization keep policy lists 9 Spaces" in tp
     assert b'data-policy-keep="david-leads"' in tp
     assert b'data-fold="david-leads"' not in tp
     assert b"stage: <span>pending</span>" in tp

@@ -11,7 +11,8 @@ from a one-line marker at the original location.
 # Install Node 22 (for a11oy serve TypeScript runner)
 # Install GitHub CLI (gh) -- the a11oy.code github_read_file / github_open_issue /
 # github_open_pr tools shell out to `gh` and read GH_TOKEN/GITHUB_TOKEN from the
-# Space env. Official apt repo; curl + gnupg installed in the first half of this RUN.
+# Space env. sha256-pinned cli/cli release .deb (was the apt repo until 2026-10-21);
+# curl installed in the first half of this RUN.
 # LAYER-CEILING CONSOLIDATION (build/docker, Opus 4.8): the Node-22 install and the
 # gh install were two adjacent fail-loud apt RUNs; merged into ONE RUN to drop one
 # image layer (BuildKit max-depth fix). Identical apt sources, identical packages,
@@ -19,6 +20,15 @@ from a one-line marker at the original location.
 # fail-loud semantics (no `|| true`). The gh block re-runs `apt-get update` after the
 # lists were cleaned by the Node block, exactly as before. Build-time tooling only.
 ```
+
+Node 22 comes from NodeSource's signed apt repository, configured as a
+`signed-by` apt source. The build no longer pipes `setup_22.x` into a root shell.
+It downloads the repository key, refuses any key whose primary fingerprint is not
+`6F71F525282841EEDAF851B42F59B5F99B1BE0B4`, writes the `node_22.x nodistro`
+source with `signed-by`, and pins `nodejs` to that origin, which is what the setup
+script did. The build then fails unless `node --version` reports v22.
+`tests/test_dockerfile_remote_script_guard.py` keeps remote-script pipes out of the
+Dockerfile.
 
 ## §2 — Install Python dependencies
 
@@ -1093,7 +1103,9 @@ pins in the `RUN` line let Dependabot bump the audit file without the image (#23
 #
 #   2. FAIL-LOUD build tooling (NOT optionally masked -> no silent degrade):
 #      - NodeSource installer  (curl -fsSL https://deb.nodesource.com/setup_22.x)
-#      - GitHub CLI apt repo   (curl -fsSL https://cli.github.com/packages/...)
+#      - GitHub CLI 2.102.0    (sha256-pinned cli/cli release .deb; the apt repo
+#                               index keeps only the newest gh, so an exact apt
+#                               pin broke every build when 2.102.1 shipped)
 #      - PyPI pip installs     (fastapi/uvicorn/huggingface_hub/openai/slowapi/…)
 #      All use `curl -fsSL` / plain `pip install` with NO `|| echo` / `|| true`
 #      mask. If any of these vanish upstream the image build FAILS RED on the very

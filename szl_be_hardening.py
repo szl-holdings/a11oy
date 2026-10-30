@@ -771,25 +771,24 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
         "availability_evaluated": False,
         "runtime_status_endpoint": "/api/a11oy/healthz",
+        "legacy_status_deprecated": True,
+        "legacy_status_semantics": "LIVENESS_SENTINEL_NOT_A_SIGNER_OBSERVATION",
+        "replacement": "signing_state",
     }
 
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
+        from szl_signing_state import read_state
+        signing_state = read_state(app)
         live = {
             **_SIGNER_ABSENT,
             "mint": "POST /api/a11oy/khipu/sign",
             "rollup": "/api/a11oy/healthz",
             "pubkey": "/cosign.pub",
         }
-        try:
-            import szl_dsse as _dsse
-            # Fingerprint only. This route never stamps DSSE-LIVE; signer stays
-            # ABSENT. Live signing is /api/a11oy/healthz rollup.signer.
-            live["public_key_fingerprint"] = _dsse.public_key_fingerprint()
-        except Exception as exc:  # noqa: BLE001
-            live["error"] = type(exc).__name__
-        return {
+        live["public_key_fingerprint"] = signing_state["public_key_fingerprint"]
+        return JSONResponse({
             "status": "ok",
             "scope": "PROCESS_LIVENESS",
             "capability_readiness_asserted": False,
@@ -800,7 +799,8 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "commit": "c7c0ba17",
             "signer": dict(_SIGNER_ABSENT),
             "dsse_live": live,
-        }
+            "signing_state": signing_state,
+        }, headers={"Cache-Control": "no-store"})
 
     @app.get(f"{base}/readyz", tags=["health"])
     @app.get("/readyz", tags=["health"])

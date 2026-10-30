@@ -152,9 +152,9 @@ paths = [
 ]
 regexes = ['''^\s*"szl_meter_access\.py"\s*:\s*"e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",?\s*$''']
 
-# Immutable public SHA-256 of the byte-preserved predecessor payload manifest.
-# Exempt only this complete literal row at the three declared manifest paths. Changed
-# bytes, another path, and adjacent credentials remain subject to detection.
+# Forward-ported from current protected main: the execution observer row is an
+# immutable public source digest, not secret material. Keep the exemption exact
+# to this manifest path and complete literal row.
 [[rules.allowlists]]
 description = "Exact archived execution observer identity in active or preserved manifest"
 condition = "AND"
@@ -163,5 +163,8 @@ paths = [
   '''(^|[\\/])\.github[\\/]shared-source-payload-manifest\.json$''',
   '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]replication-payload-integrity-20261017-v1\.json$''',
   '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]model-credential-origin-20261017-v1\.json$''',
+  '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]bonsai-model-catalog-20261017-v1\.json$''',
+  '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]replication-snapshot-delivery-20261021-v1\.json$''',
+  '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]mcp-advertised-inventory-20261016-v1\.json$''',
 ]
 regexes = ['''^\s*"\.github/shared-source-payloads/execution-observer-operator-auth-20261016-v1\.json"\s*:\s*"7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",?\s*$''']

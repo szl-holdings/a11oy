@@ -70,7 +70,10 @@ class PublicSpaceDispositionsTests(unittest.TestCase):
         keep_block = policy.split("\nkeep:\n", 1)[1].split("\nretire_into_killinchu:\n", 1)[0]
         keeper_ids = set(re.findall(r"^  - id: (SZLHOLDINGS/[^\s]+)$", keep_block, re.MULTILINE))
         receipt_ids = {item["id"] for item in self.receipt["items"]}
-        self.assertEqual(len(keeper_ids), 8)
+        # The receipt remains an eight-keeper observation from 2026-10-03;
+        # the current policy additionally retains Atlas after that date.
+        self.assertEqual(len(keeper_ids), 9)
+        self.assertIn("SZLHOLDINGS/curation-atlas", keeper_ids)
         self.assertTrue(receipt_ids.isdisjoint(keeper_ids))
 
 

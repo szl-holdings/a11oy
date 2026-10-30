@@ -130,7 +130,7 @@ ENDPOINTS = {
     "/api/a11oy/v1/formulas/selftest": ep(schema="selftest", sla=None,
         note="Kernel-gated proven-formula self-test."),
     "/api/a11oy/v1/mcp/tools": ep(schema="mcp_tools", sla=None,
-        note="Returns the 4 real flagship tools; never the fabricated 12."),
+        note="Returns the advertised in-process and reachable sibling tools; count is derived from the returned inventory, not a fixed capability claim."),
     "/api/a11oy/v1/llm/registry": ep(schema="llm_registry", sla=None),
     "/api/a11oy/v1/honest": ep(schema="generic_obj", sla=None,
         allow_labels=("live", "cached", "UNAVAILABLE"),

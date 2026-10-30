@@ -7,15 +7,19 @@ first proves that same exact baseline, then permits only comparator drift that
 is byte-bound to the reviewed GitHub base-to-head delta. Neither mode accepts a
 persisted allowlist. The comparator's dot-prefix normalization gap is covered
 by deriving literal hidden COPY sources from the immutable Dockerfile and
-checking each against its Git blob and immutable HF bytes.
+checking each against its Git blob and immutable HF bytes. The one generated
+runtime marker instead requires the canonical publisher's exact OIDC binding;
+it is reported separately and never described as source-byte equality.
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 import re
 import shlex
@@ -44,6 +48,9 @@ PROTECTED_CANDIDATE_INPUTS = (
     ".well-known/security.txt",
     ".github/scripts/verify_hf_repository_parity.py",
 )
+RUNTIME_MARKER = ".szl-runtime-marker.json"
+RUNTIME_PLACEHOLDER = b'{"schema":"szl.runtime-source-marker/unavailable"}\n'
+RUNTIME_SIGNER = "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml"
 
 
 class ParityError(RuntimeError):
@@ -54,6 +61,7 @@ def _read_url(
     url: str,
     *,
     opener: Callable[..., Any] = urllib.request.urlopen,
+    max_bytes: int | None = None,
 ) -> bytes:
     headers = {"User-Agent": "szl-hf-parity/1"}
     token = os.environ.get("GITHUB_TOKEN")
@@ -62,7 +70,10 @@ def _read_url(
         headers["Accept"] = "application/vnd.github+json"
     request = urllib.request.Request(url, headers=headers)
     with opener(request, timeout=30) as response:
-        return response.read()
+        body = response.read() if max_bytes is None else response.read(max_bytes + 1)
+        if max_bytes is not None and len(body) > max_bytes:
+            raise ParityError("immutable derived-artifact input exceeds byte bound")
+        return body
 
 
 def _space_revision(
@@ -508,9 +519,92 @@ def dot_copy_warnings(paths: tuple[str, ...]) -> list[dict[str, str]]:
             for path in sorted(normalized)]
 
 
+def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
+    """Reuse exact source validators without importing application startup code.
+
+    Every loaded definition is bound to this immutable Git tree. The selected
+    functions have no import-time effects; only the explicit verifier invocation
+    runs the fixed, bounded GitHub CLI command. No caller module is imported.
+    """
+    namespace = {"__name__": "immutable_runtime_verification_contract",
+                 "json": json, "math": math, "re": re, "os": os,
+                 "tempfile": tempfile, "Path": Path, "subprocess": subprocess,
+                 "MAX_JSON": 2 * 1024 * 1024, "MAX_FILE": 32 * 1024 * 1024,
+                 "REPOSITORY": "szl-holdings/a11oy", "TARGET": "SZLHOLDINGS/a11oy",
+                 "SIGNER": RUNTIME_SIGNER,
+                 "REQUIRED": {"observer_runtime.py", "szl_runtime_identity.py", "serve.py",
+                              "gdw_runtime.py", ".github/scripts/hf-sync.yml"}}
+    for path, wanted in (
+        ("szl_readiness_artifact.py", {"EvidenceBlocked", "require", "digest", "strict"}),
+        ("szl_runtime_identity.py", {"marker_document", "validate_binding", "verify_attestation"}),
+    ):
+        raw = _read_url(f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/{path}",
+                        opener=opener, max_bytes=128 * 1024)
+        require_blob_bytes(path, raw, tree.get(path))
+        definitions = [node for node in ast.parse(raw).body
+                       if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in wanted]
+        if len(definitions) != len(wanted) or {node.name for node in definitions} != wanted:
+            raise ParityError("immutable runtime verification contract is incomplete")
+        exec(compile(ast.Module(body=definitions, type_ignores=[]),
+                     "<immutable-runtime-verification-contract>", "exec"), namespace)
+    return namespace
+
+
+def verify_derived_runtime_marker(*, github_repo, github_ref, hf_repo, hf_ref, tree, opener):
+    """Authenticate derived bytes; never exempt a marker from verification."""
+    if (github_repo != "szl-holdings/a11oy" or hf_repo != "SZLHOLDINGS/a11oy"
+            or not SHA_RE.fullmatch(github_ref) or not SHA_RE.fullmatch(hf_ref)):
+        raise ParityError("runtime marker requires exact canonical repositories and revisions")
+    source_root = f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/"
+    placeholder = _read_url(source_root + RUNTIME_MARKER, opener=opener, max_bytes=1024)
+    require_blob_bytes(RUNTIME_MARKER, placeholder, tree.get(RUNTIME_MARKER))
+    if placeholder != RUNTIME_PLACEHOLDER:
+        raise ParityError("runtime marker source is not the exact unavailable placeholder")
+    workflow_path = ".github/workflows/hf-sync.yml"
+    workflow = _read_url(source_root + workflow_path, opener=opener, max_bytes=256 * 1024)
+    require_blob_bytes(workflow_path, workflow, tree.get(workflow_path))
+    pins = re.findall(r"(?m)^\s*uses:\s*" + re.escape(RUNTIME_SIGNER)
+                      + r"@([0-9a-f]{40})\s*$", workflow.decode("utf-8"))
+    if len(pins) != 1:
+        raise ParityError("runtime marker publisher pin is unavailable or ambiguous")
+    raw = _read_url(f"https://huggingface.co/spaces/{hf_repo}/resolve/{hf_ref}/{RUNTIME_MARKER}",
+                    opener=opener, max_bytes=1024 * 1024)
+    contract = runtime_verification_contract(github_repo=github_repo, github_ref=github_ref,
+                                             tree=tree, opener=opener)
+    try:
+        marker = contract["marker_document"](raw)
+        canonical = json.dumps(marker, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+        if (canonical != raw or marker["source_sha"] != github_ref
+                or marker["publisher_sha"] != pins[0]):
+            raise ParityError("runtime marker differs from canonical source or publisher")
+        binding = json.dumps({"schema": "szl.runtime-source-binding/v1", "marker": marker,
+                              "hf_revision": hf_ref, "scope": "FINAL_APP_SOURCE_COPY_FILES",
+                              "image_attestation": False, "hardware_attestation": False,
+                              "execution_authority": False},
+                             sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+        contract["validate_binding"](binding, marker)
+        token = os.environ.get("GITHUB_TOKEN", "")
+        if not token or any(character.isspace() for character in token):
+            raise ParityError("runtime marker requires the job's GitHub read credential")
+        contract["verify_attestation"](binding, marker, token)
+    except ParityError:
+        raise
+    except Exception:
+        # Provider and subprocess errors may contain credentials or URLs.
+        raise ParityError("runtime marker publisher attestation was not verified") from None
+    return {"path": RUNTIME_MARKER, "sha256": hashlib.sha256(raw).hexdigest(),
+            "source_placeholder_sha256": hashlib.sha256(placeholder).hexdigest(),
+            "binding_sha256": hashlib.sha256(binding).hexdigest(),
+            "status": "authenticated-derived", "evidence_class": "REPORTED",
+            "source_byte_equality": False, "execution_authority": False,
+            "publisher_sha": pins[0], "run_id": marker["run_id"],
+            "run_attempt": marker["run_attempt"]}
+
+
 def verify_docker_dot_copies(
     *, github_repo: str, github_ref: str, hf_repo: str, hf_ref: str,
     tree: dict[str, str], opener: Callable[..., Any] = urllib.request.urlopen,
+    derived_artifacts: dict | None = None,
 ) -> dict[str, str]:
     if "Dockerfile" not in tree:
         raise ParityError("immutable Git tree has no Dockerfile")
@@ -519,9 +613,20 @@ def verify_docker_dot_copies(
     require_blob_bytes("Dockerfile", dockerfile, tree["Dockerfile"])
     paths = docker_dot_copy_paths(dockerfile.decode("utf-8"), tree)
     dot_copy_warnings(paths)  # Reject normalization collisions before HTTP reads.
-    return {path: verify_leading_dot_copy(
-        github_repo=github_repo, github_ref=github_ref, hf_repo=hf_repo, hf_ref=hf_ref,
-        relative=path, expected_blob=tree[path], opener=opener) for path in paths}
+    verified = {}
+    for path in paths:
+        if path == RUNTIME_MARKER:
+            proof = verify_derived_runtime_marker(
+                github_repo=github_repo, github_ref=github_ref, hf_repo=hf_repo, hf_ref=hf_ref,
+                tree=tree, opener=opener)
+            verified[path] = proof["sha256"]
+            if derived_artifacts is not None:
+                derived_artifacts[path] = proof
+        else:
+            verified[path] = verify_leading_dot_copy(
+                github_repo=github_repo, github_ref=github_ref, hf_repo=hf_repo, hf_ref=hf_ref,
+                relative=path, expected_blob=tree[path], opener=opener)
+    return verified
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -595,6 +700,7 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
     hf_ref = resolve_stable_revision(args.hf_repo)
     evidence["immutable_hf_ref"] = hf_ref
     head_tree = github_blob_tree(args.github_repo, github_ref=args.github_ref)
+    derived_artifacts = {}
 
     if args.base_ref:
         verify_ancestry(
@@ -607,6 +713,7 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
         dot_copies = verify_docker_dot_copies(
             github_repo=args.github_repo, github_ref=args.base_ref,
             hf_repo=args.hf_repo, hf_ref=hf_ref, tree=base_tree,
+            derived_artifacts=derived_artifacts,
         )
         for path in dot_copies:
             if head_tree.get(path) != base_tree[path]:
@@ -698,6 +805,7 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
             dot_copies = verify_docker_dot_copies(
                 github_repo=args.github_repo, github_ref=args.github_ref,
                 hf_repo=args.hf_repo, hf_ref=hf_ref, tree=head_tree,
+                derived_artifacts=derived_artifacts,
             )
             validate_report(
                 report,
@@ -707,7 +815,8 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
                 hf_ref=hf_ref,
                 guarded_dot_paths=tuple(dot_copies),
             )
-        report["proof_status"] = "exact"
+        report["proof_status"] = ("exact-source-and-authenticated-derived"
+                                  if derived_artifacts else "exact")
 
     report["immutable_hf_ref"] = hf_ref
     report["leading_dot_copy"] = {
@@ -717,8 +826,9 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
     }
     report["leading_dot_copies"] = [
         {"path": path, "sha256": digest, "status": "exact"}
-        for path, digest in sorted(dot_copies.items())
+        for path, digest in sorted(dot_copies.items()) if path not in derived_artifacts
     ]
+    report["derived_artifacts"] = list(derived_artifacts.values())
     args.report_out.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -733,8 +843,8 @@ def verify_parity(args: argparse.Namespace, evidence: dict) -> int:
             print(f"::notice title=Review-bound HF candidate drift::{path}")
     else:
         print(
-            f"HF repository parity exact: github={args.github_ref} "
-            f"hf={hf_ref} files={report['files_compared']}"
+            f"HF repository source parity verified: github={args.github_ref} "
+            f"hf={hf_ref} files={report['files_compared']} authenticated_derived={len(derived_artifacts)}"
         )
     return 0
 

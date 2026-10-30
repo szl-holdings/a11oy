@@ -1304,7 +1304,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
 
     def test_deployment_is_one_exact_pinned_reusable_call(self) -> None:
         self.assertIn(
-            "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451",
+            "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36",
             self.workflow,
         )
         self.assertIn("ref: ${{ github.sha }}", self.workflow)
@@ -1349,11 +1349,16 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
         readiness_verdict = self.workflow.split(
             "  readiness-verdict:", 1
         )[1].split("\n  relock:", 1)[0]
-        self.assertIn("needs: runtime-config", readiness_verdict)
+        handoff = self.workflow.split("  execution-handoff:", 1)[1].split("\n  readiness-verdict:", 1)[0]
+        self.assertIn("needs: [source-admission, runtime-config]", handoff)
+        self.assertIn("needs.runtime-config.result == 'success'", handoff)
+        self.assertIn("needs.runtime-config.result == 'skipped'", handoff)
+        self.assertIn("needs: execution-handoff", readiness_verdict)
+        self.assertIn("always() && needs.execution-handoff.result == 'success'", readiness_verdict)
         self.assertNotIn("HF_TOKEN", readiness_verdict)
         relock_job = self.workflow.split("  relock:", 1)[1]
         self.assertIn(
-            "needs: [runtime-config, execution-readiness]",
+            "needs: [execution-handoff, execution-readiness]",
             relock_job,
         )
         self.assertIn("--expected-origin \"$CANONICAL_ORIGIN\"", self.workflow)

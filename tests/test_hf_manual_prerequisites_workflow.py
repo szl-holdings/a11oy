@@ -68,7 +68,7 @@ def exact_step(actual, expected, diagnostic):
 
 
 CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-SETUP_PYTHON = "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
+SETUP_PYTHON = "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0"
 UPLOAD = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 HF_CREDENTIAL = "${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}"
 CONTROL_CLIENT = 'python -I -m pip install --disable-pip-version-check "huggingface_hub==1.31.0" "requests==2.32.5" "cryptography==50.0.1"'
@@ -170,7 +170,7 @@ python -I -B scripts/configure_hf_gdw_runtime.py \
   --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$GDW_CONFIG_REPORT"'''
 # Post-deploy jobs may read and verify, never restart, pause or write variables.
-POST_DEPLOY_JOBS = ("runtime-config", "readiness-verdict", "execution-readiness", "relock",
+POST_DEPLOY_JOBS = ("runtime-config", "execution-handoff", "readiness-verdict", "execution-readiness", "relock",
                     "post-deployment-parity", "terminal-source-authorization")
 RESTART_EFFECT_TOKENS = ("restart_space", "restart-space", "pause_space", "add_space_variable",
                          "prove_hf_series_a_restart.py",
@@ -220,8 +220,10 @@ test -s "$PLATFORM_CANDIDATE_ORIGIN_REPORT"
 test -s "$PLATFORM_CANDIDATE_PRODUCT_REPORT"
 test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
 RUN_VERDICT = "${{ needs.execution-readiness.outputs.verdict }}"
-REVIEWED_DEPLOY_JOB_SHA256 = "a30a6a0ed116101c998635538465ef55c0b97d134f0a4381a5ea4b4fb97a19fb"
-REVIEWED_RELOCK_JOB_SHA256 = "572350a252820f21de229de111900817332797e6419e90c8762f3de244d5964f"
+# Reviewed publisher 5f140bab: isolated identity attestation and exact-main gates.
+REVIEWED_DEPLOY_JOB_SHA256 = "472ec55d0cb1a4bfec47fd6053bedf5497c8dff2015482dc50ee2c6ebc34678d"
+REVIEWED_RELOCK_JOB_SHA256 = "8debe2a787278449dc5a50a1e946169129179e5655d8eefac2a7fa3dc7cc6975"
+REVIEWED_HANDOFF_JOB_SHA256 = "58ebd551d9c2bc93f90e217a150eca4d66ef3ff619ef43feb5cb470861b92bf3"
 
 
 def exact_job_digest(source: str, name: str) -> str:
@@ -279,15 +281,17 @@ def assert_execution_evidence_contract(jobs, source):
     if execution.get("outputs") != {"verdict": "${{ steps.gate.outputs.verdict }}"}:
         raise WorkflowContractError("readiness verdict gate must hand its verdict to relock")
     expected = {
-        "name": "Collect and verify admitted execution evidence", "needs": "readiness-verdict",
+        "name": "Collect and verify admitted execution evidence",
+        "needs": ["readiness-verdict", "execution-handoff"],
+        "if": "${{ always() && needs.readiness-verdict.result == 'success' && needs.execution-handoff.result == 'success' }}",
         "runs-on": "ubuntu-latest", "timeout-minutes": "10",
         "permissions": {"contents": "read", "actions": "read"},
         "outputs": {"verdict": "${{ steps.gate.outputs.verdict }}"},
         "env": {
             "SOURCE_SHA": "${{ github.sha }}",
-            "EXPECTED_EXECUTION_HF_REVISION": "${{ vars.A11OY_EXECUTION_HF_REVISION }}",
-            "EXPECTED_EXECUTION_BOOT_ID": "${{ vars.A11OY_EXECUTION_BOOT_ID }}",
-            "EXPECTED_EXECUTION_RUN_NONCE": "${{ vars.A11OY_EXECUTION_RUN_NONCE }}",
+            "EXPECTED_EXECUTION_HF_REVISION": "${{ needs.execution-handoff.outputs.hf_revision }}",
+            "EXPECTED_EXECUTION_BOOT_ID": "${{ needs.execution-handoff.outputs.boot_id }}",
+            "EXPECTED_EXECUTION_RUN_NONCE": "${{ needs.execution-handoff.outputs.run_nonce }}",
         },
     }
     if {key: value for key, value in execution.items() if key != "steps"} != expected:
@@ -303,7 +307,7 @@ def assert_execution_evidence_contract(jobs, source):
                 '"huggingface_hub==1.23.0" "requests==2.32.5" "cryptography==50.0.2" "httpx==0.28.1"'},
         {"name": "Collect the independently admitted completed execution export",
          "env": {"EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence",
-                 "A11OY_EXECUTION_AUTHORITY_PINS_JSON": "${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}",
+                 "A11OY_EXECUTION_AUTHORITY_PINS_JSON": "${{ needs.execution-handoff.outputs.authority_pins }}",
                  "A11OY_CODE_ADMIN_KEY": "${{ secrets.A11OY_CODE_ADMIN_KEY }}",
                  "A11OY_CODE_TENANT": "${{ secrets.A11OY_CODE_TENANT }}"},
          "run": 'python -I -B .github/scripts/collect_execution_readiness.py '
@@ -343,7 +347,7 @@ def assert_deploy_path_contract(source):
         or set(events) != {"push", "workflow_dispatch"}
         or events.get("push") != {"branches": ["main"]}
         or set(dispatch_inputs) != {
-            "publish_vertical_flagships", "vertical_plan_json", "open_deploy_window"
+            "publish_vertical_flagships", "vertical_plan_json", "open_deploy_window", "verify_current_deployment"
         }
         or not all(isinstance(value, dict) for value in dispatch_inputs.values())
         or dispatch_inputs["publish_vertical_flagships"].get("type") != "boolean"
@@ -353,13 +357,33 @@ def assert_deploy_path_contract(source):
         or dispatch_inputs["vertical_plan_json"].get("default") != ""
         or dispatch_inputs["open_deploy_window"].get("type") != "boolean"
         or dispatch_inputs["open_deploy_window"].get("default") is not False
+        or dispatch_inputs["verify_current_deployment"].get("type") != "boolean"
+        or dispatch_inputs["verify_current_deployment"].get("default") is not False
     ):
         raise WorkflowContractError("provider workflow event scope changed")
     admission = jobs["source-admission"]
     if [step.get("name") for step in admission["steps"]] != [
-            "Checkout the immutable queued source", "Require main and classify current source ownership",
+            "Checkout the immutable queued source", "Validate the bounded workflow invocation",
+            "Require main and classify current source ownership",
             "Retain the source admission decision"] or "secrets." in json.dumps(admission):
         raise WorkflowContractError("source admission must remain read only")
+    exact_step(named_step(admission, "Validate the bounded workflow invocation"), {
+        "name": "Validate the bounded workflow invocation",
+        "env": {
+            "VERIFY_CURRENT_DEPLOYMENT": "${{ inputs.verify_current_deployment || false }}",
+            "OPEN_DEPLOY_WINDOW": "${{ inputs.open_deploy_window || false }}",
+            "PUBLISH_VERTICAL_FLAGSHIPS": "${{ inputs.publish_vertical_flagships || false }}",
+            "VERTICAL_PLAN_JSON": "${{ inputs.vertical_plan_json }}",
+        },
+        "run": "python3 -I -B .github/scripts/admit_execution_handoff.py --validate-invocation",
+    }, "verification invocation must reject contradictory provider inputs")
+    handoff = jobs["execution-handoff"]
+    if (handoff.get("permissions") != {"contents": "read"}
+            or "secrets." in json.dumps(handoff)
+            or "HF_TOKEN" in json.dumps(handoff)
+            or exact_job_digest(source, "execution-handoff") != REVIEWED_HANDOFF_JOB_SHA256):
+        raise WorkflowContractError("execution handoff read-only authority contract changed")
+
 
     preflight = jobs["preflight"]
     if (preflight.get("permissions") != {"contents": "read"}
@@ -505,7 +529,7 @@ def assert_deploy_path_contract(source):
     # re-validate this run's verdict rather than require a served one.
     evaluate = named_step(relock, "Evaluate the canonical application contract")
     evaluate_run = compact(evaluate.get("run", ""))
-    if (relock.get("needs") != ["runtime-config", "execution-readiness"]
+    if (relock.get("needs") != ["execution-handoff", "execution-readiness"]
             or evaluate.get("env") != {"RUN_READINESS_VERDICT": RUN_VERDICT,
                 "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence",
                 "A11OY_CODE_ADMIN_KEY": "${{ secrets.A11OY_CODE_ADMIN_KEY }}",
@@ -534,7 +558,7 @@ echo 'Canonical A11oy is source-bound, singleton, and route-operational.' '''
         raise WorkflowContractError("relock credential contract changed")
     parity = jobs["post-deployment-parity"]
     if (parity.get("needs") != "relock" or parity.get("uses") != "./.github/workflows/hf-module-drift.yml"
-            or parity.get("permissions") != {"contents": "read"}):
+            or parity.get("permissions") != {"contents": "read", "attestations": "read"}):
         raise WorkflowContractError("parity must follow successful verification")
     terminal = jobs["terminal-source-authorization"]
     if (terminal.get("permissions") != {"contents": "read"} or "secrets." in json.dumps(terminal)
@@ -802,6 +826,67 @@ class DeployPathWorkflowTests(unittest.TestCase):
         jobs = assert_deploy_path_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
 
+    def test_verification_mode_rejects_unreviewed_authority_and_mutable_context(self):
+        input_block = re.search(
+            r"(?ms)^      verify_current_deployment:\n.*?(?=^      [A-Za-z0-9_-]+:\n|\Z)",
+            self.source,
+        ).group(0)
+        for original, replacement in (("type: boolean", "type: string"),
+                                      ("default: false", "default: true")):
+            changed = self.source.replace(input_block, input_block.replace(original, replacement), 1)
+            with self.subTest(replacement=replacement):
+                with self.assertRaisesRegex(WorkflowContractError, "provider workflow event scope changed"):
+                    assert_deploy_path_contract(changed)
+        cases = (
+            ("          OPEN_DEPLOY_WINDOW: ${{ inputs.open_deploy_window || false }}\n", "",
+             "verification invocation"),
+            ("--validate-invocation", "--unreviewed-mode", "verification invocation"),
+            ("  execution-handoff:\n", "  execution-handoff:\n    env:\n      HF_TOKEN: ${{ secrets.HF_TOKEN }}\n",
+             "execution handoff read-only authority"),
+            ('--output "$RUNNER_TEMP/execution-handoff.json"', '--output "$RUNNER_TEMP/execution-handoff.json" --execute',
+             "execution handoff read-only authority"),
+            ("${{ needs.execution-handoff.outputs.boot_id }}", "${{ vars.A11OY_EXECUTION_BOOT_ID }}",
+             "execution collection"),
+            ("${{ needs.execution-handoff.outputs.authority_pins }}", "${{ vars.A11OY_EXECUTION_AUTHORITY_PINS_JSON }}",
+             "execution collection"),
+        )
+        for original, replacement, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic, replacement=replacement):
+                self.assertIn(original, self.source)
+                changed = self.source.replace(original, replacement, 1)
+                with self.assertRaisesRegex(WorkflowContractError, diagnostic):
+                    assert_deploy_path_contract(changed)
+
+    def test_runtime_identity_and_signer_permissions_are_exactly_reviewed(self):
+        block = re.search(r"(?ms)^  deploy:\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)", self.source).group(0)
+        for original, replacement in (
+            ("      runtime-identity: true\n", "      runtime-identity: false\n"),
+            ("      runtime-identity: true\n", ""),
+            ("      id-token: write\n", "      id-token: read\n"),
+            ("      attestations: write\n", ""),
+            ("      contents: read\n", "      contents: write\n"),
+            ("      contents: read\n", "      contents: read\n      actions: write\n"),
+        ):
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, block)
+                changed = self.source.replace(block, block.replace(original, replacement, 1), 1)
+                with self.assertRaisesRegex(WorkflowContractError, "deploy authority contract changed"):
+                    assert_deploy_path_contract(changed)
+
+    def test_parity_attestation_reader_permissions_are_exact(self):
+        block = re.search(r"(?ms)^  post-deployment-parity:\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)", self.source).group(0)
+        for original, replacement in (
+            ("      attestations: read\n", ""),
+            ("      attestations: read\n", "      attestations: write\n"),
+            ("      contents: read\n", "      contents: write\n"),
+            ("      contents: read\n", "      contents: read\n      actions: read\n"),
+        ):
+            with self.subTest(replacement=replacement):
+                self.assertIn(original, block)
+                changed = self.source.replace(block, block.replace(original, replacement, 1), 1)
+                with self.assertRaisesRegex(WorkflowContractError, "parity must follow successful verification"):
+                    assert_deploy_path_contract(changed)
+
     def test_token_bearing_workflows_isolate_every_python_entrypoint(self):
         for workflow in (WORKFLOW, DRILL_WORKFLOW):
             launches = []
@@ -970,7 +1055,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
              "canonical-a11oy-passive-${{ github.run_id }}-1"),
             ("            ${{ runner.temp }}/execution-evidence/execution-observations.json\n",
              "            ${{ runner.temp }}/execution-evidence/execution-authority-pins.json\n"),
-            ("      EXPECTED_EXECUTION_RUN_NONCE: ${{ vars.A11OY_EXECUTION_RUN_NONCE }}\n",
+            ("      EXPECTED_EXECUTION_RUN_NONCE: ${{ needs.execution-handoff.outputs.run_nonce }}\n",
              "      EXPECTED_EXECUTION_RUN_NONCE: ${{ steps.gate.outputs.run_nonce }}\n"),
         )
         for original, replacement in cases:

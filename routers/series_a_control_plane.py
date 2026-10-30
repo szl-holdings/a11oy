@@ -2038,6 +2038,9 @@ def register(app: FastAPI, ns: str = "a11oy", *, db_path: str | None = None) -> 
 
     async def status(request: Request) -> Response:
         payload = service.latest_status()
+        observer = getattr(app.state, "szl_execution_observer", None)
+        if observer is not None:
+            payload["runtime_source_identity"] = observer.process_identity.snapshot()
         if request.method == "HEAD":
             return Response(status_code=200, media_type="application/json")
         return JSONResponse(payload, headers={"cache-control": "no-store"})

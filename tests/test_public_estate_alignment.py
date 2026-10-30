@@ -59,7 +59,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 14)
+        self.assertEqual(len(topology), 15)
         self.assertEqual(
             inventory_only,
             [
@@ -125,6 +125,29 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertEqual(killinchu["truth"], "SOURCE_OWNED_RUNTIME")
         self.assertIn("SZLHOLDINGS/killinchu", alignment.governed_keep_spaces())
 
+    def test_atlas_is_read_only_supporting_api_and_governed_keeper(self) -> None:
+        atlas = next(
+            row for row in self.contract["supportingSystems"]
+            if row["id"] == "curation-atlas"
+        )
+        self.assertEqual(atlas["githubRepository"], "szl-holdings/curation-atlas")
+        self.assertEqual(
+            atlas["huggingFaceRepositories"], ["SZLHOLDINGS/curation-atlas"]
+        )
+        self.assertEqual(
+            atlas["classification"], "READ_ONLY_PUBLIC_REPOSITORY_AUDIT_API"
+        )
+        self.assertIn(
+            "SZLHOLDINGS/curation-atlas", alignment.topology_spaces(self.contract)
+        )
+        self.assertIn(
+            "SZLHOLDINGS/curation-atlas", alignment.governed_keep_spaces()
+        )
+        self.assertNotIn(
+            "SZLHOLDINGS/curation-atlas", alignment.inventory_only_spaces(self.contract)
+        )
+        self.assertFalse(self.contract["authority"]["productionAuthorization"])
+
     def test_immune_spaces_are_inventory_only_folded_into_killinchu(self) -> None:
         rows = {
             row["id"]: row
@@ -164,7 +187,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         organization_keepers = [
             item for item in governed if item.startswith("SZLHOLDINGS/")
         ]
-        self.assertEqual(len(organization_keepers), 8)
+        self.assertEqual(len(organization_keepers), 9)
         self.assertNotIn("SZLHOLDINGS/ayllu", governed)
         self.assertEqual(governed, load_keep_ids(alignment.KEEP_POLICY))
         self.assertEqual(
