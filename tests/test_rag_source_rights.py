@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import sqlite3
+import threading
 from pathlib import Path
 
 import pytest
@@ -402,6 +403,30 @@ def test_rows_lacking_rights_are_public_unclassified_never_tenant_owned():
     reg.bind_chunk("g1", pub["chunk_id"], pub["sha256"], f"{ORG}/pubrepo@{C_PUB}")
     assert reg.tenant_predicate(a, pub, scope="public").allow is True
     assert reg.tenant_predicate(a, pub, scope="tenant").reason == "NOT_OWNED_OR_GRANTED"
+
+
+def test_concurrent_grant_revocations_do_not_restore_each_other():
+    reg = _registry()
+    reg.register(org="tenant-b-org", repo="notes", commit_sha=C_PRIV, tenant_owner="tenant-b",
+                 visibility="private", rights={"read"},
+                 grants={"tenant-c": {"read"}, "tenant-d": {"read"}})
+    barrier = threading.Barrier(2)
+    errors = []
+
+    def revoke(tenant: str) -> None:
+        try:
+            barrier.wait(timeout=5)
+            reg.revoke_grant("tenant-b-org", "notes", tenant)
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=revoke, args=(tenant,)) for tenant in ("tenant-c", "tenant-d")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == []
+    assert reg.entry("tenant-b-org", "notes").grants == ()
 
 
 def test_revoked_grant_and_revoked_source_deny_reads():

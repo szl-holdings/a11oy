@@ -242,11 +242,14 @@ class SourceRightsRegistry:
         return self._replace(org, repo, "revoke", revoked_revision=True)
 
     def revoke_grant(self, org: str, repo: str, tenant_id: str) -> int:
-        entry = self.entry(org, repo)
-        if entry is None:
-            raise SourceRightsError("SOURCE_UNKNOWN")
-        return self._replace(org, repo, "revoke_grant",
-                             grants=tuple((t, p) for t, p in entry.grants if t != tenant_id))
+        # Read and write under one lock. A snapshot taken before _replace
+        # would put a stale grants tuple back over a concurrent revocation.
+        with self._lock:
+            entry = self._entries.get((org, repo))
+            if entry is None:
+                raise SourceRightsError("SOURCE_UNKNOWN")
+            grants = tuple((t, p) for t, p in entry.grants if t != tenant_id)
+            return self._replace(org, repo, "revoke_grant", grants=grants)
 
     def exclude_blob(self, blob_sha: str, reason: str = "EXCLUDED") -> int:
         if not (isinstance(blob_sha, str) and _HEX_REV.fullmatch(blob_sha)):

@@ -17,8 +17,8 @@ PROPOSED, LOCAL, NOT DEPLOYED. Standard library only.
 ``source_grant(subject, handle)``
     Strict ``allowed=True`` only when all of the following hold:
     * the handle's ``gh:{org}/{repo}`` source names a registry entry;
-    * the registry binding for ``(generation, chunk)`` names exactly that
-      entry's current ``org/repo@commit``, i.e. the revision matches;
+    * the registry binding for ``(generation, chunk, sha256)`` names exactly
+      one current entry, and that entry is the handle's ``org/repo@commit``;
     * ``admit_source(..., purpose="read", store=...)`` returns ``ADMIT``;
     * ``tenant_predicate`` allows the subject (public scope for public sources,
       tenant scope for private ones);
@@ -29,8 +29,9 @@ PROPOSED, LOCAL, NOT DEPLOYED. Standard library only.
 ``admit_transfer(decision)``
     Default deny. Requires an exact match with this adapter's one destination,
     purpose ``ANSWER_SYNTHESIS``, no forwarded history and no expression
-    authority. Every source must resolve to its bound current entry at the same
-    revision and must be admitted for ``egress``. Any exception denies.
+    authority. Every source must resolve to exactly one current entry bound to
+    that generation, chunk, and content digest, at the same revision, and must
+    be admitted for ``egress``. Any exception denies.
 
 The registry models ``egress`` as a purpose right; it has no per-destination
 egress list. Destination binding is therefore enforced by constructing one
@@ -81,20 +82,28 @@ class RegistryGrantSource:
     # ------------------------------------------------------------------ #
     # binding lookup
     # ------------------------------------------------------------------ #
-    def _bound_source_ids(self, generation_id: str, chunk_id: str) -> frozenset:
+    def _current_bound_entries(self, generation_id: str, chunk_id: str, sha256: str) -> list:
         # The rights module exposes no public accessor for chunk bindings; this
         # read-only lookup is the single coupling point (see the module docs).
+        # The digest is part of the key: the same chunk id can be bound to
+        # more than one source, and those sources are not interchangeable.
         reg = self.registry
+        if not isinstance(sha256, str):
+            return []
         with reg._lock:
-            return frozenset(sid for (_sha, sid) in reg._bindings.get((generation_id, chunk_id), ()))
-
-    def _bound_entry(self, org: str, repo: str, generation_id: str, chunk_id: str):
-        entry = self.registry.entry(org, repo)
-        if entry is None:
-            return None
-        if entry.source_id not in self._bound_source_ids(generation_id, chunk_id):
-            return None
-        return entry
+            bound = tuple(reg._bindings.get((generation_id, chunk_id), ()))
+        found = []
+        seen = set()
+        for bound_sha, source_id in bound:
+            if bound_sha != sha256 or source_id in seen:
+                continue
+            seen.add(source_id)
+            name, _, _commit = source_id.partition("@")
+            org, _, repo = name.partition("/")
+            entry = reg.entry(org, repo)
+            if entry is not None and entry.source_id == source_id:
+                found.append(entry)
+        return found
 
     # ------------------------------------------------------------------ #
     # SynthesisGrantSource
@@ -110,9 +119,10 @@ class RegistryGrantSource:
             if match is None or match.group(2) != handle.repo:
                 return deny()
             org, repo = match.group(1), match.group(2)
-            entry = self._bound_entry(org, repo, handle.generation_id, handle.chunk_id)
-            if entry is None:
+            bound = self._current_bound_entries(handle.generation_id, handle.chunk_id, handle.sha256)
+            if len(bound) != 1 or bound[0].org != org or bound[0].repo != repo:
                 return deny()
+            entry = bound[0]
             visibility = "PRIVATE" if entry.visibility == "private" else "PUBLIC"
             tenant = entry.tenant_owner if visibility == "PRIVATE" else None
             admission = self.registry.admit_source(org, repo, entry.commit_sha, "read", subject,
@@ -146,14 +156,8 @@ class RegistryGrantSource:
             sources = decision.source_revisions
             if not isinstance(sources, tuple) or not 1 <= len(sources) <= 6:
                 return False
-            for generation_id, chunk_id, _sha256, revision in sources:
-                current = []
-                for sid in self._bound_source_ids(generation_id, chunk_id):
-                    name, _, _commit = sid.partition("@")
-                    org, _, repo = name.partition("/")
-                    entry = self.registry.entry(org, repo)
-                    if entry is not None and entry.source_id == sid:
-                        current.append(entry)
+            for generation_id, chunk_id, sha256, revision in sources:
+                current = self._current_bound_entries(generation_id, chunk_id, sha256)
                 if len(current) != 1:
                     return False
                 entry = current[0]

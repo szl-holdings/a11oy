@@ -418,6 +418,42 @@ def test_anonymous_agent_routes_are_blocked_before_any_lookup(env, path):
     assert s.verify_calls == [] and s.grants == [] and s.spy.calls == []
 
 
+def test_same_chunk_id_follows_the_content_digest(env):
+    del env
+    reg = sr.SourceRightsRegistry()
+    left = reg.register(org="org-a", repo="notes", commit_sha=C1, tenant_owner="public",
+                        visibility="public", rights={"read", "index", "egress"})
+    right = reg.register(org="org-b", repo="notes", commit_sha=C2, tenant_owner="public",
+                         visibility="public", rights={"read", "index", "egress"})
+    chunk_id, sha_left, sha_right = "c" * 24, "a" * 64, "b" * 64
+    reg.bind_chunk("g1", chunk_id, sha_left, left.source_id)
+    reg.bind_chunk("g1", chunk_id, sha_right, right.source_id)
+    destination = ctl.FixedDestination("P", "M", "LOCAL", lambda *args, **kwargs: None)
+    source = gsrc.RegistryGrantSource(reg, verify=lambda request, operator: PRINCIPAL_A,
+                                      destination=destination)
+    subject = agent.SynthesisSubject("principal-a", "tenant-a", POLICY, True)
+
+    def handle(org: str, digest: str):
+        return agent.SynthesisHandle("g1", "d" * 64, chunk_id, "n", "notes", "p",
+                                     f"gh:{org}/notes", digest)
+
+    granted = source.source_grant(subject, handle("org-a", sha_left))
+    assert granted.allowed is True and granted.source_revision == C1 and granted.visibility == "PUBLIC"
+    assert source.source_grant(subject, handle("org-a", sha_right)).allowed is False
+    assert source.source_grant(subject, handle("org-b", sha_left)).allowed is False
+
+    def decision(digest: str, revision: str):
+        return ctl.TransferDecision(
+            subject=subject, source_revisions=(("g1", chunk_id, digest, revision),),
+            provider_id="P", model_id="M", trust_domain="LOCAL", purpose=gsrc.PURPOSE,
+            task_sha256="e" * 64, history_forwarded=False, expression_authority="NONE")
+
+    assert source.admit_transfer(decision(sha_left, C1)) is True
+    assert source.admit_transfer(decision(sha_right, C2)) is True
+    assert source.admit_transfer(decision(sha_right, C1)) is False
+    assert source.admit_transfer(decision("f" * 64, C1)) is False
+
+
 def test_grant_source_satisfies_controller_protocol(env):
     s = Setup(env)
     assert isinstance(s.gs, ctl.SynthesisGrantSource)
