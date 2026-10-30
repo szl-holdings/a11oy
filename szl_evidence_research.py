@@ -347,6 +347,9 @@ _ARXIV_COOLDOWN = 900  # 15 min — skip arXiv after it rate-limits / errors
 _LIVENESS_TTL = 900    # 15 min — source-URL reachability badge freshness window
 _LIVENESS_TIMEOUT = 8  # 8 s — per-source HEAD/GET probe timeout
 _WARM_INTERVAL = int(os.environ.get("SZL_EVIDENCE_WARM_INTERVAL", "1500") or "1500")
+# First sweep waits so process startup can finish. Unset keeps the previous
+# 15 second pause. A test may postpone the sweep; production leaves this unset.
+_WARM_INITIAL_DELAY = int(os.environ.get("SZL_EVIDENCE_WARM_DELAY", "15") or "15")
 _DISK = os.environ.get(
     "SZL_EVIDENCE_CACHE",
     os.path.join(tempfile.gettempdir(), "szl_evidence_cache.json"),
@@ -687,7 +690,7 @@ def _sources_live(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 # --- background warmer: keep every claim's papers fresh in cache -------------
 
 def _warm_loop() -> None:
-    time.sleep(15)  # let app startup settle before the first sweep
+    time.sleep(_WARM_INITIAL_DELAY)  # let app startup settle before the first sweep
     while True:
         try:
             seen = set()

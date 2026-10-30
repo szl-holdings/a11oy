@@ -732,7 +732,14 @@ def reconcile(args: argparse.Namespace) -> int:
             output_path,
             {"state": state, "url": "", "branch": branch, "head_sha": ""},
         )
-        print(f"::error::{failure['failure']}", file=sys.stderr)
+        if authorization_blocked:
+            print(
+                "Brain Frontier proposal skipped without a push: "
+                f"{failure['failure']}",
+                file=sys.stderr,
+            )
+        else:
+            print(f"::error::{failure['failure']}", file=sys.stderr)
         return 1
 
 
@@ -1034,8 +1041,11 @@ def verify_receipt_command(args: argparse.Namespace) -> int:
         return 1
     if receipt.get("outcome") == BLOCKED_RECEIPT_OUTCOME:
         required = receipt["proposal"]["authorization"]["required_action"]
-        print(f"::error::Brain Frontier proposal is terminally blocked: {one_line(required)}", file=sys.stderr)
-        return 1
+        print(
+            "Brain Frontier proposal skipped without a push. "
+            f"Recorded hold: {one_line(required)}"
+        )
+        return 0
     print("Brain Frontier refresh receipt is terminal and digest-valid.")
     return 0
 

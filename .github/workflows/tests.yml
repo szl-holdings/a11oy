@@ -590,11 +590,11 @@ jobs:
           -q
       - name: Verify signing state route no-write guard in isolation
         # The original process-wide no-write assertion is unchanged and the
-        # startup warmer is disabled only in this separate pytest process.
-        # The combined route suite above retains its default-on behavior.
-        # Writes intercepted by the existing guard still fail, on any thread.
+        # warmer stays enabled. This step only postpones the first cache sweep
+        # so an unrelated warmer write cannot land inside that assertion.
+        # Request-time writes, including writes from another thread, still fail it.
         env:
-          SZL_EVIDENCE_WARM: "0"
+          SZL_EVIDENCE_WARM_DELAY: "3600"
         run: python -B -m pytest -q -p no:cacheprovider tests/test_signing_state_routes.py
 
   python-energy-autostart-readyz:
