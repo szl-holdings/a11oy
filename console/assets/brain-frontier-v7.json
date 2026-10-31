@@ -1302,10 +1302,10 @@
   ],
   "ouroboros_observation": {
     "artifact": {
-      "archive_sha256": "261be9cad146ba408d7f494bb577a116ee675e1f8b4c5ad495e01bd9d0b7a4c0",
-      "id": 12938947676,
-      "name": "ouroboros-frontier-40968573665-1",
-      "receipt_sha256": "411506928e90a9e513d1b3e38118fe5bc2c8e33a1239b5e52951a9083cde6361"
+      "archive_sha256": "b3bfd51b756694ce0c0ac8f4f4272f7d6e4a1cd8e77fc439d95fd8ec15476c50",
+      "id": 13050366551,
+      "name": "ouroboros-frontier-41221447217-1",
+      "receipt_sha256": "02e2518cc69467abb4c463f50bb05e60c03654d9e1b298d8f0ee0da258813616"
     },
     "authority": {
       "execution": "NONE",
@@ -1322,9 +1322,9 @@
       "signature_verified": false
     },
     "freshness": {
-      "expires_at": "2026-10-30T04:50:59Z",
+      "expires_at": "2026-10-31T22:50:52Z",
       "max_age_seconds": 21600,
-      "observed_at": "2026-10-29T22:50:59Z"
+      "observed_at": "2026-10-31T16:50:52Z"
     },
     "observation": {
       "bounded": true,
@@ -1336,18 +1336,18 @@
       "review_state": "REVIEW_PROPOSED",
       "steps": 1,
       "terminated": true,
-      "wall_ms": 117089
+      "wall_ms": 101260
     },
-    "observation_sha256": "c2ebc98d3fca4cd802246b9f097c17a0d2063bc65da6db62cccca856f56ec853",
+    "observation_sha256": "4231049c00e9353358ba38b2d5680b5455aa98f632aade3db450cd601002fd3f",
     "reason": "CURRENT_REVIEW_RECEIPT_VALIDATED",
     "run": {
       "attempt": 1,
       "conclusion": "success",
       "head_sha": "ff6fb0587dd000376dbc28d19b40f88e898fc70a",
-      "id": 40968573665,
+      "id": 41221447217,
       "status": "completed",
-      "updated_at": "2026-10-29T22:50:59Z",
-      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/40968573665"
+      "updated_at": "2026-10-31T16:50:52Z",
+      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/41221447217"
     },
     "schema": "szl.ouroboros.frontier-observation/v1",
     "source": {
@@ -1365,7 +1365,7 @@
   },
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "a8a59a84cd086556f71fae97e5a4ce4f9dc459f4cd9252cad6215530482eea3a",
+  "snapshot_sha256": "5a8395d8003b784057dcfc1f5fb748d47daea6f68b0c7fd893d2493c4582fde4",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
@@ -1375,7 +1375,7 @@
     },
     "formulas": {
       "repository": "szl-holdings/szl-formulas",
-      "revision": "2d52c7a3728ce4dafcef2079f4ea13ddd677debc"
+      "revision": "fe5f8d8dc034a929059e00fd3524e7f3dbbcd434"
     },
     "ouroboros": {
       "repository": "szl-holdings/szl-ouroboros",
