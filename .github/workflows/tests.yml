@@ -20,6 +20,13 @@ jobs:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
       HF_HUB_DISABLE_IMPLICIT_TOKEN: "1"
+      HF_HUB_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      GRADIO_ANALYTICS_ENABLED: "False"
+      DO_NOT_TRACK: "1"
+      NO_PROXY: "*"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -1364,7 +1371,7 @@ jobs:
         run: python -B -m pytest -q -p no:cacheprovider tests/test_snowflake_sql_result_classification.py
 
   authorized-rag-proposal-suites:
-    name: Rights-bound RAG unit and composition suites
+    name: Rights-bound RAG unit, composition, and acceptance suites
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -1380,8 +1387,7 @@ jobs:
           python-version: "3.12"
       - name: Install exact RAG test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-rag.txt -r .github/requirements/ci-execution.txt
-      # The broader acceptance suite remains a separate blocker: its import-time guard observed external DNS in this run.
-      - name: Run rights, synthesis, and composition contracts
+      - name: Run rights, synthesis, composition, and acceptance contracts
         env:
           A11OY_CODE_DB: ${{ runner.temp }}/a11oy-authorized-rag/code.db
           A11OY_CODE_SANDBOX: ${{ runner.temp }}/a11oy-authorized-rag/sandbox
@@ -1392,3 +1398,4 @@ jobs:
           tests/test_rag_source_rights.py
           tests/test_authorized_rag_synthesis_wiring.py
           tests/test_rag_grant_source_compose.py
+          tests/test_rag_acceptance_r4_r7_r8_r9.py
