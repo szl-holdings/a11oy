@@ -68,8 +68,8 @@ class GuardianReceiptTest(unittest.TestCase):
 
         module = ModuleType("huggingface_hub")
         module.HfApi = Mock(return_value=api)
-        env = {"SPACE_ID": "betterwithage/anatomy",
-               "SPACE_ORIGIN": "https://betterwithage-anatomy.hf.space",
+        env = {"SPACE_ID": "fixture-owner/anatomy",
+               "SPACE_ORIGIN": "https://fixture-owner-anatomy.hf.space",
                "SOURCE_REPOSITORY": "szl-holdings/anatomy"}
         if not missing_token:
             env["HF_TOKEN"] = "offline-test-token"
@@ -102,7 +102,7 @@ class GuardianReceiptTest(unittest.TestCase):
         self.assertIn("cpu-basic quota exhausted", receipt["error"])
         self.assertEqual(["visibility:private->public"], receipt["actions"])
         self.assertEqual("HF_FIXED_48H_INACTIVITY_CPU_BASIC", receipt["sleep_policy"])
-        api.restart_space.assert_called_once_with(repo_id="betterwithage/anatomy", factory_reboot=False)
+        api.restart_space.assert_called_once_with(repo_id="fixture-owner/anatomy", factory_reboot=False)
 
     def test_failed_visibility_write_is_not_reported_completed(self):
         receipt, api, error = self.run_guardian(private=True, failure="visibility")
@@ -118,7 +118,7 @@ class GuardianReceiptTest(unittest.TestCase):
         self.assertEqual("FAIL", receipt["status"])
         self.assertEqual(["sleep_time:-1"], receipt["actions"])
         self.assertEqual("NEVER_SLEEP_UPGRADED_HARDWARE", receipt["sleep_policy"])
-        api.set_space_sleep_time.assert_called_once_with(repo_id="betterwithage/anatomy", sleep_time=-1)
+        api.set_space_sleep_time.assert_called_once_with(repo_id="fixture-owner/anatomy", sleep_time=-1)
 
     def test_failed_sleep_write_is_not_reported_completed(self):
         receipt, api, error = self.run_guardian(hardware="cpu-upgrade", failure="sleep")
@@ -133,7 +133,7 @@ class GuardianReceiptTest(unittest.TestCase):
         self.assertIsInstance(error, RuntimeError)
         self.assertEqual("FAIL", receipt["status"])
         self.assertEqual(["restart:BUILD_ERROR"], receipt["actions"])
-        api.restart_space.assert_called_once_with(repo_id="betterwithage/anatomy", factory_reboot=True)
+        api.restart_space.assert_called_once_with(repo_id="fixture-owner/anatomy", factory_reboot=True)
         self.assertNotIn("live_contract", receipt)
 
     def test_completed_restart_survives_runtime_timeout(self):
