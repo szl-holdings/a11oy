@@ -75,7 +75,7 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         encoding="utf-8"
     )
     for required in (
-        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@fc71ae973a0f31b8e9ee793fc8545a354448d451",
+        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36",
         "ref: ${{ github.sha }}",
         "source-revision-variable: SZL_GIT_SHA",
         "source-revision-probe-path: /api/build-info",
@@ -89,7 +89,7 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         "/api/a11oy/v1/atelier/frontier/registry",
         "/api/a11oy/v1/atelier/frontier/evaluate",
         "needs: [source-admission, deploy]",
-        "needs: [runtime-config, readiness-verdict]",
+        "needs: [preflight, deploy]",
         "Re-admit exact current main after live verification",
         "Retain the verification outcome without issue mutation",
         "Enforce exact live state",
