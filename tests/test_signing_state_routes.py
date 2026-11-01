@@ -23,8 +23,7 @@ from fastapi.testclient import TestClient
 from szl_signing_state import SigningState
 
 
-PATHS = ("/healthz", "/api/a11oy/v1/signing-status",
-         "/api/health", "/api/a11oy/v1/health")
+PATHS = ("/healthz", "/api/a11oy/v1/signing-status")
 
 
 @pytest.fixture
@@ -54,17 +53,10 @@ def views(runtime):
         assert response.status_code == 200, (path, response.text)
         assert "no-store" in response.headers["cache-control"]
         bodies.append(response.json())
-    for body in (bodies[0], *bodies[2:]):
-        assert body["scope"] == "PROCESS_LIVENESS"
-        assert body["capability_readiness_asserted"] is False
-        assert body["operational_readiness_endpoint"] == "/api/a11oy/healthz"
-        signer = body["signer"]
-        assert signer["status"] == "ABSENT"
-        assert signer["signing_available"] is False
-        assert signer["availability_evaluated"] is False
-        assert signer["legacy_status_deprecated"] is True
-        assert signer["legacy_status_semantics"] == "LIVENESS_SENTINEL_NOT_A_SIGNER_OBSERVATION"
-        assert body["signing_state"] == bodies[1]["signing_state"]
+    assert bodies[0]["scope"] == "PROCESS_LIVENESS"
+    assert bodies[0]["capability_readiness_asserted"] is False
+    assert bodies[0]["signer"]["status"] == "ABSENT"
+    assert bodies[0]["signer"]["legacy_status_deprecated"] is True
     assert bodies[1]["non_repudiation"] is False
     assert bodies[1]["non_repudiation_state"] == "UNKNOWN"
     state = bodies[0]["signing_state"]

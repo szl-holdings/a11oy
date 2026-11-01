@@ -596,6 +596,10 @@ jobs:
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"
         run: python -B -m pytest -q -p no:cacheprovider tests/test_signing_state_routes.py
+      - name: Verify lean health signing diagnostics in isolation
+        env:
+          SZL_EVIDENCE_WARM_DELAY: "3600"
+        run: python -B -m pytest -q -p no:cacheprovider tests/test_lean_health_signing_state.py
 
   python-energy-autostart-readyz:
     name: Energy-operator autostart + /readyz redeploy-stall guard (pytest)
