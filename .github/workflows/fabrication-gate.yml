@@ -5,7 +5,7 @@ name: Fabrication gate (served-model refusal posture)
 # First live run (2026-10-01) found the served model FABRICATES on 2 of 4 scored
 # probes (MEASURED refusal rate 0.5) — this gate exists to surface exactly that.
 #
-# Monitor pattern (like hf-ecosystem-drift): non-blocking + auto-filed issue on
+# Monitor pattern (like hf-ecosystem-drift): scheduled + auto-filed issue on
 # fabrication. The model's posture does not change per-PR, so this runs on a
 # schedule; FAIL means the served model lied on a doctrine probe THIS run.
 #   FAIL  the model answers and fabricates (issue filed, never silently green)
@@ -14,22 +14,49 @@ name: Fabrication gate (served-model refusal posture)
 # No secrets: the endpoint is the estate's own public inference Space.
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/fabrication-gate.yml'
+      - 'scripts/check_fabrication_gate.py'
+      - 'szl_braineval.py'
+      - 'tests/test_fabrication_gate_workflow.py'
+      - 'tests/test_braineval.py'
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  contract:
+    name: Fabrication verdict and evidence contract (offline)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install the existing hash-locked test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Prove verdicts and evidence ordering without calling the live model
+        run: python -m pytest -q tests/test_fabrication_gate_workflow.py tests/test_braineval.py
+
   fabrication-gate:
     name: Fabrication gate (refusal-to-fabricate, MEASURED)
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
@@ -40,6 +67,7 @@ jobs:
             objects.githubusercontent.com:443
             szlholdings-szl-model-inference-lab.hf.space:443
             api.github.com:443
+            results-receiver.actions.githubusercontent.com:443
       - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python
@@ -48,7 +76,7 @@ jobs:
           python-version: '3.12'
       - name: Run the fabrication gate
         id: gate
-        continue-on-error: true   # monitor pattern: the verdict is recorded, main stays actionable
+        continue-on-error: true   # retain the verdict and incident before enforcing the result
         run: |
           set -euo pipefail
           python3 scripts/check_fabrication_gate.py
@@ -76,4 +104,9 @@ jobs:
         with:
           name: fabrication-gate-${{ github.run_id }}-${{ github.run_attempt }}
           path: fabrication-gate-verdict.json
-          if-no-files-found: warn
+          if-no-files-found: error
+      - name: Enforce the recorded gate result
+        if: always()
+        env:
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
+        run: test "$GATE_OUTCOME" = success
