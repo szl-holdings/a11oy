@@ -63,6 +63,52 @@ class ExecutionHandoffTests(unittest.TestCase):
                             self.context(**{"A11OY_EXECUTION_" + field: missing})
             network.assert_not_called()
 
+    def test_missing_context_cli_names_only_missing_variables_before_collection(self):
+        names = ("A11OY_EXECUTION_HF_REVISION", "A11OY_EXECUTION_BOOT_ID",
+                 "A11OY_EXECUTION_RUN_NONCE")
+        cases = [{name: ""} for name in names]
+        cases.extend(({name: " \t" for name in names},
+                      {names[0]: "", names[1]: "private-context-value\nnot-a-diagnostic",
+                       names[2]: " "}))
+        for changes in cases:
+            with self.subTest(changes=tuple(changes)), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "handoff.json"
+                github = Path(directory) / "outputs.txt"
+                stderr = io.StringIO()
+                env = {**self.env, **changes, "A11OY_CODE_ADMIN_KEY": "private-credential-value"}
+                with mock.patch.dict(os.environ, env, clear=True), \
+                        mock.patch.object(HANDOFF, "collector") as collector, \
+                        redirect_stderr(stderr):
+                    result = HANDOFF.main(["--source-sha", "a" * 40, "--output", str(output),
+                                           "--github-output", str(github)])
+                self.assertEqual(result, 2)
+                self.assertFalse(output.exists())
+                self.assertFalse(github.exists())
+                collector.assert_not_called()
+                self.assertEqual(json.loads(stderr.getvalue()), {
+                    "context_frozen": False, "error": "EXECUTION_CONTEXT_REQUIRED",
+                    "execution_authorized": False,
+                    "missing_variables": [name for name in names if not env[name].strip()],
+                })
+                self.assertNotIn("private-context-value", stderr.getvalue())
+                self.assertNotIn("private-credential-value", stderr.getvalue())
+
+    def test_missing_context_does_not_overwrite_existing_output_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "handoff.json"
+            github = Path(directory) / "outputs.txt"
+            output.write_bytes(b"preserve-report")
+            github.write_bytes(b"preserve-outputs")
+            with mock.patch.dict(os.environ, {**self.env, "A11OY_EXECUTION_BOOT_ID": ""}, clear=True), \
+                    mock.patch.object(HANDOFF, "collector") as collector, \
+                    redirect_stderr(io.StringIO()):
+                result = HANDOFF.main(["--source-sha", "a" * 40, "--output", str(output),
+                                       "--github-output", str(github)])
+            self.assertEqual(result, 2)
+            self.assertEqual(output.read_bytes(), b"preserve-report")
+            self.assertEqual(github.read_bytes(), b"preserve-outputs")
+            collector.assert_not_called()
+
     def test_exact_context_and_independent_public_pins_are_required(self):
         changes = [
             {"A11OY_EXECUTION_HF_REVISION": "main"},

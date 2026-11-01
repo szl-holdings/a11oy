@@ -19,10 +19,14 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
+CONTEXT_VARIABLES = ("A11OY_EXECUTION_HF_REVISION", "A11OY_EXECUTION_BOOT_ID",
+                     "A11OY_EXECUTION_RUN_NONCE")
 
 
 class HandoffBlocked(ValueError):
-    pass
+    def __init__(self, code, *, missing_variables=()):
+        super().__init__(code)
+        self.missing_variables = missing_variables
 
 
 def require(condition, code):
@@ -55,10 +59,11 @@ def validate_invocation(env):
 
 
 def independent_context(source, env):
-    selected = [env.get(name, "") for name in (
-        "A11OY_EXECUTION_HF_REVISION", "A11OY_EXECUTION_BOOT_ID", "A11OY_EXECUTION_RUN_NONCE")]
-    require(all(type(value) is str and bool(value.strip()) for value in selected),
-            "EXECUTION_CONTEXT_REQUIRED")
+    selected = [env.get(name, "") for name in CONTEXT_VARIABLES]
+    missing = tuple(name for name, value in zip(CONTEXT_VARIABLES, selected)
+                    if type(value) is not str or not value.strip())
+    if missing:
+        raise HandoffBlocked("EXECUTION_CONTEXT_REQUIRED", missing_variables=missing)
     gate = collector().gate
     raw = env.get("A11OY_EXECUTION_AUTHORITY_PINS_JSON", "").encode()
     require(0 < len(raw) <= 16384, "INDEPENDENT_AUTHORITY_PINS_REQUIRED")
@@ -131,8 +136,11 @@ def main(argv=None):
     except Exception as exc:
         # Keep caller/provider data out of logs, including malformed env values.
         code = str(exc) if isinstance(exc, HandoffBlocked) else "EXECUTION_HANDOFF_UNAVAILABLE"
-        print(json.dumps({"context_frozen": False, "error": code,
-                          "execution_authorized": False}), file=sys.stderr)
+        report = {"context_frozen": False, "error": code, "execution_authorized": False}
+        if code == "EXECUTION_CONTEXT_REQUIRED":
+            # Fixed public names only; never include a configured value.
+            report["missing_variables"] = list(exc.missing_variables)
+        print(json.dumps(report), file=sys.stderr)
         return 2
 
 
