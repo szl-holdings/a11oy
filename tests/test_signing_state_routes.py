@@ -194,11 +194,14 @@ def test_get_head_do_not_load_sign_probe_write_or_refresh(runtime, monkeypatch):
     monkeypatch.setattr(builtins, "open", readonly_open)
     for _ in range(2):
         views(runtime)
-        for path in PATHS:
+        for path in PATHS + ("/api/health", "/api/a11oy/v1/health"):
+            get_response = runtime.client.get(path)
+            assert get_response.status_code == 200
             response = runtime.client.head(path)
             assert response.status_code == 200
             assert response.content == b""
-            assert "no-store" in response.headers["cache-control"]
+            if path in PATHS:
+                assert "no-store" in response.headers["cache-control"]
     forbidden.assert_not_called()
     assert runtime.owner._observation is observation
 

@@ -15371,6 +15371,8 @@ async def api_health() -> JSONResponse:
     """Top-level health probe — returns JSON 200. Registered before SPA catch-all."""
     return JSONResponse({
         "status": "ok",
+        "scope": "PROCESS_LIVENESS",
+        "capability_readiness_asserted": False,
         "service": "a11oy",
         "doctrine": "v11",
         "counts": "749/14/163",
@@ -15383,6 +15385,11 @@ async def api_health() -> JSONResponse:
             "status": "ABSENT",
             "signing_available": False,
             "scheme": "UNAVAILABLE",
+            "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+            "availability_evaluated": False,
+            "legacy_status_deprecated": True,
+            "legacy_status_semantics": "LIVENESS_SENTINEL_NOT_A_SIGNER_OBSERVATION",
+            "replacement": "/api/a11oy/v1/signing-status",
         },
     })
 

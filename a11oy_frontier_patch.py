@@ -31,6 +31,8 @@ async def _a11oy_frontier_health(request: Request):
     # Fail closed ABSENT — never copy DSSE-LIVE.
     return _FJSON({
         "status": "ok", "flagship": "a11oy", "doctrine": _DOCTRINE,
+        "scope": "PROCESS_LIVENESS",
+        "capability_readiness_asserted": False,
         "kernel_commit": _KERNEL, "declarations": _DECLS, "axioms": _AXIOMS,
         "lambda_threshold": _LAMBDA_THRESHOLD, "slsa": _SLSA,
         "mcp_tools": "/api/a11oy/v1/mcp/tools",
@@ -39,6 +41,11 @@ async def _a11oy_frontier_health(request: Request):
             "status": "ABSENT",
             "signing_available": False,
             "scheme": "UNAVAILABLE",
+            "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+            "availability_evaluated": False,
+            "legacy_status_deprecated": True,
+            "legacy_status_semantics": "LIVENESS_SENTINEL_NOT_A_SIGNER_OBSERVATION",
+            "replacement": "/api/a11oy/v1/signing-status",
         },
         "ts": _NOW(),
     })

@@ -440,6 +440,16 @@ def test_lean_health_json_signer_is_absent_not_dsse_live():
         assert signer.get("status") != "DSSE-LIVE"
         assert signer.get("signing_available") is False
         assert signer.get("scheme") == "UNAVAILABLE"
+        assert body["scope"] == "PROCESS_LIVENESS", path
+        assert body["capability_readiness_asserted"] is False, path
+        assert signer["availability_evaluated"] is False, path
+        assert signer["legacy_status_deprecated"] is True, path
+        assert signer["legacy_status_semantics"] == "LIVENESS_SENTINEL_NOT_A_SIGNER_OBSERVATION", path
+        if path != "/healthz":
+            assert signer["replacement"] == "/api/a11oy/v1/signing-status", path
+            status = client.get(signer["replacement"])
+            assert status.status_code == 200, path
+            assert status.json()["signing_state"]["signing_ready"] is False
         dsse = body.get("dsse_live") or {}
         if dsse:
             assert dsse.get("status") != "DSSE-LIVE", path
