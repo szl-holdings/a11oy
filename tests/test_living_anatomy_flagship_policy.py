@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import unittest
 
 
@@ -154,6 +155,45 @@ class LivingAnatomyBackendAliasContract(unittest.TestCase):
         self.assertIn("Locked-8 stays 8", serve)
         self.assertIn("Does not claim the creator-profile anatomy Space is LIVE", serve)
         self.assertIn("Lambda remains Conjecture 1", serve)
+
+
+class LivingAnatomyClaimBoundaryTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.site = SITE.read_text(encoding="utf-8")
+        cls.registry = json.loads(
+            (ROOT / "formula_registry" / "formula-registry.v1.json").read_text(
+                encoding="utf-8"
+            )
+        )["payload"]
+
+    def test_f12_identity_and_scope_match_formula_authority(self) -> None:
+        f12 = next(row for row in self.registry["formulas"] if row["id"] == "F12")
+        self.assertIn(f12["name"], self.site)
+        self.assertIn(f12["scope"], self.site)
+        self.assertNotIn("F12 · Pinsker", self.site)
+        self.assertIn("Runtime applicability must be established separately", self.site)
+
+    def test_historical_kernel_snapshot_is_not_formula_source_authority(self) -> None:
+        locked_ids = " ".join(self.registry["locked_proven_ids"])
+        self.assertIn(locked_ids, self.site)
+        self.assertNotIn(locked_ids + " @ c7c0ba17", self.site)
+        self.assertNotIn(locked_ids + " @ kernel c7c0ba17", self.site)
+        self.assertNotIn("{F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17", self.site)
+        self.assertIn('href="/formulas"', self.site)
+        self.assertIn("No formula independently authorizes an action", self.site)
+
+    def test_receipt_presence_does_not_assert_signature_or_replay_verification(self) -> None:
+        receipt = self.site.split("Circulatory —", 1)[1].split(
+            '<div class="organ">', 1
+        )[0]
+        self.assertIn("UNVERIFIED", receipt)
+        self.assertIn('href="/verify"', receipt)
+        self.assertIn("signature, signer identity, and chain checks are separate", receipt)
+        self.assertIn("this read does not mint one or verify a signature", receipt)
+        self.assertNotIn("Every decision flows as a genuinely signed receipt", self.site)
+        self.assertNotIn("A5 measured", self.site)
+        self.assertNotIn("A5 deterministic replay = measured", self.site)
 
 
 if __name__ == "__main__":
