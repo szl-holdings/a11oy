@@ -1380,7 +1380,8 @@ jobs:
           python-version: "3.12"
       - name: Install exact RAG test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-rag.txt -r .github/requirements/ci-execution.txt
-      # The broader acceptance suite remains a separate blocker: its import-time guard observed external DNS in this run.\n      - name: Run rights, synthesis, and composition contracts
+      # The broader acceptance suite remains a separate blocker: its import-time guard observed external DNS in this run.
+      - name: Run rights, synthesis, and composition contracts
         env:
           A11OY_CODE_DB: ${{ runner.temp }}/a11oy-authorized-rag/code.db
           A11OY_CODE_SANDBOX: ${{ runner.temp }}/a11oy-authorized-rag/sandbox
