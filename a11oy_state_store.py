@@ -828,6 +828,116 @@ class StateStore:
     def local_dir(self, name: str) -> Path:
         return self.root / DIRECTORIES[name]
 
+    def _provenance_path(self) -> Path:
+        """The existing managed Khipu file; never create a replacement on failure."""
+        state = self.stores.get("khipu")
+        if state is None or state.health != "OK" or self.role == ROLE_BOOTING:
+            raise StorageBlocked("PROVENANCE_STORE_UNAVAILABLE")
+        path = self.local_path("khipu")
+        if not path.is_file():
+            raise StorageBlocked("PROVENANCE_STORE_MISSING")
+        return path
+
+    @staticmethod
+    def _provenance_rows(db, space: str) -> list[dict[str, Any]]:
+        tables = {row[0] for row in db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name IN ('provenance_nodes', 'provenance_heads')")}
+        if not tables:
+            return []
+        if tables != {"provenance_nodes", "provenance_heads"}:
+            raise StorageBlocked("PROVENANCE_SCHEMA_INCOMPLETE")
+        rows = db.execute("SELECT sequence, digest, node_json, node_sha256 "
+                          "FROM provenance_nodes WHERE space=? ORDER BY sequence", (space,)).fetchall()
+        nodes = []
+        for sequence, digest, encoded, checksum in rows:
+            if not isinstance(encoded, str) or _sha256_bytes(encoded.encode("utf-8")) != checksum:
+                raise StorageBlocked("PROVENANCE_NODE_CHECKSUM_MISMATCH")
+            node = json.loads(encoded)
+            if (not isinstance(node, dict) or node.get("index") != sequence
+                    or node.get("digest") != digest or node.get("space") != space):
+                raise StorageBlocked("PROVENANCE_NODE_IDENTITY_MISMATCH")
+            nodes.append(node)
+        head = db.execute("SELECT last_index, digest FROM provenance_heads WHERE space=?",
+                          (space,)).fetchone()
+        expected_head = (len(nodes) - 1, nodes[-1]["digest"]) if nodes else None
+        if head != expected_head:
+            raise StorageBlocked("PROVENANCE_HEAD_MISMATCH")
+        return nodes
+
+    def provenance_nodes(self, space: str, validate: Callable) -> list[dict[str, Any]]:
+        """Passive read: no schema creation, journal changes, signer or snapshot."""
+        path = self._provenance_path()
+        with open(path, "rb") as source:
+            header = source.read(20)
+        if len(header) < 20 or 2 in header[18:20]:
+            raise StorageBlocked("PROVENANCE_PASSIVE_READ_UNAVAILABLE")
+        try:
+            with contextlib.closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro",
+                                                   uri=True, timeout=30)) as db:
+                # Hold one read snapshot across node rows and the tail marker.
+                db.execute("BEGIN")
+                nodes = self._provenance_rows(db, space)
+                validate(nodes)
+                return nodes
+        except (sqlite3.Error, ValueError, TypeError, KeyError) as error:
+            raise StorageBlocked("PROVENANCE_READ_INVALID") from error
+
+    def append_provenance_node(self, space: str, build: Callable, validate: Callable,
+                               *, confirm: bool = False) -> tuple[dict[str, Any], Optional[dict]]:
+        """Commit one exact node before response; optionally confirm immutable retention.
+
+        This shares the existing Khipu file, not DurableKhipu's different hash chain.
+        Lock ordering is manager then SQLite, matching snapshot/handover. In-flight
+        accounting spans the strict snapshot acknowledgment and prevents clean release
+        while a request is still retaining its result. No fallback is permitted.
+        """
+        with self._lock:
+            if not self.begin_write():
+                raise StorageBlocked("PROVENANCE_WRITER_REQUIRED")
+            try:
+                self.confirmed_writer()  # excludes unfenced and unactivated writers
+                path = self._provenance_path()
+                with contextlib.closing(sqlite3.connect(path.resolve().as_uri() + "?mode=rw",
+                                                       uri=True, timeout=30)) as db:
+                    with db:
+                        db.execute("BEGIN IMMEDIATE")
+                        nodes = self._provenance_rows(db, space)
+                        validate(nodes)
+                        db.execute("CREATE TABLE IF NOT EXISTS provenance_nodes ("
+                                   "space TEXT NOT NULL, sequence INTEGER NOT NULL, "
+                                   "digest TEXT NOT NULL, node_json TEXT NOT NULL, "
+                                   "node_sha256 TEXT NOT NULL, PRIMARY KEY(space, sequence), "
+                                   "UNIQUE(space, digest))")
+                        db.execute("CREATE TABLE IF NOT EXISTS provenance_heads ("
+                                   "space TEXT PRIMARY KEY, last_index INTEGER NOT NULL, "
+                                   "digest TEXT NOT NULL)")
+                        node = build(len(nodes), [nodes[-1]["digest"]] if nodes else [])
+                        validate(nodes + [node])
+                        encoded = canonical(node).decode("utf-8")
+                        db.execute("INSERT INTO provenance_nodes VALUES (?,?,?,?,?)",
+                                   (space, node["index"], node["digest"], encoded,
+                                    _sha256_bytes(encoded.encode("utf-8"))))
+                        db.execute("INSERT INTO provenance_heads VALUES (?,?,?) "
+                                   "ON CONFLICT(space) DO UPDATE SET "
+                                   "last_index=excluded.last_index, digest=excluded.digest",
+                                   (space, node["index"], node["digest"]))
+                acknowledgement = None
+                if confirm:
+                    def contains(snapshot: Path) -> bool:
+                        with contextlib.closing(sqlite3.connect(
+                                snapshot.resolve().as_uri() + "?mode=ro", uri=True)) as db:
+                            retained = self._provenance_rows(db, space)
+                            validate(retained)
+                            return (len(retained) > node["index"]
+                                    and retained[node["index"]] == node)
+                    acknowledgement = self.snapshot_confirmed("khipu", contains)
+                return node, acknowledgement
+            except (sqlite3.Error, ValueError, TypeError, KeyError) as error:
+                raise StorageBlocked("PROVENANCE_APPEND_FAILED") from error
+            finally:
+                self.end_write()
+
     def _work(self, prefix: str) -> Path:
         base = self.root / ".work"
         base.mkdir(parents=True, exist_ok=True)
@@ -2143,3 +2253,4 @@ def register(app: Any) -> dict[str, Any]:
             store.end_write()
 
     return {"registered": ["/api/a11oy/v1/storage/status", "write-fence"]}
+
