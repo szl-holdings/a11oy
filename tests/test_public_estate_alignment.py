@@ -63,6 +63,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertEqual(
             inventory_only,
             [
+                "SZLHOLDINGS/agents-studio",
                 "SZLHOLDINGS/ayllu",
                 "SZLHOLDINGS/foundation-confirmation-v2",
                 "SZLHOLDINGS/gdw-frontier",
@@ -95,7 +96,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         )
 
     def test_new_public_inventory_is_not_a_keeper_or_runtime_promotion(self) -> None:
-        for name in ('governed-agent-bench', 'holographic-unify', 'llm-router-live', 'nexus', 'oac-system-health-lab', 'szl-atelier', 'szl-bench-suite', 'szl-forge-lab', 'szl-khipu', 'szl-router-control', 'szl-seismic-review', 'szl-typesafe-triage', 'the-grid'):
+        for name in ('agents-studio', 'governed-agent-bench', 'holographic-unify', 'llm-router-live', 'nexus', 'oac-system-health-lab', 'szl-atelier', 'szl-bench-suite', 'szl-forge-lab', 'szl-khipu', 'szl-router-control', 'szl-seismic-review', 'szl-typesafe-triage', 'the-grid'):
             repo_id = 'SZLHOLDINGS/' + name
             with self.subTest(repo_id=repo_id):
                 row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
