@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-10-27T15:30:24Z",
+  "observedAt": "2026-11-01T22:52:46Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,8 +27,8 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 41,
-      "datasets": 37,
-      "spaces": 39,
+      "datasets": 38,
+      "spaces": 40,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -1482,6 +1482,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-skills-ci-evidence",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-skills-ci-evidence"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/test-results",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1569,6 +1579,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/a11oy"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/agents-studio",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/agents-studio"
       ]
     },
     {
