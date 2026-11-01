@@ -107,6 +107,10 @@ function paintWorkcell(body){
  const summary=body.integration_summary;
  if(summary&&typeof summary==='object'&&!Array.isArray(summary)){
   Object.entries(summary).forEach(([name,item])=>{
+   if(name==='overall'&&typeof item==='string'){
+    rows.push('<tr><td>overall</td><td><span class="pill '+workcellClass(item)+'">'+escWorkcell(item)+'</span></td><td>'+escWorkcell(body.label||'DECLARED')+'</td><td>—</td></tr>');
+    return;
+   }
    const value=item&&typeof item==='object'?item:{};
    rows.push('<tr><td>'+escWorkcell(name)+'</td><td><span class="pill '+workcellClass(value.status)+'">'+escWorkcell(value.status||'UNKNOWN')+'</span></td><td>'+escWorkcell(value.evidence_class||'DECLARED')+'</td><td>'+escWorkcell(value.source||'—')+'</td></tr>');
   });
