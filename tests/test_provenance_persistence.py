@@ -293,6 +293,11 @@ def test_ledger_and_health_gets_complete_while_signing_snapshot_is_waiting(world
                 assert ready.status_code == 200 and ready.json()["khipu_chain_ok"] is True
                 assert not finished.is_set() and not pending.done()
                 assert world["writer"]._inflight > 0
+                # Existing async callers use the synchronous helper. Its local
+                # append must not wait behind this strict remote confirmation.
+                internal = world["app"].state.szl_emit_signed_receipt({"nonce": "local-audit"})
+                assert internal["index"] == 1 and "retention" not in internal
+                assert not finished.is_set() and not pending.done()
             finally:
                 release.set()
                 result = await asyncio.wait_for(pending, timeout=5)
@@ -300,6 +305,16 @@ def test_ledger_and_health_gets_complete_while_signing_snapshot_is_waiting(world
             assert world["writer"]._inflight == 0
 
     asyncio.run(exercise())
+
+def test_internal_receipts_use_local_admission_without_remote_lease_io(world):
+    def forbidden(*args, **kwargs):
+        pytest.fail("locally pending receipt must not perform remote confirmation")
+    world["monkeypatch"].setattr(world["writer"], "confirmed_writer", forbidden)
+    world["monkeypatch"].setattr(world["writer"], "snapshot_confirmed", forbidden)
+    node = world["app"].state.szl_emit_signed_receipt({"nonce": "local-admitted-audit"})
+    assert node["signed"] is True and "retention" not in node
+    assert world["client"].get(LEDGER).json()["nodes"] == [node]
+    assert world["writer"]._inflight == 0
 
 def test_two_independent_dag_instances_serialize_the_authoritative_tail(world):
     first, second = provenance._KhipuDAG("a11oy"), provenance._KhipuDAG("a11oy")

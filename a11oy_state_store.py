@@ -888,15 +888,20 @@ class StateStore:
         """Commit one exact node before response; optionally confirm immutable retention.
 
         This shares the existing Khipu file, not DurableKhipu's different hash chain.
-        Lock ordering is manager then SQLite, matching snapshot/handover. In-flight
-        accounting spans the strict snapshot acknowledgment and prevents clean release
-        while a request is still retaining its result. No fallback is permitted.
+        Strict confirmation takes the manager lock before SQLite, matching
+        snapshot/handover. Internal receipts use local write admission and SQLite
+        serialization, like the existing Khipu writer; they never wait for remote
+        lease I/O or claim immutable retention. In-flight accounting prevents clean
+        release while either kind of write is still pending. No fallback is permitted.
         """
-        with self._lock:
+        with (self._lock if confirm else contextlib.nullcontext()):
             if not self.begin_write():
                 raise StorageBlocked("PROVENANCE_WRITER_REQUIRED")
             try:
-                self.confirmed_writer()  # excludes unfenced and unactivated writers
+                if confirm:
+                    self.confirmed_writer()
+                elif self.mode != MODE_FENCED or self.role != ROLE_WRITER:
+                    raise StorageBlocked("PROVENANCE_FENCED_WRITER_REQUIRED")
                 path = self._provenance_path()
                 with contextlib.closing(sqlite3.connect(path.resolve().as_uri() + "?mode=rw",
                                                        uri=True, timeout=30)) as db:
