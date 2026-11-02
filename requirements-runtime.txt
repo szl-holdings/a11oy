@@ -19,7 +19,7 @@ httpx==0.28.1
 starlette==1.10.0
 huggingface_hub==1.33.0
 hf-xet==1.7.1
-openai==2.43.0
+openai==3.29.0
 python-multipart==0.0.32
 cryptography==50.0.2
 lmdb==3.0.0
