@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Windows PowerShell authorization helper
+
+- Keep Cloudflare authorization prompts compatible with Windows PowerShell 5.1
+  when cloned or downloaded without a UTF-8 BOM. Validate both Windows bootstrap
+  scripts with the native parser without executing installation, secret writes
+  or deployment.
+
 ### Fixed - meter authentication preflight
 
 - Include the meter HMAC client mapping in the secret registry. An inference
