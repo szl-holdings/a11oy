@@ -72,6 +72,47 @@ def test_assurance_credential_pem_matches_its_fingerprint(client) -> None:
     assert _der(pem) == _der(runtime.content)
 
 
+def test_govern_verifying_key_matches_runtime_key_without_signing(
+    client, monkeypatch
+) -> None:
+    runtime = client.get("/cosign.pub")
+    assert runtime.status_code == 200, runtime.text
+
+    def unexpected_key_operation(*_args, **_kwargs):
+        pytest.fail("verifying-key read attempted a key load or signing operation")
+
+    monkeypatch.setattr(szl_dsse, "active_public_key_pem", unexpected_key_operation)
+    monkeypatch.setattr(szl_dsse, "_load_private_key", unexpected_key_operation)
+    monkeypatch.setattr(szl_dsse, "sign_payload", unexpected_key_operation)
+
+    path = "/api/a11oy/v1/govern/verifying-key"
+    response = client.get(path)
+    assert response.status_code == 200, response.text
+    body = response.json()
+
+    assert body["schema"] == "szl.runtime-verifying-key/v1"
+    assert body["state"] == "PUBLIC_VERIFICATION_KEY_AVAILABLE"
+    assert body["source"] == "CAPTURED_COSIGN_PUB"
+    assert body["public_key_available"] is True
+    assert body["public_key_url"] == "/cosign.pub"
+    assert body["fingerprint_algorithm"] == "SHA256_STRIPPED_ASCII_PEM"
+    fingerprint = body["public_key_fingerprint_sha256"]
+    assert fingerprint == runtime.headers["x-pub-sha256"]
+    assert fingerprint == response.headers["x-pub-sha256"]
+    assert szl_dsse.keyid_for_public_pem(body["public_key_pem"]) == fingerprint
+    assert body["public_key_pem"].encode("ascii") == runtime.content
+    assert _der(body["public_key_pem"]) == _der(runtime.content)
+    assert body["sign_on_read"] is False
+    assert body["signing_ready"] is False
+    assert body["execution_authorized"] is False
+
+    head = client.head(path)
+    assert head.status_code == 200
+    assert head.content == b""
+    assert head.headers["x-pub-sha256"] == fingerprint
+    assert head.headers["cache-control"] == "no-store"
+
+
 def test_credential_honesty_follows_signing_available(client, monkeypatch) -> None:
     # Without a signer, active_public_key_pem() can fall back to the embedded
     # org key, so the text must not call public_key_pem the signer's key.
