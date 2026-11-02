@@ -269,7 +269,7 @@ test('the actually installed Ajv URI parser normalizes encoded uppercase host oc
   assert.ok(confusedHost.error, 'ambiguous host authorities are rejected');
   assert.equal(uri.normalize('http://a@b@evil.example/'), 'http://a@b@evil.example/');
   assert.equal(uri.normalize('a/../b'), 'b');
-  assert.equal(uri.normalize('../x'), '../x', 'leading parent segments remain relative');
+  assert.equal(uri.normalize('../x'), '../x');
 });
 
 test('every source-map-js resolution uses the reviewed GHSA-68fv-2mgg-jv7q patch', () => {
