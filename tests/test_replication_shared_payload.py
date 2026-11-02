@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ".github/shared-source-payloads/replication-snapshot-delivery-20261021-v1.json"
 MCP_ARCHIVE = ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json"
+SIGNING_ARCHIVE = ".github/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
 
 
 def test_snapshot_replication_payload_preserves_prior_manifest_and_source():
@@ -56,11 +57,20 @@ def test_mcp_inventory_payload_is_retained_byte_exact():
     assert manifest["files"]["tests/test_mcp_inventory_observation.py"] == "10a015c982ba92b906e92c755fc0e70e26682e01474062c48a8b2913c8795abe"
 
 
-def test_current_shared_payload_manifest_matches_current_peer():
+def test_retained_signing_ledger_payload_is_retained_byte_exact():
+    raw = (ROOT / SIGNING_ARCHIVE).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+    manifest = json.loads(raw)
+    assert manifest["payload_id"] == "retained-signing-ledger-20261101-v1"
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["files"]["a11oy_org_rag.py"] == "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279"
+
+
+def test_current_shared_payload_manifest_matches_current_checkout():
     prior = (ROOT / SNAPSHOT).read_bytes()
     assert hashlib.sha256(prior).hexdigest() == "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166"
     manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
-    assert manifest["payload_id"] == "retained-signing-ledger-20261101-v1"
+    assert manifest["payload_id"] == "rag-rights-finite-vectors-20261102-v1"
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["files"][MCP_ARCHIVE] == "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35"
     assert manifest["files"]["szl_connectors/warehouse/warehouse_connectors.py"] == "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f"
@@ -68,5 +78,10 @@ def test_current_shared_payload_manifest_matches_current_peer():
     assert manifest["files"][".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json"] == "74f824946666a293be88af6f554d2b9e786d4b0bf08ad639a10ec756d47a90a1"
     assert {"a11oy_org_rag.py", "szl_provenance.py", "szl_operator_auth.py", "szl_signing_state.py",
             "tests/test_replication_shared_payload.py"} <= set(manifest["files"])
+    predecessor = json.loads((ROOT / SIGNING_ARCHIVE).read_bytes())
+    assert set(manifest["files"]) == set(predecessor["files"]) | {
+        SIGNING_ARCHIVE, "a11oy_rag_source_rights.py",
+        "tests/test_org_rag_generations.py", "tests/test_rag_source_rights.py",
+    }
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
