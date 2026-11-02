@@ -48,7 +48,8 @@
     "frontier:release-gate:verify": "python3 tools/release_gate.py --verify",
     "payload:publish:huggingface": "python3 scripts/publish_huggingface_payload.py",
     "operation:inventory": "python3 scripts/generate_operation_inventory.py",
-    "operation:reports": "python3 scripts/generate_operation_reports.py"
+    "operation:reports": "python3 scripts/generate_operation_reports.py",
+    "test:fuzz": "node --experimental-strip-types tools/run_qec_properties.mjs"
   },
   "repository": {
     "type": "git",
