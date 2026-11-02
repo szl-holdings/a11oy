@@ -926,8 +926,48 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
                     "x-pub-sha256": _PUB_SHA256,
                 },
             )
+
+        async def _verifying_key(request=None):
+            # Passive projection of the same immutable public state captured for
+            # /cosign.pub. A read never loads a key, signs, or promotes capability.
+            available = bool(_PUBPEM)
+            return JSONResponse(
+                {
+                    "schema": "szl.runtime-verifying-key/v1",
+                    "evidence_class": "DECLARED",
+                    "scope": "PROCESS_LOCAL_PUBLIC_VERIFICATION_KEY",
+                    "state": (
+                        "PUBLIC_VERIFICATION_KEY_AVAILABLE"
+                        if available else "PUBLIC_VERIFICATION_KEY_UNAVAILABLE"
+                    ),
+                    "source": "CAPTURED_COSIGN_PUB",
+                    "public_key_available": available,
+                    "public_key_url": "/cosign.pub",
+                    "public_key_pem": _PUBPEM + "\n" if available else None,
+                    "public_key_fingerprint_sha256": (
+                        _PUB_SHA256 if available else None
+                    ),
+                    "fingerprint_algorithm": "SHA256_STRIPPED_ASCII_PEM",
+                    "sign_on_read": False,
+                    "signing_ready": False,
+                    "execution_authorized": False,
+                    "blockers": (
+                        [
+                            "PERMISSION_UNOBSERVED",
+                            "RETAINED_SIGNING_CAPABILITY_UNOBSERVED",
+                        ]
+                        if available else ["VERIFICATION_KEY_UNAVAILABLE"]
+                    ),
+                },
+                status_code=200 if available else 503,
+                headers={
+                    "cache-control": "no-store",
+                    **({"x-pub-sha256": _PUB_SHA256} if available else {}),
+                },
+            )
     except Exception:
         _pubkey = None
+        _verifying_key = None
 
     # Register at the FULL /api/a11oy/v1/govern/* path (proven to resolve locally,
     # like /api/a11oy/v1/reason) AND the post-strip /v1/govern/* + short /govern/*
@@ -946,6 +986,12 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
     if _pubkey is not None:
         paths += [("/cosign.pub", _pubkey, ["GET"]),
                   ("/.well-known/cosign.pub", _pubkey, ["GET"])]
+    if _verifying_key is not None:
+        paths.append((
+            "/api/a11oy/v1/govern/verifying-key",
+            _verifying_key,
+            ["GET", "HEAD"],
+        ))
     if _homepage_css is not None:
         paths.append(("/assets/a11oy-homepage.css", _homepage_css, ["GET"]))
     registered = []
