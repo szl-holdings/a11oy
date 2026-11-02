@@ -35,18 +35,20 @@ function verifyFastUri(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
   assert.ok(match, 'a stable inspectable fast-uri resolution is required');
   const [major, minor, patch] = match.slice(1).map(Number);
-  // GHSA-hrr3-gc8f-f4qj: fixes are specific to the supported 2, 3 and 4 lines.
-  const minimum = { 2: [4, 7], 3: [1, 8], 4: [1, 5] }[major];
+  // GHSA-wjr9-j795-jxcr, GHSA-w74x-v6f9-j3xg, GHSA-xhq7-xmqj-769h and
+  // GHSA-333x-w4r6-6crp require 3.1.9 on the selected 3.x line.
+  // GHSA-hrr3-gc8f-f4qj keeps the reviewed floors for the supported 2.x/4.x lines.
+  const minimum = { 2: [4, 7], 3: [1, 9], 4: [1, 5] }[major];
   assert.ok(minimum, 'an explicitly reviewed fast-uri release line is required');
   assert.ok(minor > minimum[0] || (minor === minimum[0] && patch >= minimum[1]), version);
 }
 function fastUriPolicy(overrides) {
   assert.ok(overrides !== null && typeof overrides === 'object' && !Array.isArray(overrides),
     'explicit override object required');
-  assert.equal(overrides['fast-uri@<3.1.8'], '3.1.8', 'reviewed compatible fast-uri override required');
+  assert.equal(overrides['fast-uri@<3.1.9'], '3.1.9', 'reviewed compatible fast-uri override required');
   assert.deepEqual(Object.keys(overrides).filter((key) => key === 'fast-uri' || key.startsWith('fast-uri@')),
-    ['fast-uri@<3.1.8'], 'stale or ambiguous fast-uri override selectors are rejected');
-  return overrides['fast-uri@<3.1.8'];
+    ['fast-uri@<3.1.9'], 'stale or ambiguous fast-uri override selectors are rejected');
+  return overrides['fast-uri@<3.1.9'];
 }
 function verifyNpmFastUri(pkg, lock) {
   // npm also permits nested package-specific override objects for other dependencies.
@@ -107,8 +109,8 @@ function verify(pkg, workspace, lock) {
   }
 }
 function fixture() {
-  const policy = { 'js-yaml@<4.3.2': '4.3.2', browserslist: '4.28.8', 'brace-expansion': '5.0.12', 'fast-uri@<3.1.8': '3.1.8' };
-  const packages = { 'js-yaml@4.3.2': {}, 'js-yaml@5.4.1': {}, 'browserslist@4.28.8': {}, 'brace-expansion@5.0.12': {}, 'fast-uri@3.1.8': {} };
+  const policy = { 'js-yaml@<4.3.2': '4.3.2', browserslist: '4.28.8', 'brace-expansion': '5.0.12', 'fast-uri@<3.1.9': '3.1.9' };
+  const packages = { 'js-yaml@4.3.2': {}, 'js-yaml@5.4.1': {}, 'browserslist@4.28.8': {}, 'brace-expansion@5.0.12': {}, 'fast-uri@3.1.9': {} };
   return [{ pnpm: { overrides: { ...policy } } }, { overrides: { ...policy } },
     { overrides: { ...policy }, packages: structuredClone(packages), snapshots: structuredClone(packages) }];
 }
@@ -194,27 +196,27 @@ test('the actual npm policy and generated lock select the reviewed brace-expansi
 });
 
 test('affected fast-uri versions, unsupported lines and prereleases are rejected', () => {
-  for (const version of ['1.0.0', '2.4.6', '3.0.0', '3.1.7', '4.0.0', '4.1.4', '3.1.8-rc.1']) {
+  for (const version of ['1.0.0', '2.4.6', '3.0.0', '3.1.7', '3.1.8', '4.0.0', '4.1.4', '3.1.9-rc.1']) {
     assert.throws(() => verifyFastUri(version));
   }
 });
 
 test('patched fast-uri release-line floors remain accepted', () => {
-  for (const version of ['2.4.7', '3.1.8', '4.1.5']) verifyFastUri(version);
+  for (const version of ['2.4.7', '3.1.9', '4.1.5']) verifyFastUri(version);
 });
 
-test('the old fast-uri conditional selector cannot exclude the vulnerable 3.1.7', () => {
+test('the old fast-uri conditional selector cannot exclude the vulnerable 3.1.8', () => {
   const values = fixture();
   for (const overrides of [values[0].pnpm.overrides, values[1].overrides, values[2].overrides]) {
-    delete overrides['fast-uri@<3.1.8'];
-    overrides['fast-uri@<3.1.7'] = '3.1.8';
+    delete overrides['fast-uri@<3.1.9'];
+    overrides['fast-uri@<3.1.8'] = '3.1.9';
   }
   assert.throws(() => verify(...values));
 });
 
 test('affected or prerelease fast-uri resolutions cannot hide behind patched pnpm headers', () => {
   for (const section of ['packages', 'snapshots']) {
-    for (const version of ['2.4.6', '3.1.7', '4.1.4', '3.1.8-rc.1']) {
+    for (const version of ['2.4.6', '3.1.7', '3.1.8', '4.1.4', '3.1.9-rc.1']) {
       const values = fixture(); values[2][section][`fast-uri@${version}`] = {};
       assert.throws(() => verify(...values));
     }
@@ -223,33 +225,33 @@ test('affected or prerelease fast-uri resolutions cannot hide behind patched pnp
 
 test('missing fast-uri package or snapshot observations are rejected', () => {
   for (const section of ['packages', 'snapshots']) {
-    const values = fixture(); delete values[2][section]['fast-uri@3.1.8'];
+    const values = fixture(); delete values[2][section]['fast-uri@3.1.9'];
     assert.throws(() => verify(...values));
   }
 });
 
-test('the actual npm manifest and regenerated lock select compatible fast-uri 3.1.8', () => {
+test('the actual npm manifest and regenerated lock select compatible fast-uri 3.1.9', () => {
   verifyNpmFastUri(JSON.parse(source('package.json')), JSON.parse(source('package-lock.json')));
 });
 
 test('npm stale selectors, vulnerable lines, prereleases and missing resolutions are rejected', () => {
-  const policy = { 'fast-uri@<3.1.8': '3.1.8' };
+  const policy = { 'fast-uri@<3.1.9': '3.1.9' };
   const pkg = { overrides: { ...policy }, pnpm: { overrides: { ...policy } } };
-  const entry = { version: '3.1.8', resolved: 'https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.8.tgz', integrity: 'sha512-fixture' };
+  const entry = { version: '3.1.9', resolved: 'https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.9.tgz', integrity: 'sha512-fixture' };
   const lock = { packages: { 'node_modules/fast-uri': entry } };
   verifyNpmFastUri(pkg, lock);
-  for (const version of ['2.4.6', '3.1.7', '4.1.4', '3.1.8-rc.1']) {
+  for (const version of ['2.4.6', '3.1.7', '3.1.8', '4.1.4', '3.1.9-rc.1']) {
     assert.throws(() => verifyNpmFastUri(pkg, { packages: { 'node_modules/fast-uri': { ...entry, version } } }));
   }
   assert.throws(() => verifyNpmFastUri(pkg, { packages: {} }));
-  assert.throws(() => verifyNpmFastUri({ ...pkg, overrides: { 'fast-uri@<3.1.7': '3.1.8' } }, lock));
+  assert.throws(() => verifyNpmFastUri({ ...pkg, overrides: { 'fast-uri@<3.1.8': '3.1.9' } }, lock));
 });
 
 test('the actually installed Ajv URI parser normalizes encoded uppercase host octets consistently', () => {
   const ajvRequire = createRequire(import.meta.resolve('ajv'));
   const uri = ajvRequire('fast-uri');
   const installed = ajvRequire('fast-uri/package.json');
-  assert.equal(installed.version, '3.1.8', 'actual Ajv dependency must match the reviewed lock');
+  assert.equal(installed.version, '3.1.9', 'actual Ajv dependency must match the reviewed lock');
   for (const encoded of ['//%41.com', '//%61.com', '//A.com']) {
     assert.equal(uri.parse(encoded).host, 'a.com');
     assert.equal(uri.normalize(encoded), '//a.com');
@@ -258,6 +260,16 @@ test('the actually installed Ajv URI parser normalizes encoded uppercase host oc
   assert.equal(uri.equal('//%41.com', '//b.com'), false, 'different hosts must remain distinct');
   assert.equal(uri.parse('https://EXAMPLE.com/a%2Fb').host, 'example.com');
   assert.equal(uri.normalize('https://example.com/a%2Fb'), 'https://example.com/a%2Fb', 'reserved path octets remain data');
+  assert.equal(uri.serialize({ path: 'javascript:alert(1)' }, { reference: 'suffix' }),
+    'javascript%3Aalert(1)', 'suffix references escape a first-segment colon');
+  const encodedScheme = uri.parse('%6Aavascript:alert(1)');
+  assert.ok(encodedScheme.error, 'percent-encoded schemes are rejected');
+  assert.equal(uri.normalize('%6Aavascript:alert(1)'), '%6Aavascript:alert(1)');
+  const confusedHost = uri.parse('http://a@b@evil.example/');
+  assert.ok(confusedHost.error, 'ambiguous host authorities are rejected');
+  assert.equal(uri.normalize('http://a@b@evil.example/'), 'http://a@b@evil.example/');
+  assert.equal(uri.normalize('a/../b'), 'b');
+  assert.equal(uri.normalize('../x'), '../x', 'leading parent segments remain relative');
 });
 
 test('every source-map-js resolution uses the reviewed GHSA-68fv-2mgg-jv7q patch', () => {
