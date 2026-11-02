@@ -115,8 +115,7 @@ function isAllowedCorsOrigin(value) {
       return false;
     }
     return (
-      origin.hostname === PRODUCT_HOST ||
-      origin.hostname.endsWith("." + PRODUCT_HOST) ||
+      /^(?:[a-z0-9-]+\.)?a-11-oy\.com$/.test(origin.hostname) ||
       /^szlholdings-[a-z0-9-]+\.hf\.space$/.test(origin.hostname)
     );
   } catch (_) {

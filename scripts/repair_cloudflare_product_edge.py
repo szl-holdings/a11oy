@@ -853,13 +853,15 @@ def _header_values(headers: Any, name: str) -> list[str]:
 
 def _header_evidence(headers: Any) -> dict[str, Any]:
     names = {str(name).lower() for name in headers.keys()}
+    canonical_links = _header_values(headers, "link")
     cors_names = sorted(
         name for name in names if name.startswith("access-control-")
     )
     if len(cors_names) > 32:
         cors_names = [*cors_names[:32], "..."]
     return {
-        "canonical_links": _header_values(headers, "link"),
+        "canonical_links": canonical_links,
+        "canonical_link_count": len(canonical_links),
         "blocked_response_headers": sorted(
             name
             for name in BLOCKED_PUBLIC_RESPONSE_HEADERS
@@ -923,6 +925,7 @@ def _observation(
             "final_url": None,
             "body": "",
             "canonical_links": [],
+            "canonical_link_count": 0,
             "blocked_response_headers": [],
             "cors_response_headers": [],
             "error": type(exc).__name__,
@@ -940,7 +943,7 @@ def _public_summary(observation: dict[str, Any]) -> dict[str, Any]:
             "alias",
             "content_type",
             "final_url",
-            "canonical_links",
+            "canonical_link_count",
             "blocked_response_headers",
             "cors_response_headers",
             "error",

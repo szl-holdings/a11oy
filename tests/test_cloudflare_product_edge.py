@@ -65,6 +65,7 @@ def clean_public_probe_observations() -> list[dict[str, object]]:
             "final_url": "https://a-11-oy.com/",
             "body": "<title>a11oy · SZL</title>",
             "canonical_links": [edge.ROOT_CANONICAL_LINK],
+            "canonical_link_count": 1,
             "blocked_response_headers": [],
             "cors_response_headers": [],
         },
@@ -100,6 +101,7 @@ def clean_public_probe_observations() -> list[dict[str, object]]:
             "content_type": "text/plain",
             "body": "Disallowed CORS origin",
             "canonical_links": [edge.HEALTH_CANONICAL_LINK],
+            "canonical_link_count": 1,
             "blocked_response_headers": [],
             "cors_response_headers": [],
         },
@@ -1339,6 +1341,9 @@ class ProductEdgeContract(unittest.TestCase):
         )
         public = edge._public_summary(observed)
         self.assertNotIn("body", public)
+        self.assertNotIn("canonical_links", public)
+        self.assertEqual(public["canonical_link_count"], 2)
+        self.assertNotIn("huggingface.co", json.dumps(public))
         self.assertNotIn("private-origin-value", json.dumps(public))
 
     def test_public_probe_requires_clean_root_and_health_cors(self) -> None:
@@ -1346,6 +1351,8 @@ class ProductEdgeContract(unittest.TestCase):
         with mock.patch.object(edge, "_observation", side_effect=observations):
             result = edge.public_probe(attempts=1)
         self.assertTrue(result["root_header_policy_verified"])
+        self.assertEqual(result["root"]["canonical_link_count"], 1)
+        self.assertNotIn("canonical_links", result["root"])
         self.assertTrue(result["root_verified"])
         self.assertTrue(result["honest_verified"])
         self.assertTrue(result["health_cors_verified"])
@@ -1372,15 +1379,18 @@ class ProductEdgeContract(unittest.TestCase):
             "root topology leak": lambda rows: rows[1].__setitem__(
                 "blocked_response_headers", ["x-proxied-host"]
             ),
-            "root duplicate canonical": lambda rows: rows[1].__setitem__(
-                "canonical_links",
-                [
-                    edge.ROOT_CANONICAL_LINK,
-                    (
-                        "<https://huggingface.co/spaces/SZLHOLDINGS/a11oy>;"
-                        ' rel="canonical"'
-                    ),
-                ],
+            "root duplicate canonical": lambda rows: (
+                rows[1].__setitem__(
+                    "canonical_links",
+                    [
+                        edge.ROOT_CANONICAL_LINK,
+                        (
+                            "<https://huggingface.co/spaces/SZLHOLDINGS/a11oy>;"
+                            ' rel="canonical"'
+                        ),
+                    ],
+                ),
+                rows[1].__setitem__("canonical_link_count", 2),
             ),
             "root wildcard exposure": lambda rows: rows[1].__setitem__(
                 "cors_response_headers", ["access-control-expose-headers"]

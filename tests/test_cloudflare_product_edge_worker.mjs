@@ -193,6 +193,10 @@ test("CORS is rebuilt from the request and rejects untrusted preflights", async 
       "access-control-request-method": "GET",
     },
     {
+      origin: "https://nested.evil.a-11-oy.com",
+      "access-control-request-method": "GET",
+    },
+    {
       origin: "https://a-11-oy.com",
       "access-control-request-method": "DELETE",
     },
