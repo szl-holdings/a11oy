@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - root test-tooling minimatch dependency
+
+- Resolve the root Jest discovery and coverage tooling through `glob` 14.0.3
+  and `minimatch` 11.0.3 in both npm and pnpm lockfiles, addressing
+  [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+  Keep the existing Jest/ts-jest versions, tests, and coverage configuration.
+
 ### Fixed - meter authentication preflight
 
 - Include the meter HMAC client mapping in the secret registry. An inference
