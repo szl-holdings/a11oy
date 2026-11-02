@@ -512,3 +512,35 @@ def test_gap_legacy_path_reads_mutable_branch(env):
     rag.build_index(repos=["pubrepo"])
     assert [p for p, _ in fake.calls if "/git/trees/" in p] == \
         [f"/repos/{ORG}/pubrepo/git/trees/{C_PUB}"]
+
+
+@pytest.mark.parametrize("deadline", [
+    float("nan"), float("inf"), -float("inf"), True, False, "150", {},
+    object(), 10 ** 1000,
+], ids=["nan", "infinity", "negative-infinity", "true", "false", "string",
+        "mapping", "object", "overflowing-integer"])
+def test_retention_deadline_rejected_before_registry_mutation(deadline):
+    reg = _registry(clock=lambda: 100.0)
+    with pytest.raises(sr.SourceRightsError, match="^RETENTION_DEADLINE_INVALID$"):
+        reg.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                     visibility="public", rights={"read", "index", "embed"},
+                     retention_until=deadline)
+    assert reg.entry(ORG, "pubrepo") is None
+    assert reg.revision == 0 and reg.events == []
+    assert reg.admit_source(ORG, "pubrepo", C_PUB, "embed",
+                            reg.ingest_principal).reason == "NO_RIGHTS_RECORD"
+
+
+@pytest.mark.parametrize("deadline,allowed", [
+    (None, True), (150, True), (100.5, True), (100, False), (0, False), (-1.0, False),
+])
+def test_finite_retention_deadlines_preserve_expiry_boundary(deadline, allowed):
+    reg = _registry(clock=lambda: 100.0)
+    entry = reg.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                         visibility="public", rights={"read", "index", "embed"},
+                         retention_until=deadline)
+    assert entry.retention_until == deadline
+    assert reg.revision == 1 and len(reg.events) == 1
+    admission = reg.admit_source(ORG, "pubrepo", C_PUB, "embed", reg.ingest_principal)
+    assert admission.admitted is allowed
+    assert admission.reason == ("ADMITTED" if allowed else "RETENTION_EXPIRED")
