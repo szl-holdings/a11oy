@@ -651,15 +651,16 @@ def validate_head(value: Any) -> dict[str, Any]:
             or type(claim["origins"]) is not dict
             or type(lease) is not dict or set(lease) != {"renewed_at", "heartbeat_path", "stale_after_seconds"}):
         raise StorageBlocked("STATE_HEAD_INVALID")
-    labels = {spec.label for spec in STORES}
     snapshots, history = value["snapshots"], value["history"]
     if type(snapshots) is not dict or type(history) is not dict:
         raise StorageBlocked("STATE_HEAD_INVALID")
     for label, entry in snapshots.items():
-        if label not in labels or not _entry_valid(label, entry):
+        if (not isinstance(label, str) or _LABEL.fullmatch(label) is None
+                or not _entry_valid(label, entry)):
             raise StorageBlocked("STATE_HEAD_SNAPSHOT_INVALID")
     for label, entries in history.items():
-        if (label not in labels or type(entries) is not list or len(entries) > HISTORY_DEPTH
+        if (not isinstance(label, str) or _LABEL.fullmatch(label) is None
+                or type(entries) is not list or len(entries) > HISTORY_DEPTH
                 or not all(_entry_valid(label, entry) for entry in entries)):
             raise StorageBlocked("STATE_HEAD_SNAPSHOT_INVALID")
     rendered = canonical(value)
