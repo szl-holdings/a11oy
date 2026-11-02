@@ -7,11 +7,14 @@ Evidence class: **DECLARED**. Execution status: **BLOCKED**. No request has been
 executed by this change. This document is a reviewable proposal, not an approved
 or signed plan. It contains no usable credentials or fabricated observations.
 
-Source inspected: `d0decc4f6b51145a9bebb735ad13f135403687b6`. Any later admission
-must inspect the exact deployed source and regenerate the source-bound plan.
+Original proposal source: `d0decc4f6b51145a9bebb735ad13f135403687b6`. This is a
+historical input proposal, not a current deployment record. The
+[runtime producer](../execution-observer.md) and its fixed adapters now exist;
+any admission must inspect the exact deployed source and regenerate the
+source-bound plan against those adapters.
 The only proposed origin is `https://szlholdings-a11oy.hf.space`.
 
-The proposed producer would perform at most one request for each of these five
+The proposed run would perform at most one request for each of these five
 contracts, with no automatic retry. Reads for an explicit effect readback must
 be admitted separately; their route, authorization, bounds and privacy contract
 are not implied by this proposal. Unexpected response, authority, source, boot
@@ -44,7 +47,10 @@ code execution; this is not proof of code-execution readiness.
 ## Inputs still required before any execution
 
 1. Exact protected GitHub SHA, immutable HF runtime revision and boot identity,
-   observed independently of the submitted bundle. Generate a fresh run nonce.
+   admitted independently of the submitted bundle. Obtain a fresh runtime-issued
+   nonce through the authenticated challenge lifecycle described in
+   [execution-observer.md](../execution-observer.md). That challenge is not plan
+   approval; do not invent a nonce or use an export to install trusted context.
 2. A reviewed real model/provider and its accepted resource bound for the two
    unresolved model IDs. The null values above are not defaults and must not run.
 3. Actual existing operator credential admission. The source resolver uses
@@ -55,13 +61,17 @@ code execution; this is not proof of code-execution readiness.
    observation signer from approving its own plan; it does not claim two human
    reviewers. Existing distinct-second-approver requirements remain in force for
    any future code-execution scope.
-5. Endpoint-specific response and readback JSON-pointer assertions, and adapters
-   that prove receipt identities rather than relabeling current short hashes or
-   unsigned records. Those adapters are absent from this change.
+5. Endpoint-specific response and readback JSON-pointer assertions selected for
+   the exact deployed routes. The implemented
+   [fixed adapters](../../observer_adapters.py) and
+   [owner readbacks](../../native_readbacks.py) must match those routes and their
+   native receipt identities; short hashes or unsigned records do not qualify.
 6. A signed plan binding every payload, origin, source, runtime, boot, nonce,
    operator reference, short validity window, request count and zero retries.
    The plan must come from admitted authority before any effect.
 
-The producer and a readback adapter are **not implemented** here. The offline
-validator prepares their binding contract; it cannot turn this proposal into
-authority, qualify a runtime, or modify a passive readiness verdict.
+The [implemented producer](../execution-observer.md) remains gated on external
+admission, including an independent approval custodian, operator/tenant bindings,
+persistent runtime signing, authenticated source/HF/boot identity and acknowledged
+fenced storage. This proposal supplies none of those. The offline validator cannot
+turn it into authority, qualify a runtime, or modify a passive readiness verdict.

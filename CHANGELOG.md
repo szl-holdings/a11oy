@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Rosie cross-link receipt verification
+
+- Separate receipt observation from schema-, role-, identity-, and digest-bound
+  verification. Only validated digest leaves enter cross-link Merkle roots;
+  unverified attestation claims are stripped from retained receipt evidence.
+- Use `chain_observed` for remote receipt presence. `chain_verified` now stays
+  false until both receipt digests and cryptographic signatures are verified.
+
 ### Fixed - Windows PowerShell authorization helper
 
 - Keep Cloudflare authorization prompts compatible with Windows PowerShell 5.1

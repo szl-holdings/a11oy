@@ -369,7 +369,7 @@ try:
             "cross_link": enhanced.cross_link,
             "both_receipts": {"amaru": baseline["khipu_receipt"], "rosie": enhanced.rosie_receipt},
             "doctrine": "v11", "wire": "I",
-            "honesty": "Two independent answers; Rosie is advisory. cross_link.chain_verified reflects whether the Rosie hop was live.",
+            "honesty": "Two independent answers; Rosie is advisory. cross_link.chain_observed records receipt presence; chain_verified requires digest and cryptographic signature verification.",
         })
 
     @app.post("/api/amaru/v1/rosie-companion/ponder")
