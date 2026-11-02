@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Include the meter HMAC client mapping in the secret registry. An inference
   bearer alone no longer hides missing meter credentials from the energy
   preflight. Configuration presence does not establish measured execution.
+### Fixed - lean health signer diagnostics
+
+- Label the legacy signer fields on `/api/health` and `/api/a11oy/v1/health`
+  as unevaluated liveness sentinels, and expose the same cached `signing_state`
+  as `/healthz`. Reads do not load keys, sign receipts, or grant readiness.
 
 ### Fixed - release-train repair deploy window
 
