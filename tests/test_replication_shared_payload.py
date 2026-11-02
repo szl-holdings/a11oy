@@ -9,6 +9,30 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ".github/shared-source-payloads/replication-snapshot-delivery-20261021-v1.json"
 MCP_ARCHIVE = ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json"
+CONNECTOR_PAYLOAD = frozenset({
+    "pages/integrations.html",
+    "szl_connector_mcp.py",
+    "szl_connectors/__init__.py",
+    "szl_connectors/base.py",
+    "szl_connectors/bindings.py",
+    "szl_connectors/crm/crm_connectors.py",
+    "szl_connectors/data_sources/geo.py",
+    "szl_connectors/data_sources/macro.py",
+    "szl_connectors/data_sources/maritime_air.py",
+    "szl_connectors/data_sources/research.py",
+    "szl_connectors/data_sources/security.py",
+    "szl_connectors/erp/erpnext.py",
+    "szl_connectors/erp/odoo.py",
+    "szl_connectors/erp/others.py",
+    "szl_connectors/erp/sap_s4.py",
+    "szl_connectors/governance.py",
+    "szl_connectors/identity/identity_connectors.py",
+    "szl_connectors/oauth.py",
+    "szl_connectors/ready.py",
+    "szl_connectors/registry.py",
+    "tests/test_connector_state_truth.py",
+    "tests/test_replication_shared_payload.py",
+})
 
 
 def test_snapshot_replication_payload_preserves_prior_manifest_and_source():
@@ -60,13 +84,8 @@ def test_current_shared_payload_manifest_matches_current_peer():
     prior = (ROOT / SNAPSHOT).read_bytes()
     assert hashlib.sha256(prior).hexdigest() == "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166"
     manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
-    assert manifest["payload_id"] == "retained-signing-ledger-20261101-v1"
+    assert manifest["payload_id"] == "connector-reachability-truth-20261102-v1"
     assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["files"][MCP_ARCHIVE] == "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35"
-    assert manifest["files"]["szl_connectors/warehouse/warehouse_connectors.py"] == "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f"
-    assert manifest["files"]["tests/test_snowflake_sql_result_classification.py"] == "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
-    assert manifest["files"][".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json"] == "74f824946666a293be88af6f554d2b9e786d4b0bf08ad639a10ec756d47a90a1"
-    assert {"a11oy_org_rag.py", "szl_provenance.py", "szl_operator_auth.py", "szl_signing_state.py",
-            "tests/test_replication_shared_payload.py"} <= set(manifest["files"])
+    assert set(manifest["files"]) == CONNECTOR_PAYLOAD
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected

@@ -11,7 +11,7 @@ with the real schema preview until the customer meshes in.
 from __future__ import annotations
 
 TAB_BINDINGS: dict[str, list[str]] = {
-    # a11oy governed-AI / security verticals (keyless → CONNECTED now)
+    # a11oy governed-AI / security verticals (keyless; probe/read before CONNECTED)
     "vuln":      ["nvd_cve", "cisa_kev", "epss", "defensive_fusion"],
     "attack":    ["mitre_attack"],
     "macro":     ["fred", "sec_edgar"],

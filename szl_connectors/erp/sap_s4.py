@@ -8,8 +8,8 @@ Targets the publicly documented OData entity sets (SZL's own original client):
 Public sandbox: https://sandbox.api.sap.com/s4hanacloud/...  (free APIKey header).
 Docs: https://api.sap.com  /  https://community.sap.com (S/4HANA Cloud sandbox)
 
-Default state: READY → CONNECTED (read-only) vs the public sandbox once
-SZL_SAP_S4_API_KEY is set. Writes stay READY until a customer tenant + OAuth.
+Default state: READY until the public sandbox accepts SZL_SAP_S4_API_KEY and
+returns a successful read. Writes stay READY until a customer tenant + OAuth.
 """
 from __future__ import annotations
 

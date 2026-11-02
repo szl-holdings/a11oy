@@ -2,8 +2,8 @@
 # © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 · Perplexity Computer Agent.
 """a11oy macro / filings live connectors.
 
-  sec_edgar   SEC EDGAR submissions + XBRL frames  (keyless; UA header required)  → CONNECTED now
-  fred        FRED macro series (St. Louis Fed)     (free key SZL_FRED_API_KEY)    → READY → CONNECTED on key
+  sec_edgar   SEC EDGAR submissions + XBRL frames  (keyless; UA header required)  → CONNECTED after response
+  fred        FRED macro series (St. Louis Fed)     (free key SZL_FRED_API_KEY)    → CONNECTED after response
 """
 from __future__ import annotations
 

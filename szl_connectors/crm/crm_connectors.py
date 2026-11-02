@@ -3,8 +3,8 @@
 """CRM connectors — built + tested against each vendor's documented API shape.
 
 Each is a REAL client (documented endpoint + record shape + auth header). With NO
-creds → state=READY + exact secret name; NEVER fabricates a record. The moment
-the customer's credentials land in the Space secret → CONNECTED → live data.
+creds → state=READY + exact secret name; NEVER fabricates a record. Credentials
+configure the client; a successful provider response establishes CONNECTED.
 
 API refs (publicly documented shapes; SZL writes its own original client code):
   Salesforce REST   https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/resources_list.htm

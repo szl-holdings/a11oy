@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 · Perplexity Computer Agent.
-"""killinchu / shared geo live connectors (keyless → CONNECTED now).
+"""killinchu / shared geo live connectors (keyless live clients).
+
+CONNECTED requires an observed successful provider probe/read.
 
   usgs      USGS earthquake feeds (GeoJSON)         keyless
   noaa      NOAA api.weather.gov forecast/alerts    keyless (UA header)
