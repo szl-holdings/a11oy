@@ -15369,8 +15369,12 @@ except Exception as _ig_e:
 @app.api_route("/api/health", methods=["GET", "HEAD"])
 async def api_health() -> JSONResponse:
     """Top-level health probe — returns JSON 200. Registered before SPA catch-all."""
+    from szl_signing_state import read_state
     return JSONResponse({
         "status": "ok",
+        "scope": "PROCESS_LIVENESS",
+        "capability_readiness_asserted": False,
+        "operational_readiness_endpoint": "/api/a11oy/healthz",
         "service": "a11oy",
         "doctrine": "v11",
         "counts": "749/14/163",
@@ -15383,8 +15387,15 @@ async def api_health() -> JSONResponse:
             "status": "ABSENT",
             "signing_available": False,
             "scheme": "UNAVAILABLE",
+            "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+            "availability_evaluated": False,
+            "runtime_status_endpoint": "/api/a11oy/healthz",
+            "legacy_status_deprecated": True,
+            "legacy_status_semantics": "LIVENESS_SENTINEL_NOT_A_SIGNER_OBSERVATION",
+            "replacement": "signing_state",
         },
-    })
+        "signing_state": read_state(app),
+    }, headers={"Cache-Control": "no-store"})
 
 
 # P3 FIX: /api/a11oy/v4/fleet — explicit route before SPA catch-all

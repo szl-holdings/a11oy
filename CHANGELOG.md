@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - root test-tooling minimatch dependency
+
+- Resolve the root Jest discovery and coverage tooling through `glob` 14.0.3
+  and `minimatch` 11.0.3 in both npm and pnpm lockfiles, addressing
+  [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+  Keep the existing Jest/ts-jest versions, tests, and coverage configuration.
+- Include the pinned `glob` major in its override selector so CI's npm 10
+  resolver accepts the same patched dependency tree during `npm ci`.
+
+### Fixed - meter authentication preflight
+
+- Include the meter HMAC client mapping in the secret registry. An inference
+  bearer alone no longer hides missing meter credentials from the energy
+  preflight. Configuration presence does not establish measured execution.
+### Fixed - lean health signer diagnostics
+
+- Label the legacy signer fields on `/api/health` and `/api/a11oy/v1/health`
+  as unevaluated liveness sentinels, and expose the same cached `signing_state`
+  as `/healthz`. Reads do not load keys, sign receipts, or grant readiness.
+
 ### Fixed - release-train repair deploy window
 
 - The manual estate release-train repair can now forward the operator's
