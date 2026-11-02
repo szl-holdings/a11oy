@@ -9,6 +9,13 @@ AUTHORIZE = ROOT / "ops/windows/authorize-cloudflare-production.ps1"
 RUNBOOK = ROOT / "docs/CLOUDFLARE_WINDOWS_AUTHORIZATION.md"
 
 
+def test_powershell_51_entrypoints_are_ascii() -> None:
+    # Windows PowerShell 5.1 reads BOM-less files using the active ANSI code page.
+    # A UTF-8 em dash becomes a smart quote under cp1252 and can end a string.
+    for script in (INSTALL, AUTHORIZE):
+        assert script.read_bytes().isascii(), f"Keep {script.name} ASCII for PowerShell 5.1"
+
+
 def test_cloudflared_install_is_pinned_and_hash_verified() -> None:
     text = INSTALL.read_text(encoding="utf-8")
     assert '$CloudflaredVersion = "2026.8.3"' in text
