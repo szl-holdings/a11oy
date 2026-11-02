@@ -550,6 +550,7 @@ jobs:
           "cryptography==50.0.2" "httpx==0.28.1"
 
       - name: Re-admit protected main before runtime handoff
+        id: owner_before
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -558,8 +559,8 @@ jobs:
           python3 -I -B scripts/hf_exact_main_ownership.py \
             --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
             --receipt "$RUNNER_TEMP/execution-handoff-owner-before.json" \
-            --github-output "$RUNNER_TEMP/execution-handoff-owner-before.out"
-          grep -Fqx 'publish=true' "$RUNNER_TEMP/execution-handoff-owner-before.out"
+            --github-output "$GITHUB_OUTPUT"
+          grep -Fqx 'publish=true' "$GITHUB_OUTPUT"
 
       # Expected context is selected before this run. Neither live health nor
       # the export can select its own authority. No challenge or execution POST.
@@ -575,8 +576,10 @@ jobs:
           --source-sha "$GITHUB_SHA"
           --github-output "$GITHUB_OUTPUT"
           --output "$RUNNER_TEMP/execution-handoff.json"
+          --failure-output "$RUNNER_TEMP/execution-handoff-failure.json"
 
       - name: Re-admit protected main after runtime handoff
+        id: owner_after
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
@@ -585,31 +588,43 @@ jobs:
           python3 -I -B scripts/hf_exact_main_ownership.py \
             --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
             --receipt "$RUNNER_TEMP/execution-handoff-owner-after.json" \
-            --github-output "$RUNNER_TEMP/execution-handoff-owner-after.out"
-          grep -Fqx 'publish=true' "$RUNNER_TEMP/execution-handoff-owner-after.out"
+            --github-output "$GITHUB_OUTPUT"
+          grep -Fqx 'publish=true' "$GITHUB_OUTPUT"
 
-      - name: Explain the external execution handoff when admission is blocked
+      - name: Retain and explain the exact blocked handoff stage
         if: failure()
-        shell: bash
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<'HANDOFF'
-          Execution handoff blocked. Preserve the final runtime boot. Through the
-          established independent approval mechanism, complete the approved bounded
-          execution on that exact source, HF revision and boot. Set the three
-          independently approved execution-context variables, then manually dispatch
-          hf-sync with verify_current_deployment=true on the same protected main.
-          Leave open_deploy_window and publish_vertical_flagships false and the
-          vertical plan empty. This verification mode makes no provider writes.
-          It collects fresh passive evidence for its own run and attempt. Existing
-          expiry, source, storage, signature and relock gates remain mandatory.
-          HANDOFF
+        env:
+          HANDOFF_OWNER_BEFORE_OUTCOME: ${{ steps.owner_before.outcome }}
+          HANDOFF_OWNER_BEFORE_STATUS: ${{ steps.owner_before.outputs.ownership_status }}
+          HANDOFF_CONTEXT_OUTCOME: ${{ steps.context.outcome }}
+          HANDOFF_OWNER_AFTER_OUTCOME: ${{ steps.owner_after.outcome }}
+          HANDOFF_OWNER_AFTER_STATUS: ${{ steps.owner_after.outputs.ownership_status }}
+        run: >-
+          python3 -I -B .github/scripts/admit_execution_handoff.py
+          --record-workflow-failure
+          --source-sha "$GITHUB_SHA"
+          --failure-output "$RUNNER_TEMP/execution-handoff-failure.json"
+          --summary-output "$GITHUB_STEP_SUMMARY"
 
-      - name: Retain secret-free execution handoff evidence
-        if: always()
+      - name: Retain successful secret-free execution handoff evidence
+        if: success()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: canonical-a11oy-execution-handoff-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            ${{ runner.temp }}/execution-handoff.json
+            ${{ runner.temp }}/execution-handoff-owner-before.json
+            ${{ runner.temp }}/execution-handoff-owner-after.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Retain blocked secret-free execution handoff evidence
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: canonical-a11oy-execution-handoff-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/execution-handoff-failure.json
             ${{ runner.temp }}/execution-handoff.json
             ${{ runner.temp }}/execution-handoff-owner-before.json
             ${{ runner.temp }}/execution-handoff-owner-after.json
