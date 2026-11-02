@@ -3,7 +3,7 @@
 
 [A11oy](https://a-11-oy.com) is the product and command fabric; [a11oy.net](https://a11oy.net) is the proof and diligence surface. GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.
 
-**Measured Hub inventory:** 40 public Spaces · 41 model repositories · 14 native kernels · 38 datasets as of `2026-11-01T22:56:52Z`.
+**Measured Hub inventory:** 40 public Spaces · 41 model repositories · 14 native kernels · 38 datasets as of `2026-11-02T00:55:59Z`.
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
 Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/agents-studio`, `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/foundation-confirmation-v2`, `SZLHOLDINGS/gdw-frontier`, `SZLHOLDINGS/governed-agent-bench`, `SZLHOLDINGS/governed-receipt-verifier`, `SZLHOLDINGS/holographic-unify`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/nexus`, `SZLHOLDINGS/oac-system-health-lab`, `SZLHOLDINGS/prove-it`, `SZLHOLDINGS/szl-atelier`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-brand-campaign`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-khipu`, `SZLHOLDINGS/szl-marketing-1.1`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-seismic-review`, `SZLHOLDINGS/szl-typesafe-triage`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
@@ -26,5 +26,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `d5abf8c1124ac4247377a815d86985a388c7f1ebbcd4cda93a9e315575c00b69`.
+Alignment receipt: `a9e5f01342dc6e750a980c569bb7f19b5eb71e2510b36dfd825584d16bf5155c`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
