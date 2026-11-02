@@ -1366,3 +1366,34 @@ jobs:
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Verify Snowflake SQL API completion classification (mocked transport only)
         run: python -B -m pytest -q -p no:cacheprovider tests/test_snowflake_sql_result_classification.py
+
+  windows-cloudflare-bootstrap:
+    name: Cloudflare bootstrap Windows PowerShell 5.1 parser
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Parse the owner entrypoints without executing authorization
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1) {
+              throw 'This regression requires Windows PowerShell 5.1.'
+          }
+          foreach ($relative in @(
+              'ops/windows/install-cloudflare-tools.ps1',
+              'ops/windows/authorize-cloudflare-production.ps1'
+          )) {
+              $path = Join-Path $env:GITHUB_WORKSPACE $relative
+              $tokens = $null
+              $parseErrors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors) | Out-Null
+              if ($parseErrors.Count -ne 0) {
+                  throw ($parseErrors | Out-String)
+              }
+              if (@([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }).Count -ne 0) {
+                  throw "$relative must stay ASCII for BOM-less PowerShell 5.1 loading."
+              }
+          }
