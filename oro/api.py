@@ -30,6 +30,19 @@ BODY_LIMIT = 256 * 1024
 API_SCHEMA = "szl.oro-api/v1"
 
 
+class OROWriteUnavailable(OROStateError):
+    """A required signer, authorizer, or canonical storage writer is unavailable."""
+
+
+def _state_store_module() -> Any:
+    """Return the canonical state-store module when this package runs in A11oy."""
+    try:
+        import a11oy_state_store
+    except ModuleNotFoundError:
+        return None
+    return a11oy_state_store
+
+
 class ORORuntime:
     def __init__(self) -> None:
         environment = os.environ.get("SZL_ORO_ENV", "development").strip().lower()
@@ -39,11 +52,22 @@ class ORORuntime:
         self.service: OROService | None = None
         self.authorizer: BearerTokenAuthorizer | None = None
         self.error: Exception | None = None
+        self.state_store_managed = False
         try:
             configured_path = os.environ.get("SZL_ORO_DB_PATH", "").strip()
-            if self.production and not configured_path:
-                raise OROStateError("production requires SZL_ORO_DB_PATH")
-            db_path = configured_path or str(Path("/tmp/a11oy-oro.sqlite").resolve())
+            state_store = _state_store_module()
+            self.state_store_managed = bool(state_store is not None and state_store.enabled())
+            if self.state_store_managed:
+                if not state_store.writable():
+                    raise OROWriteUnavailable("canonical state store is not writable")
+                managed_path = state_store.local_path("oro")
+                if managed_path is None:
+                    raise OROWriteUnavailable("canonical ORO storage path is unavailable")
+                db_path = str(managed_path)
+            else:
+                if self.production and not configured_path:
+                    raise OROStateError("production requires SZL_ORO_DB_PATH")
+                db_path = configured_path or str(Path("/tmp/a11oy-oro.sqlite").resolve())
             self.store = OROStore(db_path, production=self.production)
             signer = signer_from_environment(production=self.production)
             self.authorizer = authorizer_from_environment(production=self.production)
@@ -72,7 +96,22 @@ class ORORuntime:
             "error_class": type(self.error).__name__ if self.error is not None else None,
         }
 
+    def state_store_admission(self) -> Mapping[str, Any]:
+        if not self.state_store_managed:
+            return {"required": False, "writable": True}
+        state_store = _state_store_module()
+        if state_store is None:
+            return {"required": True, "writable": False, "role": "UNAVAILABLE"}
+        status = state_store.status()
+        return {
+            "required": True,
+            "writable": bool(state_store.writable()),
+            "mode": status.get("mode"),
+            "role": status.get("role"),
+        }
+
     def readiness(self) -> tuple[int, Mapping[str, Any]]:
+        admission = self.state_store_admission()
         if self.service is None:
             body = {
                 "schema": API_SCHEMA,
@@ -82,17 +121,24 @@ class ORORuntime:
                 "error_class": type(self.error).__name__ if self.error is not None else "Unavailable",
                 "reason": "required ORO runtime dependency is unavailable",
                 "secret_value_exposed": False,
+                "state_store": admission,
             }
             if self.store is not None:
                 body["storage"] = self.store.integrity()
             return 503, body
         body = {"schema": API_SCHEMA, **self.service.readiness()}
+        body["secret_value_exposed"] = False
+        body["state_store"] = admission
         body["write_authorizer"] = (
             dict(self.authorizer.identity)
             if self.authorizer is not None
             else {"state": "UNAVAILABLE"}
         )
-        body["ready"] = bool(body["ready"] and (self.authorizer is not None or not self.production))
+        body["ready"] = bool(
+            body["ready"]
+            and admission["writable"]
+            and (self.authorizer is not None or not self.production)
+        )
         body["state"] = "READY" if body["ready"] else "UNAVAILABLE"
         return (200 if body["ready"] else 503), body
 
@@ -104,7 +150,11 @@ class ORORuntime:
     def authorize_write(self, request: Request) -> str:
         if self.authorizer is None:
             raise OROAuthorizerUnavailable("managed write authorizer is unavailable")
-        return self.authorizer.authorize(request)
+        identity = self.authorizer.authorize(request)
+        status, _body = self.readiness()
+        if status != 200:
+            raise OROWriteUnavailable("required ORO write dependency is unavailable")
+        return identity
 
 
 async def _read_json(request: Request) -> Mapping[str, Any]:
@@ -347,6 +397,15 @@ def _install_handlers(application: FastAPI) -> None:
     async def signer_error(_request: Request, _exc: OROSignerUnavailable) -> JSONResponse:
         return _error(503, "signer_unavailable", "managed signer is unavailable")
 
+    @application.exception_handler(OROWriteUnavailable)
+    async def write_unavailable(_request: Request, _exc: OROWriteUnavailable) -> JSONResponse:
+        return _error(
+            503,
+            "write_unavailable",
+            "required ORO write dependency is unavailable",
+            headers={"Retry-After": "30"},
+        )
+
     @application.exception_handler(OROStateError)
     async def state_error(_request: Request, exc: OROStateError) -> JSONResponse:
         return _error(409, "state_conflict", str(exc))
@@ -362,6 +421,67 @@ def mount_oro(application: FastAPI, *, namespace: str = "a11oy", runtime: ORORun
     async def close_runtime() -> None:
         selected.close()
 
+    return selected
+
+
+def mount_oro_before_catchalls(
+    application: FastAPI,
+    *,
+    namespace: str = "a11oy",
+    runtime: ORORuntime | None = None,
+    catchall_paths: tuple[str, ...] = (
+        "/api/a11oy/{path:path}",
+        "/{full_path:path}",
+    ),
+) -> ORORuntime:
+    """Mount ORO once, then place its router entry before canonical catch-alls."""
+    before = {id(route) for route in application.router.routes}
+    selected = mount_oro(application, namespace=namespace, runtime=runtime)
+    entries = [route for route in application.router.routes if id(route) not in before]
+    try:
+        if not entries:
+            raise RuntimeError("ORO registration added no route-table entry")
+
+        leaf_paths: set[str | None] = set()
+        for entry in entries:
+            nested = getattr(entry, "original_router", None)
+            leaves = getattr(nested, "routes", ()) if nested is not None else (entry,)
+            leaf_paths.update(getattr(leaf, "path", None) for leaf in leaves)
+        api = f"/api/{namespace}/v1/oro"
+        required = {
+            "/oro",
+            "/oro/v5",
+            f"{api}/healthz",
+            f"{api}/readyz",
+            f"{api}/contract",
+            f"{api}/plans",
+        }
+        if not required.issubset(leaf_paths):
+            raise RuntimeError("ORO registration is missing required routes")
+
+        for entry in entries:
+            application.router.routes.remove(entry)
+        catchalls = {
+            index
+            for index, route in enumerate(application.router.routes)
+            if getattr(route, "path", None) in catchall_paths
+        }
+        found_paths = {
+            getattr(route, "path", None)
+            for route in application.router.routes
+            if getattr(route, "path", None) in catchall_paths
+        }
+        missing_catchalls = set(catchall_paths) - found_paths
+        if missing_catchalls:
+            raise RuntimeError("canonical catch-all route is missing")
+        insert_at = min(catchalls)
+        for offset, entry in enumerate(entries):
+            application.router.routes.insert(insert_at + offset, entry)
+    except Exception:
+        for entry in entries:
+            if entry in application.router.routes:
+                application.router.routes.remove(entry)
+        raise
     return selected
 
 

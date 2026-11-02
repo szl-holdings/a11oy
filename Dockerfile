@@ -60,7 +60,8 @@ ARG REVISION=""
 ARG BUILD_DATE=""
 ENV A11OY_VERSION=${VERSION} \
     A11OY_GIT_SHA=${REVISION} \
-    A11OY_BUILD_DATE=${BUILD_DATE}
+    A11OY_BUILD_DATE=${BUILD_DATE} \
+    SZL_ORO_ENV=production
 LABEL org.opencontainers.image.version=${VERSION} \
       org.opencontainers.image.revision=${REVISION} \
       org.opencontainers.image.created=${BUILD_DATE}
@@ -135,6 +136,9 @@ COPY knowledge.json ./static/knowledge.json
 # Ayllu — a11oy-native agent community. a11oy_ayllu.py is imported (guarded) by
 # … (full rationale: docs/DOCKERFILE_NOTES.md §5)
 COPY ayllu/ ./ayllu/
+# Obligation-Ranked Orbits control plane. Canonical mounting remains guarded;
+# missing signer, authorizer, or managed storage keeps readiness and writes 503.
+COPY oro/ ./oro/
 # Canonical model-family/control-plane evidence ships with the runtime image so
 # deployed status surfaces can be audited against the same release contracts.
 COPY model_release/szl-forge-family.json model_release/szl-compute-plane.json model_release/szl-ayllu-binding.json model_release/szl-khipu-second-brain.json ./model_release/
@@ -151,15 +155,15 @@ COPY szl_brain_training_admission.py ./
 # schemas ship beside the module so served OpenAPI cannot drift from the
 # reviewed source contracts.
 COPY schemas/evidenceos/ ./schemas/evidenceos/
+COPY schemas/oro/ ./schemas/oro/
 # Wave 38 evidence surfaces: involution probe + runtime contracts + committed quant
 # benchmark receipt (read-only, validated+signature-checked at serve time).
 COPY benchmarks/quant_live/receipts/latest.json ./benchmarks/quant_live/receipts/latest.json
 # Quantum Utility Gate wave 16: pure-stdlib proposal analysis only.  No provider
 # SDK, QPU call, credential path, external effector, or finance-engine coupling.
-COPY szl_quantum_utility.py ./
+COPY szl_quantum_utility.py szl_numerics_adapter.py ./
 # Wave 18 numerical-engine frontier. These are only the Apache-2.0 host contract
 # … (full rationale: docs/DOCKERFILE_NOTES.md §6)
-COPY szl_numerics_adapter.py ./
 # Public Steward services/provenance dependency: fixed read-only bytes from
 # exact canonical Estate OS source. No private audit store or model adapter.
 COPY a11oy_steward_surface.py steward_public.py steward-public.json steward-source-lock.json ./
@@ -175,10 +179,9 @@ COPY data/szl-lake/evidence-manifest.json ./data/szl-lake/evidence-manifest.json
 # Wave 19 formal-conjecture receipt lab. This copies only the strict contract,
 # bounded ledger, and public-key receipt verifier; it installs no prover and
 # exposes no command or network execution path.
-COPY szl_formal_conjecture_lab.py ./
+COPY szl_formal_conjecture_lab.py szl_m1_model_gate.py szl_m1_corpus_manifest.py ./
 # M1 experimental model operational gate. Metadata and the status UI are
 # … (full rationale: docs/DOCKERFILE_NOTES.md §7)
-COPY szl_m1_model_gate.py szl_m1_corpus_manifest.py ./
 COPY model_release/m1/ ./model_release/m1/
 # Canonical release identity and public Zenodo readback receipt. The readback
 # file ships in a PENDING state until a separately verified archive PR replaces

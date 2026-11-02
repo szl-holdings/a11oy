@@ -13693,6 +13693,7 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/quantum-utility/",   # Proposal-only Quantum Utility Gate
                               "v1/compute/",           # Yupaq governed computation plane
                               "v1/formal-conjecture-lab/",  # Fail-closed formal receipt lab
+                              "v1/oro/",  # ORO namespace must never fall through to Node
                               "v4/agent/",  # v4 voter/ask routes must never fall through to Node
                               )
 
@@ -13824,7 +13825,7 @@ async def api_proxy(request: Request, path: str) -> Response:
             "_dev": "DEV2 in-toto attestation layer (szl_intoto.py)",
         })
 
-    if path.startswith(_LOCAL_ONLY_A11OY_PREFIXES):
+    if path == "v1/oro" or path.startswith(_LOCAL_ONLY_A11OY_PREFIXES):
         return JSONResponse(
             {"error": "local route unmatched — not proxied to Node backend",
              "path": f"/api/a11oy/{path}",
@@ -17762,6 +17763,33 @@ try:
     _refresh_a11oy_signing_state()
 except Exception:
     _A11OY_SIGNING_STATE.invalidate()
+
+
+# ORO control plane: register after every late route assembler, then move only
+# ORO-owned routes ahead of the Node proxy and SPA catch-alls. Reuse the
+# package's already-created runtime so canonical assembly owns one SQLite
+# connection. Missing storage, signer, or authorizer keeps readiness and writes
+# fail-closed while health and the data-only contract remain observable.
+try:
+    from oro.canonical import (
+        require_production_environment as _require_canonical_oro_environment,
+    )
+
+    _require_canonical_oro_environment()
+    from oro.api import (
+        app as _oro_standalone_app,
+        mount_oro_before_catchalls as _mount_oro_before_catchalls,
+    )
+
+    _ORO_RUNTIME = _mount_oro_before_catchalls(
+        app,
+        namespace="a11oy",
+        runtime=_oro_standalone_app.state.oro_runtime,
+    )
+    print("[a11oy] ORO control plane mounted", file=sys.stderr)
+except Exception as _oro_error:  # pragma: no cover - fail one additive surface closed
+    _ORO_RUNTIME = None
+    print(f"[a11oy] ORO control plane NOT mounted: {_oro_error!r}", file=sys.stderr)
 
 
 if __name__ == "__main__":

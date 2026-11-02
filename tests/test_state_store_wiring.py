@@ -52,6 +52,7 @@ def test_spec_paths_match_what_the_modules_derive(v2):
         "unay": "unay/unay_a11oy.sqlite",
         "khipu_lmdb": "unay/khipu_lmdb_a11oy",
         "khipu_repl": "unay/khipu_repl_a11oy",
+        "oro": "oro/oro.sqlite3",
     }
     assert {spec.label: spec.local for spec in ss.STORES} == expected
     for label, relative in expected.items():

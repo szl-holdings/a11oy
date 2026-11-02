@@ -106,6 +106,7 @@ ACTION_IDENTITY_COPY_ADDITIONS = {"szl_action_identity.py"}
 WAKE_ROUTE_COPY_ADDITIONS = {"szl_kernels_organ.py"}
 RAG_REFERENCE_AUTH_COPY_ADDITIONS = {"a11oy_rag_reference_auth.py"}
 STATE_STORE_COPY_ADDITIONS = {"a11oy_state_store.py"}
+ORO_COPY_ADDITIONS = {"oro/", "schemas/oro/"}
 PUBLIC_ESTATE_COPY_ADDITIONS = {"static/shared/public-estate-contract.v1.json"}
 # Exact observer/native-adapter/consumer additions; prior source pins stay intact.
 # Consolidating two adjacent root COPY instructions pays for the parser's own
@@ -182,6 +183,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert WAKE_ROUTE_COPY_ADDITIONS <= copy_sources
     assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= copy_sources
     assert STATE_STORE_COPY_ADDITIONS <= copy_sources
+    assert ORO_COPY_ADDITIONS <= copy_sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= copy_sources
     assert READINESS_READER_COPY_ADDITIONS <= copy_sources
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= copy_sources
@@ -200,6 +202,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | WAKE_ROUTE_COPY_ADDITIONS
         | RAG_REFERENCE_AUTH_COPY_ADDITIONS
         | STATE_STORE_COPY_ADDITIONS
+        | ORO_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
         | READINESS_READER_COPY_ADDITIONS
         | EXECUTION_OBSERVER_COPY_ADDITIONS
@@ -234,6 +237,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert WAKE_ROUTE_COPY_ADDITIONS <= sources
     assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= sources
     assert STATE_STORE_COPY_ADDITIONS <= sources
+    assert ORO_COPY_ADDITIONS <= sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
     assert READINESS_READER_COPY_ADDITIONS <= sources
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= sources
@@ -249,6 +253,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
         - WAKE_ROUTE_COPY_ADDITIONS
         - STATE_STORE_COPY_ADDITIONS
+        - ORO_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - READINESS_READER_COPY_ADDITIONS
         - EXECUTION_OBSERVER_COPY_ADDITIONS
@@ -281,6 +286,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert WAKE_ROUTE_COPY_ADDITIONS <= sources
     assert RAG_REFERENCE_AUTH_COPY_ADDITIONS <= sources
     assert STATE_STORE_COPY_ADDITIONS <= sources
+    assert ORO_COPY_ADDITIONS <= sources
     assert PUBLIC_ESTATE_COPY_ADDITIONS <= sources
     assert READINESS_READER_COPY_ADDITIONS <= sources
     assert EXECUTION_OBSERVER_COPY_ADDITIONS <= sources
@@ -296,6 +302,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
         - WAKE_ROUTE_COPY_ADDITIONS
         - STATE_STORE_COPY_ADDITIONS
+        - ORO_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - READINESS_READER_COPY_ADDITIONS
         - EXECUTION_OBSERVER_COPY_ADDITIONS

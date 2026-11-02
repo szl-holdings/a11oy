@@ -106,6 +106,12 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/nexus/status",              # honest BIND status — never fabricated LIVE
     "/.well-known/source.json",                # product source declaration (UNSIGNED-honest)
     "/api/a11oy/v1/storage/status",            # ADR-0001 state store mode/lease/snapshot ages (no paths)
+    "/oro",                                    # canonical ORO operator surface
+    "/oro/v5",                                 # versioned ORO operator surface
+    "/api/a11oy/v1/oro/healthz",               # ORO process liveness; readiness is separate
+    "/api/a11oy/v1/oro/readyz",                # fail-closed signer/storage/authorizer readiness
+    "/api/a11oy/v1/oro/contract",              # data-only rank/codex/authority contract
+    "/api/a11oy/v1/oro/plans",                 # governed write namespace (authorization required)
 ]
 
 
@@ -113,15 +119,25 @@ def _assembled_paths():
     """Every path Starlette would route, from the REAL booted app (no mocks)."""
     return {
         p
-        for r in serve.app.router.routes
+        for r in _leaf_routes(serve.app.router.routes)
         if (p := getattr(r, "path", None))
     }
+
+
+def _leaf_routes(routes):
+    """Expand FastAPI's lazy included-router entries into routable leaves."""
+    for route in routes:
+        nested = getattr(route, "original_router", None)
+        if nested is None:
+            yield route
+        else:
+            yield from _leaf_routes(nested.routes)
 
 
 def _methods(path):
     return {
         method
-        for route in serve.app.router.routes
+        for route in _leaf_routes(serve.app.router.routes)
         if getattr(route, "path", None) == path
         for method in getattr(route, "methods", set())
     }

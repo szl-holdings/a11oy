@@ -189,6 +189,8 @@ STORES: tuple[StoreSpec, ...] = (
               "khipu_lmdb_a11oy", "khipu_lmdb_a11oy"),
     StoreSpec("khipu_repl", "lmdb", "unay/khipu_repl_a11oy", "UNAY_DATA_DIR",
               "khipu_repl_a11oy", "khipu_repl_a11oy"),
+    StoreSpec("oro", "sqlite", "oro/oro.sqlite3", "SZL_ORO_DB_PATH", None,
+              "oro.sqlite"),
 )
 # Module directories handed to code that derives its own file names.
 DIRECTORIES = {"khipu": "khipu", "unay": "unay"}
