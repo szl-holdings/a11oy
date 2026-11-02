@@ -1049,7 +1049,7 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                             denial = (_source_embed_denial(source_binding, chunk, rights_registry)
                                       if rights is not None else None)
                             if denial is None:
-                                v = file_embed_fn(seg)
+                                v = _finite_vector(file_embed_fn(seg))
                                 # Provider work can outlive a grant. Serialize only
                                 # the fresh check + SQLite insertion with revocation.
                                 with (rights_registry.admission_lock()
@@ -1062,7 +1062,7 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                                             "INSERT OR REPLACE INTO org_vectors_gen("
                                             "generation_id,chunk_id,dim,vec) VALUES(?,?,?,?)",
                                             (generation_id, cid, len(v),
-                                             json.dumps([round(x, 6) for x in v])))
+                                             json.dumps([round(x, 6) for x in v], allow_nan=False)))
                             if denial is not None:
                                 rights["embed_denied"] += 1
                         except Exception:
@@ -1259,6 +1259,18 @@ def next_unembedded_chunks(limit: int = 4, *, rights_registry: Any = None) -> li
     return out
 
 
+def _finite_vector(values: Any) -> list[float]:
+    """Reject unavailable or nonfinite model output before persisting vectors."""
+    if not isinstance(values, (list, tuple)) or not values:
+        raise ValueError("embedding must be a nonempty numeric vector")
+    if any(isinstance(value, (bool, str, bytes, bytearray)) for value in values):
+        raise ValueError("embedding components must be numeric")
+    vector = [float(value) for value in values]
+    if not all(math.isfinite(value) for value in vector):
+        raise ValueError("embedding components must be finite")
+    return vector
+
+
 def embed_and_store_chunk(chunk_id: str, vec: list[float], *,
                           rights_registry: Any = None,
                           expected_generation_id: str | None = None,
@@ -1272,6 +1284,11 @@ def embed_and_store_chunk(chunk_id: str, vec: list[float], *,
     global _BUILD_META
     if not chunk_id or not isinstance(vec, (list, tuple)) or len(vec) == 0:
         return {"ok": False, "honest_error": "empty chunk_id or vector — nothing stored"}
+    try:
+        vec = _finite_vector(vec)
+    except (TypeError, ValueError, OverflowError):
+        return {"ok": False, "chunk_id": chunk_id, "reason": "EMBED_VECTOR_INVALID",
+                "honest_error": "embedding contains invalid or nonfinite components"}
     try:
         conn = _db()
         try:
@@ -1322,7 +1339,7 @@ def embed_and_store_chunk(chunk_id: str, vec: list[float], *,
                             "INSERT OR REPLACE INTO org_vectors_gen("
                             "generation_id,chunk_id,dim,vec) VALUES(?,?,?,?)",
                             (generation_id, chunk_id, len(vec),
-                             json.dumps([round(float(x), 6) for x in vec])))
+                             json.dumps([round(x, 6) for x in vec], allow_nan=False)))
                         generation = conn.execute(
                             "SELECT graph_json,meta_json FROM org_generations "
                             "WHERE generation_id=? AND status='ACTIVE'", (generation_id,)
@@ -1354,7 +1371,7 @@ def embed_and_store_chunk(chunk_id: str, vec: list[float], *,
             else:
                 conn.execute(
                     "INSERT OR REPLACE INTO org_vectors(chunk_id,dim,vec) VALUES(?,?,?)",
-                    (chunk_id, len(vec), json.dumps([round(float(x), 6) for x in vec])))
+                    (chunk_id, len(vec), json.dumps([round(x, 6) for x in vec], allow_nan=False)))
                 conn.commit()
         finally:
             conn.close()
@@ -1616,11 +1633,11 @@ def _ingest_text(graph: OrgGraph, conn: sqlite3.Connection, *, repo: str, path: 
             (generation_id, cid, fid, repo, path, "file", category, source, path, seg, csha))
         if embed_fn is not None:
             try:
-                v = embed_fn(seg)
+                v = _finite_vector(embed_fn(seg))
                 conn.execute(
                     "INSERT OR REPLACE INTO org_vectors_gen(generation_id,chunk_id,dim,vec) "
                     "VALUES(?,?,?,?)",
-                    (generation_id, cid, len(v), json.dumps([round(x, 6) for x in v])))
+                    (generation_id, cid, len(v), json.dumps([round(x, 6) for x in v], allow_nan=False)))
             except Exception:
                 pass
         n += 1
@@ -1980,7 +1997,15 @@ def _fts_escape(q: str) -> str:
 def _cosine(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    try:
+        a, b = _finite_vector(a), _finite_vector(b)
+        dot = sum(x * y for x, y in zip(a, b))
+    except (TypeError, ValueError, OverflowError):
+        return 0.0
+    # Historic rows and query embeddings also need validation: min/max can
+    # turn NaN into a perfect match, and finite inputs can overflow the dot.
+    if not math.isfinite(dot):
+        return 0.0
     return max(-1.0, min(1.0, dot))  # both are L2-normalized
 
 

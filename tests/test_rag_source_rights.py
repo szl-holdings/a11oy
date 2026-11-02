@@ -752,3 +752,33 @@ def test_stripped_binding_and_mode_cannot_downgrade_to_legacy(env, monkeypatch):
     assert rag.next_unembedded_chunks(limit=10) == []
     assert rag.embed_and_store_chunk(ids[0], [0.1, 0.2])["ok"] is False
     assert rag.dense_vector_count() == 0
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf"), True, "0.25"])
+def test_guarded_deferred_vector_rejects_invalid_without_resealing(env, monkeypatch, bad):
+    reg, before, _ = _guarded_backlog(env, monkeypatch)
+    task = rag.next_unembedded_chunks(limit=1, rights_registry=reg)[0]
+    result = _store_task(task, reg, [0.25, bad])
+    assert result["ok"] is False
+    assert result["reason"] == "EMBED_VECTOR_INVALID"
+    assert rag.dense_vector_count() == 0
+    with sqlite3.connect(str(env["db"])) as conn:
+        digest, count = conn.execute(
+            "SELECT digest_sha256,vector_count FROM org_generations WHERE generation_id=?",
+            (before["generation_id"],)).fetchone()
+    assert digest == before["generation_digest_sha256"] and count == 0
+    assert _store_task(task, reg, [0.25, 0.75])["ok"] is True
+    assert rag.dense_vector_count() == 1
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf"), True, "0.25"])
+def test_guarded_ingest_keeps_invalid_embeddings_in_backlog(env, monkeypatch, bad):
+    env["install"]({"pubrepo": _public_spec()})
+    reg = _registry()
+    reg.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                 visibility="public", rights={"read", "index", "embed"})
+    monkeypatch.setattr(rag, "_maybe_embedder", lambda load=True: lambda _: [0.25, bad])
+    built = rag.build_index(repos=["pubrepo"], rights_registry=reg)
+    assert built["ok"] is True and built["chunks"] == 2
+    assert rag.dense_vector_count() == 0
+    assert len(rag.next_unembedded_chunks(limit=10, rights_registry=reg)) == 2
