@@ -14,6 +14,11 @@ Both tools are installed for the current Windows user. The installer can optiona
 
 ## Run from a cloned `szl-holdings/a11oy` repository
 
+The two PowerShell entrypoints use ASCII source so Windows PowerShell 5.1 can
+read them without a UTF-8 byte-order mark. Keep typographic punctuation in this
+runbook rather than in the scripts; misdecoded punctuation can terminate a
+quoted string before the authorization prompt is reached.
+
 Open PowerShell and run:
 
 ```powershell
