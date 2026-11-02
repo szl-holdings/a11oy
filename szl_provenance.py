@@ -38,13 +38,15 @@ HONESTY:
   * Signatures are REAL ECDSA-P256-SHA256 cosign sigs when the
     SZL_COSIGN_PRIVATE_PEM runtime secret is present; if absent, receipts are
     emitted UNSIGNED and clearly labelled (never faked).
-  * Khipu DAG is in-memory per Space (additive, non-persistent across restart) —
-    same honest ceiling as before; now SIGNED.
+  * With managed state enabled, the Khipu DAG shares the managed Khipu SQLite
+    store. Explicit signing confirms its exact node in an immutable snapshot.
+    Standalone organs retain the original process-memory behavior.
   * SLSA self-claim is L1 honest (signing live); L2 (hardened build-service provenance) is roadmap via Wire D, NOT yet claimed; L3 NOT claimed.
 """
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import http.client
@@ -66,6 +68,11 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 import szl_dsse
+
+try:
+    import a11oy_state_store as _state_store
+except ImportError:  # standalone organ distributions do not ship the A11oy owner
+    _state_store = None
 
 DOCTRINE = "v11"
 SLSA_LEVEL = "L1"
@@ -468,11 +475,52 @@ def derive_receipt_conservation(submitted: dict, node: object) -> dict[str, Any]
 # Khipu DAG (DSSE-signed)
 # ---------------------------------------------------------------------------
 
+class _LedgerUnavailable(RuntimeError):
+    """Managed provenance cannot read or retain evidence; never use memory instead."""
+
+
 class _KhipuDAG:
     def __init__(self, space: str) -> None:
         self.space = space
         self.lock = threading.Lock()
-        self.nodes: list[dict[str, Any]] = []
+        self._nodes: list[dict[str, Any]] = []
+        self.managed = (os.environ.get("A11OY_STATE_STORE", "").strip().lower() == "v2"
+                        or bool(_state_store is not None and _state_store.enabled()))
+
+    def _owner(self):
+        owner = _state_store.active() if _state_store is not None else None
+        if owner is None:
+            raise _LedgerUnavailable("managed provenance owner unavailable")
+        return owner
+
+    @property
+    def nodes(self) -> list[dict[str, Any]]:
+        if not self.managed:
+            return self._nodes
+        try:
+            return self._owner().provenance_nodes(self.space, self._validate)
+        except Exception as error:
+            raise _LedgerUnavailable("managed provenance read unavailable") from error
+
+    def _validate(self, nodes):
+        """Restore structural integrity without signing or promoting old authority."""
+        previous = None
+        for index, node in enumerate(nodes):
+            parents = [previous] if previous is not None else []
+            body = szl_dsse.canonical_json(node["receipt"])
+            envelope = node["dsse"]
+            if (type(node["index"]) is not int or node["index"] != index
+                    or node["space"] != self.space or node["parents"] != parents
+                    or node["digest"] != self._digest(body, parents)
+                    or envelope["payloadType"] != szl_dsse.KHIPU_PAYLOAD_TYPE
+                    or base64.b64decode(envelope["payload"], validate=True) != body
+                    or node["signed"] is not envelope.get("signed", False)):
+                raise ValueError("invalid retained provenance chain")
+            signatures = envelope.get("signatures", [])
+            expected_key = signatures[0]["keyid"] if signatures else None
+            if node["keyid"] != expected_key or bool(signatures) != node["signed"]:
+                raise ValueError("invalid retained signature metadata")
+            previous = node["digest"]
 
     def _digest(self, payload_b: bytes, parents: list[str]) -> str:
         import hashlib
@@ -482,14 +530,15 @@ class _KhipuDAG:
             h.update(p.encode())
         return h.hexdigest()
 
-    def append_signed(self, receipt: dict[str, Any]) -> dict[str, Any]:
+    def append_signed(self, receipt: dict[str, Any], *, confirm: bool = False) -> dict[str, Any]:
         """Sign the receipt with DSSE+Cosign and append as a Merkle DAG node."""
-        env = szl_dsse.sign_payload(receipt, szl_dsse.KHIPU_PAYLOAD_TYPE)
-        body = szl_dsse.canonical_json(receipt)
-        with self.lock:
-            parents = [self.nodes[-1]["digest"]] if self.nodes else []
+        # Freeze caller-owned objects before signing/persisting the exact bytes.
+        receipt = json.loads(szl_dsse.canonical_json(receipt))
+        def build(index, parents):
+            env = szl_dsse.sign_payload(receipt, szl_dsse.KHIPU_PAYLOAD_TYPE)
+            body = szl_dsse.canonical_json(receipt)
             node = {
-                "index": len(self.nodes),
+                "index": index,
                 "space": self.space,
                 "wire": "F",
                 "receipt": receipt,
@@ -502,12 +551,35 @@ class _KhipuDAG:
                 "ts_utc": datetime.now(timezone.utc).isoformat(),
             }
             node["digest"] = self._digest(body, parents)
-            self.nodes.append(node)
+            return node
+        if self.managed:
+            # The owner and SQLite serialize managed appends. Do not hold the
+            # memory lock across remote retention and block passive readers.
+            try:
+                node, ack = self._owner().append_provenance_node(
+                    self.space, build, self._validate, confirm=confirm)
+            except Exception as error:
+                raise _LedgerUnavailable("managed provenance retention unavailable") from error
+            if ack is not None:
+                # Acknowledgment is outside the signed node and does not grant authority.
+                node = dict(node, retention={
+                    "state": "IMMUTABLE_SNAPSHOT_CONFIRMED", "confirmed": True,
+                    "label": ack["label"], "epoch": ack["epoch"],
+                    "head_sha256": ack["head_sha256"],
+                    "snapshot_sha256": ack["entry"]["sha256"],
+                    "logical_sha256": ack["entry"]["logical_sha256"],
+                    "execution_authorized": False,
+                })
+            return node
+        with self.lock:
+            node = build(len(self._nodes), [self._nodes[-1]["digest"]] if self._nodes else [])
+            self._nodes.append(node)
             return node
 
     def root(self) -> str | None:
         with self.lock:
-            return self.nodes[-1]["digest"] if self.nodes else None
+            nodes = self.nodes
+            return nodes[-1]["digest"] if nodes else None
 
     def recent(self, n: int = 10) -> list[dict[str, Any]]:
         with self.lock:
@@ -532,6 +604,12 @@ def register_provenance(app, space: str) -> dict[str, Any]:
     dag = _KhipuDAG(space)
     wire_d_targets, wire_d_rejections = _wire_d_targets_from_env()
     base = f"/api/{space}"
+
+    @app.exception_handler(_LedgerUnavailable)
+    async def provenance_unavailable(_request, _error):
+        return JSONResponse({"status": "BLOCKED", "error": "PROVENANCE_RETENTION_UNAVAILABLE",
+                             "retention_confirmed": False, "execution_authorized": False},
+                            status_code=503, headers={"Retry-After": "30", "Cache-Control": "no-store"})
 
     # ---- Wire D middleware: extract/mint traceparent, mint server span, echo ----
     @app.middleware("http")
@@ -599,7 +677,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "wire_d": "LIVE",
         }
 
-    def emit_signed_receipt(receipt: dict[str, Any], request=None) -> dict[str, Any]:
+    def emit_signed_receipt(receipt: dict[str, Any], request=None, *, confirm: bool = False) -> dict[str, Any]:
         """Stamp Wire D trace fields + DSSE-sign + append to the Khipu DAG."""
         r = dict(receipt)
         r.setdefault("space", space)
@@ -610,7 +688,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             r.update(receipt_trace_fields(request))
         else:
             r.setdefault("traceparent", new_traceparent())
-        return dag.append_signed(r)
+        return dag.append_signed(r, confirm=confirm)
 
     def wire_d_receipts() -> list[dict[str, Any]]:
         return dag.by_schema("szl.wire_d.hop_receipt/v1")
@@ -745,7 +823,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "operator_authority": operator_authority,
             **result,
         }
-        node = emit_signed_receipt(receipt, request)
+        node = await asyncio.to_thread(emit_signed_receipt, receipt, request)
         payload = {
             **result,
             "target": target_name,
@@ -788,7 +866,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         env = payload.get("dsse") if isinstance(payload, dict) and "dsse" in payload else payload
         verdict = szl_dsse.verify_envelope(env if isinstance(env, dict) else {})
         # the verifier signs itself (self-attesting): emit a Khipu receipt of the verify op
-        node = emit_signed_receipt({
+        node = await asyncio.to_thread(emit_signed_receipt, {
             "schema": "szl.khipu.verify_op/v1",
             "op": "khipu/verify",
             "verified": verdict.get("verified"),
@@ -807,30 +885,44 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         receipt = body.get("receipt", body) if isinstance(body, dict) else {}
         if not isinstance(receipt, dict) or not receipt:
             receipt = {"schema": "szl.khipu.demo/v1", "note": "empty body — demo receipt"}
-        node = emit_signed_receipt(receipt, request)
+        # Remote retention can wait on upload/readback/CAS; keep health traffic
+        # responsive while the admitted write remains in flight.
+        node = await asyncio.to_thread(emit_signed_receipt, receipt, request, confirm=True)
         return JSONResponse({
             "space": space, "digest": node["digest"], "index": node["index"],
             "signed": node["signed"], "keyid": node["keyid"], "slsa": SLSA_LEVEL,
             "dsse": node["dsse"], "traceparent": node["receipt"].get("traceparent"),
             "verify_at": f"{base}/khipu/verify",
+            "retention": node.get("retention", {"state": "PROCESS_MEMORY", "confirmed": False}),
         })
 
     # ---- /khipu/ledger : the signed Khipu DAG ----
     @app.get(f"{base}/khipu/ledger")
     async def khipu_ledger() -> JSONResponse:
-        nodes = dag.recent(20)
+        from szl_signing_state import read_state
+
+        # One retained snapshot keeps count, root and displayed tail coherent.
+        with dag.lock:
+            nodes = list(dag.nodes)
+        signing_state = read_state(app)
         return JSONResponse({
-            "space": space, "khipu_root": dag.root(), "count": len(dag.nodes),
-            "signing_available": szl_dsse.signing_available(),
+            "space": space, "khipu_root": nodes[-1]["digest"] if nodes else None, "count": len(nodes),
+            # DSSE refuses the shared signer's ephemeral fallback key.
+            "signing_available": (signing_state["key_material_available"]
+                                  and signing_state["key_source"].startswith("persistent:")),
             "keyid": szl_dsse.KEYID, "slsa": SLSA_LEVEL, "doctrine": DOCTRINE,
-            "pub_fingerprint_sha256": szl_dsse.public_key_fingerprint(),
+            "pub_fingerprint_sha256": signing_state["public_key_fingerprint"],
+            "signing_state": signing_state,
             "verify_key_url": szl_dsse.PUB_KEY_URL,
-            "nodes": nodes,
+            "nodes": nodes[-20:],
             "citations": CITATIONS, "citation_note": CITATION_NOTE,
             "anchor_health_at": f"/api/{space}/uds/v1/rekor/health",
             "honesty": ("DSSE signatures are REAL ECDSA-P256-SHA256 cosign sigs when the "
                         "SZL_COSIGN_PRIVATE_PEM runtime secret is present (else UNSIGNED, labelled). "
-                        "DAG is in-memory per Space (non-persistent across restart). SLSA L1 honest; L2 roadmap via Wire D "
+                        + ("DAG uses the managed Khipu SQLite store; individual writes require a confirmed "
+                           "snapshot acknowledgment for immutable retention. " if dag.managed else
+                           "DAG is in-memory per Space (non-persistent across restart). ")
+                        + "SLSA L1 honest; L2 roadmap via Wire D "
                         "(signed provenance) — NOT L3 (no hardened CI yet)."),
         })
 
@@ -859,8 +951,14 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "anchor_health_at": f"/api/{space}/uds/v1/rekor/health",
         })
 
-    return {"space": space, "wire_D": wire_d_status_payload()["state"], "slsa": SLSA_LEVEL,
+    try:
+        registered_wire_d = wire_d_status_payload()["state"]
+    except _LedgerUnavailable:
+        # A blocked store must not abort installation of the diagnostic routes.
+        registered_wire_d = "BLOCKED"
+    return {"space": space, "wire_D": registered_wire_d, "slsa": SLSA_LEVEL,
             "signing_available": szl_dsse.signing_available(),
             "endpoints": [f"{base}/wires/D", f"{base}/khipu/verify",
                           f"{base}/khipu/sign", f"{base}/khipu/ledger", f"{base}/provenance",
                           f"{base}/v1/wire-d/status", f"{base}/v1/wire-d/probe"]}
+
