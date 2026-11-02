@@ -5,6 +5,8 @@ from __future__ import annotations
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 
 import importlib.util
+import contextlib
+import io
 import json
 import pathlib
 import re
@@ -176,6 +178,37 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
 
     def test_reviewed_workflow_is_recognized(self) -> None:
         self.assertTrue(self.strict_contract(self.reviewed_workflow))
+
+    def test_required_cli_contract_rejects_changed_helper_despite_legacy_exemptions(self) -> None:
+        helper = ROOT / ".github/scripts/admit_execution_handoff.py"
+        real_open = open
+        opened = []
+
+        def changed_helper(path, mode="r", *args, **kwargs):
+            if pathlib.Path(path) == helper and mode == "rb":
+                opened.append(path)
+                return io.BytesIO(self.deploy_helpers[".github/scripts/admit_execution_handoff.py"]
+                                  + b"\n# changed helper fixture\n")
+            return real_open(path, mode, *args, **kwargs)
+
+        config, config_path = CHECKER.load_config(str(ROOT))
+        config = {**config, "require_source_derived_deploy": True}
+        self.assertTrue(config["extra_mirror_paths"])
+        self.assertTrue(config["image_only_assets"])
+        stdout = io.StringIO()
+        with mock.patch("builtins.open", side_effect=changed_helper), \
+                mock.patch.object(CHECKER, "load_config", return_value=(config, config_path)), \
+                mock.patch.object(sys, "argv", ["guard", str(ROOT)]), \
+                contextlib.redirect_stdout(stdout):
+            result = CHECKER.main()
+        self.assertEqual(1, len(opened))
+        self.assertEqual(1, result, stdout.getvalue())
+        self.assertIn("required source-derived deploy contract invalid", stdout.getvalue())
+        self.assertNotIn("OK: COPY", stdout.getvalue())
+
+    def test_shipped_configuration_requires_reviewed_source_contract(self) -> None:
+        config, _ = CHECKER.load_config(str(ROOT))
+        self.assertIs(config.get("require_source_derived_deploy"), True)
 
     def test_identity_permissions_and_opt_in_are_exact(self) -> None:
         mutations = (

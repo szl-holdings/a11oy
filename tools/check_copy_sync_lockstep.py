@@ -1245,6 +1245,10 @@ def main():
         return 2
 
     cfg, cfg_path = load_config(root)
+    require_source_derived = cfg.get("require_source_derived_deploy", False)
+    if type(require_source_derived) is not bool:
+        print("::error::require_source_derived_deploy must be a JSON boolean")
+        return 2
     image_only = {
         normalize_repo_path(path) for path in cfg.get("image_only_assets", [])
     }
@@ -1342,6 +1346,13 @@ def main():
         if "pages/*.html" in hf_text or "console/*.html" in hf_text:
             mirror_globs = list(mirror_globs) + A11OY_FRONTDOOR_GLOBS
     mirror_explicit |= extra_mirror
+    if require_source_derived and not source_derived_deploy:
+        failures.append(
+            "[CHECK 3: required source-derived deploy contract invalid] "
+            "hf-sync does not match the reviewed workflow and helper closure. "
+            "Declared mirror paths and image-only exemptions cannot replace "
+            "the required source-derived deployment contract."
+        )
 
     check3_missing = []
     for f in sorted(perfile_assets):
@@ -1378,6 +1389,8 @@ def main():
     if hf_sync_present:
         if source_derived_deploy:
             print("hf-sync source coverage: pinned Dockerfile-derived controller; reviewed admission -> preflight -> deploy graph")
+        elif require_source_derived:
+            print("hf-sync source coverage: required reviewed deployment contract rejected")
         else:
             print(f"hf-sync legacy mirror set: {len(mirror_explicit)} explicit + "
                   f"{len(mirror_globs)} glob(s)")
