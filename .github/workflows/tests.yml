@@ -726,9 +726,11 @@ jobs:
         #     #241/#403) — placeholders are UNVERIFIABLE not silent passes, the signer
         #     SAN must name an allowed producing workflow, and every release tag is
         #     re-checked (not just the latest).
-        # Scoped to these two modules: the rest of tests/ pulls in fastapi+serve.py,
+        # The Cosign workflow test executes only the verification shell with an
+        # argument recorder; it does not sign or verify a live release artifact.
+        # Scoped to these three modules: the rest of tests/ pulls in fastapi+serve.py,
         # packages.inference voters, or the sigstore SDK and is covered by other jobs.
-        run: pytest tests/test_recheck_rekor_baseline.py tests/test_verify_release_receipts.py -q
+        run: pytest tests/test_recheck_rekor_baseline.py tests/test_verify_release_receipts.py tests/test_cosign_workflow_identity.py -q
 
   python-evidence-reconcile:
     name: Offline evidence reconciliation tool (pytest, stdlib)
