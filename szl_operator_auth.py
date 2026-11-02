@@ -150,6 +150,9 @@ PROTECTED_ROUTES = (
     # -- signing a caller-supplied payload with the server key ------------------
     (r"/khipu/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/khipu/sign", "Receipt signing", "sign"),
+    # The namespaced verifier signs/appends its own verification receipt.
+    # The short /khipu/verify alias only verifies and remains public.
+    (r"/api/a11oy/khipu/verify", "Receipt verification audit signing", "sign"),
     (r"/api/a11oy/v1/brain/receipt/sign", "Receipt signing", "sign"),
     (r"/api/a11oy/v1/rag/estate/query", "Estate RAG answer receipt signing", "sign"),
     (r"/api/a11oy/v1/provenance/pqc/sign", "Receipt signing", "sign"),
@@ -271,3 +274,4 @@ def operator_refusal(request, action: str):
 
     return JSONResponse(blocked_body(action), status_code=401,
                         headers={"WWW-Authenticate": "Bearer"})
+
