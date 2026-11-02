@@ -8,6 +8,7 @@ import json
 import os
 import tempfile
 import unittest
+from email.message import Message
 from pathlib import Path
 from unittest import mock
 
@@ -38,6 +39,71 @@ def dns_record(
         "proxied": proxied,
         "proxiable": proxiable,
     }
+
+
+def clean_public_probe_observations() -> list[dict[str, object]]:
+    return [
+        {
+            "status": 301,
+            "location": (
+                "https://a-11-oy.com/__szl_edge_probe__/path?"
+                "contract=v3&preserve=yes"
+            ),
+            "edge": edge.EDGE_MARKER,
+            "content_type": None,
+            "final_url": (
+                "https://www.a-11-oy.com/__szl_edge_probe__/path?"
+                "contract=v3&preserve=yes"
+            ),
+            "body": "",
+        },
+        {
+            "status": 200,
+            "location": None,
+            "edge": edge.EDGE_MARKER,
+            "content_type": "text/html",
+            "final_url": "https://a-11-oy.com/",
+            "body": "<title>a11oy · SZL</title>",
+            "canonical_links": [edge.ROOT_CANONICAL_LINK],
+            "blocked_response_headers": [],
+            "cors_response_headers": [],
+        },
+        {
+            "status": 200,
+            "location": None,
+            "edge": edge.EDGE_MARKER,
+            "content_type": "application/json",
+            "final_url": "https://a-11-oy.com/api/a11oy/v1/honest",
+            "body": json.dumps(
+                {"organ": "a11oy", "locked_formula_count": 8}
+            ),
+        },
+        {
+            "status": 200,
+            "edge": edge.EDGE_MARKER,
+            "alias": "/spectral->/static/3d/holographic.html",
+            "content_type": "text/html",
+            "body": "<title>A11oy holographic</title>",
+        },
+        {
+            "status": 200,
+            "edge": edge.EDGE_MARKER,
+            "alias": "/controller->/api/a11oy/v1/honest",
+            "content_type": "application/json",
+            "body": json.dumps(
+                {"organ": "a11oy", "locked_formula_count": 8}
+            ),
+        },
+        {
+            "status": 400,
+            "edge": edge.EDGE_MARKER,
+            "content_type": "text/plain",
+            "body": "Disallowed CORS origin",
+            "canonical_links": [edge.HEALTH_CANONICAL_LINK],
+            "blocked_response_headers": [],
+            "cors_response_headers": [],
+        },
+    ]
 
 
 class ProductEdgeContract(unittest.TestCase):
@@ -1215,96 +1281,131 @@ class ProductEdgeContract(unittest.TestCase):
         self.assertNotIn("\n", rendered)
         self.assertLessEqual(len(rendered), 4000)
 
-    def test_public_probe_requires_root_honesty_www_and_live_aliases(self) -> None:
-        observations = [
-            {
-                "status": 301,
-                "location": (
-                    "https://a-11-oy.com/__szl_edge_probe__/path?"
-                    "contract=v3&preserve=yes"
+    def test_observation_records_bounded_header_evidence(self) -> None:
+        headers = Message()
+        headers["Link"] = edge.ROOT_CANONICAL_LINK
+        headers["Link"] = (
+            '<https://huggingface.co/spaces/SZLHOLDINGS/a11oy>; '
+            'rel="canonical"'
+        )
+        headers["X-Proxied-Host"] = "http://10.0.0.8"
+        headers["Traceparent"] = "private-origin-value"
+        headers["Access-Control-Expose-Headers"] = "*"
+        headers["X-SZL-Edge"] = edge.EDGE_MARKER
+
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = b"ok"
+        response.status = 200
+        response.headers = headers
+        response.geturl.return_value = "https://a-11-oy.com/"
+        opener = mock.Mock()
+        opener.open.return_value = response
+
+        with mock.patch.object(
+            edge.urllib.request, "build_opener", return_value=opener
+        ):
+            observed = edge._observation(
+                "https://a-11-oy.com/",
+                method="OPTIONS",
+                request_headers={
+                    "Origin": edge.CORS_PROBE_ORIGIN,
+                    "Access-Control-Request-Method": "GET",
+                },
+            )
+
+        request = opener.open.call_args.args[0]
+        self.assertEqual(request.get_method(), "OPTIONS")
+        self.assertEqual(
+            request.get_header("Origin"), edge.CORS_PROBE_ORIGIN
+        )
+        self.assertEqual(
+            observed["canonical_links"],
+            [
+                edge.ROOT_CANONICAL_LINK,
+                (
+                    '<https://huggingface.co/spaces/SZLHOLDINGS/a11oy>; '
+                    'rel="canonical"'
                 ),
-                "edge": edge.EDGE_MARKER,
-                "content_type": None,
-                "final_url": (
-                    "https://www.a-11-oy.com/__szl_edge_probe__/path?"
-                    "contract=v3&preserve=yes"
-                ),
-                "body": "",
-            },
-            {
-                "status": 200,
-                "location": None,
-                "edge": edge.EDGE_MARKER,
-                "content_type": "text/html",
-                "final_url": "https://a-11-oy.com/",
-                "body": "<title>a11oy · SZL</title>",
-            },
-            {
-                "status": 200,
-                "location": None,
-                "edge": edge.EDGE_MARKER,
-                "content_type": "application/json",
-                "final_url": "https://a-11-oy.com/api/a11oy/v1/honest",
-                "body": json.dumps(
-                    {"organ": "a11oy", "locked_formula_count": 8}
-                ),
-            },
-            {
-                "status": 200,
-                "edge": edge.EDGE_MARKER,
-                "alias": "/spectral->/static/3d/holographic.html",
-                "content_type": "text/html",
-                "body": "<title>A11oy holographic</title>",
-            },
-            {
-                "status": 200,
-                "edge": edge.EDGE_MARKER,
-                "alias": "/controller->/api/a11oy/v1/honest",
-                "content_type": "application/json",
-                "body": json.dumps(
-                    {"organ": "a11oy", "locked_formula_count": 8}
-                ),
-            },
-        ]
+            ],
+        )
+        self.assertEqual(
+            observed["blocked_response_headers"],
+            ["traceparent", "x-proxied-host"],
+        )
+        self.assertEqual(
+            observed["cors_response_headers"],
+            ["access-control-expose-headers"],
+        )
+        public = edge._public_summary(observed)
+        self.assertNotIn("body", public)
+        self.assertNotIn("private-origin-value", json.dumps(public))
+
+    def test_public_probe_requires_clean_root_and_health_cors(self) -> None:
+        observations = clean_public_probe_observations()
         with mock.patch.object(edge, "_observation", side_effect=observations):
             result = edge.public_probe(attempts=1)
+        self.assertTrue(result["root_header_policy_verified"])
         self.assertTrue(result["root_verified"])
         self.assertTrue(result["honest_verified"])
+        self.assertTrue(result["health_cors_verified"])
         self.assertTrue(result["www_verified"])
         self.assertTrue(result["spectral_verified"])
         self.assertTrue(result["controller_verified"])
         self.assertNotIn("body", result["root"])
         self.assertNotIn("body", result["honest"])
+        self.assertNotIn("body", result["health"])
         self.assertNotIn("body", result["spectral"])
 
     def test_public_probe_rejects_missing_edge_marker(self) -> None:
-        observations = [
-            {
-                "status": 301,
-                "location": (
-                    "https://a-11-oy.com/__szl_edge_probe__/path?"
-                    "contract=v3&preserve=yes"
-                ),
-                "edge": edge.EDGE_MARKER,
-                "body": "",
-            },
-            {"status": 200, "edge": None, "body": "a11oy"},
-            {
-                "status": 200,
-                "edge": edge.EDGE_MARKER,
-                "body": json.dumps(
-                    {"organ": "a11oy", "locked_formula_count": 8}
-                ),
-            },
-            {"status": 404, "body": ""},
-            {"status": 404, "body": ""},
-        ]
+        observations = clean_public_probe_observations()
+        observations[1]["edge"] = None
         with (
             mock.patch.object(edge, "_observation", side_effect=observations),
             mock.patch.object(edge.time, "sleep"),
         ):
             with self.assertRaisesRegex(edge.EdgeError, "PUBLIC_PROBE_FAILED"):
                 edge.public_probe(attempts=1)
+
+    def test_public_probe_rejects_header_link_and_cors_regressions(self) -> None:
+        regressions = {
+            "root topology leak": lambda rows: rows[1].__setitem__(
+                "blocked_response_headers", ["x-proxied-host"]
+            ),
+            "root duplicate canonical": lambda rows: rows[1].__setitem__(
+                "canonical_links",
+                [
+                    edge.ROOT_CANONICAL_LINK,
+                    (
+                        "<https://huggingface.co/spaces/SZLHOLDINGS/a11oy>;"
+                        ' rel="canonical"'
+                    ),
+                ],
+            ),
+            "root wildcard exposure": lambda rows: rows[1].__setitem__(
+                "cors_response_headers", ["access-control-expose-headers"]
+            ),
+            "health reflected origin": lambda rows: rows[5].__setitem__(
+                "cors_response_headers", ["access-control-allow-origin"]
+            ),
+            "health trace leak": lambda rows: rows[5].__setitem__(
+                "blocked_response_headers", ["traceparent"]
+            ),
+        }
+        for name, mutate in regressions.items():
+            with self.subTest(name=name):
+                observations = clean_public_probe_observations()
+                mutate(observations)
+                with (
+                    mock.patch.object(
+                        edge, "_observation", side_effect=observations
+                    ),
+                    mock.patch.object(edge.time, "sleep"),
+                ):
+                    with self.assertRaisesRegex(
+                        edge.EdgeError, "PUBLIC_PROBE_FAILED"
+                    ):
+                        edge.public_probe(attempts=1)
 
     def test_worker_is_fixed_origin_and_never_redirects_apex_to_hf(self) -> None:
         text = WORKER.read_text(encoding="utf-8")

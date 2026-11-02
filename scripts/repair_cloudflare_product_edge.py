@@ -56,6 +56,29 @@ WEB_RECORD_TYPES = frozenset({"A", "AAAA", "CNAME"})
 EDGE_MARKER = "a11oy-product-edge-v3"
 WWW_PROBE_PATH = "/__szl_edge_probe__/path"
 WWW_PROBE_QUERY = "contract=v3&preserve=yes"
+CORS_PROBE_ORIGIN = "https://edge-probe.invalid"
+HEALTH_PROBE_PATH = "/api/a11oy/healthz"
+ROOT_CANONICAL_LINK = '<https://a-11-oy.com/>; rel="canonical"'
+HEALTH_CANONICAL_LINK = (
+    '<https://a-11-oy.com/api/a11oy/healthz>; rel="canonical"'
+)
+BLOCKED_PUBLIC_RESPONSE_HEADERS = (
+    "traceparent",
+    "tracestate",
+    "x-backend-server",
+    "x-hf-replica",
+    "x-proxied-host",
+    "x-proxied-path",
+    "x-proxied-replica",
+    "x-replica",
+    "x-replica-id",
+    "x-span-id",
+    "x-trace-id",
+    "x-upstream-addr",
+    "x-upstream-address",
+    "x-upstream-host",
+    "x-vsp-otel",
+)
 
 
 class EdgeError(RuntimeError):
@@ -813,16 +836,53 @@ def _rollback_succeeded(
     return changed > 0 and restored == changed and not failed
 
 
-def _observation(url: str, *, follow_redirects: bool = True) -> dict[str, Any]:
-    request = urllib.request.Request(
-        url,
-        method="GET",
-        headers={
-            "User-Agent": "SZL-product-edge-proof/4.0",
-            "Cache-Control": "no-cache, no-store",
-            "Pragma": "no-cache",
-        },
+def _header_values(headers: Any, name: str) -> list[str]:
+    get_all = getattr(headers, "get_all", None)
+    if callable(get_all):
+        values = get_all(name) or []
+    else:
+        value = headers.get(name)
+        values = [value] if value is not None else []
+    cleaned = [
+        str(value).strip()[:1024]
+        for value in values[:8]
+        if str(value).strip()
+    ]
+    return cleaned
+
+
+def _header_evidence(headers: Any) -> dict[str, Any]:
+    names = {str(name).lower() for name in headers.keys()}
+    cors_names = sorted(
+        name for name in names if name.startswith("access-control-")
     )
+    if len(cors_names) > 32:
+        cors_names = [*cors_names[:32], "..."]
+    return {
+        "canonical_links": _header_values(headers, "link"),
+        "blocked_response_headers": sorted(
+            name
+            for name in BLOCKED_PUBLIC_RESPONSE_HEADERS
+            if headers.get(name) is not None
+        ),
+        "cors_response_headers": cors_names,
+    }
+
+
+def _observation(
+    url: str,
+    *,
+    follow_redirects: bool = True,
+    method: str = "GET",
+    request_headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    headers = {
+        "User-Agent": "SZL-product-edge-proof/4.0",
+        "Cache-Control": "no-cache, no-store",
+        "Pragma": "no-cache",
+    }
+    headers.update(request_headers or {})
+    request = urllib.request.Request(url, method=method, headers=headers)
     opener = (
         urllib.request.build_opener()
         if follow_redirects
@@ -839,6 +899,7 @@ def _observation(url: str, *, follow_redirects: bool = True) -> dict[str, Any]:
                 "content_type": response.headers.get("content-type"),
                 "final_url": response.geturl(),
                 "body": body.decode("utf-8", "replace"),
+                **_header_evidence(response.headers),
             }
     except urllib.error.HTTPError as exc:
         body = exc.read(32768)
@@ -850,6 +911,7 @@ def _observation(url: str, *, follow_redirects: bool = True) -> dict[str, Any]:
             "content_type": exc.headers.get("content-type"),
             "final_url": exc.geturl(),
             "body": body.decode("utf-8", "replace"),
+            **_header_evidence(exc.headers),
         }
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return {
@@ -860,6 +922,9 @@ def _observation(url: str, *, follow_redirects: bool = True) -> dict[str, Any]:
             "content_type": None,
             "final_url": None,
             "body": "",
+            "canonical_links": [],
+            "blocked_response_headers": [],
+            "cors_response_headers": [],
             "error": type(exc).__name__,
         }
 
@@ -868,9 +933,30 @@ def _public_summary(observation: dict[str, Any]) -> dict[str, Any]:
     """Return only bounded, non-content public evidence for the receipt."""
     return {
         key: observation.get(key)
-        for key in ("status", "location", "edge", "alias", "content_type", "final_url", "error")
+        for key in (
+            "status",
+            "location",
+            "edge",
+            "alias",
+            "content_type",
+            "final_url",
+            "canonical_links",
+            "blocked_response_headers",
+            "cors_response_headers",
+            "error",
+        )
         if observation.get(key) is not None
     }
+
+
+def _response_policy_verified(
+    observation: dict[str, Any], canonical_link: str
+) -> bool:
+    return (
+        observation.get("canonical_links") == [canonical_link]
+        and observation.get("blocked_response_headers") == []
+        and observation.get("cors_response_headers") == []
+    )
 
 
 def public_probe(attempts: int = 24) -> dict[str, Any]:
@@ -878,10 +964,12 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
     www_expected = f"https://{ZONE_NAME}{WWW_PROBE_PATH}?{WWW_PROBE_QUERY}"
     root_url = f"https://{ZONE_NAME}/?__szl_edge_probe__=v3"
     honest_url = f"https://{ZONE_NAME}/api/a11oy/v1/honest?__szl_edge_probe__=v3"
-    last: dict[str, Any] = {}
-
+    health_url = (
+        f"https://{ZONE_NAME}{HEALTH_PROBE_PATH}?__szl_edge_probe__=v3"
+    )
     spectral_url = f"https://{ZONE_NAME}/spectral?__szl_edge_probe__=v3"
     controller_url = f"https://{ZONE_NAME}/controller?__szl_edge_probe__=v3"
+    last: dict[str, Any] = {}
 
     for attempt in range(1, attempts + 1):
         www = _observation(www_source, follow_redirects=False)
@@ -889,12 +977,23 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
         honest = _observation(honest_url)
         spectral = _observation(spectral_url)
         controller = _observation(controller_url)
+        health = _observation(
+            health_url,
+            follow_redirects=False,
+            method="OPTIONS",
+            request_headers={
+                "Origin": CORS_PROBE_ORIGIN,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
 
         root_body = str(root.get("body") or "").lower()
+        root_headers_ok = _response_policy_verified(root, ROOT_CANONICAL_LINK)
         root_ok = (
             root.get("status") == 200
             and root.get("edge") == EDGE_MARKER
             and ("a11oy" in root_body or "szl" in root_body)
+            and root_headers_ok
         )
 
         honest_json: dict[str, Any] = {}
@@ -933,6 +1032,12 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
             and controller_json.get("locked_formula_count") == 8
         )
 
+        health_headers_ok = _response_policy_verified(health, HEALTH_CANONICAL_LINK)
+        health_ok = (
+            health.get("status") in {200, 204, 400, 405}
+            and health.get("edge") == EDGE_MARKER
+            and health_headers_ok
+        )
         www_ok = (
             www.get("status") == 301
             and www.get("location") == www_expected
@@ -942,6 +1047,7 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
         last = {
             "attempt": attempt,
             "root": _public_summary(root),
+            "root_header_policy_verified": root_headers_ok,
             "root_verified": root_ok,
             "honest": _public_summary(honest),
             "honest_contract": {
@@ -949,6 +1055,8 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
                 "locked_formula_count": honest_json.get("locked_formula_count"),
             },
             "honest_verified": honest_ok,
+            "health": _public_summary(health),
+            "health_cors_verified": health_ok,
             "spectral": _public_summary(spectral),
             "spectral_verified": spectral_ok,
             "controller": _public_summary(controller),
@@ -957,7 +1065,14 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
             "www_expected_location": www_expected,
             "www_verified": www_ok,
         }
-        if root_ok and honest_ok and www_ok and spectral_ok and controller_ok:
+        if (
+            root_ok
+            and honest_ok
+            and health_ok
+            and www_ok
+            and spectral_ok
+            and controller_ok
+        ):
             return last
         time.sleep(min(5, attempt))
 

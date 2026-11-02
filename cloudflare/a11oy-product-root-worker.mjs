@@ -1,6 +1,7 @@
 /* SZL A11oy canonical product edge v3.
 
-   Protected-main proof retrigger: 2026-09-04. Runtime semantics unchanged.
+   Final-hop response policy removes origin topology and trace headers and
+   rebuilds CORS because hosting providers can append headers after ASGI.
 
    Exact authority:
    - a-11-oy.com/*      -> fixed SZLHOLDINGS/a11oy Space origin
@@ -32,6 +33,32 @@ const STRIP_REQUEST_HEADERS = [
   "x-forwarded-proto",
   "x-real-ip",
 ];
+
+const STRIP_RESPONSE_HEADERS = [
+  "traceparent",
+  "tracestate",
+  "x-backend-server",
+  "x-hf-replica",
+  "x-proxied-host",
+  "x-proxied-path",
+  "x-proxied-replica",
+  "x-replica",
+  "x-replica-id",
+  "x-span-id",
+  "x-trace-id",
+  "x-upstream-addr",
+  "x-upstream-address",
+  "x-upstream-host",
+  "x-vsp-otel",
+];
+
+const CORS_ALLOWED_METHODS = new Set(["GET", "HEAD", "POST", "OPTIONS"]);
+const CORS_ALLOWED_HEADERS = new Set([
+  "authorization",
+  "content-type",
+  "x-a11oy-second-approver",
+  "x-requested-with",
+]);
 
 export function canonicalLocation(requestUrl) {
   const target = new URL(requestUrl);
@@ -78,6 +105,78 @@ function requestHeaders(source) {
   headers.set("x-forwarded-proto", "https");
   headers.set("x-szl-edge-request", EDGE_VERSION);
   return headers;
+}
+
+function isAllowedCorsOrigin(value) {
+  if (!value) return false;
+  try {
+    const origin = new URL(value);
+    if (origin.origin !== value || origin.protocol !== "https:" || origin.port) {
+      return false;
+    }
+    return (
+      origin.hostname === PRODUCT_HOST ||
+      origin.hostname.endsWith("." + PRODUCT_HOST) ||
+      /^szlholdings-[a-z0-9-]+\.hf\.space$/.test(origin.hostname)
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+function appendVary(headers, names) {
+  const fields = (headers.get("vary") || "")
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+  const known = new Set(fields.map((field) => field.toLowerCase()));
+  if (known.has("*")) return;
+  for (const name of names) {
+    if (!known.has(name.toLowerCase())) {
+      fields.push(name);
+      known.add(name.toLowerCase());
+    }
+  }
+  headers.set("vary", fields.join(", "));
+}
+
+function isAllowedPreflight(request) {
+  const method = request.headers.get("access-control-request-method");
+  if (!method || !CORS_ALLOWED_METHODS.has(method.toUpperCase())) return false;
+  if (request.headers.has("access-control-request-private-network")) return false;
+  const requestedHeaders = (request.headers.get("access-control-request-headers") || "")
+    .split(",")
+    .map((name) => name.trim().toLowerCase())
+    .filter(Boolean);
+  return requestedHeaders.every((name) => CORS_ALLOWED_HEADERS.has(name));
+}
+
+function applyPublicCorsPolicy(headers, request) {
+  for (const name of [...headers.keys()]) {
+    if (name.toLowerCase().startsWith("access-control-")) headers.delete(name);
+  }
+
+  const origin = request.headers.get("origin");
+  if (!origin) return;
+  const vary = ["Origin"];
+  if (request.method === "OPTIONS") {
+    vary.push("Access-Control-Request-Method", "Access-Control-Request-Headers");
+  }
+  appendVary(headers, vary);
+  if (!isAllowedCorsOrigin(origin)) return;
+  if (request.method === "OPTIONS" && !isAllowedPreflight(request)) return;
+
+  headers.set("access-control-allow-origin", origin);
+  if (request.method === "OPTIONS") {
+    headers.set(
+      "access-control-allow-methods",
+      [...CORS_ALLOWED_METHODS].join(", "),
+    );
+    headers.set(
+      "access-control-allow-headers",
+      "Content-Type, Authorization, X-Requested-With, X-A11oy-Second-Approver",
+    );
+  }
 }
 
 function errorResponse(status, error) {
@@ -129,6 +228,8 @@ export async function handleRequest(request, fetchImpl = fetch) {
   }
 
   const output = new Headers(response.headers);
+  for (const name of STRIP_RESPONSE_HEADERS) output.delete(name);
+  applyPublicCorsPolicy(output, request);
   output.set("x-szl-edge", EDGE_VERSION);
   if (upstream.pathname !== incoming.pathname) {
     output.set("x-szl-edge-alias", `${incoming.pathname}->${upstream.pathname}`);
@@ -141,11 +242,6 @@ export async function handleRequest(request, fetchImpl = fetch) {
   for (const name of ["location", "content-location"]) {
     const rewritten = rewriteOriginLocation(output.get(name));
     if (rewritten) output.set(name, rewritten);
-  }
-
-  const allowOrigin = output.get("access-control-allow-origin");
-  if (allowOrigin === `https://${ORIGIN_HOST}`) {
-    output.set("access-control-allow-origin", `https://${PRODUCT_HOST}`);
   }
 
   return new Response(request.method === "HEAD" ? null : response.body, {
