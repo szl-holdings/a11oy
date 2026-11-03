@@ -383,6 +383,7 @@ def test_none_answer_is_not_hashed_as_honesty_text(monkeypatch):
 def test_persisted_brain_state_rehydrates_after_process_reset(monkeypatch, tmp_path):
     db_path = tmp_path / "brain.sqlite3"
     monkeypatch.setattr(rag, "RAG_DB_PATH", str(db_path))
+    monkeypatch.setenv("A11OY_ORG_RAG_TENANT", "fixture-tenant")
     graph = rag.OrgGraph()
     graph.add_node("repo", "repo", repo="a11oy")
     graph.add_node("node", "file", repo="a11oy", path="README.md")

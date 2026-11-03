@@ -46,7 +46,7 @@ def _publish_generation(label, suffix=""):
         bodies[f"source-{index}.txt"] = text
         rag._ingest_text(graph, conn, repo="fixture", path=f"source-{index}.txt", raw=text,
                          source="fixture:source-registry", category="app_code", embed_fn=None,
-                         generation_id=generation)
+                         generation_id=generation, tenant_id="fixture-tenant")
     rag._persist_runtime_state(conn, graph, {
         "built": True, "mode": label, "ts": 1.0, "repos": 1, "chunks": 6,
     }, generation)

@@ -349,7 +349,8 @@ def _publish(rag, chunks=_CHUNKS, mode: str = "lexical-test") -> str:
         graph = rag.OrgGraph()
         for path, source, body in chunks:
             rag._ingest_text(graph, conn, repo="a11oy", path=path, raw=body, source=source,
-                             category="doctrine", embed_fn=None, generation_id=generation_id)
+                             category="doctrine", embed_fn=None, generation_id=generation_id,
+                             tenant_id="fixture-tenant")
         rag._persist_runtime_state(
             conn, graph, {"built": True, "mode": mode, "ts": 1.0, "repos": 1,
                           "chunks": len(chunks)}, generation_id)
@@ -457,7 +458,8 @@ def test_a05_a07_a08_lexical_reference_binds_generation_chunk_and_excerpt(monkey
     staging = rag._begin_generation(writer, "interrupted")
     rag._ingest_text(rag.OrgGraph(), writer, repo="a11oy", path="docs/partial.md",
                      raw="partial staging evidence", source="test:partial",
-                     category="doctrine", embed_fn=None, generation_id=staging)
+                     category="doctrine", embed_fn=None, generation_id=staging,
+                     tenant_id="fixture-tenant")
     writer.commit()
     writer.close()
     active_id, active_digest = _active_generation_row(db_path)
@@ -938,7 +940,8 @@ def _tenant_engine(monkeypatch, directory: Path, rag, entries=_TENANT_ENTRIES):
         graph = rag.OrgGraph()
         for repo, path, source, body in entries:
             rag._ingest_text(graph, conn, repo=repo, path=path, raw=body, source=source,
-                             category="doctrine", embed_fn=None, generation_id=generation_id)
+                             category="doctrine", embed_fn=None, generation_id=generation_id,
+                             tenant_id="fixture-tenant")
         rag._persist_runtime_state(
             conn, graph, {"built": True, "mode": "tenant-fixture", "ts": 1.0, "repos": 2,
                           "chunks": len(entries)}, generation_id)

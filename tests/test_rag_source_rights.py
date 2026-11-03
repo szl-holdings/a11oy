@@ -102,6 +102,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setattr(rag, "_build_thread", None)
     monkeypatch.setattr(rag, "_resolve_m1_ledger", lambda: None)
     monkeypatch.setattr(rag, "_gh_token", lambda: "synthetic-not-a-credential")
+    monkeypatch.setenv("A11OY_ORG_RAG_TENANT", "fixture-tenant")
     emb = Embedder()
     monkeypatch.setattr(rag, "_maybe_embedder", lambda load=True: emb)
 

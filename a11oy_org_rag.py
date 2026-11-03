@@ -64,6 +64,11 @@ HONESTY (Doctrine v11, Zero-Bandaid Law):
   * No network at import time.  ``build_index`` is explicit and receipted.
   * If GitHub credentials are absent, ``build_index`` returns a labeled honest
     error rather than fabricating a corpus.
+  * Every build path refuses (honest error, nothing written) unless
+    ``A11OY_ORG_RAG_TENANT`` names the tenant the rows are ingested for. Each
+    chunk row stores that tenant, and it is part of the chunk id and of the
+    sealed generation digest. A database file created before the tenant column
+    existed takes no new generation and fails rehydration: rebuild it fresh.
   * If the dense embedding model is unavailable, recall degrades to FTS5-only and
     SAYS so; it never invents similarities.
   * Low support ⇒ ``i_dont_know`` is first-class (P3 non-interference: a poisoned
@@ -401,7 +406,7 @@ def _init_schema(conn: sqlite3.Connection) -> bool:
             "CREATE VIRTUAL TABLE IF NOT EXISTS org_chunks_gen USING fts5("
             "generation_id UNINDEXED, chunk_id UNINDEXED, node_id UNINDEXED, "
             "repo UNINDEXED, path UNINDEXED, kind UNINDEXED, corpus UNINDEXED, "
-            "source UNINDEXED, title, body, sha256 UNINDEXED)"
+            "source UNINDEXED, title, body, sha256 UNINDEXED, tenant_id UNINDEXED)"
         )
         conn.execute(
             "CREATE VIRTUAL TABLE IF NOT EXISTS org_brain_handles_gen USING fts5("
@@ -414,7 +419,8 @@ def _init_schema(conn: sqlite3.Connection) -> bool:
         conn.execute(
             "CREATE TABLE IF NOT EXISTS org_chunks_gen("
             "generation_id TEXT, chunk_id TEXT, node_id TEXT, repo TEXT, path TEXT, "
-            "kind TEXT, corpus TEXT, source TEXT, title TEXT, body TEXT, sha256 TEXT)"
+            "kind TEXT, corpus TEXT, source TEXT, title TEXT, body TEXT, sha256 TEXT, "
+            "tenant_id TEXT NOT NULL)"
         )
         conn.execute(
             "CREATE TABLE IF NOT EXISTS org_brain_handles_gen("
@@ -465,7 +471,33 @@ def _active_generation(conn: sqlite3.Connection) -> str | None:
     return str(row["generation_id"]) if row else None
 
 
+# Tenant binding at ingestion: every chunk row names the tenant it was ingested
+# for. No ':' or '/', so the tenant prefix of a chunk-id derivation is unambiguous.
+_TENANT_ENV = "A11OY_ORG_RAG_TENANT"
+_TENANT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+
+
+def _require_tenant(value: Any) -> str:
+    """Return a valid tenant id unchanged; raise ValueError for anything else."""
+    if not isinstance(value, str) or _TENANT_RE.fullmatch(value) is None:
+        raise ValueError("tenant_id must match [A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+    return value
+
+
+def _ingest_tenant() -> str:
+    """Build-time tenant from A11OY_ORG_RAG_TENANT. Unset or invalid refuses; never defaults."""
+    try:
+        return _require_tenant(os.environ.get(_TENANT_ENV))
+    except ValueError as exc:
+        raise RuntimeError(f"{_TENANT_ENV} unset or invalid; ingestion refused") from exc
+
+
 def _begin_generation(conn: sqlite3.Connection, mode: str) -> str:
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(org_chunks_gen)")}
+    if "tenant_id" not in columns:
+        # A database file created before tenant binding cannot take new rows.
+        raise RuntimeError("org_chunks_gen has no tenant_id column; rebuild into a fresh "
+                           "A11OY_ORG_RAG_DB file")
     generation_id = f"{int(time.time() * 1_000_000)}-{uuid.uuid4().hex[:12]}"
     conn.execute(
         "INSERT INTO org_generations(generation_id,status,mode,created_at) VALUES(?,?,?,?)",
@@ -487,7 +519,8 @@ def _generation_digest(conn: sqlite3.Connection, generation_id: str,
     counts: dict[str, int] = {}
     table_specs = (
         ("chunks", "org_chunks_gen", ("chunk_id", "node_id", "repo", "path", "kind",
-                                       "corpus", "source", "title", "body", "sha256"),
+                                       "corpus", "source", "title", "body", "sha256",
+                                       "tenant_id"),
          "chunk_id"),
         ("vectors", "org_vectors_gen", ("chunk_id", "dim", "vec"), "chunk_id"),
         ("brain_handles", "org_brain_handles_gen",
@@ -624,11 +657,12 @@ def _persist_runtime_state(conn: sqlite3.Connection, graph: OrgGraph,
     """
     global _GRAPH, _BUILD_META
     if generation_id is None:
+        tenant_id = _ingest_tenant()  # legacy rows carry no tenant; bind the build tenant
         generation_id = _begin_generation(conn, str(meta.get("mode") or "legacy-migration"))
         conn.execute(
             "INSERT INTO org_chunks_gen(generation_id,chunk_id,node_id,repo,path,kind,"
-            "corpus,source,title,body,sha256) SELECT ?,chunk_id,node_id,repo,path,kind,"
-            "corpus,source,title,body,sha256 FROM org_chunks", (generation_id,))
+            "corpus,source,title,body,sha256,tenant_id) SELECT ?,chunk_id,node_id,repo,path,"
+            "kind,corpus,source,title,body,sha256,? FROM org_chunks", (generation_id, tenant_id))
         conn.execute(
             "INSERT OR REPLACE INTO org_vectors_gen(generation_id,chunk_id,dim,vec) "
             "SELECT ?,chunk_id,dim,vec FROM org_vectors", (generation_id,))
@@ -888,6 +922,10 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
             if emit_receipt:
                 emit_receipt("org_rag.index.no_credential", {"org": ORG, "ok": False})
             return meta
+        try:
+            tenant_id = _ingest_tenant()
+        except RuntimeError as exc:
+            return {"ok": False, "built": False, "honest_error": str(exc), "org": ORG}
 
         t0 = time.time()
         graph = OrgGraph()
@@ -1012,13 +1050,14 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                 # chunk + persist
                 _cat = _category_for(repo)
                 for j, seg in enumerate(_chunk(raw)):
-                    cid = hashlib.sha256(f"{fid}:{j}".encode()).hexdigest()[:24]
+                    cid = hashlib.sha256(f"{tenant_id}:{fid}:{j}".encode()).hexdigest()[:24]
                     csha = hashlib.sha256(seg.encode()).hexdigest()
                     conn.execute(
                         "INSERT INTO org_chunks_gen(generation_id,chunk_id,node_id,repo,path,kind,"
-                        "corpus,source,title,body,sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        "corpus,source,title,body,sha256,tenant_id) "
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                         (generation_id, cid, fid, repo, path, "file", _cat,
-                         f"gh:{ORG}/{repo}", path, seg, csha))
+                         f"gh:{ORG}/{repo}", path, seg, csha, tenant_id))
                     if rights is not None:
                         rights_registry.bind_chunk(generation_id, cid, csha, file_adm.source_id)
                     if file_embed_fn is not None:
@@ -1420,7 +1459,7 @@ def _local_provenance(rel_from_corpus: str) -> dict[str, str]:
 def _ingest_local_category(graph: OrgGraph, conn: sqlite3.Connection, *, category: str,
                            local_dirs: list[str],
                            embed_fn: Callable[[str], list[float]] | None,
-                           generation_id: str
+                           generation_id: str, tenant_id: str
                            ) -> tuple[int, int]:
     """Ingest the REAL in-image mirror files for one category.  Returns
     (files, chunks).  Each chunk is labeled with an honest 'bundled:<repo>@<sha>'
@@ -1457,7 +1496,8 @@ def _ingest_local_category(graph: OrgGraph, conn: sqlite3.Connection, *, categor
             prov = _local_provenance(f"corpus/{rel}/{name}")
             wrote = _ingest_text(graph, conn, repo=prov["repo"], path=prov["path"],
                                  raw=raw, source=prov["source"], category=category,
-                                 embed_fn=embed_fn, generation_id=generation_id)
+                                 embed_fn=embed_fn, generation_id=generation_id,
+                                 tenant_id=tenant_id)
             files_n += 1
             chunks_n += wrote
     return (files_n, chunks_n)
@@ -1466,10 +1506,15 @@ def _ingest_local_category(graph: OrgGraph, conn: sqlite3.Connection, *, categor
 def _ingest_text(graph: OrgGraph, conn: sqlite3.Connection, *, repo: str, path: str,
                  raw: str, source: str, category: str,
                  embed_fn: Callable[[str], list[float]] | None,
-                 generation_id: str) -> int:
+                 generation_id: str, tenant_id: str) -> int:
     """Shared ingest: graph nodes/edges + symbols + imports + FTS5/vector chunks.
     Returns the number of chunks written. Used by seed AND full builds so the two
-    paths are byte-for-byte consistent in how they ground + cite."""
+    paths are byte-for-byte consistent in how they ground + cite.
+
+    ``tenant_id`` is required and checked before any graph or row write. It is
+    stored on every chunk row and is part of the chunk id, so one file ingested
+    for two tenants yields distinct rows and distinct vectors."""
+    tenant_id = _require_tenant(tenant_id)
     ext = os.path.splitext(path)[1].lower()
     fid = f"{ORG}/{repo}:{path}"
     graph.add_node(f"{ORG}/{repo}", "repo", repo=repo, org=ORG)
@@ -1483,12 +1528,13 @@ def _ingest_text(graph: OrgGraph, conn: sqlite3.Connection, *, repo: str, path: 
         graph.add_edge(fid, f"{ORG}/{imp.split('.')[0]}", "imports")
     n = 0
     for j, seg in enumerate(_chunk(raw)):
-        cid = hashlib.sha256(f"{source}:{fid}:{j}".encode()).hexdigest()[:24]
+        cid = hashlib.sha256(f"{tenant_id}:{source}:{fid}:{j}".encode()).hexdigest()[:24]
         csha = hashlib.sha256(seg.encode()).hexdigest()
         conn.execute(
             "INSERT INTO org_chunks_gen(generation_id,chunk_id,node_id,repo,path,kind,"
-            "corpus,source,title,body,sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            (generation_id, cid, fid, repo, path, "file", category, source, path, seg, csha))
+            "corpus,source,title,body,sha256,tenant_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            (generation_id, cid, fid, repo, path, "file", category, source, path, seg, csha,
+             tenant_id))
         if embed_fn is not None:
             try:
                 v = embed_fn(seg)
@@ -1508,6 +1554,11 @@ def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) ->
     each ``seed`` file LIVE from GitHub (and HF Spaces where GH is unavailable).
     Labeled ``mode="seed"`` — NEVER claimed as the full corpus."""
     with _lock:
+        try:
+            tenant_id = _ingest_tenant()
+        except RuntimeError as exc:
+            return {"ok": False, "built": False, "mode": "seed", "honest_error": str(exc),
+                    "org": ORG}
         t0 = time.time()
         gh = _gh_token()
         hf = _hf_token()
@@ -1547,7 +1598,7 @@ def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) ->
                 repo_for = src.split("/")[-1]
                 wrote = _ingest_text(graph, conn, repo=repo_for, path=path, raw=raw,
                                      source=src, category=cat, embed_fn=embed_fn,
-                                     generation_id=generation_id)
+                                     generation_id=generation_id, tenant_id=tenant_id)
                 c_files += 1
                 c_chunks += wrote
                 chunk_count += wrote
@@ -1559,7 +1610,8 @@ def build_seed_index(emit_receipt: Callable[[str, dict], dict] | None = None) ->
             if c_files == 0 and local_dirs:
                 lf, lc = _ingest_local_category(graph, conn, category=cat,
                                                 local_dirs=local_dirs, embed_fn=embed_fn,
-                                                generation_id=generation_id)
+                                                generation_id=generation_id,
+                                                tenant_id=tenant_id)
                 c_files += lf
                 c_chunks += lc
                 chunk_count += lc
@@ -1615,6 +1667,11 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
     Returns honest stats; if GitHub credential is absent it still ingests the HF
     Spaces and SAYS the GitHub side was skipped (never fabricates)."""
     with _lock:
+        try:
+            tenant_id = _ingest_tenant()
+        except RuntimeError as exc:
+            return {"ok": False, "built": False, "mode": "full", "honest_error": str(exc),
+                    "org": ORG}
         t0 = time.time()
         gh = _gh_token()
         graph = OrgGraph()
@@ -1662,7 +1719,7 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
                         wrote = _ingest_text(graph, conn, repo=repo, path=f["path"],
                                              raw=raw, source=f"gh:{ORG}/{repo}",
                                              category=cat, embed_fn=embed_fn,
-                                             generation_id=generation_id)
+                                             generation_id=generation_id, tenant_id=tenant_id)
                         c_files += 1
                         c_chunks += wrote
                         chunk_count += wrote
@@ -1677,7 +1734,7 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
                     wrote = _ingest_text(graph, conn, repo=sp, path=path, raw=raw,
                                          source=f"hf:{HF_ORG}/{sp}", category=cat,
                                          embed_fn=embed_fn,
-                                         generation_id=generation_id)
+                                         generation_id=generation_id, tenant_id=tenant_id)
                     c_files += 1
                     c_chunks += wrote
                     chunk_count += wrote
@@ -1691,7 +1748,8 @@ def build_full_corpus(emit_receipt: Callable[[str, dict], dict] | None = None,
             if c_files == 0 and local_dirs:
                 lf, lc = _ingest_local_category(graph, conn, category=cat,
                                                 local_dirs=local_dirs, embed_fn=embed_fn,
-                                                generation_id=generation_id)
+                                                generation_id=generation_id,
+                                                tenant_id=tenant_id)
                 c_files += lf
                 c_chunks += lc
                 chunk_count += lc
@@ -2027,6 +2085,8 @@ def _recovery_check_identity(operation_id: str, incident_id: str, actor: str,
     ):
         if not isinstance(value, str) or not value.strip() or len(value) > 512:
             return label
+    if _TENANT_RE.fullmatch(tenant) is None:
+        return "tenant"  # staged recovery rows are bound to this tenant
     return None
 
 
@@ -2141,12 +2201,14 @@ def _recovery_finish(conn: sqlite3.Connection, operation_id: str, status: str,
 
 
 def _stage_recovery_body(conn: sqlite3.Connection, *, mode: str, body: str,
-                         source_path: str) -> tuple[str, str]:
+                         source_path: str, tenant_id: str) -> tuple[str, str]:
+    tenant_id = _require_tenant(tenant_id)
     generation_id = _begin_generation(conn, mode)
     graph = OrgGraph()
     _ingest_text(
         graph, conn, repo="fixture", path=source_path, raw=body, source="fixture:owned",
         category="app_code", embed_fn=None, generation_id=generation_id,
+        tenant_id=tenant_id,
     )
     conn.commit()
     digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
@@ -2292,6 +2354,7 @@ def _continue_stale_index_recovery(conn: sqlite3.Connection, *, operation_id: st
     if active is None:
         active_id, _indexed = _stage_recovery_body(
             conn, mode="recovery-active", body=spec["original_body"], source_path=source_path,
+            tenant_id=row["tenant"],
         )
         graph = OrgGraph()
         graph.add_node("szl-holdings/fixture", "repo", repo="fixture")
@@ -2391,7 +2454,7 @@ def _continue_stale_index_recovery(conn: sqlite3.Connection, *, operation_id: st
             if regression_id is None:
                 regression_id, _regression_digest = _stage_recovery_body(
                     conn, mode="recovery-regression", body=spec["regression_body"],
-                    source_path=source_path,
+                    source_path=source_path, tenant_id=row["tenant"],
                 )
                 conn.execute(
                     "UPDATE org_generations SET status='REJECTED',failure_reason=? "
@@ -2440,6 +2503,7 @@ def _continue_stale_index_recovery(conn: sqlite3.Connection, *, operation_id: st
                 )
         candidate_id, candidate_digest = _stage_recovery_body(
             conn, mode="recovery-isolated", body=spec["changed_body"], source_path=source_path,
+            tenant_id=row["tenant"],
         )
         conn.execute(
             "UPDATE org_recovery_operations SET candidate_id=?,status='ISOLATED',updated_at=? "

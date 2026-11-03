@@ -108,7 +108,7 @@ def _stage(conn, generation_id: str, body: str, path: str = "README.md") -> rag.
     rag._ingest_text(
         graph, conn, repo="a11oy", path=path, raw=body,
         source="test:fixture", category="app_code", embed_fn=None,
-        generation_id=generation_id,
+        generation_id=generation_id, tenant_id="fixture-tenant",
     )
     conn.commit()
     return graph
@@ -804,7 +804,7 @@ def _injection_runtime(monkeypatch, directory, inject):
         text = "synthesis document %d. %s" % (index, INJECT if inject else "benign fixture text")
         rag._ingest_text(graph, conn, repo="fixture", path="source-%d.txt" % index, raw=text,
                          source="fixture:source-registry", category="app_code",
-                         embed_fn=None, generation_id=generation)
+                         embed_fn=None, generation_id=generation, tenant_id="fixture-tenant")
     rag._persist_runtime_state(conn, graph, {"built": True, "mode": "SYNTHETIC_LOCAL_TEST",
                                              "ts": 1.0, "repos": 1, "chunks": 6}, generation)
     conn.close()

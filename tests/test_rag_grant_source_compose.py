@@ -55,7 +55,7 @@ def env(monkeypatch, tmp_path):
         text = f"synthesis {MARKER} document {index}. " + "é" * 700 + "\U0001D11E" * 200
         rag._ingest_text(graph, conn, repo=REPO, path=f"doc-{index}.md", raw=text,
                          source=f"gh:{rag.ORG}/{REPO}", category="app_code", embed_fn=None,
-                         generation_id=generation)
+                         generation_id=generation, tenant_id="fixture-tenant")
     rag._persist_runtime_state(conn, graph, {"built": True, "mode": "SYNTHETIC_COMPOSE", "ts": 1.0,
                                              "repos": 1, "chunks": 6}, generation)
     conn.close()
