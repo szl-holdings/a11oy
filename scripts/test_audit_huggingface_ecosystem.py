@@ -845,6 +845,58 @@ class GovernedRevisionAndLabelledResultTests(unittest.TestCase):
         self.assertIn("is not verifiable", message)
         self.assertIn("result: INVALID", message)
 
+    def test_outage_on_an_earlier_row_cannot_hide_a_governed_revision_change(self) -> None:
+        khipu = "SZLHOLDINGS/SZL-Khipu-1.5B"
+        self.assertEqual(audit.revision_classes.load_revision_classes().class_of("model", khipu),
+                         audit.revision_classes.SOURCE_TRACKED)
+        fixtures = {"models": [item(khipu), item("SZLHOLDINGS/szl-nemo")]}
+        self.snapshot(fixtures)
+        fetched: list[str] = []
+
+        def outage(item_id: str, repo_type: str, revision: str) -> dict:
+            fetched.append(item_id)
+            raise audit.urllib.error.URLError("reset")
+
+        audit.fetch_revision = outage
+        for row in fixtures["models"]:
+            self.advance(row)
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("SZLHOLDINGS/szl-nemo governed revision changed", message)
+        self.assertIn("result: INVALID", message)
+        self.assertNotIn("UNAVAILABLE", message)
+        self.assertEqual(fetched, [])
+        self.assertEqual(self.report_result()["result"], "INVALID")
+
+        fixtures["models"][1].update(item("SZLHOLDINGS/szl-nemo"))
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertEqual(fetched, [khipu])
+        self.assertIn(f"{khipu} historical revision", message)
+        self.assertIn("result: UNAVAILABLE (public Hub evidence could not be observed; "
+                      "drift was not evaluated (UNKNOWN); not current)", message)
+        self.assertNotIn("not drift", message)
+        report = self.report_result()
+        self.assertEqual((report["result"], report["exitCode"]), ("UNAVAILABLE", 1))
+        self.assertIn("UNKNOWN", report["meaning"])
+
+    def test_outage_cannot_hide_other_network_free_failures(self) -> None:
+        fixtures = {"spaces": [item("SZLHOLDINGS/space"), item("SZLHOLDINGS/later")]}
+        self.snapshot(fixtures)
+        audit.fetch_revision = lambda *args: (_ for _ in ()).throw(audit.urllib.error.URLError("reset"))
+        self.advance(fixtures["spaces"][0])
+        fixtures["spaces"][1]["lastModified"] = "2026-07-26T00:30:00Z"
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("SZLHOLDINGS/later unchanged revision has conflicting lastModified", message)
+        self.assertIn("result: INVALID", message)
+        fixtures["spaces"][1].update(item("SZLHOLDINGS/later"))
+        self.output.write_text(self.output.read_text(encoding="utf-8").rstrip("\n"), encoding="utf-8")
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("not canonically rendered", message)
+        self.assertIn("result: INVALID", message)
+
     def test_drift_report_names_each_row_with_class_and_policy_source(self) -> None:
         card = {"text": "# Model\n\nA claim.\n"}
         audit.fetch_card_markdown = lambda *args: card["text"]

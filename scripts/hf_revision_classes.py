@@ -16,8 +16,11 @@
 Bindings are discovered by a fixed scan: every ``SZLHOLDINGS/<name>`` string in
 ``model_release/**/*.json`` must sit at a declared binding or reference-only
 location. Each binding must be classed GOVERNED_EXACT and cited by its exact
-location in that entry's ``policySource``. Missing, unreadable or invalid
-policy is an error, never a fallback to the default class.
+location in that entry's ``policySource``. The four release sources in
+``REQUIRED_BINDING_SOURCES`` and their namespaces are fixed in this file, and
+only a ``COLLECTION`` kind may map to no namespace, so a policy-only edit
+cannot unbind or re-namespace a release repository. Missing, unreadable or
+invalid policy is an error, never a fallback to the default class.
 """
 # No postponed annotations: the dataclasses must also build when this file is
 # loaded by path (spec_from_file_location) without a sys.modules entry.
@@ -27,6 +30,7 @@ import json
 import math
 from pathlib import Path
 import re
+from types import MappingProxyType
 from typing import Any, Iterator, Mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -49,14 +53,31 @@ REPO_TYPES = ("model", "dataset", "space", "kernel")
 PLURALS = {"models": "model", "datasets": "dataset", "spaces": "space", "kernels": "kernel"}
 ORG_REPO = re.compile(r"SZLHOLDINGS/[A-Za-z0-9][A-Za-z0-9._-]{0,159}\Z")
 SCAN_ROOT = "model_release"
-# The release files named by the design review. The policy may add binding
-# sources, but cannot drop one of these and silently relax its repository.
-REQUIRED_BINDING_SOURCES = frozenset({
-    ("model_release/szl-nemo/release-manifest.json", "/hub/repository"),
-    ("model_release/hf-promotion/promotion-manifest.json", "/candidates/*/canonical_target"),
-    ("model_release/szl-forge-family.json", "/profiles/*/hf_target"),
-    ("model_release/receipt-agent/release-manifest.json", "/hf_artifact_family/*/target_id"),
+NAMESPACE_KEYS = ("repoType", "repoTypeField", "repoTypeMap")
+# The release files named by the design review, each with the namespace it
+# must declare. The policy may add binding sources, but cannot drop or
+# re-namespace one of these and so silently relax its repository.
+REQUIRED_BINDING_SOURCES: Mapping[tuple[str, str], Mapping[str, Any]] = MappingProxyType({
+    ("model_release/szl-nemo/release-manifest.json", "/hub/repository"): {"repoType": "model"},
+    ("model_release/hf-promotion/promotion-manifest.json", "/candidates/*/canonical_target"): {
+        "repoTypeField": "target_kind",
+        "repoTypeMap": {"MODEL": "model"},
+    },
+    ("model_release/szl-forge-family.json", "/profiles/*/hf_target"): {"repoType": "model"},
+    ("model_release/receipt-agent/release-manifest.json", "/hf_artifact_family/*/target_id"): {
+        "repoTypeField": "artifact_type",
+        "repoTypeMap": {
+            "MODEL_ADAPTER": "model",
+            "EVALUATION_DATASET": "dataset",
+            "SCHEMA_DATASET": "dataset",
+            "SPACE": "space",
+            "COLLECTION": None,
+        },
+    },
 })
+# A Hub collection is not a repository namespace in the inventory. No other
+# kind may map to no namespace, or a policy edit alone could unbind a repository.
+UNNAMESPACED_KINDS = frozenset({"COLLECTION"})
 MAX_POLICY_BYTES = 1024 * 1024
 MAX_SCAN_FILES = 256
 MAX_SCAN_FILE_BYTES = 4 * 1024 * 1024
@@ -190,6 +211,13 @@ def _matches(pattern: tuple[str, ...], path: tuple[str, ...]) -> bool:
     )
 
 
+def _required_namespace(path: str, tokens: tuple[str, ...]) -> Mapping[str, Any] | None:
+    for (want, pointer), namespace in REQUIRED_BINDING_SOURCES.items():
+        if want == path and _pointer_tokens(pointer, label="required source") == tokens:
+            return namespace
+    return None
+
+
 def _sources(document: dict[str, Any], key: str, *, binding: bool) -> list[dict[str, Any]]:
     rows = document.get(key)
     _require(isinstance(rows, list), f"{key} must be a list")
@@ -200,7 +228,7 @@ def _sources(document: dict[str, Any], key: str, *, binding: bool) -> list[dict[
         _require(isinstance(row, dict), f"{label} must be an object")
         allowed = {"path", "pointer", "rationale"}
         if binding:
-            allowed |= {"repoType", "repoTypeField", "repoTypeMap"}
+            allowed |= set(NAMESPACE_KEYS)
         _require(set(row) <= allowed, f"{label} has unknown keys")
         path = row.get("path")
         _require(isinstance(path, str) and path.startswith(f"{SCAN_ROOT}/")
@@ -220,6 +248,14 @@ def _sources(document: dict[str, Any], key: str, *, binding: bool) -> list[dict[
                 _require(_text(field) and isinstance(mapping, dict) and mapping
                          and all(_text(k) and (v is None or v in REPO_TYPES) for k, v in mapping.items()),
                          f"{label} needs exactly one fixed repoType or a repoTypeField map")
+                unnamespaced = sorted(k for k, v in mapping.items() if v is None and k not in UNNAMESPACED_KINDS)
+                _require(not unnamespaced, f"{label} maps {unnamespaced} to no repository namespace; "
+                                           f"only {sorted(UNNAMESPACED_KINDS)} may map to null")
+            required = _required_namespace(path, tokens)
+            if required is not None:
+                declared = {name: row[name] for name in NAMESPACE_KEYS if name in row}
+                _require(declared == required, f"{label} must declare the required namespace "
+                                               f"{json.dumps(required, sort_keys=True)} for {path}#{row['pointer']}")
         result.append({**row, "tokens": tokens, "binding": binding})
     return result
 
@@ -228,8 +264,9 @@ def discover_bindings(document: dict[str, Any], *, root: Path) -> tuple[Binding,
     """Scan model_release JSON; every SZLHOLDINGS string must be declared."""
     bindings = _sources(document, "bindingSources", binding=True)
     references = _sources(document, "referenceOnlySources", binding=False)
-    declared = {(row["path"], row["pointer"]) for row in bindings}
-    missing = sorted(REQUIRED_BINDING_SOURCES - declared)
+    declared = {(row["path"], row["tokens"]) for row in bindings}
+    missing = sorted(f"{path}#{pointer}" for path, pointer in REQUIRED_BINDING_SOURCES
+                     if (path, _pointer_tokens(pointer, label="required source")) not in declared)
     _require(not missing, f"required binding sources are not declared: {missing}")
     scan_root = root / SCAN_ROOT
     _require(scan_root.is_dir() and not scan_root.is_symlink(), f"{SCAN_ROOT}/ is not a directory")

@@ -30,6 +30,16 @@ def entry(document: dict, repo_type: str, repo_id: str) -> dict:
     return next(row for row in document["entries"] if (row["repoType"], row["id"]) == (repo_type, repo_id))
 
 
+NEMO_SOURCE = ("model_release/szl-nemo/release-manifest.json", "/hub/repository")
+PROMOTION_SOURCE = ("model_release/hf-promotion/promotion-manifest.json", "/candidates/*/canonical_target")
+FAMILY_SOURCE = ("model_release/szl-forge-family.json", "/profiles/*/hf_target")
+RECEIPT_AGENT_SOURCE = ("model_release/receipt-agent/release-manifest.json", "/hf_artifact_family/*/target_id")
+
+
+def source(document: dict, path: str, pointer: str) -> dict:
+    return next(row for row in document["bindingSources"] if (row["path"], row["pointer"]) == (path, pointer))
+
+
 class RealPolicyTests(unittest.TestCase):
     def test_tracked_policy_and_manifest_validate_offline(self) -> None:
         classes = C.load_revision_classes()
@@ -216,6 +226,123 @@ class ValidatorRuleTests(unittest.TestCase):
         for name, (change, pattern) in cases.items():
             with self.subTest(case=name):
                 self.assertRejected(changed(change), pattern)
+
+
+    def test_required_sources_pin_their_namespace_in_code(self) -> None:
+        self.assertEqual(set(C.REQUIRED_BINDING_SOURCES), {NEMO_SOURCE, PROMOTION_SOURCE, FAMILY_SOURCE,
+                                                           RECEIPT_AGENT_SOURCE})
+        document = real_document()
+        for key, namespace in C.REQUIRED_BINDING_SOURCES.items():
+            row = source(document, *key)
+            self.assertEqual({name: row[name] for name in C.NAMESPACE_KEYS if name in row}, namespace, key)
+
+    def test_policy_only_edits_cannot_de_govern_a_required_binding(self) -> None:
+        # Policy-only attacks: no model_release file changes, and every entry
+        # is rewritten to stay consistent, so only the namespace pin stops them.
+        def reroute(document: dict, path: str, repo_type: str | None) -> None:
+            moved: dict[tuple[str, str], list[str]] = {}
+            for row in document["entries"]:
+                cited = [item for item in row["policySource"] if item.startswith(f"{path}#")]
+                row["policySource"] = [item for item in row["policySource"] if item not in cited]
+                if cited and repo_type is not None:
+                    moved.setdefault((repo_type, row["id"]), []).extend(cited)
+            document["entries"] = [row for row in document["entries"] if row["policySource"]]
+            for (kind, repo_id), cited in moved.items():
+                existing = [row for row in document["entries"] if (row["repoType"], row["id"]) == (kind, repo_id)]
+                if existing:
+                    existing[0]["policySource"].extend(cited)
+                else:
+                    document["entries"].append({"repoType": kind, "id": repo_id, "class": C.GOVERNED_EXACT,
+                                                "policySource": cited, "rationale": "re-namespaced"})
+
+        def nemo_and_promotion(document: dict) -> None:
+            source(document, *NEMO_SOURCE)["repoType"] = "kernel"
+            reroute(document, NEMO_SOURCE[0], "kernel")
+            source(document, *PROMOTION_SOURCE)["repoTypeMap"] = {"MODEL": None}
+            reroute(document, PROMOTION_SOURCE[0], None)
+
+        def promotion_null(document: dict) -> None:
+            source(document, *PROMOTION_SOURCE)["repoTypeMap"] = {"MODEL": None}
+            reroute(document, PROMOTION_SOURCE[0], None)
+
+        def family_to_space(document: dict) -> None:
+            source(document, *FAMILY_SOURCE)["repoType"] = "space"
+            reroute(document, FAMILY_SOURCE[0], "space")
+
+        def receipt_agent_null(document: dict) -> None:
+            source(document, *RECEIPT_AGENT_SOURCE)["repoTypeMap"].update(
+                EVALUATION_DATASET=None, SCHEMA_DATASET=None, SPACE=None)
+            ra = f"{RECEIPT_AGENT_SOURCE[0]}#/hf_artifact_family/"
+            for row in document["entries"]:
+                row["policySource"] = [item for item in row["policySource"]
+                                       if not item.startswith(ra) or item == f"{ra}0/target_id"]
+            document["entries"] = [row for row in document["entries"] if row["policySource"]]
+
+        cases = {
+            "szl-nemo to kernel and promotion MODEL to null": (nemo_and_promotion, "required namespace"),
+            "promotion MODEL to null": (promotion_null, "MODEL'\\] to no repository namespace"),
+            "forge family to space": (family_to_space, "required namespace"),
+            "receipt-agent datasets and space to null": (receipt_agent_null, "to no repository namespace"),
+        }
+        for name, (attack, pattern) in cases.items():
+            with self.subTest(case=name):
+                document = real_document()
+                attack(document)
+                self.assertRejected(document, pattern)
+
+    def test_each_required_source_rejects_re_namespacing(self) -> None:
+        def changed(key, change):
+            document = real_document()
+            change(source(document, *key))
+            return document
+
+        required = "must declare the required namespace"
+        unnamespaced = "to no repository namespace; only \\['COLLECTION'\\] may map to null"
+        cases = {
+            "szl-nemo to kernel": (NEMO_SOURCE, lambda s: s.update(repoType="kernel"), required),
+            "szl-nemo to a field map": (
+                NEMO_SOURCE, lambda s: (s.pop("repoType"), s.update(repoTypeField="repository_role",
+                                                                    repoTypeMap={"X": "model"})), required),
+            "promotion MODEL to null": (
+                PROMOTION_SOURCE, lambda s: s.update(repoTypeMap={"MODEL": None}), unnamespaced),
+            "promotion MODEL to kernel": (
+                PROMOTION_SOURCE, lambda s: s.update(repoTypeMap={"MODEL": "kernel"}), required),
+            "promotion extra kind": (
+                PROMOTION_SOURCE, lambda s: s["repoTypeMap"].update(DATASET="kernel"), required),
+            "promotion other field": (
+                PROMOTION_SOURCE, lambda s: s.update(repoTypeField="track"), required),
+            "forge family to space": (FAMILY_SOURCE, lambda s: s.update(repoType="space"), required),
+            "forge family to kernel": (FAMILY_SOURCE, lambda s: s.update(repoType="kernel"), required),
+            "receipt-agent eval to null": (
+                RECEIPT_AGENT_SOURCE, lambda s: s["repoTypeMap"].update(EVALUATION_DATASET=None), unnamespaced),
+            "receipt-agent schemas to null": (
+                RECEIPT_AGENT_SOURCE, lambda s: s["repoTypeMap"].update(SCHEMA_DATASET=None), unnamespaced),
+            "receipt-agent space to null": (
+                RECEIPT_AGENT_SOURCE, lambda s: s["repoTypeMap"].update(SPACE=None), unnamespaced),
+            "receipt-agent adapter to null": (
+                RECEIPT_AGENT_SOURCE, lambda s: s["repoTypeMap"].update(MODEL_ADAPTER=None), unnamespaced),
+            "receipt-agent space to kernel": (
+                RECEIPT_AGENT_SOURCE, lambda s: s["repoTypeMap"].update(SPACE="kernel"), required),
+            "receipt-agent collection dropped": (
+                RECEIPT_AGENT_SOURCE, lambda s: s["repoTypeMap"].pop("COLLECTION"), required),
+        }
+        for name, (key, change, pattern) in cases.items():
+            with self.subTest(case=name):
+                self.assertRejected(changed(key, change), pattern)
+
+    def test_only_collection_may_map_to_no_namespace_in_any_binding_source(self) -> None:
+        document = real_document()
+        row = next(row for row in document["bindingSources"] if row["pointer"] == "/components/*/hf_target")
+        row["repoTypeMap"]["MODEL_PROFILE_PEFT_ADAPTER"] = None
+        self.assertRejected(document, "MODEL_PROFILE_PEFT_ADAPTER.*no repository namespace")
+
+    def test_required_source_cannot_move_to_reference_only(self) -> None:
+        document = real_document()
+        row = source(document, *NEMO_SOURCE)
+        document["bindingSources"].remove(row)
+        document["referenceOnlySources"].append({"path": row["path"], "pointer": row["pointer"],
+                                                 "rationale": "relaxed"})
+        self.assertRejected(document, "required binding sources are not declared")
 
 
 class BindingDiscoveryTests(unittest.TestCase):

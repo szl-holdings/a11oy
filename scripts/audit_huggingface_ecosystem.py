@@ -48,7 +48,7 @@ CHECK_RESULTS = ("CURRENT", "DRIFT", "INVALID", "UNAVAILABLE")
 
 
 class HubUnavailable(Exception):
-    """Live Hub evidence could not be observed. Never drift, never current."""
+    """Live Hub evidence could not be observed: drift is UNKNOWN, never current."""
 
 
 def hub_unavailable(error: BaseException) -> bool:
@@ -338,12 +338,16 @@ def validate_snapshot_revisions(
     """Validate retained revision fields.
 
     The live head may differ only for SOURCE_TRACKED rows; gated and
-    GOVERNED_EXACT rows must keep their exact stored revision.
+    GOVERNED_EXACT rows must keep their exact stored revision. Every check
+    that needs no network runs for every row before any historical revision
+    is fetched, so a Hub outage on one row is reported as UNAVAILABLE only
+    when no revision change was already visible in the listing.
     """
 
     current = now or dt.datetime.now(dt.timezone.utc)
     if classes is None:
         classes = revision_classes.load_revision_classes()
+    advanced: list[tuple[str, str, str, dt.datetime, Any]] = []
     for plural, repo_type in (
         ("models", "model"),
         ("datasets", "dataset"),
@@ -432,47 +436,51 @@ def validate_snapshot_revisions(
                         f"{item_id} unchanged revision has conflicting lastModified"
                     )
                 continue
-
-            try:
-                historical = fetch_revision(item_id, repo_type, stored_sha)
-            except Exception as exc:
-                if hub_unavailable(exc):
-                    raise HubUnavailable(
-                        f"{item_id} historical revision {stored_sha} could not be observed: {exc}"
-                    ) from exc
-                raise ValueError(
-                    f"{item_id} historical revision {stored_sha} is not verifiable: {exc}"
-                ) from exc
-            if historical.get("sha") != stored_sha:
-                raise ValueError(
-                    f"{item_id} historical revision did not resolve to {stored_sha}"
-                )
-            if historical.get("id") != item_id:
-                raise ValueError(
-                    f"{item_id} historical revision resolved to another repository"
-                )
-            historical_modified_at = parse_rfc3339_utc(
-                historical.get("lastModified"),
-                field=f"{item_id} historical lastModified",
-            )
-            if historical_modified_at != stored_modified_at:
-                raise ValueError(
-                    f"{item_id} lastModified does not match its historical revision"
-                )
-            historical_card_digest = card_semantic_sha256(
-                fetch_card_markdown(item_id, repo_type, stored_sha)
-            )
-            if historical_card_digest != stored_card_digest:
-                raise ValueError(
-                    f"{item_id} cardSemanticSha256 does not match its "
-                    "historical revision"
-                )
-
             if live_modified_at <= stored_modified_at:
                 raise ValueError(
                     f"{item_id} live revision differs but is not newer than "
                     "the checked-in snapshot"
                 )
+            advanced.append(
+                (item_id, repo_type, stored_sha, stored_modified_at, stored_card_digest)
+            )
+
+    # Only SOURCE_TRACKED rows reach here; their advance needs a historical proof.
+    for item_id, repo_type, stored_sha, stored_modified_at, stored_card_digest in advanced:
+        try:
+            historical = fetch_revision(item_id, repo_type, stored_sha)
+        except Exception as exc:
+            if hub_unavailable(exc):
+                raise HubUnavailable(
+                    f"{item_id} historical revision {stored_sha} could not be observed: {exc}"
+                ) from exc
+            raise ValueError(
+                f"{item_id} historical revision {stored_sha} is not verifiable: {exc}"
+            ) from exc
+        if historical.get("sha") != stored_sha:
+            raise ValueError(
+                f"{item_id} historical revision did not resolve to {stored_sha}"
+            )
+        if historical.get("id") != item_id:
+            raise ValueError(
+                f"{item_id} historical revision resolved to another repository"
+            )
+        historical_modified_at = parse_rfc3339_utc(
+            historical.get("lastModified"),
+            field=f"{item_id} historical lastModified",
+        )
+        if historical_modified_at != stored_modified_at:
+            raise ValueError(
+                f"{item_id} lastModified does not match its historical revision"
+            )
+        historical_card_digest = card_semantic_sha256(
+            fetch_card_markdown(item_id, repo_type, stored_sha)
+        )
+        if historical_card_digest != stored_card_digest:
+            raise ValueError(
+                f"{item_id} cardSemanticSha256 does not match its "
+                "historical revision"
+            )
 
 
 def validate_generated_revision_evidence(
@@ -784,7 +792,7 @@ RESULT_MEANING = {
     "CURRENT": "tracked manifest matches current public Hub evidence",
     "DRIFT": "tracked manifest differs from current public Hub evidence",
     "INVALID": "tracked manifest, revision classes or Hub evidence failed validation",
-    "UNAVAILABLE": "public Hub evidence could not be observed; this is not drift and not current",
+    "UNAVAILABLE": "public Hub evidence could not be observed; drift was not evaluated (UNKNOWN); not current",
 }
 
 
@@ -847,6 +855,10 @@ def check_manifest(output: Path, rename: list[str] | None, report: Path | None) 
         parsed_observed_at = validate_observed_at(observed_at)
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         return done("INVALID", f"Hugging Face ecosystem manifest is invalid: {output}: {exc}")
+    # Checked before any network read, so an outage cannot hide it.
+    canonical_existing = json.dumps(existing, indent=2, sort_keys=False) + "\n"
+    if output.read_text(encoding="utf-8") != canonical_existing:
+        return done("INVALID", f"Hugging Face ecosystem manifest is not canonically rendered: {output}")
     try:
         # Loaded before any network read; a broken policy is never a default.
         classes = revision_classes.load_revision_classes()
@@ -872,9 +884,6 @@ def check_manifest(output: Path, rename: list[str] | None, report: Path | None) 
             traceback.print_exc()
             detail = f"{type(exc).__name__}: {exc}"
         return done("INVALID", f"Hugging Face ecosystem manifest is invalid: {output}: {detail}")
-    canonical_existing = json.dumps(existing, indent=2, sort_keys=False) + "\n"
-    if output.read_text(encoding="utf-8") != canonical_existing:
-        return done("INVALID", f"Hugging Face ecosystem manifest is not canonically rendered: {output}")
     if semantic_manifest(existing, classes) != semantic_manifest(live, classes):
         rows, top_level = changed_rows(existing, live, classes)
         return done("DRIFT", f"Hugging Face ecosystem manifest is stale: {output}", rows=rows, top_level=top_level)
