@@ -943,10 +943,6 @@ def test_r8_feed_does_not_promote_mocked_signature_without_verifier():
     assert signer.calls == 1
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "MEASURED gap: with no verify_fn, POST /api/<ns>/v1/agent/verify-chain falls back to a "
-    "structural check (signature_valid = envelope['signed']) and returns verified=True for "
-    "mocked signature bytes (szl_agentic_loop._verify_chain)."))
 def test_r8_verify_chain_without_verifier_does_not_call_mocked_signature_verified():
     client, _signer = _hatun(verifier=None)
     run = client.post("/api/a11oy/v1/agent/run", json=_RUN).json()
@@ -956,9 +952,6 @@ def test_r8_verify_chain_without_verifier_does_not_call_mocked_signature_verifie
     assert result["verified"] is False
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "MEASURED gap: verify-chain without a verifier reports verified=True for a forged "
-    "envelope {'signed': true} that carries no signature bytes at all."))
 def test_r8_verify_chain_without_verifier_rejects_forged_signed_flag():
     client, _signer = _hatun(verifier=None)
     run = client.post("/api/a11oy/v1/agent/run", json=_RUN).json()
@@ -967,9 +960,6 @@ def test_r8_verify_chain_without_verifier_rejects_forged_signed_flag():
     assert result["verified"] is False
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "MEASURED gap: the anonymous MCP tool verify_receipt returns signature_valid=True for "
-    "{'signed': true, signatures: [mock]} when no verify_fn is configured."))
 def test_r8_mcp_verify_receipt_without_verifier_is_not_valid():
     client, _signer = _hatun(verifier=None)
     response = client.post("/mcp/", json={
