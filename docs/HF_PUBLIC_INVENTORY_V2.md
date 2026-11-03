@@ -51,3 +51,23 @@ node scripts/validate_huggingface_ecosystem_schema.mjs
 Only the last three commands inspect the tracked snapshot or derived evidence; the two Python test suites use offline fixtures. The permanent `Public Hub inventory access contract` CI job requests no secrets and needs no package installation. The stage matrix must carry the same `observedAt` value and Hugging Face public counts as the manifest, so schema migration and inventory refreshes cannot leave operational evidence stale.
 
 Generation is an explicit source update. Commit the generated snapshot and its derived stage matrix through the normal reviewed workflow; never generate over a tracked manifest during a `--check` invocation. A successful public-inventory check does not authorize deployment or use of restricted model files.
+
+## Rolling review branch
+
+When the `HF Ecosystem manifest drift` check is red and a fresh candidate passes every preflight, `scripts/prepare_hf_inventory_refresh.py` proposes it on one branch, `szl/hf-inventory-refresh`. The check, its accepted state (`CURRENT` only) and every preflight are unchanged; nothing is merged automatically.
+
+- **Absent branch:** one creation, no retry, then a readback.
+- **Existing branch:** each commit ahead of main must have author `github-actions[bot]`, committer `web-flow`, a GitHub-verified signature, the refresh message template, a first-parent diff inside the six generated files and, for an update, a second parent equal to the previous head. Any other commit stops the run with `ROLLING_BRANCH_HAS_FOREIGN_COMMITS` and nothing is written. The bot's existing single-parent commits have this author, committer, verified signature and message (MEASURED on 2026-11-03 by a read-only GitHub compare of `517273ad`). No two-parent update commit exists yet, so that path is MODELED.
+- **Update:** a fast-forward only (`PATCH` with `force:false`), never retried. A rejection ends as `REF_WRITE_UNCERTAIN` with a readback. GitHub refusing a non-fast-forward is MODELED from its REST documentation; the offline tests use fakes and do not measure it.
+- **Held:** a candidate semantically equal to the branch head writes nothing, and an open pull request from the branch with auto-merge enabled or an approving review stops the update.
+- **One pull request per merge cycle:** the repository deletes a branch on merge (`delete_branch_on_merge=true`, MEASURED 2026-11-03), so the next refresh creates the branch again.
+- **"Update branch" stops the bot:** that button adds a commit authored by the person, so the next run stops. To restart, merge or close that pull request and delete the branch.
+- **Required checks may not run:** ref updates made with `GITHUB_TOKEN` do not start `pull_request` workflows (MODELED), so a maintainer may need to re-run them on the pull request.
+
+`HF inventory review branch prune` (`.github/workflows/hf-inventory-branch-prune.yml`) runs only on manual dispatch and defaults to a dry run. It deletes a legacy `szl/hf-inventory-<source>-<candidate>` ref only when all of these hold:
+
+- no open pull request uses it;
+- every commit on it passes the same commit predicate;
+- main already carries a newer `observedAt`.
+
+It never deletes the rolling branch. Its receipt lists every ref with its sha and the reason it was kept or pruned. The receipt is hash-chained and DSSE-enveloped, and stays UNSIGNED unless the runtime holds a signing key; the workflow passes none. The manifest of each ref marked PRUNE is archived beside the receipt (90-day artifact retention). A ref whose commits include a person's merge is kept.
