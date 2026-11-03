@@ -10808,15 +10808,20 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
           file=sys.stderr)
 
 
-def _public_khipu_nodes(limit: int = 32) -> list[dict]:
-    """Read-only view of the operator Khipu DAG. GET never mints."""
+def _public_khipu_nodes(limit: int = 32) -> "tuple[list[dict], str | None]":
+    """Read-only view of the operator Khipu DAG. GET never mints.
+
+    Returns (nodes, read_error). read_error is None for a clean read (including
+    no DAG attached, which is live-empty) and a short reason when the read
+    failed, so a failed read is never reported as an empty healthy ledger.
+    """
     dag = getattr(app.state, "szl_khipu_dag", None)
     if dag is None:
-        return []
+        return [], None
     try:
         nodes = list(dag.recent(max(1, min(int(limit), 64))))
-    except Exception:
-        return []
+    except Exception as exc:
+        return [], "khipu_dag_read_failed:" + type(exc).__name__
     out = []
     for node in nodes:
         receipt = node.get("receipt") if isinstance(node, dict) else None
@@ -10831,7 +10836,7 @@ def _public_khipu_nodes(limit: int = 32) -> list[dict]:
             "actor": receipt.get("actor"),
             "ts_utc": node.get("ts_utc") or receipt.get("ts_utc"),
         })
-    return out
+    return out, None
 
 
 @app.get("/api/a11oy/v1/ledger")
@@ -10845,16 +10850,33 @@ async def a11oy_ledger_v2() -> JSONResponse:
     observed_at = _gov_now_iso()
     if observed_at.endswith("+00:00"):
         observed_at = observed_at[:-6] + "Z"
-    receipts = _public_khipu_nodes()
+    receipts, read_error = _public_khipu_nodes()
+    if read_error is not None:
+        return JSONResponse({
+            "count": None,
+            "state": "UNAVAILABLE",
+            "data_kind": "live",
+            "operational": False,
+            "reason": read_error,
+            "structure_verified": None,
+            "chain_verified": None,
+            "chain_verification": "NOT_EVALUATED_BY_THIS_ROUTE",
+            "receipt_minted": False,
+            "observed_at": observed_at,
+            "book": "public_operator_khipu",
+            "receipts": [],
+        }, status_code=503)
     signed_any = any(item.get("signed") for item in receipts)
     return JSONResponse({
         "count": len(receipts),
+        "count_scope": "recent nodes returned by this route (at most 32), not the DAG total",
         "state": "live",
         "data_kind": "live",
         "operational": True,
         "hash_algorithm": "sha256-hex",
-        "structure_verified": True,
-        "chain_verified": True,
+        "structure_verified": None,
+        "chain_verified": None,
+        "chain_verification": "NOT_EVALUATED_BY_THIS_ROUTE",
         "signed": signed_any,
         "signature_state": "SIGNED" if signed_any else "UNSIGNED",
         "receipt_minted": False,
@@ -10862,8 +10884,9 @@ async def a11oy_ledger_v2() -> JSONResponse:
         "book": "public_operator_khipu",
         "honesty": ("Live operational ledger read from the in-process Khipu DAG. "
                     "GET never mints, so receipt_minted is always false on this "
-                    "route. count is the number of receipts already present in "
-                    "this process; this is not the deterministic SAMPLE chain "
+                    "route. count is the number of recent receipts this route "
+                    "returned (at most 32), not the DAG total. Structure and chain "
+                    "integrity are not evaluated here. This is not the deterministic SAMPLE chain "
                     "(see GET /api/a11oy/v2/command-log)."),
         "receipts": receipts,
     })
