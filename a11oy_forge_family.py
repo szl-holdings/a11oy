@@ -22,8 +22,11 @@ Nothing is asserted that an ed25519 signature does not prove:
   per model:
     - eval payload.trainingReceiptSha256 must equal sha256(training canonical)
     - keyTrust: "PINNED" when the A11OY_*_OWNER_KEYID env pin matches the
-      verified keyId; a set-but-different pin is "PIN_MISMATCH" and FAILS THE
-      BAND CLOSED; no pin set is "REPO_DECLARED".
+      verified keyId; with no env pin, "CODE_PINNED" when it matches the
+      model's builtinKeyId committed below; a set-but-different pin is
+      "PIN_MISMATCH" and no pin at all is "UNPINNED_REFUSED" — both FAIL THE
+      BAND CLOSED. owner_pubkey.json comes from the mutable public HF head, so
+      an unset pin must never mean "trust whatever key was fetched".
 
 Counts (planValid / grounding / abstain / hallucinatedCitations) are DERIVED
 from the verified eval payload — never hand-typed. Failures are loud: a band
@@ -66,6 +69,7 @@ _MODELS = (
         "displayName": "SZL-Forge-1.5B-ReceiptAgent",
         "hfRepo": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
         "pinEnv": "A11OY_OWNER_KEYID",
+        "builtinKeyId": "e7f01810aaa97394",
         "artifactReconciliation": True,
     },
     {
@@ -73,6 +77,7 @@ _MODELS = (
         "displayName": "SZL-Khipu-1.5B-BrainNavigator",
         "hfRepo": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
         "pinEnv": "A11OY_KHIPU_OWNER_KEYID",
+        "builtinKeyId": "89540347a69b789e",
     },
 )
 
@@ -218,11 +223,12 @@ def _band_for_model(
 
     pin_env = cfg["pinEnv"]
     pinned_value = os.environ.get(pin_env, "").strip()
-    if not pinned_value:
-        key_trust = "REPO_DECLARED"
-        pin_ok = True
-    elif pinned_value == owner_key_id:
-        key_trust = "PINNED"
+    expected_key_id = pinned_value or cfg.get("builtinKeyId", "")
+    if not expected_key_id:
+        key_trust = "UNPINNED_REFUSED"  # fail CLOSED
+        pin_ok = False
+    elif owner_key_id == expected_key_id:
+        key_trust = "PINNED" if pinned_value else "CODE_PINNED"
         pin_ok = True
     else:
         key_trust = "PIN_MISMATCH"  # fail CLOSED
@@ -238,10 +244,9 @@ def _band_for_model(
             "evaluation": eval_verified,
             "trustBoundary": {
                 "PINNED": "PINNED_OWNER_KEY",
+                "CODE_PINNED": "CODE_PINNED_OWNER_KEY",
                 "PIN_MISMATCH": "PIN_MISMATCH_FAIL_CLOSED",
-                "REPO_DECLARED": (
-                    "REPOSITORY_DECLARED_KEY_NOT_INDEPENDENTLY_PINNED"
-                ),
+                "UNPINNED_REFUSED": "UNPINNED_OWNER_KEY_FAIL_CLOSED",
             }[key_trust],
         },
         "exactQualifiedArtifactBinding": {
