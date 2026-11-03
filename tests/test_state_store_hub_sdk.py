@@ -24,6 +24,9 @@ from huggingface_hub import HfApi
 from huggingface_hub import _commit_api, file_download, hf_api
 from huggingface_hub.errors import BucketBatchError, EntryNotFoundError
 from huggingface_hub.utils import _http, _pagination, _xet
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import Version
 
 import a11oy_state_store as store
 from tests.state_store_support import FakeClock, FakeHeadBackend, fingerprint, make_db, replica
@@ -160,14 +163,79 @@ def sdk(monkeypatch, tmp_path):
     client.close()
 
 
+def _assert_declared_sdk_closure(requirements_text, installed_versions):
+    """Check packaging closure, not storage admission or a historical SDK release."""
+    names = {"huggingface-hub", "hf-xet"}
+    declared = {}
+    for line in requirements_text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        requirement = Requirement(line)
+        name = canonicalize_name(requirement.name)
+        if name not in names:
+            continue
+        assert name not in declared, f"duplicate SDK dependency: {name}"
+        assert (requirement.specifier and requirement.url is None
+                and requirement.marker is None and not requirement.extras), (
+                    f"expected an unconditional SDK version declaration: {name}")
+        declared[name] = requirement
+    assert set(declared) == names, "missing SDK dependency declaration"
+    for name, requirement in declared.items():
+        assert name in installed_versions, f"missing installed SDK distribution: {name}"
+        installed = Version(installed_versions[name])
+        assert requirement.specifier.contains(installed), (
+            f"installed {name} {installed} does not satisfy {requirement.specifier}")
+
+
 def test_installed_runtime_and_native_extension_match_declared_dependencies():
     import hf_xet
-    assert version("huggingface-hub") == "1.33.0"
-    assert version("hf-xet") == "1.7.0"
+    requirements = (Path(__file__).resolve().parents[1] / "requirements-runtime.txt").read_text()
+    _assert_declared_sdk_closure(
+        requirements, {name: version(name) for name in ("huggingface-hub", "hf-xet")})
     assert hf_xet.XetFileInfo("a" * 64, 1).file_size == 1
-    pins = (Path(__file__).resolve().parents[1] / "requirements-runtime.txt").read_text().splitlines()
-    assert pins.count("huggingface_hub==1.33.0") == 1
-    assert pins.count("hf-xet==1.7.0") == 1
+
+
+def test_sdk_closure_recognizes_declared_bumps_and_canonical_names():
+    original = "# fixture only\nHuggingFace_Hub==10.0\nHF.XET==20.0\n"
+    installed = {"huggingface-hub": "10.0", "hf-xet": "20.0"}
+    _assert_declared_sdk_closure(original, installed)
+    bumped = original.replace("20.0", "20.1")
+    with pytest.raises(AssertionError, match="does not satisfy"):
+        _assert_declared_sdk_closure(bumped, installed)
+    _assert_declared_sdk_closure(bumped, dict(installed, **{"hf-xet": "20.1"}))
+    _assert_declared_sdk_closure(
+        "huggingface-hub>=10,<11\nhf_xet~=20.1\n",
+        {"huggingface-hub": "10.5", "hf-xet": "20.2"})
+
+
+@pytest.mark.parametrize("requirements", [
+    "huggingface-hub==10.0",
+    "hf-xet==20.0",
+    "huggingface-hub==10.0\nhf-xet==20.0\nHF_XET==20.0",
+    "huggingface-hub==10.0\nHuggingFace.Hub==10.0\nhf-xet==20.0",
+    "huggingface-hub==10.0\nhf-xet==not-a-version",
+    "huggingface-hub==10.0\nhf-xet==20.0\nnot a requirement",
+    "huggingface-hub==10.0\nhf-xet",
+    "huggingface-hub==10.0\nhf-xet @ https://fixture.invalid/native.whl",
+    'huggingface-hub==10.0\nhf-xet==20.0; python_version < "1"',
+    "huggingface-hub==10.0\nhf-xet[extra]==20.0",
+])
+def test_sdk_closure_rejects_missing_duplicate_or_invalid_declarations(requirements):
+    with pytest.raises((AssertionError, ValueError)):
+        _assert_declared_sdk_closure(
+            requirements, {"huggingface-hub": "10.0", "hf-xet": "20.0"})
+
+
+@pytest.mark.parametrize("installed", [
+    {"huggingface-hub": "10.0", "hf-xet": "19.0"},
+    {"huggingface-hub": "9.0", "hf-xet": "20.0"},
+    {"huggingface-hub": "10.0", "hf-xet": "not-a-version"},
+    {"huggingface-hub": "10.0"},
+])
+def test_sdk_closure_rejects_installed_mismatch_or_missing_metadata(installed):
+    with pytest.raises((AssertionError, ValueError)):
+        _assert_declared_sdk_closure("huggingface-hub==10.0\nhf-xet==20.0", installed)
 
 
 def test_dataset_observation_binds_immutable_revision_and_exact_bytes(sdk):
