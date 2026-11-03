@@ -318,6 +318,31 @@ def validate_model_support_candidate(observed: dict, report: dict) -> None:
     report['modelInferenceSupport']['state']='VALIDATED'
 
 
+def validate_governed_revision_candidate(old: dict, observed: dict, report: dict) -> None:
+    """Stop before any write when a GOVERNED_EXACT or gated row moved.
+
+    A governed head move is a release-binding question, not an inventory
+    refresh, so no routine branch may re-pin it. Unreadable or incomplete
+    revision classes also stop here instead of defaulting to SOURCE_TRACKED.
+    """
+    report['preparationStep']='GOVERNED_REVISION_PREFLIGHT'
+    report['governedRevisions']={'state':'SOURCE_REVIEW_REQUIRED'}
+    try:
+        import hf_revision_classes as revision_classes
+        classes=revision_classes.load_revision_classes(root=ROOT)
+        revision_classes.validate_manifest_coverage(classes,old,label='tracked manifest')
+        revision_classes.validate_manifest_coverage(classes,observed,label='candidate')
+        changed=revision_classes.governed_changes(classes,old,observed)
+    except (ImportError, OSError, ValueError, TypeError, KeyError) as exc:
+        report['state']='SOURCE_REVIEW_REQUIRED'
+        raise PreparationError('Hugging Face revision classes are invalid or incomplete; source review required') from exc
+    report['governedRevisions']={'state':'SOURCE_REVIEW_REQUIRED','policySha256':classes.sha256,'changed':changed}
+    if changed:
+        report['state']='SOURCE_REVIEW_REQUIRED'
+        raise PreparationError('governed Hugging Face revision changed; source review required, no routine refresh branch')
+    report['governedRevisions']['state']='VALIDATED'
+
+
 def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, report: dict) -> None:
     require(SHA.fullmatch(source) is not None and run_id>0 and artifact_id>0, 'invalid selected source/run')
     require(command(['git','rev-parse','HEAD']).decode().strip()==source, 'checkout mismatch')
@@ -336,6 +361,8 @@ def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, rep
     for kind in ('models','datasets','spaces','kernels'):
         require(not old.get('inventory',{}).get(kind) or observed['inventory'][kind],
                 'empty replacement requires explicit inventory review')
+    # Before the semantic shortcut, so no comparison can mask a governed move.
+    validate_governed_revision_candidate(old,observed,report)
     if collector.semantic_manifest(old)==collector.semantic_manifest(observed):
         report.update(state='NO_SEMANTIC_REFRESH_REQUIRED',branchCreated=False); return
     report.update(candidateSha256=digest(candidate),inventoryObservedAt=observed['observedAt'],counts=observed['counts'])

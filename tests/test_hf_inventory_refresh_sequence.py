@@ -121,6 +121,12 @@ class SequenceTests(unittest.TestCase):
             def model_support_preflight(observed,report):
                 report['preparationStep']='INFERENCE_SUPPORT_PREFLIGHT'
                 report['modelInferenceSupport']={'state':'VALIDATED'}
+            def governed_preflight(old,observed,report):
+                report['preparationStep']='GOVERNED_REVISION_PREFLIGHT'
+                if controls.get('governed_change'):
+                    report['state']='SOURCE_REVIEW_REQUIRED'
+                    raise M.PreparationError('governed Hugging Face revision changed; source review required, no routine refresh branch')
+                report['governedRevisions']={'state':'VALIDATED'}
             def command(args, **kwargs):
                 if args[:2]==['gh','api']: return archive
                 if args[:2]==['git','rev-parse']: return SHA.encode()
@@ -138,6 +144,7 @@ class SequenceTests(unittest.TestCase):
             stack.enter_context(patch.object(M,'github',github))
             stack.enter_context(patch.object(M,'command',command))
             stack.enter_context(patch.object(M,'validate_public_estate_candidate',preflight))
+            stack.enter_context(patch.object(M,'validate_governed_revision_candidate',governed_preflight))
             if not controls.get('model_support_mismatch'):
                 stack.enter_context(patch.object(M,'validate_model_support_candidate',model_support_preflight))
             stack.enter_context(patch.dict(sys.modules,{'audit_huggingface_ecosystem':collector}))
@@ -344,6 +351,17 @@ class SequenceTests(unittest.TestCase):
         self.assertEqual(self.report['state'],'REF_WRITE_UNCERTAIN')
         self.assertIsNone(self.report['branchCreated'])
         self.assertEqual(self.report['refReadback'],'UNAVAILABLE')
+
+    def test_governed_revision_change_stops_before_any_object_or_file_write(self):
+        for same in (False,True):
+            with self.subTest(same_semantics=same):
+                with self.assertRaisesRegex(M.PreparationError,'source review required'):
+                    self.run_case(governed_change=True,same=same)
+                self.assertEqual(self.report['state'],'SOURCE_REVIEW_REQUIRED')
+                self.assertEqual(self.report['preparationStep'],'GOVERNED_REVISION_PREFLIGHT')
+                self.assertEqual(self.manifest_after,self.manifest_before)
+                self.assertFalse(any(body is not None for _,body in self.calls))
+                self.assertEqual(self.ref_writes(),[])
 
     def test_empty_scope_replacement_needs_review(self):
         with self.assertRaises(M.PreparationError): self.run_case(empty=True)
