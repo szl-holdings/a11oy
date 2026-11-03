@@ -117,11 +117,16 @@ class ArtifactTests(unittest.TestCase):
     def test_zip_traversal_member(self):
         m,b=artifact('../../source.py')
         with self.assertRaises(M.PreparationError): M.validate_artifact(m,b,source=SHA,run_id=123,expected_digest=M.digest(b))
-    def test_deterministic_branch_not_main(self):
-        self.assertEqual(M.branch_name(SHA,'b'*64),'szl/hf-inventory-aaaaaaaaaaaa-bbbbbbbbbbbb')
-    def test_malformed_branch_inputs(self):
-        for value in ('main','../refs','A'*40,''):
-            with self.subTest(value=value),self.assertRaises(M.PreparationError): M.branch_name(value,'b'*64)
+    def test_fixed_rolling_branch_not_main(self):
+        self.assertEqual(M.ROLLING,'szl/hf-inventory-refresh')
+        self.assertNotIn(M.ROLLING,('main','refs/heads/main'))
+        self.assertFalse(hasattr(M,'branch_name'))
+    def test_controller_message_satisfies_its_own_commit_template(self):
+        message=M.refresh_message(123,SHA,'b'*64)
+        self.assertEqual(M.REFRESH_MESSAGE.match(message).group(1),SHA)
+        for value in (M.refresh_message(0,SHA,'b'*64),M.refresh_message(123,'main','b'*64),
+                      'Merge main into public inventory reconciliation',' '+message):
+            with self.subTest(value=value[:40]): self.assertIsNone(M.REFRESH_MESSAGE.match(value))
     def test_paths_exclude_policy_and_runtime_code(self):
         self.assertEqual(len(M.ALLOWED),6)
         self.assertNotIn('.github/workflows/hf-sync.yml',M.ALLOWED)
