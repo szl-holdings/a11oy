@@ -599,7 +599,9 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         self.assertIn(artifact, passive)
         self.assertIn(artifact, execution)
         self.assertNotIn("run-id:", execution)
-        self.assertIn("verify_current_deployment=true", job)
+        helper = (ROOT / ".github/scripts/admit_execution_handoff.py").read_text(encoding="utf-8")
+        self.assertIn("--record-workflow-failure", job)
+        self.assertIn("verify_current_deployment=true", helper)
 
     def test_preflight_readmits_main_immediately_before_deploy(self) -> None:
         job = job_block(self.workflow, "Classify the canonical runtime and converge configuration before deploy")
