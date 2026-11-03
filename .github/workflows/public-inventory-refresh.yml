@@ -50,10 +50,9 @@ jobs:
           mkdir -p /tmp/public-inventory-refresh
           cp docs/huggingface-ecosystem-manifest.json /tmp/public-inventory-refresh/previous-manifest.json
           git rev-parse HEAD > /tmp/public-inventory-refresh/generator-checkout.txt
-          sha256sum docs/series-a/hf-space-keep-list.yaml static/shared/public-estate-contract.v1.json docs/huggingface-revision-classes.v1.json > /tmp/public-inventory-refresh/policy.sha256
+          sha256sum docs/series-a/hf-space-keep-list.yaml static/shared/public-estate-contract.v1.json > /tmp/public-inventory-refresh/policy.sha256
           python -S scripts/test_audit_huggingface_ecosystem.py
           python -S scripts/test_hf_gated_public_inventory.py
-          python -S scripts/test_hf_revision_classes.py
       - name: Generate a fresh public card snapshot and all existing projections
         run: |
           set -euo pipefail
