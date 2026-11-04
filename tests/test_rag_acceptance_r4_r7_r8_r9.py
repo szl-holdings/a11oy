@@ -71,6 +71,18 @@ def no_external_network(monkeypatch):
             raise OSError("acceptance tests forbid DNS: %r" % (host,))
         return real_getaddrinfo(host, *args, **kwargs)
 
+    # Importing serve runs szl_lake_ingest.register(), which starts a daemon
+    # 'szl-lake-hydrate' thread that reads the public HF dataset mirror. That read
+    # is unrelated to R4/R7/R8/R9 and has no environment switch, so keep the lake
+    # mirror offline here: no bucket, and a hydrate that reports itself disabled.
+    try:
+        import szl_lake_ingest as _lake
+    except Exception:  # module absent in this checkout
+        _lake = None
+    if _lake is not None:
+        monkeypatch.setattr(_lake, "_get_bucket", lambda: None)
+        monkeypatch.setattr(_lake, "hydrate_from_dataset",
+                            lambda limit=0: {"ok": False, "reason": "lake mirror offline in acceptance tests"})
     # Unrelated a11oy modules start on-demand readiness/evidence builds in daemon threads
     # (szl_readiness._kick_background_build) that probe public endpoints; they are not
     # part of R4/R7/R8/R9. Neutralise them for the duration of each test so the guard
