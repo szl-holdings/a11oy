@@ -82,6 +82,7 @@ jobs:
           tests/test_agentloop_completion_evidence.py
           tests/test_agentloop_tenant_admission.py
           tests/test_authorized_rag_synthesis.py
+          tests/test_agentic_loop_verifier_fail_closed.py
           tests/test_agent_synthesis_status.py
           tests/test_nexus_bind.py
           tests/test_nexus_readonly_evidence.py
