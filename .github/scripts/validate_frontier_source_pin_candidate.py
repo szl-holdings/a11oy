@@ -35,7 +35,7 @@ SOURCE_TEST: Final = "ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py"
 
 APPROVED_CANDIDATE_SHA256: Final = {
     SOLO_WORKFLOW: "8acce6dcf6bfb514f53d9a063ff314a0b4152dde9d0c6f82540dbf2dfe5b4ba3",
-    BUILDER_WORKFLOW: "4ac6306328f41bf55faf63735f57be4e730823cc29abbccfecddba694df26254",
+    BUILDER_WORKFLOW: "f3f826b13bfbf65f58d9bc40a4f031d06e3748989c6788baaadc9253c3a78e36",
     CONTRACT: "3b8f3cff171631fdf4344b2cfdb8668cf4e92dadf2688f92a5ad4a0f53ad4a4d",
 }
 PROTECTED_INPUT_SHA256: Final = {
