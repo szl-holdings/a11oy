@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Require exact branch and clean ancestry
         shell: bash
@@ -69,4 +69,14 @@ jobs:
           git config user.email 'stephenlutar2@gmail.com'
           git add -A
           git commit -m 'build(estate): materialize aligned public consumers' -m 'Generate the GitHub profile, Hugging Face organization card, and a11oy.net proof fragments from one validated A11oy contract and measured Hub inventory; remove the one-use materializer before review.' -m 'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
-          git push origin HEAD:feat/public-estate-contract-v1-20260905
+
+      - name: Push generated consumers
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git -c 'credential.helper=' \
+            -c 'credential.helper=!f() { test "$1" = get || exit 0; echo "username=x-access-token"; echo "password=$GH_TOKEN"; }; f' \
+            push "https://github.com/${GITHUB_REPOSITORY}.git" HEAD:feat/public-estate-contract-v1-20260905
