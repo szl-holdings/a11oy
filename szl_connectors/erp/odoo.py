@@ -10,8 +10,8 @@ code, never proprietary SDK code):
 Models: res.partner (contacts/accounts), crm.lead, sale.order, account.move.
 Docs: https://www.odoo.com/documentation/18.0/developer/reference/external_api.html
 
-Default state: CONNECTED vs an SZL self-hosted / public-demo Odoo when
-SZL_ODOO_URL/DB/USER/PASSWORD are set; READY (provide credentials) otherwise.
+Default state: READY when SZL_ODOO_URL/DB/USER/PASSWORD are absent or provider
+reachability has not been observed; CONNECTED after successful authentication.
 Open-source + free demo DBs / Odoo Online trial exist, so free_tier=True.
 """
 from __future__ import annotations
@@ -113,7 +113,8 @@ class OdooConnector(Connector):
     def write(self, action: dict | None = None) -> WriteResult:
         action = action or {}
         url, db, user, pwd = self._conf()
-        connected = all([url, db, user, pwd])
+        connection = self.health(probe=True)
+        connected = connection.state == State.CONNECTED
         # normalize action shape for the gate (Odoo create)
         gate_action = {"method": action.get("method", "create"),
                        "object": action.get("model", "res.partner"),
@@ -123,7 +124,7 @@ class OdooConnector(Connector):
             connector_id=self.id, connected=connected, action=gate_action,
             cred_fingerprints=creds_fp, quorum_present=action.get("quorum_present"))
         if not allowed:
-            return WriteResult(connector_id=self.id, ok=False, state=State.READY if not connected else State.CONNECTED,
+            return WriteResult(connector_id=self.id, ok=False, state=connection.state,
                                receipt_hash=receipt["receipt_hash"], lambda_value=lam,
                                quorum=quorum, detail=detail, dsse=receipt["dsse"])
         try:

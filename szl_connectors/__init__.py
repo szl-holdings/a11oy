@@ -13,9 +13,10 @@ DOCTRINE (woven throughout):
   • Every write() is Λ-gated (Λ never 1.0) + DSSE/Khipu-receipted.
   • Trust never 100%. 0 runtime CDN. GitHub ↔ HF byte-identical.
 
-LIVE NOW (free / no-signup, keyless): CISA KEV, NVD CVE, EPSS, MITRE ATT&CK,
-SEC EDGAR, GitHub public, arXiv, HF Hub, Wikidata, USGS, NOAA, Overpass/OSM,
-OpenSky (air). Free ERPs Odoo + ERPNext wired live (XML-RPC / REST).
+KEYLESS LIVE CLIENTS (CONNECTED after observed provider success): CISA KEV,
+NVD CVE, EPSS, MITRE ATT&CK, SEC EDGAR, GitHub public, arXiv, HF Hub,
+Wikidata, USGS, NOAA, Overpass/OSM and OpenSky (air). Free ERPs Odoo + ERPNext
+use XML-RPC / REST and also require an observed successful response.
 
 CREDENTIAL-READY (genuine clients, awaiting customer secrets): Salesforce,
 HubSpot, Dynamics 365, Zoho, Pipedrive, Close, Freshsales, SugarCRM, NetSuite,

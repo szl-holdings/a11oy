@@ -18,7 +18,8 @@ Flow (per ENTERPRISE_INTEGRATION_SPEC §1.3):
      file or commit. Emit a DSSE "credential-bound" receipt carrying ONLY the
      connector id, granted scope, and a credential FINGERPRINT HASH (never the
      secret value).
-  5. health() now sees the refresh token → exchanges for access token → CONNECTED.
+  5. health() sees the refresh token, probes the provider, and reports CONNECTED
+     only after the provider accepts it.
 
 DOCTRINE: no committed keys; the secret value never leaves the secret store and
 never enters a receipt body. Until CLIENT_ID/SECRET are provided, the connector
@@ -260,8 +261,9 @@ def exchange_code(connector_id: str, *, code: str, state: str, redirect_uri: str
         "credential_bound": True,
         "store_secret_as": f"SZL_{connector_id.upper()}_REFRESH_TOKEN",
         "note": ("Persist the refresh_token into the Space secret store as the named "
-                 "secret. It is NEVER written to a file or commit. The Space restarts "
-                 "(or hot-reloads env) → health() flips the connector to CONNECTED."),
+                 "secret. It is NEVER written to a file or commit. After the Space restarts "
+                 "(or hot-reloads env), health() verifies provider reachability before "
+                 "reporting CONNECTED."),
         "receipt_hash": rcpt["receipt_hash"],
         "dsse": rcpt["dsse"],
     }

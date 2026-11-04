@@ -3,7 +3,8 @@
 """Identity / IdP connectors — Okta, Microsoft Entra ID (Graph), Auth0.
 
 REAL clients against documented endpoints. NO creds → READY + exact secret name;
-NEVER fabricates a record. Creds present → CONNECTED → live directory data.
+NEVER fabricates a record. Credentials configure the client; a successful
+provider response establishes CONNECTED and returns live directory data.
 
 API refs (publicly documented shapes):
   Okta Users API     https://developer.okta.com/docs/reference/api/users/

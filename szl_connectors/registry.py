@@ -6,9 +6,10 @@
 Adding a connector = one subclass file + one `@register` decorator. The UI,
 the MCP layer, and the governance layer all read the registry uniformly.
 
-The manifest reports every connector's HONEST state right now (cheap path:
-keyless → CONNECTED label verified on read; credentialed → READY/CONNECTED by
-env presence; no-free-tier → SAMPLE). NEVER fabricates a record.
+The manifest reports every connector's HONEST state right now. Its cheap path
+does not probe providers, so unobserved keyless and configured connectors stay
+READY; CONNECTED requires an observed successful probe/read. No-free-tier
+fixtures remain SAMPLE. NEVER fabricates a record.
 """
 from __future__ import annotations
 
@@ -79,7 +80,8 @@ def manifest(*, probe: bool = False, category: str | None = None) -> dict[str, A
         counts[e.get("state", "error")] = counts.get(e.get("state", "error"), 0) + 1
         cats[e.get("category", "?")] = cats.get(e.get("category", "?"), 0) + 1
     return {
-        "doctrine": "v11 — honest CONNECTED/READY/SAMPLE only; no fabricated records; "
+        "doctrine": "v11 — CONNECTED requires observed provider reachability; "
+                    "honest state labels only; no fabricated records; "
                     "no committed keys; Λ-gate+DSSE on writes; trust never 100%",
         "fetched_at": _now(),
         "count": len(items),

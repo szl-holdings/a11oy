@@ -2,8 +2,8 @@
 # © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 · Perplexity Computer Agent.
 """killinchu maritime / air live connectors.
 
-  opensky    OpenSky Network aircraft states (keyless anon)  → CONNECTED now
-  aisstream  AISStream live vessel positions (free key)       → READY → CONNECTED on key
+  opensky    OpenSky Network aircraft states (keyless anon)  → CONNECTED after response
+  aisstream  AISStream live vessel positions (free key)       → READY until handshake
              HISTORICAL AIS / AIS-gap = SAMPLE (no free historical feed) — labelled verbatim.
 
 HONEST MARITIME CAVEAT (carry verbatim): AISStream gives LIVE vessel positions for
@@ -72,7 +72,7 @@ class OpenSkyConnector(Connector):
         return self._ready_records(f"OpenSky unreachable/rate-limited (HTTP {st})")
 
 
-# AISStream LIVE positions (free key) — READY until key minted.
+# AISStream LIVE positions (free key) — READY until a WebSocket handshake exists.
 @register
 class AisStreamConnector(Connector):
     id = "aisstream"
@@ -91,12 +91,12 @@ class AisStreamConnector(Connector):
             return self._ready_records(
                 "provide credentials to activate — set SZL_AISSTREAM_API_KEY "
                 "(free key via GitHub login at https://aisstream.io). Live vessel positions stream over wss.")
-        # With a key, a wss subscription would stream positions. The REST/poll
-        # surface returns CONNECTED with an honest note (the live stream is wss).
-        return Records(connector_id=self.id, category=self.category, state=State.CONNECTED,
-                       records=[], source="AISStream wss live stream", live=True,
-                       note="credentials present — live positions stream over wss (subscribe with bounding boxes)",
-                       schema_preview=self.schema_preview)
+        # This connector does not yet open a WebSocket. A key configures the
+        # client but cannot prove that the provider accepted it or that a live
+        # stream exists.
+        return self._ready_records(
+            "credentials present; AISStream WebSocket reachability is unverified "
+            "(a successful subscription handshake is required for CONNECTED)")
 
 
 # HISTORICAL AIS / AIS-gap — SAMPLE only (no free historical feed). Labelled verbatim.
