@@ -60,10 +60,10 @@ def test_current_shared_payload_manifest_matches_current_peer():
     prior = (ROOT / SNAPSHOT).read_bytes()
     assert hashlib.sha256(prior).hexdigest() == "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166"
     manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
-    assert manifest["payload_id"] == "retained-signing-ledger-20261101-v1"
+    assert manifest["payload_id"] == "retained-signing-ledger-20261104-v1"
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["files"][MCP_ARCHIVE] == "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35"
-    assert manifest["files"]["szl_connectors/warehouse/warehouse_connectors.py"] == "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f"
+    assert manifest["files"]["szl_connectors/warehouse/warehouse_connectors.py"] == "2ff48cba8b038e5914caff6a2a629d17ed75561081704eb1d659fa9693fd721d"
     assert manifest["files"]["tests/test_snowflake_sql_result_classification.py"] == "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
     assert manifest["files"][".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json"] == "74f824946666a293be88af6f554d2b9e786d4b0bf08ad639a10ec756d47a90a1"
     assert {"a11oy_org_rag.py", "szl_provenance.py", "szl_operator_auth.py", "szl_signing_state.py",
