@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - development URI parser dependency
+
+- Resolve Ajv's development-only `fast-uri` dependency to 3.1.9 in both npm
+  and pnpm lockfiles, addressing the host, scheme, path-equivalence, and suffix
+  reference advisories
+  [GHSA-wjr9-j795-jxcr](https://github.com/advisories/GHSA-wjr9-j795-jxcr),
+  [GHSA-w74x-v6f9-j3xg](https://github.com/advisories/GHSA-w74x-v6f9-j3xg),
+  [GHSA-xhq7-xmqj-769h](https://github.com/advisories/GHSA-xhq7-xmqj-769h), and
+  [GHSA-333x-w4r6-6crp](https://github.com/advisories/GHSA-333x-w4r6-6crp).
+  Keep Ajv and the application runtime unchanged.
+
 ### Fixed - Rosie cross-link receipt verification
 
 - Separate receipt observation from schema-, role-, identity-, and digest-bound
