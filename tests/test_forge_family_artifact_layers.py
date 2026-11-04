@@ -88,6 +88,11 @@ def _signed_files() -> dict[str, bytes]:
     }
 
 
+def _pin_to(monkeypatch, env_name: str, files: dict[str, bytes]) -> None:
+    """Pin the synthetic owner key explicitly; an unset pin no longer trusts it."""
+    monkeypatch.setenv(env_name, json.loads(files["owner_pubkey.json"])["keyId"])
+
+
 def _receipt_agent_config() -> dict:
     return next(
         config for config in FORGE._MODELS if config["model"] == "receiptagent"
@@ -99,10 +104,11 @@ def _khipu_config() -> dict:
 
 
 def test_receipt_agent_exposes_distinct_verified_truth_layers(monkeypatch):
-    monkeypatch.delenv("A11OY_OWNER_KEYID", raising=False)
+    files = _signed_files()
+    _pin_to(monkeypatch, "A11OY_OWNER_KEYID", files)
     band = FORGE._band_for_model(
         _receipt_agent_config(),
-        _signed_files(),
+        files,
         0.0,
         PUBLIC_HEAD,
     )
@@ -128,8 +134,9 @@ def test_receipt_agent_exposes_distinct_verified_truth_layers(monkeypatch):
 def test_khipu_artifact_state_is_not_reinterpreted_by_receipt_agent_relock(
     monkeypatch,
 ):
-    monkeypatch.delenv("A11OY_KHIPU_OWNER_KEYID", raising=False)
-    band = FORGE._band_for_model(_khipu_config(), _signed_files(), 0.0)
+    files = _signed_files()
+    _pin_to(monkeypatch, "A11OY_KHIPU_OWNER_KEYID", files)
+    band = FORGE._band_for_model(_khipu_config(), files, 0.0)
 
     assert band["verified"] is True
     assert band["profileState"] is None
@@ -144,11 +151,12 @@ def test_khipu_artifact_state_is_not_reinterpreted_by_receipt_agent_relock(
 def test_receipt_agent_public_head_drift_fails_closed_without_erasing_signatures(
     monkeypatch,
 ):
-    monkeypatch.delenv("A11OY_OWNER_KEYID", raising=False)
+    files = _signed_files()
+    _pin_to(monkeypatch, "A11OY_OWNER_KEYID", files)
     changed_head = "0" * 40
     band = FORGE._band_for_model(
         _receipt_agent_config(),
-        _signed_files(),
+        files,
         0.0,
         changed_head,
     )
@@ -285,7 +293,7 @@ def test_handler_binds_receipts_to_the_same_observed_revision(monkeypatch):
         clients.append(client)
         return client
 
-    monkeypatch.delenv("A11OY_OWNER_KEYID", raising=False)
+    _pin_to(monkeypatch, "A11OY_OWNER_KEYID", receipt_files)
     monkeypatch.setattr(FORGE, "_MODELS", (_receipt_agent_config(),))
     monkeypatch.setattr(FORGE.httpx, "AsyncClient", build_client)
     FORGE._byte_cache.clear()
@@ -348,7 +356,7 @@ def test_handler_head_change_refuses_and_does_not_reuse_prior_revision_cache(
         clients.append(client)
         return client
 
-    monkeypatch.delenv("A11OY_OWNER_KEYID", raising=False)
+    _pin_to(monkeypatch, "A11OY_OWNER_KEYID", receipt_files)
     monkeypatch.setattr(FORGE, "_MODELS", (_receipt_agent_config(),))
     monkeypatch.setattr(FORGE.httpx, "AsyncClient", build_client)
     FORGE._byte_cache.clear()

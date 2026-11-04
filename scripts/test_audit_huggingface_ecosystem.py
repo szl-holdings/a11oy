@@ -13,6 +13,7 @@ from unittest.mock import patch
 from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
+import urllib.error
 
 
 HERE = Path(__file__).resolve().parent
@@ -646,6 +647,309 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         self.assertIn("sha", required)
         self.assertIn("lastModified", required)
         self.assertIn("cardSemanticSha256", required)
+
+
+TRACKED_MANIFEST = REPO_ROOT / "docs" / "huggingface-ecosystem-manifest.json"
+NEMO = ("model", "SZLHOLDINGS/szl-nemo")
+
+
+def classes_without(*keys: tuple[str, str]):
+    """The real classes with some rows dropped back to the SOURCE_TRACKED default."""
+    real = audit.revision_classes.load_revision_classes()
+    return audit.revision_classes.RevisionClasses(
+        entries={key: value for key, value in real.entries.items() if key not in keys},
+        bindings=real.bindings, sha256=real.sha256, path=real.path,
+    )
+
+
+def classes_with(*keys: tuple[str, str]):
+    entries = {
+        key: {"repoType": key[0], "id": key[1], "class": audit.revision_classes.GOVERNED_EXACT,
+              "policySource": ("test fixture",), "rationale": "fixture"}
+        for key in keys
+    }
+    return audit.revision_classes.RevisionClasses(entries=entries, bindings=(), sha256="0" * 64, path="fixture")
+
+
+class GovernedRevisionAndLabelledResultTests(unittest.TestCase):
+    """Golden cases for GOVERNED_EXACT rows and labelled check results; no network."""
+
+    def setUp(self) -> None:
+        self.saved = {name: getattr(audit, name) for name in ("api_items", "fetch_revision", "fetch_card_markdown")}
+        audit.fetch_card_markdown = lambda item_id, repo_type, revision: f"# {item_id}\n"
+        audit.fetch_revision = lambda item_id, repo_type, revision: {
+            "id": item_id, "sha": revision, "lastModified": "2026-07-26T00:00:00Z",
+        }
+        self.folder = tempfile.TemporaryDirectory()
+        self.output = Path(self.folder.name) / "manifest.json"
+        self.report = Path(self.folder.name) / "report.json"
+
+    def tearDown(self) -> None:
+        for name, value in self.saved.items():
+            setattr(audit, name, value)
+        self.folder.cleanup()
+
+    def snapshot(self, fixtures: dict) -> dict:
+        audit.api_items = lambda kind: fixtures.get(kind, [])
+        manifest = audit.build_manifest(observed_at="2026-07-26T00:00:00Z")
+        self.output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        return manifest
+
+    def check(self, *extra: str) -> tuple[int, str]:
+        argv = ["audit", "--check", "--output", str(self.output), "--report", str(self.report), *extra]
+        stdout = io.StringIO()
+        with patch.object(os.sys, "argv", argv), redirect_stdout(stdout):
+            result = audit.main()
+        return result, stdout.getvalue()
+
+    def report_result(self) -> dict:
+        return json.loads(self.report.read_text(encoding="utf-8"))
+
+    def advance(self, row: dict) -> None:
+        row["sha"] = "b" * 40
+        row["lastModified"] = "2026-07-26T00:30:00Z"
+
+    def test_ungated_governed_head_move_with_unchanged_card_is_invalid(self) -> None:
+        fixtures = {"models": [item("SZLHOLDINGS/szl-nemo")]}
+        self.snapshot(fixtures)
+        self.assertEqual(self.check()[0], 0)
+        self.advance(fixtures["models"][0])
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("SZLHOLDINGS/szl-nemo governed revision changed", message)
+        self.assertIn("model_release/szl-nemo/release-manifest.json#/hub/repository", message)
+        self.assertIn("result: INVALID", message)
+        self.assertEqual(self.report_result()["result"], "INVALID")
+
+    def test_same_fixture_classed_source_tracked_stays_current(self) -> None:
+        fixtures = {"models": [item("SZLHOLDINGS/szl-nemo")]}
+        self.snapshot(fixtures)
+        self.advance(fixtures["models"][0])
+        with patch.object(audit.revision_classes, "load_revision_classes", return_value=classes_without(NEMO)):
+            result, message = self.check()
+        self.assertEqual(result, 0, message)
+        self.assertIn("result: CURRENT", message)
+        self.assertEqual(self.report_result()["result"], "CURRENT")
+        self.assertEqual(self.report_result()["exitCode"], 0)
+
+    def test_semantic_manifest_keeps_revision_only_for_governed_rows(self) -> None:
+        classes = audit.revision_classes.load_revision_classes()
+        manifest = {"inventory": {"models": [item("SZLHOLDINGS/szl-nemo"), item("SZLHOLDINGS/other")]}}
+        rows = audit.semantic_manifest(manifest, classes)["inventory"]["models"]
+        self.assertIn("sha", rows[0])
+        self.assertIn("lastModified", rows[0])
+        self.assertNotIn("sha", rows[1])
+        self.assertNotIn("lastModified", rows[1])
+        self.assertEqual(audit.semantic_manifest(manifest), audit.semantic_manifest(manifest, classes))
+
+    def test_twin_rows_are_keyed_by_repo_type(self) -> None:
+        twin = "SZLHOLDINGS/twin"
+        with patch.object(audit.revision_classes, "load_revision_classes", return_value=classes_with(("model", twin))):
+            fixtures = {"models": [item(twin)], "kernels": [item(twin)]}
+            self.snapshot(fixtures)
+            self.advance(fixtures["kernels"][0])
+            self.assertEqual(self.check()[0], 0)
+            self.advance(fixtures["models"][0])
+            result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn(f"{twin} governed revision changed (model,", message)
+
+    def test_policy_failure_is_invalid_before_any_network_read(self) -> None:
+        self.snapshot({"models": [item("SZLHOLDINGS/model")]})
+        audit.api_items = lambda kind: (_ for _ in ()).throw(AssertionError("network read attempted"))
+        with tempfile.TemporaryDirectory() as empty:
+            with patch.object(audit.revision_classes, "REPO_ROOT", Path(empty)):
+                result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("revision classes or coverage are invalid", message)
+        self.assertIn("result: INVALID", message)
+        self.assertEqual(self.report_result()["revisionClasses"], None)
+
+    def test_hub_outage_is_unavailable_and_never_drift_or_current(self) -> None:
+        self.snapshot({"models": [item("SZLHOLDINGS/model")]})
+
+        def http(code: int) -> urllib.error.HTTPError:
+            return audit.urllib.error.HTTPError("https://huggingface.co/api/models", code, "x", {}, None)
+
+        def wrapped(code: int) -> Exception:
+            error = audit.InventoryError("HTTP_UNAVAILABLE")
+            error.__cause__ = http(code)
+            return error
+
+        outages = {
+            "connection": audit.urllib.error.URLError("offline"),
+            "timeout": TimeoutError("timed out"),
+            "listing 503": wrapped(503),
+            "listing 429": wrapped(429),
+        }
+        for name, error in outages.items():
+            with self.subTest(case=name):
+                audit.api_items = lambda kind, error=error: (_ for _ in ()).throw(error)
+                result, message = self.check()
+                self.assertEqual(result, 1)
+                self.assertIn("evidence is unavailable", message)
+                self.assertIn("result: UNAVAILABLE", message)
+                self.assertNotIn("stale", message)
+                self.assertEqual(self.report_result()["result"], "UNAVAILABLE")
+
+    def test_policy_and_evidence_failures_are_invalid_not_unavailable(self) -> None:
+        self.snapshot({"models": [item("SZLHOLDINGS/model")]})
+        forbidden = audit.InventoryError("HTTP_UNAVAILABLE")
+        forbidden.__cause__ = audit.urllib.error.HTTPError("https://huggingface.co/api/models", 403, "x", {}, None)
+        failures = {
+            "listing 403": forbidden,
+            "private row": audit.InventoryError("PUBLIC_VISIBILITY_UNOBSERVED"),
+            "foreign row": audit.InventoryError("DUPLICATE_OR_FOREIGN_REPOSITORY"),
+            "budget": audit.InventoryError("ITEM_BUDGET"),
+        }
+        for name, error in failures.items():
+            with self.subTest(case=name):
+                audit.api_items = lambda kind, error=error: (_ for _ in ()).throw(error)
+                result, message = self.check()
+                self.assertEqual(result, 1)
+                self.assertIn("result: INVALID", message)
+                self.assertEqual(self.report_result()["result"], "INVALID")
+        audit.api_items = lambda kind: [{**item("SZLHOLDINGS/model"), "gated": "unexpected"}] if kind == "models" else []
+        result, message = self.check()
+        self.assertEqual((result, "result: INVALID" in message), (1, True))
+
+    def test_card_fetch_failures_are_labelled_by_cause(self) -> None:
+        fixtures = {"models": [item("SZLHOLDINGS/model")]}
+        self.snapshot(fixtures)
+        url = "https://huggingface.co/SZLHOLDINGS/model/resolve/x/README.md"
+        for name, error, label in (
+            ("401", audit.urllib.error.HTTPError(url, 401, "x", {}, None), "INVALID"),
+            ("410", audit.urllib.error.HTTPError(url, 410, "x", {}, None), "INVALID"),
+            ("503", audit.urllib.error.HTTPError(url, 503, "x", {}, None), "UNAVAILABLE"),
+            ("timeout", TimeoutError("timed out"), "UNAVAILABLE"),
+        ):
+            with self.subTest(case=name):
+                audit.fetch_card_markdown = lambda *args, error=error: (_ for _ in ()).throw(error)
+                result, message = self.check()
+                self.assertEqual(result, 1)
+                self.assertIn(f"result: {label}", message)
+
+    def test_historical_proof_outage_is_unavailable_and_deletion_stays_invalid(self) -> None:
+        fixtures = {"spaces": [item("SZLHOLDINGS/space")]}
+        self.snapshot(fixtures)
+        self.advance(fixtures["spaces"][0])
+        audit.fetch_revision = lambda *args: (_ for _ in ()).throw(audit.urllib.error.URLError("reset"))
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("could not be observed", message)
+        self.assertIn("result: UNAVAILABLE", message)
+        audit.fetch_revision = lambda *args: (_ for _ in ()).throw(
+            audit.urllib.error.HTTPError("https://huggingface.co/api/spaces", 404, "Not Found", {}, None))
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("is not verifiable", message)
+        self.assertIn("result: INVALID", message)
+
+    def test_outage_on_an_earlier_row_cannot_hide_a_governed_revision_change(self) -> None:
+        khipu = "SZLHOLDINGS/SZL-Khipu-1.5B"
+        self.assertEqual(audit.revision_classes.load_revision_classes().class_of("model", khipu),
+                         audit.revision_classes.SOURCE_TRACKED)
+        fixtures = {"models": [item(khipu), item("SZLHOLDINGS/szl-nemo")]}
+        self.snapshot(fixtures)
+        fetched: list[str] = []
+
+        def outage(item_id: str, repo_type: str, revision: str) -> dict:
+            fetched.append(item_id)
+            raise audit.urllib.error.URLError("reset")
+
+        audit.fetch_revision = outage
+        for row in fixtures["models"]:
+            self.advance(row)
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("SZLHOLDINGS/szl-nemo governed revision changed", message)
+        self.assertIn("result: INVALID", message)
+        self.assertNotIn("UNAVAILABLE", message)
+        self.assertEqual(fetched, [])
+        self.assertEqual(self.report_result()["result"], "INVALID")
+
+        fixtures["models"][1].update(item("SZLHOLDINGS/szl-nemo"))
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertEqual(fetched, [khipu])
+        self.assertIn(f"{khipu} historical revision", message)
+        self.assertIn("result: UNAVAILABLE (public Hub evidence could not be observed; "
+                      "drift was not evaluated (UNKNOWN); not current)", message)
+        self.assertNotIn("not drift", message)
+        report = self.report_result()
+        self.assertEqual((report["result"], report["exitCode"]), ("UNAVAILABLE", 1))
+        self.assertIn("UNKNOWN", report["meaning"])
+
+    def test_outage_cannot_hide_other_network_free_failures(self) -> None:
+        fixtures = {"spaces": [item("SZLHOLDINGS/space"), item("SZLHOLDINGS/later")]}
+        self.snapshot(fixtures)
+        audit.fetch_revision = lambda *args: (_ for _ in ()).throw(audit.urllib.error.URLError("reset"))
+        self.advance(fixtures["spaces"][0])
+        fixtures["spaces"][1]["lastModified"] = "2026-07-26T00:30:00Z"
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("SZLHOLDINGS/later unchanged revision has conflicting lastModified", message)
+        self.assertIn("result: INVALID", message)
+        fixtures["spaces"][1].update(item("SZLHOLDINGS/later"))
+        self.output.write_text(self.output.read_text(encoding="utf-8").rstrip("\n"), encoding="utf-8")
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("not canonically rendered", message)
+        self.assertIn("result: INVALID", message)
+
+    def test_drift_report_names_each_row_with_class_and_policy_source(self) -> None:
+        card = {"text": "# Model\n\nA claim.\n"}
+        audit.fetch_card_markdown = lambda *args: card["text"]
+        fixtures = {"models": [item("SZLHOLDINGS/model"), item("SZLHOLDINGS/szl-nemo")]}
+        self.snapshot(fixtures)
+        card["text"] = "# Model\n\nA different claim.\n"
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("manifest is stale", message)
+        self.assertIn("result: DRIFT", message)
+        report = self.report_result()
+        self.assertEqual((report["result"], report["exitCode"]), ("DRIFT", 1))
+        rows = {row["id"]: row for row in report["changedRows"]}
+        self.assertEqual(rows["SZLHOLDINGS/model"]["class"], "SOURCE_TRACKED")
+        self.assertEqual(rows["SZLHOLDINGS/model"]["policySource"], ["default:SOURCE_TRACKED"])
+        self.assertEqual(rows["SZLHOLDINGS/model"]["fields"], ["cardSemanticSha256"])
+        self.assertEqual(rows["SZLHOLDINGS/szl-nemo"]["class"], "GOVERNED_EXACT")
+        self.assertRegex(report["revisionClasses"]["sha256"], r"^[0-9a-f]{64}$")
+
+    def test_unwritable_report_is_never_current(self) -> None:
+        self.snapshot({"models": [item("SZLHOLDINGS/model")]})
+        self.report.mkdir()
+        result, message = self.check()
+        self.assertEqual(result, 1)
+        self.assertIn("report could not be written", message)
+        self.assertIn("result: INVALID", message)
+        self.assertNotIn("result: CURRENT", message)
+
+    def test_tracked_manifest_still_validates_structurally_with_the_new_loader(self) -> None:
+        raw = TRACKED_MANIFEST.read_text(encoding="utf-8")
+        existing = json.loads(raw)
+        self.assertEqual(raw, json.dumps(existing, indent=2, sort_keys=False) + "\n")
+        classes = audit.revision_classes.load_revision_classes()
+        audit.revision_classes.validate_manifest_coverage(classes, existing, label="tracked manifest")
+        observed_at = audit.validate_observed_at(existing["observedAt"])
+        audit.validate_generated_revision_evidence(existing, observed_at=observed_at)
+        audit.fetch_revision = lambda *args: (_ for _ in ()).throw(AssertionError("network read attempted"))
+        audit.validate_snapshot_revisions(existing, json.loads(raw), observed_at=observed_at, classes=classes)
+        stable = audit.semantic_manifest(existing, classes)
+        exact = 0
+        for plural, repo_type in audit.revision_classes.PLURALS.items():
+            for row, kept in zip(existing["inventory"][plural], stable["inventory"][plural]):
+                if row.get("gated") or classes.governed(repo_type, row["id"]):
+                    exact += 1
+                    self.assertEqual((kept["sha"], kept["lastModified"]), (row["sha"], row["lastModified"]))
+                else:
+                    self.assertNotIn("sha", kept)
+        self.assertGreater(exact, 0)
+        self.output.write_text(raw, encoding="utf-8")
+        with patch.object(audit, "build_manifest", side_effect=lambda **_: json.loads(raw)):
+            result, message = self.check()
+        self.assertEqual(result, 0, message)
+        self.assertEqual(self.report_result()["result"], "CURRENT")
 
 
 if __name__ == "__main__":
