@@ -117,11 +117,16 @@ class ArtifactTests(unittest.TestCase):
     def test_zip_traversal_member(self):
         m,b=artifact('../../source.py')
         with self.assertRaises(M.PreparationError): M.validate_artifact(m,b,source=SHA,run_id=123,expected_digest=M.digest(b))
-    def test_deterministic_branch_not_main(self):
-        self.assertEqual(M.branch_name(SHA,'b'*64),'szl/hf-inventory-aaaaaaaaaaaa-bbbbbbbbbbbb')
-    def test_malformed_branch_inputs(self):
-        for value in ('main','../refs','A'*40,''):
-            with self.subTest(value=value),self.assertRaises(M.PreparationError): M.branch_name(value,'b'*64)
+    def test_fixed_rolling_branch_not_main(self):
+        self.assertEqual(M.ROLLING,'szl/hf-inventory-refresh')
+        self.assertNotIn(M.ROLLING,('main','refs/heads/main'))
+        self.assertFalse(hasattr(M,'branch_name'))
+    def test_controller_message_satisfies_its_own_commit_template(self):
+        message=M.refresh_message(123,SHA,'b'*64)
+        self.assertEqual(M.REFRESH_MESSAGE.match(message).group(1),SHA)
+        for value in (M.refresh_message(0,SHA,'b'*64),M.refresh_message(123,'main','b'*64),
+                      'Merge main into public inventory reconciliation',' '+message):
+            with self.subTest(value=value[:40]): self.assertIsNone(M.REFRESH_MESSAGE.match(value))
     def test_paths_exclude_policy_and_runtime_code(self):
         self.assertEqual(len(M.ALLOWED),6)
         self.assertNotIn('.github/workflows/hf-sync.yml',M.ALLOWED)
@@ -211,6 +216,106 @@ class ModelSupportPreflightTests(unittest.TestCase):
         self.assertEqual(str(raised.exception),'model inference support source or inventory coverage requires source review')
         self.assertEqual(self.report,{'preparationStep':'INFERENCE_SUPPORT_PREFLIGHT',
                                      'modelInferenceSupport':{'state':'SOURCE_REVIEW_REQUIRED'}})
+
+
+class GovernedRevisionPreflightTests(unittest.TestCase):
+    def setUp(self):
+        from scripts import hf_revision_classes as classes
+        self.classes=classes
+        self.manifest=json.loads((ROOT/M.CANONICAL).read_bytes())
+        self.report={}
+        self.imports=patch.dict(sys.modules,{'hf_revision_classes':classes})
+        self.imports.start()
+        self.addCleanup(self.imports.stop)
+
+    def row(self,manifest,plural,item_id):
+        return next(row for row in manifest['inventory'][plural] if row['id']==item_id)
+
+    def tracked(self,*,governed,gated=False):
+        """Pick a tracked row by class so later inventory refreshes keep this test meaningful."""
+        classes=self.classes.load_revision_classes()
+        for plural,repo_type in self.classes.PLURALS.items():
+            for row in self.manifest['inventory'][plural]:
+                if (classes.governed(repo_type,row['id'])==governed and bool(row.get('gated'))==gated):
+                    return plural,row['id']
+        self.skipTest('tracked manifest has no row of this class')
+
+    def test_current_tracked_manifest_validates_without_governed_changes(self):
+        M.validate_governed_revision_candidate(self.manifest,copy.deepcopy(self.manifest),self.report)
+        self.assertEqual(self.report['preparationStep'],'GOVERNED_REVISION_PREFLIGHT')
+        self.assertEqual(self.report['governedRevisions']['state'],'VALIDATED')
+        self.assertEqual(self.report['governedRevisions']['changed'],[])
+        self.assertNotIn('state',self.report)
+
+    def test_governed_or_gated_revision_change_requires_source_review(self):
+        governed=self.tracked(governed=True); gated=self.tracked(governed=True,gated=True)
+        for (plural,item_id),field,value in (
+            (governed,'sha','f'*40),
+            (governed,'lastModified','2026-11-03T18:00:00.000Z'),
+            (gated,'sha','f'*40),
+        ):
+            with self.subTest(item_id=item_id,field=field):
+                candidate=copy.deepcopy(self.manifest); report={}
+                self.row(candidate,plural,item_id)[field]=value
+                with self.assertRaisesRegex(M.PreparationError,'governed Hugging Face revision changed'):
+                    M.validate_governed_revision_candidate(self.manifest,candidate,report)
+                self.assertEqual(report['state'],'SOURCE_REVIEW_REQUIRED')
+                self.assertEqual(report['governedRevisions']['state'],'SOURCE_REVIEW_REQUIRED')
+                [change]=report['governedRevisions']['changed']
+                self.assertEqual((change['repoType'],change['id'],change['class'],change['change'],change['fields']),
+                                 (self.classes.PLURALS[plural],item_id,'GOVERNED_EXACT','REVISION_CHANGED',[field]))
+
+    def test_governed_repository_appearing_or_vanishing_requires_source_review(self):
+        plural,item_id=self.tracked(governed=True)
+        added=copy.deepcopy(self.manifest)
+        # A bound target absent from the tracked inventory (forge-family profile).
+        self.assertNotIn('SZLHOLDINGS/SZL-Sentinel-1.5B',{r['id'] for r in added['inventory']['models']})
+        added['inventory']['models'].append({**added['inventory']['models'][0],'id':'SZLHOLDINGS/SZL-Sentinel-1.5B','gated':False})
+        removed=copy.deepcopy(self.manifest)
+        removed['inventory'][plural]=[r for r in removed['inventory'][plural] if r['id']!=item_id]
+        for candidate,change in ((added,'ADDED'),(removed,'REMOVED')):
+            with self.subTest(change=change):
+                report={}
+                with self.assertRaises(M.PreparationError):
+                    M.validate_governed_revision_candidate(self.manifest,candidate,report)
+                self.assertEqual([c['change'] for c in report['governedRevisions']['changed']],[change])
+
+    def test_source_tracked_revision_advance_is_not_stopped_here(self):
+        candidate=copy.deepcopy(self.manifest)
+        plural,item_id=self.tracked(governed=False)
+        self.row(candidate,plural,item_id)['sha']='f'*40
+        self.row(candidate,plural,item_id)['lastModified']='2026-11-03T18:00:00.000Z'
+        M.validate_governed_revision_candidate(self.manifest,candidate,self.report)
+        self.assertEqual(self.report['governedRevisions']['state'],'VALIDATED')
+
+    def test_unclassified_gated_candidate_row_requires_source_review(self):
+        candidate=copy.deepcopy(self.manifest)
+        plural,item_id=self.tracked(governed=False)
+        self.row(candidate,plural,item_id)['gated']=True
+        with self.assertRaisesRegex(M.PreparationError,'revision classes are invalid or incomplete'):
+            M.validate_governed_revision_candidate(self.manifest,candidate,self.report)
+        self.assertEqual(self.report['state'],'SOURCE_REVIEW_REQUIRED')
+
+    def test_missing_class_module_or_policy_in_checkout_fails_closed(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder, patch.object(M,'ROOT',Path(folder)):
+            for modules in ({'hf_revision_classes':self.classes},{'hf_revision_classes':None}):
+                report={}
+                with self.subTest(module_present=modules['hf_revision_classes'] is not None), patch.dict(sys.modules,modules):
+                    with self.assertRaisesRegex(M.PreparationError,'revision classes are invalid or incomplete'):
+                        M.validate_governed_revision_candidate(self.manifest,copy.deepcopy(self.manifest),report)
+                    self.assertEqual(report['state'],'SOURCE_REVIEW_REQUIRED')
+
+    def test_unreadable_or_invalid_classes_fail_closed_with_fixed_diagnostics(self):
+        for error in (self.classes.RevisionClassError('private diagnostic value'),OSError('private')):
+            with self.subTest(error=type(error).__name__):
+                report={}
+                with patch.object(self.classes,'load_revision_classes',side_effect=error):
+                    with self.assertRaises(M.PreparationError) as raised:
+                        M.validate_governed_revision_candidate(self.manifest,copy.deepcopy(self.manifest),report)
+                self.assertNotIn('private',str(raised.exception))
+                self.assertEqual(report['state'],'SOURCE_REVIEW_REQUIRED')
+                self.assertEqual(report['governedRevisions'],{'state':'SOURCE_REVIEW_REQUIRED'})
 
 
 class MaintenanceProjectionClosureTests(unittest.TestCase):
