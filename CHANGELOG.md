@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Runtime verifying-key metadata
+
+- Serve `GET` and `HEAD /api/a11oy/v1/govern/verifying-key` from the same
+  captured public PEM and SHA-256 fingerprint exposed by `/cosign.pub`.
+- Keep verifier metadata reads passive: they do not load or generate a key, sign,
+  authorize execution, or claim retained signing readiness.
+
 ### Fixed - Rosie cross-link receipt verification
 
 - Separate receipt observation from schema-, role-, identity-, and digest-bound
