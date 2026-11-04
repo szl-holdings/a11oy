@@ -819,7 +819,7 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "72892e954caa111b717b9fc73a619f47ec61c202ff5b41d4a4e0098c52dfed1b"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "bc5403aa3b31ddc6f52b6bec2ff0e8bd852af09940131ffac2cc60035ca003a1"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "f31c0be60794030747539b9f60037698b3c26bc8930dc9d0fe1e2612c1ef9e1a"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
