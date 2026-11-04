@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Cloudflare Windows PowerShell compatibility
+
+on:
+  pull_request:
+    paths:
+      - "ops/windows/*.ps1"
+      - ".github/workflows/cloudflare-windows-bootstrap.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ops/windows/*.ps1"
+      - ".github/workflows/cloudflare-windows-bootstrap.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  parse:
+    name: Parse owner helpers with Windows PowerShell 5.1
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Parse without executing authorization or installation
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1) {
+              throw "This check requires Windows PowerShell 5.1."
+          }
+          $paths = @(
+              "ops/windows/authorize-cloudflare-production.ps1",
+              "ops/windows/install-cloudflare-tools.ps1"
+          )
+          foreach ($path in $paths) {
+              $tokens = $null
+              $parseErrors = $null
+              $null = [System.Management.Automation.Language.Parser]::ParseFile(
+                  (Join-Path $env:GITHUB_WORKSPACE $path), [ref]$tokens, [ref]$parseErrors
+              )
+              if (@($parseErrors).Count -gt 0) {
+                  $parseErrors | ForEach-Object { Write-Error $_.Message -ErrorAction Continue }
+                  throw "Windows PowerShell 5.1 could not parse $path."
+              }
+              # Also cover BOM-less downloads on owner machines using Windows-1252.
+              $bytes = [IO.File]::ReadAllBytes((Join-Path $env:GITHUB_WORKSPACE $path))
+              $hasUtf8Bom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+              if (-not $hasUtf8Bom) {
+                  $legacyText = [Text.Encoding]::GetEncoding(1252).GetString($bytes)
+                  $tokens = $null
+                  $parseErrors = $null
+                  $null = [System.Management.Automation.Language.Parser]::ParseInput(
+                      $legacyText, [ref]$tokens, [ref]$parseErrors
+                  )
+                  if (@($parseErrors).Count -gt 0) {
+                      $parseErrors | ForEach-Object { Write-Error $_.Message -ErrorAction Continue }
+                      throw "Windows-1252 decoding makes $path invalid. Use ASCII or UTF-8 with BOM."
+                  }
+              }
+              Write-Output "Parsed without execution: $path"
+          }

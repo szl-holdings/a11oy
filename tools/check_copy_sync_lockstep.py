@@ -833,11 +833,11 @@ REVIEWED_RELOCK_JOB_SHA256 = "8debe2a787278449dc5a50a1e946169129179e5655d8eefac2
 REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "7590b85e303209c953e267aa5bd8b861e557e221674d26d5d32690440115db01"
 # The GET-only handoff freezes independent expected context and authority pins.
 # Its manual verification branch excludes every provider configuration/deploy job.
-REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "58ebd551d9c2bc93f90e217a150eca4d66ef3ff619ef43feb5cb470861b92bf3"
+REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
-    ".github/scripts/admit_execution_handoff.py": "806161162b9f4fcf7f901e97ee199d2e362c97a63ee8aeb728070f0ca2b1e4cf",
-    ".github/scripts/collect_execution_readiness.py": "5421fd1a54adb29cd0a4c1b3ececa07ce28b8458a0a8a9c6fb75074d7178b162",
+    ".github/scripts/admit_execution_handoff.py": "1eae1718aa25f21f06b5e1f2e80732215308fcc6efd6196bf5319626873ee930",
+    ".github/scripts/collect_execution_readiness.py": "0eaeab6c214000706a2d7a20d833285002d0192300bb43f75d49def81c64d399",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
     "observer_adapters.py": "84b80c124c8e6e70c0292934f150873ea93340a8995795e48cab477628e90b66",

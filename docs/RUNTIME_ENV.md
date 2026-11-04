@@ -101,6 +101,7 @@ whether the *subsystem* is unavailable without it (never means "crash").
 | Env name | Kind | Required | Purpose | Honest default |
 |---|---|---|---|---|
 | `A11OY_GPU_TOKEN` | secret | optional | Bearer token for the sovereign GPU node(s). Absent => joules are honest SAMPLE, never MEASURED. | (unset → subsystem DEGRADED) |
+| `SZL_METER_HMAC_TARGETS` | secret | optional | Origin-keyed meter client credentials used by `szl_meter_access`. Missing credentials deny meter reads before network access. | (unset → subsystem DEGRADED) |
 | `A11OY_ENERGY_OMEN_ENABLED` | variable | optional | Runbook alias: 1 flips OMEN live when STANDBY unset. | 0 |
 | `A11OY_JOULE_METER_URL` | variable | optional | URL of a joule meter (energy MEASURED path). | (none / feature off) |
 | `A11OY_METER2_CF_ACCESS_CLIENT_ID` | secret | optional | Cloudflare Access service-token Client ID, sent only to HTTPS `meter2.a-11-oy.com` when paired with the Client Secret. | (unset) |
@@ -109,6 +110,14 @@ whether the *subsystem* is unavailable without it (never means "crash").
 | `A11OY_OMEN_STANDBY` | variable | optional | 1 => OMEN standby (default); 0 => live lung. | 1 |
 | `SZL_ENERGY_LEDGER_PATH` | variable | optional | Persistent path for the energy/receipt ledger; ephemeral if unset. | (none / feature off) |
 | `SZL_LAKE_DIR` | variable | optional | Persistent directory for the unified Khipu receipt ledger. | (none / feature off) |
+
+The GPU bearer authenticates inference; it does not authenticate meter reads.
+`SZL_METER_HMAC_TARGETS` contains the separately provisioned meter client mapping.
+Configure it only as a Secret. The current source uses this mapping for meter
+origins; any future source-owned versioned selector must be reflected in this
+registry at activation. Preflight reports names and credential presence only:
+it does not prove a successful meter request, fresh NVML counters, or measured
+GPU execution. Those remain separate live checks.
 
 ### feeds
 
@@ -170,6 +179,7 @@ OPENROUTER_API_KEY
 POLYGON_API_KEY
 STRIPE_API_KEY
 SZL_COSIGN_PRIVATE_PEM
+SZL_METER_HMAC_TARGETS
 SZL_FRED_API_KEY
 TOGETHER_API_KEY
 VLLM_API_KEY

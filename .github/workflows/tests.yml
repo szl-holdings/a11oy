@@ -39,6 +39,7 @@ jobs:
           tests/test_publish_readiness_verdict.py tests/test_canonical_a11oy_relock.py
           tests/test_execution_acceptance.py tests/test_hf_execution_handoff.py tests/test_dockerfile_layer_budget.py
           tests/test_model_endpoint_credentials.py
+          tests/test_collector_reason_codes.py
       - name: Verify authenticated VM model gateway contracts
         run: python -B -m unittest discover -s ops/vm-model-gateway -p 'test_*.py' -v
 
@@ -280,6 +281,8 @@ jobs:
         run: >-
           python -B -m pytest -q -p no:cacheprovider
           tests/test_state_store_hub_sdk.py
+          tests/test_provenance_persistence.py
+          tests/test_khipu_verify_authorization.py
           tests/test_replication_snapshot_delivery.py
           tests/test_replication_snapshot_https.py
           tests/test_state_store_asgi_shutdown.py

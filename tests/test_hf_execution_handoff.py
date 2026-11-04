@@ -63,6 +63,84 @@ class ExecutionHandoffTests(unittest.TestCase):
                             self.context(**{"A11OY_EXECUTION_" + field: missing})
             network.assert_not_called()
 
+    def test_run_2164_missing_context_retains_names_without_values(self):
+        names = HANDOFF.CONTEXT_VARIABLES
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output, failure, github = (root / name for name in
+                                       ("handoff.json", "handoff-failure.json", "outputs.txt"))
+            summary = root / "summary.md"
+            env = {**self.env, **{name: "" for name in names},
+                   "A11OY_CODE_ADMIN_KEY": "private-credential-value"}
+            stderr = io.StringIO()
+            with mock.patch.dict(os.environ, env, clear=True), \
+                    mock.patch.object(HANDOFF, "collector") as collector, \
+                    redirect_stderr(stderr):
+                result = HANDOFF.main([
+                    "--source-sha", "a" * 40, "--output", str(output),
+                    "--failure-output", str(failure), "--github-output", str(github),
+                ])
+            self.assertEqual(result, 2)
+            self.assertFalse(output.exists())
+            self.assertFalse(github.exists())
+            collector.assert_not_called()
+            report = json.loads(failure.read_bytes())
+            self.assertEqual(report, {
+                "schema": "szl.execution-handoff-failure/v1",
+                "source_revision": "a" * 40,
+                "stage": "CONTEXT_CONFIGURATION",
+                "error": "EXECUTION_CONTEXT_REQUIRED",
+                "context_frozen": False,
+                "execution_authorized": False,
+                "export_collected": False,
+                "provider_state_changed": False,
+                "missing_variables": list(names),
+            })
+            self.assertEqual(json.loads(stderr.getvalue()), report)
+            self.assertNotIn("private-credential-value", failure.read_text())
+
+            with mock.patch.dict(os.environ, {
+                "HANDOFF_OWNER_BEFORE_OUTCOME": "success",
+                "HANDOFF_CONTEXT_OUTCOME": "failure",
+                "HANDOFF_OWNER_AFTER_OUTCOME": "skipped",
+            }, clear=True), redirect_stdout(io.StringIO()):
+                result = HANDOFF.main([
+                    "--record-workflow-failure", "--source-sha", "a" * 40,
+                    "--failure-output", str(failure), "--summary-output", str(summary),
+                ])
+            self.assertEqual(result, 0)
+            self.assertEqual(json.loads(failure.read_bytes()), report)
+            summary_text = summary.read_text(encoding="utf-8")
+            self.assertIn("independently admitted context is missing", summary_text)
+            for name in names:
+                self.assertIn(name, summary_text)
+            self.assertIn("cannot select these values", summary_text)
+
+    def test_run_2162_supersession_retains_distinct_failure_and_summary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            failure, summary = root / "handoff-failure.json", root / "summary.md"
+            env = {
+                "HANDOFF_OWNER_BEFORE_OUTCOME": "failure",
+                "HANDOFF_OWNER_BEFORE_STATUS": "SUPERSEDED_BY_NEWER_MAIN",
+                "HANDOFF_CONTEXT_OUTCOME": "skipped",
+                "HANDOFF_OWNER_AFTER_OUTCOME": "skipped",
+            }
+            with mock.patch.dict(os.environ, env, clear=True), redirect_stdout(io.StringIO()):
+                result = HANDOFF.main([
+                    "--record-workflow-failure", "--source-sha", "a" * 40,
+                    "--failure-output", str(failure), "--summary-output", str(summary),
+                ])
+            self.assertEqual(result, 0)
+            report = json.loads(failure.read_bytes())
+            self.assertEqual(report["stage"], "SOURCE_OWNERSHIP_BEFORE")
+            self.assertEqual(report["error"], "SUPERSEDED_BY_NEWER_MAIN")
+            self.assertFalse(report["provider_state_changed"])
+            summary_text = summary.read_text(encoding="utf-8")
+            self.assertIn("SUPERSEDED_BY_NEWER_MAIN", summary_text)
+            self.assertIn("newer protected main", summary_text)
+            self.assertNotIn("complete the approved bounded execution", summary_text)
+
     def test_exact_context_and_independent_public_pins_are_required(self):
         changes = [
             {"A11OY_EXECUTION_HF_REVISION": "main"},
@@ -108,30 +186,55 @@ class ExecutionHandoffTests(unittest.TestCase):
     def test_failed_admission_emits_no_outputs_or_provider_exception(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "handoff.json"
+            failure = Path(directory) / "handoff-failure.json"
             github = Path(directory) / "outputs.txt"
             stderr = io.StringIO()
             with mock.patch.dict(os.environ, self.env, clear=True), \
                     mock.patch.object(HANDOFF, "admit", side_effect=RuntimeError("private-provider-data")), \
                     redirect_stderr(stderr):
-                result = HANDOFF.main(["--source-sha", "a" * 40, "--output", str(output),
-                                       "--github-output", str(github)])
+                result = HANDOFF.main([
+                    "--source-sha", "a" * 40, "--output", str(output),
+                    "--failure-output", str(failure), "--github-output", str(github),
+                ])
             self.assertEqual(result, 2)
             self.assertFalse(output.exists())
             self.assertFalse(github.exists())
             self.assertNotIn("private-provider-data", stderr.getvalue())
             self.assertIn("EXECUTION_HANDOFF_UNAVAILABLE", stderr.getvalue())
+            report = json.loads(failure.read_bytes())
+            self.assertEqual(report["stage"], "RUNTIME_READBACK")
+            self.assertEqual(report["error"], "EXECUTION_HANDOFF_UNAVAILABLE")
+            self.assertNotIn("private-provider-data", failure.read_text())
+
+            summary = Path(directory) / "summary.md"
+            with mock.patch.dict(os.environ, {
+                "HANDOFF_OWNER_BEFORE_OUTCOME": "success",
+                "HANDOFF_CONTEXT_OUTCOME": "failure",
+                "HANDOFF_OWNER_AFTER_OUTCOME": "skipped",
+            }, clear=True), redirect_stdout(io.StringIO()):
+                result = HANDOFF.main([
+                    "--record-workflow-failure", "--source-sha", "a" * 40,
+                    "--failure-output", str(failure), "--summary-output", str(summary),
+                ])
+            self.assertEqual(result, 0)
+            self.assertIn("RUNTIME_READBACK", summary.read_text())
+            self.assertIn("EXECUTION_HANDOFF_UNAVAILABLE", summary.read_text())
 
     def test_successful_cli_emits_only_validated_frozen_public_context(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "handoff.json"
+            failure = Path(directory) / "handoff-failure.json"
             github = Path(directory) / "outputs.txt"
             with mock.patch.dict(os.environ, self.env, clear=True), \
                     mock.patch.object(HANDOFF, "admit", return_value={"execution_authorized": False}) as read, \
                     redirect_stdout(io.StringIO()):
-                result = HANDOFF.main(["--source-sha", "a" * 40, "--output", str(output),
-                                       "--github-output", str(github)])
+                result = HANDOFF.main([
+                    "--source-sha", "a" * 40, "--output", str(output),
+                    "--failure-output", str(failure), "--github-output", str(github),
+                ])
             self.assertEqual(result, 0)
             self.assertEqual(read.call_count, 1)
+            self.assertFalse(failure.exists())
             self.assertEqual(json.loads(output.read_bytes()), {"execution_authorized": False})
             values = dict(line.split("=", 1) for line in github.read_text().splitlines())
             self.assertEqual(values["hf_revision"], self.env["A11OY_EXECUTION_HF_REVISION"])
@@ -142,15 +245,38 @@ class ExecutionHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "handoff.json"
             output.write_bytes(b"preserve")
+            failure = Path(directory) / "handoff-failure.json"
             github = Path(directory) / "outputs.txt"
             with mock.patch.dict(os.environ, self.env, clear=True), \
                     mock.patch.object(HANDOFF, "admit", return_value={"fixture": True}), \
                     redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
-                result = HANDOFF.main(["--source-sha", "a" * 40, "--output", str(output),
-                                       "--github-output", str(github)])
+                result = HANDOFF.main([
+                    "--source-sha", "a" * 40, "--output", str(output),
+                    "--failure-output", str(failure), "--github-output", str(github),
+                ])
             self.assertEqual(result, 2)
             self.assertEqual(output.read_bytes(), b"preserve")
             self.assertFalse(github.exists())
+            self.assertEqual(json.loads(failure.read_bytes())["stage"], "OUTPUT_PUBLICATION")
+
+    def test_existing_failure_report_is_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output, failure, github = (root / name for name in
+                                       ("handoff.json", "handoff-failure.json", "outputs.txt"))
+            failure.write_bytes(b"preserve-failure")
+            with mock.patch.dict(os.environ, {**self.env, "A11OY_EXECUTION_BOOT_ID": ""}, clear=True), \
+                    mock.patch.object(HANDOFF, "collector") as collector, \
+                    redirect_stderr(io.StringIO()):
+                result = HANDOFF.main([
+                    "--source-sha", "a" * 40, "--output", str(output),
+                    "--failure-output", str(failure), "--github-output", str(github),
+                ])
+            self.assertEqual(result, 2)
+            self.assertEqual(failure.read_bytes(), b"preserve-failure")
+            self.assertFalse(output.exists())
+            self.assertFalse(github.exists())
+            collector.assert_not_called()
 
 
 if __name__ == "__main__":
