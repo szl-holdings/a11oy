@@ -71,6 +71,36 @@ def test_shared_bar_assets_are_kanchay_and_copied() -> None:
     assert "data-szl-command-bar" in INDEX
 
 
+def test_runtime_evidence_drawer_is_accessible_and_fails_closed() -> None:
+    """The header exposes the observation boundary without promoting HTTP health."""
+    assert "text: 'Evidence'" in BAR_JS
+    assert "'aria-controls': evidenceId" in BAR_JS
+    assert "'aria-expanded': 'false'" in BAR_JS
+    assert "role: 'region'" in BAR_JS
+    assert "'aria-label': 'Runtime evidence'" in BAR_JS
+    assert "role: 'status'" in BAR_JS
+    assert "'aria-live': 'polite'" in BAR_JS
+    assert "'aria-atomic': 'true'" in BAR_JS
+    assert "svc.setAttribute('aria-busy', 'true')" in BAR_JS
+    assert "svc.setAttribute('aria-busy', 'false')" in BAR_JS
+    assert "ev.key === 'Escape' && !evidencePanel.hidden" in BAR_JS
+
+    for field in ("Source revision", "Environment", "Observed at", "Scope", "Limits"):
+        assert f"text: '{field}'" in BAR_JS
+    assert "Read-only, same-origin runtime probes." in BAR_JS
+    assert "HTTP availability is not capability, proof, deployment identity, or authorization." in BAR_JS
+    assert "fetchJson('/api/build-info'" in BAR_JS
+    assert "build.status === 'OBSERVED'" in BAR_JS
+    assert "/^[0-9a-f]{40}$/.test(revision)" in BAR_JS
+    assert "No source-bound 40-hex runtime revision was observed." in BAR_JS
+    assert "data-evidence-state', revisionObserved ? 'OBSERVED' : 'UNAVAILABLE'" in BAR_JS
+    assert "evidenceObserved.setAttribute('datetime', observedAt)" in BAR_JS
+
+    assert ".szl-evidence-panel[hidden]{display:none;}" in BAR_CSS
+    assert ".szl-evidence-toggle[aria-expanded=\"true\"]" in BAR_CSS
+    assert "min-height:44px" in BAR_CSS
+
+
 def test_seven_module_ia_yields_over_five_group_rail() -> None:
     for group in ("Home", "Operate", "Build", "Observe", "Govern", "Research", "More"):
         assert f'["{group}"' in CONSOLE

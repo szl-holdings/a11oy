@@ -12,7 +12,7 @@ be COPIED into each flagship's HF Space (as `szl_rosie_companion.py`) AND usable
 real installable library. Every Rosie cross-flagship call emits a Khipu receipt.
 
 HONESTY (Doctrine v10/v11 contract — verbatim, never hidden):
-  - Receipt signatures are PLACEHOLDER (Sigstore keyless CI not yet wired).
+  - Receipts are explicitly UNSIGNED (Sigstore keyless CI not yet wired).
   - Cross-flagship HTTP calls are REAL; when Rosie is unreachable (HF Space cold/sleeping)
     the shadow returns a clearly-labelled local stub (`stub=True`) — never fabricated as live.
   - The 162-endpoint claim refers to the CLOUD Rosie; a flagship reaches the
@@ -21,17 +21,36 @@ HONESTY (Doctrine v10/v11 contract — verbatim, never hidden):
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import math
 import os
+import re
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 DOCTRINE = "v11"
 WIRE = "I"  # Rosie-companion-wire (this library defines Wire I)
-SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired (Doctrine v10/v11)"
 ROSIE_BASE_URL = os.environ.get("ROSIE_BASE_URL", "https://szlholdings-rosie.hf.space")
+
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}\Z")
+_RECEIPT_SCHEMAS = frozenset({
+    "szl.rosie_companion.receipt/v1",
+    "szl.brain_jack.receipt/v1",
+})
+_RECEIPT_PAYLOAD_TYPES = {
+    "szl.rosie_companion.receipt/v1":
+        "application/vnd.szl.rosie_companion.receipt+json",
+    "szl.brain_jack.receipt/v1":
+        "application/vnd.szl.brain_jack.receipt+json",
+}
+_DIGEST_EXCLUDED_FIELDS = frozenset({
+    "node_digest",
+    "dsse",
+    "signature",
+    "signature_status",
+})
 
 # Flagships that carry a Rosie-shadow. vessels is intentionally absent: it is
 # legacy/collectioned (air-domain pivot moved to killinchu) — see task HARD RULES.
@@ -95,17 +114,217 @@ def make_khipu_receipt(flagship: str, op: str, query: str,
     if extra:
         body["meta"] = extra
     # node digest = sha256 over canonical body (pendant value)
-    node_digest = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+    node_digest = _canonical_receipt_digest(body)
     body["node_digest"] = node_digest
-    body["dsse"] = {
-        "payloadType": "application/vnd.szl.rosie_companion.receipt+json",
-        "signatures": [{"sig": SIGNATURE_PLACEHOLDER, "keyid": "PENDING — Sigstore keyless not wired"}],
-    }
-    body["signature"] = SIGNATURE_PLACEHOLDER
+    body.update(_unsigned_attestation(
+        "application/vnd.szl.rosie_companion.receipt+json"
+    ))
     return body
 
 
-def cross_link_receipt(flagship: str, rosie_receipt: Optional[dict[str, Any]],
+def _canonical_receipt_digest(body: dict[str, Any]) -> str:
+    """Return the v1 canonical digest, rejecting values outside strict JSON."""
+    encoded = json.dumps(body, sort_keys=True, allow_nan=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _unsigned_attestation(payload_type: str,
+                          status: str = "UNSIGNED") -> dict[str, Any]:
+    """Describe the absent signer without placing fake data in a signature slot."""
+    return {
+        "dsse": {
+            "payloadType": payload_type,
+            "signatures": [],
+        },
+        "signature": None,
+        "signature_status": status,
+    }
+
+
+def _normalise_json_object(value: Any) -> Optional[dict[str, Any]]:
+    """Return an isolated JSON object or None when the value is malformed."""
+    if not isinstance(value, dict):
+        return None
+    try:
+        encoded = json.dumps(value, sort_keys=True, allow_nan=False)
+        normalised = json.loads(encoded)
+    except (TypeError, ValueError, OverflowError, RecursionError):
+        return None
+    if not isinstance(normalised, dict) or normalised != value:
+        return None
+    return normalised
+
+
+def _signature_present(receipt: dict[str, Any]) -> bool:
+    signature = receipt.get("signature")
+    if signature not in (None, ""):
+        return True
+    declared_status = receipt.get("signature_status")
+    if (isinstance(declared_status, str) and declared_status
+            not in {"", "UNSIGNED", "UNVERIFIED"}):
+        return True
+    dsse = receipt.get("dsse")
+    if not isinstance(dsse, dict):
+        return False
+    signatures = dsse.get("signatures")
+    return signatures not in (None, [])
+
+
+def _finite_score(value: Any) -> bool:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError, OverflowError):
+        return False
+
+
+def _common_receipt_fields_valid(receipt: dict[str, Any]) -> bool:
+    axis_scores = receipt.get("axis_scores")
+    fields_valid = bool(
+        receipt.get("doctrine") == DOCTRINE
+        and isinstance(receipt.get("ts_utc"), str)
+        and receipt["ts_utc"].strip()
+        and _finite_score(receipt.get("lambda_signal"))
+        and 0.0 <= float(receipt["lambda_signal"]) <= 1.0
+        and isinstance(axis_scores, list)
+        and all(_finite_score(score) for score in axis_scores)
+        and all(0.0 <= float(score) <= 1.0 for score in axis_scores)
+        and (receipt.get("traceparent") is None
+             or isinstance(receipt.get("traceparent"), str))
+    )
+    if not fields_valid:
+        return False
+    return math.isclose(
+        float(receipt["lambda_signal"]),
+        lambda_signal(axis_scores),
+        rel_tol=0.0,
+        abs_tol=5e-7,
+    )
+
+
+def _receipt_binding_valid(receipt: dict[str, Any], *, role: str,
+                           flagship: str,
+                           traceparent: Optional[str]) -> bool:
+    if not _common_receipt_fields_valid(receipt):
+        return False
+    schema = receipt.get("schema")
+    if role == "flagship":
+        return bool(
+            schema == "szl.rosie_companion.receipt/v1"
+            and receipt.get("wire") == WIRE
+            and receipt.get("flagship") == flagship
+            and receipt.get("flagship_organ")
+                == FLAGSHIPS.get(flagship, {}).get("organ", "unknown")
+            and receipt.get("rosie_endpoint")
+                == f"/api/rosie/v1/brain/jack-{flagship}"
+            and isinstance(receipt.get("op"), str)
+            and bool(receipt["op"].strip())
+            and isinstance(receipt.get("query_preview"), str)
+        )
+    if role == "rosie":
+        return bool(
+            schema == "szl.brain_jack.receipt/v1"
+            and receipt.get("wire") == "G"
+            and receipt.get("space") == "rosie"
+            and receipt.get("organ") == "nervous"
+            and receipt.get("src_space") == flagship
+            and receipt.get("traceparent") == traceparent
+        )
+    return False
+
+
+def _inspect_receipt(receipt: Any, *, role: str, flagship: str,
+                     traceparent: Optional[str]) -> tuple[
+                         Optional[dict[str, Any]], dict[str, Any]
+                     ]:
+    """Validate receipt shape and body digest without claiming signature trust."""
+    evidence: dict[str, Any] = {
+        "observed": receipt is not None,
+        "shape_valid": False,
+        "schema_valid": False,
+        "binding_valid": False,
+        "digest_present": False,
+        "digest_verified": False,
+        "signature_present": False,
+        "signature_verified": False,
+        "accepted_as_digest_leaf": False,
+        "claimed_digest": None,
+        "verified_digest": None,
+        "status": "NOT_OBSERVED" if receipt is None else "MALFORMED_RECEIPT",
+    }
+    normalised = _normalise_json_object(receipt)
+    if normalised is None or not normalised:
+        return normalised, evidence
+
+    evidence["shape_valid"] = True
+    evidence["signature_present"] = _signature_present(normalised)
+    schema = normalised.get("schema")
+    evidence["schema_valid"] = (
+        isinstance(schema, str) and schema in _RECEIPT_SCHEMAS
+    )
+    if not evidence["schema_valid"]:
+        evidence["status"] = "INVALID_SCHEMA"
+        return normalised, evidence
+    evidence["binding_valid"] = _receipt_binding_valid(
+        normalised, role=role, flagship=flagship, traceparent=traceparent
+    )
+    if not evidence["binding_valid"]:
+        evidence["status"] = "INVALID_BINDING"
+        return normalised, evidence
+
+    claimed_digest = normalised.get("node_digest")
+    evidence["digest_present"] = claimed_digest is not None
+    if not isinstance(claimed_digest, str) or not _SHA256_HEX.fullmatch(claimed_digest):
+        evidence["status"] = (
+            "MISSING_DIGEST" if claimed_digest is None else "MALFORMED_DIGEST"
+        )
+        return normalised, evidence
+    evidence["claimed_digest"] = claimed_digest
+
+    digest_body = {
+        key: value for key, value in normalised.items()
+        if key not in _DIGEST_EXCLUDED_FIELDS
+    }
+    try:
+        expected_digest = _canonical_receipt_digest(digest_body)
+    except (TypeError, ValueError, OverflowError, RecursionError):
+        evidence["status"] = "MALFORMED_RECEIPT"
+        return normalised, evidence
+    if not hmac.compare_digest(claimed_digest, expected_digest):
+        evidence["status"] = "DIGEST_MISMATCH"
+        return normalised, evidence
+
+    evidence["digest_verified"] = True
+    evidence["accepted_as_digest_leaf"] = True
+    evidence["verified_digest"] = claimed_digest
+    evidence["status"] = (
+        "DIGEST_VERIFIED_SIGNATURE_UNVERIFIED"
+        if evidence["signature_present"]
+        else "DIGEST_VERIFIED_UNSIGNED"
+    )
+    return normalised, evidence
+
+
+def _retained_receipt(receipt: Optional[dict[str, Any]],
+                      evidence: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """Keep verified or known-schema legacy evidence; reject malformed claims."""
+    if (not evidence["shape_valid"] or not evidence["schema_valid"]
+            or not evidence["binding_valid"]):
+        return None
+    if evidence["status"] in {"MALFORMED_DIGEST", "DIGEST_MISMATCH"}:
+        return None
+    assert receipt is not None
+    retained = dict(receipt)
+    payload_type = _RECEIPT_PAYLOAD_TYPES[retained["schema"]]
+    attestation_status = (
+        "UNVERIFIED" if evidence["signature_present"] else "UNSIGNED"
+    )
+    retained.update(_unsigned_attestation(payload_type, attestation_status))
+    return retained
+
+
+def cross_link_receipt(flagship: str, rosie_receipt: Any,
                        companion_receipt: dict[str, Any]) -> dict[str, Any]:
     """Build the Khipu CROSS-LINK receipt that ties together the full hop:
 
@@ -115,36 +334,108 @@ def cross_link_receipt(flagship: str, rosie_receipt: Optional[dict[str, Any]],
     Rosie returned (Rosie side) under a single Merkle root. This is THE artifact the
     task requires: a recorded cross-flagship reasoning link.
     """
-    leaves = [companion_receipt.get("node_digest", "")]
-    if rosie_receipt:
-        r_digest = rosie_receipt.get("node_digest")
-        if not r_digest:
-            r_digest = hashlib.sha256(
-                json.dumps(rosie_receipt, sort_keys=True).encode()).hexdigest()
-        leaves.append(r_digest)
-    leaves = [x for x in leaves if x]
+    companion, companion_evidence = _inspect_receipt(
+        companion_receipt,
+        role="flagship",
+        flagship=flagship,
+        traceparent=(companion_receipt.get("traceparent")
+                     if isinstance(companion_receipt, dict) else None),
+    )
+    expected_traceparent = (
+        companion.get("traceparent") if companion is not None else None
+    )
+    rosie, rosie_evidence = _inspect_receipt(
+        rosie_receipt,
+        role="rosie",
+        flagship=flagship,
+        traceparent=expected_traceparent,
+    )
+    companion = _retained_receipt(companion, companion_evidence)
+    rosie = _retained_receipt(rosie, rosie_evidence)
+    leaves = [
+        evidence["verified_digest"]
+        for evidence in (companion_evidence, rosie_evidence)
+        if evidence["digest_verified"]
+    ]
     root = _merkle_root(leaves)
-    return {
+    digest_verified = bool(
+        companion_evidence["digest_verified"]
+        and rosie_evidence["digest_verified"]
+    )
+    signature_verified = bool(
+        companion_evidence["signature_verified"]
+        and rosie_evidence["signature_verified"]
+    )
+    cross_link = {
         "schema": "szl.rosie_companion.cross_link/v1",
         "wire": WIRE,
         "doctrine": DOCTRINE,
         "chain": [
             {"hop": "flagship->rosie", "flagship": flagship,
-             "receipt_digest": companion_receipt.get("node_digest")},
+             "receipt_digest": companion_evidence["verified_digest"],
+             "claimed_receipt_digest": companion_evidence["claimed_digest"]},
             {"hop": "rosie->response", "flagship": "rosie",
-             "receipt_digest": (rosie_receipt or {}).get("node_digest")},
+             "receipt_digest": rosie_evidence["verified_digest"],
+             "claimed_receipt_digest": rosie_evidence["claimed_digest"]},
             {"hop": "response->flagship", "flagship": flagship,
              "khipu_root": root},
         ],
         "khipu_root": root,
-        "flagship_receipt": companion_receipt,
-        "rosie_receipt": rosie_receipt,
+        "validated_leaf_digests": leaves,
+        "hop_count": 1,
+        "flagship_receipt": companion,
+        "rosie_receipt": rosie,
         "ts_utc": datetime.now(timezone.utc).isoformat(),
-        "chain_verified": bool(rosie_receipt is not None),
-        "honesty": ("chain_verified=true only when Rosie returned a real receipt; "
-                    "false means the Rosie hop was a local stub (Space unreachable)."),
-        "signature": SIGNATURE_PLACEHOLDER,
+        "chain_observed": rosie_evidence["observed"],
+        "all_hops_observed": rosie_evidence["observed"],
+        "flagship_digest_verified": companion_evidence["digest_verified"],
+        "rosie_digest_verified": rosie_evidence["digest_verified"],
+        "digest_verified": digest_verified,
+        "signature_verified": signature_verified,
+        "chain_verified": bool(digest_verified and signature_verified),
+        "verification": {
+            "flagship_receipt": companion_evidence,
+            "rosie_receipt": rosie_evidence,
+        },
+        "honesty": (
+            "chain_observed records receipt presence. digest_verified requires "
+            "canonical body digests for both receipts. signature_verified requires "
+            "cryptographic verification; this companion has no configured verifier."
+        ),
     }
+    cross_link.update(_unsigned_attestation(
+        "application/vnd.szl.rosie_companion.cross_link+json"
+    ))
+    return cross_link
+
+
+def _extend_cross_link(parent: dict[str, Any],
+                       child: dict[str, Any]) -> dict[str, Any]:
+    """Extend a recursive reasoning chain without changing either hop's roles."""
+    leaves = list(parent.get("validated_leaf_digests", []))
+    leaves.extend(child.get("validated_leaf_digests", []))
+    root = _merkle_root(leaves)
+    parent["validated_leaf_digests"] = leaves
+    parent["khipu_root"] = root
+    parent["chain"][2]["khipu_root"] = root
+    parent["hop_count"] = int(parent.get("hop_count", 1)) + int(
+        child.get("hop_count", 1)
+    )
+    parent["all_hops_observed"] = bool(
+        parent.get("all_hops_observed")
+        and child.get("all_hops_observed")
+    )
+    parent["digest_verified"] = bool(
+        parent.get("digest_verified") and child.get("digest_verified")
+    )
+    parent["signature_verified"] = bool(
+        parent.get("signature_verified") and child.get("signature_verified")
+    )
+    parent["chain_verified"] = bool(
+        parent["digest_verified"] and parent["signature_verified"]
+    )
+    parent["next_hop"] = child
+    return parent
 
 
 def _merkle_root(leaves: list[str]) -> str:
@@ -327,8 +618,11 @@ class RosieShadow:
               extra: Optional[dict[str, Any]] = None) -> RosieResponse:
         companion_receipt = make_khipu_receipt(
             self.flagship, op, query, axis_scores, traceparent, extra=extra)
-        rosie_receipt = None if stub else rosie_json.get("lambda_receipt")
-        xlink = cross_link_receipt(self.flagship, rosie_receipt, companion_receipt)
+        raw_rosie_receipt = None if stub else rosie_json.get("lambda_receipt")
+        xlink = cross_link_receipt(
+            self.flagship, raw_rosie_receipt, companion_receipt
+        )
+        rosie_receipt = xlink["rosie_receipt"]
         return RosieResponse(
             op=op,
             flagship=self.flagship,
@@ -432,8 +726,11 @@ class RosieShadow:
                 "two_person_gate": gate_status,
             },
         )
-        rosie_receipt = None if stub else rosie_json.get("lambda_receipt")
-        xlink = cross_link_receipt(self.flagship, rosie_receipt, companion_receipt)
+        raw_rosie_receipt = None if stub else rosie_json.get("lambda_receipt")
+        xlink = cross_link_receipt(
+            self.flagship, raw_rosie_receipt, companion_receipt
+        )
+        rosie_receipt = xlink["rosie_receipt"]
         return EvolveProposal(
             flagship=self.flagship,
             proposed_strategy=strategy,
@@ -472,9 +769,10 @@ class RosieShadow:
             child = self.brain_jack(next_query, depth=depth, axis_scores=axis_scores,
                                     traceparent=traceparent, _current=_current + 1)
             resp.extra["next_hop"] = child.to_dict()
-            # re-root cross-link to include the child digest
-            resp.cross_link = cross_link_receipt(
-                self.flagship, child.companion_receipt, resp.companion_receipt)
+            # Re-root over validated leaves while preserving each hop's receipt roles.
+            resp.cross_link = _extend_cross_link(
+                resp.cross_link, child.cross_link
+            )
         return resp
 
 
@@ -495,3 +793,4 @@ def _mean_axis_from_events(events: Optional[list[dict[str, Any]]]) -> Optional[l
         vals = [c[i] for c in cols if i < len(c)]
         means.append(sum(vals) / len(vals) if vals else 0.5)
     return means
+
