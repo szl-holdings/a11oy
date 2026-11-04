@@ -28,14 +28,18 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Merge current protected source and fetch the incomplete candidate
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_TERMINAL_PROMPT: "0"
         run: |
           set -euo pipefail
-          git fetch --no-tags origin main
-          git fetch --no-tags origin pull/1935/head:refs/remotes/origin/command-v2-candidate
+          credential_helper='credential.helper=!f() { test "$1" = get || exit 0; echo "username=x-access-token"; echo "password=$GH_TOKEN"; }; f'
+          git -c 'credential.helper=' -c "$credential_helper" fetch --no-tags origin main
+          git -c 'credential.helper=' -c "$credential_helper" fetch --no-tags origin pull/1935/head:refs/remotes/origin/command-v2-candidate
           git config user.name 'Lutar, Stephen P.'
           git config user.email 'stephenlutar2@gmail.com'
           git merge --no-edit origin/main
@@ -113,4 +117,14 @@ jobs:
           rm .github/workflows/materialize-command-v2-operational-once.yml
           git add -A
           git commit -m 'feat(command): make Command Centre v2 operational' -m 'Carry the reviewed eight-room surface onto current protected source, register the route before the SPA catch-all, close the Docker image over the page, and add focused runtime contract tests.' -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
-          git push origin HEAD:fix/command-centre-v2-operational-v1
+
+      - name: Push durable source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git -c 'credential.helper=' \
+            -c 'credential.helper=!f() { test "$1" = get || exit 0; echo "username=x-access-token"; echo "password=$GH_TOKEN"; }; f' \
+            push "https://github.com/${GITHUB_REPOSITORY}.git" HEAD:fix/command-centre-v2-operational-v1
