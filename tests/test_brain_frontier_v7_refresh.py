@@ -372,3 +372,78 @@ def test_workflow_separates_reader_from_writer_and_always_enforces_receipt():
     assert writer["steps"][-2]["uses"].startswith("actions/upload-artifact@")
     proposal = next(step for step in writer["steps"] if step.get("id") == "proposal")
     assert proposal.get("continue-on-error") is True
+
+
+def open_review(number, digest_char, files=None, base="main"):
+    return {
+        "number": number, "state": "OPEN",
+        "url": f"https://github.com/szl-holdings/a11oy/pull/{number}",
+        "headRefName": refresh.expected_branch(digest_char * 64), "baseRefName": base,
+        "files": [{"path": path} for path in (files or [refresh.SNAPSHOT_PATH])],
+    }
+
+
+def test_superseded_snapshot_prs_are_closed_with_readback():
+    current, older = open_review(10, "b"), open_review(9, "e")
+    runner = FakeRunner([
+        (0, [current, older]),
+        (0, older),
+        (0, ""),
+        (0, {"number": 9, "state": "CLOSED"}),
+    ])
+    closed, kept = refresh.close_superseded_review_prs(runner, current["headRefName"], current["url"])
+    assert (closed, kept) == ([9], [])
+    assert runner.calls[2] == (
+        "gh", "pr", "close", "9", "--repo", "szl-holdings/a11oy", "--comment",
+        "Superseded by #10, which replaces the same snapshot file from a newer protected-main source.",
+    )
+
+
+def test_superseded_pr_changed_beyond_the_snapshot_is_kept_open():
+    current = open_review(10, "b")
+    edited = open_review(9, "e", files=[refresh.SNAPSHOT_PATH, "scripts/other.py"])
+    runner = FakeRunner([(0, [current, edited]), (0, edited)])
+    assert refresh.close_superseded_review_prs(runner, current["headRefName"], current["url"]) == ([], [9])
+    assert not any(call[:3] == ("gh", "pr", "close") for call in runner.calls)
+
+
+def test_only_this_jobs_review_prs_into_main_are_candidates():
+    current = open_review(10, "b")
+    feature = dict(open_review(8, "e"), headRefName="feature/brain-frontier-v7-notes")
+    other_base = open_review(7, "f", base="release")
+    runner = FakeRunner([(0, [current, feature, other_base])])
+    assert refresh.close_superseded_review_prs(runner, current["headRefName"], current["url"]) == ([], [])
+    assert len(runner.calls) == 1
+
+
+def test_a_close_that_does_not_read_back_closed_fails_the_transaction():
+    current, older = open_review(10, "b"), open_review(9, "e")
+    runner = FakeRunner([(0, [current, older]), (0, older), (0, ""), (0, {"number": 9, "state": "OPEN"})])
+    with pytest.raises(refresh.RefreshError, match="did not read back closed"):
+        refresh.close_superseded_review_prs(runner, current["headRefName"], current["url"])
+
+
+def test_reconcile_closes_superseded_prs_only_after_the_current_pr_is_read_back(tmp_path, monkeypatch):
+    order = []
+    current_url = "https://github.com/szl-holdings/a11oy/pull/10"
+    monkeypatch.setattr(refresh, "validate_snapshot", lambda *a: None)
+    monkeypatch.setattr(refresh, "require_exact_main", lambda *a: order.append("main"))
+    monkeypatch.setattr(refresh, "permissions_preflight", lambda *a: {"credential_kind": "automation-token"})
+    monkeypatch.setattr(refresh, "prepare_target_tree", lambda *a: "t" * 40)
+    monkeypatch.setattr(refresh, "ensure_review_branch", lambda *a: ("a" * 40, "CREATED_BRANCH"))
+    monkeypatch.setattr(refresh, "ensure_review_pr", lambda *a: (order.append("pr"), ("NEW_REVIEW_PR", current_url))[1])
+    monkeypatch.setattr(
+        refresh, "close_superseded_review_prs",
+        lambda runner, branch, url: (order.append(("close", branch, url)), ([9], [8]))[1],
+    )
+    evidence = tmp_path / "evidence.json"
+    args = argparse.Namespace(
+        evidence=str(evidence), github_output=None, repository="szl-holdings/a11oy", base="main",
+        source_sha="d" * 40, snapshot_digest="b" * 64, candidate_set="c" * 64, snapshot=str(tmp_path / "s.json"),
+        credential_kind="automation-token", run_url="https://github.com/szl-holdings/a11oy/actions/runs/1",
+    )
+    assert refresh.reconcile(args) == 0
+    assert order.index("pr") < order.index(("close", refresh.expected_branch("b" * 64), current_url))
+    assert order[order.index("pr") + 1] == "main" and order[-1] == "main"
+    payload = json.loads(evidence.read_text())
+    assert payload["superseded_closed"] == [9] and payload["superseded_kept_open"] == [8]
