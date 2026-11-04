@@ -1,16 +1,18 @@
 {
   "files": {
     ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json": "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35",
+    ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json": "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b",
     ".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json": "74f824946666a293be88af6f554d2b9e786d4b0bf08ad639a10ec756d47a90a1",
     "a11oy_org_rag.py": "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279",
-    "szl_connectors/warehouse/warehouse_connectors.py": "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f",
+    "szl_connectors/warehouse/warehouse_connectors.py": "2ff48cba8b038e5914caff6a2a629d17ed75561081704eb1d659fa9693fd721d",
     "szl_operator_auth.py": "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",
     "szl_provenance.py": "f8d129b59fe1e9b899acdaf88ee0354822ac7a9d7e6603464be5a1a65373dad3",
     "szl_signing_state.py": "b19d76ce9384c8be0141076cd58131af60765f63219b29db4b8956a1739d5a97",
+    "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json": "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc",
     "tests/test_gitleaks_archived_payload_digest.py": "8ede2847f5a77426485f88747e7ffa238c24a6c4662905433fc3695940204a4a",
-    "tests/test_replication_shared_payload.py": "12bcc3cd7ed038170b4f4267abb5ed1a530b9d0cfe99d974f7ec47a42eb37b21",
-    "tests/test_snowflake_sql_result_classification.py": "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
+    "tests/test_replication_shared_payload.py": "40b9f8303f299a1a4a34d9596d4d33a1590e943b43ea06368d69e131ddd66085",
+    "tests/test_snowflake_sql_result_classification.py": "fdf0932898e66378e34953c1b6911eea28b4783edb988c9c9534a0668475d1a0"
   },
-  "payload_id": "retained-signing-ledger-20261101-v1",
+  "payload_id": "snowflake-proof-retention-20261103-v1",
   "schema": "szl-shared-source-payload/v1"
 }
