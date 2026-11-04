@@ -45,6 +45,12 @@ def run(output):
         requests.append({'path': url.path, 'query': url.query, 'method': request.method, 'local': local})
         fixtures = {
             '/healthz': {'status': 'ok', 'source': 'LOCAL TEST FIXTURE'},
+            '/api/build-info': {
+                'status': 'OBSERVED',
+                'build': {'revision': 'a' * 40},
+                'runtime': {'platform': 'local-test', 'python': '3.12.0'},
+                'receipt_minted': False,
+            },
             '/api/a11oy/v1/honest': {'locked_formula_count': 8, 'source': 'LOCAL TEST FIXTURE'},
             '/api/a11oy/v1/lambda': {'lambda': .9191, 'axes': [], 'source': 'LOCAL TEST FIXTURE'},
             '/api/a11oy/v1/wow/ledger': {'receipts': [], 'chain_depth': 0, 'source': 'LOCAL TEST FIXTURE'},
@@ -71,6 +77,24 @@ def run(output):
             page.goto(origin + '/console?view=command', wait_until='load', timeout=60000)
             page.locator('.hero-h1').wait_for()
             page.wait_for_function("document.querySelector('#hero-gate-tag').textContent !== 'PENDING'")
+            page.wait_for_function("document.querySelector('#runtime-status').getAttribute('aria-busy') === 'false'")
+            evidence_button = page.locator('.szl-evidence-toggle')
+            evidence_panel = page.locator('.szl-evidence-panel')
+            check('evidence control exposes its region',
+                  evidence_button.get_attribute('aria-controls') == evidence_panel.get_attribute('id')
+                  and evidence_button.get_attribute('aria-expanded') == 'false')
+            evidence_button.click()
+            check('evidence region opens with source-bound runtime detail',
+                  evidence_panel.is_visible()
+                  and evidence_panel.get_attribute('data-evidence-state') == 'OBSERVED'
+                  and 'aaaaaaaaaaaa' in evidence_panel.locator('[data-evidence-revision]').inner_text()
+                  and 'local-test' in evidence_panel.locator('[data-evidence-runtime]').inner_text()
+                  and evidence_panel.locator('[data-evidence-observed]').get_attribute('datetime'))
+            evidence_button.press('Escape')
+            check('evidence region closes and restores focus',
+                  not evidence_panel.is_visible()
+                  and evidence_button.get_attribute('aria-expanded') == 'false'
+                  and evidence_button.evaluate('e => e === document.activeElement'))
             for theme in ('dark', 'light'):
                 if page.locator('html').get_attribute('data-surface') != theme:
                     if not page.locator('.szl-theme-toggle').is_visible():

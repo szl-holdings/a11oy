@@ -115,9 +115,11 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --body-file /tmp/hf-drift-issue.md
           fi
+      # always(): a failed issue-sync API call must not suppress the candidate the
+      # review branch is prepared from. The enforce step below still decides the job.
       - name: Upload candidate evidence
         id: candidate_artifact
-        if: steps.check.outputs.state != 'CURRENT'
+        if: always() && steps.check.outputs.state != 'CURRENT'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: huggingface-ecosystem-manifest-candidate-${{ github.run_id }}
@@ -142,6 +144,7 @@ jobs:
     permissions:
       contents: write
       actions: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -154,7 +157,7 @@ jobs:
         run: python -m pip install 'fastapi==0.141.1' 'starlette==1.6.0'
       - name: Verify offline admission controls
         run: python -B -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
-      - name: Prepare a bounded source review branch from this collector run
+      - name: Create or fast-forward the rolling source review branch from this collector run
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ github.sha }}
