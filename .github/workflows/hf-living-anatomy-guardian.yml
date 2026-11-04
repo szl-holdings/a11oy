@@ -119,6 +119,7 @@ jobs:
                   raise RuntimeError(f"non-object JSON from {url}")
               return payload
 
+          actions: list[str] = []
           receipt = {
               "schema": "szl.hf-living-anatomy-guardian/v2",
               "space": SPACE,
@@ -128,6 +129,7 @@ jobs:
               "status": "FAIL",
               "authority": "LIFECYCLE_ONLY",
               "hardware_mutation": "FORBIDDEN",
+              "actions": actions,
           }
 
           try:
@@ -152,7 +154,6 @@ jobs:
                   "hf_revision": str(getattr(info, "sha", "") or ""),
               }
 
-              actions: list[str] = []
               if bool(getattr(info, "private", False)):
                   api.update_repo_settings(
                       repo_id=SPACE,
@@ -174,6 +175,7 @@ jobs:
                   sleep_policy = "HF_FIXED_48H_INACTIVITY_CPU_BASIC"
               else:
                   sleep_policy = "UNAVAILABLE_HARDWARE_STATE"
+              receipt["sleep_policy"] = sleep_policy
 
               restartable = {
                   "PAUSED",
