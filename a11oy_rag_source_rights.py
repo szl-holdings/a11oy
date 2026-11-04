@@ -31,6 +31,7 @@ Contract
 from __future__ import annotations
 
 import dataclasses
+from contextlib import contextmanager
 import hashlib
 import re
 import threading
@@ -263,6 +264,16 @@ class SourceRightsRegistry:
             if source_id not in self._by_source_id:
                 raise SourceRightsError("SOURCE_UNKNOWN")
             self._bindings.setdefault((generation_id, chunk_id), set()).add((sha256, source_id))
+
+    @contextmanager
+    def admission_lock(self):
+        """Keep a short admission-and-storage operation ordered with revocations.
+
+        Model/provider work must run outside this lock so a revocation is never
+        held up by an embedding call. Re-admit after that work before storing.
+        """
+        with self._lock:
+            yield
 
     # ---------------- queries ---------------- #
     def entry(self, org: str, repo: str) -> Optional[SourceEntry]:

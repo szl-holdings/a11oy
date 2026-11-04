@@ -410,3 +410,70 @@ def test_m1_release_manifest_reports_all_9465_handles_without_copying_fixture(tm
     assert verified["manifest_verified"] is True
     assert verified["rows"] == 9465
     assert len(verified["sha256"]) == 64
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf"), True, "0.25"])
+def test_seed_ingest_preserves_lexical_chunks_without_invalid_vectors(monkeypatch, tmp_path, bad):
+    _reset_runtime(monkeypatch, tmp_path / "rag.sqlite3")
+    conn = rag._db()
+    rag._init_schema(conn)
+    generation = rag._begin_generation(conn, "vector-validation")
+    graph = rag.OrgGraph()
+    chunks = rag._ingest_text(
+        graph, conn, repo="a11oy", path="README.md", raw="finite retrieval evidence",
+        source="test:fixture", category="app_code", embed_fn=lambda _: [0.25, bad],
+        generation_id=generation)
+    rag._persist_runtime_state(conn, graph, {"built": True, "mode": "vector-validation",
+                                             "ts": 1.0, "repos": 1, "chunks": chunks}, generation)
+    conn.close()
+    assert rag.chunk_count() == chunks == 1
+    assert rag.dense_vector_count() == 0
+    assert len(rag.next_unembedded_chunks()) == 1
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf"), True, "0.25"])
+def test_legacy_vector_write_refuses_invalid_components(monkeypatch, tmp_path, bad):
+    _reset_runtime(monkeypatch, tmp_path / "legacy.sqlite3")
+    conn = rag._db()
+    rag._init_schema(conn)
+    conn.execute("INSERT INTO org_chunks(chunk_id,body) VALUES(?,?)", ("fixture-chunk", "fixture"))
+    conn.commit()
+    conn.close()
+    before = _storage_fingerprint(tmp_path)
+    result = rag.embed_and_store_chunk("fixture-chunk", [0.25, bad])
+    assert result["ok"] is False
+    assert result["reason"] == "EMBED_VECTOR_INVALID"
+    assert rag.dense_vector_count() == 0
+    assert _storage_fingerprint(tmp_path) == before
+    assert rag.embed_and_store_chunk("fixture-chunk", [0.25, 0.75])["ok"] is True
+    assert rag.dense_vector_count() == 1
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf"), True, "0.25"])
+def test_invalid_embeddings_never_produce_positive_similarity(bad):
+    assert rag._cosine([1.0, 0.0], [bad, 0.0]) == 0.0
+    assert rag._cosine([bad, 0.0], [1.0, 0.0]) == 0.0
+    assert rag._cosine([1.0, 0.0], [1.0, 0.0]) == 1.0
+    assert rag._cosine([1.0, 0.0], [0.0, 1.0]) == 0.0
+
+
+def test_historic_nonfinite_vector_cannot_ground_a_query(monkeypatch, tmp_path):
+    _reset_runtime(monkeypatch, tmp_path / "historic.sqlite3")
+    conn = rag._db()
+    rag._init_schema(conn)
+    generation = rag._begin_generation(conn, "historic-vector")
+    graph = _stage(conn, generation, "finite retrieval evidence")
+    chunk_id = conn.execute("SELECT chunk_id FROM org_chunks_gen WHERE generation_id=?",
+                            (generation,)).fetchone()[0]
+    # Reproduce an already-sealed row created before finite-vector validation.
+    conn.execute("INSERT INTO org_vectors_gen(generation_id,chunk_id,dim,vec) VALUES(?,?,?,?)",
+                 (generation, chunk_id, 2, "[NaN,0.0]"))
+    rag._persist_runtime_state(conn, graph, {"built": True, "mode": "historic-vector",
+                                             "ts": 1.0, "repos": 1, "chunks": 1}, generation)
+    conn.close()
+    monkeypatch.setattr(rag, "_maybe_embedder", lambda load=False: lambda _: [1.0, 0.0])
+    before = _storage_fingerprint(tmp_path)
+    result = rag.query("finite retrieval evidence", k=1)
+    assert result["grounded_count"] == 0
+    assert result["i_dont_know"] is True
+    assert _storage_fingerprint(tmp_path) == before

@@ -65,6 +65,7 @@ jobs:
         run: >-
           python -m pytest -q
           tests/test_org_rag_generations.py
+          tests/test_rag_source_rights.py
           tests/test_rag_route_readonly.py
           tests/test_ayllu_model_binding.py
           tests/test_ayllu_routes.py

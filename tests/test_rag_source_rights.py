@@ -512,3 +512,273 @@ def test_gap_legacy_path_reads_mutable_branch(env):
     rag.build_index(repos=["pubrepo"])
     assert [p for p, _ in fake.calls if "/git/trees/" in p] == \
         [f"/repos/{ORG}/pubrepo/git/trees/{C_PUB}"]
+
+# Deferred embedding reuses source identity, never a stale ingestion decision.
+def _guarded_backlog(env, monkeypatch, *, rights=None, clock=None, retention_until=None):
+    env["install"]({"pubrepo": _public_spec()})
+    monkeypatch.setattr(rag, "_maybe_embedder", lambda load=True: None)
+    reg = _registry(**({"clock": clock} if clock else {}))
+    reg.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                 visibility="public", rights=rights or {"read", "index", "embed"},
+                 retention_until=retention_until)
+    out = rag.build_index(repos=["pubrepo"], rights_registry=reg)
+    with sqlite3.connect(str(env["db"])) as conn:
+        ids = [r[0] for r in conn.execute(
+            "SELECT chunk_id FROM org_chunks_gen WHERE generation_id=? ORDER BY chunk_id",
+            (out["generation_id"],))]
+    return reg, out, ids
+
+
+def test_guarded_backlog_without_registry_never_releases_text(env, monkeypatch):
+    _guarded_backlog(env, monkeypatch, rights={"read", "index"})
+    assert rag.next_unembedded_chunks(limit=10) == []
+
+
+def test_guarded_direct_storage_without_registry_is_denied(env, monkeypatch):
+    _, _, ids = _guarded_backlog(env, monkeypatch, rights={"read", "index"})
+    result = rag.embed_and_store_chunk(ids[0], [0.1, 0.2])
+    assert result["ok"] is False
+    assert rag.dense_vector_count() == 0
+
+
+def test_quarantined_tree_leaves_no_graph_nodes_or_edges(env):
+    good = _public_spec()
+    env["install"]({"goodrepo": good, "badrepo": dict(good, tree_sha="e" * 40)})
+    reg = _registry()
+    for name in ("goodrepo", "badrepo"):
+        reg.register(org=ORG, repo=name, commit_sha=C_PUB, tenant_owner="public",
+                     visibility="public", rights={"read", "index", "embed"},
+                     tree_sha="f" * 40)
+    result = rag.build_index(repos=["goodrepo", "badrepo"], rights_registry=reg)
+    assert result["ok"] is True
+    assert not any("badrepo" in key for key in rag._GRAPH.nodes)
+    assert not any("badrepo" in str(edge) for edge in rag._GRAPH.edges)
+
+
+def test_quarantined_blob_leaves_no_file_symbols_or_edges(env):
+    spec = _public_spec()
+    spec["served"] = {"src/core.py": b"def tampered(): return 2\n"}
+    env["install"]({"pubrepo": spec})
+    reg = _registry()
+    reg.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                 visibility="public", rights={"read", "index", "embed"})
+    result = rag.build_index(repos=["pubrepo"], rights_registry=reg)
+    assert result["ok"] is True
+    assert not any("src/core.py" in key for key in rag._GRAPH.nodes)
+    assert not any("src/core.py" in str(edge) for edge in rag._GRAPH.edges)
+
+
+def test_revocation_during_embed_prevents_storage_and_further_work(env, monkeypatch):
+    env["install"]({"pubrepo": {"commit": C_PUB,
+                      "files": {"long.md": b"public retrieval text\n" * 300}}})
+    reg = _registry()
+    reg.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                 visibility="public", rights={"read", "index", "embed"})
+    calls, revoked_during_call, workers = [], [], []
+    def embed(text):
+        calls.append(text)
+        revoked = threading.Event()
+        def revoke():
+            reg.revoke(ORG, "pubrepo")
+            revoked.set()
+        worker = threading.Thread(target=revoke, daemon=True)
+        workers.append(worker)
+        worker.start()
+        revoked_during_call.append(revoked.wait(timeout=2))
+        return [0.1, 0.2]
+    monkeypatch.setattr(rag, "_maybe_embedder", lambda load=True: embed)
+    result = rag.build_index(repos=["pubrepo"], rights_registry=reg)
+    assert result["chunks"] > 1
+    for worker in workers:
+        worker.join(timeout=2)
+    assert revoked_during_call == [True]
+    assert len(calls) == 1
+    assert rag.dense_vector_count() == 0
+
+
+def _store_task(task, reg, vector=None):
+    return rag.embed_and_store_chunk(
+        task["chunk_id"], vector if vector is not None else [0.1, 0.2],
+        rights_registry=reg, expected_generation_id=task["generation_id"],
+        expected_sha256=task["sha256"])
+
+
+def test_guarded_allowed_backlog_survives_restart_with_fresh_registry(env, monkeypatch):
+    reg, before, ids = _guarded_backlog(env, monkeypatch)
+    monkeypatch.setattr(rag, "_GRAPH", rag.OrgGraph())
+    monkeypatch.setattr(rag, "_BUILD_META", {"built": False})
+    monkeypatch.setattr(rag, "_REHYDRATE_ATTEMPTED", False)
+    assert rag._rehydrate_runtime_state() is True
+    # No process-local bind_chunk state is reused as permission.
+    fresh = _registry()
+    fresh.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                   visibility="public", rights={"read", "index", "embed"})
+    tasks = rag.next_unembedded_chunks(limit=10, rights_registry=fresh)
+    assert {t["chunk_id"] for t in tasks} == set(ids)
+    assert all(t["generation_id"] == before["generation_id"] for t in tasks)
+    assert _store_task(tasks[0], fresh)["ok"] is True
+    assert rag.dense_vector_count() == 1
+    monkeypatch.setattr(rag, "_BUILD_META", {"built": False})
+    monkeypatch.setattr(rag, "_REHYDRATE_ATTEMPTED", False)
+    assert rag._rehydrate_runtime_state() is True
+    assert rag._BUILD_META["generation_digest_sha256"] != before["generation_digest_sha256"]
+    assert len(rag.next_unembedded_chunks(limit=10, rights_registry=fresh)) == 1
+
+
+@pytest.mark.parametrize("change,reason", [
+    ("revoke", "SOURCE_REVOKED"), ("expire", "RETENTION_EXPIRED"),
+    ("exclude", "EXCLUDED_BLOB"), ("unavailable", "SOURCE_RIGHTS_UNAVAILABLE"),
+    ("replace", "SOURCE_REGISTRATION_CHANGED"),
+])
+def test_deferred_admission_rechecks_after_selection(env, monkeypatch, change, reason):
+    now = [100.0]
+    reg, _, _ = _guarded_backlog(env, monkeypatch, clock=lambda: now[0], retention_until=150.0)
+    task = rag.next_unembedded_chunks(limit=1, rights_registry=reg)[0]
+    if change == "revoke":
+        reg.revoke(ORG, "pubrepo")
+    elif change == "expire":
+        now[0] = 150.0
+    elif change == "exclude":
+        reg.exclude_blob(sr.git_blob_sha(_public_spec()["files"][task["path"]]))
+    elif change == "unavailable":
+        def unavailable(*_args):
+            raise RuntimeError("registry unavailable")
+        monkeypatch.setattr(reg, "entry", unavailable)
+    else:
+        reg.revoke(ORG, "pubrepo")
+        reg.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                     visibility="public", rights={"read", "index", "embed"})
+    assert task["chunk_id"] not in {t["chunk_id"] for t in
+        rag.next_unembedded_chunks(limit=10, rights_registry=reg)}
+    result = _store_task(task, reg)
+    assert result["ok"] is False and result["reason"] == reason
+    assert rag.dense_vector_count() == 0
+
+
+def test_index_only_source_denies_backlog_and_direct_storage_with_registry(env, monkeypatch):
+    reg, out, ids = _guarded_backlog(env, monkeypatch, rights={"read", "index"})
+    assert rag.next_unembedded_chunks(limit=10, rights_registry=reg) == []
+    with sqlite3.connect(str(env["db"])) as conn:
+        sha = conn.execute("SELECT sha256 FROM org_chunks_gen WHERE chunk_id=?", (ids[0],)).fetchone()[0]
+    result = _store_task({"chunk_id": ids[0], "generation_id": out["generation_id"], "sha256": sha}, reg)
+    assert result["ok"] is False and result["reason"] == "PURPOSE_NOT_GRANTED"
+    assert rag.dense_vector_count() == 0
+
+
+def test_guarded_task_must_match_selected_generation_and_content(env, monkeypatch):
+    reg, _, _ = _guarded_backlog(env, monkeypatch)
+    task = rag.next_unembedded_chunks(limit=1, rights_registry=reg)[0]
+    for forged in (dict(task, generation_id="other-generation"), dict(task, sha256="0" * 64)):
+        assert _store_task(forged, reg)["reason"] == "EMBED_TASK_BINDING_MISMATCH"
+    # Same content/chunk ID in a newly published generation is still a new task.
+    rag.build_index(repos=["pubrepo"], rights_registry=reg)
+    assert _store_task(task, reg)["reason"] == "EMBED_TASK_BINDING_MISMATCH"
+    assert rag.dense_vector_count() == 0
+
+
+def test_tampered_source_binding_fails_generation_integrity(env, monkeypatch):
+    import json
+    reg, out, _ = _guarded_backlog(env, monkeypatch)
+    task = rag.next_unembedded_chunks(limit=1, rights_registry=reg)[0]
+    with sqlite3.connect(str(env["db"])) as conn:
+        graph = json.loads(conn.execute("SELECT graph_json FROM org_generations WHERE generation_id=?",
+                                       (out["generation_id"],)).fetchone()[0])
+        next(n for n in graph["nodes"] if "source_admission" in n)["source_admission"]["blob_sha"] = "0" * 40
+        conn.execute("UPDATE org_generations SET graph_json=? WHERE generation_id=?",
+                     (json.dumps(graph), out["generation_id"]))
+    assert rag.next_unembedded_chunks(rights_registry=reg) == []
+    assert _store_task(task, reg)["ok"] is False
+    assert rag.dense_vector_count() == 0
+
+
+def test_guarded_old_generation_without_durable_binding_fails_closed(env, monkeypatch):
+    reg, out, _ = _guarded_backlog(env, monkeypatch)
+    task = rag.next_unembedded_chunks(limit=1, rights_registry=reg)[0]
+    # A pre-upgrade registry generation has a valid seal but no persisted bindings.
+    conn = rag._db()
+    try:
+        graph = rag._GRAPH.to_dict()
+        for node in graph["nodes"]:
+            node.pop("source_admission", None)
+        digest, _ = rag._generation_digest(conn, out["generation_id"], graph)
+        conn.execute("UPDATE org_generations SET graph_json=?,digest_sha256=? WHERE generation_id=?",
+                     (rag._canonical_json(graph), digest, out["generation_id"]))
+        conn.commit()
+    finally:
+        conn.close()
+    assert rag.next_unembedded_chunks(rights_registry=reg) == []
+    assert _store_task(task, reg)["reason"] == "SOURCE_BINDING_UNAVAILABLE"
+
+
+def test_expiry_during_vector_preparation_rolls_back(env, monkeypatch):
+    now = [100.0]
+    reg, out, _ = _guarded_backlog(env, monkeypatch, clock=lambda: now[0], retention_until=150.0)
+    task = rag.next_unembedded_chunks(limit=1, rights_registry=reg)[0]
+    class ExpiringValue:
+        def __float__(self):
+            now[0] = 150.0
+            return 0.5
+    result = _store_task(task, reg, [ExpiringValue()])
+    assert result["ok"] is False and result["reason"] == "RETENTION_EXPIRED"
+    assert rag.dense_vector_count() == 0
+    with sqlite3.connect(str(env["db"])) as conn:
+        assert conn.execute("SELECT digest_sha256 FROM org_generations WHERE generation_id=?",
+                            (out["generation_id"],)).fetchone()[0] == out["generation_digest_sha256"]
+
+
+def test_unguarded_legacy_generation_keeps_deferred_embedding(env, monkeypatch):
+    env["install"]({"pubrepo": _public_spec()})
+    monkeypatch.setattr(rag, "_maybe_embedder", lambda load=True: None)
+    rag.build_index(repos=["pubrepo"])
+    tasks = rag.next_unembedded_chunks(limit=10)
+    assert len(tasks) == 2
+    assert rag.embed_and_store_chunk(tasks[0]["chunk_id"], [0.5, 0.25])["ok"] is True
+    assert len(rag.next_unembedded_chunks(limit=10)) == 1
+
+
+def test_stripped_binding_and_mode_cannot_downgrade_to_legacy(env, monkeypatch):
+    import json
+    _, out, ids = _guarded_backlog(env, monkeypatch)
+    with sqlite3.connect(str(env["db"])) as conn:
+        graph_text, meta_text = conn.execute(
+            "SELECT graph_json,meta_json FROM org_generations WHERE generation_id=?",
+            (out["generation_id"],)).fetchone()
+        graph, meta = json.loads(graph_text), json.loads(meta_text)
+        for node in graph["nodes"]:
+            node.pop("source_admission", None)
+        meta.pop("source_rights", None)
+        conn.execute("UPDATE org_generations SET graph_json=?,meta_json=? WHERE generation_id=?",
+                     (json.dumps(graph), json.dumps(meta), out["generation_id"]))
+    assert rag.next_unembedded_chunks(limit=10) == []
+    assert rag.embed_and_store_chunk(ids[0], [0.1, 0.2])["ok"] is False
+    assert rag.dense_vector_count() == 0
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf"), True, "0.25"])
+def test_guarded_deferred_vector_rejects_invalid_without_resealing(env, monkeypatch, bad):
+    reg, before, _ = _guarded_backlog(env, monkeypatch)
+    task = rag.next_unembedded_chunks(limit=1, rights_registry=reg)[0]
+    result = _store_task(task, reg, [0.25, bad])
+    assert result["ok"] is False
+    assert result["reason"] == "EMBED_VECTOR_INVALID"
+    assert rag.dense_vector_count() == 0
+    with sqlite3.connect(str(env["db"])) as conn:
+        digest, count = conn.execute(
+            "SELECT digest_sha256,vector_count FROM org_generations WHERE generation_id=?",
+            (before["generation_id"],)).fetchone()
+    assert digest == before["generation_digest_sha256"] and count == 0
+    assert _store_task(task, reg, [0.25, 0.75])["ok"] is True
+    assert rag.dense_vector_count() == 1
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf"), True, "0.25"])
+def test_guarded_ingest_keeps_invalid_embeddings_in_backlog(env, monkeypatch, bad):
+    env["install"]({"pubrepo": _public_spec()})
+    reg = _registry()
+    reg.register(org=ORG, repo="pubrepo", commit_sha=C_PUB, tenant_owner="public",
+                 visibility="public", rights={"read", "index", "embed"})
+    monkeypatch.setattr(rag, "_maybe_embedder", lambda load=True: lambda _: [0.25, bad])
+    built = rag.build_index(repos=["pubrepo"], rights_registry=reg)
+    assert built["ok"] is True and built["chunks"] == 2
+    assert rag.dense_vector_count() == 0
+    assert len(rag.next_unembedded_chunks(limit=10, rights_registry=reg)) == 2

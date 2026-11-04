@@ -87,6 +87,7 @@ import sqlite3
 import threading
 import time
 import uuid
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Callable
 
@@ -927,9 +928,10 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                     _rights_count(src_adm, "repos")
                     continue
                 pinned_commit = rights_registry.entry(ORG, repo).commit_sha
-            graph.add_node(full, "repo", repo=repo, org=ORG)
-            graph.add_node(f"hf:{HF_ORG}/{repo}", "hf_space", repo=repo, org=HF_ORG)
-            graph.add_edge(full, f"hf:{HF_ORG}/{repo}", "mirrors")
+            if rights is None:
+                graph.add_node(full, "repo", repo=repo, org=ORG)
+                graph.add_node(f"hf:{HF_ORG}/{repo}", "hf_space", repo=repo, org=HF_ORG)
+                graph.add_edge(full, f"hf:{HF_ORG}/{repo}", "mirrors")
             try:
                 if rights is None:
                     # default branch then recursive tree
@@ -955,6 +957,9 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                         rights["reasons"].get("TREE_DIGEST_MISMATCH", 0) + 1)
                     continue
                 rights["repos_admitted"] += 1
+                graph.add_node(full, "repo", repo=repo, org=ORG)
+                graph.add_node(f"hf:{HF_ORG}/{repo}", "hf_space", repo=repo, org=HF_ORG)
+                graph.add_edge(full, f"hf:{HF_ORG}/{repo}", "mirrors")
             files = [t for t in tree.get("tree", []) if t.get("type") == "blob"]
             files = [f for f in files if os.path.splitext(f["path"])[1].lower() in _TEXT_EXT]
             files = files[:max_files_per_repo]
@@ -968,8 +973,9 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                     if not file_adm.admitted:
                         _rights_count(file_adm, "files")
                         continue
-                graph.add_node(fid, "file", repo=repo, path=path)
-                graph.add_edge(full, fid, "documents")
+                if rights is None:
+                    graph.add_node(fid, "file", repo=repo, path=path)
+                    graph.add_edge(full, fid, "documents")
                 # fetch blob (size-guard: skip very large)
                 if f.get("size", 0) > 200_000:
                     if rights is not None:
@@ -985,12 +991,26 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                         rights["files_fetch_errors"] += 1
                     continue
                 file_embed_fn = embed_fn
+                source_binding = None
                 if rights is not None:
                     content_adm = rights_registry.verify_blob_bytes(f.get("sha"), raw_bytes)
                     if not content_adm.admitted:
                         _rights_count(content_adm, "files")
                         continue
                     rights["files_admitted"] += 1
+                    entry = rights_registry.entry(ORG, repo)
+                    source_binding = {
+                        "org": ORG, "repo": repo, "commit_sha": pinned_commit,
+                        "path": path, "blob_sha": f.get("sha"),
+                        "source_id": file_adm.source_id,
+                        "registered_revision": entry.registered_revision,
+                        "chunk_sha256": {},
+                    }
+                    # The existing generation digest seals these pins and chunk
+                    # bindings along with the graph; no new store is introduced.
+                    graph.add_node(fid, "file", repo=repo, path=path,
+                                   source_admission=source_binding)
+                    graph.add_edge(full, fid, "documents")
                     if embed_fn is not None:
                         embed_adm = rights_registry.admit_for_ingest(
                             ORG, repo, pinned_commit, path, f.get("sha"), "embed")
@@ -1021,14 +1041,30 @@ def build_index(repos: list[str] | None = None, max_files_per_repo: int = 120,
                          f"gh:{ORG}/{repo}", path, seg, csha))
                     if rights is not None:
                         rights_registry.bind_chunk(generation_id, cid, csha, file_adm.source_id)
+                        source_binding["chunk_sha256"][cid] = csha
                     if file_embed_fn is not None:
                         try:
-                            v = file_embed_fn(seg)
-                            conn.execute(
-                                "INSERT OR REPLACE INTO org_vectors_gen("
-                                "generation_id,chunk_id,dim,vec) VALUES(?,?,?,?)",
-                                (generation_id, cid, len(v),
-                                 json.dumps([round(x, 6) for x in v])))
+                            chunk = {"chunk_id": cid, "sha256": csha, "body": seg,
+                                     "repo": repo, "path": path, "source": f"gh:{ORG}/{repo}"}
+                            denial = (_source_embed_denial(source_binding, chunk, rights_registry)
+                                      if rights is not None else None)
+                            if denial is None:
+                                v = _finite_vector(file_embed_fn(seg))
+                                # Provider work can outlive a grant. Serialize only
+                                # the fresh check + SQLite insertion with revocation.
+                                with (rights_registry.admission_lock()
+                                      if rights is not None else nullcontext()):
+                                    denial = (_source_embed_denial(
+                                        source_binding, chunk, rights_registry)
+                                        if rights is not None else None)
+                                    if denial is None:
+                                        conn.execute(
+                                            "INSERT OR REPLACE INTO org_vectors_gen("
+                                            "generation_id,chunk_id,dim,vec) VALUES(?,?,?,?)",
+                                            (generation_id, cid, len(v),
+                                             json.dumps([round(x, 6) for x in v], allow_nan=False)))
+                            if denial is not None:
+                                rights["embed_denied"] += 1
                         except Exception:
                             pass
                     chunk_count += 1
@@ -1133,33 +1169,89 @@ def chunk_count() -> int:
         return 0
 
 
-def next_unembedded_chunks(limit: int = 4) -> list[dict[str, Any]]:
+def _source_embed_denial(binding: Any, chunk: Any, rights_registry: Any) -> str | None:
+    """Re-admit the exact sealed source; persisted decisions are not authority."""
+    if rights_registry is None:
+        return "RIGHTS_REGISTRY_UNAVAILABLE"
+    try:
+        if not isinstance(binding, dict):
+            return "SOURCE_BINDING_UNAVAILABLE"
+        if (binding["chunk_sha256"].get(chunk["chunk_id"]) != chunk["sha256"]
+                or hashlib.sha256(chunk["body"].encode()).hexdigest() != chunk["sha256"]
+                or binding["repo"] != chunk["repo"] or binding["path"] != chunk["path"]
+                or chunk["source"] != f"gh:{binding['org']}/{binding['repo']}"):
+            return "SOURCE_BINDING_MISMATCH"
+        entry = rights_registry.entry(binding["org"], binding["repo"])
+        if (entry is None or entry.source_id != binding["source_id"]
+                or entry.registered_revision != binding["registered_revision"]):
+            return "SOURCE_REGISTRATION_CHANGED"
+        admission = rights_registry.admit_for_ingest(
+            binding["org"], binding["repo"], binding["commit_sha"], binding["path"],
+            binding["blob_sha"], "embed")
+        return None if admission.admitted else admission.reason
+    except Exception:
+        return "SOURCE_RIGHTS_UNAVAILABLE"
+
+
+def _generation_embed_context(conn: sqlite3.Connection, generation_id: str
+                              ) -> tuple[bool, dict[str, Any]]:
+    """Load bindings from the same read/write snapshot as the selected chunks."""
+    row = conn.execute(
+        "SELECT graph_json,meta_json,digest_sha256 FROM org_generations "
+        "WHERE generation_id=? AND status='ACTIVE'", (generation_id,)).fetchone()
+    if row is None:
+        raise ValueError("active generation unavailable")
+    graph = json.loads(row["graph_json"])
+    meta = json.loads(row["meta_json"])
+    # Verify before inferring mode: deleting binding metadata must not downgrade
+    # a guarded generation to the legacy embedding path.
+    digest, _ = _generation_digest(conn, generation_id, graph)
+    if digest != row["digest_sha256"]:
+        raise ValueError("source binding generation integrity mismatch")
+    bindings = {node["id"]: node["source_admission"] for node in graph["nodes"]
+                if "source_admission" in node}
+    guarded = bool(bindings) or meta.get("source_rights", {}).get("mode") == "registry"
+    return guarded, bindings
+
+
+def next_unembedded_chunks(limit: int = 4, *, rights_registry: Any = None) -> list[dict[str, Any]]:
     """Return up to ``limit`` chunks present in org_chunks but ABSENT from
     org_vectors — the real corpus backlog the loop should embed. Honest empty list
     when the index isn't built, the DB is missing, or every chunk already has a
-    vector (no fabricated work)."""
+    vector (no fabricated work). Guarded generations require the controller's
+    current registry, including after restart; unavailable rights release no text."""
     if not _BUILD_META.get("built"):
         return []
     out: list[dict[str, Any]] = []
     try:
         conn = _db_readonly()
         try:
+            conn.execute("BEGIN")
             generation_id = _active_generation(conn)
+            guarded, bindings = (_generation_embed_context(conn, generation_id)
+                                 if generation_id else (False, {}))
             if generation_id:
                 rows = conn.execute(
-                    "SELECT chunk_id,repo,path,corpus,source,body FROM org_chunks_gen "
+                    "SELECT chunk_id,node_id,repo,path,corpus,source,body,sha256 FROM org_chunks_gen "
                     "WHERE generation_id=? AND chunk_id NOT IN (SELECT chunk_id FROM "
-                    "org_vectors_gen WHERE generation_id=?) LIMIT ?",
-                    (generation_id, generation_id, max(1, int(limit)))).fetchall()
+                    "org_vectors_gen WHERE generation_id=?) ORDER BY chunk_id",
+                    (generation_id, generation_id))
             else:
                 rows = conn.execute(
                     "SELECT chunk_id,repo,path,corpus,source,body FROM org_chunks "
                     "WHERE chunk_id NOT IN (SELECT chunk_id FROM org_vectors) LIMIT ?",
                     (max(1, int(limit)),)).fetchall()
             for r in rows:
+                if guarded and _source_embed_denial(
+                        bindings.get(r["node_id"]), r, rights_registry) is not None:
+                    continue
                 out.append({"chunk_id": r["chunk_id"], "repo": r["repo"],
                             "path": r["path"], "corpus": r["corpus"],
                             "source": r["source"], "body": r["body"] or ""})
+                if guarded:
+                    out[-1].update(generation_id=generation_id, sha256=r["sha256"])
+                if len(out) >= max(1, int(limit)):
+                    break
         finally:
             conn.close()
     except Exception:
@@ -1167,15 +1259,36 @@ def next_unembedded_chunks(limit: int = 4) -> list[dict[str, Any]]:
     return out
 
 
-def embed_and_store_chunk(chunk_id: str, vec: list[float]) -> dict[str, Any]:
+def _finite_vector(values: Any) -> list[float]:
+    """Reject unavailable or nonfinite model output before persisting vectors."""
+    if not isinstance(values, (list, tuple)) or not values:
+        raise ValueError("embedding must be a nonempty numeric vector")
+    if any(isinstance(value, (bool, str, bytes, bytearray)) for value in values):
+        raise ValueError("embedding components must be numeric")
+    vector = [float(value) for value in values]
+    if not all(math.isfinite(value) for value in vector):
+        raise ValueError("embedding components must be finite")
+    return vector
+
+
+def embed_and_store_chunk(chunk_id: str, vec: list[float], *,
+                          rights_registry: Any = None,
+                          expected_generation_id: str | None = None,
+                          expected_sha256: str | None = None) -> dict[str, Any]:
     """Store a REAL dense vector (already computed by the metered loop's embed job)
     for an EXISTING corpus chunk. Refuses to act unless ``chunk_id`` is already in
     org_chunks — we never create a chunk row here, so an indexed chunk can never be
     fabricated. Returns {ok, chunk_id, dim} or an honest error. Uses the SAME
-    storage format as _ingest_text (json list, 6-dp rounding)."""
+    storage format as _ingest_text (json list, 6-dp rounding). A guarded generation
+    requires fresh source admission, not an earlier backlog-selection decision."""
     global _BUILD_META
     if not chunk_id or not isinstance(vec, (list, tuple)) or len(vec) == 0:
         return {"ok": False, "honest_error": "empty chunk_id or vector — nothing stored"}
+    try:
+        vec = _finite_vector(vec)
+    except (TypeError, ValueError, OverflowError):
+        return {"ok": False, "chunk_id": chunk_id, "reason": "EMBED_VECTOR_INVALID",
+                "honest_error": "embedding contains invalid or nonfinite components"}
     try:
         conn = _db()
         try:
@@ -1200,36 +1313,65 @@ def embed_and_store_chunk(chunk_id: str, vec: list[float]) -> dict[str, Any]:
                 with _SNAPSHOT_LOCK:
                     conn.commit()
                     conn.execute("BEGIN IMMEDIATE")
-                    conn.execute(
-                        "INSERT OR REPLACE INTO org_vectors_gen("
-                        "generation_id,chunk_id,dim,vec) VALUES(?,?,?,?)",
-                        (generation_id, chunk_id, len(vec),
-                         json.dumps([round(float(x), 6) for x in vec])))
-                    generation = conn.execute(
-                        "SELECT graph_json,meta_json FROM org_generations "
-                        "WHERE generation_id=? AND status='ACTIVE'", (generation_id,)
-                    ).fetchone()
-                    if not generation:
-                        conn.rollback()
-                        raise RuntimeError("active generation disappeared during vector write")
-                    graph_data = json.loads(generation["graph_json"])
-                    meta = json.loads(generation["meta_json"])
-                    digest, counts = _generation_digest(conn, generation_id, graph_data)
-                    meta.update({
-                        "generation_digest_sha256": digest,
-                        "integrity_state": "VERIFIED_AFTER_ATOMIC_VECTOR_WRITE",
-                    })
-                    conn.execute(
-                        "UPDATE org_generations SET vector_count=?,digest_sha256=?,meta_json=? "
-                        "WHERE generation_id=? AND status='ACTIVE'",
-                        (counts["vectors"], digest, _canonical_json(meta), generation_id),
-                    )
-                    conn.commit()
-                    _BUILD_META = meta
+                    with (rights_registry.admission_lock()
+                          if rights_registry is not None else nullcontext()):
+                        if _active_generation(conn) != generation_id:
+                            raise RuntimeError("active generation changed before vector write")
+                        guarded, bindings = _generation_embed_context(conn, generation_id)
+                        if guarded:
+                            chunk = conn.execute(
+                                "SELECT chunk_id,node_id,repo,path,source,body,sha256 "
+                                "FROM org_chunks_gen WHERE generation_id=? AND chunk_id=?",
+                                (generation_id, chunk_id)).fetchone()
+                            if (expected_generation_id != generation_id
+                                    or expected_sha256 != chunk["sha256"]):
+                                conn.rollback()
+                                return {"ok": False, "chunk_id": chunk_id,
+                                        "reason": "EMBED_TASK_BINDING_MISMATCH",
+                                        "honest_error": "vector task lacks the current generation/content binding"}
+                            denial = _source_embed_denial(
+                                bindings.get(chunk["node_id"]), chunk, rights_registry)
+                            if denial is not None:
+                                conn.rollback()
+                                return {"ok": False, "chunk_id": chunk_id, "reason": denial,
+                                        "honest_error": "source rights refuse vector storage"}
+                        conn.execute(
+                            "INSERT OR REPLACE INTO org_vectors_gen("
+                            "generation_id,chunk_id,dim,vec) VALUES(?,?,?,?)",
+                            (generation_id, chunk_id, len(vec),
+                             json.dumps([round(x, 6) for x in vec], allow_nan=False)))
+                        generation = conn.execute(
+                            "SELECT graph_json,meta_json FROM org_generations "
+                            "WHERE generation_id=? AND status='ACTIVE'", (generation_id,)
+                        ).fetchone()
+                        if not generation:
+                            conn.rollback()
+                            raise RuntimeError("active generation disappeared during vector write")
+                        graph_data = json.loads(generation["graph_json"])
+                        meta = json.loads(generation["meta_json"])
+                        digest, counts = _generation_digest(conn, generation_id, graph_data)
+                        meta.update({
+                            "generation_digest_sha256": digest,
+                            "integrity_state": "VERIFIED_AFTER_ATOMIC_VECTOR_WRITE",
+                        })
+                        conn.execute(
+                            "UPDATE org_generations SET vector_count=?,digest_sha256=?,meta_json=? "
+                            "WHERE generation_id=? AND status='ACTIVE'",
+                            (counts["vectors"], digest, _canonical_json(meta), generation_id),
+                        )
+                        if guarded:
+                            denial = _source_embed_denial(
+                                bindings.get(chunk["node_id"]), chunk, rights_registry)
+                            if denial is not None:
+                                conn.rollback()
+                                return {"ok": False, "chunk_id": chunk_id, "reason": denial,
+                                        "honest_error": "source rights expired before vector commit"}
+                        conn.commit()
+                        _BUILD_META = meta
             else:
                 conn.execute(
                     "INSERT OR REPLACE INTO org_vectors(chunk_id,dim,vec) VALUES(?,?,?)",
-                    (chunk_id, len(vec), json.dumps([round(float(x), 6) for x in vec])))
+                    (chunk_id, len(vec), json.dumps([round(x, 6) for x in vec], allow_nan=False)))
                 conn.commit()
         finally:
             conn.close()
@@ -1491,11 +1633,11 @@ def _ingest_text(graph: OrgGraph, conn: sqlite3.Connection, *, repo: str, path: 
             (generation_id, cid, fid, repo, path, "file", category, source, path, seg, csha))
         if embed_fn is not None:
             try:
-                v = embed_fn(seg)
+                v = _finite_vector(embed_fn(seg))
                 conn.execute(
                     "INSERT OR REPLACE INTO org_vectors_gen(generation_id,chunk_id,dim,vec) "
                     "VALUES(?,?,?,?)",
-                    (generation_id, cid, len(v), json.dumps([round(x, 6) for x in v])))
+                    (generation_id, cid, len(v), json.dumps([round(x, 6) for x in v], allow_nan=False)))
             except Exception:
                 pass
         n += 1
@@ -1855,7 +1997,15 @@ def _fts_escape(q: str) -> str:
 def _cosine(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    try:
+        a, b = _finite_vector(a), _finite_vector(b)
+        dot = sum(x * y for x, y in zip(a, b))
+    except (TypeError, ValueError, OverflowError):
+        return 0.0
+    # Historic rows and query embeddings also need validation: min/max can
+    # turn NaN into a perfect match, and finite inputs can overflow the dot.
+    if not math.isfinite(dot):
+        return 0.0
     return max(-1.0, min(1.0, dot))  # both are L2-normalized
 
 
