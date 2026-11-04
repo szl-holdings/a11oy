@@ -15,10 +15,17 @@ API refs (publicly documented shapes):
 from __future__ import annotations
 
 import os
+import re
 
 from ..base import State, Records, http_json
 from ..ready import ReadyConnector
 from ..registry import register
+
+
+SNOWFLAKE_ACCOUNT_IDENTIFIER = re.compile(
+    r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\Z",
+    re.ASCII,
+)
 
 
 def _snowflake_completed_rows(status, raw):
@@ -75,8 +82,10 @@ class SnowflakeConnector(ReadyConnector):
     _read_path = "statements"
 
     def _base_url(self):
-        return self.provider_base.replace("{account}",
-                                          os.environ.get("SZL_SNOWFLAKE_ACCOUNT", ""))
+        account = os.environ.get("SZL_SNOWFLAKE_ACCOUNT", "")
+        if not SNOWFLAKE_ACCOUNT_IDENTIFIER.fullmatch(account):
+            raise ValueError("invalid Snowflake account identifier")
+        return self.provider_base.replace("{account}", account)
 
     # OAuth access tokens are short-lived; a service deployment needs a PAT or key-pair JWT.
     _token_types = ("OAUTH", "KEYPAIR_JWT", "PROGRAMMATIC_ACCESS_TOKEN")
@@ -102,7 +111,16 @@ class SnowflakeConnector(ReadyConnector):
                            schema_preview=self.schema_preview)
         import json as _json
         body = {"statement": "SHOW TABLES LIMIT 10", "timeout": 30}
-        url = self._base_url() + "/statements"
+        try:
+            url = self._base_url() + "/statements"
+        except ValueError:
+            return Records(
+                connector_id=self.id, category=self.category, state=State.ERROR,
+                records=[], source=self.provider_base, live=False,
+                note="SZL_SNOWFLAKE_ACCOUNT must be a 1-63 character ASCII "
+                     "alphanumeric/hyphen account identifier; no request sent",
+                schema_preview=self.schema_preview,
+            )
         st, raw = http_json(url, method="POST",
                             headers={"Accept": "application/json", "Content-Type": "application/json",
                                      **self._auth_header()},

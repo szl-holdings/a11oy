@@ -119,8 +119,18 @@ if [ "${STAGE:-}" = 'PAUSED' ] || [ "${DISPATCH_WINDOW:-false}" = 'true' ]; then
   echo 'open=true' >> "$GITHUB_OUTPUT"
   exit 0
 fi
-echo "::warning::Deploy window closed (stage=${STAGE:-UNKNOWN}); nothing was written or deployed. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
-echo 'open=false' >> "$GITHUB_OUTPUT"'''
+live=""
+if [ "${STAGE:-}" = 'RUNNING' ]; then
+  live="$(curl -fsS --max-time 20 "$CANONICAL_ORIGIN/api/build-info" \
+    | python3 -I -c 'import json,sys; d=json.load(sys.stdin); print(((d.get("build") or {}).get("revision") or ""))')" || live=""
+fi
+if [ -n "$live" ] && [ "$live" = "$GITHUB_SHA" ]; then
+  echo "::notice::Deploy window closed; live /api/build-info already equals protected main ${GITHUB_SHA}."
+  echo 'open=false' >> "$GITHUB_OUTPUT"
+  exit 0
+fi
+echo "::error::PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED: stage=${STAGE:-UNKNOWN} protected_main=${GITHUB_SHA} live_revision=${live:-UNAVAILABLE}. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
+exit 1'''
 WINDOW_ENV = {"STAGE": "${{ steps.runtime.outputs.stage }}",
               "DISPATCH_WINDOW": "${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}"}
 ADMITTED = "${{ steps.admit.outputs.publish == 'true' }}"
