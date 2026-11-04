@@ -34,6 +34,19 @@ def manifest(item):
     return {"inventory": {"models": [item], "datasets": [], "spaces": []}}
 
 
+def fixture_classes():
+    """Classify the synthetic gated row the way the real policy must classify gated rows."""
+    classes = audit.revision_classes
+    return classes.RevisionClasses(
+        entries={("model", "SZLHOLDINGS/test-gated-model"): {
+            "repoType": "model", "id": "SZLHOLDINGS/test-gated-model",
+            "class": classes.GOVERNED_EXACT, "policySource": ("test fixture: gated=true",),
+            "rationale": "synthetic gated row",
+        }},
+        bindings=(), sha256="0" * 64, path="fixture",
+    )
+
+
 class GatedPublicInventoryTests(unittest.TestCase):
     def summarize(self, value=None):
         with patch.object(audit, "fetch_card_markdown", side_effect=AssertionError("protected download attempted")):
@@ -158,10 +171,16 @@ class GatedPublicInventoryTests(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as folder:
                     target = Path(folder) / "manifest.json"
                     target.write_text(json.dumps(snapshot, indent=2) + "\n", encoding="utf-8")
-                    with patch.object(sys, "argv", ["audit", "--check", "--output", str(target)]), redirect_stdout(io.StringIO()):
-                        self.assertEqual(audit.main(), 0)
-                        current["cardData"] = {"license": "other"}
+                    with patch.object(sys, "argv", ["audit", "--check", "--output", str(target)]), redirect_stdout(io.StringIO()) as out:
+                        with patch.object(audit.revision_classes, "load_revision_classes", return_value=fixture_classes()):
+                            self.assertEqual(audit.main(), 0)
+                            current["cardData"] = {"license": "other"}
+                            self.assertEqual(audit.main(), 1)
+                        # The real policy does not classify this synthetic gated row: fail closed.
+                        current["cardData"] = fixture()["cardData"]
                         self.assertEqual(audit.main(), 1)
+                        self.assertIn("must be classed GOVERNED_EXACT", out.getvalue())
+                        self.assertIn("result: INVALID", out.getvalue())
 
     def test_schema_has_restricted_conditional_without_global_null_exemption(self):
         schema = json.loads((HERE.parent / "docs/huggingface-ecosystem-manifest.schema.json").read_text())
