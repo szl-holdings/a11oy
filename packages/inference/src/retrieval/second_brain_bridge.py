@@ -4,10 +4,17 @@
 # Authored by Stephen Lutar. DCO: Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # Co-Authored-By: Perplexity Computer Agent
 """
-second_brain_bridge.py — fail-closed citation-HANDLE bridge to the LIVE
-SZLHOLDINGS/second-brain Hugging Face Space.
+second_brain_bridge.py — fail-closed citation-HANDLE bridge to the SECOND-BRAIN
+retrieval endpoint (formerly the SZLHOLDINGS/second-brain Hugging Face Space).
 
-WHAT THE UPSTREAM API ACTUALLY IS (read this before touching the file)::
+UPSTREAM DISPOSITION (verified 2026-11-04): the SZLHOLDINGS/second-brain HF
+Space is DELETED — the Hub APIs (models/spaces/datasets) and the runtime URL
+https://szlholdings-second-brain.hf.space all return 404. Until a successor
+endpoint is deployed this bridge can only legitimately return
+``status="UNAVAILABLE"``; the fail-closed transport below already guarantees
+that, and no label, docstring, or caller may present the deleted Space as live.
+
+WHAT THE UPSTREAM API WAS (read this before touching the file)::
 
     POST https://szlholdings-second-brain.hf.space/api/v1/retrieve
     body: {"query": "<text>", "k": <int, default 6, maximum 12>}
