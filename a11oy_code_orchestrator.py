@@ -1169,7 +1169,7 @@ def _hukla_check(action: str, context: dict[str, Any]) -> tuple[int, list[str], 
     hard_halt = False
     text = json.dumps(context, default=str)
     # T01 receipt-chain break
-    if not context.get("chain_verified", True):
+    if not context.get("chain_verified", False):
         fired.append("T01")
         hard_halt = True
     # T05 PII (very rough heuristic; the dedicated egress/immune filter owns full PII)
@@ -1203,7 +1203,7 @@ def puriq_decide(action: str, context: dict[str, Any]) -> dict[str, Any]:
     # Yuyay_13 conjunctive: any axis below floor => factor 0.
     yuyay_factor = 0.0 if yviol else lam
     hukla_factor = math.exp(-PURIQ_BETA * huk_count)
-    khipu_factor = 1.0 if ctx.get("chain_verified", True) else 0.0
+    khipu_factor = 1.0 if ctx.get("chain_verified", False) else 0.0
     score = lam * yuyay_factor * hukla_factor * khipu_factor
     # Two-person gate for state-changing ops.
     two_person_required = action in STATE_CHANGING_TOOLS
