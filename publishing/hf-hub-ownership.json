@@ -238,7 +238,8 @@
         {
           "workflow": ".github/workflows/hf-living-anatomy-guardian.yml",
           "retire": true,
-          "note": "Writer targets a creator-profile deployment mirror outside the org (named in docs/audit/2026-11-05-anatomy-personal-namespace-leak.md); retire or repoint to an org-owned Space."
+          "note": "Writer targets a creator-profile deployment mirror outside the org (named in docs/audit/2026-11-05-anatomy-personal-namespace-leak.md); retire or repoint to an org-owned Space.",
+          "leak_ref": "docs/audit/2026-11-05-anatomy-personal-namespace-leak.md"
         }
       ],
       "note": "No SZLHOLDINGS/anatomy repo exists on the Hub. Active mirror lives in the creator profile; see leak record docs/audit/2026-11-05-anatomy-personal-namespace-leak.md."

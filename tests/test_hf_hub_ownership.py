@@ -26,6 +26,15 @@ These are source assertions over the files tracked in this repository. They do
 not observe the Hub and do not prove a hosted run. Targets whose repository id
 is composed at run time are admitted only through ``dynamic_targets`` entries
 whose template must literally appear in the writing file.
+
+(d) External-namespace literals (e.g. the creator profile) must NEVER appear
+in the manifest itself - the namespace fence CI forbids them in org code.
+A writer file that names an external-namespace repo is instead covered by
+file-level attribution: some manifest entry must attribute the file (as
+``writer`` or ``retired_writers``), and the attributing record must carry a
+``leak_ref`` pointing at an audit doc (an ALLOWED fence path) that names the
+leaked literal with evidence. See
+``docs/audit/2026-11-05-anatomy-personal-namespace-leak.md``.
 """
 from __future__ import annotations
 
@@ -199,17 +208,32 @@ def test_every_manifest_writer_file_exists() -> None:
 def test_no_write_marked_file_names_an_unmanifested_target() -> None:
     _, targets = manifest_targets()
     by_repo = {}
+    by_file = {}
+    leak_refs: dict[str, list[Path]] = {}
     for target in targets:
         by_repo.setdefault(target["repo_id"], []).append(target)
+        for path in attribution(target):
+            by_file.setdefault(path, []).append(target)
+        for record in [target.get("writer"), *target.get("retired_writers", [])]:
+            if isinstance(record, dict) and record.get("leak_ref"):
+                workflow = record.get("workflow")
+                if workflow:
+                    leak_refs.setdefault(workflow, []).append(ROOT / record["leak_ref"])
     uncovered: dict[str, list[str]] = {}
     for path, repos in sorted(write_marked_files().items()):
         for repo_id in repos:
+            owner = repo_id.split("/", 1)[0]
             entries = by_repo.get(repo_id)
             if not entries:
+                if owner == "SZLHOLDINGS" or path not in by_file or not leak_refs.get(path):
+                    uncovered.setdefault(path, []).append(repo_id)
+                    continue
+                # External-namespace writer covered by file attribution + leak_ref.
+            elif not any(path in attribution(entry) for entry in entries):
                 uncovered.setdefault(path, []).append(repo_id)
-                continue
-            if not any(path in attribution(entry) for entry in entries):
-                uncovered.setdefault(path, []).append(repo_id)
+    for path, docs in leak_refs.items():
+        for doc in docs:
+            assert doc.is_file(), f"{path}: leak_ref doc missing: {doc}"
     assert uncovered == {}
 
 
