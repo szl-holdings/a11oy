@@ -460,6 +460,17 @@ def _init_schema(conn: sqlite3.Connection) -> bool:
         "revocation_id TEXT PRIMARY KEY, source_path TEXT NOT NULL, source_digest TEXT NOT NULL, "
         "actor TEXT NOT NULL, tenant TEXT NOT NULL, created_at REAL NOT NULL, reason TEXT NOT NULL)"
     )
+    version = _schema_user_version(conn)
+    if version == 0:
+        # Stamp only a store that has not published a generation. An existing
+        # version-0 index keeps its legacy digest until an explicit rebuild.
+        published = conn.execute("SELECT 1 FROM org_generations LIMIT 1").fetchone()
+        if published is None:
+            conn.execute(f"PRAGMA user_version={_ORG_RAG_SCHEMA_VERSION}")
+    elif version != _ORG_RAG_SCHEMA_VERSION:
+        raise RuntimeError(
+            "org RAG schema version is newer than this process"
+        )
     conn.commit()
     return has_fts5
 
@@ -511,9 +522,25 @@ def _canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+# user_version 0 keeps the pre-metadata digest so an existing store still
+# verifies. user_version 1 seals meta_json. Any other version is refused.
+_ORG_RAG_SCHEMA_VERSION = 1
+
+
+def _schema_user_version(conn: sqlite3.Connection) -> int:
+    row = conn.execute("PRAGMA user_version").fetchone()
+    return int(row[0] if row else 0)
+
+
 def _generation_digest(conn: sqlite3.Connection, generation_id: str,
-                       graph_data: dict[str, Any]) -> tuple[str, dict[str, int]]:
-    """Hash every persisted retrieval row plus the graph, in stable order."""
+                       graph_data: dict[str, Any],
+                       meta: dict[str, Any] | None = None) -> tuple[str, dict[str, int]]:
+    """Hash every persisted retrieval row plus the graph, in stable order.
+
+    Schema version 1 also seals the generation metadata that is stored in
+    ``meta_json``. The digest field itself is excluded because it is written
+    after this hash. Schema version 0 keeps the older row-and-graph seal.
+    """
     h = hashlib.sha256()
     h.update(_canonical_json(graph_data).encode("utf-8"))
     counts: dict[str, int] = {}
@@ -539,6 +566,11 @@ def _generation_digest(conn: sqlite3.Connection, generation_id: str,
             h.update(b"\n")
             n += 1
         counts[label] = n
+    if meta is not None and _schema_user_version(conn) == _ORG_RAG_SCHEMA_VERSION:
+        sealed = {key: value for key, value in meta.items()
+                  if key != "generation_digest_sha256"}
+        h.update(b"meta\0")
+        h.update(_canonical_json(sealed).encode("utf-8"))
     return h.hexdigest(), counts
 
 
@@ -685,7 +717,7 @@ def _persist_runtime_state(conn: sqlite3.Connection, graph: OrgGraph,
         conn.execute("BEGIN IMMEDIATE")
         # Seal the exact rows protected by this writer transaction. No writer can
         # change staging data between this digest and the active-pointer swap.
-        digest, counts = _generation_digest(conn, generation_id, graph_data)
+        _, counts = _generation_digest(conn, generation_id, graph_data)
         revoked = _revoked_source_digests(conn)
         if revoked:
             placeholders = ",".join("?" for _ in revoked)
@@ -709,12 +741,13 @@ def _persist_runtime_state(conn: sqlite3.Connection, graph: OrgGraph,
                 return
         meta.update({
             "generation_id": generation_id,
-            "generation_digest_sha256": digest,
             "integrity_state": "VERIFIED_AT_PUBLISH",
             "corpus_chunk_count": counts["chunks"],
             "brain_handle_count": counts["brain_handles"],
             "training_authority_rows": 0,
         })
+        digest, counts = _generation_digest(conn, generation_id, graph_data, meta)
+        meta["generation_digest_sha256"] = digest
         meta_blob = _canonical_json(meta)
         graph_blob = _canonical_json(graph_data)
         previous = _active_generation(conn)
@@ -760,6 +793,18 @@ def _rehydrate_runtime_state() -> bool:
         if not os.path.exists(RAG_DB_PATH):
             return False
         conn = _db_readonly()
+        schema_version = _schema_user_version(conn)
+        if schema_version not in (0, _ORG_RAG_SCHEMA_VERSION):
+            conn.close()
+            _GRAPH = OrgGraph()
+            _BUILD_META = {
+                "built": False, "ts": None, "repos": 0, "chunks": 0,
+                "schema_version": schema_version,
+                "rehydration_state": "SCHEMA_VERSION_REFUSED",
+                "integrity_state": "FAILED_CLOSED",
+                "honest_note": "org RAG schema version is newer than this process",
+            }
+            return False
         conn.execute("BEGIN")
         generation_id = _active_generation(conn)
         if not generation_id:
@@ -779,7 +824,7 @@ def _rehydrate_runtime_state() -> bool:
             raise ValueError("active Brain generation is incomplete")
         graph_data = json.loads(row["graph_json"])
         meta = json.loads(row["meta_json"])
-        actual_digest, counts = _generation_digest(conn, generation_id, graph_data)
+        actual_digest, counts = _generation_digest(conn, generation_id, graph_data, meta)
         conn.close()
         count_match = (
             counts["chunks"] == int(row["chunk_count"])
@@ -1253,11 +1298,10 @@ def embed_and_store_chunk(chunk_id: str, vec: list[float]) -> dict[str, Any]:
                         raise RuntimeError("active generation disappeared during vector write")
                     graph_data = json.loads(generation["graph_json"])
                     meta = json.loads(generation["meta_json"])
-                    digest, counts = _generation_digest(conn, generation_id, graph_data)
-                    meta.update({
-                        "generation_digest_sha256": digest,
-                        "integrity_state": "VERIFIED_AFTER_ATOMIC_VECTOR_WRITE",
-                    })
+                    meta["integrity_state"] = "VERIFIED_AFTER_ATOMIC_VECTOR_WRITE"
+                    meta.pop("generation_digest_sha256", None)
+                    digest, counts = _generation_digest(conn, generation_id, graph_data, meta)
+                    meta["generation_digest_sha256"] = digest
                     conn.execute(
                         "UPDATE org_generations SET vector_count=?,digest_sha256=?,meta_json=? "
                         "WHERE generation_id=? AND status='ACTIVE'",

@@ -113,10 +113,23 @@ def _assert_current_shared_payload(root):
     assert manifest["files"][SNOWFLAKE] == (
         "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b"
     )
-    # Only this proof test changes; every prior runtime/security entry stays pinned.
-    for relative, expected in security["files"].items():
-        if relative != "tests/test_replication_shared_payload.py":
-            assert manifest["files"][relative] == expected
+    # The proof test records this generation. The org RAG tenant seal is the one
+    # runtime file allowed to move; its predecessor digest stays in the security
+    # payload, and the active digest is pinned below.
+    moved = {
+        relative for relative, expected in security["files"].items()
+        if manifest["files"][relative] != expected
+    }
+    assert moved == {
+        "tests/test_replication_shared_payload.py",
+        "a11oy_org_rag.py",
+    }
+    assert security["files"]["a11oy_org_rag.py"] == (
+        "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279"
+    )
+    assert manifest["files"]["a11oy_org_rag.py"] == (
+        "2335db9f98b14cf18c4140dcc9caa05fc0b46378388598f470dd94b757e71475"
+    )
     # Genuine full current-source verification, including this changed test.
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected

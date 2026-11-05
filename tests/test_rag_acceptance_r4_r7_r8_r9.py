@@ -218,8 +218,8 @@ def test_r4_crash_before_durable_swap_keeps_old_active_and_restart_can_publish(
     if point == "digest":
         real_digest = rag._generation_digest
 
-        def dying_digest(conn, generation_id, graph_data):
-            real_digest(conn, generation_id, graph_data)
+        def dying_digest(conn, generation_id, graph_data, meta=None):
+            real_digest(conn, generation_id, graph_data, meta)
             raise SimulatedCrash("digest")
 
         monkeypatch.setattr(rag, "_generation_digest", dying_digest)
@@ -281,8 +281,8 @@ def test_r4_concurrent_readers_see_one_coherent_generation_during_swap(monkeypat
     real_digest = rag._generation_digest
     sealing = threading.Event()
 
-    def slow_digest(conn, generation_id, graph_data):
-        result = real_digest(conn, generation_id, graph_data)
+    def slow_digest(conn, generation_id, graph_data, meta=None):
+        result = real_digest(conn, generation_id, graph_data, meta)
         if generation_id == successor:
             sealing.set()
             time.sleep(0.3)  # widen the window between seal and swap
@@ -443,19 +443,19 @@ def test_r4_sealed_generation_tampering_fails_closed(monkeypatch, tmp_path, how)
     assert refused["ok"] is False and refused["i_dont_know"] is True
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "MEASURED gap: org_generations.meta_json is outside _generation_digest. A tampered "
-    "meta_json (e.g. repos=999, honest_note) rehydrates as VERIFIED_ON_REHYDRATE and is "
-    "reported by status(); only rows + graph are sealed."))
-def test_r4_unsealed_generation_metadata_tamper_is_detected(monkeypatch, tmp_path):
+def test_r4_generation_metadata_tamper_is_detected(monkeypatch, tmp_path):
+    """Schema version 1 seals meta_json. A tampered repos/honest_note fails closed."""
     db_path, writer, first = _publish_first(monkeypatch, tmp_path)
     _tamper(writer, first, "meta_json")
     writer.close()
     _restart(monkeypatch, db_path)
-    rehydrated = rag._rehydrate_runtime_state()
+    assert rag._rehydrate_runtime_state() is False
     state = rag.status()
-    assert rehydrated is False or (state.get("repos") != 999
-                                   and "TAMPERED" not in json.dumps(state))
+    assert state["built"] is False
+    assert state["integrity_state"] == "FAILED_CLOSED"
+    assert state["rehydration_state"] == "INTEGRITY_MISMATCH_REBUILD_REQUIRED"
+    assert state.get("repos") != 999
+    assert "TAMPERED" not in json.dumps(state)
 
 
 def test_r4_schema_missing_sealed_column_fails_closed(monkeypatch, tmp_path):
@@ -469,10 +469,6 @@ def test_r4_schema_missing_sealed_column_fails_closed(monkeypatch, tmp_path):
     assert rag.query("stable alpha", k=1)["ok"] is False
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "MEASURED gap: a11oy_org_rag has no schema-version marker or check (no user_version / "
-    "schema_version read anywhere). A store stamped PRAGMA user_version=999 is rehydrated "
-    "and served; only a missing sealed column fails closed."))
 def test_r4_schema_version_from_the_future_is_refused(monkeypatch, tmp_path):
     db_path, writer, _first = _publish_first(monkeypatch, tmp_path)
     writer.execute("PRAGMA user_version=999")

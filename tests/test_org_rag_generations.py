@@ -328,8 +328,8 @@ def test_rollback_reader_snapshot_stays_coherent_during_successor_publication(
     errors = []
     original_digest = rag._generation_digest
 
-    def observe_digest(connection, generation_id, graph_data):
-        result = original_digest(connection, generation_id, graph_data)
+    def observe_digest(connection, generation_id, graph_data, meta=None):
+        result = original_digest(connection, generation_id, graph_data, meta)
         publishing.set()
         return result
 

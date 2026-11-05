@@ -77,6 +77,10 @@ def env(monkeypatch, tmp_path):
     assert all(hashlib.sha256(c["text"].encode()).hexdigest() != c["sha256"] for c in retrieval["chunks"])
 
     orchestrator = importlib.import_module("a11oy_code_orchestrator")
+    # DB_PATH and SANDBOX_DIR are captured at first import. Bind the temp paths
+    # even when an earlier import already snapped the container default.
+    monkeypatch.setattr(orchestrator, "DB_PATH", str(tmp_path / "code.db"))
+    monkeypatch.setattr(orchestrator, "SANDBOX_DIR", tmp_path / "sandbox")
     generic_calls, tool_calls = [], []
 
     async def generic_model(*args, **kwargs):
