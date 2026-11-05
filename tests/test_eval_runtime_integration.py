@@ -198,7 +198,9 @@ def test_operator_routes_fail_closed_and_rerun_keeps_health_responsive(
                 assert live_ledger["operational"] is True
                 assert live_ledger["count"] == 0
                 assert live_ledger["receipts"] == []
-                assert live_ledger["structure_verified"] is True
+                assert live_ledger["structure_verified"] is None
+                assert live_ledger["chain_verified"] is None
+                assert live_ledger["chain_verification"] == "NOT_EVALUATED_BY_THIS_ROUTE"
                 assert export_one == export_two
                 assert export_one["state"] == "SAMPLE"
                 assert export_one["data_kind"] == "sample"

@@ -10808,15 +10808,20 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
           file=sys.stderr)
 
 
-def _public_khipu_nodes(limit: int = 32) -> list[dict]:
-    """Read-only view of the operator Khipu DAG. GET never mints."""
+def _public_khipu_nodes(limit: int = 32) -> "tuple[list[dict], str | None]":
+    """Read-only view of the operator Khipu DAG. GET never mints.
+
+    Returns (nodes, read_error). read_error is None for a clean read (including
+    no DAG attached, which is live-empty) and a short reason when the read
+    failed, so a failed read is never reported as an empty healthy ledger.
+    """
     dag = getattr(app.state, "szl_khipu_dag", None)
     if dag is None:
-        return []
+        return [], None
     try:
         nodes = list(dag.recent(max(1, min(int(limit), 64))))
-    except Exception:
-        return []
+    except Exception as exc:
+        return [], "khipu_dag_read_failed:" + type(exc).__name__
     out = []
     for node in nodes:
         receipt = node.get("receipt") if isinstance(node, dict) else None
@@ -10831,7 +10836,7 @@ def _public_khipu_nodes(limit: int = 32) -> list[dict]:
             "actor": receipt.get("actor"),
             "ts_utc": node.get("ts_utc") or receipt.get("ts_utc"),
         })
-    return out
+    return out, None
 
 
 @app.get("/api/a11oy/v1/ledger")
@@ -10845,16 +10850,33 @@ async def a11oy_ledger_v2() -> JSONResponse:
     observed_at = _gov_now_iso()
     if observed_at.endswith("+00:00"):
         observed_at = observed_at[:-6] + "Z"
-    receipts = _public_khipu_nodes()
+    receipts, read_error = _public_khipu_nodes()
+    if read_error is not None:
+        return JSONResponse({
+            "count": None,
+            "state": "UNAVAILABLE",
+            "data_kind": "live",
+            "operational": False,
+            "reason": read_error,
+            "structure_verified": None,
+            "chain_verified": None,
+            "chain_verification": "NOT_EVALUATED_BY_THIS_ROUTE",
+            "receipt_minted": False,
+            "observed_at": observed_at,
+            "book": "public_operator_khipu",
+            "receipts": [],
+        }, status_code=503)
     signed_any = any(item.get("signed") for item in receipts)
     return JSONResponse({
         "count": len(receipts),
+        "count_scope": "recent nodes returned by this route (at most 32), not the DAG total",
         "state": "live",
         "data_kind": "live",
         "operational": True,
         "hash_algorithm": "sha256-hex",
-        "structure_verified": True,
-        "chain_verified": True,
+        "structure_verified": None,
+        "chain_verified": None,
+        "chain_verification": "NOT_EVALUATED_BY_THIS_ROUTE",
         "signed": signed_any,
         "signature_state": "SIGNED" if signed_any else "UNSIGNED",
         "receipt_minted": False,
@@ -10862,8 +10884,9 @@ async def a11oy_ledger_v2() -> JSONResponse:
         "book": "public_operator_khipu",
         "honesty": ("Live operational ledger read from the in-process Khipu DAG. "
                     "GET never mints, so receipt_minted is always false on this "
-                    "route. count is the number of receipts already present in "
-                    "this process; this is not the deterministic SAMPLE chain "
+                    "route. count is the number of recent receipts this route "
+                    "returned (at most 32), not the DAG total. Structure and chain "
+                    "integrity are not evaluated here. This is not the deterministic SAMPLE chain "
                     "(see GET /api/a11oy/v2/command-log)."),
         "receipts": receipts,
     })
@@ -12165,15 +12188,19 @@ try:
     # request path (the outbound OpenAI-compatible call built just below, which
     # serves the self-hosted node when A11OY_MODEL_BASE_URL + A11OY_GPU_TOKEN
     # are set, with the served model named by SZL_LOCAL_LLM_MODEL). When the
-    # operator opts in, the user's query is FIRST posted to the LIVE
-    # SZLHOLDINGS/second-brain HF Space (/api/v1/retrieve) and, ONLY on a LIVE
-    # well-formed response, that API's citation HANDLES (nodeId + short note +
-    # sha256, verbatim) plus the API's OWN honesty string are prepended to the
-    # outbound messages as untrusted user/data context, never system policy. The upstream API is a
-    # lexical-overlap ranker over a PUBLIC 575-chunk projection
-    # (content_access=HANDLES_ONLY) — it is NOT semantic retrieval and it is NOT
-    # the private 9464-node brain graph, and neither this code nor its labels
-    # may upgrade that claim. Fail-closed: timeout / non-2xx / malformed JSON /
+    # operator opts in, the user's query is FIRST posted to the second-brain
+    # retrieve endpoint and, ONLY on a LIVE well-formed response, that API's citation
+    # HANDLES (nodeId + short note + sha256, verbatim) plus the API's OWN
+    # honesty string are prepended to the outbound messages as untrusted
+    # user/data context, never system policy. UPSTREAM DISPOSITION (verified
+    # 2026-11-04): the SZLHOLDINGS/second-brain HF Space is DELETED (404 across
+    # the Hub APIs, runtime URL 404), so the bridge can only report UNAVAILABLE
+    # until a successor is deployed; nothing here may present it as live. The
+    # historical upstream API was a lexical-overlap ranker over a PUBLIC
+    # 575-chunk projection (content_access=HANDLES_ONLY) — it is NOT semantic
+    # retrieval and it is NOT the private 9464-node brain graph, and neither
+    # this code nor its labels may upgrade that claim. Fail-closed: timeout /
+    # non-2xx / malformed JSON /
     # missing "handles" -> status UNAVAILABLE, the messages go out UNCHANGED,
     # and generation.second_brain_rag NEVER claims retrieval was used. When the
     # flag is unset the bridge is never consulted and this path is byte-identical
@@ -12205,7 +12232,9 @@ try:
         if not _ac_second_brain_rag_enabled():
             return messages, None
         base_meta = {
-            "source": "SZLHOLDINGS/second-brain HF Space /api/v1/retrieve",
+            "source": ("deleted SZLHOLDINGS/second-brain HF Space "
+                       "/api/v1/retrieve (upstream removed; verified 404 "
+                       "2026-11-04)"),
             "kind": "citation-handles",
             "label": ("citation handles from a public lexical index, not "
                       "semantic retrieval, not the full brain graph"),
@@ -12340,7 +12369,9 @@ try:
                 _stub_meta["second_brain_rag"] = {
                     "status": "UNAVAILABLE", "used": False,
                     "kind": "citation-handles",
-                    "source": "SZLHOLDINGS/second-brain HF Space /api/v1/retrieve",
+                    "source": ("deleted SZLHOLDINGS/second-brain HF Space "
+                               "/api/v1/retrieve (upstream removed; verified "
+                               "404 2026-11-04)"),
                     "error": "no inference credential configured; no outbound call to augment"}
             return stub, "deterministic", _stub_meta
         messages = [
@@ -14179,10 +14210,11 @@ async def _hero_vendor(fname: str) -> Response:
 
 
 # === ADDITIVE: /cathedral — the ONE canonical genius cathedral, GitHub-aligned. ===
-# Unifies the cathedral front door so a-11-oy.com/cathedral renders the IDENTICAL
-# "Constellation · Khipu" scene as the SZLHOLDINGS/cathedral HF static space and
+# The SZLHOLDINGS/cathedral HF static Space is DELETED (verified 404 across Hub
+# APIs and runtime probe on 2026-11-04); this same-origin route is now the only
+# canonical cathedral surface, rendering the tracked cathedral scene and
 # killinchu/cathedral. The page (cathedral_genius.html at the repo root) is the
-# canonical HF index.html byte-for-byte EXCEPT its two asset paths, which are
+# canonical HTML byte-for-byte EXCEPT its two asset paths, which are
 # repointed at sovereign in-image routes: the ES-module app at /cathedral/app.js
 # and the vendored Three.js r160 (MIT) at the existing /hero/vendor3d/* routes.
 # 0 runtime CDN; system-font stacks; Three.js vendored. Honesty doctrine v11:
@@ -14792,10 +14824,12 @@ async def harvest_console_page() -> Response:
 
 
 # --- Hatun-MCP tab (ADDITIVE; Doctrine v12 PURIQ / Yachay CTO, 2026-06-01) ---
-# Status + 16-tool list + recent-invocation view for the SZL agentic MCP server
-# (Space: SZLHOLDINGS/hatun-mcp). Client-side probes the live /healthz and
-# /.well-known/mcp/server-card.json. Served from /app/pages/ (already COPYed by
-# the Dockerfile) — no Dockerfile change, zero regression to existing routes.
+# Status + 16-tool list + recent-invocation view for the SZL agentic MCP server.
+# The former HF Space SZLHOLDINGS/hatun-mcp is DELETED (verified 404 across the
+# Hub APIs on 2026-11-04); this page therefore probes only same-origin in-process
+# /mcp/ and /api/hatun/* evidence routes, which stay UNAVAILABLE when no evidence
+# exists. Served from /app/pages/ (already COPYed by the Dockerfile) — no
+# Dockerfile change, zero regression to existing routes.
 @app.get("/hatun-mcp")
 async def hatun_mcp_page() -> Response:
     f = PAGES_DIR / "hatun-mcp.html"
@@ -14911,9 +14945,10 @@ _CONSTELLATION_SURFACES = [
     {"name": "a11oy", "kind": "Orchestrator / Command Center", "group": "Core",
      "blurb": "Governed brand-orchestration layer — the mind and six-organ engine this cockpit reads.",
      "url": "https://szlholdings-a11oy.hf.space/"},
-    {"name": "hatun-mcp", "kind": "Signed MCP gateway", "group": "Core",
-     "blurb": "The spine: one signed gateway that aggregates a11oy + killinchu + immune + router tools.",
-     "url": "https://szlholdings-hatun-mcp.hf.space/"},
+    # hatun-mcp entry REMOVED 2026-11-04: Space SZLHOLDINGS/hatun-mcp and its
+    # runtime URL szlholdings-hatun-mcp.hf.space are deleted (verified 404
+    # across Hub APIs and runtime probe); a probe entry would fabricate a
+    # surface. The same-origin /hatun-mcp observability route remains.
     {"name": "killinchu", "kind": "Counter-UAS application", "group": "Applications",
      "blurb": "Applied counter-UAS surface — the doctrine put to work on a real defense problem.",
      "url": "https://szlholdings-killinchu.hf.space/"},
@@ -14923,9 +14958,9 @@ _CONSTELLATION_SURFACES = [
     {"name": "yarqa", "kind": "Provenance CFD", "group": "Showcase",
      "blurb": "Provenance-first CFD library — every result carries a verifiable derivation, no black boxes.",
      "url": "https://szlholdings-yarqa.hf.space/"},
-    {"name": "cathedral", "kind": "Constellation visualization", "group": "Showcase",
-     "blurb": "Visual atlas of the constellation — the org rendered as one living structure.",
-     "url": "https://szlholdings-cathedral.hf.space/"},
+    # cathedral entry REMOVED 2026-11-04: Space SZLHOLDINGS/cathedral and
+    # szlholdings-cathedral.hf.space are deleted (verified 404); the canonical
+    # scene is the same-origin /cathedral route below.
     {"name": "a-11-oy.com", "kind": "Public site", "group": "Public",
      "blurb": "The public front door for a11oy.",
      "url": "https://a-11-oy.com/"},
@@ -15060,14 +15095,22 @@ except Exception as _con_move_e:  # pragma: no cover
 
 
 # ---------------------------------------------------------------------------
-# Spine status — PROVE hatun-mcp actually federates the org's tools.
-# Reads hatun-mcp's OWN public .well-known/mcp manifest (no auth needed for the
-# manifest itself) and surfaces the REAL federated tool list. Honest by
-# construction: it is hatun-mcp advertising its own tools; a11oy invents nothing.
+# Spine status — historical: hatun-mcp used to federate the org's tools.
+# The hatun-mcp HF Space is DELETED (SZLHOLDINGS/hatun-mcp and
+# szlholdings-hatun-mcp.hf.space verified 404 across Hub APIs and runtime probe
+# on 2026-11-04), so this endpoint can only legitimately report UNAVAILABLE:
+# the probe below stays fail-closed (reachable=False, empty tool list) and
+# `upstream_disposition` says exactly why. Nothing is invented; if a successor
+# gateway ships, restore the URL and drop the disposition marker.
 # ---------------------------------------------------------------------------
 _spine_cache = {"ts": 0.0, "data": None}
 _SPINE_TTL = 60.0
+# Deleted upstream: kept as the probe target so any resurrection is observed,
+# never asserted as alive. Do not present this URL as reachable.
 _HATUN_MANIFEST_URL = "https://szlholdings-hatun-mcp.hf.space/.well-known/mcp"
+_HATUN_UPSTREAM_DISPOSITION = (
+    "UPSTREAM_SPACE_DELETED_VERIFIED_404_2026-11-04"
+)
 
 
 def _classify_spine_tool(name: str, desc: str) -> str:
@@ -15132,7 +15175,12 @@ async def a11oy_spine_status() -> Response:
         "schema": "szl.spine_status/v1",
         "checked_at": _dt.datetime.utcnow().isoformat() + "Z",
         "source": _HATUN_MANIFEST_URL,
-        "note": "federated tools read live from hatun-mcp's own .well-known/mcp manifest; nothing invented",
+        "upstream_disposition": _HATUN_UPSTREAM_DISPOSITION,
+        "status": "UNAVAILABLE",
+        "note": ("the hatun-mcp upstream Space is deleted (404 verified "
+                 "2026-11-04); the fail-closed probe is retained only to observe "
+                 "any resurrection and never reports federated tools from a dead "
+                 "endpoint; nothing invented"),
         **payload,
     }
     _spine_cache["data"] = data

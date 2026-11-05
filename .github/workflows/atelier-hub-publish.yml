@@ -6,16 +6,16 @@
 # Uses HF_ORG_TOKEN already bound on this repo. szl-atelier's own hf-space.yml
 # cannot publish until that repo has the org token.
 #
+# Push trigger removed 2026-11-04 (publishing/hf-hub-ownership.json):
+# the FOLD-ledger szl-atelier Space and the model targets must not re-pin on
+# every edit to this workflow. Run by workflow_dispatch only.
+#
 # Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
 
 name: Publish SZL Atelier Hub surfaces
 
 on:
   workflow_dispatch: {}
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/atelier-hub-publish.yml"
 
 permissions:
   contents: read
