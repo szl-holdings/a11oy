@@ -76,6 +76,12 @@
           "scripts/hf_publish_vertical_flagships_v4_impl.py"
         ]
       },
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending",
+        "note": "FOLD__POLICY_MIGRATION_REQUIRED; the executor refuses while this active writer stands."
+      },
       "retired_writers": [
         {
           "workflow": ".github/workflows/hf-sync.yml",
@@ -222,6 +228,11 @@
       "repo_type": "space",
       "writer": "none",
       "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      },
       "retired_writers": [
         {
           "workflow": ".github/workflows/atelier-hub-publish.yml",
@@ -295,19 +306,34 @@
       "repo_id": "SZLHOLDINGS/llm-router-live",
       "repo_type": "space",
       "writer": "none",
-      "note": "pending fold"
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
     },
     {
       "repo_id": "SZLHOLDINGS/ayllu",
       "repo_type": "space",
       "writer": "none",
-      "note": "pending fold"
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
     },
     {
       "repo_id": "SZLHOLDINGS/yarqa",
       "repo_type": "space",
       "writer": "none",
-      "note": "pending fold"
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
     },
     {
       "repo_id": "SZLHOLDINGS/nexus",
@@ -325,19 +351,155 @@
       "repo_id": "SZLHOLDINGS/holographic-unify",
       "repo_type": "space",
       "writer": "none",
-      "note": "pending fold"
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
     },
     {
       "repo_id": "SZLHOLDINGS/the-grid",
       "repo_type": "space",
       "writer": "none",
-      "note": "pending fold"
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
     },
     {
       "repo_id": "SZLHOLDINGS/szl-khipu",
       "repo_type": "space",
       "writer": "none",
-      "note": "pending fold"
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/foundation-confirmation-v2",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold (disposition class retirement_candidate; registered scientific result remains FAILED)",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/gdw-frontier",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/governed-receipt-verifier",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/immune-lattice",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold (parity audit required before any disposition)",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/oac-system-health-lab",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/prove-it",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-bench-suite",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-brand-campaign",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-forge-lab",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-marketing-1.1",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-typesafe-triage",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
     },
     {
       "repo_id": "SZLHOLDINGS/immune",
