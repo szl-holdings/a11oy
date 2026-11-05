@@ -1,0 +1,219 @@
+{
+  "schema": "szl.hf-space-fold-registry/v1",
+  "issued": "2026-11-04",
+  "source_ledger": "docs/estate/hf-public-space-dispositions-20261003.json",
+  "source_ledger_observed_at_utc": "2026-10-03T02:36:51Z",
+  "executor": {
+    "workflow": ".github/workflows/execute-space-fold.yml",
+    "script": ".github/scripts/fold_space.py",
+    "trigger": "workflow_dispatch only",
+    "confirmation_pattern": "FOLD-SZLHOLDINGS-<NAME-UPPERCASE>",
+    "note": "Each fold is destructive and public; execution stays a separate per-Space dispatch decision. dry_run is the default."
+  },
+  "keep_conflict_policy": "Runtime keep wins ONLY for keeps listed in szl_spaces_surface.py (SPACES runtime keep list and PUBLIC_ORG_KEEP_POLICY). A Space must never appear in this registry while it is so listed; tests/test_space_fold_executor.py enforces it.",
+  "excluded_from_registry": {
+    "runtime_keep_wins": [
+      "SZLHOLDINGS/immune",
+      "SZLHOLDINGS/vertical-services"
+    ],
+    "separate_unify_action": [
+      "SZLHOLDINGS/szl-command-lab",
+      "SZLHOLDINGS/szl-constellation",
+      "SZLHOLDINGS/szl-frontier",
+      "SZLHOLDINGS/szl-model-inference-lab"
+    ]
+  },
+  "targets": [
+    {
+      "space_id": "SZLHOLDINGS/ayllu",
+      "class": "source_hub_conflict",
+      "source_action": "FOLD",
+      "review_gate": "resolve_source_hub_conflict",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a11oy.net/ayllu/",
+      "observed": {"date": "2026-11-04", "visibility": "public", "hub_sha": "d70daf72b373272a006683b01b66c702803d552d", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/foundation-confirmation-v2",
+      "class": "retirement_candidate",
+      "source_action": "UNLISTED",
+      "review_gate": "retirement_reference_audit",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "0033e0220aa77f158cb392936fd25a5da8758285", "sdk": "static"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/gdw-frontier",
+      "class": "source_hub_conflict",
+      "source_action": "UNLISTED",
+      "review_gate": "resolve_source_hub_conflict",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "public", "hub_sha": "954ebd550f9a2f99c4fb119b9ca8e3fb738b60a8", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/governed-receipt-verifier",
+      "class": "public_showcase",
+      "source_action": "FOLD",
+      "review_gate": "complete_fold",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a11oy.net/record/",
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "a4dece536aba8f9f9924f7bb2386f9c22e5764fa", "sdk": "static"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/holographic-unify",
+      "class": "public_showcase",
+      "source_action": "UNLISTED",
+      "review_gate": "review_public_showcase",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "public", "hub_sha": "f5261e1b7e1396eb7b6c79fc74fe78cf1b8e5f57", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/immune-lattice",
+      "class": "public_showcase",
+      "source_action": "FOLD__PARITY_AUDIT_REQUIRED",
+      "review_gate": "parity_audit_before_fold",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a-11-oy.com/immune",
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "e5eb779a1e9a9469f12adf50864276a7fecb9b6c", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/llm-router-live",
+      "class": "source_hub_conflict",
+      "source_action": "FOLD",
+      "review_gate": "resolve_source_hub_conflict",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a-11-oy.com",
+      "observed": {"date": "2026-11-04", "visibility": "public", "hub_sha": "321b3f4cca8c86cab37172a6552686d0e2a5d032", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/oac-system-health-lab",
+      "class": "public_showcase",
+      "source_action": "UNLISTED",
+      "review_gate": "review_public_showcase",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "3b40690dbc599e3783b8eeb2502f58ac8ee6b716", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/prove-it",
+      "class": "public_showcase",
+      "source_action": "UNLISTED",
+      "review_gate": "review_public_showcase",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "437e14303eefaf1d0c7905c90038efe3641d5ef9", "sdk": "static"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/sentra",
+      "class": "source_hub_conflict",
+      "source_action": "FOLD__POLICY_MIGRATION_REQUIRED",
+      "review_gate": "resolve_source_hub_conflict",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a-11-oy.com/spaces#verticals",
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "4fbd2c576289ecb764957725e807e235b81ea25f", "sdk": "docker"},
+      "note": "Active in-repo writer (hf-publish-vertical-flagships); the executor refuses until the writer is retired in publishing/hf-hub-ownership.json."
+    },
+    {
+      "space_id": "SZLHOLDINGS/szl-atelier",
+      "class": "public_showcase",
+      "source_action": "FOLD",
+      "review_gate": "complete_fold",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a11oy.net/atelier/",
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "767a97f27700c5cefcfe29733274e9f61967ffdc", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/szl-bench-suite",
+      "class": "public_showcase",
+      "source_action": "UNLISTED",
+      "review_gate": "review_public_showcase",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "e91182c89dccd266c3e3f69b6c87db7192c91c5c", "sdk": "static"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/szl-brand-campaign",
+      "class": "public_showcase",
+      "source_action": "UNLISTED",
+      "review_gate": "review_public_showcase",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "5ae8bf1ec03ec36aa4de79ba900b9c34f03c0cd2", "sdk": "static"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/szl-forge-lab",
+      "class": "public_showcase",
+      "source_action": "FOLD",
+      "review_gate": "complete_fold",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a11oy.net/atelier/",
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "0b02d8ed75b8a6882698cadc99a990ad548942da", "sdk": "static"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/szl-khipu",
+      "class": "public_showcase",
+      "source_action": "FOLD",
+      "review_gate": "complete_fold",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a-11-oy.com/khipu",
+      "observed": {"date": "2026-11-04", "visibility": "public", "hub_sha": "dffe8a5df890dd3c7aec778fdfe96a00844378a7", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/szl-marketing-1.1",
+      "class": "public_showcase",
+      "source_action": "UNLISTED",
+      "review_gate": "review_public_showcase",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "fd57b82582392617a59e1078f023843376d99734", "sdk": "gradio"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/szl-typesafe-triage",
+      "class": "public_showcase",
+      "source_action": "UNLISTED",
+      "review_gate": "review_public_showcase",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "private", "hub_sha": "42612b84849c0a55f6ae84b2c2f328f581082499", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/the-grid",
+      "class": "public_showcase",
+      "source_action": "UNLISTED",
+      "review_gate": "review_public_showcase",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": null,
+      "observed": {"date": "2026-11-04", "visibility": "public", "hub_sha": "6888ff2dc86bd88db77ba4359e253f4d94c92870", "sdk": "docker"}
+    },
+    {
+      "space_id": "SZLHOLDINGS/yarqa",
+      "class": "public_showcase",
+      "source_action": "FOLD",
+      "review_gate": "complete_fold",
+      "declared": "2026-10-03",
+      "status": "pending",
+      "destination": "https://a-11-oy.com",
+      "observed": {"date": "2026-11-04", "visibility": "public", "hub_sha": "96f0dc8a08ee7a65e8e541773b4019d3fb17014f", "sdk": "docker"}
+    }
+  ]
+}
