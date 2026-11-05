@@ -52,9 +52,14 @@ jobs:
           test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
 
       - name: Validate dispatch inputs against the registry
+        id: inputs
         shell: bash
         run: |
           set -euo pipefail
+          space_id='${{ inputs.space_id }}'
+          slug="${space_id##*/}"
+          # Artifact names reject '/', so the receipt is named by slug only.
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
           python - <<'PY'
           import json, re
           from pathlib import Path
@@ -115,7 +120,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: space-fold-${{ inputs.space_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: space-fold-${{ steps.inputs.outputs.slug }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: /tmp/space-fold.json
           if-no-files-found: error
           retention-days: 180

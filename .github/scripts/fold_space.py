@@ -196,6 +196,7 @@ def main() -> int:
         "secret_values_read": False,
         "deleted": False,
         "paused": False,
+        "pause_skipped_static_sdk": False,
         "made_private": False,
     }
     token = (
@@ -240,11 +241,16 @@ def main() -> int:
         else:
             # Soft fold first (pause_and_private_then_gated_delete), then delete.
             report["fold_stage"] = "pause_and_private_then_gated_delete"
-            api.pause_space(space_id, token=token)
-            report["paused"] = True
+            sdk = str(report["target_before"].get("sdk") or "").lower()
+            if sdk == "static":
+                # Static Spaces cannot be paused; private + delete is terminal.
+                report["pause_skipped_static_sdk"] = True
+            else:
+                api.pause_space(space_id, token=token)
+                report["paused"] = True
             info = api.space_info(space_id, token=token)
             if not getattr(info, "private", False):
-                api.update_repo_visibility(space_id, repo_type="space", private=True, token=token)
+                api.update_repo_settings(repo_id=space_id, repo_type="space", private=True, token=token)
                 report["made_private"] = True
             api.delete_repo(repo_id=space_id, repo_type="space", token=token)
             for _ in range(12):

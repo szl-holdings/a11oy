@@ -233,7 +233,12 @@ class FoldScriptContract(unittest.TestCase):
 
     def test_fold_is_soft_then_gated_delete_and_verified(self) -> None:
         self.assertIn("api.pause_space(space_id, token=token)", self.script)
-        self.assertIn("update_repo_visibility(space_id", self.script)
+        # Static Spaces cannot be paused; pause must be skipped for static SDKs.
+        self.assertIn('sdk == "static"', self.script)
+        self.assertIn('"pause_skipped_static_sdk": False', self.script)
+        # huggingface_hub>=1.x exposes update_repo_settings, not update_repo_visibility.
+        self.assertIn("api.update_repo_settings(repo_id=space_id", self.script)
+        self.assertNotIn("update_repo_visibility", self.script)
         self.assertGreaterEqual(self.script.count("repo_exists(space_id"), 4)
         for status in ('report["status"] = "FOLDED_VERIFIED"',
                        'report["status"] = "ALREADY_ABSENT"',
