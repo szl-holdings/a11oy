@@ -159,6 +159,12 @@ which is why this qualification binds the external revision explicitly. The
 other IDs require separate live verification. A model card alone must not be
 presented as a weight-bearing model.
 
+Live-hub verification 2026-11-04 (organization token): the Eval, Schemas, Demo,
+and Collection targets each return 404 across the models/spaces/datasets/
+collections APIs. Those IDs remain `PLANNED_NOT_CREATED` — dead references until
+created — and no replacement IDs exist. Linking any of them as an available
+artifact before creation and independent readback would fabricate a reference.
+
 ## Identity, license, and naming
 
 The base license is reported by existing local evidence as Apache-2.0. Adapter
