@@ -39,18 +39,17 @@ footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:v
 
   <div class="card">
     <h3>1 · Get a key</h3>
-    <p class="mut">Sign in at <a href="https://portal.szlholdings.com">portal.szlholdings.com</a>, click <b>Generate key</b>, choose scope (read / write / admin) and a per-flagship allowlist. Hackathon / academic / Greene-network accounts get the free <b>Demo</b> tier (1,000 calls/mo).</p>
+    <p class="mut">There is no self-serve key portal yet: keys cannot be generated online, and the free <b>Demo</b> tier (1,000 calls/mo) is not offered yet. To ask about access, email <a href="mailto:hello@a-11-oy.com">hello@a-11-oy.com</a>.</p>
   </div>
 
   <div class="card">
     <h3>2 · Install the SDK</h3>
-    <pre>pip install szl          # Python
-npm i @szlholdings/szl    # TypeScript / JavaScript
-export SZL_API_KEY=szl_live_...</pre>
+    <p class="mut"><b>ROADMAP, not published.</b> There is no <code>szl</code> package on PyPI and no <code>@szlholdings/szl</code> package on npm (both registries returned 404 on 2026-11-06). Do not install a package by either name from a public registry: SZL Holdings has not published one.</p>
   </div>
 
   <div class="card">
     <h3>3 · Your first receipted call</h3>
+    <p class="mut"><b>Illustrative only (ROADMAP).</b> This snippet does not run today, because the SDK in step 2 is not published.</p>
     <pre>from szl import SZL
 c = SZL()
 t = c.killinchu.track(target_id="UAS:DJI-Mavic-3-7F2A", kind="drone")
