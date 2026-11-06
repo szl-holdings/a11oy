@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+#
+# Checked-in deployment contract for the szl-email-sender Worker. No secret
+# values live here. The single secret, API_SECRET, already exists on the
+# Worker; deployments never delete secrets. SOURCE_REVISION is injected by the
+# deploy workflow as the full 40-character commit SHA (`--var`).
+
+name = "szl-email-sender"
+main = "src/index.mjs"
+compatibility_date = "2026-08-31"
+
+# Server-to-server only: reachable at the account's workers.dev hostname, no
+# custom domain, no zone route, no per-version preview URLs.
+workers_dev = true
+preview_urls = false
+
+[vars]
+# Must be an address on a-11-oy.com, the zone whose Email Routing signs mail;
+# the Worker refuses to send (503 not_configured) otherwise.
+MAIL_FROM = "betterwithage@a-11-oy.com"
+
+# Email Routing can deliver only to destination addresses verified on the
+# account. To narrow further, add `allowed_destination_addresses = [...]`.
+[[send_email]]
+name = "SEND_EMAIL"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+# Invocation logs would persist request metadata; the Worker logs its own
+# structured events instead, which never contain the secret or a recipient.
+invocation_logs = false
