@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 import gzip
+import inspect
 import json
 
 import threading
@@ -581,6 +582,20 @@ def test_full_catalog_sources_cache_once_then_slice_per_requested_limit(
     assert len(cisa_three["value"]["items"]) == 3
     assert len(agencies_one["value"]["items"]) == 1
     assert len(agencies_three["value"]["items"]) == 3
+
+
+def test_devb_readiness_warm_targets_match_their_signatures() -> None:
+    """The warm loop calls each target with the arguments declared here."""
+    targets = devb._readiness_warm_targets()
+    assert targets
+    for func, args, kwargs in targets:
+        inspect.signature(func).bind(*args, **kwargs)
+    agency_calls = [
+        args for func, args, _kwargs in targets if func is devb.feed_fr_agencies
+    ]
+    assert agency_calls == [(14,)]
+    sec_calls = [args for func, args, _kwargs in targets if func is devb.feed_sec]
+    assert sec_calls == [(cik,) for cik, _label in devb._EXPOSURE_PANEL]
 
 
 def test_courtlistener_interval_is_bounded(monkeypatch) -> None:
