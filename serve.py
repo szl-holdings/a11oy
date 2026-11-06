@@ -10353,7 +10353,7 @@ def _refresh_a11oy_signing_state():
             loaded = _hashv2.sha256(public.strip()).hexdigest()
     except Exception:
         backend_loaded, backend_state = False, "UNAVAILABLE"
-    observation = _A11OY_SIGNING_STATE.sample(
+    return _A11OY_SIGNING_STATE.sample(
         boot_id=boot_id, observed_at=_dtv2.now(_tzv2.utc).isoformat(),
         # The loader's conventional mount can fail without an explicit env name.
         # Its failure tuple does not identify configuration origin: do not claim absence.
@@ -10362,36 +10362,54 @@ def _refresh_a11oy_signing_state():
         key_source=_A11OY_KEY_SOURCE, backend_loaded=backend_loaded,
         backend_state=backend_state, verification_key_fingerprint=verification,
         loaded_key_fingerprint=loaded, expected_key_fingerprint=expected)
-    # Capability self-test: the separately reviewed binding between real
-    # sign+verify evidence and the passive projection. Fail-closed - any
-    # failure leaves the PERMISSION_UNOBSERVED blockers in place.
-    if backend_loaded and verification and boot_id:
-        try:
-            from cryptography.hazmat.primitives.asymmetric import utils as _asym_utils
-            selftest = {
-                "schema": "szl.signing-capability/v1",
-                "runtime_boot_id": boot_id,
-                "observed_at": _dtv2.now(_tzv2.utc).isoformat(),
-                "statement": ("process-local signing capability self-test: "
-                              "the loaded backend signs and the signature "
-                              "verifies against the loaded public key"),
-            }
-            body = _a11oy_canonical(selftest)
-            to_sign = _a11oy_pae(_A11OY_PAYLOAD_TYPE, body)
-            sig = _A11OY_PRIV.sign(to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
-            _A11OY_PRIV.public_key().verify(
-                sig, to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
-            import base64 as _b64s
-            _A11OY_SIGNING_STATE.record_capability_evidence(
-                boot_id=boot_id,
-                observed_at=selftest["observed_at"],
-                payload_digest=_hashv2.sha256(body).hexdigest(),
-                signature_b64=_b64s.b64encode(sig).decode("ascii"),
-                key_fingerprint=verification,
-                verified=True)
-        except Exception:
-            pass  # fail closed: no capability claim without verified evidence
-    return observation
+
+
+def _observe_a11oy_signing_capability():
+    """Capability self-test: the separately reviewed binding between real
+    sign+verify evidence and the passive projection. A DISTINCT lifecycle
+    write after the passive sample - the sampler itself never signs.
+    Fail-closed: any failure leaves the PERMISSION_UNOBSERVED blockers."""
+    service = getattr(app.state, "szl_series_a_service", None)
+    boot_id = getattr(service, "runtime_boot_id", None)
+    verification = loaded = None
+    try:
+        if _A11OY_PUB_PEM:
+            verification = _hashv2.sha256(
+                _A11OY_PUB_PEM.strip().encode("ascii")).hexdigest()
+        if _A11OY_PRIV is not None:
+            from cryptography.hazmat.primitives import serialization
+            public = _A11OY_PRIV.public_key().public_bytes(
+                serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+            loaded = _hashv2.sha256(public.strip()).hexdigest()
+    except Exception:
+        return
+    if (_A11OY_PRIV is None or not verification or not boot_id
+            or loaded != verification):
+        return
+    try:
+        selftest = {
+            "schema": "szl.signing-capability/v1",
+            "runtime_boot_id": boot_id,
+            "observed_at": _dtv2.now(_tzv2.utc).isoformat(),
+            "statement": ("process-local signing capability self-test: "
+                          "the loaded backend signs and the signature "
+                          "verifies against the loaded public key"),
+        }
+        body = _a11oy_canonical(selftest)
+        to_sign = _a11oy_pae(_A11OY_PAYLOAD_TYPE, body)
+        sig = _A11OY_PRIV.sign(to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
+        _A11OY_PRIV.public_key().verify(
+            sig, to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
+        import base64 as _b64s
+        _A11OY_SIGNING_STATE.record_capability_evidence(
+            boot_id=boot_id,
+            observed_at=selftest["observed_at"],
+            payload_digest=_hashv2.sha256(body).hexdigest(),
+            signature_b64=_b64s.b64encode(sig).decode("ascii"),
+            key_fingerprint=verification,
+            verified=True)
+    except Exception:
+        pass  # fail closed: no capability claim without verified evidence
 
 
 async def _a11oy_signing_state_loop():
@@ -10399,6 +10417,7 @@ async def _a11oy_signing_state_loop():
         await asyncio.sleep(15)
         try:
             _refresh_a11oy_signing_state()
+            _observe_a11oy_signing_capability()
         except Exception:
             _A11OY_SIGNING_STATE.invalidate()
 
@@ -10407,6 +10426,7 @@ def _start_a11oy_signing_state():
     global _A11OY_SIGNING_STATE_TASK
     try:
         _refresh_a11oy_signing_state()
+        _observe_a11oy_signing_capability()
     except Exception:
         _A11OY_SIGNING_STATE.invalidate()
     if _A11OY_SIGNING_STATE_TASK is None or _A11OY_SIGNING_STATE_TASK.done():
