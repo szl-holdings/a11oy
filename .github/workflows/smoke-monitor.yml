@@ -4,7 +4,7 @@
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 #
 # Low-noise monitor: six public checks across the A11oy command surface,
-# Killinchu cyber-resilience runtime, and creator-profile Living Anatomy Space.
+# Killinchu cyber-resilience runtime, and the org-owned Living Anatomy Space (SZLHOLDINGS/anatomy, transferred from the creator profile 2026-11-06).
 # Transient rebuild responses are retried; only a sustained majority outage
 # fails the run. This is reachability monitoring, not readiness attestation.
 
@@ -59,7 +59,7 @@ jobs:
           check "a11oy console"           "https://szlholdings-a11oy.hf.space/console"
           check "killinchu /"             "https://szlholdings-killinchu.hf.space/"
           check "killinchu /elite"        "https://szlholdings-killinchu.hf.space/elite"
-          check "creator anatomy health"  "https://betterwithage-anatomy.hf.space/healthz"
+          check "creator anatomy health"  "https://szlholdings-anatomy.hf.space/healthz"
 
           echo "PASS=$PASS FAIL=$FAIL"
           echo "pass=$PASS" >> "$GITHUB_OUTPUT"

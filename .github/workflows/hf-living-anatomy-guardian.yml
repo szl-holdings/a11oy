@@ -31,8 +31,8 @@ jobs:
       HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
       HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
       GITHUB_TOKEN: ${{ github.token }}
-      SPACE_ID: betterwithage/anatomy
-      SPACE_ORIGIN: https://betterwithage-anatomy.hf.space
+      SPACE_ID: SZLHOLDINGS/anatomy
+      SPACE_ORIGIN: https://szlholdings-anatomy.hf.space
       SOURCE_REPOSITORY: szl-holdings/anatomy
     steps:
       - name: Harden runner

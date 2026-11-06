@@ -244,16 +244,11 @@
     {
       "repo_id": "SZLHOLDINGS/anatomy",
       "repo_type": "space",
-      "writer": "none",
-      "retired_writers": [
-        {
-          "workflow": ".github/workflows/hf-living-anatomy-guardian.yml",
-          "retire": true,
-          "note": "Writer targets a creator-profile deployment mirror outside the org (named in docs/audit/2026-11-05-anatomy-personal-namespace-leak.md); retire or repoint to an org-owned Space.",
-          "leak_ref": "docs/audit/2026-11-05-anatomy-personal-namespace-leak.md"
-        }
-      ],
-      "note": "No SZLHOLDINGS/anatomy repo exists on the Hub. Active mirror lives in the creator profile; see leak record docs/audit/2026-11-05-anatomy-personal-namespace-leak.md."
+      "writer": {
+        "workflow": ".github/workflows/hf-living-anatomy-guardian.yml",
+        "note": "Lifecycle guardian (restart/unpause + live-route verification) for the org-owned Living Anatomy Space. The Space was transferred from the creator profile to SZLHOLDINGS/anatomy on 2026-11-06; source bytes are published by szl-holdings/anatomy hf-sync.yml."
+      },
+      "note": "Transferred into the org on 2026-11-06 (resolves docs/audit/2026-11-05-anatomy-personal-namespace-leak.md)."
     },
     {
       "repo_id": "SZLHOLDINGS/governed-agent-bench",

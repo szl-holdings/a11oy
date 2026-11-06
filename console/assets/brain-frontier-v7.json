@@ -1369,7 +1369,7 @@
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
-      "live_origin": "https://betterwithage-anatomy.hf.space",
+      "live_origin": "https://szlholdings-anatomy.hf.space",
       "repository": "szl-holdings/anatomy",
       "revision": "a03896dc4beea37656ec45c400b4c23912dd6714"
     },

@@ -21,28 +21,28 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
         cls.consolidator = CONSOLIDATOR.read_text(encoding="utf-8")
         cls.site = SITE.read_text(encoding="utf-8")
 
-    def test_both_lifecycle_policies_keep_creator_profile_anatomy(self) -> None:
+    def test_both_lifecycle_policies_keep_org_anatomy(self) -> None:
         for name, policy in (
             ("series-a", self.series_a),
             ("estate", self.estate),
         ):
             with self.subTest(policy=name):
-                self.assertEqual(1, policy.count("- id: betterwithage/anatomy"))
-                self.assertIn("owner_class: creator_profile", policy)
+                self.assertEqual(1, policy.count("- id: SZLHOLDINGS/anatomy"))
+                self.assertIn("owner_class: organization", policy)
                 self.assertIn("role: living_system_atlas", policy)
                 self.assertIn("source: szl-holdings/anatomy", policy)
                 self.assertIn("- szl-holdings/szl-second-brain", policy)
                 self.assertIn("dest: https://a-11-oy.com/living-anatomy", policy)
                 self.assertIn(
-                    "live_origin: https://betterwithage-anatomy.hf.space",
+                    "live_origin: https://szlholdings-anatomy.hf.space",
                     policy,
                 )
-                self.assertNotIn("- id: SZLHOLDINGS/anatomy", policy)
+                self.assertNotIn("- id: betterwithage/anatomy", policy)
 
     def test_canonical_fleet_count_separates_org_and_creator_authority(self) -> None:
-        self.assertIn("spaces_public_target_org: 9", self.series_a)
+        self.assertIn("spaces_public_target_org: 10", self.series_a)
         self.assertIn("spaces_private_target_org: 49", self.series_a)
-        self.assertIn("spaces_public_target_creator: 1", self.series_a)
+        self.assertIn("spaces_public_target_creator: 0", self.series_a)
         self.assertIn("spaces_public_target_total: 10", self.series_a)
         series_keep = self.series_a.split("keep:", 1)[1].split(
             "retire_into_killinchu:", 1
@@ -50,10 +50,10 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
         estate_keep = self.estate.split("keep:", 1)[1].split(
             "retire_into_killinchu:", 1
         )[0]
-        self.assertEqual(9, series_keep.count("- id: SZLHOLDINGS/"))
-        self.assertEqual(9, estate_keep.count("- id: SZLHOLDINGS/"))
-        self.assertEqual(1, series_keep.count("- id: betterwithage/"))
-        self.assertEqual(1, estate_keep.count("- id: betterwithage/"))
+        self.assertEqual(10, series_keep.count("- id: SZLHOLDINGS/"))
+        self.assertEqual(10, estate_keep.count("- id: SZLHOLDINGS/"))
+        self.assertEqual(0, series_keep.count("- id: betterwithage/"))
+        self.assertEqual(0, estate_keep.count("- id: betterwithage/"))
 
     def test_resilience_family_has_one_public_keeper(self) -> None:
         for name, policy in (
@@ -89,11 +89,11 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
         )
         self.assertIn('row["operations"].append("restart")', self.consolidator)
 
-    def test_guardian_is_bounded_and_recovers_exact_creator_contract(self) -> None:
+    def test_guardian_is_bounded_and_recovers_exact_org_contract(self) -> None:
         for contract in (
             'cron: "*/30 * * * *"',
-            "SPACE_ID: betterwithage/anatomy",
-            "SPACE_ORIGIN: https://betterwithage-anatomy.hf.space",
+            "SPACE_ID: SZLHOLDINGS/anatomy",
+            "SPACE_ORIGIN: https://szlholdings-anatomy.hf.space",
             "SOURCE_REPOSITORY: szl-holdings/anatomy",
             "private=False",
             "api.restart_space(",
@@ -113,14 +113,14 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
             self.assertIn(contract, self.guardian)
         self.assertNotIn("request_space_hardware", self.guardian)
         self.assertNotIn("request_space_storage", self.guardian)
-        self.assertNotIn("SZLHOLDINGS/anatomy", self.guardian)
-        self.assertNotIn("szlholdings-anatomy.hf.space", self.guardian)
+        self.assertNotIn("betterwithage/anatomy", self.guardian)
+        self.assertNotIn("betterwithage-anatomy.hf.space", self.guardian)
 
-    def test_site_uses_the_same_creator_profile_runtime(self) -> None:
-        self.assertIn("https://betterwithage-anatomy.hf.space#estate", self.site)
-        self.assertIn("https://betterwithage-anatomy.hf.space", self.site)
-        self.assertIn('const ANATOMY="https://betterwithage-anatomy.hf.space"', self.site)
-        self.assertNotIn("https://szlholdings-anatomy.hf.space", self.site)
+    def test_site_uses_the_same_org_runtime(self) -> None:
+        self.assertIn("https://szlholdings-anatomy.hf.space#estate", self.site)
+        self.assertIn("https://szlholdings-anatomy.hf.space", self.site)
+        self.assertIn('const ANATOMY="https://szlholdings-anatomy.hf.space"', self.site)
+        self.assertNotIn("https://betterwithage-anatomy.hf.space", self.site)
 
     def test_site_defaults_to_same_origin_holo_brain(self) -> None:
         self.assertIn('src="/holographic#brain"', self.site)

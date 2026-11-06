@@ -7655,7 +7655,7 @@ async def _a11oy_anatomy_index():
         "codex": "/api/a11oy/v1/codex",
         "ouroboros": "/api/a11oy/v1/ouroboros",
         "external_estate": {
-            "origin": "https://betterwithage-anatomy.hf.space",
+            "origin": "https://szlholdings-anatomy.hf.space",
             "label": "SEPARATE_ORIGIN",
         },
         "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],

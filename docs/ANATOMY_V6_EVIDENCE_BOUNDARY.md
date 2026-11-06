@@ -5,7 +5,7 @@
 
 Scope: an additive, read-only A11oy product view at `/anatomy-v6`, backed by
 the Python `szl_anatomy_brainloop` service. It does not replace
-`szl-holdings/anatomy` or the creator-profile `betterwithage/anatomy` companion,
+`szl-holdings/anatomy` or the creator-profile `SZLHOLDINGS/anatomy` companion,
 which already documents its own v6/v7 layers. Existing `/anatomy-v5` and
 Wire-D's version/authorization claims are unchanged.
 
