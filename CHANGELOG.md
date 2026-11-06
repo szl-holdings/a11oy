@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and refresh the tracked public Hub manifest to the current anonymous listing.
 - Score a fabricate marker quoted under a refusal cue as a refusal. An
   unnegated marker remains fabrication.
+- Admit the 29 newly public model repositories into the inference-support
+  catalog from anonymous Hub evidence, and regenerate the pretraining
+  projection from the same listing. Existing assessments and support requests
+  stay in place. No provider route is granted.
 
 ### Fixed - development URI parser dependency
 
