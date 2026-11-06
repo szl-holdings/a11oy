@@ -62,5 +62,3 @@ szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sove
 
 # --- a11oy-first RAG rights admission. Default path stays the old indexer.
 a11oy_org_rag.py            # a11oy-first opt-in source-rights registry; default build_index is unchanged
-
-szl_signing_state.py   # signing-capability evidence binding generation 2026-11-06 (temporary; synced when a11oy merges the same change)
