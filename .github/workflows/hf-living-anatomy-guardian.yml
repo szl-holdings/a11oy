@@ -119,11 +119,38 @@ jobs:
                   raise RuntimeError(f"non-object JSON from {url}")
               return payload
 
+          def exact_space_host(value: object) -> str:
+              host = str(value or "").strip().rstrip("/")
+              if (
+                  not host.startswith("https://")
+                  or "@" in host
+                  or "\\" in host
+                  or "/" in host[8:]
+                  or "?" in host
+                  or "#" in host
+              ):
+                  raise RuntimeError(
+                      "Space host is not an exact https hf.space origin"
+                  )
+              label = host.removeprefix("https://")
+              if (
+                  not label.endswith(".hf.space")
+                  or label.count(".") != 2
+                  or not label[: -len(".hf.space")].replace("-", "").isalnum()
+                  or label.startswith("-")
+                  or "--" in label
+              ):
+                  raise RuntimeError(
+                      "Space host is not an exact https hf.space origin"
+                  )
+              return host
+
           actions: list[str] = []
           receipt = {
               "schema": "szl.hf-living-anatomy-guardian/v2",
               "space": SPACE,
               "origin": ORIGIN,
+              "declared_origin": ORIGIN,
               "source_repository": SOURCE_REPOSITORY,
               "started_at": now(),
               "status": "FAIL",
@@ -146,6 +173,11 @@ jobs:
 
               api = HfApi(token=token)
               info = api.space_info(SPACE)
+              # The creator alias can 404 at the edge while Hub still reports
+              # the same Space RUNNING on its canonical host. Prove readiness
+              # there, and fail closed if that host is not an exact hf.space.
+              ORIGIN = exact_space_host(getattr(info, "host", None))
+              receipt["origin"] = ORIGIN
               runtime = api.get_space_runtime(SPACE)
               receipt["before"] = {
                   "private": bool(getattr(info, "private", False)),
