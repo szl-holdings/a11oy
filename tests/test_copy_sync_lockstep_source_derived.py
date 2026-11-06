@@ -48,6 +48,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         cls.ownership = (ROOT / "scripts/hf_exact_main_ownership.py").read_bytes()
         # Independent list of the deploy graph's local helper closure.
         cls.deploy_helpers = {path: (ROOT / path).read_bytes() for path in (
+            ".github/scripts/canonical_deploy_window.py",
             ".github/scripts/resume_hf_space.py",
             ".github/scripts/await_hf_runtime_serving.py",
             "scripts/configure_hf_series_a_runtime.py",
@@ -236,11 +237,11 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
 
         changed_default = self.reviewed_workflow.replace(
             "      open_deploy_window:\n"
-            "        description: Operator-attested maintenance window. Until durable storage lands, a deploy onto a running or crashed Space proceeds only when true (a PAUSED Space is itself the window).\n"
+            "        description: Operator-attested maintenance window. Default false. A PAUSED Space is itself a window. A running Space also opens when anonymous storage status proves a fenced local state store; otherwise this input must be true.\n"
             "        type: boolean\n"
             "        default: false\n",
             "      open_deploy_window:\n"
-            "        description: Operator-attested maintenance window. Until durable storage lands, a deploy onto a running or crashed Space proceeds only when true (a PAUSED Space is itself the window).\n"
+            "        description: Operator-attested maintenance window. Default false. A PAUSED Space is itself a window. A running Space also opens when anonymous storage status proves a fenced local state store; otherwise this input must be true.\n"
             "        type: boolean\n"
             "        default: true\n",
             1,
@@ -315,7 +316,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ("      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}",
              "      publish: ${{ steps.owner.outputs.publish == 'true' }}"),
             # The deploy window cannot be forced open.
-            ("if [ \"${STAGE:-}\" = 'PAUSED' ] ||", "if true ||"),
+            ("python3 -I -B .github/scripts/canonical_deploy_window.py", "true"),
             # Convergence cannot run before main is admitted or with the window shut.
             ("        id: converge\n        if: ${{ steps.window.outputs.open == 'true' }}\n",
              "        id: converge\n"),

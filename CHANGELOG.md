@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - canonical deploy window and public Hub inventory
+
+- Open the canonical deploy window when anonymous storage status proves a
+  fenced local state store. A missing, unfenced, or legacy-bootstrap status
+  stays closed.
+- Treat an anonymous HTTP 401 on the reserved README endpoint as non-public,
+  and refresh the tracked public Hub manifest to the current anonymous listing.
+- Score a fabricate marker quoted under a refusal cue as a refusal. An
+  unnegated marker remains fabrication.
+
 ### Fixed - development URI parser dependency
 
 - Resolve Ajv's development-only `fast-uri` dependency to 3.1.9 in both npm

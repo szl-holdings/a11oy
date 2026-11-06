@@ -115,22 +115,12 @@ python3 -I -B scripts/hf_exact_main_ownership.py \
   --receipt "$RUNNER_TEMP/preflight-admission.json" \
   --github-output "$GITHUB_OUTPUT"'''
 WINDOW_RUN = r'''set -euo pipefail
-if [ "${STAGE:-}" = 'PAUSED' ] || [ "${DISPATCH_WINDOW:-false}" = 'true' ]; then
-  echo 'open=true' >> "$GITHUB_OUTPUT"
-  exit 0
-fi
-live=""
-if [ "${STAGE:-}" = 'RUNNING' ]; then
-  live="$(curl -fsS --max-time 20 "$CANONICAL_ORIGIN/api/build-info" \
-    | python3 -I -c 'import json,sys; d=json.load(sys.stdin); print(((d.get("build") or {}).get("revision") or ""))')" || live=""
-fi
-if [ -n "$live" ] && [ "$live" = "$GITHUB_SHA" ]; then
-  echo "::notice::Deploy window closed; live /api/build-info already equals protected main ${GITHUB_SHA}."
-  echo 'open=false' >> "$GITHUB_OUTPUT"
-  exit 0
-fi
-echo "::error::PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED: stage=${STAGE:-UNKNOWN} protected_main=${GITHUB_SHA} live_revision=${live:-UNAVAILABLE}. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
-exit 1'''
+python3 -I -B .github/scripts/canonical_deploy_window.py \
+  --stage "${STAGE:-}" \
+  --dispatch-window "${DISPATCH_WINDOW:-false}" \
+  --github-sha "$GITHUB_SHA" \
+  --origin "$CANONICAL_ORIGIN" \
+  --github-output "$GITHUB_OUTPUT"'''
 WINDOW_ENV = {"STAGE": "${{ steps.runtime.outputs.stage }}",
               "DISPATCH_WINDOW": "${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}"}
 ADMITTED = "${{ steps.admit.outputs.publish == 'true' }}"
@@ -1050,7 +1040,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
             ('--receipt "$RUNNER_TEMP/preflight-source-admission.json"', '--receipt /tmp/forged.json', "re-admit current main"),
             ("      publish: ${{ steps.window.outputs.open == 'true' && steps.owner.outputs.publish == 'true' }}\n", "      publish: ${{ steps.owner.outputs.publish == 'true' }}\n", "output scope"),
             ("      contents: read\n    outputs:\n      publish: ${{ steps.window", "      contents: write\n    outputs:\n      publish: ${{ steps.window", "permission"),
-            ("if [ \"${STAGE:-}\" = 'PAUSED' ] ||", "if true ||", "deploy window"),
+            ("python3 -I -B .github/scripts/canonical_deploy_window.py", "if true ||", "deploy window"),
             ("        id: converge\n        if: ${{ steps.window.outputs.open == 'true' }}\n", "        id: converge\n", "preflight convergence"),
             ("        id: runtime\n        if: ${{ steps.admit.outputs.publish == 'true' }}\n", "        id: runtime\n", "preflight classification"),
             ('--receipt "$RUNNER_TEMP/preflight-admission.json"', '--receipt /tmp/forged.json', "admit current main before any provider effect"),

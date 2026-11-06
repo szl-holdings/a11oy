@@ -735,7 +735,7 @@ def workflow_has_unfiltered_main_push(workflow_text):
 
 
 REVIEWED_WORKFLOW_DISPATCH_SHA256 = (
-    "25e89c0ccce352f583a2c2e00a3cde6bd3672e2fd4d6492d4e07c733a3d34000"
+    "b49ae9f8e4d8c7cd558a91ecfcff6ce94bea6e75fdac4765bfd42b20b77a8b0b"
 )
 
 
@@ -810,8 +810,8 @@ REVIEWED_SOURCE_ADMISSION_JOB_SHA256 = "8e63792c9770acdc6bb1c6e9fa9ed651bc2fd171
 REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee8395e042853ded04deb7d170189"
 # The deploy path is source-admission -> preflight -> deploy -> runtime-config.
 # Preflight admits current main before any provider effect, reads the runtime
-# stage without restarting it, requires an open deploy window while SQLite lives
-# on the bucket mount, re-admits current main before each configuration command,
+# stage without restarting it, requires an open deploy window while SQLite on
+# the bucket mount is unproven, re-admits current main before each configuration command,
 # and each helper re-reads exact main before each provider mutation. Any
 # configuration error fails; current main is re-admitted before deploy;
 # runtime-config re-admits current main before any deferred configuration write
@@ -819,7 +819,7 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "bc5403aa3b31ddc6f52b6bec2ff0e8bd852af09940131ffac2cc60035ca003a1"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "0a703818085c821d72d391a04b826589e8669cfbc1b575f96ddb52715219a266"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "f31c0be60794030747539b9f60037698b3c26bc8930dc9d0fe1e2612c1ef9e1a"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
@@ -845,6 +845,10 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     "tools/execution_acceptance.py": "85bb391bf9d8423c35cc7043be5862e13a1e8b8c0540813b0e85123f2e6504d3",
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
+    # Fail-closed deploy-window decision. Opens on PAUSED, an operator window,
+    # or anonymous proof of a fenced local state store. Missing or unfenced
+    # status stays closed. No provider write and no credential.
+    ".github/scripts/canonical_deploy_window.py": "775443d245245dbe3dd50b03a049202f227617f6f5fe4dbe89f3fc95cf3101dd",
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     "scripts/configure_hf_series_a_runtime.py": "1495ac166237c48e84eadf6b4200ccbcf03dd7d545cc7758ef70db5175c03687",
