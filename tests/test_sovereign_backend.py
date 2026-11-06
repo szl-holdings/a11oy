@@ -57,6 +57,53 @@ def test_first_class_backend_registered():
     assert sov.get("own_metal") is True and sov.get("route_first") is True
 
 
+def test_health_reuses_one_matrix_probe(client, monkeypatch):
+    """A later timeout must not erase a reachability observation already made."""
+    calls = {"n": 0}
+    real = reg.sovereign_probe
+
+    def wrapped(base="", timeout=None):
+        calls["n"] += 1
+        return real(base, timeout=timeout)
+
+    monkeypatch.setattr(reg, "sovereign_probe", wrapped)
+    response = client.get("/api/a11oy/v1/llm/sovereign/health")
+    assert response.status_code == 200
+    assert response.json()["label"] == "UNAVAILABLE"
+    assert calls["n"] == 1
+
+
+def test_health_ignores_a_second_probe_that_would_disagree(client, monkeypatch):
+    private_url = "http://secret-tunnel.example.invalid:11434/v1"
+    matrix = {
+        "node_count": 1, "reachable_count": 1, "any_reachable": True,
+        "primary_base_url": private_url,
+        "selected": {"index": 0, "role": "primary"},
+        "nodes": [{
+            "index": 0, "role": "primary", "reachable": True,
+            "api_style": "openai /v1", "served_models": [MODEL_TAG],
+            "base_url": private_url, "error": "HTTP_STATUS:502",
+        }],
+        "note": private_url,
+    }
+    monkeypatch.setattr(reg, "sovereign_mesh_matrix", lambda timeout=None: matrix)
+    monkeypatch.setattr(reg, "sovereign_probe", lambda *args, **kwargs: (_ for _ in ()).throw(
+        AssertionError("health issued a second probe")))
+    monkeypatch.setattr(reg, "_sovereign_env_present", lambda: True)
+    monkeypatch.setattr(reg, "_sovereign_env_used", lambda: "A11OY_BRAIN_URL")
+    monkeypatch.setattr(reg, "_sovereign_model_slug", lambda: MODEL_TAG)
+    response = client.get("/api/a11oy/v1/llm/sovereign/health")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["reachable"] is True
+    assert body["label"] == "UNKNOWN"
+    assert body["model_ready"] is True
+    assert body["operational"] is False
+    assert body["gpu_verified"] is False
+    assert "secret-tunnel" not in response.text
+    assert "HTTP_STATUS:502" not in response.text
+
+
 def test_health_honest_unavailable_when_down(client):
     r = client.get("/api/a11oy/v1/llm/sovereign/health")
     assert r.status_code == 200  # honest, not an error

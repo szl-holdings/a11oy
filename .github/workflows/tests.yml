@@ -593,6 +593,7 @@ jobs:
           tests/test_org_lambda_sample_inputs.py
           tests/test_runtime_verifying_key_surfaces.py
           tests/test_signing_state.py
+          tests/test_signing_status_honesty.py
           tests/test_signing_workflow_isolation.py
           tests/test_platform_candidate_preview.py
           tests/test_platform_candidate_no_transform_middleware.py
