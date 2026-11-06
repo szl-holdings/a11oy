@@ -25,6 +25,7 @@ def _reset_runtime(monkeypatch, db_path: Path) -> None:
     })
     monkeypatch.setattr(rag, "_build_thread", None)
     monkeypatch.setattr(rag, "_maybe_embedder", lambda load=True: None)
+    monkeypatch.setenv("A11OY_ORG_RAG_TENANT", "fixture-tenant")
 
 
 def _write_ledger(path: Path, count: int = 3) -> Path:
@@ -61,7 +62,7 @@ def _stage(conn, generation_id: str, title: str) -> rag.OrgGraph:
     rag._ingest_text(
         graph, conn, repo="a11oy", path="README.md", raw=title,
         source="test:fixture", category="app_code", embed_fn=None,
-        generation_id=generation_id,
+        generation_id=generation_id, tenant_id="fixture-tenant",
     )
     return graph
 
@@ -327,8 +328,8 @@ def test_rollback_reader_snapshot_stays_coherent_during_successor_publication(
     errors = []
     original_digest = rag._generation_digest
 
-    def observe_digest(connection, generation_id, graph_data):
-        result = original_digest(connection, generation_id, graph_data)
+    def observe_digest(connection, generation_id, graph_data, meta=None):
+        result = original_digest(connection, generation_id, graph_data, meta)
         publishing.set()
         return result
 

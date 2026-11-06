@@ -46,7 +46,7 @@ def _publish_generation(label, suffix=""):
         bodies[f"source-{index}.txt"] = text
         rag._ingest_text(graph, conn, repo="fixture", path=f"source-{index}.txt", raw=text,
                          source="fixture:source-registry", category="app_code", embed_fn=None,
-                         generation_id=generation)
+                         generation_id=generation, tenant_id="fixture-tenant")
     rag._persist_runtime_state(conn, graph, {
         "built": True, "mode": label, "ts": 1.0, "repos": 1, "chunks": 6,
     }, generation)
@@ -77,6 +77,10 @@ def env(monkeypatch, tmp_path):
     assert all(hashlib.sha256(c["text"].encode()).hexdigest() != c["sha256"] for c in retrieval["chunks"])
 
     orchestrator = importlib.import_module("a11oy_code_orchestrator")
+    # DB_PATH and SANDBOX_DIR are captured at first import. Bind the temp paths
+    # even when an earlier import already snapped the container default.
+    monkeypatch.setattr(orchestrator, "DB_PATH", str(tmp_path / "code.db"))
+    monkeypatch.setattr(orchestrator, "SANDBOX_DIR", tmp_path / "sandbox")
     generic_calls, tool_calls = [], []
 
     async def generic_model(*args, **kwargs):
