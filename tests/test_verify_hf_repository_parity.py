@@ -820,6 +820,8 @@ class FailedParityReceiptTests(unittest.TestCase):
 class DerivedDotCopyTests(unittest.TestCase):
     SECURITY = ".well-known/security.txt"
     PUBLISHER = ".github/scripts/publish_readiness_verdict.py"
+    # Generated x402 price manifest, batched into the security.txt COPY.
+    X402_MANIFEST = ".well-known/x402-pricing.json"
 
     @staticmethod
     def oid(body):
@@ -890,7 +892,7 @@ class DerivedDotCopyTests(unittest.TestCase):
     def test_current_dockerfile_has_all_guarded_hidden_sources(self):
         tree = {self.SECURITY: "a" * 40, self.PUBLISHER: "b" * 40,
                 ".github/workflows/hf-sync.yml": "c" * 40,
-                MODULE.RUNTIME_MARKER: "d" * 40}
+                MODULE.RUNTIME_MARKER: "d" * 40, self.X402_MANIFEST: "e" * 40}
         self.assertEqual(MODULE.docker_dot_copy_paths((ROOT / "Dockerfile").read_text(), tree),
                          tuple(sorted(tree)))
 

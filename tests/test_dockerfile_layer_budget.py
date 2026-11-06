@@ -64,6 +64,11 @@ MASTER_WORKCELL_COPY_ADDITIONS = {
 # on that same root COPY line. Historical allowlist counts and digests stay put.
 RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS = {"a11oy_rag_synthesis_controller.py"}
 
+# The generated x402 price manifest is batched into the existing security.txt COPY
+# (same destination directory), so the layer budget is unchanged. Historical
+# allowlist counts and digests exclude it.
+X402_MANIFEST_COPY_ADDITIONS = {".well-known/x402-pricing.json"}
+
 COPY_SOURCE_ALLOWLIST_COUNT = 588
 COPY_SOURCE_ALLOWLIST_SHA256 = (
     "371fbd0b54830459ce3096248a7ca33e4ffded466a5f538fd5996b3513947bf9"
@@ -190,6 +195,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert SIGNING_STATE_COPY_ADDITIONS <= copy_sources
     assert MASTER_WORKCELL_COPY_ADDITIONS <= copy_sources
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= copy_sources
+    assert X402_MANIFEST_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
@@ -209,6 +215,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | MASTER_WORKCELL_COPY_ADDITIONS
         | RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
+        | X402_MANIFEST_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -242,6 +249,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert SIGNING_STATE_COPY_ADDITIONS <= sources
     assert MASTER_WORKCELL_COPY_ADDITIONS <= sources
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= sources
+    assert X402_MANIFEST_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -258,6 +266,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - MASTER_WORKCELL_COPY_ADDITIONS
         - RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
+        - X402_MANIFEST_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -289,6 +298,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert SIGNING_STATE_COPY_ADDITIONS <= sources
     assert MASTER_WORKCELL_COPY_ADDITIONS <= sources
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= sources
+    assert X402_MANIFEST_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
@@ -305,6 +315,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - MASTER_WORKCELL_COPY_ADDITIONS
         - RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
+        - X402_MANIFEST_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
