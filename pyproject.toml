@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "a11oy"
+version = "0.1.0"
+description = "a11oy — governed-AI Command Center. Deny by default. Signed receipts. Trust ceiling 0.97. Λ = Conjecture 1."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Stephen Lutar", email = "stephen@szlholdings.com" }]
+dependencies = ["vsp-otel>=0.1.2", "opentelemetry-sdk>=1.45.2", "opentelemetry-exporter-otlp>=1.45.2", "cryptography==50.0.2", "py_ecc>=8.0.0", "sigstore>=4.5.1"]
+
+[project.urls]
+Homepage = "https://a-11-oy.com"
+Repository = "https://github.com/szl-holdings/a11oy"
+
+[tool.setuptools]
+packages = ["a11oy"]
+package-dir = { "" = "src" }
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["build", "dist", ".venv", "node_modules"]
