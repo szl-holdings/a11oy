@@ -85,11 +85,14 @@ function normaliseStrings(value: unknown): unknown {
   if (typeof value === "string") return value.normalize("NFC");
   if (Array.isArray(value)) return value.map(normaliseStrings);
   if (value && typeof value === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      result[key.normalize("NFC")] = normaliseStrings(child);
-    }
-    return result;
+    // Object.fromEntries defines every key as an own data property, as JSON.parse
+    // does. A computed assignment (`result[key] = child`) runs the inherited
+    // `__proto__` setter for a payload key "__proto__": it swaps the object's
+    // prototype and drops the key, so canonicalJson() hashed a payload carrying
+    // that key exactly like the payload without it.
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, child]) => [key.normalize("NFC"), normaliseStrings(child)]),
+    );
   }
   return value;
 }
@@ -108,7 +111,7 @@ function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
-    const sorted: Record<string, unknown> = {};
+    const sorted: [string, unknown][] = [];
     for (const key of Object.keys(obj).sort()) {
       const child = obj[key];
       if (typeof child === "undefined") {
@@ -117,9 +120,9 @@ function canonicalValue(value: unknown): unknown {
       if (typeof child === "function" || typeof child === "symbol") {
         throw new Error(`canonicalJson: unsupported value at key '${key}'`);
       }
-      sorted[key] = canonicalValue(child);
+      sorted.push([key, canonicalValue(child)]);
     }
-    return sorted;
+    return Object.fromEntries(sorted);
   }
   if (typeof value === "undefined" || typeof value === "function" || typeof value === "symbol") {
     throw new Error("canonicalJson: unsupported root value");
