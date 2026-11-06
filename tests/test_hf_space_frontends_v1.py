@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import urllib.parse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -209,3 +210,50 @@ def test_repository_and_runtime_sha_helpers_are_fail_closed() -> None:
     assert MODULE.runtime_sha(record) is None
     codes = {failure["code"] for failure in MODULE.metadata_failures(record)}
     assert "HF_REPOSITORY_SHA_UNAVAILABLE" in codes
+
+
+def test_space_listing_requests_every_field_the_census_reads(monkeypatch) -> None:
+    # The Hub list endpoint returns only the fields named by ``expand``, and
+    # ``full=true`` omits ``runtime``; that omission made every Space read as
+    # not running. Each field the census reads must be requested explicitly.
+    seen: list[str] = []
+
+    def fake_request(url: str, timeout: int = 45):
+        seen.append(url)
+        return [
+            _space(id="SZLHOLDINGS/b-space"),
+            _space(id="someone-else/space"),
+            _space(id="SZLHOLDINGS/a-space"),
+        ]
+
+    monkeypatch.setattr(MODULE, "_request_json", fake_request)
+    records = MODULE.fetch_spaces("SZLHOLDINGS")
+
+    assert [record["id"] for record in records] == ["SZLHOLDINGS/a-space", "SZLHOLDINGS/b-space"]
+    assert len(seen) == 1
+    url = urllib.parse.urlsplit(seen[0])
+    query = urllib.parse.parse_qs(url.query)
+    assert f"{url.scheme}://{url.netloc}{url.path}" == MODULE.HF_SPACES_API
+    assert query["author"] == ["SZLHOLDINGS"]
+    assert {"sha", "runtime", "sdk", "cardData", "subdomain"} <= set(query["expand"])
+    assert "full" not in query
+
+
+def test_missing_runtime_is_reported_as_unobserved_not_as_a_stage() -> None:
+    record = _space()
+    del record["runtime"]
+    failures = [
+        failure
+        for failure in MODULE.metadata_failures(record)
+        if failure["code"] == "SPACE_RUNTIME_NOT_RUNNING"
+    ]
+    assert len(failures) == 1
+    assert failures[0]["detail"] == "The Hub record carried no runtime stage; it was not observed."
+
+    paused = _space(runtime={"stage": "PAUSED", "sha": "a" * 40})
+    details = [
+        failure["detail"]
+        for failure in MODULE.metadata_failures(paused)
+        if failure["code"] == "SPACE_RUNTIME_NOT_RUNNING"
+    ]
+    assert details == ["Observed runtime stage is PAUSED."]
