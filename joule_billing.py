@@ -8,9 +8,14 @@
 # JouleCharge.v1 receipt, DRY-RUN when no STRIPE key, idempotency by receipt digest.
 # Do NOT reinvent — this is the single source of the billing math; szl_energy_ledger.py
 # imports build_receipt / JouleReading / charge_stripe / d_idem from here.
+# AMENDED 2026-11-06 (monetization audit G-22): charge_stripe() used to report
+# {"status": "charged"} for a PaymentIntent created with no payment method and no
+# confirmation, i.e. before any money moved. It now reports "charged" only when Stripe
+# says the intent succeeded, and "intent_created" otherwise
+# (tests/test_joule_billing_charge_status.py). The billing math is unchanged.
 """
-joule_billing.py — SZL Energy: turn a MEASURED-joule reading into a signed
-governance receipt and a metered Stripe charge.
+joule_billing.py — SZL Energy: turn a MEASURED-joule reading into a re-hashable
+governance receipt and, when a Stripe key is set, an unconfirmed Stripe PaymentIntent.
 
 Honest by construction (per szl_joules_truth / doctrine v11):
   - Refuses to bill unless joules_label == "MEASURED" with a fresh NVML sample.
@@ -82,7 +87,13 @@ def build_receipt(r: JouleReading, price_per_kwh_cents: int) -> dict:
     return {"decision": decision, "payload_digest": sha256_canon(decision)}
 
 def charge_stripe(receipt: dict, customer: str, api_key: str) -> dict:
-    """Create a metered charge. Falls back to DRY-RUN if stripe/key absent."""
+    """Create a Stripe PaymentIntent for the receipt amount. DRY-RUN if stripe/key absent.
+
+    The intent is created without a payment method and without confirmation, so
+    creating it moves no money. "charged" is reported only when Stripe says the intent
+    succeeded; any other intent state is "intent_created" with the amount reported as
+    would_charge_cents, never as a charged amount.
+    """
     d = receipt["decision"]
     if d["amount_cents"] <= 0:
         return {"status": "skipped", "reason": "amount=0"}
@@ -101,7 +112,14 @@ def charge_stripe(receipt: dict, customer: str, api_key: str) -> dict:
                   "receipt_digest": receipt["payload_digest"]},
         idempotency_key=d_idem(receipt),
     )
-    return {"status": "charged", "payment_intent": pi.id, "amount_cents": d["amount_cents"]}
+    stripe_status = getattr(pi, "status", None)
+    if stripe_status == "succeeded":
+        return {"status": "charged", "payment_intent": pi.id,
+                "amount_cents": d["amount_cents"], "stripe_status": stripe_status}
+    return {"status": "intent_created", "payment_intent": pi.id,
+            "stripe_status": stripe_status, "would_charge_cents": d["amount_cents"],
+            "idempotency_key": d_idem(receipt),
+            "reason": "PaymentIntent created but not confirmed; no money has moved"}
 
 def d_idem(receipt: dict) -> str:
     # idempotency: same receipt digest never double-charges

@@ -38,6 +38,7 @@ jobs:
           tests/test_brain_energy_attribution_contract.py
           tests/test_energy_downstream_guard.py
           tests/test_energy_ledger_legacy_truth.py
+          tests/test_joule_billing_charge_status.py
           tests/test_energy_ledger_process_safety.py
           tests/test_energy_live_exactmain.py
           tests/test_energy_live_measurement_contract.py
