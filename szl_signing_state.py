@@ -49,7 +49,50 @@ class SignerObservation:
     expected_key_fingerprint: str | None
 
 
-def project(observation, now_mono):
+@dataclass(frozen=True)
+class SignerCapabilityEvidence:
+    """Retained, verified sign+verify evidence produced by the signer lifecycle.
+
+    Constructed ONLY after the loaded backend actually signed a canonical
+    capability payload and the signature verified against the loaded public
+    key. This is the separately reviewed binding between real write evidence
+    and the passive projection; it is never accepted from a request path.
+    """
+
+    boot_id: str
+    observed_at: str
+    observed_mono: float
+    payload_digest: str
+    signature_b64: str
+    key_fingerprint: str
+    verified: bool
+
+
+def _evidence_usable(evidence, observation, now_mono, fresh, known, match):
+    """Fail-closed evidence validity: exact boot, key and freshness binding."""
+    if type(evidence) is not SignerCapabilityEvidence or evidence.verified is not True:
+        return False
+    if observation is None or evidence.boot_id != observation.boot_id:
+        return False
+    if evidence.key_fingerprint != observation.verification_key_fingerprint:
+        return False
+    if not (_finite(evidence.observed_mono) and evidence.observed_mono > 0
+            and evidence.observed_mono <= now_mono):
+        return False
+    if not (fresh and known and match == "MATCH"):
+        return False
+    if observation.max_age_seconds is None or not _finite(observation.max_age_seconds):
+        return False
+    if not (now_mono - evidence.observed_mono < observation.max_age_seconds):
+        return False
+    if type(evidence.payload_digest) is not str or not _DIGEST.fullmatch(evidence.payload_digest):
+        return False
+    if type(evidence.signature_b64) is not str or not evidence.signature_b64:
+        return False
+    return True
+
+
+def project(observation, now_mono, evidence=None):  # noqa: C901
     """Recompute freshness from original observations; never accept derived JSON."""
     valid = type(observation) is SignerObservation
     o = observation if valid else None
@@ -66,6 +109,8 @@ def project(observation, now_mono):
              "MATCH" if fingerprint == loaded_fingerprint == expected else "MISMATCH")
     loaded = bool(o and o.backend_loaded is True and o.backend_state == "LOADED_LOCAL")
     key_available = bool(fresh and loaded and match == "MATCH")
+    capability = _evidence_usable(evidence, o, now_mono, fresh, known, match) \
+        if now_mono is not None else False
     blockers = []
     if not valid:
         blockers.append("SIGNER_OBSERVATION_UNAVAILABLE")
@@ -81,10 +126,16 @@ def project(observation, now_mono):
         blockers.append("VERIFICATION_KEY_UNKNOWN")
     if match != "MATCH":
         blockers.append("KEY_AGREEMENT_" + match)
-    blockers.extend(("PERMISSION_UNOBSERVED", "RETAINED_SIGNING_CAPABILITY_UNOBSERVED"))
+    if capability:
+        # Real sign+verify evidence retained by the lifecycle: the process HAS
+        # demonstrated it can sign. These blockers clear on measured evidence
+        # only - never on configuration, request input or absence of evidence.
+        pass
+    else:
+        blockers.extend(("PERMISSION_UNOBSERVED", "RETAINED_SIGNING_CAPABILITY_UNOBSERVED"))
     return {
         "schema": SCHEMA,
-        "evidence_class": "DECLARED",
+        "evidence_class": "MEASURED" if capability else "DECLARED",
         "scope": "PROCESS_LOCAL_SIGNER_METADATA",
         "runtime_boot_id": o.boot_id if o else None,
         "generation": o.generation if o else None,
@@ -110,14 +161,30 @@ def project(observation, now_mono):
             "loaded": loaded,
             "state": o.backend_state if o else "UNAVAILABLE",
             "reachability": "NOT_APPLICABLE_LOCAL",
-            "operating_capability_observed": False,
+            "operating_capability_observed": capability,
         },
         "key_material_available": key_available,
-        "permission": {"state": "UNKNOWN", "evidence": None},
-        "observed_capability": {"state": "UNKNOWN", "evidence": None},
-        "signing_ready": False,
+        "permission": (
+            {"state": "OBSERVED_PROCESS_LOCAL_SIGN",
+             "evidence": {"payload_digest": evidence.payload_digest,
+                          "signature_b64": evidence.signature_b64,
+                          "observed_at": evidence.observed_at,
+                          "key_fingerprint": evidence.key_fingerprint}}
+            if capability else {"state": "UNKNOWN", "evidence": None}),
+        "observed_capability": (
+            {"state": "MEASURED",
+             "evidence": {"selftest_schema": "szl.signing-capability/v1",
+                          "verified": True,
+                          "payload_digest": evidence.payload_digest,
+                          "observed_at": evidence.observed_at}}
+            if capability else {"state": "UNKNOWN", "evidence": None}),
+        "signing_ready": bool(key_available and capability),
         "execution_authorized": False,
         "non_repudiation": "UNKNOWN",
+        "non_repudiation_note": (
+            "a process-local sign+verify self-test demonstrates signing "
+            "capability, not key-custody policy; non-repudiation stays "
+            "UNKNOWN until custody is independently reviewed"),
         "source_binding": "UNKNOWN",
         "source_status_endpoint": "/api/a11oy/v1/series-a/status",
         "blockers": blockers,
@@ -134,6 +201,7 @@ class SigningState:
         self._clock = clock or time.monotonic
         self._max_age = max_age_seconds
         self._observation = None
+        self._evidence = None
         self._lock = threading.Lock()
 
     def sample(self, *, boot_id, observed_at, configured, key_source,
@@ -173,19 +241,52 @@ class SigningState:
                 expected_key_fingerprint)
         return self._observation
 
+    def record_capability_evidence(self, *, boot_id, observed_at,
+                                   payload_digest, signature_b64,
+                                   key_fingerprint, verified):
+        """Lifecycle-only write: retain verified sign+verify evidence.
+
+        Called exclusively by the signer lifecycle after a real self-test.
+        Fail-closed: unverified or malformed evidence is refused; the passive
+        blockers remain.
+        """
+        if verified is not True:
+            raise ValueError("capability evidence must be verified")
+        for name, value in (("payload_digest", payload_digest),
+                            ("key_fingerprint", key_fingerprint)):
+            if type(value) is not str or not _DIGEST.fullmatch(value):
+                raise ValueError(f"invalid {name}")
+        if type(signature_b64) is not str or not signature_b64:
+            raise ValueError("invalid signature")
+        if type(boot_id) is not str or not 0 < len(boot_id) <= 160:
+            raise ValueError("invalid boot identifier")
+        if type(observed_at) is not str or not observed_at or len(observed_at) > 64:
+            raise ValueError("invalid observation timestamp")
+        now = self._clock()
+        if not _finite(now):
+            raise ValueError("invalid monotonic clock")
+        with self._lock:
+            if self._observation is None or self._observation.boot_id != boot_id:
+                raise ValueError("evidence boot does not match the retained observation")
+            self._evidence = SignerCapabilityEvidence(
+                boot_id, observed_at, float(now), payload_digest,
+                signature_b64, key_fingerprint, True)
+
     def read(self):
         with self._lock:
             observation = self._observation
+            evidence = self._evidence
         try:
             now = self._clock()
         except Exception:
             now = None
-        return project(observation, now)
+        return project(observation, now, evidence)
 
     def invalidate(self):
         """Lifecycle failure revokes availability without inventing fresh evidence."""
         with self._lock:
             old = self._observation
+            self._evidence = None
             if old is not None:
                 self._observation = replace(
                     old, generation=old.generation + 1, sequence=old.sequence + 1,
