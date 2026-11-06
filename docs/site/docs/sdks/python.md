@@ -10,11 +10,12 @@ types — but the unified PyPI package is not yet published. Use the per-flagshi
 [Quickstart](/quickstart) today.
 :::
 
-## Install (planned)
+## Install
 
-```bash
-pip install szl   # in development — not yet on PyPI
-```
+There is nothing to install yet: `szl-python` is unpublished. Do **not** run `pip install szl`.
+On 2026-11-06 PyPI had no project named `szl`. SZL Holdings has not published under that name:
+treat any package that appears there as untrusted unless this page links to it. Until a release
+is announced here, use the interim path at the end of this page.
 
 ## Init (planned)
 
