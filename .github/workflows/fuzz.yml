@@ -1,6 +1,22 @@
 name: Fuzz
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fuzz.yml'
+      - 'package.json'
+      - 'packages/qec-integrity/package.json'
+      - 'packages/qec-integrity/src/qec_lineage.ts'
+      - 'tools/*qec_properties.mjs'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/fuzz.yml'
+      - 'package.json'
+      - 'packages/qec-integrity/package.json'
+      - 'packages/qec-integrity/src/qec_lineage.ts'
+      - 'tools/*qec_properties.mjs'
   schedule:
     - cron: '0 6 * * 1'  # weekly Monday 6am UTC
   workflow_dispatch:
@@ -10,7 +26,7 @@ permissions:
 
 jobs:
   fuzz:
-    name: Fuzz (fast-check)
+    name: Fuzz (QEC generated properties)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -19,16 +35,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4.4.0
         with:
-          node-version: '20'
-      - run: |
-          set -euo pipefail
-          if [ -f "package.json" ]; then
-            npm ci
-            if node -e "process.exit(require('./package.json').scripts?.['test:fuzz'] ? 0 : 1)"; then
-              npm run test:fuzz
-            else
-              echo "::notice::Fuzz NOT RUN: no test:fuzz script configured (advisory workflow)"
-            fi
-          else
-            echo "No package.json found"
-          fi
+          node-version: '22'
+      # Native TypeScript stripping runs this dependency-free module; no npm
+      # install, optional test selection, skip, or missing-script success path.
+      - name: Generated properties and mutation checks
+        run: npm run test:fuzz
