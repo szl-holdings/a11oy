@@ -85,7 +85,10 @@ function normaliseStrings(value: unknown): unknown {
   if (typeof value === "string") return value.normalize("NFC");
   if (Array.isArray(value)) return value.map(normaliseStrings);
   if (value && typeof value === "object") {
-    const result: Record<string, unknown> = {};
+    // Prototype-less target: a receipt key such as "__proto__" becomes an own
+    // property instead of rewriting the object's prototype (CodeQL
+    // js/remote-property-injection). JSON.stringify output is unchanged.
+    const result: Record<string, unknown> = Object.create(null);
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
       result[key.normalize("NFC")] = normaliseStrings(child);
     }
@@ -108,7 +111,7 @@ function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
-    const sorted: Record<string, unknown> = {};
+    const sorted: Record<string, unknown> = Object.create(null);
     for (const key of Object.keys(obj).sort()) {
       const child = obj[key];
       if (typeof child === "undefined") {
