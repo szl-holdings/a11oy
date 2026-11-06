@@ -325,7 +325,7 @@ def _emit_receipt(app: FastAPI, request: Request, payload: dict[str, Any]) -> di
             "digest": r["digest"], "signed": False, "index": r["seq"],
             "backend": "szl_khipu in-process DAG",
             "honesty": "hash-chained, tamper-evident; signature=DSSE_PLACEHOLDER (no key wired)",
-            "chain_verified": r.get("chain_verified", True),
+            "chain_verified": r.get("chain_verified", False),
         }
     except Exception as e:
         return {"error": f"receipt emit unavailable: {str(e)[:120]}"}
@@ -484,7 +484,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
                 "digest": r.get("digest"),
                 "signature": r.get("signature", "DSSE_PLACEHOLDER"),
                 "signed": r.get("signature") not in (None, "", "DSSE_PLACEHOLDER"),
-                "chain_verified": bool(r.get("chain_verified", True)),
+                "chain_verified": bool(r.get("chain_verified", False)),
             } for r in tail]
             return {"available": True, "depth": dag.depth(), "head": dag.head(),
                     "backend": "szl_khipu hash-chained DAG (DSSE_PLACEHOLDER)",
