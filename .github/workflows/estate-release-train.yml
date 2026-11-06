@@ -45,7 +45,7 @@ name: Estate release train
         default: ""
 
       open_deploy_window:
-        description: Forward an operator-attested maintenance window to the hf-sync repair dispatch. Default false. Until durable storage lands, hf-sync deploys onto a running or crashed Space only inside this window (a PAUSED Space is itself the window); a closed window deploys nothing and fails the repair with DEPLOY_WINDOW_CLOSED.
+        description: Forward an operator-attested maintenance window to the hf-sync repair dispatch. Default false. hf-sync also opens when the Space is PAUSED or live storage status proves a fenced local state store; otherwise a closed window deploys nothing and fails the repair with DEPLOY_WINDOW_CLOSED.
         required: false
         type: boolean
         default: false

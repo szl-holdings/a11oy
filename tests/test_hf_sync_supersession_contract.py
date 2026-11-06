@@ -642,17 +642,20 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
                      "Re-admit current protected main immediately before deploy"):
             self.assertIn(opened, step_block(job, name), name)
 
-    def test_deploy_window_is_closed_by_default_until_durable_storage(self) -> None:
+    def test_deploy_window_stays_closed_without_operator_window_or_fenced_local_store(self) -> None:
         job = job_block(self.workflow, "Classify the canonical runtime and converge configuration before deploy")
         window = step_block(job, "Require an open deploy window while SQLite lives on the bucket mount")
         self.assertIn("id: window", window)
-        self.assertIn("if [ \"${STAGE:-}\" = 'PAUSED' ] || [ \"${DISPATCH_WINDOW:-false}\" = 'true' ]; then", window)
+        self.assertIn("canonical_deploy_window.py", window)
         self.assertIn("DISPATCH_WINDOW: ${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}", window)
-        # Closed window may skip only when live build-info equals protected main.
-        self.assertIn("echo 'open=false' >> \"$GITHUB_OUTPUT\"", window)
-        self.assertIn("PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED", window)
-        self.assertIn("::error::", window)
-        self.assertIn("/api/build-info", window)
+        script = (ROOT / ".github/scripts/canonical_deploy_window.py").read_text(encoding="utf-8")
+        self.assertIn("PAUSED", script)
+        self.assertIn("open=false", script)
+        self.assertIn("PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED", script)
+        self.assertIn("::error::", script)
+        self.assertIn("/api/build-info", script)
+        self.assertIn("FENCED", script)
+        self.assertIn("LEGACY_BOOTSTRAP", script)
         dispatch = workflow_document(self.workflow)["on"]["workflow_dispatch"]["inputs"]
         self.assertEqual(dispatch["open_deploy_window"]["type"], "boolean")
         self.assertIs(dispatch["open_deploy_window"]["default"], False)

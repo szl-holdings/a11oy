@@ -65,7 +65,7 @@ class ReservedReadmeTests(unittest.TestCase):
         self.assertNotIn(URL, manifest['publicApiEndpoints'])
 
     def test_emitter_manifest_records_negative_reserved_observations_without_details(self):
-        for response in ({'status': 404},
+        for response in ({'status': 404}, {'status': 401},
                          {'status': 200, 'json': {**ROW, 'private': True,
                           'private_detail': 'never retain'}}):
             with self.subTest(status=response['status']):
@@ -79,7 +79,7 @@ class ReservedReadmeTests(unittest.TestCase):
                 self.assertNotIn('never retain', rendered)
 
     def test_emitter_manifest_refuses_invalid_or_unavailable_reserved_metadata(self):
-        invalid = ({'status': 401}, {'status': 500},
+        invalid = ({'status': 500},
                    {'status': 200, 'json': []},
                    {'status': 200, 'json': {**ROW, 'id': 'other/README'}},
                    {'status': 200, 'json': {**ROW, 'private': None}})
@@ -120,6 +120,7 @@ class ReservedReadmeTests(unittest.TestCase):
 
     def test_explicit_absent_and_nonpublic_dispositions_complete_without_details(self):
         for response, state in (({'status': 404}, 'NOT_PUBLICLY_OBSERVABLE'),
+                                ({'status': 401}, 'ANONYMOUS_UNAUTHORIZED'),
                                 ({'status': 200, 'json': {**ROW, 'private': True,
                                   'private_detail': 'never retain'}}, 'EXPLICITLY_NON_PUBLIC')):
             for collect in (public.collect, release.hf_inventory):
@@ -130,7 +131,7 @@ class ReservedReadmeTests(unittest.TestCase):
                 self.assertNotIn('never retain', str(result))
 
     def test_unavailable_or_invalid_metadata_never_completes_scope(self):
-        cases = [{'status': status} for status in (401, 403, 429, 500, 302, None)]
+        cases = [{'status': status} for status in (403, 429, 500, 302, None)]
         cases += [{'status': 200, 'json': value} for value in (
             [], None, {}, {**ROW, 'id': 'other/README'}, {**ROW, 'id': 'SZLHOLDINGS/readme'},
             {**ROW, 'private': None}, {**ROW, 'private': 0}, {**ROW, 'private': 'false'})]
@@ -179,6 +180,25 @@ class ReservedReadmeTests(unittest.TestCase):
                 with self.assertRaises(public.InventoryError):
                     public.validate_reserved_url(url, ORG)
                 opener.assert_not_called()
+
+    def test_reserved_401_transport_is_an_explicit_nonpublic_disposition(self):
+        error = HTTPError(URL, 401, 'unauthorized', {}, io.BytesIO(b'private'))
+        with patch.object(public, 'build_opener') as opener:
+            opener.return_value.open.side_effect = error
+            result = public.public_get(URL)
+        self.assertEqual(result['status'], 401)
+        self.assertIsNone(result['json'])
+        row, evidence = public.reserved_readme(ORG, lambda _url: result)
+        self.assertIsNone(row)
+        self.assertEqual(evidence['state'], 'ANONYMOUS_UNAUTHORIZED')
+        listing = HTTPError(
+            'https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true',
+            401, 'unauthorized', {}, io.BytesIO(b'no'),
+        )
+        with patch.object(public, 'build_opener') as opener:
+            opener.return_value.open.side_effect = listing
+            with self.assertRaisesRegex(public.InventoryError, 'HTTP_UNAVAILABLE'):
+                public.public_get(listing.url)
 
     def test_reserved_404_transport_retains_bounded_raw_digest(self):
         error = HTTPError(URL, 404, 'absent', {}, io.BytesIO(b'not found'))

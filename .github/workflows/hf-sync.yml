@@ -8,10 +8,11 @@ name: Sync and Relock Canonical Hugging Face Space
 # change enters this canonical workflow. Every gate is an invariant, never an
 # exact identity: the source must be protected main, the newest main wins and a
 # superseded run ends neutral with a notice, the deploy path starts the Space
-# once, and the live Space must report this exact source afterwards. Until
-# durable storage lands, a deploy needs an open maintenance window (a PAUSED
-# Space or an operator dispatch with open_deploy_window); otherwise the run
-# writes and deploys nothing and ends with a warning. Pause and
+# once, and the live Space must report this exact source afterwards. A deploy
+# opens when the Space is PAUSED, when an operator dispatch sets
+# open_deploy_window, or when anonymous storage status proves a fenced local
+# state store. Missing, unfenced, or legacy-bootstrap status stays closed:
+# the run writes and deploys nothing and fails closed. Pause and
 # restart durability proofs run only in the manual restart-drill.yml.
 # The permanent target remains Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
 # Staging Space ≠ prod DNS. GitHub main SHA and Space runtime SHA can drift;
@@ -45,7 +46,7 @@ on:
         default: ""
 
       open_deploy_window:
-        description: Operator-attested maintenance window. Until durable storage lands, a deploy onto a running or crashed Space proceeds only when true (a PAUSED Space is itself the window).
+        description: Operator-attested maintenance window. Default false. A PAUSED Space is itself a window. A running Space also opens when anonymous storage status proves a fenced local state store; otherwise this input must be true.
         type: boolean
         default: false
 
@@ -174,12 +175,12 @@ jobs:
           --output "$PREFLIGHT_REPORT"
           --github-output "$GITHUB_OUTPUT"
 
-      # Until durable storage replaces SQLite on the bucket mount, a deploy
-      # must not overlap a serving writer outside an agreed maintenance window:
-      # the operator pauses the Space, or dispatches with open_deploy_window.
-      # Soft-green is forbidden: a closed window may skip only when live
-      # /api/build-info already equals this protected main (MEASURED). Any
-      # other closed-window state fails closed so PR HF parity cannot rot.
+      # A deploy must not overlap SQLite on the bucket mount. The window is
+      # open when the Space is PAUSED, the operator dispatches
+      # open_deploy_window, or anonymous storage status proves fenced local
+      # stores. A closed window may skip only when live /api/build-info
+      # already equals this protected main. Any other closed-window state
+      # fails closed so PR HF parity cannot rot.
       - name: Require an open deploy window while SQLite lives on the bucket mount
         id: window
         if: ${{ steps.admit.outputs.publish == 'true' }}
@@ -189,22 +190,12 @@ jobs:
           DISPATCH_WINDOW: ${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}
         run: |
           set -euo pipefail
-          if [ "${STAGE:-}" = 'PAUSED' ] || [ "${DISPATCH_WINDOW:-false}" = 'true' ]; then
-            echo 'open=true' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          live=""
-          if [ "${STAGE:-}" = 'RUNNING' ]; then
-            live="$(curl -fsS --max-time 20 "$CANONICAL_ORIGIN/api/build-info" \
-              | python3 -I -c 'import json,sys; d=json.load(sys.stdin); print(((d.get("build") or {}).get("revision") or ""))')" || live=""
-          fi
-          if [ -n "$live" ] && [ "$live" = "$GITHUB_SHA" ]; then
-            echo "::notice::Deploy window closed; live /api/build-info already equals protected main ${GITHUB_SHA}."
-            echo 'open=false' >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "::error::PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED: stage=${STAGE:-UNKNOWN} protected_main=${GITHUB_SHA} live_revision=${live:-UNAVAILABLE}. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
-          exit 1
+          python3 -I -B .github/scripts/canonical_deploy_window.py \
+            --stage "${STAGE:-}" \
+            --dispatch-window "${DISPATCH_WINDOW:-false}" \
+            --github-sha "$GITHUB_SHA" \
+            --origin "$CANONICAL_ORIGIN" \
+            --github-output "$GITHUB_OUTPUT"
 
       # Idempotent: a converged Space receives no write. Convergence needs the
       # serving runtime to prove installed authority, so a paused or crashed

@@ -668,8 +668,10 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
             "privateAssetsIncluded": False,
             "countMeaning": (
                 "Anonymous author-filtered public API membership, supplemented by "
-                "the reserved SZLHOLDINGS/README Space when publicly observable; "
-                "each (namespace, repository ID) is counted once. Native kernels use the "
+                "the reserved SZLHOLDINGS/README Space when publicly observable. "
+                "An anonymous HTTP 401 on that reserved endpoint is excluded from "
+                "public membership and is not a public-listing failure. "
+                "Each (namespace, repository ID) is counted once. Native kernels use the "
                 "kernels API separately from model repositories, including legacy kernel "
                 "mirrors. Cross-namespace IDs may overlap; the sum is not a unique-project "
                 "or trained-model total. Not the authenticated organization total."

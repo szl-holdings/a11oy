@@ -39,7 +39,8 @@ HF_SYNC_WINDOW_STEP = "Require an open deploy window while SQLite lives on the b
 HF_SYNC_READMIT_STEP = "Re-admit current protected main immediately before deploy"
 DEPLOY_WINDOW_CLOSED = (
     "DEPLOY_WINDOW_CLOSED: deploy skipped because the deploy window was closed (the Space was "
-    "not PAUSED and open_deploy_window was not true); nothing was deployed. Re-dispatch with "
+    "not PAUSED, open_deploy_window was not true, and live storage status did not prove a "
+    "fenced local state store); nothing was deployed. Re-dispatch with "
     "open_deploy_window=true inside an agreed maintenance window, or pause the Space."
 )
 MAX_BYTES = 8 * 1024 * 1024

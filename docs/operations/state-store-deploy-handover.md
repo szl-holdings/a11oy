@@ -8,6 +8,12 @@ private dataset lease and the canonical `hf-sync.yml` publisher. It does not
 activate storage, start a second writer, change credentials, pause the Space,
 or establish that a deployment is qualified.
 
+The canonical publisher opens its deploy window when the Space is PAUSED,
+when the dispatch sets open_deploy_window, or when anonymous
+`GET /api/a11oy/v1/storage/status` proves mode FENCED with local stores and
+retired durable v1. A missing or unfenced status stays closed. The explicit
+dispatch below remains the operator path when that proof is absent.
+
 The storage ADR permits later deploys through an overlapping-container handover.
 For a deliberate maintenance window, the operator helper can request the same
 drain while the old process is still serving. This matters when the old runtime

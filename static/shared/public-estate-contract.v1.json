@@ -104,8 +104,9 @@
       "id": "sentra",
       "name": "Sentra Assurance Command",
       "githubRepository": "szl-holdings/szl-defensive-control-plane",
-      "huggingFaceRepositories": ["SZLHOLDINGS/sentra"],
-      "classification": "CONTROL_PLANE"
+      "huggingFaceRepositories": [],
+      "classification": "CONTROL_PLANE",
+      "publicHubObservation": "ANONYMOUS_UNAUTHORIZED"
     },
     {
       "id": "vertical-services",
@@ -125,7 +126,6 @@
   "laboratorySurfaces": [
     "SZLHOLDINGS/szl-command-lab",
     "SZLHOLDINGS/david-leads",
-    "SZLHOLDINGS/szl-constellation",
     "SZLHOLDINGS/szl-frontier",
     "SZLHOLDINGS/szl-model-inference-lab",
     "SZLHOLDINGS/szl-foundation-confirmation"
@@ -146,28 +146,7 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
-      "id": "SZLHOLDINGS/foundation-confirmation-v2",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
       "id": "SZLHOLDINGS/gdw-frontier",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/governed-agent-bench",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/governed-receipt-verifier",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -188,13 +167,6 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
-      "id": "SZLHOLDINGS/immune-lattice",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
       "id": "SZLHOLDINGS/llm-router-live",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
@@ -203,48 +175,6 @@
     },
     {
       "id": "SZLHOLDINGS/nexus",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/oac-system-health-lab",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/prove-it",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/README",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "ORG_CARD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-atelier",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-bench-suite",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-brand-campaign",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -265,28 +195,7 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
-      "id": "SZLHOLDINGS/szl-marketing-1.1",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
       "id": "SZLHOLDINGS/szl-router-control",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-seismic-review",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-typesafe-triage",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -306,6 +215,23 @@
       "disposition": "FOLD",
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     }
+  ],
+  "notPubliclyObservableHuggingFaceRepositories": [
+    "SZLHOLDINGS/README",
+    "SZLHOLDINGS/foundation-confirmation-v2",
+    "SZLHOLDINGS/governed-agent-bench",
+    "SZLHOLDINGS/governed-receipt-verifier",
+    "SZLHOLDINGS/immune-lattice",
+    "SZLHOLDINGS/oac-system-health-lab",
+    "SZLHOLDINGS/prove-it",
+    "SZLHOLDINGS/sentra",
+    "SZLHOLDINGS/szl-atelier",
+    "SZLHOLDINGS/szl-bench-suite",
+    "SZLHOLDINGS/szl-brand-campaign",
+    "SZLHOLDINGS/szl-constellation",
+    "SZLHOLDINGS/szl-marketing-1.1",
+    "SZLHOLDINGS/szl-seismic-review",
+    "SZLHOLDINGS/szl-typesafe-triage"
   ],
   "historicalBindings": [
     {
