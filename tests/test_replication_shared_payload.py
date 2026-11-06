@@ -113,9 +113,11 @@ def _assert_current_shared_payload(root):
     assert manifest["files"][SNOWFLAKE] == (
         "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b"
     )
-    # Only this proof test changes; every prior runtime/security entry stays pinned.
+    # Only the proof test and the signing-capability binding change in this
+    # generation; every prior runtime/security entry stays pinned.
     for relative, expected in security["files"].items():
-        if relative != "tests/test_replication_shared_payload.py":
+        if relative not in {"tests/test_replication_shared_payload.py",
+                            "szl_signing_state.py"}:
             assert manifest["files"][relative] == expected
     # Genuine full current-source verification, including this changed test.
     for relative, expected in manifest["files"].items():
