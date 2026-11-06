@@ -1,0 +1,160 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+#
+# GitOps for the szl-email-sender Worker: test every change, deploy only the
+# exact commit that reached main, then fail unless the live Worker reports that
+# exact 40-character SHA. Owner prerequisites (secrets, token scopes, the
+# cloudflare-production environment) are listed in ops/email-sender-worker/README.md.
+name: Email sender worker
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/email-sender-worker.yml'
+      - 'ops/email-sender-worker/**'
+      - 'scripts/verify_worker_revision.py'
+      - 'tests/test_verify_worker_revision.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/email-sender-worker.yml'
+      - 'ops/email-sender-worker/**'
+      - 'scripts/verify_worker_revision.py'
+      - 'tests/test_verify_worker_revision.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: email-sender-worker-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Test MIME, auth, and the workerd send_email contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          check-latest: false
+          cache: npm
+          cache-dependency-path: ops/email-sender-worker/package-lock.json
+      - name: Install the locked toolchain
+        working-directory: ops/email-sender-worker
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Unit tests with a mocked SEND_EMAIL binding
+        working-directory: ops/email-sender-worker
+        run: npm test
+      - name: Bundle the exact upload without deploying
+        working-directory: ops/email-sender-worker
+        run: npm run build
+      - name: Run the bundle in workerd with the local send_email binding
+        working-directory: ops/email-sender-worker
+        run: npm run test:workerd
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install exact core test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Test the post-deploy readback contract
+        run: python -m pytest tests/test_verify_worker_revision.py -q
+
+  deploy:
+    name: Deploy szl-email-sender and read back the live revision
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: cloudflare-production
+    concurrency:
+      group: deploy-szl-email-sender
+      cancel-in-progress: false
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Prove exact checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          check-latest: false
+      - name: Install the locked Wrangler
+        working-directory: ops/email-sender-worker
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          test "$(npx --no-install wrangler --version | tail -n 1)" = "4.150.0"
+      - name: Require Cloudflare deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::cloudflare-production needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (see ops/email-sender-worker/README.md)."
+            exit 1
+          fi
+      - name: Deploy the exact commit with SOURCE_REVISION
+        id: deploy
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ops/email-sender-worker
+          packageManager: npm
+          wranglerVersion: '4.150.0'
+          command: deploy --message ${{ github.sha }}
+          vars: |
+            SOURCE_REVISION
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Read back the live revision and readiness
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "${DEPLOYMENT_URL}" =~ ^https://szl-email-sender\.[a-z0-9-]+\.workers\.dev$ ]]; then
+            echo "::error::wrangler reported no workers.dev deployment URL for szl-email-sender."
+            exit 1
+          fi
+          python scripts/verify_worker_revision.py \
+            --url "${DEPLOYMENT_URL}/.well-known/szl-worker-revision" \
+            --worker szl-email-sender \
+            --expect-revision "${GITHUB_SHA}" \
+            --require-ready

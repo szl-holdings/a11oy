@@ -1,5 +1,11 @@
 name: Alert relay worker
 
+# GitOps for szl-alert-relay (ntfy.a11oy.net): test every change, deploy only the
+# exact commit that reached main, fail unless the live relay reports that exact
+# 40-character SHA, then prove one real delivery. Owner prerequisites (secrets,
+# token scopes, the cloudflare-production environment, the WAF skip rule) are in
+# ops/alert-relay-worker/README.md.
+
 on:
   pull_request:
     paths:
@@ -8,12 +14,12 @@ on:
       - 'scripts/alert_channel_canary.py'
       - 'scripts/managed_alert_endpoint.py'
       - 'scripts/managed_alert_env.sh'
-      - 'scripts/resolve_cloudflare_relay_account.py'
+      - 'scripts/verify_worker_revision.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_static_registry_contract.py'
       - 'tests/test_managed_alert_endpoint.py'
       - 'tests/test_managed_alert_transport_workflows.py'
-      - 'tests/test_resolve_cloudflare_relay_account.py'
+      - 'tests/test_verify_worker_revision.py'
       - 'tests/test_workers_compute_observability.py'
   push:
     branches: [main]
@@ -23,12 +29,12 @@ on:
       - 'scripts/alert_channel_canary.py'
       - 'scripts/managed_alert_endpoint.py'
       - 'scripts/managed_alert_env.sh'
-      - 'scripts/resolve_cloudflare_relay_account.py'
+      - 'scripts/verify_worker_revision.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_static_registry_contract.py'
       - 'tests/test_managed_alert_endpoint.py'
       - 'tests/test_managed_alert_transport_workflows.py'
-      - 'tests/test_resolve_cloudflare_relay_account.py'
+      - 'tests/test_verify_worker_revision.py'
       - 'tests/test_workers_compute_observability.py'
   workflow_dispatch:
 
@@ -37,13 +43,16 @@ permissions:
 
 concurrency:
   group: alert-relay-worker-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     name: Test fail-closed relay and migration contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
@@ -53,6 +62,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          check-latest: false
+          cache: npm
+          cache-dependency-path: ops/alert-relay-worker/package-lock.json
+      - name: Install the locked Wrangler
+        working-directory: ops/alert-relay-worker
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
@@ -67,20 +86,26 @@ jobs:
             tests/test_alert_channel_static_registry_contract.py \
             tests/test_managed_alert_endpoint.py \
             tests/test_managed_alert_transport_workflows.py \
-            tests/test_resolve_cloudflare_relay_account.py \
+            tests/test_verify_worker_revision.py \
             tests/test_workers_compute_observability.py \
             -q
+      - name: Bundle the exact upload without deploying
+        working-directory: ops/alert-relay-worker
+        run: npm run build
 
   deploy:
-    name: Deploy exact relay and prove one real delivery
+    name: Deploy exact relay, read back its revision, prove one real delivery
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
-    environment: production
+    environment: cloudflare-production
     timeout-minutes: 15
+    concurrency:
+      group: deploy-szl-alert-relay
+      cancel-in-progress: false
     env:
       CI: 'true'
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+      WRANGLER_SEND_METRICS: 'false'
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
@@ -91,65 +116,69 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Prove exact checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
       - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           check-latest: false
+      - name: Install the locked Wrangler
+        working-directory: ops/alert-relay-worker
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          test "$(npx --no-install wrangler --version | tail -n 1)" = "4.150.0"
+      - name: Require Cloudflare deployment credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::cloudflare-production needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (see ops/alert-relay-worker/README.md)."
+            exit 1
+          fi
+      - name: Deploy the exact source-controlled Worker and custom domain
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ops/alert-relay-worker
+          packageManager: npm
+          wranglerVersion: '4.150.0'
+          command: deploy --config wrangler.jsonc --message ${{ github.sha }}
+          vars: |
+            SOURCE_REVISION
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - name: Require Cloudflare deployment token
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            echo "::error::No Cloudflare API token is configured for the relay deployment."
-            exit 1
-          fi
-      - name: Resolve account from active owned Cloudflare zones
-        run: python scripts/resolve_cloudflare_relay_account.py
-      - name: Deploy the exact source-controlled Worker and custom domain
+      - name: Read back the live revision from ntfy.a11oy.net
         shell: bash
         run: >-
-          npx --yes wrangler@4.128.0 deploy
-          --config ops/alert-relay-worker/wrangler.jsonc
-      - name: Wait only for the declared custom-domain DNS name
-        shell: bash
-        run: |
-          python - <<'PY'
-          import socket
-          import time
-
-          host = "ntfy.a11oy.net"
-          for attempt in range(12):
-              try:
-                  socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
-                  break
-              except socket.gaierror:
-                  if attempt == 11:
-                      raise
-                  time.sleep(5)
-          PY
-      - name: Run one bounded real delivery canary
-        id: canary
-        continue-on-error: true
+          python scripts/verify_worker_revision.py
+          --url https://ntfy.a11oy.net/.well-known/szl-worker-revision
+          --worker szl-alert-relay
+          --expect-revision "${GITHUB_SHA}"
+      - name: Prove one bounded real delivery through the deployed relay
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           ALERT_CHANNEL_MODE: ntfy
         shell: bash
         run: |
           source scripts/managed_alert_env.sh &&
-          mkdir -p evidence
-          set +e
+          mkdir -p evidence &&
           python scripts/alert_channel_canary.py \
             --output evidence/alert-channel-post-deploy.json \
             --mode ntfy \
             --send
-          rc=$?
-          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
-          exit 0
       - name: Upload secret-free delivery evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -158,14 +187,3 @@ jobs:
           path: evidence/alert-channel-post-deploy.json
           if-no-files-found: warn
           retention-days: 90
-      - name: Enforce real delivery health
-        if: always()
-        env:
-          EXIT_CODE: ${{ steps.canary.outputs.exit_code }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${EXIT_CODE:-missing}" != '0' ]; then
-            echo "::error::The deployed relay did not prove one real 2xx delivery."
-            exit 1
-          fi
