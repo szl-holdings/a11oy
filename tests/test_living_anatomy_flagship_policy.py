@@ -109,6 +109,9 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
             "anatomy_revision != source_main",
             "deployed_hf_revision != current_hf_revision",
             '"hardware_mutation": "FORBIDDEN"',
+            "def exact_space_host(value: object) -> str:",
+            'ORIGIN = exact_space_host(getattr(info, "host", None))',
+            "Space host is not an exact https hf.space origin",
         ):
             self.assertIn(contract, self.guardian)
         self.assertNotIn("request_space_hardware", self.guardian)
