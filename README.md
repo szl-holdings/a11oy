@@ -311,8 +311,8 @@ to its captured run.
 
 ## Learn more
 
-- [WILLAY API reference](https://github.com/szl-holdings/developers/blob/main/WILLAY_API.md)
-- [Governed run-loop recipe](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/02-willay-gated-turn.md)
+- [WILLAY API reference](https://github.com/szl-holdings/developers/blob/main/WILLAY_API.md) (archived repository, read-only)
+- [Governed run-loop recipe](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/02-willay-gated-turn.md) (archived repository, read-only)
 - [Proof library — lutar-lean](https://github.com/szl-holdings/lutar-lean)
 - [Associated research-program concept DOI — 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
 - [Existing formal-artifact record — 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
