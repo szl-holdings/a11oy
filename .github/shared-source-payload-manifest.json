@@ -7,7 +7,7 @@
   "szl_connectors/warehouse/warehouse_connectors.py": "2ff48cba8b038e5914caff6a2a629d17ed75561081704eb1d659fa9693fd721d",
   "szl_operator_auth.py": "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",
   "szl_provenance.py": "f8d129b59fe1e9b899acdaf88ee0354822ac7a9d7e6603464be5a1a65373dad3",
-  "szl_signing_state.py": "c2355e7d7f3855964d1b056cc44e6e5fe1615325ecb4a314acaf86a97720752d",
+  "szl_signing_state.py": "54f5baf33d5372fb149cec0e274bf7cc8bd631f68ad031f10b3c01eea83c8594",
   "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json": "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc",
   "tests/test_gitleaks_archived_payload_digest.py": "8ede2847f5a77426485f88747e7ffa238c24a6c4662905433fc3695940204a4a",
   "tests/test_replication_shared_payload.py": "636fe55c85398e29dd7a1f5e2355aad345c98938d0a7bf0a2e961b88197d99bb",

@@ -76,7 +76,7 @@ def _evidence_usable(evidence, observation, now_mono, fresh, known, match):
         return False
     if evidence.key_fingerprint != observation.verification_key_fingerprint:
         return False
-    if not (_finite(evidence.observed_mono) and evidence.observed_mono > 0
+    if not (_finite(evidence.observed_mono) and evidence.observed_mono >= 0
             and evidence.observed_mono <= now_mono):
         return False
     if not (fresh and known and match == "MATCH"):
