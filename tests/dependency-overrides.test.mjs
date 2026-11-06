@@ -42,6 +42,16 @@ function verifyFastUri(version) {
   assert.ok(minimum, 'an explicitly reviewed fast-uri release line is required');
   assert.ok(minor > minimum[0] || (minor === minimum[0] && patch >= minimum[1]), version);
 }
+function verifyVite(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  assert.ok(match, 'a stable inspectable vite resolution is required');
+  const [major, minor, patch] = match.slice(1).map(Number);
+  // GHSA-8g5g-mxqh-grgj (server.fs.deny bypass with queries) affects 6.4.4 only;
+  // 6.4.5 is the patched release on the selected 6.x line.
+  const minimum = { 6: [4, 5] }[major];
+  assert.ok(minimum, 'an explicitly reviewed vite release line is required');
+  assert.ok(minor > minimum[0] || (minor === minimum[0] && patch >= minimum[1]), version);
+}
 function fastUriPolicy(overrides) {
   assert.ok(overrides !== null && typeof overrides === 'object' && !Array.isArray(overrides),
     'explicit override object required');
@@ -69,6 +79,7 @@ function verify(pkg, workspace, lock) {
   assert.deepEqual(mapping(workspace.overrides), expected, 'workspace policy differs from package.json');
   assert.deepEqual(mapping(lock.overrides), expected, 'lock policy differs from package.json');
   verifyBraceExpansion(expected['brace-expansion']);
+  verifyVite(expected.vite);
   const selectedFastUri = fastUriPolicy(expected);
   for (const sectionName of ['packages', 'snapshots']) {
     const section = lock[sectionName];
@@ -98,6 +109,14 @@ function verify(pkg, workspace, lock) {
       verifyBraceExpansion(match[1]);
       assert.equal(match[1], expected['brace-expansion'], 'resolved brace-expansion differs from override');
     }
+    const viteKeys = Object.keys(section).filter((name) => name.startsWith('vite@'));
+    assert.ok(viteKeys.length > 0, `${sectionName}: expected vite resolution is absent`);
+    for (const key of viteKeys) {
+      const match = /^vite@(\d+\.\d+\.\d+)(?:\([^\r\n]*\))?$/.exec(key);
+      assert.ok(match, 'a stable inspectable vite resolution is required');
+      verifyVite(match[1]);
+      assert.equal(match[1], expected.vite, 'resolved vite differs from override');
+    }
     const uriKeys = Object.keys(section).filter((name) => name.startsWith('fast-uri@'));
     assert.ok(uriKeys.length > 0, `${sectionName}: expected fast-uri resolution is absent`);
     for (const key of uriKeys) {
@@ -109,8 +128,8 @@ function verify(pkg, workspace, lock) {
   }
 }
 function fixture() {
-  const policy = { 'js-yaml@<4.3.2': '4.3.2', browserslist: '4.28.8', 'brace-expansion': '5.0.12', 'fast-uri@<3.1.9': '3.1.9' };
-  const packages = { 'js-yaml@4.3.2': {}, 'js-yaml@5.4.1': {}, 'browserslist@4.28.8': {}, 'brace-expansion@5.0.12': {}, 'fast-uri@3.1.9': {} };
+  const policy = { 'js-yaml@<4.3.2': '4.3.2', browserslist: '4.28.8', 'brace-expansion': '5.0.12', 'fast-uri@<3.1.9': '3.1.9', vite: '6.4.5' };
+  const packages = { 'js-yaml@4.3.2': {}, 'js-yaml@5.4.1': {}, 'browserslist@4.28.8': {}, 'brace-expansion@5.0.12': {}, 'fast-uri@3.1.9': {}, 'vite@6.4.5': {} };
   return [{ pnpm: { overrides: { ...policy } } }, { overrides: { ...policy } },
     { overrides: { ...policy }, packages: structuredClone(packages), snapshots: structuredClone(packages) }];
 }
@@ -307,4 +326,36 @@ test('the installed PostCSS source-map dependency preserves ordinary mapping rou
   assert.deepEqual(consumer.originalPositionFor({ line: 1, column: 0 }),
     { source: 'input.css', line: 3, column: 2, name: 'color' });
   assert.equal(consumer.sourceContentFor('input.css'), '.sample { color: blue; }');
+});
+
+test('affected vite releases, unreviewed release lines and prereleases are rejected', () => {
+  for (const version of ['6.4.4', '6.4.3', '6.0.0', '7.0.0', '6.4.5-beta.0']) {
+    assert.throws(() => verifyVite(version));
+  }
+});
+
+test('patched vite 6.4.5 remains accepted', () => verifyVite('6.4.5'));
+
+test('a stale vite 6.4.4 package or snapshot cannot hide behind a patched override', () => {
+  for (const section of ['packages', 'snapshots']) {
+    const values = fixture(); values[2][section]['vite@6.4.4(@types/node@26.6.5)(tsx@4.23.15)'] = {};
+    assert.throws(() => verify(...values));
+  }
+});
+
+test('an affected vite override is rejected even when every policy map agrees', () => {
+  const values = fixture();
+  for (const overrides of [values[0].pnpm.overrides, values[1].overrides, values[2].overrides]) overrides.vite = '6.4.4';
+  for (const section of ['packages', 'snapshots']) {
+    delete values[2][section]['vite@6.4.5'];
+    values[2][section]['vite@6.4.4'] = {};
+  }
+  assert.throws(() => verify(...values), /6\.4\.4/);
+});
+
+test('the installed Vite behind the knowledge package and its Vitest is the reviewed 6.4.5', () => {
+  const knowledgeRequire = createRequire(new URL('../packages/a11oy-knowledge/package.json', import.meta.url));
+  const vitestRequire = createRequire(knowledgeRequire.resolve('vitest/package.json'));
+  assert.equal(knowledgeRequire('vite/package.json').version, '6.4.5');
+  assert.equal(vitestRequire('vite/package.json').version, '6.4.5');
 });
