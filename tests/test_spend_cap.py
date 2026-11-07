@@ -60,3 +60,44 @@ def test_set_cap_updates_state():
 def test_selftest_smoke():
     r = sc._selftest()
     assert r["a1_ok"] and r["a2_deny"] and r["chain_intact"]
+
+
+def test_record_refuses_once_the_existing_cap_is_reached():
+    led = _fresh(1.0)
+    assert led.record(0.6, "unit")["recorded"] is True
+    refused = led.record(0.5, "unit")
+    assert refused["allow"] is False and refused["recorded"] is False
+    assert refused["reason"] == "cap exceeded"
+    assert led.state()["spent_usd"] == 0.6
+    assert led.state()["entries"] == 1
+
+
+def test_concurrent_records_cannot_pass_the_cap():
+    import threading
+    led = _fresh(1.0)
+    barrier = threading.Barrier(2)
+    results = []
+
+    def worker():
+        barrier.wait()
+        results.append(led.record(0.6, "unit"))
+
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert sum(1 for item in results if item["recorded"]) == 1
+    assert led.state()["spent_usd"] == 0.6
+
+
+def test_admit_retries_once_and_rejects_a_different_payload():
+    led = _fresh(1.0)
+    first = led.admit(0.4, "op-1", "digest-a")
+    second = led.admit(0.4, "op-1", "digest-a")
+    clash = led.admit(0.4, "op-1", "digest-b")
+    assert first["recorded"] is True and first["reason"] == "admitted"
+    assert second["recorded"] is False and second["reason"] == "duplicate"
+    assert clash["allow"] is False and clash["reason"] == "operation payload mismatch"
+    assert led.state()["entries"] == 1
+    assert led.state()["spent_usd"] == 0.4

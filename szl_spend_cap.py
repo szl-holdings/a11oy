@@ -14,8 +14,10 @@ expose routes (never imported at module load, so the core stays importable anywh
 It keeps an append-only, hash-linked spend ledger (receipts.in == receipts.out
 doctrine) so the running total is tamper-evident.
 
-Enforcement is advisory-by-default: a paid call-site calls `allow(estimated_usd)` before
-spending and honors a False. Two independent trip conditions:
+`record` and `admit` are the gate: under the lock they refuse a write that would
+pass the configured cap or while the kill-file exists. `allow` is a preview of
+that same decision, including a zero estimate once spent has already met the cap.
+Importing this module does not attach the ledger to a route. Two trip conditions:
   1) cumulative spent + estimate would exceed the cap, or
   2) an operator kill-file exists on disk (SZL_SPEND_KILL_FILE, default
      /opt/alloyscape/.spend-KILL) — matches the emergency stop already used in ops.
@@ -65,27 +67,78 @@ class SpendLedger:
         self.cap_usd = float(cap_usd) if cap_usd is not None else _env_float("SZL_SPEND_CAP_USD", 25.0)
         self.max_tail = int(max_tail)
         self._entries: List[Dict[str, Any]] = []
+        self._admissions: Dict[str, Dict[str, Any]] = {}
         self._spent = 0.0
         self._prev = _GENESIS
 
+    def _refused(self, reason: str, estimated: float) -> Dict[str, Any]:
+        return {
+            "allow": False, "recorded": False, "reason": reason,
+            "estimated_usd": round(estimated, 6),
+            "spent_usd": round(self._spent, 6),
+            "cap_usd": round(self.cap_usd, 6),
+        }
+
+    def _append(self, amt: float, source: str, meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        body = {
+            "ts": _now_iso(),
+            "amount_usd": round(amt, 6),
+            "source": str(source)[:80],
+            "meta": meta or {},
+            "prev": self._prev,
+        }
+        body["digest"] = sha256_canon(body)
+        self._entries.append(body)
+        if len(self._entries) > self.max_tail:
+            self._entries = self._entries[-self.max_tail:]
+        self._spent += amt
+        self._prev = body["digest"]
+        stored = dict(body)
+        stored["allow"] = True
+        stored["recorded"] = True
+        return stored
+
     def record(self, amount_usd: float, source: str = "unknown",
                meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Append only while the existing cap and kill-file still allow it."""
         amt = max(0.0, float(amount_usd))
         with _LOCK:
-            body = {
-                "ts": _now_iso(),
-                "amount_usd": round(amt, 6),
-                "source": str(source)[:80],
-                "meta": meta or {},
-                "prev": self._prev,
-            }
-            body["digest"] = sha256_canon(body)
-            self._entries.append(body)
-            if len(self._entries) > self.max_tail:
-                self._entries = self._entries[-self.max_tail:]
-            self._spent += amt
-            self._prev = body["digest"]
-            return dict(body)
+            if self.kill_engaged():
+                return self._refused("kill-file engaged", amt)
+            if self._spent >= self.cap_usd or self._spent + amt > self.cap_usd:
+                return self._refused("cap exceeded", amt)
+            return self._append(amt, source, meta)
+
+    def admit(self, amount_usd: float, operation_id: str, payload_digest: str,
+              source: str = "admit", meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Reserve once under the lock. The same id and digest does not record again.
+
+        A repeated id with a different digest is refused. The id is an operation
+        name supplied by the caller, not a hash of a payment token.
+        """
+        if not isinstance(operation_id, str) or not operation_id:
+            return self._refused("operation id required", max(0.0, float(amount_usd)))
+        if not isinstance(payload_digest, str) or not payload_digest:
+            return self._refused("payload digest required", max(0.0, float(amount_usd)))
+        amt = max(0.0, float(amount_usd))
+        with _LOCK:
+            prior = self._admissions.get(operation_id)
+            if prior is not None:
+                if prior["payload_digest"] != payload_digest:
+                    return self._refused("operation payload mismatch", amt)
+                replay = dict(prior["body"])
+                replay["allow"] = True
+                replay["recorded"] = False
+                replay["reason"] = "duplicate"
+                return replay
+            if self.kill_engaged():
+                return self._refused("kill-file engaged", amt)
+            if self._spent >= self.cap_usd or self._spent + amt > self.cap_usd:
+                return self._refused("cap exceeded", amt)
+            stored = self._append(amt, source, meta)
+            self._admissions[operation_id] = {"payload_digest": payload_digest, "body": dict(stored)}
+            stored["reason"] = "admitted"
+            return stored
 
     def kill_engaged(self) -> bool:
         try:
@@ -97,10 +150,13 @@ class SpendLedger:
         return self.kill_engaged() or (self._spent >= self.cap_usd)
 
     def allow(self, estimated_usd: float = 0.0) -> Dict[str, Any]:
+        """Preview only. ``record`` and ``admit`` are the gate; they re-check under the lock."""
         est = max(0.0, float(estimated_usd))
-        killed = self.kill_engaged()
-        projected = self._spent + est
-        ok = (not killed) and (projected <= self.cap_usd)
+        with _LOCK:
+            killed = self.kill_engaged()
+            spent = self._spent
+            projected = spent + est
+            ok = (not killed) and (spent < self.cap_usd) and (projected <= self.cap_usd)
         reason = "kill-file engaged" if killed else ("ok" if ok else "cap exceeded")
         return {
             "allow": ok,
@@ -184,11 +240,25 @@ def register(app: Any, ns: str = "a11oy") -> str:
 
     @app.post(base + "/record", include_in_schema=False)
     def _spend_record(payload: Dict[str, Any]):
-        return led.record(
-            payload.get("amount_usd", 0.0),
-            payload.get("source", "api"),
-            payload.get("meta"),
-        )
+        from starlette.responses import JSONResponse
+        operation_id = payload.get("operation_id")
+        if operation_id:
+            result = led.admit(
+                payload.get("amount_usd", 0.0),
+                str(operation_id),
+                str(payload.get("payload_digest") or ""),
+                payload.get("source", "api"),
+                payload.get("meta"),
+            )
+        else:
+            result = led.record(
+                payload.get("amount_usd", 0.0),
+                payload.get("source", "api"),
+                payload.get("meta"),
+            )
+        if result.get("recorded") is False and result.get("allow") is False:
+            return JSONResponse(result, status_code=409)
+        return result
 
     @app.post(base + "/cap", include_in_schema=False)
     def _spend_setcap(payload: Dict[str, Any]):

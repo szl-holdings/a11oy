@@ -7866,6 +7866,12 @@ async def _a11oy_experimental_index():
     })
 
 
+# Origin payment admission for the three monetized families above. Unconfigured
+# by default: no price is stored here, and Host is not a payment boundary.
+import a11oy_x402_admission as _x402_admission
+app.middleware("http")(_x402_admission.payment_gate)
+
+
 @app.get("/api/a11oy/v1/anatomy")
 async def _a11oy_anatomy_index():
     """Index only. Does not claim the creator-profile anatomy Space is LIVE."""
