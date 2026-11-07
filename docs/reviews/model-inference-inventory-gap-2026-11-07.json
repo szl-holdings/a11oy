@@ -16,28 +16,40 @@
     "inventory_scope": "public-only",
     "canonical_rule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
     "support": "docs/model-inference-support.json",
-    "support_generated_at": "2026-10-09T15:43:25.693184+00:00",
-    "support_model_count": 41,
-    "support_model_ids_sha256": "5b5e668c8b1c9b69b8e0d9562d74f9265080d8ddc9a28319fda56dfc5c03e5d5",
-    "support_doc_sentence": "docs/MODEL_INFERENCE_SUPPORT.md says the reviewed source covers 48 public model-namespace repositories. The support file contains 41. The inventory contains 74. This dossier does not edit any of those three.",
+    "support_generated_at": "2026-11-07T10:52:24.056321+00:00",
+    "support_model_count": 74,
+    "support_model_ids_sha256": "16e2cd8555216b849b443f1c81e91ed26dd5c8a12fa18d4a2b032397643d0ac2",
+    "support_doc_sentence": "The support file now lists 74 inventory model ids. The 33 additions are empty-mapping observations. Authority flags stay false.",
     "revision_classes_sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
     "stage_matrix_observed_at": "2026-11-06T02:04:19Z"
   },
   "counts": {
     "rows": 33,
-    "verified_inventory_observations": 33,
+    "provider_observations_http_200": 33,
+    "provider_mappings_empty": 33,
+    "provider_mappings_present": 0,
+    "provider_lookups_failed": 0,
+    "assessments_recorded": 33,
     "verified_inference_admission_authority": 0,
     "verified_exclusion_authority": 0,
-    "proposed_hold": 33,
-    "unverified_support_rows": 33,
-    "unresolved_decisions": 33,
-    "rows_with_card_self_labels": 4
+    "recorded_no_provider_mapping": 33,
+    "revision_matches_inventory": 29,
+    "revision_differs_from_inventory": 4,
+    "unresolved_owner_decisions": 4,
+    "artifact_classes": {
+      "adapter_bundle": 1,
+      "standalone_weight_bundle": 28,
+      "non_provider_artifact": 4
+    },
+    "owner_follow_up": "inventory_sha_differs_for_4_repositories_inventory_file_not_edited"
   },
   "runtime_change": {
-    "support_rows_added": 0,
+    "support_rows_added": 33,
+    "prior_support_rows_preserved": 41,
     "inventory_rows_removed": 0,
     "validator_changed": false,
-    "coverage_expectation_changed": false
+    "coverage_expectation_changed": false,
+    "authority_flags_changed": false
   },
   "rows": [
     {
@@ -45,8 +57,7 @@
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -124,19 +135,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:22.846520+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "cfcc0113b9109d6b2272e800e23bac6b8e7d64b14f35fbd58de5c3fda35e59c1",
+        "raw_bytes": 155,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "bf0b4b06d71e240d85f3a3d60587376de179bbe98d8151fecc75e9ead73aa794",
+        "observed_sha": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
+        "inventory_sha": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2-estate-sft-v1/tree/79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "726c9503f91b212063516f3b8a8a52ddcb07068206385141c551c683736adf52",
+        "filename_count": 9,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2-estate-sft-v1/raw/79c0efc23dbdb7f0a394125f811d0a3bb602b36f/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "fe914de3ae23dbd704339f656b4663022a3e8b7b49addb1654110ba0525529b1",
+        "readme_bytes": 1618
+      }
     },
     {
       "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -211,19 +245,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:22.848331+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "afa5518c8f0575e7c96c37ef197b6941fd1033141bb34ae10026f19f5eb521fb",
+        "raw_bytes": 161,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "a2f7144253caafbeeaa84638e3977d2a19fd850be2717389dd63cf62d466c3eb",
+        "observed_sha": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+        "inventory_sha": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/tree/2939ccd8e30d19c8209086893b75379dbf3c27b4",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "a1391500b97fd007fa5cdc72e1192269d2bd87c8bbfb72b85916dee135ca5625",
+        "filename_count": 8,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/raw/2939ccd8e30d19c8209086893b75379dbf3c27b4/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "5cd90383fd9b88cdd9481555d2576cfa76d216de0eb2530b680dd649bce822d6",
+        "readme_bytes": 23
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -301,19 +358,43 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "Inventory sha differs from the sha returned by this mapping read. The inventory file was not changed."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:22.848752+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "81b4d0f049d355e3c38edb1577223e8cd74a450b4e88a0a6d5c90d781bfa1a02",
+        "raw_bytes": 156,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "ed81bdfaeddb39e720f136426a465aecbcb603e25957a95f22adc205876c3dee",
+        "observed_sha": "382e9c263b568b68967972d28803bf567746e1de",
+        "inventory_sha": "344fac66fa7c469b6c2779cbaffca38240a995c2",
+        "revision_matches_inventory": false,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/tree/382e9c263b568b68967972d28803bf567746e1de",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "58cd9767c444d6fc8f135d81b4f9f756ff3bacd1f34c4be2901eb629c368ff62",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/raw/382e9c263b568b68967972d28803bf567746e1de/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "64a2feb07739553577963f5c575df44279b5ea118bc92f17f2986f3dd1cb94d5",
+        "readme_bytes": 4144
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -391,19 +472,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:22.849077+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "5f7f8305df9b2de2a9f4fd2b26794d1696156b323d6e1e52cd1588de597ae4e0",
+        "raw_bytes": 174,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "13089cb5dcbc0694e459508b4100b1fdcf2b66861c06b479379c0c1fe7749722",
+        "observed_sha": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
+        "inventory_sha": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1/tree/d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "afe5ae3ef8297d4a80d765f188e5e8eb073f2725761b439e1bec22cd576d53b3",
+        "filename_count": 9,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1/raw/d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "4f3cadec4c9a1af1cb770be5ba0bcd4092626557bfecdade26bc7a40b63e240f",
+        "readme_bytes": 1713
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -481,19 +585,43 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "Inventory sha differs from the sha returned by this mapping read. The inventory file was not changed."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:22.987019+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "299909c36185df1f7cbf793fb59f79f8daafb844cc46b47680d3091fe55cc222",
+        "raw_bytes": 155,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "9d88014d6adefb3d09c5d5088a4c0996fe18d21dc9e22167797f04a2aba93202",
+        "observed_sha": "c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0",
+        "inventory_sha": "cba180bb76d8880b4098ff458dda4cddb859ce90",
+        "revision_matches_inventory": false,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/tree/c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "90622ebf3db0f21bf62e3a16487c6a64997786c666750cf8c79489eb0f3f70f4",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/raw/c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "c81d1f943f2727c6ef864ce84abd9a3da23a4f8175745306532d853bc96d99f4",
+        "readme_bytes": 4246
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -571,19 +699,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:22.991475+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "b3f4b4defd73ee0e2eb30f867900ec43a1ea3ad411a3d4ef09ec44917536ce5a",
+        "raw_bytes": 161,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "aa9dcde3493d0333d595da731906e65818f1a101f8ed4c4c6da21c879160f220",
+        "observed_sha": "b4ae083265f2f0a6749af4111162d3582dc4dace",
+        "inventory_sha": "b4ae083265f2f0a6749af4111162d3582dc4dace",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1/tree/b4ae083265f2f0a6749af4111162d3582dc4dace",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "c329d39ace8c2f8b2240a1d58ebf947f2f0d72ffb777851acaa141a73fa7e359",
+        "filename_count": 9,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1/raw/b4ae083265f2f0a6749af4111162d3582dc4dace/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "2b9745c897111537b199e8535850b73c527925f0b257c3453dec869bca49d796",
+        "readme_bytes": 1922
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -661,19 +812,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:22.998301+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "0f9df4d51d9925b68851eb6724e1459b7b718e5c334b6ac3fe65deb099df5e12",
+        "raw_bytes": 154,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "322b4b930dfff91be6bf5f63cff914eb74c0c0c771f3a23400c5f81a8f2fdecd",
+        "observed_sha": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
+        "inventory_sha": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2/tree/15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "2beac3c4567667b0f671c2957f8fff27166c338da0288fafd25c3c5940a0f6a4",
+        "filename_count": 9,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2/raw/15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "c338d34c820ca7e65231057d82c282474a19beeea935aea453bc6fe07849f20a",
+        "readme_bytes": 1779
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -751,19 +925,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.043846+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "9c11d83a735d45bc96d78debd4d464f21a8a9b947ed47c5ec3a11e5f60977998",
+        "raw_bytes": 165,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "63078222ff59418ecd6451ed455d0bd1caede4969b335eaabd852a10b5e0070a",
+        "observed_sha": "decebd8be9255239c1507ebc61159099d38ba6bc",
+        "inventory_sha": "decebd8be9255239c1507ebc61159099d38ba6bc",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/tree/decebd8be9255239c1507ebc61159099d38ba6bc",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "b63782d42ddf470167dba311f7c7ae9b79327a2d9f4a0043af1839ddf25ee9c8",
+        "filename_count": 8,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/raw/decebd8be9255239c1507ebc61159099d38ba6bc/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "c80417decc13c5ab3b820a2f193a8b58718495bc272c87576a2b17cced43eb3a",
+        "readme_bytes": 2078
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -841,19 +1038,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.132039+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "699eff30dde098a5b9f3c28f0fe7c0f209f7d9aa59bfb08f3a36be4b99abae7c",
+        "raw_bytes": 167,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "23e165d350708f4dcd375b2c1b29bd0e6484b3b45db1317c2b563bc9ecb46719",
+        "observed_sha": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+        "inventory_sha": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/tree/3b330741a7ecee572a7a51c5a3dd023788da8973",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "65bf3083443360345f3f931fe960bf90eb6d28b93fbd2f7830fa21a83778a616",
+        "filename_count": 9,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/raw/3b330741a7ecee572a7a51c5a3dd023788da8973/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "29286fcf2901dcfa691d8b661c599bb7f9374ca969e70fa65ee955355ba04b50",
+        "readme_bytes": 2912
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -931,19 +1151,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.168826+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "ca6ccea3558a05ae1d816f93ffb34abd1815fc219ba57ad55fd7889aa81f6512",
+        "raw_bytes": 167,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "98ff181c277a61452055ad9c8c8d1fb5cb877e169ac6307a90b923f9907aaa0a",
+        "observed_sha": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+        "inventory_sha": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/tree/edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "61e238bf592fd64807f0b00738872102cd3aecb63cb21638de173b269f5d9799",
+        "filename_count": 8,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/raw/edd649ffcfae89d0a5b5cc889b5cbe0848336e01/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "0204c45353944bd6d7f22c819879e6b35e572545a1dd982bd5033b2ff9b690d8",
+        "readme_bytes": 1584
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1021,19 +1264,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.191871+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "042ff4748b2a0b6a6709dc42775923793fcd3ee1fb587d5356ba089a502464fb",
+        "raw_bytes": 163,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "16ccf16aaa6162e0db51f5515bf5b64fd0f7cafe6b7f59b1a847226e93fd3bf0",
+        "observed_sha": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+        "inventory_sha": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/tree/8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "17da41c4cd62e4dbc588520cf3de2f50189a9411684f9d3b5ef8a9d0a43c2b0d",
+        "filename_count": 9,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/raw/8dd86a98a71d52d24ee23b51ef75ed9b6213c69f/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "728fd06333d747a210f565cce321db473c9b32e046cb93d7198b95a1449adbd3",
+        "readme_bytes": 4608
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1111,19 +1377,43 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "Inventory sha differs from the sha returned by this mapping read. The inventory file was not changed."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.272031+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "d94ff54538318005964904a8489013226a46a2ac177b66c7268a96ee08f291fc",
+        "raw_bytes": 154,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "5d400c9933c04ac01e99f23d5673f3dbd6434271c995d8424ac6120b076ba129",
+        "observed_sha": "4caa36a0fdeb4d54fabe13079cceb031ecfa3471",
+        "inventory_sha": "10fb28afe427a988af2e10cafa8dd1c2e555ea63",
+        "revision_matches_inventory": false,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/tree/4caa36a0fdeb4d54fabe13079cceb031ecfa3471",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "4d63862daa03d02ede7588fffef881cf59a754cbc49dca84880480191749a80f",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/raw/4caa36a0fdeb4d54fabe13079cceb031ecfa3471/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "04ae97c9ba10b178f060ccfb53d5b99640e9d282c24657fcb00da89c9e02f40a",
+        "readme_bytes": 5748
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1201,19 +1491,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.285074+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "47ef4893141029c879c3f481022a49a3b0ebafe40504a4cd648397580a5e4ce7",
+        "raw_bytes": 156,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "a685c5529a5f417a4bb0038c7f705a712665319df90cdb36c864e8632552769c",
+        "observed_sha": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+        "inventory_sha": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1/tree/31d82d6133f20ad26403d21abfd16950d8e19b11",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "e84551d8f10e5130fc46869d274d359ebaf262a04938b46c7fe5f828f6fb9f2f",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1/raw/31d82d6133f20ad26403d21abfd16950d8e19b11/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "aa8e1dc855114949277e5e0bebe12771078098a69a09dec8f0d72fa9153d3a67",
+        "readme_bytes": 1601
+      }
     },
     {
       "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1291,19 +1604,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.347036+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "2930d185be0efd9dbef14015255be0804482691f5896d30cecb9af293a326280",
+        "raw_bytes": 159,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "5cace433718cd94dfebb735942454f4499c2570aaa7ba798dc030efa66e81c2f",
+        "observed_sha": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+        "inventory_sha": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1/tree/f0293f28d7ec45a01c59e40daa93af38e20c308b",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "bb2b36f3dd1b05536fd45c43cdc82d695b0138f9325b40d689869806cca289f5",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1/raw/f0293f28d7ec45a01c59e40daa93af38e20c308b/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "dbee40bc546be629ba4703e107c06480039179879ff4675d708c9913d3c5b64e",
+        "readme_bytes": 1683
+      }
     },
     {
       "id": "SZLHOLDINGS/WILLAY-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1381,19 +1717,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.352902+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "55b335570bf3d634b6412751d08e8f776e2d20b587f4ad041a3c0a73a31847f7",
+        "raw_bytes": 153,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "8e1c863132fbf3e7aa1ed878e57dbcf94beaccaa4d71812aabaf9f6230e9974b",
+        "observed_sha": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
+        "inventory_sha": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY-estate-sft-v1/tree/4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "cf0a2da62278b55132950bd6b293be62670725c15453dd39663c80ee501cf2f8",
+        "filename_count": 9,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/WILLAY-estate-sft-v1/raw/4c2430a4f0c4d9459591019dac73ba4c235ceeb8/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "bed5a2e13c4101f803b016cc4493c931295f34b885d888fcacfdc1b06266283f",
+        "readme_bytes": 1308
+      }
     },
     {
       "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1471,19 +1830,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.427023+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "f9b708f1fba842b465132cd463eff591fc4257f09c08b192fa3b1fa087e96cb9",
+        "raw_bytes": 165,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "8b5a2dac2ad0bc81e211aef244528cf8a1fe03fd8decbd9854e6e8f0f8a7c26e",
+        "observed_sha": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+        "inventory_sha": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1/tree/f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "38d29b469d7f101be498eb061f539eb0169e9dab4ba6d078d0d22c441e229085",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1/raw/f774b4b0b7e3d2a0a640543c95527e932a4e8301/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "0764a75cb02614414c57fb8b8bd47f34bd710456c58564155cb91ea078a9e90a",
+        "readme_bytes": 1382
+      }
     },
     {
       "id": "SZLHOLDINGS/chakana-r1-candidate",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1565,19 +1947,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.447254+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "1b55490880caedff6661513aeaa66a64a48e11b524f8f644dfd166b2503ff4b8",
+        "raw_bytes": 153,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "de4df4ee6481708a4f84816bfa7deceb1681930fa3cceeb4065081a76d4c3e6c",
+        "observed_sha": "73219a8ada0e73ab4216d9e70d730e38455f2425",
+        "inventory_sha": "73219a8ada0e73ab4216d9e70d730e38455f2425",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-candidate/tree/73219a8ada0e73ab4216d9e70d730e38455f2425",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "d38e4cd3d3f5452419ad02d6136b02d2f7eba1e08f172a326b5ba3b296c9deae",
+        "filename_count": 17,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/chakana-r1-candidate/raw/73219a8ada0e73ab4216d9e70d730e38455f2425/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "30fd266793c2fe27f722e345e51a1551881a300ee08a3e5660b50cdd1470c7dd",
+        "readme_bytes": 4079
+      }
     },
     {
       "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1655,19 +2060,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.499197+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "bbfce9da090803c852fc51ebd637d0c8ff8d19618a6ccfbc8eef749656f7d1ef",
+        "raw_bytes": 158,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "fed455b0fcad4462d62aaded97de74d0f7ebaa51d7854f1c782a71906ee3b3e4",
+        "observed_sha": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+        "inventory_sha": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1/tree/0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "1fbc42a9e9ebf0ae7dba654179347384e32a17fd53d3daf34eb284952d20f6c7",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1/raw/0278ef6fb06c622748a1043fa4c7efb9bccc716b/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "eb554f2b8e9b9d5fe83f0b3ae21557714d828400ec8f08a0b69b7667ff2bad80",
+        "readme_bytes": 1347
+      }
     },
     {
       "id": "SZLHOLDINGS/chaski-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1745,19 +2173,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.563603+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "46babab1e09a68733d0d245297b1b860e9248395dfa4feb720fd6e891d9c3b29",
+        "raw_bytes": 153,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "cbb7cc563ce64e38bf52d4ba371de516b0e045f570561f9f4197407305b099c1",
+        "observed_sha": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+        "inventory_sha": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1/tree/4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "82196c132bb4083a1a0bc050996c61eed483939ba51878d7510c6faafd49f973",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1/raw/4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "1320738ba59e778db0de56ef75d9f26a8d695568655aaf25bb83dd3930aea9bb",
+        "readme_bytes": 1608
+      }
     },
     {
       "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1835,19 +2286,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.565231+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "2f514c9eae103a09db094e5e4c4fb1a04289d0ddf618d9b3f1c2b694bac5dc3f",
+        "raw_bytes": 156,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "0364df47ae5ef381c3318398a1d1336780a993416d7500390ec711f762c97846",
+        "observed_sha": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+        "inventory_sha": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1/tree/6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "6d0e589fef5115ef5fd9ff61d5b9d96653c4f8bdbc8b3bc1300dc1fb93593b4b",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1/raw/6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "36b0fdf5e644e05c1a04a9e1ef934df2f99ad2e9dac89abb93c09d9e642a53d8",
+        "readme_bytes": 1337
+      }
     },
     {
       "id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -1931,19 +2405,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.647265+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-r3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "204b39308ed856eb0519ab290724d0cbae007fa91b0e39618ecd7bb812466417",
+        "raw_bytes": 159,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "7e2b179bf074bd3d99fdf89d670b574c230a7e90031eb93da1c46c73f06e0854",
+        "observed_sha": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+        "inventory_sha": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-r3-candidate/tree/492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "f5d72a0c3ceac1eeac51e0f38793d0b7e532fafbf53a720ba4195265ddca330c",
+        "filename_count": 3,
+        "artifact_class": "non_provider_artifact",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/khipu-abstain-r3-candidate/raw/492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "713ddc86b0c2dfae80d134b7cf0e338fd103cfc2d9697d7dd349d353044c7ac7",
+        "readme_bytes": 572
+      }
     },
     {
       "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2021,19 +2518,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.703884+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "074c470aa6ec8241c946a0246752575a68a187e53bfbb36892f24bbfc5cf837e",
+        "raw_bytes": 155,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "91f82405ead9cd283feff6b3579664503e196b2bc806d40fa749e39b92386e8f",
+        "observed_sha": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+        "inventory_sha": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1/tree/b3c240a8540254ef294d9fbc320ff442ef31f393",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "456e8e7a0f6a5428872676f44358071469a5d146499ece1b8d7f36d7ddf06e46",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1/raw/b3c240a8540254ef294d9fbc320ff442ef31f393/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "981a9910c4c139ac15d3b58d41e33346e3665ac47f38a39ca48ca38367ec6298",
+        "readme_bytes": 1318
+      }
     },
     {
       "id": "SZLHOLDINGS/miniembed-nano-r1-candidate",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2117,19 +2637,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.713052+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "0533ef026a588828bba9ad78c33dbad35df13c1d37005dbe429201525db78384",
+        "raw_bytes": 160,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "7d6621cd5b5db00b8adbe08c7e8f87560c8d7919af3fb3aad9084770a2679bf5",
+        "observed_sha": "40e0c6ab9511586014457d354c00f05777b34fd1",
+        "inventory_sha": "40e0c6ab9511586014457d354c00f05777b34fd1",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-r1-candidate/tree/40e0c6ab9511586014457d354c00f05777b34fd1",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "be4824acb42b231bb2dfb1d5d5704722bcef780cd65fa8b0d8845d309bfe9201",
+        "filename_count": 15,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/miniembed-nano-r1-candidate/raw/40e0c6ab9511586014457d354c00f05777b34fd1/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "77895201c2723d1c33e99022ee9dab7d38a9d5f649a371d197eb1edfde5d0f9b",
+        "readme_bytes": 2508
+      }
     },
     {
       "id": "SZLHOLDINGS/oac-ops-health-v2",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2204,19 +2747,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.758461+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-ops-health-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "62711c391f8b7719eca0236b3d8262a94547523053a947bef7b1018408a5809c",
+        "raw_bytes": 150,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "36f3b7204d4181ff1f97cbbd24933ffec7c9d197e3c24d7fe5c85af60456aadd",
+        "observed_sha": "90df75bf58d91ea723128a86d7ed9af57535dbd8",
+        "inventory_sha": "90df75bf58d91ea723128a86d7ed9af57535dbd8",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-ops-health-v2/tree/90df75bf58d91ea723128a86d7ed9af57535dbd8",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "61d1a4e7a29a1653c6a32d1005b4634a267de24aff47a182caf1085f31790627",
+        "filename_count": 7,
+        "artifact_class": "non_provider_artifact",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2/raw/90df75bf58d91ea723128a86d7ed9af57535dbd8/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "2654a48e3e55e20c3f90958765d007d7e6b0a2e0e286f32aaa4f709f71e4dd3a",
+        "readme_bytes": 25675
+      }
     },
     {
       "id": "SZLHOLDINGS/oac-system-health-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2291,19 +2857,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.762153+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-system-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "aa5f3dceb35466b98d144da579bf65d1bcee067fce086389d77d96bdc5e306b3",
+        "raw_bytes": 153,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "60ad41be418747a40d38208b41fb3517d914b77aa058061d406c751a9ffc8a0c",
+        "observed_sha": "a99c3ec1157af351fa24da64f3b413620cae07fe",
+        "inventory_sha": "a99c3ec1157af351fa24da64f3b413620cae07fe",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-system-health-v1/tree/a99c3ec1157af351fa24da64f3b413620cae07fe",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "eeb47869c192f00d760362af71cf4878e84391cc6cbb536e1cee48c1fcdcef78",
+        "filename_count": 7,
+        "artifact_class": "non_provider_artifact",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1/raw/a99c3ec1157af351fa24da64f3b413620cae07fe/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "dd389e911f651a7aa26ff5446d4c6e4ac7c9468fe719af740d263499e59b2990",
+        "readme_bytes": 19117
+      }
     },
     {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2387,19 +2976,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.837753+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "5fe9e2a67d5a79f8bceaa61b706f320723fcc8ba93125c24039d71e4a2ffa85e",
+        "raw_bytes": 183,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "7f6b1d09d91e6c8d72ee98e856f20487ba9ce8521d03adea0206033e83b09ae6",
+        "observed_sha": "b2ec04727f46314b680ee26366159243924c1f67",
+        "inventory_sha": "b2ec04727f46314b680ee26366159243924c1f67",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104/tree/b2ec04727f46314b680ee26366159243924c1f67",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "ce0a48fe2745370bf8f15e7894f1641223b190fce9cc2ec95487fcb4beaee768",
+        "filename_count": 5,
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104/raw/b2ec04727f46314b680ee26366159243924c1f67/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "ca58489fb60802fac036a8fe3f782337ac7c60c408c923f68d0d811bf567adcb",
+        "readme_bytes": 706
+      }
     },
     {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2477,19 +3089,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.872619+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "802b897ee67eae6f359b7bd89e59d5546f8a726cf6ca49f9d5455ec33ed5eb17",
+        "raw_bytes": 168,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "703a94b4c25d966973d6cb07aa8781e1a68cc66ec3743d18bcd9ffdfe4cf21e2",
+        "observed_sha": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+        "inventory_sha": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1/tree/4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "47c4d97094e28e278425f64df55fff5d507e3160f1ed3e6927314db5dbb60caa",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1/raw/4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "25a2c8f0ed94152c79f663bacfff4af161d9c49df967f14d0bad410476fd2658",
+        "readme_bytes": 1799
+      }
     },
     {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2567,19 +3202,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.889389+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "c9a32f7b30ae93ecadd487f769dd64db38b4af1a7b2e4bfc7312c3af1434b289",
+        "raw_bytes": 168,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "9cb3e5f2c669948d9e8d8589af018b599b3466c40552d0a0e0c8e9f1364359cb",
+        "observed_sha": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+        "inventory_sha": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2/tree/af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "8b1dcc3cf76cd72be09bbd2b0e004f5eace6842a563561b78279e74ec2355002",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2/raw/af519f265ff552dd4c47ae3a61b5f62a6f3827d5/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "3ba2b478fadd71bf88ba9d7f1d4361991c96fd2e5a461d6cb0d575343aabf566",
+        "readme_bytes": 2007
+      }
     },
     {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2657,19 +3315,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.925468+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "1796a4cb3585cb442c850bd26dc903f652eec6a172c350059112df101214a914",
+        "raw_bytes": 168,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "c3237b4cc9588365b19dd3011d72e6a7d4ac36c1823a6b2e02f8d3e97c7fc5b3",
+        "observed_sha": "0340c300052e248367a3407aa493ef72a0da79fe",
+        "inventory_sha": "0340c300052e248367a3407aa493ef72a0da79fe",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3/tree/0340c300052e248367a3407aa493ef72a0da79fe",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "a725ea70908f7a1e1b3deded275bd306f3a1ddf004d0691da6d4d2535e8e2d39",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3/raw/0340c300052e248367a3407aa493ef72a0da79fe/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "2a39020e79a6e5f9764e957abc8f4461c72a63903544fa5a440feee87aa2709b",
+        "readme_bytes": 2015
+      }
     },
     {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2747,19 +3428,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:23.986516+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "69d5736ffc36437dee594f614cafd1171dafa3983fab9b4d86050b3644c6c3e5",
+        "raw_bytes": 179,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "173a0d372a2e6dc723549632cba73e747e0d926180730760c6e3cd18b2bc97d3",
+        "observed_sha": "8419537ecad5930f022eb89720e92ba18ed6605d",
+        "inventory_sha": "8419537ecad5930f022eb89720e92ba18ed6605d",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1/tree/8419537ecad5930f022eb89720e92ba18ed6605d",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "22d3e746c63c6fa68d238d479fdfd3137e767734af7275b14aa62b677a08d894",
+        "filename_count": 9,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1/raw/8419537ecad5930f022eb89720e92ba18ed6605d/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "f6fa12051ffb5d6ff299a09a73f5bf4b0f818e1d4ea4af3afbb355ce82b9e8b1",
+        "readme_bytes": 1476
+      }
     },
     {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2837,19 +3541,42 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:24.035685+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "6ffaaab27c844efd48009dfcbced7a3b5804a43efb7d3d218faa44325d415261",
+        "raw_bytes": 178,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "63acfa11d5dc26d8f16861dc270fff8a0462b520ebe73a4b24608969aba793b7",
+        "observed_sha": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+        "inventory_sha": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1/tree/9bde1943e8d60c461391bbcd86ffca340da321a8",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "860edc4681ae32dc01f1aa7bb1fd20150a8522505294901d76db8400b2f5684a",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1/raw/9bde1943e8d60c461391bbcd86ffca340da321a8/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "f3e7f7f171d1d58010ed003b7e478a06fdb0b130673fecc9465c735d639a2826",
+        "readme_bytes": 1433
+      }
     },
     {
       "id": "SZLHOLDINGS/szl-specdecode",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -2924,19 +3651,43 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "Inventory sha differs from the sha returned by this mapping read. The inventory file was not changed."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:24.037945+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-specdecode?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "7ece2b39697376fd6aa71d42921a8bdfb227a35140e90014e71c709348c6a72e",
+        "raw_bytes": 147,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "f34ccc054532d1da473b82883bf0f0fafdca08a3ff8e42b17af4a361132cee21",
+        "observed_sha": "31e589422ceb33461fe0f8d57208ccedccbcf387",
+        "inventory_sha": "eaf60eed9e7c385154be9cd63278c161ee1fe18c",
+        "revision_matches_inventory": false,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-specdecode/tree/31e589422ceb33461fe0f8d57208ccedccbcf387",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "69842f85ad916e3861d93215e02cd5d622cbc65a6aa7b87527ef51b413aca7b6",
+        "filename_count": 2,
+        "artifact_class": "non_provider_artifact",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl-specdecode/raw/31e589422ceb33461fe0f8d57208ccedccbcf387/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "43dba1b0be840b1790763af2305f7bee6f87e25103c4f1f2467b1c96fdc43d6f",
+        "readme_bytes": 1354
+      }
     },
     {
       "id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
       "inventory_observation": "VERIFIED",
       "inference_admission": "UNVERIFIED",
       "exclusion_decision": "ABSENT",
-      "reconciliation": "PROPOSED_HOLD",
-      "activated_in_runtime": false,
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
       "identity": {
         "repo_type": "model",
         "org": "SZLHOLDINGS",
@@ -3014,11 +3765,35 @@
         "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
       },
       "missing_proof": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-07T10:52:24.056321+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl1-experimental-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "5a02b4dfa938b36334f395ae82612d1a25c03d2286417432291bcb2d7dbeb27f",
+        "raw_bytes": 164,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "6d2876379878a6d224a77f300b77facc54cd862463b656b59cc9918eb61413f5",
+        "observed_sha": "e821e660b5940cd988307bba4b5c9a29a09605ec",
+        "inventory_sha": "e821e660b5940cd988307bba4b5c9a29a09605ec",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl1-experimental-estate-sft-v1/tree/e821e660b5940cd988307bba4b5c9a29a09605ec",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "010a4e289dce8c70e80ac3faca4318f1f094d55e70cc10f6451de8f768518398",
+        "filename_count": 11,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl1-experimental-estate-sft-v1/raw/e821e660b5940cd988307bba4b5c9a29a09605ec/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "3fbdc9f45822eb355d2361c972f017f837f7dabdf342470e2b5f1b5225503d7f",
+        "readme_bytes": 1427
+      }
     }
   ],
   "decisions": [
@@ -3031,13 +3806,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D02",
@@ -3048,13 +3822,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D03",
@@ -3065,13 +3838,13 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "Inventory sha differs from the sha returned by this mapping read. The inventory file was not changed."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D04",
@@ -3082,13 +3855,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D05",
@@ -3099,13 +3871,13 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "Inventory sha differs from the sha returned by this mapping read. The inventory file was not changed."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D06",
@@ -3116,13 +3888,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D07",
@@ -3133,13 +3904,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D08",
@@ -3150,13 +3920,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D09",
@@ -3167,13 +3936,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D10",
@@ -3184,13 +3952,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D11",
@@ -3201,13 +3968,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D12",
@@ -3218,13 +3984,13 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "Inventory sha differs from the sha returned by this mapping read. The inventory file was not changed."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D13",
@@ -3235,13 +4001,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D14",
@@ -3252,13 +4017,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D15",
@@ -3269,13 +4033,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D16",
@@ -3286,13 +4049,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D17",
@@ -3303,13 +4065,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D18",
@@ -3320,13 +4081,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D19",
@@ -3337,13 +4097,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D20",
@@ -3354,13 +4113,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D21",
@@ -3371,13 +4129,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D22",
@@ -3388,13 +4145,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D23",
@@ -3405,13 +4161,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D24",
@@ -3422,13 +4177,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D25",
@@ -3439,13 +4193,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D26",
@@ -3456,13 +4209,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D27",
@@ -3473,13 +4225,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D28",
@@ -3490,13 +4241,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D29",
@@ -3507,13 +4257,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D30",
@@ -3524,13 +4273,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D31",
@@ -3541,13 +4289,12 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D32",
@@ -3558,13 +4305,13 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "Inventory sha differs from the sha returned by this mapping read. The inventory file was not changed."
+      ],
+      "admission": "NOT_GRANTED"
     },
     {
       "decision_id": "D33",
@@ -3575,13 +4322,260 @@
         "KEEP_HOLD"
       ],
       "selected": null,
-      "proposal": "PROPOSED_HOLD",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
       "blocked_by": [
-        "Dated assessment bound to this inventory sha, with the README blob URL above.",
-        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
-        "An explicit source-review decision naming this id before it can be added to the support catalog.",
-        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
-      ]
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    }
+  ],
+  "preserved_prior_rows": [
+    {
+      "id": "SZLHOLDINGS/A11OY-MINI",
+      "assessment_hub_revision": "7ea56236ea7988b3915b5ef07548cb2c3930a3cf",
+      "inference_capture_sha256": "1347e0ca8162dc981c9f8bd921e5d2a6da0a28369515a51bd58f8bd03cd1e053",
+      "inference_observed_at": "2026-10-04T16:22:20.567960+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/KHIPU-R2",
+      "assessment_hub_revision": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76",
+      "inference_capture_sha256": "ff3d20343ee85d1d35a8847c9d6cbf7bd23b57b6a79f9f554ca855b1750c97da",
+      "inference_observed_at": "2026-10-04T16:22:20.606778+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/MiniEmbed-Nano",
+      "assessment_hub_revision": "70557d12b91ca556939e559e540b70fb3c2c9e5b",
+      "inference_capture_sha256": "1ff23f5fbcef46c95d80808ae0619c057c9576dc4274c04721d1e2ff29ac2198",
+      "inference_observed_at": "2026-10-04T16:22:20.621148+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/Moons-Nano",
+      "assessment_hub_revision": "4631d0fb54ad90423c3ae76f812ff4d0e80fbfdf",
+      "inference_capture_sha256": "46000a760070a5177b0d02dbf1e37591502546fdb9cb94175ab9c33611d25287",
+      "inference_observed_at": "2026-10-04T16:22:20.618502+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/ReceiptAgent-Nano",
+      "assessment_hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c",
+      "inference_capture_sha256": "db9652098cd08abcc986754da7a8ef0a80e61174c95580fd6e51a98ca4103f04",
+      "inference_observed_at": "2026-10-04T16:22:26.593758+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "assessment_hub_revision": "7fea926b22a99e0e9704d3500741467ae357eec2",
+      "inference_capture_sha256": "0c85302243fdf75fc750960adfa864c50f77c1b4873118913f0d1b377c3537de",
+      "inference_observed_at": "2026-10-04T16:22:26.583433+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "assessment_hub_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329",
+      "inference_capture_sha256": "807ded92057fae7b4f9c69fcfb98c2cf874cbe07b088863bda1fd9e51f23152e",
+      "inference_observed_at": "2026-10-04T16:22:26.588978+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "assessment_hub_revision": "0737ae93c009322e4deffbe89ff34d2155a1b6c1",
+      "inference_capture_sha256": "e18d2120f7161ab78db30dfa3040ab67f50adea8bd542b1da4d0da5a7f480c9b",
+      "inference_observed_at": "2026-10-04T16:22:26.596111+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
+      "assessment_hub_revision": "942c02dd4e94f2cb7cfb0432a051c2db2219ee79",
+      "inference_capture_sha256": "4856c675954b28587d378d86561364667dfad73c371e314bd0f6cd8385601105",
+      "inference_observed_at": "2026-10-04T16:22:34.256206+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/TinyKhipu-Nano",
+      "assessment_hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67",
+      "inference_capture_sha256": "a0a482c68b5fb48af51c2ec8ae01bed83c7b9f95c0fefe051a5d7889b1ca9e32",
+      "inference_observed_at": "2026-10-04T16:22:34.251690+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/WILLAY",
+      "assessment_hub_revision": "96a0ac5c5c26e89f732b72d747b3577e1ea5236f",
+      "inference_capture_sha256": "277bcb223f2cb91bde14a05c0fffac40a4eef66eea8982d07eed343a31fada67",
+      "inference_observed_at": "2026-10-04T16:22:34.283042+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/YARQA-ATTN",
+      "assessment_hub_revision": "d6aeb4f24655c07acc155eed7acade5ad249724f",
+      "inference_capture_sha256": "d9c3db68a7c4dffdc6a2153b3aa756f7d3a58114d449e60a3d37c1fb89e63a20",
+      "inference_observed_at": "2026-10-04T16:22:34.232168+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "assessment_hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+      "inference_capture_sha256": "14776b3f4ec1f246c2bbb8f2729bb0532c36a91a8b675da163d7f02bacd8f076",
+      "inference_observed_at": "2026-10-04T16:22:38.833035+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2",
+      "assessment_hub_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
+      "inference_capture_sha256": "73ea7881fc94a875c086cffab754d5d95110a88db7f93526fc69112523f5975e",
+      "inference_observed_at": "2026-10-04T16:22:38.883798+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski",
+      "assessment_hub_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90",
+      "inference_capture_sha256": "e139dbeeabd46066582da9989851166b5419c0545c1e714535f4747ee91635b3",
+      "inference_observed_at": "2026-10-04T16:22:38.881709+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050",
+      "assessment_hub_revision": "0e324a93761abb7069ce0e40597780e734bf342b",
+      "inference_capture_sha256": "e986a2dfdaeb01172c8c3c5a3c752588714e69e498f32a3f964d45dc02b3a44c",
+      "inference_observed_at": "2026-10-04T16:22:38.883290+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2",
+      "assessment_hub_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45",
+      "inference_capture_sha256": "952d99aed91f9db3c9aa49d39f8626c2895a8de2159615b77219052a73d17e2f",
+      "inference_observed_at": "2026-10-04T16:22:43.219554+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r4",
+      "assessment_hub_revision": "6275945fab2515ee41019eb60703c6b5dbdf5640",
+      "inference_capture_sha256": "5f85ef6e6abd0a145a6f229077e48f135077c2e8c00116e62daf3fb67e66b542",
+      "inference_observed_at": "2026-10-04T16:22:43.221466+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/governed-inference-meter",
+      "assessment_hub_revision": "5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74",
+      "inference_capture_sha256": "b2494204b9a4465df85b0076c983f2eafcd015ea7a995669ef1eb46f7c8f3464",
+      "inference_observed_at": "2026-10-04T16:22:43.267678+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3",
+      "assessment_hub_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64",
+      "inference_capture_sha256": "9044c24f66953ac1010843f146a6135c69836c2621a100077cd0fd63ded35e07",
+      "inference_observed_at": "2026-10-04T16:22:43.220181+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-block-kv",
+      "assessment_hub_revision": "b5e86e4038e630eda94e3bd83cee1c5729d6d826",
+      "inference_capture_sha256": "45914bec2360244e4ae1386c6d8c51e6cc9b5bfcfb899b5ef3574e17d4fdbc58",
+      "inference_observed_at": "2026-10-04T16:22:47.073249+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-blocked",
+      "assessment_hub_revision": "74caaabb4a001fb3d2e8a346c1114008ad9c4f5d",
+      "inference_capture_sha256": "8750dcd90614fa0297d65f2c98979f25a9e901b82c209eceb2e429bd4574d528",
+      "inference_observed_at": "2026-10-04T16:22:47.108354+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-energy-attest",
+      "assessment_hub_revision": "9146d35730139f8b7797dc40b4d5be5547387f1b",
+      "inference_capture_sha256": "262478d912c031893c6c1768711ba6c76deb164e8833c6e8789100b5ce7a9787",
+      "inference_observed_at": "2026-10-04T16:22:51.199825+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-formulas",
+      "assessment_hub_revision": "d3f2dbbb7c59bef13cf1b755edf487bfb2960653",
+      "inference_capture_sha256": "0dad0210bb5f825364a083393fff700963d4af27f369238f7f202181110803db",
+      "inference_observed_at": "2026-10-04T16:22:51.201752+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-governed-norm",
+      "assessment_hub_revision": "5abbd073ff159385be1f4e51c9fee4613cf52513",
+      "inference_capture_sha256": "5c9e0f21678cdcedba36cb045137a3e096008e06cda5d0d530c8b3a96c477cfa",
+      "inference_observed_at": "2026-10-04T16:22:51.245551+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-govsign",
+      "assessment_hub_revision": "52576849d074aa7d251219241fe12888b02f1edd",
+      "inference_capture_sha256": "b766529af64ca89d881112c354af579c99ff0a2642d482ddf3f490ae25bad8bc",
+      "inference_observed_at": "2026-10-04T16:22:51.205405+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-invariants",
+      "assessment_hub_revision": "acfc77fbd3da15bb2a7957f11b3a9c8d81bf4a2c",
+      "inference_capture_sha256": "95c5eafcf7839ddd0e8ffc5c795aa73e3c4d171d7a848db1b1a3a85bca007b4a",
+      "inference_observed_at": "2026-10-04T16:22:55.220875+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-kernels",
+      "assessment_hub_revision": "72df0342e34a1f198dd9c428cca072e9b1389ccd",
+      "inference_capture_sha256": "91d8dc993c04780d0fdb13a78276e4ca37f60900cd5326473316dc9806191081",
+      "inference_observed_at": "2026-10-04T16:22:55.201332+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu",
+      "assessment_hub_revision": "ee635354cb0b3d71965b17a227a374e40071e110",
+      "inference_capture_sha256": "d7919e72542a49ce35c3076c55ac337daacf169b3e0c8e84970fc68652f40e5b",
+      "inference_observed_at": "2026-10-04T16:22:55.224015+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu-kernels",
+      "assessment_hub_revision": "594bc58eb0f691f53f8493fa032be9ee8aab9ff3",
+      "inference_capture_sha256": "7fe3366b6a97c1b7905b2de698626956cff6fa4f8b2068e57519f22c8efd0a74",
+      "inference_observed_at": "2026-10-04T16:22:55.235956+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "assessment_hub_revision": "f0c518b22f488e9f008deed27765c9fced32001e",
+      "inference_capture_sha256": "9d6d8f9c2ec0147aa8f32d302b8987bd868954cbad9ed9879d8dcf0bb75434d0",
+      "inference_observed_at": "2026-10-04T16:22:58.878108+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-maskmod",
+      "assessment_hub_revision": "654a01aaaf86d06471f019cf2f84305703ccc260",
+      "inference_capture_sha256": "a528c57239d6181b4ec3fca38fd38a312a24b235be0135d8b78fabfcee97f060",
+      "inference_observed_at": "2026-10-04T16:22:58.875585+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-nemo",
+      "assessment_hub_revision": "8ba68dcf72f0b9e40c8114e5dd4e341aa7fac7b7",
+      "inference_capture_sha256": "1e02e7361a979f8c3e02cc677b9d14d5553151a8cd035de67ba1c20e507222fd",
+      "inference_observed_at": "2026-10-04T16:22:58.852850+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-ouroboros",
+      "assessment_hub_revision": "ea49dcae37ea15e155b77f837f21a668871c6673",
+      "inference_capture_sha256": "e07619c720012d2fce04e6ec121c7d08d9be04eabdb97770f54dacd80fc88ec7",
+      "inference_observed_at": "2026-10-04T16:22:58.889873+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provctl",
+      "assessment_hub_revision": "4e688726df8de19f2eafd1382d448fdf37e475d0",
+      "inference_capture_sha256": "ab6a764bd405a753d4b2645a9ed152ae77639abe9802cb6f906cd250db7e299a",
+      "inference_observed_at": "2026-10-04T16:23:02.831254+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receipt-attn",
+      "assessment_hub_revision": "e1383537e2dd74316a07fcbb683352af62dd24b0",
+      "inference_capture_sha256": "9dd6bd1be557cae509c3e7ba71ffc08db317e6691e9466996732216d3618d19e",
+      "inference_observed_at": "2026-10-04T16:23:02.808677+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "assessment_hub_revision": "fcb1f08c3925daeabcdca4c90c637a775a8ea7ca",
+      "inference_capture_sha256": "f557c6ff36358cad50c2abc0351a5653b91534f4339235191b4e57a07c7d1e4c",
+      "inference_observed_at": "2026-10-04T16:23:02.788763+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+      "assessment_hub_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+      "inference_capture_sha256": "357db72db551ad6c103ba9ea94ef35041408f4ffc631600ec92c391c855da32d",
+      "inference_observed_at": "2026-10-04T16:23:02.822332+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
+      "assessment_hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
+      "inference_capture_sha256": "ead0bd68d566ed3c793051d289ede53d6c2b89036088d0e9b309adef4dd5773f",
+      "inference_observed_at": "2026-10-04T16:23:06.687420+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+      "assessment_hub_revision": "d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5",
+      "inference_capture_sha256": "5b628462e687a93a9ed8afb29c969201982c64bf075658f30ec3c7ae94ee82dc",
+      "inference_observed_at": "2026-10-04T16:23:10.355451+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+      "assessment_hub_revision": "96546ad212115e80012fb1ccb93cdab912d00538",
+      "inference_capture_sha256": "520d714be5e3468f1d2d6e7f355c96bdc01a1cb5c37339deb4d70c074239708b",
+      "inference_observed_at": "2026-10-04T16:23:10.310795+00:00"
     }
   ]
 }

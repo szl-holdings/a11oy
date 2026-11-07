@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-10-09T15:43:25.693184+00:00",
+  "generated_at": "2026-11-07T10:52:24.056321+00:00",
   "inventory_source": {
-    "model_ids_sha256": "5b5e668c8b1c9b69b8e0d9562d74f9265080d8ddc9a28319fda56dfc5c03e5d5",
+    "model_ids_sha256": "16e2cd8555216b849b443f1c81e91ed26dd5c8a12fa18d4a2b032397643d0ac2",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -84,6 +84,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
+        "observed_at": "2026-11-07T10:52:22.846520+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 79c0efc23dbdb7f0a394125f811d0a3bb602b36f matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1618 bytes, sha256 fe914de3ae23dbd704339f656b4663022a3e8b7b49addb1654110ba0525529b1. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2-estate-sft-v1/blob/79c0efc23dbdb7f0a394125f811d0a3bb602b36f/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/KHIPU-R2-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "bf0b4b06d71e240d85f3a3d60587376de179bbe98d8151fecc75e9ead73aa794",
+        "error": null,
+        "hub_revision": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
+        "observed_at": "2026-11-07T10:52:22.846520+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "numpy_model_bundle",
         "hub_revision": "70557d12b91ca556939e559e540b70fb3c2c9e5b",
         "observed_at": "2026-10-04T15:31:57.873108+00:00",
@@ -138,6 +165,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+        "observed_at": "2026-11-07T10:52:22.848331+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 2939ccd8e30d19c8209086893b75379dbf3c27b4 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 23 bytes, sha256 5cd90383fd9b88cdd9481555d2576cfa76d216de0eb2530b680dd649bce822d6. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/blob/2939ccd8e30d19c8209086893b75379dbf3c27b4/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "a2f7144253caafbeeaa84638e3977d2a19fd850be2717389dd63cf62d466c3eb",
+        "error": null,
+        "hub_revision": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+        "observed_at": "2026-11-07T10:52:22.848331+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "numpy_model_bundle",
         "hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c",
         "observed_at": "2026-10-04T15:31:57.874465+00:00",
@@ -155,6 +209,33 @@
         "observed_at": "2026-10-04T16:22:26.593758+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ReceiptAgent-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "382e9c263b568b68967972d28803bf567746e1de",
+        "observed_at": "2026-11-07T10:52:22.848752+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 382e9c263b568b68967972d28803bf567746e1de differs from inventory revision 344fac66fa7c469b6c2779cbaffca38240a995c2. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 4144 bytes, sha256 64a2feb07739553577963f5c575df44279b5ea118bc92f17f2986f3dd1cb94d5. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/blob/382e9c263b568b68967972d28803bf567746e1de/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "ed81bdfaeddb39e720f136426a465aecbcb603e25957a95f22adc205876c3dee",
+        "error": null,
+        "hub_revision": "382e9c263b568b68967972d28803bf567746e1de",
+        "observed_at": "2026-11-07T10:52:22.848752+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -203,6 +284,60 @@
           }
         ],
         "state": "PRIOR_DISCUSSION_RECORDED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
+        "observed_at": "2026-11-07T10:52:22.849077+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1713 bytes, sha256 4f3cadec4c9a1af1cb770be5ba0bcd4092626557bfecdade26bc7a40b63e240f. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1/blob/d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "13089cb5dcbc0694e459508b4100b1fdcf2b66861c06b479379c0c1fe7749722",
+        "error": null,
+        "hub_revision": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
+        "observed_at": "2026-11-07T10:52:22.849077+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0",
+        "observed_at": "2026-11-07T10:52:22.987019+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0 differs from inventory revision cba180bb76d8880b4098ff458dda4cddb859ce90. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 4246 bytes, sha256 c81d1f943f2727c6ef864ce84abd9a3da23a4f8175745306532d853bc96d99f4. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/blob/c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9d88014d6adefb3d09c5d5088a4c0996fe18d21dc9e22167797f04a2aba93202",
+        "error": null,
+        "hub_revision": "c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0",
+        "observed_at": "2026-11-07T10:52:22.987019+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
       }
     },
     {
@@ -303,6 +438,249 @@
     },
     {
       "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "b4ae083265f2f0a6749af4111162d3582dc4dace",
+        "observed_at": "2026-11-07T10:52:22.991475+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision b4ae083265f2f0a6749af4111162d3582dc4dace matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1922 bytes, sha256 2b9745c897111537b199e8535850b73c527925f0b257c3453dec869bca49d796. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1/blob/b4ae083265f2f0a6749af4111162d3582dc4dace/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "aa9dcde3493d0333d595da731906e65818f1a101f8ed4c4c6da21c879160f220",
+        "error": null,
+        "hub_revision": "b4ae083265f2f0a6749af4111162d3582dc4dace",
+        "observed_at": "2026-11-07T10:52:22.991475+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
+        "observed_at": "2026-11-07T10:52:22.998301+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1779 bytes, sha256 c338d34c820ca7e65231057d82c282474a19beeea935aea453bc6fe07849f20a. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2/blob/15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "322b4b930dfff91be6bf5f63cff914eb74c0c0c771f3a23400c5f81a8f2fdecd",
+        "error": null,
+        "hub_revision": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
+        "observed_at": "2026-11-07T10:52:22.998301+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "decebd8be9255239c1507ebc61159099d38ba6bc",
+        "observed_at": "2026-11-07T10:52:23.043846+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision decebd8be9255239c1507ebc61159099d38ba6bc matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2078 bytes, sha256 c80417decc13c5ab3b820a2f193a8b58718495bc272c87576a2b17cced43eb3a. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/blob/decebd8be9255239c1507ebc61159099d38ba6bc/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "63078222ff59418ecd6451ed455d0bd1caede4969b335eaabd852a10b5e0070a",
+        "error": null,
+        "hub_revision": "decebd8be9255239c1507ebc61159099d38ba6bc",
+        "observed_at": "2026-11-07T10:52:23.043846+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+        "observed_at": "2026-11-07T10:52:23.132039+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 3b330741a7ecee572a7a51c5a3dd023788da8973 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2912 bytes, sha256 29286fcf2901dcfa691d8b661c599bb7f9374ca969e70fa65ee955355ba04b50. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/blob/3b330741a7ecee572a7a51c5a3dd023788da8973/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "23e165d350708f4dcd375b2c1b29bd0e6484b3b45db1317c2b563bc9ecb46719",
+        "error": null,
+        "hub_revision": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+        "observed_at": "2026-11-07T10:52:23.132039+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+        "observed_at": "2026-11-07T10:52:23.168826+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision edd649ffcfae89d0a5b5cc889b5cbe0848336e01 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1584 bytes, sha256 0204c45353944bd6d7f22c819879e6b35e572545a1dd982bd5033b2ff9b690d8. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/blob/edd649ffcfae89d0a5b5cc889b5cbe0848336e01/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "98ff181c277a61452055ad9c8c8d1fb5cb877e169ac6307a90b923f9907aaa0a",
+        "error": null,
+        "hub_revision": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+        "observed_at": "2026-11-07T10:52:23.168826+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+        "observed_at": "2026-11-07T10:52:23.191871+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 8dd86a98a71d52d24ee23b51ef75ed9b6213c69f matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 4608 bytes, sha256 728fd06333d747a210f565cce321db473c9b32e046cb93d7198b95a1449adbd3. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/blob/8dd86a98a71d52d24ee23b51ef75ed9b6213c69f/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "16ccf16aaa6162e0db51f5515bf5b64fd0f7cafe6b7f59b1a847226e93fd3bf0",
+        "error": null,
+        "hub_revision": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+        "observed_at": "2026-11-07T10:52:23.191871+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "4caa36a0fdeb4d54fabe13079cceb031ecfa3471",
+        "observed_at": "2026-11-07T10:52:23.272031+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4caa36a0fdeb4d54fabe13079cceb031ecfa3471 differs from inventory revision 10fb28afe427a988af2e10cafa8dd1c2e555ea63. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 5748 bytes, sha256 04ae97c9ba10b178f060ccfb53d5b99640e9d282c24657fcb00da89c9e02f40a. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/blob/4caa36a0fdeb4d54fabe13079cceb031ecfa3471/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "5d400c9933c04ac01e99f23d5673f3dbd6434271c995d8424ac6120b076ba129",
+        "error": null,
+        "hub_revision": "4caa36a0fdeb4d54fabe13079cceb031ecfa3471",
+        "observed_at": "2026-11-07T10:52:23.272031+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+        "observed_at": "2026-11-07T10:52:23.285074+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 31d82d6133f20ad26403d21abfd16950d8e19b11 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1601 bytes, sha256 aa8e1dc855114949277e5e0bebe12771078098a69a09dec8f0d72fa9153d3a67. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1/blob/31d82d6133f20ad26403d21abfd16950d8e19b11/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "a685c5529a5f417a4bb0038c7f705a712665319df90cdb36c864e8632552769c",
+        "error": null,
+        "hub_revision": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+        "observed_at": "2026-11-07T10:52:23.285074+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+        "observed_at": "2026-11-07T10:52:23.347036+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision f0293f28d7ec45a01c59e40daa93af38e20c308b matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1683 bytes, sha256 dbee40bc546be629ba4703e107c06480039179879ff4675d708c9913d3c5b64e. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1/blob/f0293f28d7ec45a01c59e40daa93af38e20c308b/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "5cace433718cd94dfebb735942454f4499c2570aaa7ba798dc030efa66e81c2f",
+        "error": null,
+        "hub_revision": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+        "observed_at": "2026-11-07T10:52:23.347036+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "numpy_model_bundle",
         "hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67",
         "observed_at": "2026-10-04T15:32:07.513623+00:00",
@@ -368,6 +746,33 @@
           }
         ],
         "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
+        "observed_at": "2026-11-07T10:52:23.352902+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4c2430a4f0c4d9459591019dac73ba4c235ceeb8 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1308 bytes, sha256 bed5a2e13c4101f803b016cc4493c931295f34b885d888fcacfdc1b06266283f. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/WILLAY-estate-sft-v1/blob/4c2430a4f0c4d9459591019dac73ba4c235ceeb8/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/WILLAY-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "8e1c863132fbf3e7aa1ed878e57dbcf94beaccaa4d71812aabaf9f6230e9974b",
+        "error": null,
+        "hub_revision": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
+        "observed_at": "2026-11-07T10:52:23.352902+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
       }
     },
     {
@@ -484,6 +889,60 @@
     {
       "assessment": {
         "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+        "observed_at": "2026-11-07T10:52:23.427023+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision f774b4b0b7e3d2a0a640543c95527e932a4e8301 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1382 bytes, sha256 0764a75cb02614414c57fb8b8bd47f34bd710456c58564155cb91ea078a9e90a. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1/blob/f774b4b0b7e3d2a0a640543c95527e932a4e8301/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "8b5a2dac2ad0bc81e211aef244528cf8a1fe03fd8decbd9854e6e8f0f8a7c26e",
+        "error": null,
+        "hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+        "observed_at": "2026-11-07T10:52:23.427023+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "73219a8ada0e73ab4216d9e70d730e38455f2425",
+        "observed_at": "2026-11-07T10:52:23.447254+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 73219a8ada0e73ab4216d9e70d730e38455f2425 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 4079 bytes, sha256 30fd266793c2fe27f722e345e51a1551881a300ee08a3e5660b50cdd1470c7dd. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chakana-r1-candidate/blob/73219a8ada0e73ab4216d9e70d730e38455f2425/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/chakana-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "de4df4ee6481708a4f84816bfa7deceb1681930fa3cceeb4065081a76d4c3e6c",
+        "error": null,
+        "hub_revision": "73219a8ada0e73ab4216d9e70d730e38455f2425",
+        "observed_at": "2026-11-07T10:52:23.447254+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
         "hub_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90",
         "observed_at": "2026-10-04T15:32:16.995610+00:00",
         "qualification_note": "publication_eligible=false; historical named-N run failed both release gates. Conditional-generation full checkpoint and separate LoRA must not be confused.",
@@ -568,6 +1027,60 @@
     {
       "assessment": {
         "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+        "observed_at": "2026-11-07T10:52:23.499197+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 0278ef6fb06c622748a1043fa4c7efb9bccc716b matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1347 bytes, sha256 eb554f2b8e9b9d5fe83f0b3ae21557714d828400ec8f08a0b69b7667ff2bad80. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1/blob/0278ef6fb06c622748a1043fa4c7efb9bccc716b/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "fed455b0fcad4462d62aaded97de74d0f7ebaa51d7854f1c782a71906ee3b3e4",
+        "error": null,
+        "hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+        "observed_at": "2026-11-07T10:52:23.499197+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+        "observed_at": "2026-11-07T10:52:23.563603+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1608 bytes, sha256 1320738ba59e778db0de56ef75d9f26a8d695568655aaf25bb83dd3930aea9bb. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1/blob/4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "cbb7cc563ce64e38bf52d4ba371de516b0e045f570561f9f4197407305b099c1",
+        "error": null,
+        "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+        "observed_at": "2026-11-07T10:52:23.563603+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
         "hub_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45",
         "observed_at": "2026-10-04T15:32:16.962329+00:00",
         "qualification_note": "HOLD, not promotable. Canonical held-out 1/5 FAIL remains despite later named-N adapter envelope results. Merged runtime needs its own byte-bound gate.",
@@ -605,6 +1118,33 @@
           }
         ],
         "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+        "observed_at": "2026-11-07T10:52:23.565231+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1337 bytes, sha256 36b0fdf5e644e05c1a04a9e1ef934df2f99ad2e9dac89abb93c09d9e642a53d8. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1/blob/6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0364df47ae5ef381c3318398a1d1336780a993416d7500390ec711f762c97846",
+        "error": null,
+        "hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+        "observed_at": "2026-11-07T10:52:23.565231+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
       }
     },
     {
@@ -663,6 +1203,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+        "observed_at": "2026-11-07T10:52:23.647265+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d matches the inventory revision. The file list at that revision shows no safetensors, GGUF, adapter, or numpy weight file. README.md returned HTTP 200 and 572 bytes, sha256 713ddc86b0c2dfae80d134b7cf0e338fd103cfc2d9697d7dd349d353044c7ac7. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-abstain-r3-candidate/blob/492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "7e2b179bf074bd3d99fdf89d670b574c230a7e90031eb93da1c46c73f06e0854",
+        "error": null,
+        "hub_revision": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+        "observed_at": "2026-11-07T10:52:23.647265+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-r3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64",
         "observed_at": "2026-10-04T15:32:26.104310+00:00",
@@ -701,6 +1268,114 @@
           }
         ],
         "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+        "observed_at": "2026-11-07T10:52:23.703884+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision b3c240a8540254ef294d9fbc320ff442ef31f393 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1318 bytes, sha256 981a9910c4c139ac15d3b58d41e33346e3665ac47f38a39ca48ca38367ec6298. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1/blob/b3c240a8540254ef294d9fbc320ff442ef31f393/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "91f82405ead9cd283feff6b3579664503e196b2bc806d40fa749e39b92386e8f",
+        "error": null,
+        "hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+        "observed_at": "2026-11-07T10:52:23.703884+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "40e0c6ab9511586014457d354c00f05777b34fd1",
+        "observed_at": "2026-11-07T10:52:23.713052+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 40e0c6ab9511586014457d354c00f05777b34fd1 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2508 bytes, sha256 77895201c2723d1c33e99022ee9dab7d38a9d5f649a371d197eb1edfde5d0f9b. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/miniembed-nano-r1-candidate/blob/40e0c6ab9511586014457d354c00f05777b34fd1/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/miniembed-nano-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "7d6621cd5b5db00b8adbe08c7e8f87560c8d7919af3fb3aad9084770a2679bf5",
+        "error": null,
+        "hub_revision": "40e0c6ab9511586014457d354c00f05777b34fd1",
+        "observed_at": "2026-11-07T10:52:23.713052+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "90df75bf58d91ea723128a86d7ed9af57535dbd8",
+        "observed_at": "2026-11-07T10:52:23.758461+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 90df75bf58d91ea723128a86d7ed9af57535dbd8 matches the inventory revision. The file list at that revision shows no safetensors, GGUF, adapter, or numpy weight file. README.md returned HTTP 200 and 25675 bytes, sha256 2654a48e3e55e20c3f90958765d007d7e6b0a2e0e286f32aaa4f709f71e4dd3a. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2/blob/90df75bf58d91ea723128a86d7ed9af57535dbd8/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "36f3b7204d4181ff1f97cbbd24933ffec7c9d197e3c24d7fe5c85af60456aadd",
+        "error": null,
+        "hub_revision": "90df75bf58d91ea723128a86d7ed9af57535dbd8",
+        "observed_at": "2026-11-07T10:52:23.758461+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-ops-health-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "a99c3ec1157af351fa24da64f3b413620cae07fe",
+        "observed_at": "2026-11-07T10:52:23.762153+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision a99c3ec1157af351fa24da64f3b413620cae07fe matches the inventory revision. The file list at that revision shows no safetensors, GGUF, adapter, or numpy weight file. README.md returned HTTP 200 and 19117 bytes, sha256 dd389e911f651a7aa26ff5446d4c6e4ac7c9468fe719af740d263499e59b2990. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1/blob/a99c3ec1157af351fa24da64f3b413620cae07fe/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/oac-system-health-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "60ad41be418747a40d38208b41fb3517d914b77aa058061d406c751a9ffc8a0c",
+        "error": null,
+        "hub_revision": "a99c3ec1157af351fa24da64f3b413620cae07fe",
+        "observed_at": "2026-11-07T10:52:23.762153+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-system-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
       }
     },
     {
@@ -1183,6 +1858,114 @@
     {
       "assessment": {
         "artifact_class": "adapter_bundle",
+        "hub_revision": "b2ec04727f46314b680ee26366159243924c1f67",
+        "observed_at": "2026-11-07T10:52:23.837753+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision b2ec04727f46314b680ee26366159243924c1f67 matches the inventory revision. The file list at that revision shows adapter_config.json and adapter_model.safetensors. README.md returned HTTP 200 and 706 bytes, sha256 ca58489fb60802fac036a8fe3f782337ac7c60c408c923f68d0d811bf567adcb. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104/blob/b2ec04727f46314b680ee26366159243924c1f67/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "7f6b1d09d91e6c8d72ee98e856f20487ba9ce8521d03adea0206033e83b09ae6",
+        "error": null,
+        "hub_revision": "b2ec04727f46314b680ee26366159243924c1f67",
+        "observed_at": "2026-11-07T10:52:23.837753+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+        "observed_at": "2026-11-07T10:52:23.872619+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1799 bytes, sha256 25a2c8f0ed94152c79f663bacfff4af161d9c49df967f14d0bad410476fd2658. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1/blob/4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "703a94b4c25d966973d6cb07aa8781e1a68cc66ec3743d18bcd9ffdfe4cf21e2",
+        "error": null,
+        "hub_revision": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+        "observed_at": "2026-11-07T10:52:23.872619+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+        "observed_at": "2026-11-07T10:52:23.889389+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision af519f265ff552dd4c47ae3a61b5f62a6f3827d5 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2007 bytes, sha256 3ba2b478fadd71bf88ba9d7f1d4361991c96fd2e5a461d6cb0d575343aabf566. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2/blob/af519f265ff552dd4c47ae3a61b5f62a6f3827d5/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9cb3e5f2c669948d9e8d8589af018b599b3466c40552d0a0e0c8e9f1364359cb",
+        "error": null,
+        "hub_revision": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+        "observed_at": "2026-11-07T10:52:23.889389+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "0340c300052e248367a3407aa493ef72a0da79fe",
+        "observed_at": "2026-11-07T10:52:23.925468+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 0340c300052e248367a3407aa493ef72a0da79fe matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2015 bytes, sha256 2a39020e79a6e5f9764e957abc8f4461c72a63903544fa5a440feee87aa2709b. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3/blob/0340c300052e248367a3407aa493ef72a0da79fe/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "c3237b4cc9588365b19dd3011d72e6a7d4ac36c1823a6b2e02f8d3e97c7fc5b3",
+        "error": null,
+        "hub_revision": "0340c300052e248367a3407aa493ef72a0da79fe",
+        "observed_at": "2026-11-07T10:52:23.925468+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
         "hub_revision": "fcb1f08c3925daeabcdca4c90c637a775a8ea7ca",
         "observed_at": "2026-10-04T15:33:00.143713+00:00",
         "qualification_note": "Historical 2026-07-29 publicationEligible=true is bounded to its named release, with autonomyEligible=false. Later adapter/current Hub head does not inherit an unmeasured hosted-runtime qualification.",
@@ -1252,6 +2035,33 @@
     {
       "assessment": {
         "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
+        "observed_at": "2026-11-07T10:52:23.986516+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 8419537ecad5930f022eb89720e92ba18ed6605d matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1476 bytes, sha256 f6fa12051ffb5d6ff299a09a73f5bf4b0f818e1d4ea4af3afbb355ce82b9e8b1. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1/blob/8419537ecad5930f022eb89720e92ba18ed6605d/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "173a0d372a2e6dc723549632cba73e747e0d926180730760c6e3cd18b2bc97d3",
+        "error": null,
+        "hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
+        "observed_at": "2026-11-07T10:52:23.986516+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
         "hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
         "observed_at": "2026-10-04T15:33:00.148956+00:00",
         "qualification_note": "Separate non-release research placeholder, not promotable; development 12/12 is not held-out or release clearance. Authenticated v3 target is a different, currently empty repository.",
@@ -1289,6 +2099,60 @@
           }
         ],
         "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+        "observed_at": "2026-11-07T10:52:24.035685+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 9bde1943e8d60c461391bbcd86ffca340da321a8 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1433 bytes, sha256 f3e7f7f171d1d58010ed003b7e478a06fdb0b130673fecc9465c735d639a2826. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1/blob/9bde1943e8d60c461391bbcd86ffca340da321a8/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "63acfa11d5dc26d8f16861dc270fff8a0462b520ebe73a4b24608969aba793b7",
+        "error": null,
+        "hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+        "observed_at": "2026-11-07T10:52:24.035685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "31e589422ceb33461fe0f8d57208ccedccbcf387",
+        "observed_at": "2026-11-07T10:52:24.037945+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 31e589422ceb33461fe0f8d57208ccedccbcf387 differs from inventory revision eaf60eed9e7c385154be9cd63278c161ee1fe18c. The file list at that revision shows no safetensors, GGUF, adapter, or numpy weight file. README.md returned HTTP 200 and 1354 bytes, sha256 43dba1b0be840b1790763af2305f7bee6f87e25103c4f1f2467b1c96fdc43d6f. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-specdecode/blob/31e589422ceb33461fe0f8d57208ccedccbcf387/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/szl-specdecode",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "f34ccc054532d1da473b82883bf0f0fafdca08a3ff8e42b17af4a361132cee21",
+        "error": null,
+        "hub_revision": "31e589422ceb33461fe0f8d57208ccedccbcf387",
+        "observed_at": "2026-11-07T10:52:24.037945+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-specdecode?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
       }
     },
     {
@@ -1337,6 +2201,33 @@
         "observed_at": "2026-10-04T16:23:10.310795+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "e821e660b5940cd988307bba4b5c9a29a09605ec",
+        "observed_at": "2026-11-07T10:52:24.056321+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision e821e660b5940cd988307bba4b5c9a29a09605ec matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1427 bytes, sha256 3fbdc9f45822eb355d2361c972f017f837f7dabdf342470e2b5f1b5225503d7f. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl1-experimental-estate-sft-v1/blob/e821e660b5940cd988307bba4b5c9a29a09605ec/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "6d2876379878a6d224a77f300b77facc54cd862463b656b59cc9918eb61413f5",
+        "error": null,
+        "hub_revision": "e821e660b5940cd988307bba4b5c9a29a09605ec",
+        "observed_at": "2026-11-07T10:52:24.056321+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl1-experimental-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
