@@ -64,16 +64,17 @@ Base: `https://szlholdings-a11oy.hf.space`
 | GET | `/api/a11oy/v1/puriq/formulas` | PURIQ formula catalog (master formula + axes). 8 PROVED ({F1,F4,F7,F11,F12,F18,F19,F22}) recompute live with a fresh Khipu receipt chain. |
 | GET | `/api/a11oy/v1/puriq/formulas/{id}` | One formula, recomputed live (e.g. `/F1`, `/F11`, `/F12`, `/F18`, `/F19`). |
 | POST | `/api/a11oy/v2/unay/recall` | Unay memory recall (semantic lookup over governed memory). |
-| GET | `/api/a11oy/v1/mcp/tools` · POST `/api/a11oy/v1/mcp/call` | **Canonical live MCP surface** — JSON tool catalog + tool invocation (currently 4 governed tools: `a11oy_gate`, `lambda_score`, …). |
+| GET | `/api/a11oy/v1/mcp/tools` | REST tool catalog. The count is whatever this response returns. |
+| POST | `/api/a11oy/v1/mcp/call` | Operator Bearer required. Body is `{"name","arguments"}`. Anonymous callers receive HTTP 401 before the tool runs. |
+| GET, POST | `/mcp/` | JSON-RPC discovery and `initialize`, `tools/list`, `tools/call`. `GET` does not mint a receipt. `sign_receipt` is operator-only. |
 | GET | `/viz/khipu` · `/viz/doctrine` · `/viz/router` | Live Three.js visualizations. |
-| GET | `/mcp/` | Hatun-MCP **landing page** (HTML). The Streamable-HTTP JSON-RPC transport is **roadmap, not live** — see honest note below. |
 
-### MCP — honest live status
-The **live, working** MCP surface is `GET /api/a11oy/v1/mcp/tools` (JSON catalog, **4 tools** today) and
-`POST /api/a11oy/v1/mcp/call`. The Streamable-HTTP JSON-RPC server at `/mcp/` (the "16-tool Hatun-MCP"
-described in [MCP_INTEGRATION.md](./MCP_INTEGRATION.md)) is **NOT yet served as a JSON-RPC transport** —
-a `POST /mcp/` `initialize`/`tools/list` returns **HTTP 405** on the deployed Space; `GET /mcp/` serves
-an HTML landing page. Use the `/api/a11oy/v1/mcp/*` REST surface until the JSON-RPC transport ships.
+### MCP — request contract
+`GET /mcp/` returns the runtime JSON catalog. `POST /mcp/` accepts JSON-RPC. Neither is an HTML
+landing page. `POST /api/a11oy/v1/mcp/call` reads `name` and `arguments`; a body shaped as
+`{"tool","args"}` does not select a tool. That REST call is an operator action. It is not an
+invited-tester action, and the origin does not treat a payment header as authorization or as
+settlement. See [MCP_INTEGRATION.md](./MCP_INTEGRATION.md).
 
 ---
 
