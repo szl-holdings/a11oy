@@ -77,8 +77,43 @@ def test_acoustic_ns_pathway_labels_verbatim(client):
     assert r.status_code == 200
     d = r.json()
     _assert_honest_labels(d)
+    assert d["label"] == "MODELED"
     labels = {v["label"] for v in d["operating_values"].values()}
     assert labels <= {"HYPOTHESIS_UNVERIFIED", "NOT_ESTABLISHED", "HYPOTHESIS_FROM_PROVED_PROPERTY"}
+    assert "MEASURED" not in json.dumps(d["operating_values"])
+
+
+def test_acoustic_index_does_not_call_the_declared_pathway_measured(client):
+    d = client.get("/v1/acoustic/").json()
+    assert d["label"] == "DERIVED"
+    assert "ns-pathway returns declared operating values" in d["note"]
+
+
+_PAYMENT_SPOOF = {
+    "payment-signature": "not-a-real-signature",
+    "x-payment-verified": "true",
+}
+
+
+def test_burgers_is_the_supported_paid_read_and_mints_no_receipt(client):
+    """GET /v1/acoustic/burgers is the supported acoustic check.
+
+    Origin does not read a payment header, does not mint a receipt, and does
+    not treat a spoofed payment header as settlement. POST is the wrong method.
+    """
+    plain = client.get("/v1/acoustic/burgers")
+    spoofed = client.get("/v1/acoustic/burgers", headers=_PAYMENT_SPOOF)
+    assert plain.status_code == 200
+    assert spoofed.status_code == 200
+    body = plain.json()
+    assert body["label"] == "MEASURED"
+    assert body["result"]["refinement_holds"] is True
+    assert "receipt" not in body and "signature" not in body
+    assert "payment-response" not in {k.lower() for k in plain.headers}
+    assert spoofed.json()["result"]["errors_l1"] == body["result"]["errors_l1"]
+    assert "settlement" not in spoofed.text.lower()
+    wrong = client.post("/v1/acoustic/burgers", json={})
+    assert wrong.status_code == 405
 
 
 def test_dataset_catalog(client):
