@@ -3,6 +3,7 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Missing, partial, and failed inventory reads stay denied. They do not raise or admit."""
 
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -44,9 +45,69 @@ def _denied(result, state, reason):
     assert all(value is False for value in result["authority"].values())
 
 
-def test_current_inventory_gap_is_blocked_without_an_index_error():
-    result = support.public_status()
+_FIXTURE_WHEN = "2026-10-04T12:00:00Z"
+_COVERED = "SZLHOLDINGS/synthetic-coverage-a"
+_UNREVIEWED = "SZLHOLDINGS/synthetic-coverage-b"
+
+
+def _synthetic_document(model_ids):
+    """One internally valid catalog row. The mismatch is the inventory fixture."""
+    revision = "a" * 40
+    models = []
+    for model_id in model_ids:
+        models.append({
+            "id": model_id,
+            "repo_type": "model",
+            "assessment": {
+                "hub_revision": revision,
+                "observed_at": _FIXTURE_WHEN,
+                "source_url": f"https://huggingface.co/{model_id}/blob/{revision}/README.md",
+                "artifact_class": "non_provider_artifact",
+                "qualification_note": "Synthetic fixture. This row grants no serving route.",
+                "request_disposition": "No support request is recorded.",
+                "suggested_route": "No serving route is authorized.",
+            },
+            "inference": support.observation_from_mapping(model_id, {
+                "id": model_id, "sha": revision, "inferenceProviderMapping": {},
+            }, _FIXTURE_WHEN),
+            "support": {"state": "NO_RECORDED_REQUEST", "requests": []},
+        })
+    return {
+        "$comment": support.NOTICE,
+        "schema": support.SCHEMA,
+        "generated_at": _FIXTURE_WHEN,
+        "organization": "SZLHOLDINGS",
+        "scope": "PUBLIC_MODEL_NAMESPACE_ONLY",
+        "inventory_source": {
+            "path": "docs/huggingface-ecosystem-manifest.json",
+            "model_ids_sha256": hashlib.sha256(support.canonical_bytes(list(model_ids))).hexdigest(),
+        },
+        "max_observation_age_seconds": support.MAX_AGE_SECONDS,
+        "authority": dict(support.AUTHORITY),
+        "models": models,
+        "unmatched_prior_requests": [],
+    }
+
+
+def _mismatch_paths(tmp_path):
+    document = _synthetic_document([_COVERED])
+    support.validate_document(document)
+    source = _write(tmp_path, "support.json", document)
+    inventory = _write(tmp_path, "inventory.json", _inventory([_COVERED, _UNREVIEWED]))
+    return source, inventory
+
+
+def test_synthetic_inventory_mismatch_is_blocked_without_an_index_error(tmp_path):
+    source, inventory = _mismatch_paths(tmp_path)
+    exact = _write(tmp_path, "exact.json", _inventory([_COVERED]))
+    projected = support.public_status(source, inventory_path=exact, now=_FIXTURE_WHEN)
+    assert projected["state"] == "SOURCE_OBSERVATIONS"
+    assert [row["id"] for row in projected["models"]] == [_COVERED]
+    assert projected["authority"] == support.AUTHORITY
+    assert "admission" not in projected
+    result = support.public_status(source, inventory_path=inventory, now=_FIXTURE_WHEN)
     _denied(result, "BLOCKED", "INVENTORY_COVERAGE_REVIEW_REQUIRED")
+    assert _UNREVIEWED not in json.dumps(result)
     assert intel.inference_support_http_status(result) == 403
 
 
@@ -115,21 +176,34 @@ def test_fetcher_index_error_becomes_unavailable_and_does_not_admit(tmp_path):
     assert document == support.read_json(support.STATUS_PATH)
 
 
-def test_blocked_route_is_403_and_unavailable_route_stays_503(monkeypatch):
+def test_blocked_route_is_403_and_unavailable_route_stays_503(tmp_path, monkeypatch):
+    source, inventory = _mismatch_paths(tmp_path)
+    monkeypatch.setattr(support, "STATUS_PATH", source)
+    monkeypatch.setattr(support, "INVENTORY_PATH", inventory)
     app = FastAPI()
     intel.register(app)
     client = TestClient(app)
+    seen = {}
+    original = intel.get_inference_support
+
+    def observed():
+        seen["source"] = support.STATUS_PATH
+        seen["inventory"] = support.INVENTORY_PATH
+        return original()
+
+    monkeypatch.setattr(intel, "get_inference_support", observed)
     blocked = client.get("/api/a11oy/v1/models/inference-support")
+    assert seen == {"source": source, "inventory": inventory}
     assert blocked.status_code == 403
+    assert blocked.headers["cache-control"] == "no-store"
     body = blocked.json()
-    assert body["state"] == "BLOCKED"
-    assert body["reason"] == "INVENTORY_COVERAGE_REVIEW_REQUIRED"
-    assert body["models"] == []
-    assert body["admission"] == "DENIED"
+    _denied(body, "BLOCKED", "INVENTORY_COVERAGE_REVIEW_REQUIRED")
+    assert _UNREVIEWED not in blocked.text
     monkeypatch.setattr(intel, "get_inference_support", lambda: {
         "state": "UNAVAILABLE", "reason": "INVENTORY_UNAVAILABLE",
         "models": [], "authority": dict(support.AUTHORITY), "admission": "DENIED",
     })
     unavailable = client.get("/v1/models/inference-support")
     assert unavailable.status_code == 503
-    assert unavailable.json()["state"] == "UNAVAILABLE"
+    assert unavailable.headers["cache-control"] == "no-store"
+    _denied(unavailable.json(), "UNAVAILABLE", "INVENTORY_UNAVAILABLE")
