@@ -7668,34 +7668,45 @@ async def _v1_acoustic_index():
     })
 
 
-def _acoustic_burgers_check(n: int = 64) -> dict:
-    """Inviscid Burgers vs time-evolved analytic characteristic solution.
+def _acoustic_burgers_check(cfl: float = 0.4) -> dict:
+    """Inviscid Burgers vs the exact characteristic solution.
 
-    u_t + u u_x = 0 with u0 = sin(2*pi*x): exact solution via characteristics
-    u = sin(2*pi*(x - u*t)), valid for t < 1/(2*pi). Grid refinement at fixed
-    CFL; the L1 error must DECREASE as the grid refines, or the check fails.
+    u_t + u u_x = 0 with u0 = sin(2*pi*x). The exact solution is the implicit
+    characteristic relation u = sin(2*pi*(x - u*t)), solved per point by
+    fixed-point iteration (converges for t < 1/(2*pi)). The numerical solution
+    uses a conservative Lax-Friedrichs step at a FIXED CFL (dt scales with dx),
+    so refinement genuinely tests spatial resolution.
     """
     import math
-    def solve(n, t=0.1, steps=200):
+
+    def exact(x, t, iters=200):
+        u = 0.0
+        for _ in range(iters):
+            u = math.sin(2.0 * math.pi * (x - u * t))
+        return u
+
+    def solve(n, t=0.1):
         dx = 1.0 / n
-        dt = t / steps
         u = [math.sin(2.0 * math.pi * ((i + 0.5) * dx)) for i in range(n)]
-        for _ in range(steps):
-            # conservative Lax-Friedrichs step, periodic
-            flux = [0.5 * u[i] * u[i] for i in range(n)]
-            un = [0.5 * (u[(i - 1) % n] + u[(i + 1) % n])
-                  - 0.5 * dt / dx * (flux[(i + 1) % n] - flux[(i - 1) % n])
-                  for i in range(n)]
-            u = un
+        time = 0.0
+        while time < t:
+            umax = max(abs(v) for v in u) or 1e-12
+            dt = min(cfl * dx / umax, t - time)
+            flux = [0.5 * v * v for v in u]
+            u = [0.5 * (u[(i - 1) % n] + u[(i + 1) % n])
+                 - 0.5 * dt / dx * (flux[(i + 1) % n] - flux[(i - 1) % n])
+                 for i in range(n)]
+            time += dt
         return u, dx
+
     errs = []
     for n in (32, 64, 128):
         u, dx = solve(n)
-        err = sum(abs(u[i] - math.sin(2.0 * math.pi * (((i + 0.5) * dx) - u[i] * 0.1)))
-                   for i in range(n)) * dx
+        err = sum(abs(u[i] - exact((i + 0.5) * dx, 0.1)) for i in range(n)) * dx
         errs.append(err)
-    refines = errs[0] > errs[1] > errs[2] or (errs[0] >= errs[1] >= errs[2] and errs[0] > errs[2])
-    return {"errors_l1": errs, "grids": [32, 64, 128], "refinement_holds": refines,
+    refines = errs[0] > errs[1] > errs[2]
+    return {"errors_l1": errs, "grids": [32, 64, 128], "cfl": cfl,
+            "refinement_holds": refines,
             "valid_time": 0.1, "validity_bound": 1.0 / (2.0 * math.pi)}
 
 
@@ -7714,31 +7725,41 @@ async def _v1_acoustic_burgers():
 
 @app.get("/v1/acoustic/duffing")
 async def _v1_acoustic_duffing():
-    """Duffing oscillator with sign recovery: the fitted cubic stiffness sign
-    must match the driving sign used to generate the trajectory."""
-    import math, random
-    rng = random.Random(20261106)
-    gamma_true, delta, omega = 0.5, 0.3, 1.2
-    dt, steps = 0.01, 2000
+    """Duffing oscillator with genuine cubic-stiffness (beta) sign recovery.
+
+    A trajectory is generated with a hardening oscillator (beta = +1); the
+    acceleration is then re-estimated by finite differences and beta is fitted
+    by least squares in the model a = -delta*v - beta*x^3 + gamma*cos(omega*t).
+    Sign recovery means the fitted beta has the generating sign.
+    """
+    import math
+    gamma_true, delta, omega, beta_true = 0.5, 0.3, 1.2, 1.0
+    dt, steps = 0.005, 4000
     x, v = 1.0, 0.0
-    traj = []
+    xs, vs, drives = [], [], []
     for k in range(steps):
         t = k * dt
         drive = gamma_true * math.cos(omega * t)
-        a = -delta * v - (1.0 if True else 1.0) * x ** 3 + drive  # hardening beta=+1
+        xs.append(x); vs.append(v); drives.append(drive)
+        a = -delta * v - beta_true * x ** 3 + drive
         v += a * dt
         x += v * dt
-        traj.append((x, drive))
-    # crude sign recovery: correlation of acceleration residual with -x^3 must be positive
-    residual_drive = sum(math.copysign(1.0, -t[0] ** 3) * math.copysign(1.0, d)
-                         for t, d in [(p, p[1]) for p in traj[::20]])
-    n = len(traj[::20])
-    sign_recovered = residual_drive / n > 0.5
+    # finite-difference acceleration on the recorded trajectory
+    num = min(len(xs) - 1, 3900)
+    sxx, sx3r = 0.0, 0.0
+    for i in range(0, num, 4):
+        a_hat = (vs[i + 1] - vs[i]) / dt
+        resid = a_hat + delta * vs[i] - drives[i]
+        sxx += xs[i] ** 6
+        sx3r += (xs[i] ** 3) * (-resid)
+    beta_fit = sx3r / sxx if sxx > 0 else 0.0
+    sign_recovered = beta_fit > 0.5 * beta_true
     return JSONResponse({
         "schema": "szl.acoustic.duffing/v1",
         "label": "MEASURED",
-        "check": "Duffing oscillator sign recovery (hardening beta=+1)",
-        "result": {"sign_score": residual_drive / n, "sign_recovered": sign_recovered,
+        "check": "Duffing oscillator cubic-stiffness (beta) least-squares sign recovery",
+        "result": {"beta_true": beta_true, "beta_fit": beta_fit,
+                   "sign_recovered": sign_recovered,
                    "gamma": gamma_true, "delta": delta, "omega": omega},
         "proof_status": "PROVEN" if sign_recovered else "NOT_ESTABLISHED",
         "doctrine": "v11",

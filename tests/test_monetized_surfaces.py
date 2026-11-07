@@ -52,8 +52,10 @@ def test_acoustic_burgers_measured(client):
     _assert_honest_labels(d)
     result = d["result"]
     assert len(result["errors_l1"]) == 3
-    # the check is genuinely computed: errors are positive finite floats
+    # fixed CFL across grids; errors are genuinely computed vs the exact solution
+    assert result["cfl"] == 0.4
     assert all(e > 0 for e in result["errors_l1"])
+    assert result["errors_l1"][0] > result["errors_l1"][1] > result["errors_l1"][2]
     assert d["proof_status"] in ("PROVEN", "NOT_ESTABLISHED")
     assert d["proof_status"] == ("PROVEN" if result["refinement_holds"] else "NOT_ESTABLISHED")
 
@@ -63,8 +65,11 @@ def test_acoustic_duffing_measured(client):
     assert r.status_code == 200
     d = r.json()
     _assert_honest_labels(d)
-    assert -1.0 <= d["result"]["sign_score"] <= 1.0
+    # beta is genuinely fitted by least squares and recovers the generating sign
+    assert d["result"]["beta_true"] == 1.0
+    assert d["result"]["beta_fit"] > 0.5
     assert d["proof_status"] in ("PROVEN", "NOT_ESTABLISHED")
+    assert d["proof_status"] == ("PROVEN" if d["result"]["sign_recovered"] else "NOT_ESTABLISHED")
 
 
 def test_acoustic_ns_pathway_labels_verbatim(client):
