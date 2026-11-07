@@ -89,6 +89,10 @@ MODEL_SUPPORT_COPY_ADDITIONS = {
     "a11oy_model_support.py",
     "docs/model-inference-support.json",
 }
+X402_ORIGIN_COPY_ADDITIONS = {
+    "a11oy_x402_admission.py",
+    "szl_trust_x402_payment_context.py",
+}
 
 # Exact acquisition additions. Keep all historical source counts/digests below;
 # requirements-runtime.txt was already present and is not an addition.
@@ -174,6 +178,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert "." not in copy_sources
     assert "./" not in copy_sources
     assert MODEL_SUPPORT_COPY_ADDITIONS <= copy_sources
+    assert X402_ORIGIN_COPY_ADDITIONS <= copy_sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= copy_sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= copy_sources
     assert METER_ACCESS_COPY_ADDITIONS <= copy_sources
@@ -192,6 +197,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
+        | X402_ORIGIN_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
         | GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         | METER_ACCESS_COPY_ADDITIONS
@@ -226,6 +232,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     }
     assert CIVILIAN_COPY_ADDITIONS <= sources
     assert MODEL_SUPPORT_COPY_ADDITIONS <= sources
+    assert X402_ORIGIN_COPY_ADDITIONS <= sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= sources
     assert METER_ACCESS_COPY_ADDITIONS <= sources
@@ -244,6 +251,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
+        - X402_ORIGIN_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
         - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
@@ -273,6 +281,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     }
     assert HF_DOCS_COPY_ADDITIONS <= sources
     assert MODEL_SUPPORT_COPY_ADDITIONS <= sources
+    assert X402_ORIGIN_COPY_ADDITIONS <= sources
     assert GDW_ACQUISITION_COPY_ADDITIONS <= sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= sources
     assert METER_ACCESS_COPY_ADDITIONS <= sources
@@ -291,6 +300,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
+        - X402_ORIGIN_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
         - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS

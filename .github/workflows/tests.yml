@@ -581,6 +581,7 @@ jobs:
           tests/test_attest_build_commit.py
           tests/test_attest_meter_evidence.py
           tests/test_runtime_contracts.py
+          tests/test_monetized_surfaces.py
           tests/test_frontier_now_control_plane.py
           tests/test_holographic_static_route_runtime.py
           tests/test_khipu_gguf_voter.py
@@ -601,6 +602,8 @@ jobs:
           tests/test_platform_candidate_browser_witness.py
           tests/test_platform_candidate_browser_witness_cli.py
           test_canonical_domain.py
+          tests/test_x402_origin_admission.py
+          tests/test_spend_cap.py
           -q
       - name: Verify signing state route no-write guard in isolation
         # The original process-wide no-write assertion is unchanged and the
