@@ -695,6 +695,16 @@ def get_inference_support() -> dict[str, Any]:
     return a11oy_model_support.public_status()
 
 
+def inference_support_http_status(payload: dict[str, Any]) -> int:
+    """A coverage review is denied admission. A missing source is unavailable."""
+    state = payload.get("state") if isinstance(payload, dict) else None
+    if state == "SOURCE_OBSERVATIONS":
+        return 200
+    if state == "BLOCKED":
+        return 403
+    return 503
+
+
 def _support_by_id(snapshot):
     return {row["id"]: row for row in snapshot.get("models", [])}
 
@@ -1168,7 +1178,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
     @app.get("/v1/models/inference-support", include_in_schema=False)
     def _models_inference_support():
         payload = get_inference_support()
-        return JSONResponse(payload, status_code=200 if payload["state"] != "UNAVAILABLE" else 503,
+        return JSONResponse(payload, status_code=inference_support_http_status(payload),
                             headers={"Cache-Control": "no-store"})
 
     @app.get(base + "/info", include_in_schema=False)

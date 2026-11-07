@@ -59,7 +59,11 @@ The same source is available at:
 
 The dedicated endpoint reads committed files only, returns `Cache-Control:
 no-store`, and never calls a provider, loads a model, writes an index, or signs.
-Invalid or missing source returns JSON HTTP 503 with `UNAVAILABLE`. Provider
+A missing or malformed source or inventory returns JSON HTTP 503 with
+`UNAVAILABLE` and a specific reason. An exact inventory-membership mismatch
+returns JSON HTTP 403 with `BLOCKED`, reason
+`INVENTORY_COVERAGE_REVIEW_REQUIRED`, `admission` `DENIED`, and no model rows.
+That hold does not add the missing IDs. Provider
 observations older than **24 hours**, or from a clock more than five minutes in
 the future, become unavailable in the runtime projection. Previous reported
 providers remain separately labelled as historical observations. Requests and

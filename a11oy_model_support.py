@@ -286,14 +286,47 @@ def validate_document(document, inventory=None):
     return document
 
 
+_COVERAGE_REVIEW = "inventory coverage differs; source review required"
+
+
+def _closed(state, reason):
+    """Fail closed. A review hold is not a missing file, and neither admits a model."""
+    return {
+        "state": state, "reason": reason, "admission": "DENIED",
+        "models": [], "authority": dict(AUTHORITY),
+    }
+
+
 def public_status(path=None, *, now=None, inventory_path=None):
     """Read-only projection. Expired evidence cannot advertise provider availability."""
     now = _stamp(now or utc_now())
+    source = path or STATUS_PATH
+    inventory = inventory_path or INVENTORY_PATH
     try:
-        document = validate_document(read_json(path or STATUS_PATH), read_json(inventory_path or INVENTORY_PATH))
-    except (OSError, SupportDataError, ValueError, TypeError, KeyError, AttributeError):
-        return {"state": "UNAVAILABLE", "reason": "SOURCE_INVALID_OR_UNAVAILABLE",
-                "models": [], "authority": dict(AUTHORITY)}
+        try:
+            document = read_json(source)
+        except OSError:
+            return _closed("UNAVAILABLE", "SOURCE_UNAVAILABLE")
+        except SupportDataError:
+            return _closed("UNAVAILABLE", "SOURCE_MALFORMED")
+        try:
+            inventory_doc = read_json(inventory)
+        except OSError:
+            return _closed("UNAVAILABLE", "INVENTORY_UNAVAILABLE")
+        except SupportDataError:
+            return _closed("UNAVAILABLE", "INVENTORY_MALFORMED")
+        try:
+            validate_document(document)
+        except SupportDataError:
+            return _closed("UNAVAILABLE", "SOURCE_INVALID")
+        try:
+            document = validate_document(document, inventory_doc)
+        except SupportDataError as exc:
+            if str(exc) == _COVERAGE_REVIEW:
+                return _closed("BLOCKED", "INVENTORY_COVERAGE_REVIEW_REQUIRED")
+            return _closed("UNAVAILABLE", "INVENTORY_MALFORMED")
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return _closed("UNAVAILABLE", "SOURCE_INVALID_OR_UNAVAILABLE")
     output = copy.deepcopy(document)
     counts = {"model_namespace_repositories": len(output["models"]),
               "no_provider_mapping": 0, "provider_mapping_reported": 0,
