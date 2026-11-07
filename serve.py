@@ -15488,8 +15488,9 @@ except Exception as _spine_move_e:  # pragma: no cover
 
 # ---------------------------------------------------------------------------
 # Federated router spend — surface the BOX szl-router's REAL paid spend on the
-# /sovereign board. The a11oy container's own szl_spend_cap ledger is local/advisory
-# and stays ~$0 (no paid inference runs in THIS container); the durable source of
+# /sovereign board. The a11oy container's own szl_spend_cap ledger is in-process
+# memory. Its lock is not a restart-durable or cross-replica cap, and the
+# monetized read handlers do not call it. The durable source of
 # truth for real paid spend is the Hetzner box szl-router's append-only hash-linked
 # ledger. This reads it live, read-only, at request time (the HF Space FS is ephemeral,
 # so a pushed copy could never be durable). Honest by construction: env unset ->

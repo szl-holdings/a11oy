@@ -24,7 +24,7 @@ that family and does not run its handler.
 | Variable | Meaning |
 |---|---|
 | `A11OY_X402_PUBLIC_BASE` | `https://host` with no path. Audience is this base plus the path. |
-| `A11OY_X402_SCHEME` | `exact` or `upto`. |
+| `A11OY_X402_SCHEME` | `exact`. `upto` is refused. |
 | `A11OY_X402_ACOUSTIC_AMOUNT_ATOMIC` | Expected atomic amount for `/v1/acoustic/` and its three checks. |
 | `A11OY_X402_DATA_AMOUNT_ATOMIC` | Expected atomic amount for `/v1/data/` and `/v1/data/{name}`. |
 | `A11OY_X402_EXPERIMENTAL_AMOUNT_ATOMIC` | Expected atomic amount for `/api/a11oy/v1/experimental/`. |
@@ -33,12 +33,21 @@ that family and does not run its handler.
 The amount is the gateway rule's atomic price (1 unit = $0.000001), from 1000
 to 100000000, supplied by the operator. Source does not copy a live rule.
 
-Verification is `szl_trust_x402_payment_context.validate_payment_context`, the
-estate copy of szl-trust `scripts/x402_payment_context.py`. Ed25519 keys come
-only from the pinned JWKS `https://payments.cloudflare.com/certs`, unless a
-test injects `app.state.x402_keys`. The image installs `pyjwt` so that call can
-run. A missing validator or an unreachable key set is HTTP 503 and does not run
-the handler.
+`upto` with a family amount set is HTTP 503 `UPTO_NOT_SUPPORTED` before the
+handler. A successful upto response must carry `PAYMENT-SETTLEMENT` with the
+actual amount, and an authorization below that price must not be served. The
+pinned validator accepts that shorter authorization when the configured price
+is passed as its maximum, and this origin does not emit a settlement header.
+Live gateway rules are unchanged. `exact` success carries no
+`PAYMENT-SETTLEMENT` and no `PAYMENT-RESPONSE`.
+
+Verification for `exact` is `szl_trust_x402_payment_context.validate_payment_context`,
+the estate copy of szl-trust `scripts/x402_payment_context.py`. Ed25519 keys
+come only from the pinned JWKS `https://payments.cloudflare.com/certs`, unless
+a test injects `app.state.x402_keys`. One resolver is shared by the process.
+Its fetch runs off the event loop, and a failed fetch is HTTP 503 without the
+handler. The image installs `pyjwt` so that call can run. Tests do not contact
+the pinned URL.
 
 Missing, malformed, wrong algorithm, untrusted key, bad signature, expired,
 not-yet-valid, wrong audience, wrong scheme, and wrong amount contexts are
@@ -48,9 +57,16 @@ HTTP 403 before the handler. Two `PAYMENT-CONTEXT` headers are
 ## What a verified request returns
 
 The handler result, `x-a11oy-payment-enforcement: context-verified`, and
-`x-a11oy-settlement-evidence: false`. No settlement header is written for
-`exact` or `upto`. The spend ledger is a separate cap. It is not charged by
-these reads, because no ledger amount is configured for them.
+`x-a11oy-settlement-evidence: false`. No settlement header is written.
+HEAD on these paths is HTTP 405 and does not run the handler. A different
+case or a trailing slash is not the paid route.
+
+The spend ledger is a separate in-process cap. Its lock is not durable across
+restart or replicas. These reads do not call it, because no ledger amount is
+configured for them. Invalid amounts, including NaN and a value that rounds to
+zero, are refused. An operation retry is the same id, canonical amount, and
+payload digest; a conflict does not append. Admission memory is bounded by
+refusing new ids, not by forgetting old ones.
 
 Public proof and health routes are not in the three families.
 

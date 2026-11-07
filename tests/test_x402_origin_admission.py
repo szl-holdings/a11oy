@@ -3,9 +3,12 @@
 # © 2026 Lutar, Stephen P. Jr. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 """Configured origin admission rejects before the handler. Unconfigured does not pretend."""
 
+import asyncio
 import base64
+import email.utils
 import hashlib
 import json
+import time
 from pathlib import Path
 
 import jwt
@@ -150,14 +153,40 @@ def test_valid_context_reaches_burgers_without_a_settlement_receipt(client, monk
     assert "payment-response" not in response.headers
 
 
-def test_upto_verification_still_emits_no_settlement(client, monkeypatch):
+def test_upto_authorization_does_not_run_the_handler(client, monkeypatch):
     test_client, private, calls = client
     _configure(monkeypatch)
     monkeypatch.setenv("A11OY_X402_SCHEME", "upto")
-    response = test_client.get(PATH, headers={"payment-context": _token(private, scheme="upto")})
-    assert response.status_code == 200
-    assert calls["burgers"] == 1
+    underfunded = test_client.get(PATH, headers={
+        "payment-context": _token(private, amount="1000", scheme="upto")})
+    covered = test_client.get(PATH, headers={
+        "payment-context": _token(private, amount="100000", scheme="upto")})
+    assert underfunded.status_code == 503
+    assert underfunded.json()["reason"] == "UPTO_NOT_SUPPORTED"
+    assert covered.status_code == 503
+    assert calls["burgers"] == 0
+    assert "payment-settlement" not in underfunded.headers
+    assert "payment-settlement" not in covered.headers
+
+
+def test_head_does_not_run_the_paid_handler(client, monkeypatch):
+    test_client, private, calls = client
+    _configure(monkeypatch)
+    response = test_client.head(PATH, headers={"payment-context": _token(private)})
+    assert response.status_code == 405
+    assert response.headers["x-a11oy-payment-enforcement"] == "rejected"
+    assert calls["burgers"] == 0
     assert "payment-settlement" not in response.headers
+
+
+def test_case_and_slash_variants_do_not_serve_the_paid_body(client, monkeypatch):
+    test_client, private, calls = client
+    _configure(monkeypatch)
+    token = _token(private)
+    for variant in ("/v1/acoustic/Burgers", "/v1/acoustic/burgers/", "/V1/acoustic/burgers"):
+        response = test_client.get(variant, headers={"payment-context": token}, follow_redirects=False)
+        assert "szl.acoustic.burgers/v1" not in response.text
+    assert calls["burgers"] == 0
 
 
 def test_one_configured_family_does_not_gate_another(client, monkeypatch):
@@ -178,6 +207,117 @@ def test_health_stays_outside_the_payment_gate(client, monkeypatch):
     })
     assert response.status_code != 403
     assert "x-a11oy-payment-enforcement" not in response.headers
+
+
+def _resolver_response(private):
+    body = json.dumps(_jwks(private.public_key())).encode("utf-8")
+    return trust_x402.KeyFetchResponse(
+        status=200,
+        headers={
+            "content-type": "application/json",
+            "cache-control": "max-age=120",
+            "age": "0",
+            "date": email.utils.formatdate(time.time(), usegmt=True),
+        },
+        body=body,
+        url=trust_x402.PINNED_JWKS_URL,
+        redirected=False,
+    )
+
+
+def test_shared_key_resolution_fails_closed_without_blocking_health(monkeypatch):
+    import httpx
+
+    calls = {"fetch": 0, "burgers": 0}
+    real = serve._acoustic_burgers_check
+
+    def counted():
+        calls["burgers"] += 1
+        return real()
+
+    def fetch(url, *, timeout, max_bytes):
+        assert url == trust_x402.PINNED_JWKS_URL
+        calls["fetch"] += 1
+        time.sleep(0.8)
+        raise trust_x402.PaymentHold("KEYS_UNAVAILABLE", "PAYMENT_KEYS_FETCH_FAILED")
+
+    monkeypatch.setattr(serve, "_acoustic_burgers_check", counted)
+    _configure(monkeypatch)
+    previous = getattr(serve.app.state, "x402_keys", None)
+    serve.app.state.x402_keys = None
+    monkeypatch.setattr(admission, "_SHARED_RESOLVER", trust_x402.PaymentKeyResolver(fetch=fetch))
+    headers = {"payment-context": _token(Ed25519PrivateKey.generate())}
+
+    async def scenario():
+        transport = httpx.ASGITransport(app=serve.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.get("/healthz")
+            started = time.monotonic()
+
+            async def health():
+                mark = time.monotonic()
+                response = await client.get("/healthz")
+                return response.status_code, time.monotonic() - mark
+
+            paid_a = asyncio.create_task(client.get(PATH, headers=headers))
+            paid_b = asyncio.create_task(client.get(PATH, headers=headers))
+            await asyncio.sleep(0.05)
+            health_status, health_elapsed = await health()
+            first, second = await asyncio.gather(paid_a, paid_b)
+            return health_status, health_elapsed, first.status_code, second.status_code, time.monotonic() - started
+
+    try:
+        health_status, health_elapsed, first, second, total = asyncio.run(scenario())
+    finally:
+        serve.app.state.x402_keys = previous
+    assert calls["fetch"] == 1
+    assert first == 503 and second == 503
+    assert calls["burgers"] == 0
+    assert health_status != 403
+    assert health_elapsed < 0.4
+    assert total >= 0.8
+
+
+def test_shared_key_resolution_reuses_a_fresh_set(monkeypatch):
+    import httpx
+
+    private = Ed25519PrivateKey.generate()
+    calls = {"fetch": 0, "burgers": 0}
+    real = serve._acoustic_burgers_check
+
+    def counted():
+        calls["burgers"] += 1
+        return real()
+
+    def fetch(url, *, timeout, max_bytes):
+        assert url == trust_x402.PINNED_JWKS_URL
+        calls["fetch"] += 1
+        return _resolver_response(private)
+
+    monkeypatch.setattr(serve, "_acoustic_burgers_check", counted)
+    _configure(monkeypatch)
+    previous_keys = getattr(serve.app.state, "x402_keys", None)
+    previous_now = getattr(serve.app.state, "x402_now", None)
+    serve.app.state.x402_keys = None
+    serve.app.state.x402_now = lambda: NOW
+    monkeypatch.setattr(admission, "_SHARED_RESOLVER", trust_x402.PaymentKeyResolver(fetch=fetch))
+    headers = {"payment-context": _token(private)}
+
+    async def scenario():
+        transport = httpx.ASGITransport(app=serve.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            first = await client.get(PATH, headers=headers)
+            second = await client.get(PATH, headers=headers)
+            return first.status_code, second.status_code
+
+    try:
+        first, second = asyncio.run(scenario())
+    finally:
+        serve.app.state.x402_keys = previous_keys
+        serve.app.state.x402_now = previous_now
+    assert calls["fetch"] == 1
+    assert first == 200 and second == 200
+    assert calls["burgers"] == 2
 
 
 def test_two_contexts_are_ambiguous_before_the_handler():

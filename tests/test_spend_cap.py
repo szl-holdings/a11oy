@@ -91,6 +91,55 @@ def test_concurrent_records_cannot_pass_the_cap():
     assert led.state()["spent_usd"] == 0.6
 
 
+def test_invalid_amounts_do_not_change_the_total():
+    led = _fresh(1.0)
+    for value in (float("nan"), float("inf"), True, -1, 4e-7, "nope"):
+        refused = led.record(value, "unit")
+        assert refused["allow"] is False and refused["recorded"] is False
+        assert refused["reason"] == "invalid amount"
+    assert led.allow(float("nan"))["allow"] is False
+    assert led.state()["spent_usd"] == 0.0
+    assert led.state()["entries"] == 0
+
+
+def test_admit_retry_is_bound_to_amount_and_payload():
+    led = _fresh(10.0)
+    first = led.admit(0.01, "op", "d")
+    replay = led.admit(0.01, "op", "d")
+    amount_clash = led.admit(100, "op", "d")
+    digest_clash = led.admit(0.01, "op", "other")
+    assert first["recorded"] is True
+    assert replay["recorded"] is False and replay["reason"] == "duplicate"
+    assert amount_clash["allow"] is False and amount_clash["reason"] == "operation reuse conflict"
+    assert digest_clash["reason"] == "operation reuse conflict"
+    assert led.state()["entries"] == 1
+    assert led.state()["spent_usd"] == 0.01
+
+
+def test_admission_memory_stays_protective_when_full():
+    led = sc.SpendLedger(cap_usd=10.0, max_admissions=1)
+    assert led.admit(0.2, "kept", "d")["recorded"] is True
+    refused = led.admit(0.2, "new", "d")
+    replay = led.admit(0.2, "kept", "d")
+    assert refused["reason"] == "admission memory full"
+    assert replay["reason"] == "duplicate" and replay["recorded"] is False
+    assert led.state()["entries"] == 1
+
+
+def test_trimmed_tail_verifies_retained_history_only():
+    led = sc.SpendLedger(cap_usd=10.0, max_tail=2)
+    led.record(0.1, "a")
+    led.record(0.2, "b")
+    led.record(0.3, "c")
+    checked = led.verify()
+    assert checked["intact"] is True
+    assert checked["entries"] == 2
+    assert checked["retained_only"] is True
+    assert led.state()["spent_usd"] == 0.6
+    led._entries[-1]["amount_usd"] = 9.0
+    assert led.verify()["intact"] is False
+
+
 def test_admit_retries_once_and_rejects_a_different_payload():
     led = _fresh(1.0)
     first = led.admit(0.4, "op-1", "digest-a")
@@ -98,6 +147,6 @@ def test_admit_retries_once_and_rejects_a_different_payload():
     clash = led.admit(0.4, "op-1", "digest-b")
     assert first["recorded"] is True and first["reason"] == "admitted"
     assert second["recorded"] is False and second["reason"] == "duplicate"
-    assert clash["allow"] is False and clash["reason"] == "operation payload mismatch"
+    assert clash["allow"] is False and clash["reason"] == "operation reuse conflict"
     assert led.state()["entries"] == 1
     assert led.state()["spent_usd"] == 0.4
