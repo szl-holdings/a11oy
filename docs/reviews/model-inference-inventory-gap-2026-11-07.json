@@ -1,0 +1,3587 @@
+{
+  "schema": "szl.model-inference-inventory-gap-dossier/v1",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173. Review artifact only. It does not admit, exclude, or change coverage.",
+  "authority": {
+    "routing": false,
+    "qualification": false,
+    "promotion": false,
+    "deployment": false,
+    "inference_admission": false,
+    "exclusion": false
+  },
+  "sources": {
+    "inventory": "docs/huggingface-ecosystem-manifest.json",
+    "inventory_observed_at": "2026-11-06T02:04:19Z",
+    "inventory_model_count": 74,
+    "inventory_scope": "public-only",
+    "canonical_rule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
+    "support": "docs/model-inference-support.json",
+    "support_generated_at": "2026-10-09T15:43:25.693184+00:00",
+    "support_model_count": 41,
+    "support_model_ids_sha256": "5b5e668c8b1c9b69b8e0d9562d74f9265080d8ddc9a28319fda56dfc5c03e5d5",
+    "support_doc_sentence": "docs/MODEL_INFERENCE_SUPPORT.md says the reviewed source covers 48 public model-namespace repositories. The support file contains 41. The inventory contains 74. This dossier does not edit any of those three.",
+    "revision_classes_sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+    "stage_matrix_observed_at": "2026-11-06T02:04:19Z"
+  },
+  "counts": {
+    "rows": 33,
+    "verified_inventory_observations": 33,
+    "verified_inference_admission_authority": 0,
+    "verified_exclusion_authority": 0,
+    "proposed_hold": 33,
+    "unverified_support_rows": 33,
+    "unresolved_decisions": 33,
+    "rows_with_card_self_labels": 4
+  },
+  "runtime_change": {
+    "support_rows_added": 0,
+    "inventory_rows_removed": 0,
+    "validator_changed": false,
+    "coverage_expectation_changed": false
+  },
+  "rows": [
+    {
+      "id": "SZLHOLDINGS/KHIPU-R2-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "KHIPU-R2-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/2"
+      },
+      "revision": {
+        "sha": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
+        "last_modified": "2026-11-05T05:49:34.000Z",
+        "created_at": "2026-11-05T05:43:07.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2-estate-sft-v1/blob/79c0efc23dbdb7f0a394125f811d0a3bb602b36f/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "6fd633be732058cb363e7bd200e4d3c7a5b2cf6db1807665f137afee65ccd9f3",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/KHIPU-R2-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/KHIPU-R2-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/KHIPU-R2",
+          "base_model:finetune:SZLHOLDINGS/KHIPU-R2"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "Nemotron-Mini-4B-Instruct-st",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/5"
+      },
+      "revision": {
+        "sha": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+        "last_modified": "2026-11-05T18:09:43.000Z",
+        "created_at": "2026-11-05T09:55:31.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/blob/2939ccd8e30d19c8209086893b75379dbf3c27b4/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "other",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "8cdb6d48287e9afe39d1b6ed2d7a4aa03cebf94ff8de7c18dd2e05658cbe55c8",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-AncientMath-0.8B-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/7"
+      },
+      "revision": {
+        "sha": "344fac66fa7c469b6c2779cbaffca38240a995c2",
+        "last_modified": "2026-11-06T02:03:53.000Z",
+        "created_at": "2026-11-06T02:03:11.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/blob/344fac66fa7c469b6c2779cbaffca38240a995c2/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "8d99a3d32daf30d565cbaca48116f400c7fd4b2d44319d87ad12990b592bbb2d",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/9"
+      },
+      "revision": {
+        "sha": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
+        "last_modified": "2026-11-05T05:49:32.000Z",
+        "created_at": "2026-11-05T05:46:14.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1/blob/d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "28889f274d4bf3f781de348a6dc8274e2fed942b43db589ea91a7b4b798b10f8",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+          "base_model:finetune:SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-FreeEnergy-0.8B-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/10"
+      },
+      "revision": {
+        "sha": "cba180bb76d8880b4098ff458dda4cddb859ce90",
+        "last_modified": "2026-11-06T01:59:07.000Z",
+        "created_at": "2026-11-06T01:56:12.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/blob/cba180bb76d8880b4098ff458dda4cddb859ce90/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "ef089c930d74fbb0f1272072a9af73bcdaa81d7f1272d15b46039e8bad9ab11c",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Khipu-1.5B-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/14"
+      },
+      "revision": {
+        "sha": "b4ae083265f2f0a6749af4111162d3582dc4dace",
+        "last_modified": "2026-11-05T04:21:36.000Z",
+        "created_at": "2026-11-05T04:18:41.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1/blob/b4ae083265f2f0a6749af4111162d3582dc4dace/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "e571b2a00153a1b9c0386b25ba9b5b8ca3ddfdb3fe4a72a28dff4b3e5d97c86d",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/SZL-Khipu-1.5B",
+          "base_model:finetune:SZLHOLDINGS/SZL-Khipu-1.5B"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Khipu-1.5B-sft-v2",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/15"
+      },
+      "revision": {
+        "sha": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
+        "last_modified": "2026-11-05T03:53:35.000Z",
+        "created_at": "2026-11-05T03:46:57.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2/blob/15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "5a8c5012274a1f3d7cde5f2d494ec50864383a6d5e09aa4016c86760bebfd7f4",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/SZL-Khipu-1.5B",
+          "base_model:finetune:SZLHOLDINGS/SZL-Khipu-1.5B"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Nemotron-Mini-4B-Doctrine-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/16"
+      },
+      "revision": {
+        "sha": "decebd8be9255239c1507ebc61159099d38ba6bc",
+        "last_modified": "2026-11-05T22:44:31.000Z",
+        "created_at": "2026-11-05T22:39:46.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/blob/decebd8be9255239c1507ebc61159099d38ba6bc/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "other",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "928303939d250c5b56b893727c2792afda59ddfb241c96ab913afb6b3d6f5a79",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+          "base_model:finetune:SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/17"
+      },
+      "revision": {
+        "sha": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+        "last_modified": "2026-11-05T17:44:33.000Z",
+        "created_at": "2026-11-05T13:36:56.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/blob/3b330741a7ecee572a7a51c5a3dd023788da8973/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "80b2651af8ae8f88e56a2bdd9fabb3e84c50c0a8cfa5891586084c02cb732c92",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+          "base_model:finetune:SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/18"
+      },
+      "revision": {
+        "sha": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+        "last_modified": "2026-11-06T01:39:42.000Z",
+        "created_at": "2026-11-06T01:32:19.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/blob/edd649ffcfae89d0a5b5cc889b5cbe0848336e01/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "other",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "4eb05b381ba22b1ab6e9e28529ea3e1dd555e2f731b67da232ea6cfd007e73d0",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+          "base_model:finetune:SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Nemotron-Mini-4B-Estate-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/19"
+      },
+      "revision": {
+        "sha": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+        "last_modified": "2026-11-05T23:22:26.000Z",
+        "created_at": "2026-11-05T11:17:03.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/blob/8dd86a98a71d52d24ee23b51ef75ed9b6213c69f/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "470af590ed5b58a4c7d926560c66d66e0a1d58be29092abd5a2e4e7f00902501",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:nvidia/Nemotron-Mini-4B-Instruct",
+          "base_model:finetune:nvidia/Nemotron-Mini-4B-Instruct"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Reasoning-0.8B-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/20"
+      },
+      "revision": {
+        "sha": "10fb28afe427a988af2e10cafa8dd1c2e555ea63",
+        "last_modified": "2026-11-06T00:54:30.000Z",
+        "created_at": "2026-11-06T00:45:59.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/blob/10fb28afe427a988af2e10cafa8dd1c2e555ea63/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "772b72c12b15be3064b4eedb30a9641e1d73dee3c33e8e56f61fc9937c2de49c",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Showcase-Systems-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/21"
+      },
+      "revision": {
+        "sha": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+        "last_modified": "2026-11-05T22:24:10.000Z",
+        "created_at": "2026-11-05T18:30:25.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1/blob/31d82d6133f20ad26403d21abfd16950d8e19b11/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "0a763db7adfb06a57ed0e6adbf9c1a41383c27a7048a771eb7968c31ee352e4b",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-Specialized-Domains-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/22"
+      },
+      "revision": {
+        "sha": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+        "last_modified": "2026-11-05T18:21:58.000Z",
+        "created_at": "2026-11-05T18:06:04.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1/blob/f0293f28d7ec45a01c59e40daa93af38e20c308b/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "35c26e00f84c05b315933fa582cd5011bf1fb897f9d3fd24958cf5b012090648",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/WILLAY-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "WILLAY-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/25"
+      },
+      "revision": {
+        "sha": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
+        "last_modified": "2026-11-05T09:35:17.000Z",
+        "created_at": "2026-11-05T06:16:07.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/WILLAY-estate-sft-v1/blob/4c2430a4f0c4d9459591019dac73ba4c235ceeb8/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "4488afcb07d84166e59be8f07065ba3e1245a77ad62f6a2eba71e10bc20fe76f",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/WILLAY-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/WILLAY-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/WILLAY",
+          "base_model:finetune:SZLHOLDINGS/WILLAY"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/WILLAY-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "brain-navigator-r2-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/29"
+      },
+      "revision": {
+        "sha": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+        "last_modified": "2026-11-05T05:59:02.000Z",
+        "created_at": "2026-11-05T05:49:53.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1/blob/f774b4b0b7e3d2a0a640543c95527e932a4e8301/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "fd972a6feea7bd140c5b62a5ac0781ba26e5c2e7b4720cab3d663c4a10718e83",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/brain-navigator-r2",
+          "base_model:finetune:SZLHOLDINGS/brain-navigator-r2"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chakana-r1-candidate",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "chakana-r1-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/30"
+      },
+      "revision": {
+        "sha": "73219a8ada0e73ab4216d9e70d730e38455f2425",
+        "last_modified": "2026-11-05T02:22:51.000Z",
+        "created_at": "2026-11-05T02:22:32.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/chakana-r1-candidate/blob/73219a8ada0e73ab4216d9e70d730e38455f2425/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "30fafd3fe1b6b95b3edb299605fe1b8dfbdfdfee6c015f62acf68a68d5d5e74a",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/chakana-r1-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/chakana-r1-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "proposal-only"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:Qwen/Qwen3-Embedding-0.6B",
+          "base_model:finetune:Qwen/Qwen3-Embedding-0.6B"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/chakana-r1-candidate",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [
+          "proposal-only"
+        ],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "chaski-5050-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/33"
+      },
+      "revision": {
+        "sha": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+        "last_modified": "2026-11-05T05:58:58.000Z",
+        "created_at": "2026-11-05T05:49:11.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1/blob/0278ef6fb06c622748a1043fa4c7efb9bccc716b/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "fce03676bf04614dbd3da47d9500a415a190fea593fa60fea587e620bc567d85",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/chaski-5050",
+          "base_model:finetune:SZLHOLDINGS/chaski-5050"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "chaski-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/34"
+      },
+      "revision": {
+        "sha": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+        "last_modified": "2026-11-05T05:49:35.000Z",
+        "created_at": "2026-11-05T05:48:07.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1/blob/4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "be37520505bf20bfc031ea989d0b66d1dc044fcf765ea92328d1b85025c847dd",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/chaski",
+          "base_model:finetune:SZLHOLDINGS/chaski"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "chaski-r2-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/36"
+      },
+      "revision": {
+        "sha": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+        "last_modified": "2026-11-05T05:59:00.000Z",
+        "created_at": "2026-11-05T05:49:13.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1/blob/6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "625c33ad65d8c5d2a1ed810f29d4b1621fa934c03c257b83c917e8a8895d1aa7",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/chaski-r2",
+          "base_model:finetune:SZLHOLDINGS/chaski-r2"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "khipu-abstain-r3-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/39"
+      },
+      "revision": {
+        "sha": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+        "last_modified": "2026-11-05T11:40:21.000Z",
+        "created_at": "2026-11-05T01:24:50.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/khipu-abstain-r3-candidate/blob/492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-r3-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "406c0abf82bd27d0302e65ffd3c8216cdb41794fe4c7dd77f37e2a9af1785932",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/khipu-abstain-r3-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/khipu-abstain-r3-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "proposal-only",
+          "not-promotable"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:Qwen/Qwen2.5-1.5B-Instruct",
+          "base_model:finetune:Qwen/Qwen2.5-1.5B-Instruct"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/khipu-abstain-r3-candidate",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [
+          "proposal-only",
+          "not-promotable"
+        ],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "khipu-r3-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/41"
+      },
+      "revision": {
+        "sha": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+        "last_modified": "2026-11-05T09:35:21.000Z",
+        "created_at": "2026-11-05T06:27:52.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1/blob/b3c240a8540254ef294d9fbc320ff442ef31f393/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "751b668893bbc556dbc6926ab833e4a68c63f4b772f3d5f822277593800309ba",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/khipu-r3",
+          "base_model:finetune:SZLHOLDINGS/khipu-r3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/miniembed-nano-r1-candidate",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "miniembed-nano-r1-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/42"
+      },
+      "revision": {
+        "sha": "40e0c6ab9511586014457d354c00f05777b34fd1",
+        "last_modified": "2026-11-05T02:03:02.000Z",
+        "created_at": "2026-11-05T01:29:27.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/miniembed-nano-r1-candidate/blob/40e0c6ab9511586014457d354c00f05777b34fd1/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "e4cd7dc1d031662b73648cadec0c8feab35de0a40d397674670b288ce038df1a",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/miniembed-nano-r1-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/miniembed-nano-r1-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-memory",
+          "proposal-only"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:sentence-transformers/all-MiniLM-L6-v2",
+          "base_model:finetune:sentence-transformers/all-MiniLM-L6-v2"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/miniembed-nano-r1-candidate",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [
+          "proposal-only",
+          "research-memory"
+        ],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "oac-ops-health-v2",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/43"
+      },
+      "revision": {
+        "sha": "90df75bf58d91ea723128a86d7ed9af57535dbd8",
+        "last_modified": "2026-11-04T15:44:03.000Z",
+        "created_at": "2026-10-08T03:43:56.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2/blob/90df75bf58d91ea723128a86d7ed9af57535dbd8/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/oac-ops-health-v2?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "435fca5b624a4fb3e117073007f51b64480ce94ece7217ab68968fb3e90704e2",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/oac-ops-health-v2",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/oac-system-health-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "oac-system-health-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/44"
+      },
+      "revision": {
+        "sha": "a99c3ec1157af351fa24da64f3b413620cae07fe",
+        "last_modified": "2026-11-05T03:35:29.000Z",
+        "created_at": "2026-09-08T11:06:20.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1/blob/a99c3ec1157af351fa24da64f3b413620cae07fe/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/oac-system-health-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "2a7fae3882c928a5d638d9cae4cc477711195dcb9568f89b3aab03bc2928b4e8",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl-receiptagent-qwen25-1.5b-experimental-20261104",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/61"
+      },
+      "revision": {
+        "sha": "b2ec04727f46314b680ee26366159243924c1f67",
+        "last_modified": "2026-11-04T15:34:23.000Z",
+        "created_at": "2026-11-04T15:33:08.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104/blob/b2ec04727f46314b680ee26366159243924c1f67/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "0d8920e0307626afa99fdf3400bdafbb54749d284763f40e9fb969547d62830a",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "experimental",
+          "not-canonical"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:Qwen/Qwen2.5-1.5B-Instruct",
+          "base_model:adapter:Qwen/Qwen2.5-1.5B-Instruct"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [
+          "experimental",
+          "not-canonical"
+        ],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl-receiptagent-qwen35-0.8b-dpo-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/62"
+      },
+      "revision": {
+        "sha": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+        "last_modified": "2026-11-05T04:14:12.000Z",
+        "created_at": "2026-11-05T04:10:48.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1/blob/4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "7264b832ef360eac9e5f200f9eca91211f2565b8a1d1070c43a043c3561610ed",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl-receiptagent-qwen35-0.8b-dpo-v2",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/63"
+      },
+      "revision": {
+        "sha": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+        "last_modified": "2026-11-05T05:11:45.000Z",
+        "created_at": "2026-11-05T05:09:37.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2/blob/af519f265ff552dd4c47ae3a61b5f62a6f3827d5/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "fbcc3d97eaf731e22f4a01f850640b3e362db427f649b22feba2e95072ee9afa",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl-receiptagent-qwen35-0.8b-sft-v3",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/64"
+      },
+      "revision": {
+        "sha": "0340c300052e248367a3407aa493ef72a0da79fe",
+        "last_modified": "2026-11-05T03:53:33.000Z",
+        "created_at": "2026-11-05T03:46:35.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3/blob/0340c300052e248367a3407aa493ef72a0da79fe/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "549c4945a3883e6e93dc8d1782830fc4f1760b03f3d95f31f87a43bdc440eed3",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/67"
+      },
+      "revision": {
+        "sha": "8419537ecad5930f022eb89720e92ba18ed6605d",
+        "last_modified": "2026-11-05T05:59:04.000Z",
+        "created_at": "2026-11-05T05:48:42.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1/blob/8419537ecad5930f022eb89720e92ba18ed6605d/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "845a40a188cf32616e81abdf6c301ec62c6d78b915bb783742bb4324f2449a1e",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/69"
+      },
+      "revision": {
+        "sha": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+        "last_modified": "2026-11-05T09:35:19.000Z",
+        "created_at": "2026-11-05T06:27:32.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1/blob/9bde1943e8d60c461391bbcd86ffca340da321a8/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "cfa9fe2df753638a47f40acaeadfc86238c82d31cb6fa695da0b2812b89149b3",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-specdecode",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl-specdecode",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/70"
+      },
+      "revision": {
+        "sha": "eaf60eed9e7c385154be9cd63278c161ee1fe18c",
+        "last_modified": "2026-11-04T18:02:29.000Z",
+        "created_at": "2026-11-04T18:02:29.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl-specdecode/blob/eaf60eed9e7c385154be9cd63278c161ee1fe18c/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/szl-specdecode?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "fe05535356ce57aa0be2cb7925f348e417eac33e451982088f17456579f309c1",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-specdecode"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-specdecode"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl-specdecode",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
+      "inventory_observation": "VERIFIED",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "PROPOSED_HOLD",
+      "activated_in_runtime": false,
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl1-experimental-estate-sft-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/73"
+      },
+      "revision": {
+        "sha": "e821e660b5940cd988307bba4b5c9a29a09605ec",
+        "last_modified": "2026-11-05T09:35:23.000Z",
+        "created_at": "2026-11-05T06:29:40.000Z",
+        "inventory_observed_at": "2026-11-06T02:04:19Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl1-experimental-estate-sft-v1/blob/e821e660b5940cd988307bba4b5c9a29a09605ec/README.md",
+        "provider_mapping_url_not_fetched": "https://huggingface.co/api/models/SZLHOLDINGS/szl1-experimental-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "d9bee28e535afa4a14e539b0b3bdcc9123171c8f944e235d0a1d017078afdccd",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl1-experimental-estate-sft-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-06T02:04:19Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl1-experimental-estate-sft-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl1-experimental-massed-20261104",
+          "base_model:finetune:SZLHOLDINGS/szl1-experimental-massed-20261104"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-07T10:42:00Z",
+        "method": "public model overview",
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl1-experimental-estate-sft-v1",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "self_labels_also_seen": [],
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "decision_id": "D01",
+      "model_id": "SZLHOLDINGS/KHIPU-R2-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D02",
+      "model_id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D03",
+      "model_id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D04",
+      "model_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D05",
+      "model_id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D06",
+      "model_id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D07",
+      "model_id": "SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D08",
+      "model_id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D09",
+      "model_id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D10",
+      "model_id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D11",
+      "model_id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D12",
+      "model_id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D13",
+      "model_id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D14",
+      "model_id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D15",
+      "model_id": "SZLHOLDINGS/WILLAY-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D16",
+      "model_id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D17",
+      "model_id": "SZLHOLDINGS/chakana-r1-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D18",
+      "model_id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D19",
+      "model_id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D20",
+      "model_id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D21",
+      "model_id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D22",
+      "model_id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D23",
+      "model_id": "SZLHOLDINGS/miniembed-nano-r1-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D24",
+      "model_id": "SZLHOLDINGS/oac-ops-health-v2",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D25",
+      "model_id": "SZLHOLDINGS/oac-system-health-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D26",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D27",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D28",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D29",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D30",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D31",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D32",
+      "model_id": "SZLHOLDINGS/szl-specdecode",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    },
+    {
+      "decision_id": "D33",
+      "model_id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "PROPOSED_HOLD",
+      "blocked_by": [
+        "Dated assessment bound to this inventory sha, with the README blob URL above.",
+        "A provider-mapping observation, or a recorded failed lookup, from the mapping URL above. This review did not fetch it.",
+        "An explicit source-review decision naming this id before it can be added to the support catalog.",
+        "An explicit exclusion record naming this id, if the reviewer chooses not to add it. None was found."
+      ]
+    }
+  ]
+}
