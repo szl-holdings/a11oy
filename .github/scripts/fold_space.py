@@ -12,7 +12,10 @@ the same execution:
      (runtime keep wins ONLY for listed keeps).
   4. publishing/hf-hub-ownership.json attributes no active in-repo writer.
   5. A declared fold destination (when one exists) answers HTTP < 400.
-  6. The target exists and is captured (metadata + README digest) before a
+  6. Completed disposition review and target/revision-bound authorization
+     have a supported verifier. No such verifier exists yet: every dispatch,
+     including dry runs, is BLOCKED before provider access.
+  7. The target exists and is captured (metadata + README digest) before a
      soft fold (pause + private) precedes the gated deletion.
 
 "Fold" here means exactly what the Vessels pair did: capture, soft-fold
@@ -147,17 +150,37 @@ def prove_destination(entry: dict[str, Any]) -> dict[str, Any]:
     return {"destination": destination, "declared": True, "http_status": status}
 
 
+def prove_review_prerequisites(entry: dict[str, Any]) -> None:
+    """Containment: inventory and typed confirmation cannot prove review.
+
+    The disposition ledger is OBSERVATION_ONLY. No accepted evidence format
+    or verifier binds its review gates and separate approval to a target SHA.
+    Do not enable mutations by adding an unchecked approval flag or URL.
+    """
+    gate = entry.get("review_gate")
+    if not isinstance(gate, str) or not gate.strip():
+        raise FoldError("disposition review gate is missing or malformed")
+    raise FoldError(
+        f"disposition review {gate!r} is unverified: pending inventory is not "
+        "authorization; a separately reviewed target/revision-bound evidence "
+        "verifier is required before provider access"
+    )
+
+
 def capture_target(api: HfApi, token: str, space_id: str) -> dict[str, Any]:
     if not api.repo_exists(space_id, repo_type="space"):
         return {"existed": False, "already_absent": True}
 
     info = api.space_info(space_id, token=token)
+    sha = getattr(info, "sha", None)
+    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise FoldError("target capture requires an immutable Hub revision")
     record: dict[str, Any] = {
         "existed": True,
         "private": bool(getattr(info, "private", False)),
         "sdk": getattr(info, "sdk", None),
-        "sha": getattr(info, "sha", None),
-        "files": sorted(api.list_repo_files(space_id, repo_type="space", token=token)),
+        "sha": sha,
+        "files": sorted(api.list_repo_files(space_id, repo_type="space", revision=sha, token=token)),
         "secret_values_read": False,
     }
     try:
@@ -166,6 +189,7 @@ def capture_target(api: HfApi, token: str, space_id: str) -> dict[str, Any]:
                 repo_id=space_id,
                 filename="README.md",
                 repo_type="space",
+                revision=sha,
                 token=token,
                 local_dir=tmp,
             )
@@ -173,7 +197,7 @@ def capture_target(api: HfApi, token: str, space_id: str) -> dict[str, Any]:
             record["readme_sha256"] = hashlib.sha256(data).hexdigest()
             record["readme_bytes"] = len(data)
     except Exception as exc:  # noqa: BLE001
-        record["readme_capture_warning"] = type(exc).__name__
+        raise FoldError(f"required README capture failed: {type(exc).__name__}") from exc
     return record
 
 
@@ -186,7 +210,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    space_id = args.space_id.strip()
+    space_id = args.space_id
     report: dict[str, Any] = {
         "schema": "szl.hf-space-fold/v1",
         "target": space_id,
@@ -226,6 +250,7 @@ def main() -> int:
             "review_gate": entry.get("review_gate"),
             "declared": entry.get("declared"),
         }
+        prove_review_prerequisites(entry)
         report["local_controls"] = {
             "keep_exclusion": prove_keep_exclusion(root, space_id),
             "ownership": prove_no_active_writer(root, space_id),
