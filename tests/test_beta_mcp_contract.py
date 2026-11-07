@@ -73,3 +73,25 @@ def test_agent_run_receipt_is_not_a_payment_settlement():
     assert receipt["honesty"] == "fixture signer, not a payment settlement"
     assert "payment" not in receipt
     assert "payment-response" not in {name.lower() for name in response.headers}
+
+
+def test_anonymous_rest_mcp_call_is_refused_by_the_app_gate(monkeypatch):
+    """The bare Starlette app above does not install the operator middleware."""
+    import serve
+
+    calls = {"body": 0}
+    real = serve._safe_json_body
+
+    async def counted(request):
+        calls["body"] += 1
+        return await real(request)
+
+    monkeypatch.setattr(serve, "_safe_json_body", counted)
+    with TestClient(serve.app) as client:
+        response = client.post("/api/a11oy/v1/mcp/call", json={
+            "name": "lambda_score", "arguments": {"axes": ["consistency"]}})
+    body = response.json()
+    assert response.status_code == 401
+    assert body["status"] == "BLOCKED"
+    assert "signature" not in body
+    assert calls["body"] == 0
