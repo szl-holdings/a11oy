@@ -33,8 +33,11 @@ differs by case or a trailing slash is not that route.
 
 Keys come from ``app.state.x402_keys`` when a test or a deployment injects a
 ``StaticKeySet``. Otherwise one process-wide trust resolver fetches only the
-pinned Cloudflare JWKS, off the event loop. A failed fetch does not run the
-handler. There is no token-selected key URL and no JWT replay blacklist.
+pinned Cloudflare JWKS. That verification uses a private pool of two threads
+and 32 queued checks. Health and every other route stay on the event loop, so
+a saturated key fetch does not occupy the process default executor. A full
+queue or a failed fetch is HTTP 503 and does not run the handler. There is no
+token-selected key URL and no JWT replay blacklist.
 """
 
 from __future__ import annotations
@@ -44,6 +47,7 @@ import os
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from starlette.responses import JSONResponse
@@ -70,6 +74,11 @@ _FAMILIES = {
 }
 _SHARED_RESOLVER = None
 _SHARED_LOCK = threading.Lock()
+_VERIFY_WORKERS = 2
+_VERIFY_QUEUE = 32
+_VERIFY_EXECUTOR: ThreadPoolExecutor | None = None
+_VERIFY_SLOTS: threading.Semaphore | None = None
+_VERIFY_POOL_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -178,7 +187,15 @@ def _now(request) -> int:
     return int(time.time())
 
 
-def evaluate(request) -> _Outcome:
+@dataclass(frozen=True)
+class _Verify:
+    validator: object
+    token: str | None
+    policy: _Policy
+
+
+def classify(request) -> _Outcome | _Verify:
+    """Decide without fetching keys. ``_Verify`` is the only blocking path."""
     method = (request.method or "").upper()
     path = request.url.path
     if method == "HEAD" and monetized_path(path):
@@ -201,22 +218,54 @@ def evaluate(request) -> _Outcome:
     if len(presented) > 1:
         return _Outcome("reject", 403, "AMBIGUOUS_CONTEXT")
     token = presented[0] if presented else None
-    audience = policy.base + request.url.path
+    return _Verify(validator, token, policy)
+
+
+def verify_context(request, pending: _Verify) -> _Outcome:
+    """Run the pinned validator. May block in its key resolver."""
+    audience = pending.policy.base + request.url.path
     try:
-        validator.validate_payment_context(
-            token,
-            keys=_keys(request, validator),
+        pending.validator.validate_payment_context(
+            pending.token,
+            keys=_keys(request, pending.validator),
             expected_audience=audience,
             now=_now(request),
-            scheme=policy.scheme,
-            expected_amount=policy.amount,
-            leeway=policy.leeway,
+            scheme=pending.policy.scheme,
+            expected_amount=pending.policy.amount,
+            leeway=pending.policy.leeway,
             request_url=audience,
         )
-    except validator.PaymentHold as hold:
+    except pending.validator.PaymentHold as hold:
         status = 503 if hold.reason == "KEYS_UNAVAILABLE" else 403
         return _Outcome("reject", status, hold.reason)
     return _Outcome("verified")
+
+
+def _verify_pool() -> tuple[ThreadPoolExecutor, threading.Semaphore]:
+    """Private pool. Callers do not use the process default executor."""
+    global _VERIFY_EXECUTOR, _VERIFY_SLOTS
+    with _VERIFY_POOL_LOCK:
+        if _VERIFY_EXECUTOR is None or _VERIFY_SLOTS is None:
+            _VERIFY_EXECUTOR = ThreadPoolExecutor(
+                max_workers=_VERIFY_WORKERS,
+                thread_name_prefix="a11oy-x402-verify",
+            )
+            _VERIFY_SLOTS = threading.Semaphore(_VERIFY_WORKERS + _VERIFY_QUEUE)
+        return _VERIFY_EXECUTOR, _VERIFY_SLOTS
+
+
+def submit_verification(fn, *args):
+    """Queue one verification, or return None when the bounded queue is full."""
+    executor, slots = _verify_pool()
+    if not slots.acquire(blocking=False):
+        return None
+    try:
+        future = executor.submit(fn, *args)
+    except Exception:
+        slots.release()
+        raise
+    future.add_done_callback(lambda _done: slots.release())
+    return future
 
 
 def _stamp(response, kind: str):
@@ -237,10 +286,22 @@ def _stamp(response, kind: str):
 async def payment_gate(request, call_next):
     """Reject a configured paid route before its handler. Never mint settlement.
 
-    Key retrieval is synchronous inside the trust resolver. It runs off the
-    event loop so a slow or failed fetch cannot stall health and other requests.
+    Classification stays on the event loop. Only a configured exact context
+    enters the private verification pool, so health does not wait on a key fetch
+    even when that pool, or the process default executor, is saturated.
     """
-    outcome = await asyncio.to_thread(evaluate, request)
+    decision = classify(request)
+    if isinstance(decision, _Verify):
+        future = submit_verification(verify_context, request, decision)
+        if future is None:
+            outcome = _Outcome("reject", 503, "ADMISSION_SATURATED")
+        else:
+            try:
+                outcome = await asyncio.wrap_future(future)
+            except Exception:
+                outcome = _Outcome("reject", 503, "VALIDATOR_UNAVAILABLE")
+    else:
+        outcome = decision
     if outcome.kind == "reject":
         return outcome.response()
     response = await call_next(request)

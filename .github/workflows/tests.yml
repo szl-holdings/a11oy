@@ -581,6 +581,7 @@ jobs:
           tests/test_attest_build_commit.py
           tests/test_attest_meter_evidence.py
           tests/test_runtime_contracts.py
+          tests/test_monetized_surfaces.py
           tests/test_x402_origin_admission.py
           tests/test_spend_cap.py
           tests/test_frontier_now_control_plane.py

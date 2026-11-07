@@ -45,9 +45,11 @@ Verification for `exact` is `szl_trust_x402_payment_context.validate_payment_con
 the estate copy of szl-trust `scripts/x402_payment_context.py`. Ed25519 keys
 come only from the pinned JWKS `https://payments.cloudflare.com/certs`, unless
 a test injects `app.state.x402_keys`. One resolver is shared by the process.
-Its fetch runs off the event loop, and a failed fetch is HTTP 503 without the
-handler. The image installs `pyjwt` so that call can run. Tests do not contact
-the pinned URL.
+Verification of a configured exact context runs on a private pool of two
+threads with 32 queued checks. Health and other routes stay on the event loop
+and do not use that pool or the process default executor. A full queue or a
+failed fetch is HTTP 503 without the handler. The image installs `pyjwt` so
+that call can run. Tests do not contact the pinned URL.
 
 Missing, malformed, wrong algorithm, untrusted key, bad signature, expired,
 not-yet-valid, wrong audience, wrong scheme, and wrong amount contexts are
@@ -64,9 +66,13 @@ case or a trailing slash is not the paid route.
 The spend ledger is a separate in-process cap. Its lock is not durable across
 restart or replicas. These reads do not call it, because no ledger amount is
 configured for them. Invalid amounts, including NaN and a value that rounds to
-zero, are refused. An operation retry is the same id, canonical amount, and
-payload digest; a conflict does not append. Admission memory is bounded by
-refusing new ids, not by forgetting old ones.
+zero, are refused. An omitted constructor cap is 25 only when
+`SZL_SPEND_CAP_USD` is unset; a non-finite or invalid constructor cap raises
+and does not substitute 25. An operator cap update that omits `cap_usd` keeps
+the current cap, including when that value is already a Decimal. An operation
+retry is the same id, canonical amount, and payload digest; a conflict does
+not append. Admission memory is bounded by refusing new ids, not by forgetting
+old ones.
 
 Public proof and health routes are not in the three families.
 

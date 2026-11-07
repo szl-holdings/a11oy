@@ -140,6 +140,33 @@ def test_trimmed_tail_verifies_retained_history_only():
     assert led.verify()["intact"] is False
 
 
+def test_omitted_cap_keeps_the_current_decimal_value():
+    led = _fresh(5)
+    kept = led.set_cap(led.cap_usd)
+    assert kept.get("cap_rejected") is not True
+    assert kept["cap_usd"] == 5.0
+    assert led.set_cap(5)["cap_usd"] == 5.0
+    assert led.set_cap(4)["cap_usd"] == 4.0
+
+
+def test_invalid_constructor_cap_does_not_grant_the_default(monkeypatch):
+    monkeypatch.delenv("SZL_SPEND_CAP_USD", raising=False)
+    assert sc.SpendLedger().state()["cap_usd"] == 25.0
+    assert sc.SpendLedger(cap_usd=1).state()["cap_usd"] == 1.0
+    for value in (float("nan"), float("inf"), float("-inf"), True, -1, "nope"):
+        try:
+            sc.SpendLedger(cap_usd=value)
+        except sc.SpendCapError:
+            continue
+        raise AssertionError(f"invalid cap was accepted: {value!r}")
+    monkeypatch.setenv("SZL_SPEND_CAP_USD", "nan")
+    try:
+        sc.SpendLedger()
+    except sc.SpendCapError:
+        return
+    raise AssertionError("invalid env cap substituted a budget")
+
+
 def test_admit_retries_once_and_rejects_a_different_payload():
     led = _fresh(1.0)
     first = led.admit(0.4, "op-1", "digest-a")

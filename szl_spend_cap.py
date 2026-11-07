@@ -58,14 +58,6 @@ def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def _env_float(name: str, default: float) -> float:
-    try:
-        raw = (os.environ.get(name, "") or "").strip()
-        return float(raw) if raw else float(default)
-    except (TypeError, ValueError):
-        return float(default)
-
-
 def _kill_file() -> str:
     return (os.environ.get("SZL_SPEND_KILL_FILE", "") or "").strip() or "/opt/alloyscape/.spend-KILL"
 
@@ -76,10 +68,12 @@ def _canonical_usd(value: Any, *, allow_zero: bool) -> Optional[Decimal]:
     NaN, infinity, booleans, negatives, and a positive value that rounds to zero
     are refused. They are not coerced to zero.
     """
-    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
-        return None
     try:
-        if isinstance(value, str):
+        if isinstance(value, Decimal):
+            parsed = value
+        elif isinstance(value, bool) or not isinstance(value, (int, float, str)):
+            return None
+        elif isinstance(value, str):
             text = value.strip()
             if _AMOUNT_TEXT.fullmatch(text) is None:
                 return None
@@ -106,6 +100,10 @@ def _money(value: Decimal) -> float:
     return float(value)
 
 
+class SpendCapError(ValueError):
+    """The supplied cap cannot be used. No substitute budget is granted."""
+
+
 class SpendLedger:
     """Append-only, hash-linked USD spend ledger with an in-process cap.
 
@@ -113,13 +111,25 @@ class SpendLedger:
     history only; a trimmed prefix is not claimed to still link to genesis.
     ``max_admissions`` bounds retry memory. When it is full, a new operation
     id is refused and an id already stored is still protected.
+
+    An omitted constructor cap uses ``SZL_SPEND_CAP_USD`` when that variable is
+    set, and otherwise 25. A non-finite or non-canonical cap raises
+    ``SpendCapError`` instead of substituting 25. Passing the ledger's current
+    ``cap_usd`` back to ``set_cap`` keeps that cap; it does not widen it.
     """
 
     def __init__(self, cap_usd: Optional[float] = None, max_tail: int = 200,
                  max_admissions: int = _DEFAULT_MAX_ADMISSIONS) -> None:
-        chosen = cap_usd if cap_usd is not None else _env_float("SZL_SPEND_CAP_USD", 25.0)
-        parsed = _canonical_usd(chosen, allow_zero=True)
-        self.cap_usd = parsed if parsed is not None else Decimal("25.000000")
+        if cap_usd is None:
+            raw = (os.environ.get("SZL_SPEND_CAP_USD") or "").strip()
+            parsed = Decimal("25.000000") if not raw else _canonical_usd(raw, allow_zero=True)
+            if parsed is None:
+                raise SpendCapError("SZL_SPEND_CAP_USD is not a usable cap")
+        else:
+            parsed = _canonical_usd(cap_usd, allow_zero=True)
+            if parsed is None:
+                raise SpendCapError("cap_usd is not a usable cap")
+        self.cap_usd = parsed
         self.max_tail = int(max_tail)
         self.max_admissions = int(max_admissions)
         self._entries: List[Dict[str, Any]] = []
@@ -346,7 +356,11 @@ def register(app: Any, ns: str = "a11oy") -> str:
 
     @app.post(base + "/cap", include_in_schema=False)
     def _spend_setcap(payload: Dict[str, Any]):
-        return led.set_cap(payload.get("cap_usd", led.cap_usd))
+        # Omission keeps the current cap. The stored value is a Decimal, and
+        # set_cap accepts that same value without widening it.
+        if not isinstance(payload, dict) or "cap_usd" not in payload or payload.get("cap_usd") is None:
+            return led.set_cap(led.cap_usd)
+        return led.set_cap(payload.get("cap_usd"))
 
     @app.get("/spend-cap", include_in_schema=False)
     def _spend_cap_view():

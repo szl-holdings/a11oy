@@ -278,6 +278,70 @@ def test_shared_key_resolution_fails_closed_without_blocking_health(monkeypatch)
     assert total >= 0.8
 
 
+def test_health_stays_responsive_when_the_default_executor_is_saturated(monkeypatch):
+    """Two key waits must not occupy the process default executor."""
+    import httpx
+    from concurrent.futures import ThreadPoolExecutor
+
+    calls = {"fetch": 0}
+    def fetch(url, *, timeout, max_bytes):
+        assert url == trust_x402.PINNED_JWKS_URL
+        calls["fetch"] += 1
+        time.sleep(0.8)
+        raise trust_x402.PaymentHold("KEYS_UNAVAILABLE", "PAYMENT_KEYS_FETCH_FAILED")
+
+    _configure(monkeypatch)
+    previous = getattr(serve.app.state, "x402_keys", None)
+    serve.app.state.x402_keys = None
+    monkeypatch.setattr(admission, "_SHARED_RESOLVER", trust_x402.PaymentKeyResolver(fetch=fetch))
+    headers = {"payment-context": _token(Ed25519PrivateKey.generate())}
+
+    async def scenario():
+        loop = asyncio.get_running_loop()
+        loop.set_default_executor(ThreadPoolExecutor(max_workers=2))
+        transport = httpx.ASGITransport(app=serve.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.get("/healthz")
+            paid_a = asyncio.create_task(client.get(PATH, headers=headers))
+            paid_b = asyncio.create_task(client.get(PATH, headers=headers))
+            await asyncio.sleep(0.05)
+            mark = time.monotonic()
+            health = await client.get("/healthz")
+            elapsed = time.monotonic() - mark
+            first, second = await asyncio.gather(paid_a, paid_b)
+            return health.status_code, elapsed, first.status_code, second.status_code
+
+    try:
+        health_status, elapsed, first, second = asyncio.run(scenario())
+    finally:
+        serve.app.state.x402_keys = previous
+    assert calls["fetch"] == 1
+    assert first == 503 and second == 503
+    assert health_status == 200
+    assert elapsed < 0.5
+
+
+def test_verification_queue_fails_closed_when_full():
+    import threading
+    release = threading.Event()
+
+    def block():
+        release.wait(timeout=5)
+        return "done"
+
+    futures = []
+    try:
+        for _ in range(admission._VERIFY_WORKERS + admission._VERIFY_QUEUE):
+            future = admission.submit_verification(block)
+            assert future is not None
+            futures.append(future)
+        assert admission.submit_verification(block) is None
+    finally:
+        release.set()
+        for future in futures:
+            future.result(timeout=5)
+
+
 def test_shared_key_resolution_reuses_a_fresh_set(monkeypatch):
     import httpx
 
@@ -347,7 +411,7 @@ def test_two_contexts_are_ambiguous_before_the_handler():
     os.environ["A11OY_X402_SCHEME"] = "exact"
     os.environ["A11OY_X402_ACOUSTIC_AMOUNT_ATOMIC"] = AMOUNT
     try:
-        outcome = admission.evaluate(Request())
+        outcome = admission.classify(Request())
     finally:
         os.environ.pop("A11OY_X402_PUBLIC_BASE")
         os.environ.pop("A11OY_X402_SCHEME")
