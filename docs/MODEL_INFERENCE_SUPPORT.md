@@ -5,11 +5,18 @@
 
 `docs/model-inference-support.json` is the source for the A11oy model catalog and
 downstream card presentation. It records public Hub provider observations and
-support discussions. The reviewed source covers the **48 public model-namespace
-repositories** in `docs/huggingface-ecosystem-manifest.json`. That namespace also
-contains kernels, software, adapters, GGUF bundles, and NumPy artifacts; its count
-is not an LLM count. Entries from the separate native-kernel namespace are not
-added to the model count.
+support discussions. The source lists the **74 public model-namespace
+repositories** in `docs/huggingface-ecosystem-manifest.json` at that inventory's
+2026-11-06 observation. That namespace also contains kernels, software, adapters,
+GGUF bundles, and NumPy artifacts; its count is not an LLM count. Entries from
+the separate native-kernel namespace are not added to the model count. A listed
+row is catalog coverage, not routing, qualification, promotion, or deployment
+authority.
+
+On 2026-11-07 the 33 repositories that were in the inventory and absent from
+this file were assessed from their public revision file list and a provider-mapping
+read. Each mapping response was HTTP 200 with an empty object, so those rows are
+`NO_PROVIDER_MAPPING`. No support discussion was submitted for them.
 
 ## Evidence boundaries
 
