@@ -7639,6 +7639,52 @@ async def _a11oy_codex_alias():
 
 
 # ---------------------------------------------------------------------------
+# COOKIE RECOGNITION LEDGER (2026-11-07) — playful, honest, receipted.
+# Cookies are RECOGNITION ONLY: they have no monetary value, confer no
+# rights, and are never tradable. Every award carries the verified action
+# that earned it. The ledger is append-only in spirit: awards are never
+# silently revoked; corrections are new entries with reasons.
+# ---------------------------------------------------------------------------
+
+_COOKIE_LEDGER = [
+    {"cookie": 1, "awarded_to": "Sara Behnamian", "for": "certified-unique benchmark collaboration; two PRs merged upstream",
+     "verified_action": "PR #1 and #2 merged in sarabehnamian/Puzzle-generation-with-guaranteed-uniqueness",
+     "awarded_at": "2026-11-05", "label": "RECOGNITION_ONLY"},
+    {"cookie": 2, "awarded_to": "Andres Vidal-Gadea", "for": "adopting the four governance concepts into the lab's register and proposing the multi-arm study",
+     "verified_action": "lab adoption 2026-09-30; collaboration correspondence 2026-11-06",
+     "awarded_at": "2026-11-07", "label": "RECOGNITION_ONLY"},
+    {"cookie": 3, "awarded_to": "Pulin Gong and Andrew Ly", "for": "the riddled-basins result that reframes reproducibility",
+     "verified_action": "Nature Machine Intelligence 2026, arXiv:2510.05606",
+     "awarded_at": "2026-11-07", "label": "RECOGNITION_ONLY"},
+]
+
+
+@app.get("/api/a11oy/v1/cookies")
+async def _a11oy_cookies():
+    """The cookie ledger: recognition for verified contributions.
+
+    Cookies are RECOGNITION ONLY - no monetary value, no rights, never
+    tradable. Anyone may verify the underlying action from the recorded
+    provenance. New awards require a verifiable action; the ledger never
+    silently revokes - corrections are new entries with reasons.
+    """
+    return JSONResponse({
+        "schema": "szl.cookies/v1",
+        "label": "RECOGNITION_ONLY",
+        "note": ("Cookies are playful recognition for verified contributions to the "
+                 "estate and its collaborations. They have no monetary value, confer "
+                 "no rights, and are never tradable. Every award names the verified "
+                 "action that earned it."),
+        "total_awarded": len(_COOKIE_LEDGER),
+        "ledger": _COOKIE_LEDGER,
+        "how_to_earn": ("A verified contribution: a merged PR, an independently "
+                        "replicated result, an adopted method, or an honest published "
+                        "failure that made the estate measurably better."),
+        "doctrine": "v11",
+    })
+
+
+# ---------------------------------------------------------------------------
 # MONETIZED PRODUCT SURFACES (2026-11-06) — real backends for the x402 rules.
 # Acoustic validation, dataset access and the experimental-surface index each
 # serve genuine payloads (measured computation, public catalog, declared
