@@ -22,6 +22,7 @@ hf-xet==1.7.1
 openai==2.43.0
 python-multipart==0.0.32
 cryptography==50.0.2
+pyjwt==2.15.1
 lmdb==3.0.0
 slowapi==0.1.10
 defusedxml==0.7.1
