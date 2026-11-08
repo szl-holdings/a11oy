@@ -1,6 +1,6 @@
 as_of: "2026-09-04"
 state: APPLY
-policy_amended_at: "2026-10-28"
+policy_amended_at: "2026-11-07"
 policy_version: cyber-resilience-consolidation-v3
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
@@ -55,7 +55,7 @@ keep:
     qualification_workflow: https://github.com/szl-holdings/szl-forge/actions/runs/36802030123
     qualification_scope: three_public_model_trials_and_receipt_hash_readbacks
   - id: SZLHOLDINGS/anatomy
-    owner_class: creator_profile
+    owner_class: organization
     role: living_system_atlas
     live_origin: https://szlholdings-anatomy.hf.space
     dest: https://a-11-oy.com/living-anatomy
