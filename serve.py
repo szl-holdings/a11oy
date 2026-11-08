@@ -10724,6 +10724,123 @@ async def _stop_a11oy_signing_state():
             pass
 
 
+# KHIPU FLEET CONTRACT (platform readiness-reliability executor): the fleet
+# probes {base}/healthz, {base}/khipu/sign, {base}/khipu/verify, {base}/metrics.
+# The estate signing surfaces live at /api/a11oy/v1/* — these ROOT routes are
+# the fleet-contract aliases and perform the REAL sign/verify work with the
+# loaded production key on every request (the same backend as the capability
+# self-test; no stub, no fabricated 200). Fail-closed: key not loaded or
+# fingerprint-mismatched -> HTTP 503 with the honest reason, so the readiness
+# receipt records a real fault instead of a fake green.
+def _khipu_fleet_signer_ready() -> tuple[object, str | None]:
+    """(private key, verification fingerprint) when the loaded signer is real."""
+    if _A11OY_PRIV is None or not _A11OY_PUB_PEM:
+        return None, None
+    try:
+        verification = _hashv2.sha256(_A11OY_PUB_PEM.strip().encode("ascii")).hexdigest()
+        from cryptography.hazmat.primitives import serialization
+        public = _A11OY_PRIV.public_key().public_bytes(
+            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+        loaded = _hashv2.sha256(public.strip()).hexdigest()
+    except Exception:
+        return None, None
+    if loaded != verification:
+        return None, None
+    return _A11OY_PRIV, verification
+
+
+def _khipu_fleet_receipt(verification: str) -> dict:
+    service = getattr(app.state, "szl_series_a_service", None)
+    boot_id = getattr(service, "runtime_boot_id", None)
+    return {
+        "schema": "szl.khipu-fleet-sign/v1",
+        "runtime_boot_id": boot_id,
+        "observed_at": _dtv2.now(_tzv2.utc).isoformat(),
+        "key_fingerprint": verification,
+        "statement": ("fleet-contract sign: the loaded production backend signs "
+                      "this canonical receipt and the signature verifies "
+                      "against the loaded public key"),
+    }
+
+
+@app.api_route("/khipu/sign", methods=["GET", "POST"])
+async def khipu_fleet_sign() -> JSONResponse:
+    priv, verification = _khipu_fleet_signer_ready()
+    if priv is None:
+        return JSONResponse({"schema": "szl.khipu-fleet-sign/v1", "status": "UNAVAILABLE",
+                             "reason": "signer-key-not-loaded-or-fingerprint-mismatch"},
+                            status_code=503)
+    import base64 as _b64f
+    receipt = _khipu_fleet_receipt(verification)
+    body = _a11oy_canonical(receipt)
+    to_sign = _a11oy_pae(_A11OY_PAYLOAD_TYPE, body)
+    try:
+        sig = priv.sign(to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
+        priv.public_key().verify(sig, to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
+    except Exception as exc:
+        return JSONResponse({"schema": "szl.khipu-fleet-sign/v1", "status": "UNAVAILABLE",
+                             "reason": f"sign-or-verify-failed: {type(exc).__name__}"},
+                            status_code=503)
+    return JSONResponse({**receipt, "status": "SIGNED",
+                         "payload_digest": _hashv2.sha256(body).hexdigest(),
+                         "signature_b64": _b64f.b64encode(sig).decode("ascii"),
+                         "verified": True})
+
+
+@app.api_route("/khipu/verify", methods=["GET", "POST"])
+async def khipu_fleet_verify(request: "Request" = None) -> JSONResponse:
+    priv, verification = _khipu_fleet_signer_ready()
+    if priv is None:
+        return JSONResponse({"schema": "szl.khipu-fleet-verify/v1", "status": "UNAVAILABLE",
+                             "reason": "signer-key-not-loaded-or-fingerprint-mismatch"},
+                            status_code=503)
+    supplied = {}
+    if request is not None:
+        try:
+            supplied = (await request.json()) if (await request.body()) else {}
+        except Exception:
+            supplied = {}
+    digest = supplied.get("payload_digest") if isinstance(supplied, dict) else None
+    signature_b64 = supplied.get("signature_b64") if isinstance(supplied, dict) else None
+    import base64 as _b64f
+    if isinstance(digest, str) and isinstance(signature_b64, str):
+        # Verify a caller-supplied receipt against the loaded public key.
+        try:
+            sig = _b64f.b64decode(signature_b64, validate=True)
+        except Exception:
+            return JSONResponse({"schema": "szl.khipu-fleet-verify/v1",
+                                 "verdict": "FAILED", "reason": "signature-not-base64"},
+                                status_code=200)
+        receipt = _khipu_fleet_receipt(verification)
+        receipt["payload_digest"] = digest
+        body = _a11oy_canonical(receipt)
+        to_verify = _a11oy_pae(_A11OY_PAYLOAD_TYPE, body)
+        try:
+            priv.public_key().verify(sig, to_verify, _ecv2.ECDSA(_hashesv2.SHA256()))
+            verdict, reason = "VERIFIED", None
+        except Exception:
+            verdict, reason = "FAILED", "signature-does-not-verify"
+        return JSONResponse({"schema": "szl.khipu-fleet-verify/v1", "verdict": verdict,
+                             "reason": reason, "payload_digest": digest,
+                             "key_fingerprint": verification})
+    # Self-verification roundtrip: sign a fresh canonical receipt, then verify.
+    receipt = _khipu_fleet_receipt(verification)
+    body = _a11oy_canonical(receipt)
+    to_sign = _a11oy_pae(_A11OY_PAYLOAD_TYPE, body)
+    try:
+        sig = priv.sign(to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
+        priv.public_key().verify(sig, to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
+    except Exception as exc:
+        return JSONResponse({"schema": "szl.khipu-fleet-verify/v1", "verdict": "FAILED",
+                             "reason": f"roundtrip-failed: {type(exc).__name__}"},
+                            status_code=200)
+    return JSONResponse({**receipt, "schema": "szl.khipu-fleet-verify/v1",
+                         "verdict": "VERIFIED",
+                         "payload_digest": _hashv2.sha256(body).hexdigest(),
+                         "signature_b64": _b64f.b64encode(sig).decode("ascii"),
+                         "verified": True})
+
+
 def _a11oy_pae(payload_type: str, body: bytes) -> bytes:
     """DSSE Pre-Authentication Encoding (DSSEv1)."""
     t = payload_type.encode("utf-8")
