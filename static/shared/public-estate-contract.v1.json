@@ -23,7 +23,9 @@
       "domain": "cyber-physical resilience intelligence",
       "productPath": "/killinchu",
       "githubRepository": "szl-holdings/killinchu",
-      "huggingFaceRepositories": ["SZLHOLDINGS/killinchu"],
+      "huggingFaceRepositories": [
+        "SZLHOLDINGS/killinchu"
+      ],
       "truth": "SOURCE_OWNED_RUNTIME"
     },
     {
@@ -32,7 +34,9 @@
       "domain": "business observability",
       "productPath": "/lyte",
       "githubRepository": "szl-holdings/lyte-services",
-      "huggingFaceRepositories": ["SZLHOLDINGS/lyte"],
+      "huggingFaceRepositories": [
+        "SZLHOLDINGS/lyte"
+      ],
       "truth": "SOURCE_OWNED_RUNTIME"
     },
     {
@@ -41,7 +45,9 @@
       "domain": "real-estate intelligence",
       "productPath": "/terra",
       "githubRepository": "szl-holdings/szl-real-estate",
-      "huggingFaceRepositories": ["SZLHOLDINGS/terra"],
+      "huggingFaceRepositories": [
+        "SZLHOLDINGS/terra"
+      ],
       "truth": "PUBLIC_SOURCE_EVIDENCE"
     },
     {
@@ -51,7 +57,9 @@
       "productPath": "/counsel",
       "githubRepository": "szl-holdings/a11oy",
       "githubPath": "verticals/counsel",
-      "huggingFaceRepositories": ["SZLHOLDINGS/counsel"],
+      "huggingFaceRepositories": [
+        "SZLHOLDINGS/counsel"
+      ],
       "truth": "PUBLIC_SOURCE_EVIDENCE"
     },
     {
@@ -60,7 +68,9 @@
       "domain": "financial intelligence",
       "productPath": "/finance",
       "githubRepository": "szl-holdings/puriq-live",
-      "huggingFaceRepositories": ["SZLHOLDINGS/finance"],
+      "huggingFaceRepositories": [
+        "SZLHOLDINGS/finance"
+      ],
       "truth": "PUBLIC_SOURCE_EVIDENCE"
     }
   ],
@@ -68,7 +78,11 @@
     {
       "id": "living-anatomy",
       "name": "Living Anatomy",
-      "authority": "ADVISORY_ONLY"
+      "authority": "ADVISORY_ONLY",
+      "huggingFaceRepositories": [
+        "SZLHOLDINGS/anatomy"
+      ],
+      "binding_note": "Owner decision 2026-11-07: the canonical Living Anatomy destination is the organization Space SZLHOLDINGS/anatomy (anatomy PR #115/#117; Actions run #874 verified publish + readback). The retired creator-profile destination is recorded in DESTINATION_DECISION.json."
     },
     {
       "id": "formula-kernel",
@@ -111,14 +125,18 @@
       "id": "vertical-services",
       "name": "Vertical Services",
       "githubRepository": "szl-holdings/vertical-services",
-      "huggingFaceRepositories": ["SZLHOLDINGS/vertical-services"],
+      "huggingFaceRepositories": [
+        "SZLHOLDINGS/vertical-services"
+      ],
       "classification": "SHARED_EVIDENCE_RUNTIME"
     },
     {
       "id": "curation-atlas",
       "name": "Curation Atlas",
       "githubRepository": "szl-holdings/curation-atlas",
-      "huggingFaceRepositories": ["SZLHOLDINGS/curation-atlas"],
+      "huggingFaceRepositories": [
+        "SZLHOLDINGS/curation-atlas"
+      ],
       "classification": "READ_ONLY_PUBLIC_REPOSITORY_AUDIT_API"
     }
   ],
@@ -132,13 +150,6 @@
   "inventoryOnlyHuggingFaceRepositories": [
     {
       "id": "SZLHOLDINGS/agents-studio",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/anatomy",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -262,15 +273,26 @@
   "alignmentConsumers": [
     {
       "repository": "szl-holdings/a11oy",
-      "surfaces": ["product navigation", "public API", "Hugging Face publisher"]
+      "surfaces": [
+        "product navigation",
+        "public API",
+        "Hugging Face publisher"
+      ]
     },
     {
       "repository": "szl-holdings/.github",
-      "surfaces": ["organization profile", "public surface atlas", "Hugging Face organization card"]
+      "surfaces": [
+        "organization profile",
+        "public surface atlas",
+        "Hugging Face organization card"
+      ]
     },
     {
       "repository": "szl-holdings/a11oy-net",
-      "surfaces": ["proof estate", "diligence catalog"]
+      "surfaces": [
+        "proof estate",
+        "diligence catalog"
+      ]
     }
   ]
 }

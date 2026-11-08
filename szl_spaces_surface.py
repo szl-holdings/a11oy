@@ -91,7 +91,7 @@ SPACES: list[dict[str, str]] = [
 ]
 KEEP_TARGET = 5
 
-# Current organization visibility policy, amended 2026-10-28 in
+# Current organization visibility policy, amended 2026-11-07 in
 # docs/estate/hf-nine-flagship-keep.yaml. The five configured runtime tiles above
 # are a narrower, older probe roster. Keep the scopes distinct: a reachable tile
 # does not clear public visibility drift, and a policy keeper is not necessarily
@@ -99,6 +99,7 @@ KEEP_TARGET = 5
 PUBLIC_ORG_KEEP_POLICY = frozenset({
     "a11oy", "killinchu", "terra", "counsel", "finance", "lyte",
     "curation-atlas", "david-leads", "szl-foundation-confirmation",
+    "anatomy",
 })
 PUBLIC_ORG_KEEP_POLICY_SOURCE = "docs/estate/hf-nine-flagship-keep.yaml"
 
@@ -156,6 +157,12 @@ FOLD_SPACES: list[dict[str, str]] = [
     {"name": "counsel", "slug": "counsel", "title": "counsel", "sdk": "docker",
      "action": "KEEP_POLICY", "sink": "policy", "dest": "https://szlholdings-counsel.hf.space",
      "why": "Current organization keep policy; runtime is not probed in this tile roster."},
+    {"name": "anatomy", "slug": "anatomy", "title": "Living Anatomy", "sdk": "docker",
+     "action": "KEEP_POLICY", "sink": "policy", "dest": "https://szlholdings-anatomy.hf.space",
+     "why": "Owner decision 2026-11-07: the canonical Living Anatomy destination is the "
+            "organization Space SZLHOLDINGS/anatomy (anatomy PR #115/#117; Actions run #874 "
+            "verified publish + readback). Retired creator-profile destination recorded in "
+            "DESTINATION_DECISION.json."},
     {"name": "experiments", "slug": "experiments", "title": "experiments", "sdk": "docker",
      "action": "FOLD", "sink": "proof", "dest": PROOF + "/experiments/",
      "why": "Experimental split-outs already have a proof path. Not locked-8."},
@@ -1342,7 +1349,7 @@ if __name__ == "__main__":
     assert b"http://" not in tp, "tiles must be 0 CDN (no http://)"
     assert b'href="/spaces/' not in tp, "tiles must not execute an app under this origin"
     assert b"5 configured runtime doors are probed" in tp
-    assert b"current organization keep policy lists 9 Spaces" in tp
+    assert b"current organization keep policy lists 10 Spaces" in tp
     assert b'data-policy-keep="david-leads"' in tp
     assert b'data-fold="david-leads"' not in tp
     assert b"stage: <span>pending</span>" in tp
