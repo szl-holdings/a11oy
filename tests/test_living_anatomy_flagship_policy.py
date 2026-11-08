@@ -27,14 +27,14 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
             ("estate", self.estate),
         ):
             with self.subTest(policy=name):
-                self.assertEqual(1, policy.count("- id: betterwithage/anatomy"))
+                self.assertEqual(1, policy.count("- id: SZLHOLDINGS/anatomy"))
                 self.assertIn("owner_class: creator_profile", policy)
                 self.assertIn("role: living_system_atlas", policy)
                 self.assertIn("source: szl-holdings/anatomy", policy)
                 self.assertIn("- szl-holdings/szl-second-brain", policy)
                 self.assertIn("dest: https://a-11-oy.com/living-anatomy", policy)
                 self.assertIn(
-                    "live_origin: https://betterwithage-anatomy.hf.space",
+                    "live_origin: https://szlholdings-anatomy.hf.space",
                     policy,
                 )
                 self.assertNotIn("- id: SZLHOLDINGS/anatomy", policy)
@@ -92,8 +92,8 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
     def test_guardian_is_bounded_and_recovers_exact_creator_contract(self) -> None:
         for contract in (
             'cron: "*/30 * * * *"',
-            "SPACE_ID: betterwithage/anatomy",
-            "SPACE_ORIGIN: https://betterwithage-anatomy.hf.space",
+            "SPACE_ID: SZLHOLDINGS/anatomy",
+            "SPACE_ORIGIN: https://szlholdings-anatomy.hf.space",
             "SOURCE_REPOSITORY: szl-holdings/anatomy",
             "private=False",
             "api.restart_space(",
@@ -120,9 +120,9 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
         self.assertNotIn("szlholdings-anatomy.hf.space", self.guardian)
 
     def test_site_uses_the_same_creator_profile_runtime(self) -> None:
-        self.assertIn("https://betterwithage-anatomy.hf.space#estate", self.site)
-        self.assertIn("https://betterwithage-anatomy.hf.space", self.site)
-        self.assertIn('const ANATOMY="https://betterwithage-anatomy.hf.space"', self.site)
+        self.assertIn("https://szlholdings-anatomy.hf.space#estate", self.site)
+        self.assertIn("https://szlholdings-anatomy.hf.space", self.site)
+        self.assertIn('const ANATOMY="https://szlholdings-anatomy.hf.space"', self.site)
         self.assertNotIn("https://szlholdings-anatomy.hf.space", self.site)
 
     def test_site_defaults_to_same_origin_holo_brain(self) -> None:
