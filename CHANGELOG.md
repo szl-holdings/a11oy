@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - model inference catalog coverage
+
+- `docs/model-inference-support.json` lists the 74 public model-namespace
+  repositories from the 2026-11-06 inventory. The 33 repositories added on
+  2026-11-07 are HTTP 200 empty `inferenceProviderMapping` observations
+  (`NO_PROVIDER_MAPPING`). Routing, qualification, promotion, and deployment
+  authority stay false. The inventory file was not changed. Four live revisions
+  differ from that inventory snapshot.
+
 ### Fixed - development URI parser dependency
 
 - Resolve Ajv's development-only `fast-uri` dependency to 3.1.9 in both npm
