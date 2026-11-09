@@ -7,8 +7,10 @@ import {
   extractModelText,
   handleRequest,
   normalizeInferenceRequest,
+  paymentSettlementHeader,
   sanitizeModelOutput,
   sha256Hex,
+  validatePaymentContext,
   verifyDoctrine,
 } from "../cloudflare/a11oy-governed-inference-worker.mjs";
 
@@ -32,8 +34,61 @@ const BRAIN = {
   ready_for_grounded_navigation: false,
   public_chunk_count: 0,
 };
+const PAYMENT_NOW = Math.floor(Date.now() / 1000);
+let paymentJwks = { keys: [] };
+
+function base64Url(value) {
+  const bytes =
+    typeof value === "string" ? new TextEncoder().encode(value) : value;
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/gu, "-").replace(/\//gu, "_").replace(/=+$/u, "");
+}
+
+async function paymentToken({
+  scheme = "exact",
+  amount = "25000",
+  audience = "https://a-11-oy.com/api/v2/governed-infer",
+  iat = PAYMENT_NOW,
+  nbf = PAYMENT_NOW,
+  exp = PAYMENT_NOW + 120,
+  kid = "test-payment-key",
+} = {}) {
+  const keyPair = await crypto.subtle.generateKey(
+    { name: "Ed25519" },
+    true,
+    ["sign", "verify"],
+  );
+  const publicJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  paymentJwks = {
+    keys: [
+      {
+        ...publicJwk,
+        kid,
+      },
+    ],
+  };
+  const header = { alg: "EdDSA", kid, typ: "JWT" };
+  const claims = { iat, nbf, exp, aud: audience, scheme, amount };
+  const encodedHeader = base64Url(JSON.stringify(header));
+  const encodedClaims = base64Url(JSON.stringify(claims));
+  const signingInput = encodedHeader + "." + encodedClaims;
+  const signature = await crypto.subtle.sign(
+    { name: "Ed25519" },
+    keyPair.privateKey,
+    new TextEncoder().encode(signingInput),
+  );
+  return signingInput + "." + base64Url(new Uint8Array(signature));
+}
 
 function evidenceFetch(url) {
+  if (String(url) === "https://payments.cloudflare.com/certs") {
+    return Promise.resolve(
+      Response.json(paymentJwks, {
+        headers: { "cache-control": "max-age=300" },
+      }),
+    );
+  }
   if (String(url).endsWith("/api/a11oy/v1/honest")) {
     return Promise.resolve(Response.json(DOCTRINE));
   }
@@ -105,6 +160,77 @@ test("request normalization bounds fields, evidence, effort, and tokens", () => 
   );
 });
 
+test("payment context verifies pinned Ed25519 JWT claims and fails closed", async () => {
+  const token = await paymentToken();
+  const verified = await validatePaymentContext(
+    request("/api/v2/governed-infer", {
+      headers: { "payment-context": token },
+    }),
+    evidenceFetch,
+    PAYMENT_NOW,
+  );
+  assert.equal(verified.scheme, "exact");
+  assert.equal(verified.amount, "25000");
+  assert.equal(verified.audience, "https://a-11-oy.com/api/v2/governed-infer");
+
+  const invalidSignature = token.split(".");
+  invalidSignature[2] = "A" + invalidSignature[2].slice(1);
+  await assert.rejects(
+    validatePaymentContext(
+      request("/api/v2/governed-infer", {
+        headers: { "payment-context": invalidSignature.join(".") },
+      }),
+      evidenceFetch,
+      PAYMENT_NOW,
+    ),
+    /payment_context_invalid/,
+  );
+  await assert.rejects(
+    validatePaymentContext(
+      request("/api/v2/governed-infer", {
+        headers: { "payment-context": await paymentToken({ audience: "https://example.com/paid" }) },
+      }),
+      evidenceFetch,
+      PAYMENT_NOW,
+    ),
+    /payment_context_invalid/,
+  );
+});
+
+test("governed inference rejects absent payment context before invoking AI", async () => {
+  let calls = 0;
+  const response = await handleRequest(
+    request("/api/v2/governed-infer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "must be paid" }),
+    }),
+    {
+      SZL_SOURCE_REVISION: REVISION,
+      AI: { run: async () => { calls += 1; return { response: "no" }; } },
+    },
+    evidenceFetch,
+  );
+  assert.equal(response.status, 402);
+  assert.equal((await response.json()).error, "payment_context_invalid");
+  assert.equal(calls, 0);
+});
+
+test("payment settlement is exact-only for fixed pricing and capped for upto", () => {
+  assert.equal(
+    paymentSettlementHeader({ scheme: "exact", amount: "25000" }, { max_new_tokens: 256 }),
+    null,
+  );
+  assert.equal(
+    paymentSettlementHeader({ scheme: "upto", amount: "100" }, { max_new_tokens: 256 }),
+    JSON.stringify({ amount: "100" }),
+  );
+  assert.equal(
+    paymentSettlementHeader({ scheme: "upto", amount: "512" }, { max_new_tokens: 256 }),
+    JSON.stringify({ amount: "256" }),
+  );
+});
+
 test("model response extraction supports chat and strips reasoning blocks", () => {
   assert.equal(
     extractModelText({ choices: [{ message: { content: "answer" } }] }),
@@ -121,6 +247,8 @@ test("contract keeps external runtime, owned artifact, and action authority dist
   assert.equal(contract.source_revision, REVISION);
   assert.equal(contract.runtime.action_authority, "NONE");
   assert.equal(contract.runtime.tools, false);
+  assert.deepEqual(contract.runtime.payment.schemes, ["exact", "upto"]);
+  assert.equal(contract.runtime.payment.required_for_infer, true);
   assert.equal(contract.owned_model.repository, "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF");
   assert.equal(contract.owned_model.served_by_this_runtime, false);
   assert.equal(contract.governance.lambda.can_authorize, false);
@@ -170,10 +298,14 @@ test("governed inference emits proposal-only receipt without raw prompt persiste
     },
   };
   const prompt = "Explain the control boundary without executing anything.";
+  const token = await paymentToken();
   const response = await handleRequest(
     request("/api/v2/governed-infer", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "payment-context": token,
+      },
       body: JSON.stringify({
         prompt,
         evidence: [{ text: "A bounded operator fact.", source: "operator" }],
@@ -184,6 +316,7 @@ test("governed inference emits proposal-only receipt without raw prompt persiste
   );
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-szl-governed-inference"), "v1");
+  assert.equal(response.headers.get("payment-settlement"), null);
   const body = await response.json();
   assert.equal(body.state, "PROPOSAL");
   assert.equal(body.decision, "review");
@@ -226,16 +359,24 @@ test("frontier model falls back without changing proposal-only boundary", async 
       },
     },
   };
+  const token = await paymentToken({ scheme: "upto", amount: "512" });
   const response = await handleRequest(
     request("/api/v2/governed-infer", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "payment-context": token,
+      },
       body: JSON.stringify({ prompt: "Bounded request", effort: "frontier" }),
     }),
     env,
     evidenceFetch,
   );
   assert.equal(response.status, 200);
+  assert.equal(
+    response.headers.get("payment-settlement"),
+    JSON.stringify({ amount: "256" }),
+  );
   const body = await response.json();
   assert.deepEqual(models, [
     "@cf/google/gemma-4-26b-a4b-it",
@@ -257,10 +398,14 @@ test("invalid calls and missing governance fail closed", async () => {
   );
   assert.equal(wrongHost.status, 421);
 
+  const token = await paymentToken();
   const wrongType = await handleRequest(
     request("/api/v2/governed-infer", {
       method: "POST",
-      headers: { "content-type": "text/plain" },
+      headers: {
+        "content-type": "text/plain",
+        "payment-context": token,
+      },
       body: "hello",
     }),
     env,
@@ -271,7 +416,10 @@ test("invalid calls and missing governance fail closed", async () => {
   const governanceDown = await handleRequest(
     request("/api/v2/governed-infer", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "payment-context": token,
+      },
       body: JSON.stringify({ prompt: "hello" }),
     }),
     env,

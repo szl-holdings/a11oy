@@ -49,6 +49,12 @@ const ALLOWED_INPUT_KEYS = new Set([
   "evidence",
   "max_new_tokens",
 ]);
+const PAYMENT_CONTEXT_HEADER = "payment-context";
+const PAYMENT_SETTLEMENT_HEADER = "payment-settlement";
+const PAYMENT_JWKS_URL = "https://payments.cloudflare.com/certs";
+const PAYMENT_CONTEXT_AUDIENCE =
+  "https://a-11-oy.com/api/v2/governed-infer";
+const PAYMENT_CLOCK_SKEW_SECONDS = 30;
 
 class GovernedError extends Error {
   constructor(code, status = 400) {
@@ -84,6 +90,206 @@ export async function sha256Hex(value) {
   return [...new Uint8Array(digest)]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function paymentError() {
+  return new GovernedError("payment_context_invalid", 402);
+}
+
+function decodeBase64Url(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/u.test(value)) {
+    throw paymentError();
+  }
+  const padded = value.replace(/-/gu, "+").replace(/_/gu, "/") +
+    "=".repeat((4 - (value.length % 4)) % 4);
+  try {
+    const binary = atob(padded);
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  } catch (_) {
+    throw paymentError();
+  }
+}
+
+function decodePaymentJson(value) {
+  try {
+    const decoded = new TextDecoder().decode(decodeBase64Url(value));
+    const parsed = JSON.parse(decoded);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("not_object");
+    }
+    return parsed;
+  } catch (_) {
+    throw paymentError();
+  }
+}
+
+async function loadPaymentJwks(fetchImpl) {
+  const cache = globalThis.caches?.default;
+  const cacheRequest = new Request(PAYMENT_JWKS_URL);
+  if (cache && typeof cache.match === "function") {
+    try {
+      const cached = await cache.match(cacheRequest);
+      if (cached) {
+        const body = await cached.json();
+        if (Array.isArray(body?.keys)) return body;
+      }
+    } catch (_) {
+      // A cache miss or stale entry must fall through to the pinned endpoint.
+    }
+  }
+
+  let response;
+  try {
+    response = await fetchImpl(PAYMENT_JWKS_URL, {
+      method: "GET",
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+  } catch (_) {
+    throw new GovernedError("payment_keys_unavailable", 503);
+  }
+  if (!response || response.status !== 200) {
+    throw new GovernedError("payment_keys_unavailable", 503);
+  }
+
+  let body;
+  try {
+    body = await response.clone().json();
+  } catch (_) {
+    throw new GovernedError("payment_keys_invalid", 503);
+  }
+  if (!Array.isArray(body?.keys)) {
+    throw new GovernedError("payment_keys_invalid", 503);
+  }
+
+  if (cache && typeof cache.put === "function") {
+    try {
+      await cache.put(cacheRequest, response);
+    } catch (_) {
+      // Validation remains fail-closed if the optional cache cannot be written.
+    }
+  }
+  return body;
+}
+
+function paymentClaimTimestamp(value) {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+  )
+    ? value
+    : null;
+}
+
+function paymentAmount(value) {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/u.test(value)) {
+    return null;
+  }
+  try {
+    const amount = BigInt(value);
+    return amount > 0n ? value : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+export async function validatePaymentContext(
+  request,
+  fetchImpl = fetch,
+  now = Math.floor(Date.now() / 1000),
+) {
+  const compact = request.headers.get(PAYMENT_CONTEXT_HEADER)?.trim() || "";
+  const parts = compact.split(".");
+  if (parts.length !== 3 || parts.some((part) => part.length === 0)) {
+    throw paymentError();
+  }
+
+  const header = decodePaymentJson(parts[0]);
+  const claims = decodePaymentJson(parts[1]);
+  if (
+    (header.typ !== undefined && header.typ !== "JWT") ||
+    header.alg !== "EdDSA" ||
+    typeof header.kid !== "string" ||
+    !header.kid
+  ) {
+    throw paymentError();
+  }
+
+  const audience = claims.aud;
+  const scheme = claims.scheme;
+  const amount = paymentAmount(claims.amount);
+  const iat = paymentClaimTimestamp(claims.iat);
+  const nbf = paymentClaimTimestamp(claims.nbf);
+  const exp = paymentClaimTimestamp(claims.exp);
+  const clock = Number.isSafeInteger(now) ? now : Math.floor(Date.now() / 1000);
+  if (
+    audience !== PAYMENT_CONTEXT_AUDIENCE ||
+    !["exact", "upto"].includes(scheme) ||
+    amount === null ||
+    iat === null ||
+    nbf === null ||
+    exp === null ||
+    nbf < iat ||
+    exp <= iat ||
+    exp <= nbf ||
+    iat > clock + PAYMENT_CLOCK_SKEW_SECONDS ||
+    nbf > clock + PAYMENT_CLOCK_SKEW_SECONDS ||
+    exp <= clock - PAYMENT_CLOCK_SKEW_SECONDS
+  ) {
+    throw paymentError();
+  }
+
+  const jwks = await loadPaymentJwks(fetchImpl);
+  const jwk = jwks.keys.find(
+    (key) =>
+      key &&
+      typeof key === "object" &&
+      key.kid === header.kid &&
+      key.kty === "OKP" &&
+      key.crv === "Ed25519" &&
+      typeof key.x === "string",
+  );
+  if (!jwk) throw paymentError();
+
+  let publicKey;
+  let valid;
+  try {
+    publicKey = await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      { name: "Ed25519" },
+      false,
+      ["verify"],
+    );
+    valid = await crypto.subtle.verify(
+      { name: "Ed25519" },
+      publicKey,
+      decodeBase64Url(parts[2]),
+      new TextEncoder().encode(parts[0] + "." + parts[1]),
+    );
+  } catch (_) {
+    throw paymentError();
+  }
+  if (!valid) throw paymentError();
+
+  return Object.freeze({
+    audience,
+    scheme,
+    amount,
+    iat,
+    nbf,
+    exp,
+    kid: header.kid,
+  });
+}
+
+export function paymentSettlementHeader(payment, request) {
+  if (payment.scheme !== "upto") return null;
+  const authorized = BigInt(payment.amount);
+  const requested = BigInt(request.max_new_tokens);
+  const actual = authorized < requested ? authorized : requested;
+  return JSON.stringify({ amount: actual.toString() });
 }
 
 function exactStringArray(value, expected) {
@@ -204,7 +410,7 @@ export function normalizeInferenceRequest(value) {
 
 function jsonHeaders(extra = {}) {
   return {
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "content-type,payment-context",
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-origin": "*",
     "cache-control": "no-store",
@@ -339,6 +545,13 @@ export function buildContract(revision) {
     runtime: {
       provider: "Cloudflare Workers AI",
       model_kind: "CLOUDFLARE_HOSTED_EXTERNAL_CANDIDATE",
+      payment: {
+        required_for_infer: true,
+        context_header: "PAYMENT-CONTEXT",
+        settlement_header: "PAYMENT-SETTLEMENT",
+        schemes: ["exact", "upto"],
+        jwks_url: PAYMENT_JWKS_URL,
+      },
       candidates: {
         fast: [...MODEL_CANDIDATES.fast],
         frontier: [...MODEL_CANDIDATES.frontier],
@@ -817,16 +1030,22 @@ export async function handleRequest(request, env, fetchImpl = fetch) {
       if (request.method !== "POST") {
         return errorResponse("method_not_allowed", 405);
       }
+      const payment = await validatePaymentContext(request, fetchImpl);
       const normalized = normalizeInferenceRequest(
         await parseRequestJson(request),
       );
+      const settlement = paymentSettlementHeader(payment, normalized);
+      const headers = {
+        "x-szl-governed-inference": "v1",
+        "x-szl-source-revision": sourceRevision(env) || "unavailable",
+      };
+      if (settlement !== null) {
+        headers[PAYMENT_SETTLEMENT_HEADER] = settlement;
+      }
       return jsonResponse(
         await governedInference(normalized, env, fetchImpl),
         200,
-        {
-          "x-szl-governed-inference": "v1",
-          "x-szl-source-revision": sourceRevision(env) || "unavailable",
-        },
+        headers,
       );
     }
     return errorResponse("not_found", 404);
