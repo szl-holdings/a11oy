@@ -22,7 +22,8 @@ on:
   workflow_dispatch:
 
 # Least privilege: this job only reads the tree.
-permissions: read-all
+permissions:
+  contents: read
 
 concurrency:
   group: dependency-audit-${{ github.ref }}
