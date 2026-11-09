@@ -91,8 +91,11 @@ jobs:
           set -euo pipefail
           # Registered, upstream-unpatchable, reachability-scoped accepted risks.
           # Each MUST have a corresponding entry in docs/DEPENDENCY_RISK_REGISTER.md.
-          # diskcache 5.6.3 / CVE-2025-69872: no fixed release exists; absent from the
-          # default build (A11OY_REQUIRE_LOCAL_LLM=0).
+          # diskcache 5.6.3 / CVE-2025-69872: no fixed release exists; absent only from
+          # the constrained HF path (A11OY_REQUIRE_LOCAL_LLM!=1). The strict/default
+          # GHCR image sets A11OY_REQUIRE_LOCAL_LLM=1 and must retain the register entry.
+          test "$(awk -F= '/^ARG A11OY_REQUIRE_LOCAL_LLM=/{print $2; exit}' Dockerfile)" = "1"
+          grep -q 'A11OY_REQUIRE_LOCAL_LLM=1' .github/workflows/ghcr-build-push.yml
           ACCEPTED="PYSEC-2026-2447"
 
           for id in $ACCEPTED; do

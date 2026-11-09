@@ -34,18 +34,18 @@ arbitrary code execution when a victim application reads from that cache.
 
 **Reachability analysis (this is the mitigating control, and it is measured, not assumed):**
 
-`llama-cpp-python` — and therefore `diskcache` — is **not installed on the default
-build**. `Dockerfile` sets:
+`llama-cpp-python` — and therefore `diskcache` — is **installed on the strict/default
+Docker build**. `Dockerfile` sets:
 
 ```dockerfile
-ARG A11OY_REQUIRE_LOCAL_LLM=0
+ARG A11OY_REQUIRE_LOCAL_LLM=1
 ```
 
 and gates the wheel install on it:
 
 ```dockerfile
 if [ "${A11OY_REQUIRE_LOCAL_LLM}" != "1" ]; then
-  # no llama.cpp wheel built/installed — demo tier serves the HONEST
+  # no llama.cpp wheel built/installed — constrained demo tier serves the HONEST
   # tower-side label (served_locally=False, never fake output)
 else
   pip install --no-cache-dir /wheels/*.whl
@@ -56,8 +56,8 @@ Consequently:
 
 | Deployment | `A11OY_REQUIRE_LOCAL_LLM` | `diskcache` present | CVE reachable |
 |---|---|---|---|
-| HF Space / demo tier (serves `a-11-oy.com`) | `0` (default) | **No** | **No** |
-| Strict GHCR-published image | `1` | Yes | Yes, if cache dir is writable by an untrusted principal |
+| HF Space / constrained demo tier (serves `a-11-oy.com`) | `!=1` (explicit override) | **No** | **No** |
+| Strict GHCR-published image | `1` (Docker default) | Yes | Yes, if cache dir is writable by an untrusted principal |
 
 **Required mitigations on the `=1` path:**
 
