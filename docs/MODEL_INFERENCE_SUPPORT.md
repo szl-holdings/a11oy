@@ -5,10 +5,15 @@
 
 `docs/model-inference-support.json` is the source for the A11oy model catalog and
 downstream card presentation. It records public Hub provider observations and
-support discussions. The source lists the **74 public model-namespace
-repositories** in `docs/huggingface-ecosystem-manifest.json` at that inventory's
-2026-11-06 observation. That namespace also contains kernels, software, adapters,
-GGUF bundles, and NumPy artifacts; its count is not an LLM count. Entries from
+support discussions. The source lists **86 public model-namespace
+repositories**. The committed `docs/huggingface-ecosystem-manifest.json` held 74
+at its 2026-11-06 observation. A local regeneration at 2026-11-10T11:13:26Z held
+87. Twelve of its 13 additions are assessed here.
+`SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate` is not, so exact coverage
+against that regeneration still fails and the reviewed public-inventory
+refresh stops at that check (BLOCKED). That namespace also contains kernels,
+software, adapters, GGUF bundles, and NumPy artifacts; its count is not an LLM
+count. Entries from
 the separate native-kernel namespace are not added to the model count. A listed
 row is catalog coverage, not routing, qualification, promotion, or deployment
 authority.
@@ -17,6 +22,13 @@ On 2026-11-07 the 33 repositories that were in the inventory and absent from
 this file were assessed from their public revision file list and a provider-mapping
 read. Each mapping response was HTTP 200 with an empty object, so those rows are
 `NO_PROVIDER_MAPPING`. No support discussion was submitted for them.
+
+On 2026-11-10 the 12 repositories that were in that regeneration, absent from
+the committed inventory, and in the reviewed id list were assessed the same way.
+Each mapping response was HTTP 200 with an empty object, so those rows are
+`NO_PROVIDER_MAPPING`. `SZLHOLDINGS/szl-brain` returned HTTP 404 for `README.md`
+at its observed revision. No support discussion was submitted for them. The
+dated record is `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-10.md`.
 
 ## Evidence boundaries
 

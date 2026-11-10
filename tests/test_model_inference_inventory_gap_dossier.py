@@ -11,6 +11,16 @@ import a11oy_model_support as support
 ROOT = Path(__file__).resolve().parents[1]
 DOSSIER = ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-07.json"
 NOTE = ROOT / "docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-07.md"
+# Rows added by later dated records. Each later record names its own rows, so
+# exact catalog membership stays checked as this record's rows plus those.
+LATER_DOSSIERS = (ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-10.json",)
+
+
+def _later_recorded_ids():
+    ids = set()
+    for path in LATER_DOSSIERS:
+        ids |= {row["id"] for row in json.loads(path.read_text(encoding="utf-8"))["rows"]}
+    return ids
 
 
 def test_recorded_observations_cover_the_gap_without_admission():
@@ -19,7 +29,8 @@ def test_recorded_observations_cover_the_gap_without_admission():
     inventory = support.read_json(support.INVENTORY_PATH)
     support.validate_document(document, inventory)
     by_id = {row["id"]: row for row in document["models"]}
-    assert len(by_id) == 74
+    later = _later_recorded_ids()
+    assert len(by_id) == 74 + len(later)
     assert dossier["counts"]["provider_observations_http_200"] == 33
     assert dossier["counts"]["provider_mappings_empty"] == 33
     assert dossier["counts"]["provider_lookups_failed"] == 0
@@ -64,5 +75,7 @@ def test_recorded_observations_cover_the_gap_without_admission():
         added.append(row["id"])
     assert len(added) == 33
     assert set(added).isdisjoint(preserved)
-    assert {row["id"] for row in document["models"]} == set(added) | set(preserved)
+    assert len(set(added) | set(preserved)) == 74
+    assert later.isdisjoint(set(added) | set(preserved))
+    assert {row["id"] for row in document["models"]} == set(added) | set(preserved) | later
     assert all(value is False for value in document["authority"].values())

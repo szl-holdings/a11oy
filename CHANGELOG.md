@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - model inference catalog coverage, 2026-11-10 gap
+
+- `docs/model-inference-support.json` lists 86 model-namespace repositories.
+  The 12 added on 2026-11-10 come from a local inventory regeneration and are
+  HTTP 200 empty `inferenceProviderMapping` observations (`NO_PROVIDER_MAPPING`).
+  `SZLHOLDINGS/szl-brain` returned HTTP 404 for `README.md` at its observed
+  revision. Routing, qualification, promotion, and deployment authority stay
+  false. The inventory file was not changed. All 12 live revisions match that
+  regeneration. `SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate` is also in it
+  and is not yet assessed, so exact inventory coverage still fails and the
+  reviewed public-inventory refresh stops at that check (BLOCKED).
+
 ### Changed - model inference catalog coverage
 
 - `docs/model-inference-support.json` lists the 74 public model-namespace

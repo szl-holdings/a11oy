@@ -163,6 +163,27 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/estate-gardener",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/eternal-auditor",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/frontier-showcase",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/gdw-frontier",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
@@ -184,7 +205,28 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/living-anatomy",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/llm-router-live",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/measured-honesty-census",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/newton-trust-upgrade",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -198,6 +240,41 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/szl-chief-engineer",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-constellation",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-cyber-shield",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-dream-architect",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-energy-hologram",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/szl-forge-lab",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
@@ -205,7 +282,28 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/szl-frontier-deck",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-infra-warden",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/szl-khipu",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-research-council",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -226,7 +324,21 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/szlholdings-si",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/the-grid",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/truth-router",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",

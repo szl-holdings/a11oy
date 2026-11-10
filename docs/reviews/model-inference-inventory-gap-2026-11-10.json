@@ -1,0 +1,2169 @@
+{
+  "schema": "szl.model-inference-inventory-gap-dossier/v1",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173. Review artifact only. It does not admit, exclude, or change coverage.",
+  "authority": {
+    "routing": false,
+    "qualification": false,
+    "promotion": false,
+    "deployment": false,
+    "inference_admission": false,
+    "exclusion": false
+  },
+  "sources": {
+    "inventory": "docs/huggingface-ecosystem-manifest.json",
+    "inventory_observed_at": "2026-11-10T11:13:26Z",
+    "inventory_binding": "LOCAL_REGENERATION_NOT_PART_OF_THIS_CHANGE",
+    "inventory_binding_note": "The inventory was regenerated locally to read these rows and then restored. The reviewed refresh workflow is the step that would regenerate and commit it once exact model coverage holds. It is BLOCKED while SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate has no catalog row, because collect_model_inference_support.py --check exits 2 before the commit step.",
+    "committed_inventory_observed_at": "2026-11-06T02:04:19Z",
+    "committed_inventory_model_count": 74,
+    "inventory_model_count": 87,
+    "inventory_scope": "public-only",
+    "canonical_rule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
+    "support": "docs/model-inference-support.json",
+    "support_generated_at": "2026-11-10T11:20:21.023610+00:00",
+    "support_model_count": 86,
+    "support_model_ids_sha256": "67c3fc1cddbf1a639ce5149c91f67fcb23d1d4eb64279cc7ad3e1ec6d9143e0c",
+    "support_doc_sentence": "The support file now lists 86 model ids. The 12 additions are empty-mapping observations. Authority flags stay false.",
+    "revision_classes_sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+    "stage_matrix_observed_at": "2026-11-10T11:13:26Z",
+    "self_label_tags": [
+      "proposal-only",
+      "not-promotable",
+      "research-memory",
+      "experimental",
+      "not-canonical",
+      "research-candidate",
+      "not-promoted"
+    ],
+    "self_label_tags_first_used_here": [
+      "research-candidate",
+      "not-promoted"
+    ]
+  },
+  "counts": {
+    "rows": 12,
+    "provider_observations_http_200": 12,
+    "provider_mappings_empty": 12,
+    "provider_mappings_present": 0,
+    "provider_lookups_failed": 0,
+    "provider_lookups_retried": 1,
+    "file_list_reads_retried": 1,
+    "assessments_recorded": 12,
+    "verified_inference_admission_authority": 0,
+    "verified_exclusion_authority": 0,
+    "recorded_no_provider_mapping": 12,
+    "revision_matches_inventory": 12,
+    "revision_differs_from_inventory": 0,
+    "readme_http_200": 11,
+    "readme_http_404": 1,
+    "rows_with_card_self_labels": 9,
+    "inventory_models_outside_this_record": 1,
+    "unresolved_owner_decisions": 2,
+    "artifact_classes": {
+      "standalone_weight_bundle": 11,
+      "non_provider_artifact": 1
+    },
+    "owner_follow_up": [
+      "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate is in the 2026-11-10T11:13:26Z inventory and has no catalog row; coverage stays unequal until it is assessed.",
+      "SZLHOLDINGS/szl-brain has no README.md at its observed revision."
+    ]
+  },
+  "runtime_change": {
+    "support_rows_added": 12,
+    "prior_support_rows_preserved": 74,
+    "inventory_rows_removed": 0,
+    "validator_changed": false,
+    "coverage_expectation_changed": false,
+    "authority_flags_changed": false
+  },
+  "rows": [
+    {
+      "id": "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-AcousticGovernance-0.8B-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/7"
+      },
+      "revision": {
+        "sha": "bf12e89bb5049efcf48c58613c49bb41ee8cb81b",
+        "last_modified": "2026-11-06T10:33:20.000Z",
+        "created_at": "2026-11-06T02:27:18.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/blob/bf12e89bb5049efcf48c58613c49bb41ee8cb81b/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "c7621a98ab893df2b114805abf08517f75f233349e71024678433e489448183a",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:46.130631+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+        "page_bytes": 273000,
+        "page_sha256": "ae2a85d99a3363f6dde51a852c9d00ae028b540ee3354620db35eb6de050d82f",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:39.081639+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "f7389548aa5d7869e452e2d2e58273fa967374fc1af49513bcbb51339b5cb1d2",
+        "raw_bytes": 163,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "3bfeb7dbe20776a7df6cf4a1e09e37b2ff318ac3ed835cf43e52e41a5dbcd04a",
+        "observed_sha": "bf12e89bb5049efcf48c58613c49bb41ee8cb81b",
+        "inventory_sha": "bf12e89bb5049efcf48c58613c49bb41ee8cb81b",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/tree/bf12e89bb5049efcf48c58613c49bb41ee8cb81b",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "aa641452bbf46980c853b2dc12d47d6f5ff054340c9b47c23ef6f951bd7e0f45",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/raw/bf12e89bb5049efcf48c58613c49bb41ee8cb81b/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "e01e0c2185efcf1bd2c6f4567f1f45d2005950e82291f91b6a3b59c71a56408f",
+        "readme_bytes": 4252,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-FreeEnergy-0.8B-DPO-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/11"
+      },
+      "revision": {
+        "sha": "f3bd9aeca3596269d499761eaad43678b9c92182",
+        "last_modified": "2026-11-06T09:43:53.000Z",
+        "created_at": "2026-11-06T09:41:34.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/blob/f3bd9aeca3596269d499761eaad43678b9c92182/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "9646c1d33911d0cc16a52066ff45d4ff8d4ba6e780d3799f539d467894d2a682",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+          "base_model:finetune:SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:52.536683+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+        "page_bytes": 259960,
+        "page_sha256": "d46fe8cd9fb3f902284bf78867086ddef22e30f39e4dd58efe8acaec0ad2c28f",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:39.631931+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "5439ee31581a4b080474778c1346dfd4a4a76261c02f02b5dba0aca7d8d8b745",
+        "raw_bytes": 159,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "e8bd854d7c0656f27b4a8cdab30bdfa96d78d5a3331448dbcd34b90b651836d1",
+        "observed_sha": "f3bd9aeca3596269d499761eaad43678b9c92182",
+        "inventory_sha": "f3bd9aeca3596269d499761eaad43678b9c92182",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/tree/f3bd9aeca3596269d499761eaad43678b9c92182",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "bce6028ccd04e32dc8bb04043cae33000ddf78c0fa4c6357430bb82127c7b27e",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/raw/f3bd9aeca3596269d499761eaad43678b9c92182/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "da638962b87d4ca84a9fc8ef9e4e895e7ebcac66c551a0e13b8cf9081464a124",
+        "readme_bytes": 1111,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "SZL-GovernedDistill-0.8B-v1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/13"
+      },
+      "revision": {
+        "sha": "d454bd3238680f119920fd3a993a3573ca564e34",
+        "last_modified": "2026-11-08T13:29:29.000Z",
+        "created_at": "2026-11-07T23:10:55.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/blob/d454bd3238680f119920fd3a993a3573ca564e34/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "28c0edc9167721f5bbbcc1b6f5c73d89a6cb0a65789a529c43414d09ecdb4131",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate",
+          "not-promoted"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:55.772195+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+        "page_bytes": 235591,
+        "page_sha256": "b285661cceea01ba56b563edc8476483bd2f72e5a9a45776f6ade973b9ae8170",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:40.033662+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "1e0c9469ab727849395357db7c3ca03f3b31590c24ca0365668a6b77d9f0419b",
+        "raw_bytes": 160,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "f31026ed1ec9764d43d832fb3f17f43772bc5bb25d34e72c27e241101c3021d6",
+        "observed_sha": "d454bd3238680f119920fd3a993a3573ca564e34",
+        "inventory_sha": "d454bd3238680f119920fd3a993a3573ca564e34",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/tree/d454bd3238680f119920fd3a993a3573ca564e34",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "1ef92a069af35da7f9ccf399569131c5b3ad177c9b4616ec48b2c54d17ed4ffe",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/raw/d454bd3238680f119920fd3a993a3573ca564e34/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "9d056e4264751e0c85b7c6d45ff94a68a8e2f3718723c5d8547451a7e72163da",
+        "readme_bytes": 3455,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/abstain-doctrine-r1",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "abstain-doctrine-r1",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/31"
+      },
+      "revision": {
+        "sha": "41cb72545e75b284ec62d271499e4487b75876d5",
+        "last_modified": "2026-11-08T19:36:52.000Z",
+        "created_at": "2026-11-08T13:52:28.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/abstain-doctrine-r1/blob/41cb72545e75b284ec62d271499e4487b75876d5/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstain-doctrine-r1?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "2fa76f5244c8db8dc73cca053455d3b7285ac94f7c65698c42b600181d0afff2",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/abstain-doctrine-r1"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/abstain-doctrine-r1"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:26.333648+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/abstain-doctrine-r1",
+        "page_bytes": 259550,
+        "page_sha256": "11d5baa4048cb7cde8c38694dff7c2ae5a8fc4a88952f735115bfe6620f5bc6f",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:36.319602+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/abstain-doctrine-r1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "9e05c7b164a51446a552d7c17fee6e4639dcd860ca8d7f9b568c7ad2612b1b64",
+        "raw_bytes": 152,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "a3745e9f835793481be2a93f45d8fe6ba92c9ac8060a5f1a61eebc889d7c7d73",
+        "observed_sha": "41cb72545e75b284ec62d271499e4487b75876d5",
+        "inventory_sha": "41cb72545e75b284ec62d271499e4487b75876d5",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstain-doctrine-r1/tree/41cb72545e75b284ec62d271499e4487b75876d5",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "f7d554cac5871cfda6d485e49c71621f4cf62c4edb33491c0f65ccdd622190ed",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/abstain-doctrine-r1/raw/41cb72545e75b284ec62d271499e4487b75876d5/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "c4cb77372695384e619948be0ed9584c244c0d76816faa3356012de778d21fe7",
+        "readme_bytes": 1842,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-v2-r2-candidate",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "doctrine-v2-r2-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/42"
+      },
+      "revision": {
+        "sha": "0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e",
+        "last_modified": "2026-11-08T19:36:50.000Z",
+        "created_at": "2026-11-08T14:35:54.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/doctrine-v2-r2-candidate/blob/0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "76a4e4b7726ca41918fd98ca04fba40627251946148169297a460fd96e120c3e",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/doctrine-v2-r2-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/doctrine-v2-r2-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:29.750176+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/doctrine-v2-r2-candidate",
+        "page_bytes": 246520,
+        "page_sha256": "b8160a8f6f1c645596dcd42e5f33b125b60bb2686567eb213154635f50d1d7dc",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:36.719392+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "ca448a62e3b7aefe4258b68f6d3026f065660498480fc8cbe583381c7050977c",
+        "raw_bytes": 157,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "6e22cdd9135b8c40adba9760cf2fa1c5705e8d2373a45cf9727162e48c9cca71",
+        "observed_sha": "0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e",
+        "inventory_sha": "0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-r2-candidate/tree/0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "9a0446fd2a40ef719bf3b61f9de83996c42284cc5a79c3c6ab55645dba4ee8ee",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/doctrine-v2-r2-candidate/raw/0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "3c9079e4d1d30eb97648eb125c143e1d55ef6f3f03f3fb17a68f477594b44c81",
+        "readme_bytes": 1691,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine1-r1-candidate",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "doctrine1-r1-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/43"
+      },
+      "revision": {
+        "sha": "0c26c6ba127f87863f1c3d98ab96120264aba91a",
+        "last_modified": "2026-11-08T19:36:48.000Z",
+        "created_at": "2026-11-08T14:35:53.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/doctrine1-r1-candidate/blob/0c26c6ba127f87863f1c3d98ab96120264aba91a/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine1-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "e53d2ed0470728e907db91370e5a914c3b4677f1fc4266a530c8f8fc8feee747",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/doctrine1-r1-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/doctrine1-r1-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:32.982643+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/doctrine1-r1-candidate",
+        "page_bytes": 246418,
+        "page_sha256": "2d4d84c06c6e7ce0d338b62d4bb7f32f0f0b1a203c5445a465fe2bfd5c669e9a",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:37.143987+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine1-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "afd7fdef24914a1e8cfa06eaf2683d0056cf69cdafd5935c1dccb4030194d7b8",
+        "raw_bytes": 155,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "7b4b95aee1377f0986cedef8512d0112007b5727619e63331d1d0f74b0ec428c",
+        "observed_sha": "0c26c6ba127f87863f1c3d98ab96120264aba91a",
+        "inventory_sha": "0c26c6ba127f87863f1c3d98ab96120264aba91a",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine1-r1-candidate/tree/0c26c6ba127f87863f1c3d98ab96120264aba91a",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "7f6e2cba0a21005e2f3c9c2ac74c987b54353828658a361d84848528c030dd5f",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/doctrine1-r1-candidate/raw/0c26c6ba127f87863f1c3d98ab96120264aba91a/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "8656aaa7d0336b17fee574c8f426e3826e6e9359c944b36c0a9f455c9d5fb225",
+        "readme_bytes": 1685,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/forge-v3",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "forge-v3",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/44"
+      },
+      "revision": {
+        "sha": "19b57bbe5668fe39233e36ceebf489143d65f1bc",
+        "last_modified": "2026-11-08T19:36:55.000Z",
+        "created_at": "2026-10-25T20:45:59.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/forge-v3/blob/19b57bbe5668fe39233e36ceebf489143d65f1bc/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-v3?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "e2c2d038409146775a3bc272d3bb09243e0f9ea236a454589f3bd5135b211a90",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/forge-v3"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/forge-v3"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:36.217862+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/forge-v3",
+        "page_bytes": 263676,
+        "page_sha256": "88d4d75ad7a9551abbccf618536594f1e57202935e7a1a099b3e3ad04dcf6dbb",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:37.552125+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-v3?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "91ed4001f5c2e6208291af6bf89e20b7787a0e88cccb2a22ff61fc832bdc253e",
+        "raw_bytes": 141,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "cae6a0219b8fe7f9f7f04ea88f9c93e2d28e9012e49f6d58adf591a4bc77fb60",
+        "observed_sha": "19b57bbe5668fe39233e36ceebf489143d65f1bc",
+        "inventory_sha": "19b57bbe5668fe39233e36ceebf489143d65f1bc",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-v3/tree/19b57bbe5668fe39233e36ceebf489143d65f1bc",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "86bade71d548682a32a89bb2f36100fb74287a2d60f9d877da4ab742a1bf8ecc",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/forge-v3/raw/19b57bbe5668fe39233e36ceebf489143d65f1bc/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "a403839e80d9bdd9ff7146dcdb93bea909e9cf275ad6a6b1701cbf9e761306e4",
+        "readme_bytes": 1651,
+        "earlier_attempts": [
+          {
+            "read": "file_list",
+            "observed_at": null,
+            "http_status": 429,
+            "note": "Hub rate-limit response; retried after its stated wait."
+          }
+        ]
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/freeenergy-r1-candidate",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "freeenergy-r1-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/45"
+      },
+      "revision": {
+        "sha": "d038e7ffb0ee9563be9e35513d2b33e3f76db32d",
+        "last_modified": "2026-11-08T19:36:49.000Z",
+        "created_at": "2026-11-08T14:35:53.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/freeenergy-r1-candidate/blob/d038e7ffb0ee9563be9e35513d2b33e3f76db32d/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "ae68c59c402db0157d5f97def70cc1624a8ac98d24362570ec3aee4f346d8af9",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/freeenergy-r1-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/freeenergy-r1-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:39.513574+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/freeenergy-r1-candidate",
+        "page_bytes": 246509,
+        "page_sha256": "2ef84277c5183ef3f4a952ccb600aa87ca6d12b48944b0d92f9fb36a9d623b54",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:38.000501+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "f3b39640deca9f7849b7ca0a0e921e2a5ebf274eb38365ac916b3dbb095f3413",
+        "raw_bytes": 156,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "38660381359b8de559539a39001039764259fb5621dccaeff67f9ae24fe0cadf",
+        "observed_sha": "d038e7ffb0ee9563be9e35513d2b33e3f76db32d",
+        "inventory_sha": "d038e7ffb0ee9563be9e35513d2b33e3f76db32d",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-r1-candidate/tree/d038e7ffb0ee9563be9e35513d2b33e3f76db32d",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "ac3c7cfbcf0d3ace8ae42a6d86c76bbf1d863dd9e83479274e016955e93dfc71",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/freeenergy-r1-candidate/raw/d038e7ffb0ee9563be9e35513d2b33e3f76db32d/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "6aff82cbcb66fdf653aa0cce531c321164706af7b72d21d0d5cef24bd66d3af1",
+        "readme_bytes": 1724,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/ouroboros-r2-candidate",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "ouroboros-r2-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/54"
+      },
+      "revision": {
+        "sha": "07e422d37a3d0fb4a2517e95bafde7795ce6d0e9",
+        "last_modified": "2026-11-08T19:36:51.000Z",
+        "created_at": "2026-11-08T14:35:54.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/ouroboros-r2-candidate/blob/07e422d37a3d0fb4a2517e95bafde7795ce6d0e9/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "01e4db562b11c076313b74fce88dbf1019b76b8956f3ab8c6db236db64b12d05",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/ouroboros-r2-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/ouroboros-r2-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:42.740973+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/ouroboros-r2-candidate",
+        "page_bytes": 246651,
+        "page_sha256": "8714ad43d58e3cf73b4809ac0dab67473825ce56bb58301fbf8e3b46ea63c173",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:38.631173+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "8cd4473395decd0da9336d8a9308cc1b85c97443d14ce3487178ed85c44de97c",
+        "raw_bytes": 155,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "42b78224f2b879bcd31e1e90b9569b9465406fcbd6f41e57812633de472419d6",
+        "observed_sha": "07e422d37a3d0fb4a2517e95bafde7795ce6d0e9",
+        "inventory_sha": "07e422d37a3d0fb4a2517e95bafde7795ce6d0e9",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-r2-candidate/tree/07e422d37a3d0fb4a2517e95bafde7795ce6d0e9",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "3e390c7fa9c95498eb1861f2816fae1475116abfc3a100847c7ab58756993b6c",
+        "filename_count": 10,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/ouroboros-r2-candidate/raw/07e422d37a3d0fb4a2517e95bafde7795ce6d0e9/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "058072ac4b8d067eaeb1b4244e5cffee2617604d58f0137867c370939a9ec540",
+        "readme_bytes": 1801,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/szl-brain",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "szl-brain",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/57"
+      },
+      "revision": {
+        "sha": "8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1",
+        "last_modified": "2026-11-10T09:23:05.000Z",
+        "created_at": "2026-11-10T09:23:05.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/szl-brain/blob/8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-brain?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": null,
+        "claim_status": "inventory",
+        "card_semantic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-brain"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-brain"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:49.353616+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/szl-brain",
+        "page_bytes": 83511,
+        "page_sha256": "7c526eee9c66d050f0c6fc24f7c7af2e1ba9a49cf5f6b3de1a5fb14c91200827",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "README.md returned HTTP 404 at the observed revision; the assessment source URL names a card that does not exist there."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:16:42.667186+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-brain?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "3bb6f5afcd3aea94b2c133d054b98068fb1936f29877fff2b1397fc719e69feb",
+        "raw_bytes": 142,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "df79ffc05179e27fb416017586505a41bd445f985cd3976cffe662488bc908d7",
+        "observed_sha": "8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1",
+        "inventory_sha": "8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-brain/tree/8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "e27e84f64bb8ff4430cc89a0ea4d4a3357cbef1610c3cb478d740b96a8d053fc",
+        "filename_count": 1,
+        "artifact_class": "non_provider_artifact",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/szl-brain/raw/8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1/README.md",
+        "readme_http_status": 404,
+        "readme_sha256": null,
+        "readme_bytes": null,
+        "earlier_attempts": [
+          {
+            "read": "provider_mapping",
+            "observed_at": "2026-11-10T11:14:39.513114+00:00",
+            "state": "UNAVAILABLE",
+            "error": "HTTP_ERROR",
+            "http_status": null,
+            "note": "fetch_observation keeps the error class only, not the HTTP status."
+          }
+        ]
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/willay-r1-candidate",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "willay-r1-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/85"
+      },
+      "revision": {
+        "sha": "abdb04de040c71b491d7b39eb887fba72989c916",
+        "last_modified": "2026-11-08T19:36:53.000Z",
+        "created_at": "2026-11-05T02:35:47.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/willay-r1-candidate/blob/abdb04de040c71b491d7b39eb887fba72989c916/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "9299787518f06312e97b761ad2c762703d9b947b74c99259b590d129351f329e",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/willay-r1-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/willay-r1-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:17:59.010564+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/willay-r1-candidate",
+        "page_bytes": 249314,
+        "page_sha256": "36264a83011bbb8e0d08f56d33ac23c40ae7c01171577e0644b06650b7ba2cf6",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:40.489564+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "0f51b785c30b1d40a77d9346d8cd4851d51a29fba773f3c095049e3729c5c96f",
+        "raw_bytes": 152,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "3f1061aa27171d8779bbe5dd458c37b6417afc1dbca32748dfc559611ee0cbd9",
+        "observed_sha": "abdb04de040c71b491d7b39eb887fba72989c916",
+        "inventory_sha": "abdb04de040c71b491d7b39eb887fba72989c916",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r1-candidate/tree/abdb04de040c71b491d7b39eb887fba72989c916",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "56053fb97d0d06e0511b093b60024206a983895b877943a00cb323d97b5d01eb",
+        "filename_count": 14,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/willay-r1-candidate/raw/abdb04de040c71b491d7b39eb887fba72989c916/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "44266d762005b87ce2a3465b25550c0f20cc087e4983837ccb7ffad34851bb40",
+        "readme_bytes": 1662,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/willay-r2-candidate",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "willay-r2-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/86"
+      },
+      "revision": {
+        "sha": "a165ea780c7b4972dba19ce70fbfd28a5bb8603c",
+        "last_modified": "2026-11-08T19:36:54.000Z",
+        "created_at": "2026-11-05T03:55:21.000Z",
+        "inventory_observed_at": "2026-11-10T11:13:26Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/willay-r2-candidate/blob/a165ea780c7b4972dba19ce70fbfd28a5bb8603c/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "016a95d86138e9517e029c05c6a38a67d86ff2511bdf9d1ce90dbf38f4b01f74",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/willay-r2-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T11:13:26Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/willay-r2-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [
+          "research-candidate"
+        ],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T11:18:02.297999+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/willay-r2-candidate",
+        "page_bytes": 249302,
+        "page_sha256": "89ad76176bb12d90882ef4be047c2aaff4fc7101589d9ff257e49c2f95f0d249",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T11:14:40.943726+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "89985306950fa8c99681f32f3c20bdcac6107af8fe9543ed0027bf9d2e94d757",
+        "raw_bytes": 152,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "7d982e98a2e496a0faa4b2bf76fc52757b60cb24b368905bcddae30d31012734",
+        "observed_sha": "a165ea780c7b4972dba19ce70fbfd28a5bb8603c",
+        "inventory_sha": "a165ea780c7b4972dba19ce70fbfd28a5bb8603c",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r2-candidate/tree/a165ea780c7b4972dba19ce70fbfd28a5bb8603c",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "44ff9e0633ba19c52f2c739ebba5516187c6e219d9e8e61dcdddbc6c81dbfbe4",
+        "filename_count": 14,
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/willay-r2-candidate/raw/a165ea780c7b4972dba19ce70fbfd28a5bb8603c/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "b22be44ee6e7279e41ee48ca8ef557da98991fd75ca1c1004095e8068c9d86c1",
+        "readme_bytes": 1662,
+        "earlier_attempts": []
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "decision_id": "D01",
+      "model_id": "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D02",
+      "model_id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D03",
+      "model_id": "SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D04",
+      "model_id": "SZLHOLDINGS/abstain-doctrine-r1",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D05",
+      "model_id": "SZLHOLDINGS/doctrine-v2-r2-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D06",
+      "model_id": "SZLHOLDINGS/doctrine1-r1-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D07",
+      "model_id": "SZLHOLDINGS/forge-v3",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D08",
+      "model_id": "SZLHOLDINGS/freeenergy-r1-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D09",
+      "model_id": "SZLHOLDINGS/ouroboros-r2-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D10",
+      "model_id": "SZLHOLDINGS/szl-brain",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one.",
+        "README.md returned HTTP 404 at the observed revision; the assessment source URL names a card that does not exist there."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D11",
+      "model_id": "SZLHOLDINGS/willay-r1-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
+      "decision_id": "D12",
+      "model_id": "SZLHOLDINGS/willay-r2-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    }
+  ],
+  "inventory_models_outside_this_record": [
+    {
+      "id": "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
+      "inventory_sha": "470fff332953b352fede85419140b8d76c2122e2",
+      "created_at": "2026-11-10T10:48:36.000Z",
+      "last_modified": "2026-11-10T10:48:41.000Z",
+      "inventory_observed_at": "2026-11-10T11:13:26Z",
+      "json_pointer": "/inventory/models/47",
+      "catalog_row_added": false,
+      "provider_mapping_read": false,
+      "reason": "Not in the reviewed id list for this record. No assessment or provider observation was made for it."
+    }
+  ],
+  "preserved_prior_rows": [
+    {
+      "id": "SZLHOLDINGS/A11OY-MINI",
+      "assessment_hub_revision": "7ea56236ea7988b3915b5ef07548cb2c3930a3cf",
+      "inference_capture_sha256": "1347e0ca8162dc981c9f8bd921e5d2a6da0a28369515a51bd58f8bd03cd1e053",
+      "inference_observed_at": "2026-10-04T16:22:20.567960+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/KHIPU-R2",
+      "assessment_hub_revision": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76",
+      "inference_capture_sha256": "ff3d20343ee85d1d35a8847c9d6cbf7bd23b57b6a79f9f554ca855b1750c97da",
+      "inference_observed_at": "2026-10-04T16:22:20.606778+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/KHIPU-R2-estate-sft-v1",
+      "assessment_hub_revision": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
+      "inference_capture_sha256": "bf0b4b06d71e240d85f3a3d60587376de179bbe98d8151fecc75e9ead73aa794",
+      "inference_observed_at": "2026-11-07T10:52:22.846520+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/MiniEmbed-Nano",
+      "assessment_hub_revision": "70557d12b91ca556939e559e540b70fb3c2c9e5b",
+      "inference_capture_sha256": "1ff23f5fbcef46c95d80808ae0619c057c9576dc4274c04721d1e2ff29ac2198",
+      "inference_observed_at": "2026-10-04T16:22:20.621148+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/Moons-Nano",
+      "assessment_hub_revision": "4631d0fb54ad90423c3ae76f812ff4d0e80fbfdf",
+      "inference_capture_sha256": "46000a760070a5177b0d02dbf1e37591502546fdb9cb94175ab9c33611d25287",
+      "inference_observed_at": "2026-10-04T16:22:20.618502+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "assessment_hub_revision": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+      "inference_capture_sha256": "a2f7144253caafbeeaa84638e3977d2a19fd850be2717389dd63cf62d466c3eb",
+      "inference_observed_at": "2026-11-07T10:52:22.848331+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/ReceiptAgent-Nano",
+      "assessment_hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c",
+      "inference_capture_sha256": "db9652098cd08abcc986754da7a8ef0a80e61174c95580fd6e51a98ca4103f04",
+      "inference_observed_at": "2026-10-04T16:22:26.593758+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "assessment_hub_revision": "382e9c263b568b68967972d28803bf567746e1de",
+      "inference_capture_sha256": "ed81bdfaeddb39e720f136426a465aecbcb603e25957a95f22adc205876c3dee",
+      "inference_observed_at": "2026-11-07T10:52:22.848752+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "assessment_hub_revision": "7fea926b22a99e0e9704d3500741467ae357eec2",
+      "inference_capture_sha256": "0c85302243fdf75fc750960adfa864c50f77c1b4873118913f0d1b377c3537de",
+      "inference_observed_at": "2026-10-04T16:22:26.583433+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
+      "assessment_hub_revision": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
+      "inference_capture_sha256": "13089cb5dcbc0694e459508b4100b1fdcf2b66861c06b479379c0c1fe7749722",
+      "inference_observed_at": "2026-11-07T10:52:22.849077+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "assessment_hub_revision": "c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0",
+      "inference_capture_sha256": "9d88014d6adefb3d09c5d5088a4c0996fe18d21dc9e22167797f04a2aba93202",
+      "inference_observed_at": "2026-11-07T10:52:22.987019+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "assessment_hub_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329",
+      "inference_capture_sha256": "807ded92057fae7b4f9c69fcfb98c2cf874cbe07b088863bda1fd9e51f23152e",
+      "inference_observed_at": "2026-10-04T16:22:26.588978+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "assessment_hub_revision": "0737ae93c009322e4deffbe89ff34d2155a1b6c1",
+      "inference_capture_sha256": "e18d2120f7161ab78db30dfa3040ab67f50adea8bd542b1da4d0da5a7f480c9b",
+      "inference_observed_at": "2026-10-04T16:22:26.596111+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
+      "assessment_hub_revision": "942c02dd4e94f2cb7cfb0432a051c2db2219ee79",
+      "inference_capture_sha256": "4856c675954b28587d378d86561364667dfad73c371e314bd0f6cd8385601105",
+      "inference_observed_at": "2026-10-04T16:22:34.256206+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
+      "assessment_hub_revision": "b4ae083265f2f0a6749af4111162d3582dc4dace",
+      "inference_capture_sha256": "aa9dcde3493d0333d595da731906e65818f1a101f8ed4c4c6da21c879160f220",
+      "inference_observed_at": "2026-11-07T10:52:22.991475+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
+      "assessment_hub_revision": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
+      "inference_capture_sha256": "322b4b930dfff91be6bf5f63cff914eb74c0c0c771f3a23400c5f81a8f2fdecd",
+      "inference_observed_at": "2026-11-07T10:52:22.998301+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "assessment_hub_revision": "decebd8be9255239c1507ebc61159099d38ba6bc",
+      "inference_capture_sha256": "63078222ff59418ecd6451ed455d0bd1caede4969b335eaabd852a10b5e0070a",
+      "inference_observed_at": "2026-11-07T10:52:23.043846+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "assessment_hub_revision": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+      "inference_capture_sha256": "23e165d350708f4dcd375b2c1b29bd0e6484b3b45db1317c2b563bc9ecb46719",
+      "inference_observed_at": "2026-11-07T10:52:23.132039+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "assessment_hub_revision": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+      "inference_capture_sha256": "98ff181c277a61452055ad9c8c8d1fb5cb877e169ac6307a90b923f9907aaa0a",
+      "inference_observed_at": "2026-11-07T10:52:23.168826+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "assessment_hub_revision": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+      "inference_capture_sha256": "16ccf16aaa6162e0db51f5515bf5b64fd0f7cafe6b7f59b1a847226e93fd3bf0",
+      "inference_observed_at": "2026-11-07T10:52:23.191871+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "assessment_hub_revision": "4caa36a0fdeb4d54fabe13079cceb031ecfa3471",
+      "inference_capture_sha256": "5d400c9933c04ac01e99f23d5673f3dbd6434271c995d8424ac6120b076ba129",
+      "inference_observed_at": "2026-11-07T10:52:23.272031+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "assessment_hub_revision": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+      "inference_capture_sha256": "a685c5529a5f417a4bb0038c7f705a712665319df90cdb36c864e8632552769c",
+      "inference_observed_at": "2026-11-07T10:52:23.285074+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "assessment_hub_revision": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+      "inference_capture_sha256": "5cace433718cd94dfebb735942454f4499c2570aaa7ba798dc030efa66e81c2f",
+      "inference_observed_at": "2026-11-07T10:52:23.347036+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/TinyKhipu-Nano",
+      "assessment_hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67",
+      "inference_capture_sha256": "a0a482c68b5fb48af51c2ec8ae01bed83c7b9f95c0fefe051a5d7889b1ca9e32",
+      "inference_observed_at": "2026-10-04T16:22:34.251690+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/WILLAY",
+      "assessment_hub_revision": "96a0ac5c5c26e89f732b72d747b3577e1ea5236f",
+      "inference_capture_sha256": "277bcb223f2cb91bde14a05c0fffac40a4eef66eea8982d07eed343a31fada67",
+      "inference_observed_at": "2026-10-04T16:22:34.283042+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/WILLAY-estate-sft-v1",
+      "assessment_hub_revision": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
+      "inference_capture_sha256": "8e1c863132fbf3e7aa1ed878e57dbcf94beaccaa4d71812aabaf9f6230e9974b",
+      "inference_observed_at": "2026-11-07T10:52:23.352902+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/YARQA-ATTN",
+      "assessment_hub_revision": "d6aeb4f24655c07acc155eed7acade5ad249724f",
+      "inference_capture_sha256": "d9c3db68a7c4dffdc6a2153b3aa756f7d3a58114d449e60a3d37c1fb89e63a20",
+      "inference_observed_at": "2026-10-04T16:22:34.232168+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "assessment_hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+      "inference_capture_sha256": "14776b3f4ec1f246c2bbb8f2729bb0532c36a91a8b675da163d7f02bacd8f076",
+      "inference_observed_at": "2026-10-04T16:22:38.833035+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2",
+      "assessment_hub_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
+      "inference_capture_sha256": "73ea7881fc94a875c086cffab754d5d95110a88db7f93526fc69112523f5975e",
+      "inference_observed_at": "2026-10-04T16:22:38.883798+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "assessment_hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+      "inference_capture_sha256": "8b5a2dac2ad0bc81e211aef244528cf8a1fe03fd8decbd9854e6e8f0f8a7c26e",
+      "inference_observed_at": "2026-11-07T10:52:23.427023+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chakana-r1-candidate",
+      "assessment_hub_revision": "73219a8ada0e73ab4216d9e70d730e38455f2425",
+      "inference_capture_sha256": "de4df4ee6481708a4f84816bfa7deceb1681930fa3cceeb4065081a76d4c3e6c",
+      "inference_observed_at": "2026-11-07T10:52:23.447254+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski",
+      "assessment_hub_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90",
+      "inference_capture_sha256": "e139dbeeabd46066582da9989851166b5419c0545c1e714535f4747ee91635b3",
+      "inference_observed_at": "2026-10-04T16:22:38.881709+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050",
+      "assessment_hub_revision": "0e324a93761abb7069ce0e40597780e734bf342b",
+      "inference_capture_sha256": "e986a2dfdaeb01172c8c3c5a3c752588714e69e498f32a3f964d45dc02b3a44c",
+      "inference_observed_at": "2026-10-04T16:22:38.883290+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "assessment_hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+      "inference_capture_sha256": "fed455b0fcad4462d62aaded97de74d0f7ebaa51d7854f1c782a71906ee3b3e4",
+      "inference_observed_at": "2026-11-07T10:52:23.499197+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "assessment_hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+      "inference_capture_sha256": "cbb7cc563ce64e38bf52d4ba371de516b0e045f570561f9f4197407305b099c1",
+      "inference_observed_at": "2026-11-07T10:52:23.563603+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2",
+      "assessment_hub_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45",
+      "inference_capture_sha256": "952d99aed91f9db3c9aa49d39f8626c2895a8de2159615b77219052a73d17e2f",
+      "inference_observed_at": "2026-10-04T16:22:43.219554+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "assessment_hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+      "inference_capture_sha256": "0364df47ae5ef381c3318398a1d1336780a993416d7500390ec711f762c97846",
+      "inference_observed_at": "2026-11-07T10:52:23.565231+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r4",
+      "assessment_hub_revision": "6275945fab2515ee41019eb60703c6b5dbdf5640",
+      "inference_capture_sha256": "5f85ef6e6abd0a145a6f229077e48f135077c2e8c00116e62daf3fb67e66b542",
+      "inference_observed_at": "2026-10-04T16:22:43.221466+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/governed-inference-meter",
+      "assessment_hub_revision": "5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74",
+      "inference_capture_sha256": "b2494204b9a4465df85b0076c983f2eafcd015ea7a995669ef1eb46f7c8f3464",
+      "inference_observed_at": "2026-10-04T16:22:43.267678+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
+      "assessment_hub_revision": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+      "inference_capture_sha256": "7e2b179bf074bd3d99fdf89d670b574c230a7e90031eb93da1c46c73f06e0854",
+      "inference_observed_at": "2026-11-07T10:52:23.647265+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3",
+      "assessment_hub_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64",
+      "inference_capture_sha256": "9044c24f66953ac1010843f146a6135c69836c2621a100077cd0fd63ded35e07",
+      "inference_observed_at": "2026-10-04T16:22:43.220181+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "assessment_hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+      "inference_capture_sha256": "91f82405ead9cd283feff6b3579664503e196b2bc806d40fa749e39b92386e8f",
+      "inference_observed_at": "2026-11-07T10:52:23.703884+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/miniembed-nano-r1-candidate",
+      "assessment_hub_revision": "40e0c6ab9511586014457d354c00f05777b34fd1",
+      "inference_capture_sha256": "7d6621cd5b5db00b8adbe08c7e8f87560c8d7919af3fb3aad9084770a2679bf5",
+      "inference_observed_at": "2026-11-07T10:52:23.713052+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "assessment_hub_revision": "90df75bf58d91ea723128a86d7ed9af57535dbd8",
+      "inference_capture_sha256": "36f3b7204d4181ff1f97cbbd24933ffec7c9d197e3c24d7fe5c85af60456aadd",
+      "inference_observed_at": "2026-11-07T10:52:23.758461+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/oac-system-health-v1",
+      "assessment_hub_revision": "a99c3ec1157af351fa24da64f3b413620cae07fe",
+      "inference_capture_sha256": "60ad41be418747a40d38208b41fb3517d914b77aa058061d406c751a9ffc8a0c",
+      "inference_observed_at": "2026-11-07T10:52:23.762153+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-block-kv",
+      "assessment_hub_revision": "b5e86e4038e630eda94e3bd83cee1c5729d6d826",
+      "inference_capture_sha256": "45914bec2360244e4ae1386c6d8c51e6cc9b5bfcfb899b5ef3574e17d4fdbc58",
+      "inference_observed_at": "2026-10-04T16:22:47.073249+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-blocked",
+      "assessment_hub_revision": "74caaabb4a001fb3d2e8a346c1114008ad9c4f5d",
+      "inference_capture_sha256": "8750dcd90614fa0297d65f2c98979f25a9e901b82c209eceb2e429bd4574d528",
+      "inference_observed_at": "2026-10-04T16:22:47.108354+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-energy-attest",
+      "assessment_hub_revision": "9146d35730139f8b7797dc40b4d5be5547387f1b",
+      "inference_capture_sha256": "262478d912c031893c6c1768711ba6c76deb164e8833c6e8789100b5ce7a9787",
+      "inference_observed_at": "2026-10-04T16:22:51.199825+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-formulas",
+      "assessment_hub_revision": "d3f2dbbb7c59bef13cf1b755edf487bfb2960653",
+      "inference_capture_sha256": "0dad0210bb5f825364a083393fff700963d4af27f369238f7f202181110803db",
+      "inference_observed_at": "2026-10-04T16:22:51.201752+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-governed-norm",
+      "assessment_hub_revision": "5abbd073ff159385be1f4e51c9fee4613cf52513",
+      "inference_capture_sha256": "5c9e0f21678cdcedba36cb045137a3e096008e06cda5d0d530c8b3a96c477cfa",
+      "inference_observed_at": "2026-10-04T16:22:51.245551+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-govsign",
+      "assessment_hub_revision": "52576849d074aa7d251219241fe12888b02f1edd",
+      "inference_capture_sha256": "b766529af64ca89d881112c354af579c99ff0a2642d482ddf3f490ae25bad8bc",
+      "inference_observed_at": "2026-10-04T16:22:51.205405+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-invariants",
+      "assessment_hub_revision": "acfc77fbd3da15bb2a7957f11b3a9c8d81bf4a2c",
+      "inference_capture_sha256": "95c5eafcf7839ddd0e8ffc5c795aa73e3c4d171d7a848db1b1a3a85bca007b4a",
+      "inference_observed_at": "2026-10-04T16:22:55.220875+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-kernels",
+      "assessment_hub_revision": "72df0342e34a1f198dd9c428cca072e9b1389ccd",
+      "inference_capture_sha256": "91d8dc993c04780d0fdb13a78276e4ca37f60900cd5326473316dc9806191081",
+      "inference_observed_at": "2026-10-04T16:22:55.201332+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu",
+      "assessment_hub_revision": "ee635354cb0b3d71965b17a227a374e40071e110",
+      "inference_capture_sha256": "d7919e72542a49ce35c3076c55ac337daacf169b3e0c8e84970fc68652f40e5b",
+      "inference_observed_at": "2026-10-04T16:22:55.224015+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu-kernels",
+      "assessment_hub_revision": "594bc58eb0f691f53f8493fa032be9ee8aab9ff3",
+      "inference_capture_sha256": "7fe3366b6a97c1b7905b2de698626956cff6fa4f8b2068e57519f22c8efd0a74",
+      "inference_observed_at": "2026-10-04T16:22:55.235956+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "assessment_hub_revision": "f0c518b22f488e9f008deed27765c9fced32001e",
+      "inference_capture_sha256": "9d6d8f9c2ec0147aa8f32d302b8987bd868954cbad9ed9879d8dcf0bb75434d0",
+      "inference_observed_at": "2026-10-04T16:22:58.878108+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-maskmod",
+      "assessment_hub_revision": "654a01aaaf86d06471f019cf2f84305703ccc260",
+      "inference_capture_sha256": "a528c57239d6181b4ec3fca38fd38a312a24b235be0135d8b78fabfcee97f060",
+      "inference_observed_at": "2026-10-04T16:22:58.875585+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-nemo",
+      "assessment_hub_revision": "8ba68dcf72f0b9e40c8114e5dd4e341aa7fac7b7",
+      "inference_capture_sha256": "1e02e7361a979f8c3e02cc677b9d14d5553151a8cd035de67ba1c20e507222fd",
+      "inference_observed_at": "2026-10-04T16:22:58.852850+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-ouroboros",
+      "assessment_hub_revision": "ea49dcae37ea15e155b77f837f21a668871c6673",
+      "inference_capture_sha256": "e07619c720012d2fce04e6ec121c7d08d9be04eabdb97770f54dacd80fc88ec7",
+      "inference_observed_at": "2026-10-04T16:22:58.889873+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provctl",
+      "assessment_hub_revision": "4e688726df8de19f2eafd1382d448fdf37e475d0",
+      "inference_capture_sha256": "ab6a764bd405a753d4b2645a9ed152ae77639abe9802cb6f906cd250db7e299a",
+      "inference_observed_at": "2026-10-04T16:23:02.831254+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receipt-attn",
+      "assessment_hub_revision": "e1383537e2dd74316a07fcbb683352af62dd24b0",
+      "inference_capture_sha256": "9dd6bd1be557cae509c3e7ba71ffc08db317e6691e9466996732216d3618d19e",
+      "inference_observed_at": "2026-10-04T16:23:02.808677+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
+      "assessment_hub_revision": "b2ec04727f46314b680ee26366159243924c1f67",
+      "inference_capture_sha256": "7f6b1d09d91e6c8d72ee98e856f20487ba9ce8521d03adea0206033e83b09ae6",
+      "inference_observed_at": "2026-11-07T10:52:23.837753+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+      "assessment_hub_revision": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+      "inference_capture_sha256": "703a94b4c25d966973d6cb07aa8781e1a68cc66ec3743d18bcd9ffdfe4cf21e2",
+      "inference_observed_at": "2026-11-07T10:52:23.872619+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+      "assessment_hub_revision": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+      "inference_capture_sha256": "9cb3e5f2c669948d9e8d8589af018b599b3466c40552d0a0e0c8e9f1364359cb",
+      "inference_observed_at": "2026-11-07T10:52:23.889389+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+      "assessment_hub_revision": "0340c300052e248367a3407aa493ef72a0da79fe",
+      "inference_capture_sha256": "c3237b4cc9588365b19dd3011d72e6a7d4ac36c1823a6b2e02f8d3e97c7fc5b3",
+      "inference_observed_at": "2026-11-07T10:52:23.925468+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "assessment_hub_revision": "fcb1f08c3925daeabcdca4c90c637a775a8ea7ca",
+      "inference_capture_sha256": "f557c6ff36358cad50c2abc0351a5653b91534f4339235191b4e57a07c7d1e4c",
+      "inference_observed_at": "2026-10-04T16:23:02.788763+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+      "assessment_hub_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+      "inference_capture_sha256": "357db72db551ad6c103ba9ea94ef35041408f4ffc631600ec92c391c855da32d",
+      "inference_observed_at": "2026-10-04T16:23:02.822332+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "assessment_hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
+      "inference_capture_sha256": "173a0d372a2e6dc723549632cba73e747e0d926180730760c6e3cd18b2bc97d3",
+      "inference_observed_at": "2026-11-07T10:52:23.986516+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
+      "assessment_hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
+      "inference_capture_sha256": "ead0bd68d566ed3c793051d289ede53d6c2b89036088d0e9b309adef4dd5773f",
+      "inference_observed_at": "2026-10-04T16:23:06.687420+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "assessment_hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+      "inference_capture_sha256": "63acfa11d5dc26d8f16861dc270fff8a0462b520ebe73a4b24608969aba793b7",
+      "inference_observed_at": "2026-11-07T10:52:24.035685+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-specdecode",
+      "assessment_hub_revision": "31e589422ceb33461fe0f8d57208ccedccbcf387",
+      "inference_capture_sha256": "f34ccc054532d1da473b82883bf0f0fafdca08a3ff8e42b17af4a361132cee21",
+      "inference_observed_at": "2026-11-07T10:52:24.037945+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+      "assessment_hub_revision": "d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5",
+      "inference_capture_sha256": "5b628462e687a93a9ed8afb29c969201982c64bf075658f30ec3c7ae94ee82dc",
+      "inference_observed_at": "2026-10-04T16:23:10.355451+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+      "assessment_hub_revision": "96546ad212115e80012fb1ccb93cdab912d00538",
+      "inference_capture_sha256": "520d714be5e3468f1d2d6e7f355c96bdc01a1cb5c37339deb4d70c074239708b",
+      "inference_observed_at": "2026-10-04T16:23:10.310795+00:00"
+    },
+    {
+      "id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
+      "assessment_hub_revision": "e821e660b5940cd988307bba4b5c9a29a09605ec",
+      "inference_capture_sha256": "6d2876379878a6d224a77f300b77facc54cd862463b656b59cc9918eb61413f5",
+      "inference_observed_at": "2026-11-07T10:52:24.056321+00:00"
+    }
+  ]
+}
