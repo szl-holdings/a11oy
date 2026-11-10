@@ -1210,6 +1210,17 @@ try:
 except Exception as _szl_khipu_e:  # pragma: no cover
     print(f"[a11oy] KHIPU organ NOT registered: {_szl_khipu_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- Canonical kernel organ -- wake receipts and /api/a11oy/v3/kernels/*.
+# The module is vendored by Dockerfile; registration is additive and fail-closed.
+# Authentication remains unavailable until SZL_WAKE_RECEIPT_TOKEN is supplied by
+# the approved publisher path. No token value is embedded in source.
+try:
+    import szl_kernels_organ as _szl_kernels_organ
+    _szl_kernels_organ.register(app, organ="a11oy")
+    print("[a11oy] kernel organ registered: /api/a11oy/v3/kernels/* (wake receipt remains auth-gated)", file=__import__("sys").stderr)
+except Exception as _szl_kernels_e:  # pragma: no cover
+    print(f"[a11oy] kernel organ NOT registered: {_szl_kernels_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # Khipu chat/status lab proxy (a11oy_khipu_chat) — GET /api/a11oy/v1/khipu/status
 # (lab healthz + pin, no signing) and POST /api/a11oy/v1/khipu/chat (bounded chat
 # completions). Handler module is in-image; its registration was dropped from serve.py
