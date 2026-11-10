@@ -63,6 +63,18 @@ def test_anonymous_post_is_answered_but_never_signed_with_the_server_key(client,
     assert "operator" in signature["honesty"]
 
 
+def test_anonymous_signature_keeps_the_unsigned_dsse_shape(client, monkeypatch):
+    monkeypatch.setattr(szl_dsse, "sign_payload", lambda payload, payload_type: {
+        "signed": False, "payloadType": payload_type, "signatures": []})
+    unsigned = szl_governed_rag._sign_receipt({"probe": True})
+
+    signature = _signature(client.post(ROUTE, json=BODY))
+
+    assert set(signature) == set(unsigned)
+    assert signature["payloadType"] == szl_governed_rag.RAG_PAYLOAD_TYPE
+    assert signature["keyid"] is None
+
+
 def test_wrong_bearer_is_treated_as_anonymous(client, signer_calls):
     signature = _signature(client.post(ROUTE, json=BODY,
                                        headers={"Authorization": "Bearer not-the-key"}))

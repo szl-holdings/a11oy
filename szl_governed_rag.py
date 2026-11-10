@@ -515,8 +515,12 @@ def _unsigned_anonymous() -> dict[str, Any]:
         "envelope": "DSSE",
         "signed": False,
         "value": "UNSIGNED-ANONYMOUS",
+        "keyid": None,
+        "payloadType": RAG_PAYLOAD_TYPE,
+        "pae_sha256": None,
         "honesty": ("UNSIGNED — server-key signing requires the operator credential; "
                     "anonymous answers are returned unsigned."),
+        "verify_key_url": None,
     }
 
 
