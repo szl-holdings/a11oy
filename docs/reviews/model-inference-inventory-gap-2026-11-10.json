@@ -13,17 +13,17 @@
     "inventory": "docs/huggingface-ecosystem-manifest.json",
     "inventory_observed_at": "2026-11-10T11:13:26Z",
     "inventory_binding": "LOCAL_REGENERATION_NOT_PART_OF_THIS_CHANGE",
-    "inventory_binding_note": "The inventory was regenerated locally to read these rows and then restored. The reviewed refresh workflow is the step that would regenerate and commit it once exact model coverage holds. It is BLOCKED while SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate has no catalog row, because collect_model_inference_support.py --check exits 2 before the commit step.",
+    "inventory_binding_note": "The inventory was regenerated locally to read these rows and then restored, once at 2026-11-10T11:13:26Z for twelve rows and once at 2026-11-10T17:55:29Z for the last two. The reviewed refresh workflow is the step that would regenerate and commit it. Against a fresh local regeneration, collect_model_inference_support.py --check exits 0 with this catalog. A local run of the workflow steps still stopped earlier, at render_public_estate_alignment.py, because the Space SZLHOLDINGS/immune-lattice is public and has no contract classification; that Space is outside this record.",
     "committed_inventory_observed_at": "2026-11-06T02:04:19Z",
     "committed_inventory_model_count": 74,
     "inventory_model_count": 87,
     "inventory_scope": "public-only",
     "canonical_rule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
     "support": "docs/model-inference-support.json",
-    "support_generated_at": "2026-11-10T11:20:21.023610+00:00",
-    "support_model_count": 86,
-    "support_model_ids_sha256": "67c3fc1cddbf1a639ce5149c91f67fcb23d1d4eb64279cc7ad3e1ec6d9143e0c",
-    "support_doc_sentence": "The support file now lists 86 model ids. The 12 additions are empty-mapping observations. Authority flags stay false.",
+    "support_generated_at": "2026-11-10T17:59:08.688166+00:00",
+    "support_model_count": 88,
+    "support_model_ids_sha256": "d50ae62d9a62f0642e80685565998bc389bc8874fe8a7fab0c672a313fc5ffce",
+    "support_doc_sentence": "The support file now lists 88 model ids. The 14 additions are empty-mapping observations. Authority flags stay false.",
     "revision_classes_sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
     "stage_matrix_observed_at": "2026-11-10T11:13:26Z",
     "self_label_tags": [
@@ -38,38 +38,53 @@
     "self_label_tags_first_used_here": [
       "research-candidate",
       "not-promoted"
+    ],
+    "inventory_regenerations": [
+      {
+        "observed_at": "2026-11-10T11:13:26Z",
+        "model_count": 87,
+        "rows_read_against_it": 12,
+        "binding": "LOCAL_REGENERATION_NOT_PART_OF_THIS_CHANGE"
+      },
+      {
+        "observed_at": "2026-11-10T17:55:29Z",
+        "model_count": 88,
+        "rows_read_against_it": 2,
+        "binding": "LOCAL_REGENERATION_NOT_PART_OF_THIS_CHANGE",
+        "catalog_ids_equal_inventory_ids": true
+      }
     ]
   },
   "counts": {
-    "rows": 12,
-    "provider_observations_http_200": 12,
-    "provider_mappings_empty": 12,
+    "rows": 14,
+    "provider_observations_http_200": 14,
+    "provider_mappings_empty": 14,
     "provider_mappings_present": 0,
     "provider_lookups_failed": 0,
     "provider_lookups_retried": 1,
     "file_list_reads_retried": 1,
-    "assessments_recorded": 12,
+    "assessments_recorded": 14,
     "verified_inference_admission_authority": 0,
     "verified_exclusion_authority": 0,
-    "recorded_no_provider_mapping": 12,
-    "revision_matches_inventory": 12,
+    "recorded_no_provider_mapping": 14,
+    "revision_matches_inventory": 14,
     "revision_differs_from_inventory": 0,
-    "readme_http_200": 11,
+    "readme_http_200": 13,
     "readme_http_404": 1,
     "rows_with_card_self_labels": 9,
-    "inventory_models_outside_this_record": 1,
-    "unresolved_owner_decisions": 2,
+    "inventory_models_outside_this_record": 0,
+    "unresolved_owner_decisions": 1,
     "artifact_classes": {
       "standalone_weight_bundle": 11,
+      "adapter_bundle": 2,
       "non_provider_artifact": 1
     },
     "owner_follow_up": [
-      "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate is in the 2026-11-10T11:13:26Z inventory and has no catalog row; coverage stays unequal until it is assessed.",
       "SZLHOLDINGS/szl-brain has no README.md at its observed revision."
     ]
   },
   "runtime_change": {
-    "support_rows_added": 12,
+    "support_rows_added": 14,
     "prior_support_rows_preserved": 74,
     "inventory_rows_removed": 0,
     "validator_changed": false,
@@ -425,6 +440,120 @@
         "readme_http_status": 200,
         "readme_sha256": "9d056e4264751e0c85b7c6d45ff94a68a8e2f3718723c5d8547451a7e72163da",
         "readme_bytes": 3455,
+        "earlier_attempts": []
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-code-r1-candidate",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "a11oy-code-r1-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/30"
+      },
+      "revision": {
+        "sha": "541951e09431269c32b7093141a64643eb51113a",
+        "last_modified": "2026-11-10T14:10:23.000Z",
+        "created_at": "2026-11-10T12:09:06.000Z",
+        "inventory_observed_at": "2026-11-10T17:55:29Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/a11oy-code-r1-candidate/blob/541951e09431269c32b7093141a64643eb51113a/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-code-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": "apache-2.0",
+        "claim_status": "inventory",
+        "card_semantic_sha256": "2aadd3085bbc2c1c6dba43b918580913707f7f27a77cbacd4d835f20825f724d",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/a11oy-code-r1-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T17:55:29Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/a11oy-code-r1-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T17:55:06.608346+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/a11oy-code-r1-candidate",
+        "page_bytes": 128689,
+        "page_sha256": "530a565f243cb566543217a3272d5cdb595beaa3c9bdbd05a85c31d4a3c56cad",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T17:54:56.684236+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-code-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "88f74b4bd1ebd81c0951be1817eb9f0ada859fe4b1f298c21ea94d77b9437e2e",
+        "raw_bytes": 156,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "e49e6b914568be4b3fc32bfd13e822eeba0a2043e8a731b8f566f8278d5fdda7",
+        "observed_sha": "541951e09431269c32b7093141a64643eb51113a",
+        "inventory_sha": "541951e09431269c32b7093141a64643eb51113a",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-code-r1-candidate/tree/541951e09431269c32b7093141a64643eb51113a",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "fdccf9d5a998d7128a5af8e330e7414e7712d11ba1d6ce71d4f17e2225dfc070",
+        "filename_count": 9,
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/a11oy-code-r1-candidate/raw/541951e09431269c32b7093141a64643eb51113a/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "29e8670d36040ebafe9a49f88b671902af108dcb71a7cecbae7150385f2c6728",
+        "readme_bytes": 973,
         "earlier_attempts": []
       }
     },
@@ -1031,6 +1160,123 @@
       }
     },
     {
+      "id": "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "identity": {
+        "repo_type": "model",
+        "org": "SZLHOLDINGS",
+        "name": "hatun-24-doctrine-math-r1-candidate",
+        "source": "docs/huggingface-ecosystem-manifest.json",
+        "json_pointer": "/inventory/models/48"
+      },
+      "revision": {
+        "sha": "470fff332953b352fede85419140b8d76c2122e2",
+        "last_modified": "2026-11-10T10:48:41.000Z",
+        "created_at": "2026-11-10T10:48:36.000Z",
+        "inventory_observed_at": "2026-11-10T17:55:29Z",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate/blob/470fff332953b352fede85419140b8d76c2122e2/README.md",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "inventory_row": {
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "license": null,
+        "claim_status": "inventory",
+        "card_semantic_sha256": "d238607bc039ce90a53c079136aa9456803ec25d0fb68538ab46dc79a802cd55",
+        "card_observation": null,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate"
+        ],
+        "unsafe_flags": []
+      },
+      "stage_matrix": {
+        "source": "docs/ecosystem-stage-matrix.json",
+        "observed_at": "2026-11-10T17:55:29Z",
+        "stage": "inventory",
+        "private": false,
+        "unsafe_flags": [],
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate"
+        ]
+      },
+      "revision_class": {
+        "source": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion."
+      },
+      "release_bindings": [],
+      "support_catalog": {
+        "source": "docs/model-inference-support.json",
+        "row_present": false,
+        "unmatched_prior_request": false
+      },
+      "card_self_labels": {
+        "from_inventory_tags": [],
+        "authority": "NONE",
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "card_declared_lineage": {
+        "tags": [
+          "base_model:adapter:Qwen/Qwen3-1.7B",
+          "base_model:Qwen/Qwen3-1.7B"
+        ],
+        "verification": "UNVERIFIED"
+      },
+      "hub_overview": {
+        "read_at": "2026-11-10T17:55:09.806395+00:00",
+        "method": "anonymous GET of the public model page, no redirect",
+        "http_status": 200,
+        "resolved": true,
+        "url": "https://huggingface.co/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
+        "page_bytes": 223117,
+        "page_sha256": "4e599233a826057ac6f9cb01d6a9e13719b447ba6c0e571b0a9fdc167c840393",
+        "sha_returned": false,
+        "inference_provider_mapping_returned": false,
+        "page_tags_read": false,
+        "boundary": "Public availability and card text are not inference admission, qualification, or deployment."
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "provider_observation": {
+        "observed_at": "2026-11-10T17:54:57.117866+00:00",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "http_status": 200,
+        "redirected": false,
+        "raw_sha256": "f1b273ee90860996f906f4916001ca149b84d35b420d7dfa4d22d3cca1d48b79",
+        "raw_bytes": 168,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "capture_sha256": "c6b6a7e6009bb635ab1508d6f85a35a7c440a59868d158985b9996ab6e7ea81f",
+        "observed_sha": "470fff332953b352fede85419140b8d76c2122e2",
+        "inventory_sha": "470fff332953b352fede85419140b8d76c2122e2",
+        "revision_matches_inventory": true,
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate/tree/470fff332953b352fede85419140b8d76c2122e2",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "0e66a0aa3d5a6d20e6d710187389d3fec329d2228549d07271537916a380ed49",
+        "filename_count": 9,
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate/raw/470fff332953b352fede85419140b8d76c2122e2/README.md",
+        "readme_http_status": 200,
+        "readme_sha256": "d238607bc039ce90a53c079136aa9456803ec25d0fb68538ab46dc79a802cd55",
+        "readme_bytes": 5196,
+        "earlier_attempts": []
+      }
+    },
+    {
       "id": "SZLHOLDINGS/ouroboros-r2-candidate",
       "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
       "inference_admission": "UNVERIFIED",
@@ -1562,6 +1808,22 @@
       "admission": "NOT_GRANTED"
     },
     {
+      "decision_id": "D13",
+      "model_id": "SZLHOLDINGS/a11oy-code-r1-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
       "decision_id": "D04",
       "model_id": "SZLHOLDINGS/abstain-doctrine-r1",
       "choices": [
@@ -1642,6 +1904,22 @@
       "admission": "NOT_GRANTED"
     },
     {
+      "decision_id": "D14",
+      "model_id": "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "selected": null,
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "admission": "NOT_GRANTED"
+    },
+    {
       "decision_id": "D09",
       "model_id": "SZLHOLDINGS/ouroboros-r2-candidate",
       "choices": [
@@ -1707,19 +1985,7 @@
       "admission": "NOT_GRANTED"
     }
   ],
-  "inventory_models_outside_this_record": [
-    {
-      "id": "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
-      "inventory_sha": "470fff332953b352fede85419140b8d76c2122e2",
-      "created_at": "2026-11-10T10:48:36.000Z",
-      "last_modified": "2026-11-10T10:48:41.000Z",
-      "inventory_observed_at": "2026-11-10T11:13:26Z",
-      "json_pointer": "/inventory/models/47",
-      "catalog_row_added": false,
-      "provider_mapping_read": false,
-      "reason": "Not in the reviewed id list for this record. No assessment or provider observation was made for it."
-    }
-  ],
+  "inventory_models_outside_this_record": [],
   "preserved_prior_rows": [
     {
       "id": "SZLHOLDINGS/A11OY-MINI",

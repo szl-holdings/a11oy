@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-11-10T11:20:21.023610+00:00",
+  "generated_at": "2026-11-10T17:59:08.688166+00:00",
   "inventory_source": {
-    "model_ids_sha256": "67c3fc1cddbf1a639ce5149c91f67fcb23d1d4eb64279cc7ad3e1ec6d9143e0c",
+    "model_ids_sha256": "d50ae62d9a62f0642e80685565998bc389bc8874fe8a7fab0c672a313fc5ffce",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -885,6 +885,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "541951e09431269c32b7093141a64643eb51113a",
+        "observed_at": "2026-11-10T17:54:56.684236+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 541951e09431269c32b7093141a64643eb51113a matches the inventory revision observed at 2026-11-10T17:55:29Z. The file list at that revision shows adapter_config.json and adapter_model.safetensors. README.md returned HTTP 200 and 973 bytes, sha256 29e8670d36040ebafe9a49f88b671902af108dcb71a7cecbae7150385f2c6728. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/a11oy-code-r1-candidate/blob/541951e09431269c32b7093141a64643eb51113a/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/a11oy-code-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e49e6b914568be4b3fc32bfd13e822eeba0a2043e8a731b8f566f8278d5fdda7",
+        "error": null,
+        "hub_revision": "541951e09431269c32b7093141a64643eb51113a",
+        "observed_at": "2026-11-10T17:54:56.684236+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-code-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "non_provider_artifact",
         "hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
         "observed_at": "2026-10-04T15:32:16.911597+00:00",
@@ -1409,6 +1436,33 @@
         "observed_at": "2026-10-04T16:22:43.267678+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/governed-inference-meter?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "470fff332953b352fede85419140b8d76c2122e2",
+        "observed_at": "2026-11-10T17:54:57.117866+00:00",
+        "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 470fff332953b352fede85419140b8d76c2122e2 matches the inventory revision observed at 2026-11-10T17:55:29Z. The file list at that revision shows adapter_config.json and adapter_model.safetensors. README.md returned HTTP 200 and 5196 bytes, sha256 d238607bc039ce90a53c079136aa9456803ec25d0fb68538ab46dc79a802cd55. Weights were not downloaded and the model was not run.",
+        "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate/blob/470fff332953b352fede85419140b8d76c2122e2/README.md",
+        "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+      },
+      "id": "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "c6b6a7e6009bb635ab1508d6f85a35a7c440a59868d158985b9996ab6e7ea81f",
+        "error": null,
+        "hub_revision": "470fff332953b352fede85419140b8d76c2122e2",
+        "observed_at": "2026-11-10T17:54:57.117866+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",

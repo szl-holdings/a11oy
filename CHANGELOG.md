@@ -11,15 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed - model inference catalog coverage, 2026-11-10 gap
 
-- `docs/model-inference-support.json` lists 86 model-namespace repositories.
-  The 12 added on 2026-11-10 come from a local inventory regeneration and are
-  HTTP 200 empty `inferenceProviderMapping` observations (`NO_PROVIDER_MAPPING`).
-  `SZLHOLDINGS/szl-brain` returned HTTP 404 for `README.md` at its observed
-  revision. Routing, qualification, promotion, and deployment authority stay
-  false. The inventory file was not changed. All 12 live revisions match that
-  regeneration. `SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate` is also in it
-  and is not yet assessed, so exact inventory coverage still fails and the
-  reviewed public-inventory refresh stops at that check (BLOCKED).
+- `docs/model-inference-support.json` lists 88 model-namespace repositories.
+  The 14 added on 2026-11-10 come from two local inventory regenerations
+  (2026-11-10T11:13:26Z for 12 rows, 2026-11-10T17:55:29Z for
+  `SZLHOLDINGS/a11oy-code-r1-candidate` and
+  `SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate`) and are HTTP 200 empty
+  `inferenceProviderMapping` observations (`NO_PROVIDER_MAPPING`). The last two
+  are `adapter_bundle` rows by revision file names. `SZLHOLDINGS/szl-brain`
+  returned HTTP 404 for `README.md` at its observed revision. Routing,
+  qualification, promotion, and deployment authority stay false. The inventory
+  file was not changed. All 14 live revisions match the regeneration each row
+  was read against. The 88 catalog ids equal the later regeneration's model ids,
+  so `scripts/collect_model_inference_support.py --check` exits 0 against it.
+  A local run of the reviewed public-inventory refresh still stops earlier, at
+  `scripts/render_public_estate_alignment.py`, because the Space
+  `SZLHOLDINGS/immune-lattice` is public and has no contract classification
+  (BLOCKED; owner decision).
 
 ### Changed - model inference catalog coverage
 

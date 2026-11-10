@@ -18,11 +18,13 @@ LATER_DOSSIERS = ()
 DISPOSITION = "No support discussion for this repository is recorded in this catalog."
 ROUTE = "No serving route is authorized. The observed provider mapping was empty."
 ASSIGNED = {
+    "SZLHOLDINGS/a11oy-code-r1-candidate",
     "SZLHOLDINGS/abstain-doctrine-r1",
     "SZLHOLDINGS/doctrine-v2-r2-candidate",
     "SZLHOLDINGS/doctrine1-r1-candidate",
     "SZLHOLDINGS/forge-v3",
     "SZLHOLDINGS/freeenergy-r1-candidate",
+    "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
     "SZLHOLDINGS/ouroboros-r2-candidate",
     "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
     "SZLHOLDINGS/szl-brain",
@@ -31,8 +33,16 @@ ASSIGNED = {
     "SZLHOLDINGS/willay-r1-candidate",
     "SZLHOLDINGS/willay-r2-candidate",
 }
+# Read later the same day against a second local regeneration; their decision ids follow D12.
+LATE = {
+    "SZLHOLDINGS/a11oy-code-r1-candidate": "D13",
+    "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate": "D14",
+}
+FIRST_REGENERATION = "2026-11-10T11:13:26Z"
+LATE_REGENERATION = "2026-11-10T17:55:29Z"
 WEIGHTS_PHRASE = "The file list at that revision shows a safetensors weight and config.json."
 NO_WEIGHTS_PHRASE = "The file list at that revision shows no safetensors, GGUF, adapter, or numpy weight file."
+ADAPTER_PHRASE = "The file list at that revision shows adapter_config.json and adapter_model.safetensors."
 
 
 def _later_recorded_ids():
@@ -42,25 +52,29 @@ def _later_recorded_ids():
     return ids
 
 
-def test_recorded_observations_cover_the_twelve_reviewed_ids_without_admission():
+def test_recorded_observations_cover_the_fourteen_reviewed_ids_without_admission():
     dossier = json.loads(DOSSIER.read_text(encoding="utf-8"))
     document = support.read_json(support.STATUS_PATH)
     inventory = support.read_json(support.INVENTORY_PATH)
     support.validate_document(document, inventory)
     by_id = {row["id"]: row for row in document["models"]}
     later = _later_recorded_ids()
-    assert len(by_id) == 86 + len(later)
+    assert len(by_id) == 88 + len(later)
     counts = dossier["counts"]
-    assert counts["rows"] == 12
-    assert counts["provider_observations_http_200"] == 12
-    assert counts["provider_mappings_empty"] == 12
+    assert counts["rows"] == 14
+    assert counts["provider_observations_http_200"] == 14
+    assert counts["provider_mappings_empty"] == 14
     assert counts["provider_mappings_present"] == 0
     assert counts["provider_lookups_failed"] == 0
     assert counts["verified_inference_admission_authority"] == 0
     assert counts["verified_exclusion_authority"] == 0
     assert counts["revision_differs_from_inventory"] == 0
+    assert counts["readme_http_200"] == 13
     assert counts["readme_http_404"] == 1
-    assert counts["artifact_classes"] == {"standalone_weight_bundle": 11, "non_provider_artifact": 1}
+    assert counts["inventory_models_outside_this_record"] == 0
+    assert counts["artifact_classes"] == {
+        "standalone_weight_bundle": 11, "non_provider_artifact": 1, "adapter_bundle": 2,
+    }
     assert all(value is False for value in dossier["authority"].values())
     assert dossier["runtime_change"]["prior_support_rows_preserved"] == 74
     assert dossier["runtime_change"]["inventory_rows_removed"] == 0
@@ -81,6 +95,9 @@ def test_recorded_observations_cover_the_twelve_reviewed_ids_without_admission()
 
     assert [row["id"] for row in dossier["rows"]] == sorted(ASSIGNED)
     assert [decision["model_id"] for decision in dossier["decisions"]] == sorted(ASSIGNED)
+    decision_ids = {decision["model_id"]: decision["decision_id"] for decision in dossier["decisions"]}
+    assert sorted(decision_ids.values()) == [f"D{n:02d}" for n in range(1, 15)]
+    assert {model_id: decision_ids[model_id] for model_id in LATE} == LATE
     added = []
     for row, decision in zip(dossier["rows"], dossier["decisions"]):
         current = by_id[row["id"]]
@@ -101,6 +118,9 @@ def test_recorded_observations_cover_the_twelve_reviewed_ids_without_admission()
         assert evidence["tree_http_status"] == 200
         assert evidence["revision_matches_inventory"] is (evidence["observed_sha"] == evidence["inventory_sha"])
         assert evidence["url"] == support.mapping_url(row["id"])
+        regeneration = LATE_REGENERATION if row["id"] in LATE else FIRST_REGENERATION
+        assert row["revision"]["inventory_observed_at"] == regeneration
+        assert row["stage_matrix"]["observed_at"] == regeneration
         assert current["inference"]["state"] == "NO_PROVIDER_MAPPING"
         assert current["inference"]["providers"] == []
         assert current["inference"]["error"] is None
@@ -119,6 +139,9 @@ def test_recorded_observations_cover_the_twelve_reviewed_ids_without_admission()
         assert qualification.endswith("Weights were not downloaded and the model was not run.")
         if evidence["artifact_class"] == "standalone_weight_bundle":
             assert WEIGHTS_PHRASE in qualification
+        elif evidence["artifact_class"] == "adapter_bundle":
+            assert row["id"] in LATE
+            assert ADAPTER_PHRASE in qualification
         else:
             assert evidence["artifact_class"] == "non_provider_artifact"
             assert NO_WEIGHTS_PHRASE in qualification
@@ -137,18 +160,19 @@ def test_recorded_observations_cover_the_twelve_reviewed_ids_without_admission()
         assert row["id"] in note
         assert evidence["observed_sha"] in note
         added.append(row["id"])
-    assert len(added) == 12
+    assert len(added) == 14
     assert set(added).isdisjoint(preserved)
     assert later.isdisjoint(set(added) | set(preserved))
     assert {row["id"] for row in document["models"]} == set(added) | set(preserved) | later
 
-    outside = {row["id"]: row for row in dossier["inventory_models_outside_this_record"]}
-    assert set(outside) == {"SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate"}
-    assert set(outside).isdisjoint(added)
-    for model_id, row in outside.items():
-        assert row["catalog_row_added"] is False
-        assert row["provider_mapping_read"] is False
-        assert model_id in note
+    assert dossier["inventory_models_outside_this_record"] == []
+    regenerations = dossier["sources"]["inventory_regenerations"]
+    assert [(r["observed_at"], r["model_count"], r["rows_read_against_it"]) for r in regenerations] == [
+        (FIRST_REGENERATION, 87, 12), (LATE_REGENERATION, 88, 2),
+    ]
+    assert regenerations[-1]["catalog_ids_equal_inventory_ids"] is True
+    assert dossier["sources"]["support_model_count"] == len(document["models"])
+    assert dossier["sources"]["support_model_ids_sha256"] == document["inventory_source"]["model_ids_sha256"]
     assert all(value is False for value in document["authority"].values())
 
 

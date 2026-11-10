@@ -3,48 +3,59 @@
 
 # Model inventory gap observations, 2026-11-10
 
-Twelve model repositories that are in a local regeneration of
+Fourteen model repositories that are in a local regeneration of
 `docs/huggingface-ecosystem-manifest.json`, absent from the committed 2026-11-06
 inventory, and absent from `docs/model-inference-support.json` now have a dated
 assessment and a provider-mapping observation. The machine-readable record is
 [`model-inference-inventory-gap-2026-11-10.json`](model-inference-inventory-gap-2026-11-10.json).
 
-The inventory was regenerated locally at 2026-11-10T11:13:26Z to read these
-rows and was then restored. This change does not include it. The reviewed
+The inventory was regenerated locally at 2026-11-10T11:13:26Z to read twelve of
+these rows, and again at 2026-11-10T17:55:29Z to read the last two
+(`SZLHOLDINGS/a11oy-code-r1-candidate` and
+`SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate`). Both regenerations were
+restored. This change does not include them. The later one held 88 model
+repositories, the same 88 ids the catalog now lists. Each row keeps the
+regeneration and observation time it was read against. The reviewed
 public-inventory refresh workflow is the step that would regenerate and commit
-that file once exact model coverage holds. It is BLOCKED now: against the live
-Hub, `scripts/collect_model_inference_support.py --check` exits 2 because
-`SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate` has no catalog row, so the
-workflow stops before its commit step.
+the inventory. Against a fresh local regeneration,
+`scripts/collect_model_inference_support.py --check` exits 0 with this catalog.
+That is the workflow's model coverage step only. A local run of the workflow's
+steps still stopped earlier, at `scripts/render_public_estate_alignment.py`,
+because the Space `SZLHOLDINGS/immune-lattice` is public and has no contract
+classification. That Space is outside this record.
 
 ## What the reads returned
 
 Each call used the catalog mapping URL, anonymous GET, no redirect, and the
-256 KiB response limit. All 12 returned HTTP 200. Every `inferenceProviderMapping`
+256 KiB response limit. All 14 returned HTTP 200. Every `inferenceProviderMapping`
 was an empty object, recorded as `NO_PROVIDER_MAPPING`. The file list at the
-returned revision returned HTTP 200 for all 12. `README.md` at that revision
-returned HTTP 200 for 11 and HTTP 404 for `SZLHOLDINGS/szl-brain`. No weight
+returned revision returned HTTP 200 for all 14. `README.md` at that revision
+returned HTTP 200 for 13 and HTTP 404 for `SZLHOLDINGS/szl-brain`. No weight
 file was downloaded and no model was run.
 
 | Result | Count |
 |---|---:|
-| Mapping HTTP 200 and empty | 12 |
+| Mapping HTTP 200 and empty | 14 |
 | Mapping populated or lookup failed | 0 |
-| Assessments written | 12 |
-| Rows whose returned sha matches the inventory sha | 12 |
+| Assessments written | 14 |
+| Rows whose returned sha matches the inventory sha | 14 |
 | Rows whose returned sha differs from the inventory sha | 0 |
-| `README.md` HTTP 200 | 11 |
+| `README.md` HTTP 200 | 13 |
 | `README.md` HTTP 404 | 1 |
 | Inference admission authority | 0 |
 | Exclusion authority | 0 |
 | Prior support rows left unchanged | 74 |
-| Catalog rows after this record | 86 |
-| Inventory models outside this record | 1 |
+| Catalog rows after this record | 88 |
+| Inventory models outside this record | 0 |
 
-Artifact classes come from revision file names: 11 `standalone_weight_bundle`
+Artifact classes come from revision file names: 11 `standalone_weight_bundle`,
+2 `adapter_bundle` (`a11oy-code-r1-candidate` and
+`hatun-24-doctrine-math-r1-candidate`, whose revisions list
+`adapter_config.json` and `adapter_model.safetensors` and no `config.json`),
 and 1 `non_provider_artifact` (`szl-brain`, whose revision lists only
-`.gitattributes`). An empty mapping does not make a weight bundle eligible to
-serve. Authority flags stay false, and no support discussion was submitted.
+`.gitattributes`). An empty mapping does not make a weight bundle or an
+adapter eligible to serve. Authority flags stay false, and no support
+discussion was submitted.
 
 ## Retries
 
@@ -58,17 +69,13 @@ earlier attempts are kept in the JSON record.
 
 ## Sha differences
 
-All 12 mapping responses returned the sha in the 2026-11-10T11:13:26Z
-regeneration. A later committed refresh can observe a newer revision. The row
+All 14 mapping responses returned the sha in the regeneration each row was
+read against: 2026-11-10T11:13:26Z for D01 to D12 and 2026-11-10T17:55:29Z for
+D13 and D14. A later committed refresh can observe a newer revision. The row
 keeps the revision that was fetched.
 
 ## Still open
 
-- `SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate` is in the
-  2026-11-10T11:13:26Z regeneration and has no catalog row. It was not in this
-  record's id list, and no mapping read was made for it. The exact coverage
-  check fails against that regeneration until it is assessed, and the reviewed
-  refresh workflow stops at that check.
 - `SZLHOLDINGS/szl-brain` has no `README.md` at its observed revision. Its
   assessment source URL is the card path the schema requires, and that path
   returned 404.
@@ -84,7 +91,8 @@ grants nothing.
 ## Tests
 
 `tests/test_model_inference_inventory_gap_dossier_2026_11_10.py` checks this
-record against the catalog. The 2026-11-07 dossier test now adds the rows named
+record against the catalog, including the exact 14-id set and the two
+regeneration times. The 2026-11-07 dossier test now adds the rows named
 here when it checks exact catalog membership. Its per-row assertions are
 unchanged.
 
@@ -104,5 +112,12 @@ unchanged.
 | D10 | `SZLHOLDINGS/szl-brain` | `8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1` | same | `non_provider_artifact` | 404 |
 | D11 | `SZLHOLDINGS/willay-r1-candidate` | `abdb04de040c71b491d7b39eb887fba72989c916` | same | `standalone_weight_bundle` | 200 |
 | D12 | `SZLHOLDINGS/willay-r2-candidate` | `a165ea780c7b4972dba19ce70fbfd28a5bb8603c` | same | `standalone_weight_bundle` | 200 |
+
+Read against the 2026-11-10T17:55:29Z regeneration:
+
+| Decision | Model id | Observed sha | Inventory sha | Class | README |
+|---|---|---|---|---|---|
+| D13 | `SZLHOLDINGS/a11oy-code-r1-candidate` | `541951e09431269c32b7093141a64643eb51113a` | same | `adapter_bundle` | 200 |
+| D14 | `SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate` | `470fff332953b352fede85419140b8d76c2122e2` | same | `adapter_bundle` | 200 |
 
 Admission was not granted for any row. `selected` remains null.
