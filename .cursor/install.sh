@@ -4,8 +4,8 @@
 #
 # Two toolchains, one repo:
 #   * Python FastAPI runtime (serve.py, booted via gdw_runtime.py on :7860).
-#     Runtime deps are pinned byte-for-byte to the HF Space Dockerfile so the
-#     dev server resolves the same fastapi/uvicorn/cryptography closure.
+#     Primary runtime pins come from the same manifest as the HF Space image.
+#     Image-only model artifacts and system dependencies are not installed here.
 #   * Node/pnpm doctrine workspace (@a11oy/core, @a11oy/connection, the jest
 #     compliance suite, qec-integrity, a11oy-knowledge) — the clean-clone gate
 #     described in AGENTS.md.
@@ -31,7 +31,7 @@ if ! python3 -c 'import ensurepip, venv' >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Python virtualenv with the exact runtime pins from the Dockerfile, plus
+# 2. Python virtualenv with the canonical runtime pins, plus
 #    pytest for the in-repo route/policy guard suites.
 # ---------------------------------------------------------------------------
 if [ ! -x "$REPO_ROOT/.venv/bin/python" ]; then
@@ -44,20 +44,20 @@ source "$REPO_ROOT/.venv/bin/activate"
 python -m pip install --upgrade pip
 
 echo "[a11oy-install] installing pinned Python runtime dependencies"
-pip install \
-  "fastapi==0.137.1" \
-  "uvicorn[standard]==0.49.0" \
-  "httpx==0.28.1" \
-  "starlette==1.3.1" \
-  "huggingface_hub==1.19.0" \
-  "openai==2.43.0" \
-  "python-multipart==0.0.32" \
-  "cryptography==50.0.0" \
-  "lmdb==2.2.1" \
-  "slowapi==0.1.10" \
-  "defusedxml==0.7.1" \
-  "numpy==2.1.3" \
-  "pytest"
+python -m pip install -r "$REPO_ROOT/requirements-runtime.txt" pytest
+
+# Cortex uses the same non-generative witness as the image. A missing or
+# incompatible witness must stop setup before the environment is ready.
+python -m pip install \
+  "https://github.com/szl-holdings/szl-nemo/archive/810231a531188bb569e3faa17396386eb0a5e260.tar.gz"
+python - <<'PY'
+import szl_nemo
+
+if (szl_nemo.__version__ != '0.4.0'
+        or tuple(szl_nemo.LOCKED_PROVEN_FORMULA_IDS) != ('F1','F4','F7','F11','F12','F18','F19','F22')
+        or szl_nemo.ENVELOPE_RULE_VERSION != 'doctrine-v11/E1-E10'):
+    raise SystemExit('Nemo witness identity does not match the runtime contract')
+PY
 
 # ---------------------------------------------------------------------------
 # 3. Node/pnpm doctrine workspace (frozen lockfile — the AGENTS.md gate).

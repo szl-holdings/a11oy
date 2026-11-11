@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - cloud development dependency setup
+
+- Install primary Python dependencies from `requirements-runtime.txt` and the
+  image's pinned Nemo witness in `.cursor/install.sh`. Stop setup on a witness
+  identity mismatch, including when Python optimization is enabled.
+
 ### Changed - model inference catalog coverage
 
 - `docs/model-inference-support.json` lists the 74 public model-namespace

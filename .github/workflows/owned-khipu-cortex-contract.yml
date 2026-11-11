@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - a11oy_governed_cortex.py
+      - .cursor/install.sh
+      - requirements-runtime.txt
+      - tests/test_cursor_install.py
       - Dockerfile
       - scripts/fetch_owned_khipu_wheel.py
       - tests/test_a11oy_governed_cortex.py
@@ -17,6 +20,9 @@ on:
     branches: [main]
     paths:
       - a11oy_governed_cortex.py
+      - .cursor/install.sh
+      - requirements-runtime.txt
+      - tests/test_cursor_install.py
       - Dockerfile
       - scripts/fetch_owned_khipu_wheel.py
       - tests/test_a11oy_governed_cortex.py
@@ -60,4 +66,5 @@ jobs:
           python -m pytest -p no:cacheprovider
           tests/test_a11oy_governed_cortex.py
           tests/test_owned_khipu_docker_contract.py
+          tests/test_cursor_install.py
           -q
