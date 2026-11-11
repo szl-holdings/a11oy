@@ -46,18 +46,18 @@ def test_docs_mermaid_remains_in_the_plugins_supported_major():
 
 
 def test_docs_katex_override_covers_every_locked_copy():
-    # Keep every resolved copy bound to the reviewed direct KaTeX version.
+    # Keep every resolved copy bound to KaTeX 0.19.1, admitted by PR #3280.
     manifest = read_json("docs/site/package.json")
     packages = read_json("docs/site/package-lock.json")["packages"]
     assert manifest["overrides"]["katex"] == "$katex"
-    assert manifest["dependencies"]["katex"] == "^0.19.0"
-    assert packages[""]["dependencies"]["katex"] == "^0.19.0"
+    assert manifest["dependencies"]["katex"] == "^0.19.1"
+    assert packages[""]["dependencies"]["katex"] == "^0.19.1"
     copies = [entry for path, entry in packages.items()
               if path.endswith("node_modules/katex")]
     assert copies, "the test must inspect an actual resolved KaTeX package"
-    assert all(entry["version"] == "0.19.0" for entry in copies)
-    assert all(entry["resolved"] == "https://registry.npmjs.org/katex/-/katex-0.19.0.tgz"
+    assert all(entry["version"] == "0.19.1" for entry in copies)
+    assert all(entry["resolved"] == "https://registry.npmjs.org/katex/-/katex-0.19.1.tgz"
                for entry in copies)
     assert all(entry["integrity"] ==
-               "sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q=="
+               "sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA=="
                for entry in copies)
