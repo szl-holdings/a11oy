@@ -91,7 +91,9 @@ jobs:
       - name: Install the existing pinned browser test runner
         run: |
           python -m pip install --disable-pip-version-check 'playwright==1.57.0'
-          python -m playwright install --with-deps chromium
+          # GitHub-hosted ubuntu-24.04 images ship the Chromium system libraries;
+          # apt-based --with-deps is currently broken on the runner image and is not needed here.
+          python -m playwright install chromium
       - name: Verify component and actual source-page behavior
         shell: bash
         env:
@@ -142,7 +144,9 @@ jobs:
         run: |
           set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/landing-browser" --no-audit --no-fund playwright@1.57.0
-          "$RUNNER_TEMP/landing-browser/node_modules/.bin/playwright" install --with-deps chromium
+          # GitHub-hosted ubuntu-24.04 images ship the Chromium system libraries;
+          # apt-based --with-deps is currently broken on the runner image and is not needed here.
+          "$RUNNER_TEMP/landing-browser/node_modules/.bin/playwright" install chromium
       - name: Compare exact source reflow against its base
         shell: bash
         env:
@@ -190,28 +194,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Probe connectivity
-        shell: bash
-        run: |
-          {
-            echo "### Connectivity probes (UTC $(date -u))"
-            echo '```'
-            getent hosts cdn.playwright.dev || echo "dns: cdn.playwright.dev FAILED"
-            for u in \
-              "https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1200/chromium-linux.zip" \
-              "https://cdn.playwright.dev/dbazure/download/playwright/builds/cft/153.0.8010.12/linux64/chrome-linux64.zip" \
-              "https://storage.googleapis.com/chrome-for-testing-public/143.0.7499.4/linux64/chrome-linux64.zip" \
-              "https://pypi.org/simple/playwright/" \
-              "https://registry.npmjs.org/playwright"; do
-              code=$(curl -sIL -o /dev/null -w "%{http_code}" --max-time 25 "$u" || echo "curl-error")
-              echo "${code}  ${u}"
-            done
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - name: Stage 1 - browser download only
+      - name: Stage A - download and launch chromium headless without apt
         shell: bash
         run: |
           set +e
@@ -220,18 +206,26 @@ jobs:
           python -m playwright install chromium > /tmp/pw-download.log 2>&1
           dl_rc=$?
           {
-            echo "### Stage 1 results"
+            echo "### Stage A"
             echo "- pip install exit: ${pip_rc}"
-            echo "- playwright install (download only, no system deps) exit: ${dl_rc}"
-            echo; echo "#### pip log tail"; echo '```'; tail -n 6 /tmp/pip.log; echo '```'
-            echo; echo "#### download log tail"; echo '```'; tail -n 25 /tmp/pw-download.log; echo '```'
+            echo "- playwright download exit: ${dl_rc}"
+            echo; echo "#### download tail"; echo '```'; tail -n 10 /tmp/pw-download.log; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$dl_rc" -ne 0 ]; then
-            echo "::error::Stage 1 browser download failed with exit ${dl_rc}"
-            tail -n 6 /tmp/pw-download.log
+          if [ "$pip_rc" -ne 0 ] || [ "$dl_rc" -ne 0 ]; then
+            echo "::error::Stage A install failed (pip=${pip_rc}, download=${dl_rc})"
+            tail -n 8 /tmp/pw-download.log
             exit 1
           fi
-      - name: Stage 2 - system dependencies via apt
+          if ! python -c 'from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(headless=True); pg = b.new_page(); pg.goto("about:blank"); print("chromium launch OK:", b.version); b.close(); p.stop()' > /tmp/launch.log 2>&1; then
+            echo "::error::Stage A headless chromium launch FAILED"
+            tail -n 12 /tmp/launch.log
+            exit 1
+          fi
+          {
+            echo "- headless launch: OK"
+            echo '```'; cat /tmp/launch.log; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Stage B - publish why apt --with-deps fails (informational)
         shell: bash
         run: |
           set +e
@@ -240,15 +234,17 @@ jobs:
           python -m playwright install-deps chromium > /tmp/pwdeps.log 2>&1
           deps_rc=$?
           {
-            echo "### Stage 2 results"
+            echo "### Stage B"
             echo "- apt-get update exit: ${upd_rc}"
             echo "- playwright install-deps exit: ${deps_rc}"
             echo; echo "#### apt update tail"; echo '```'; tail -n 12 /tmp/aptupdate.log; echo '```'
-            echo; echo "#### install-deps tail"; echo '```'; tail -n 12 /tmp/pwdeps.log; echo '```'
+            echo; echo "#### install-deps tail"; echo '```'; tail -n 15 /tmp/pwdeps.log; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$deps_rc" -ne 0 ]; then
-            echo "::error::Stage 2 apt deps failed with exit ${deps_rc}"
-            tail -n 8 /tmp/pwdeps.log
-            exit 1
+          if [ "$upd_rc" -ne 0 ]; then
+            echo "::warning::apt-get update exit ${upd_rc}"
+            tail -n 10 /tmp/aptupdate.log | sed 's/^/apt-update: /' | while IFS= read -r line; do echo "::warning::$line"; done
           fi
-          echo "diagnosis complete: download and deps both succeeded on ubuntu-24.04"
+          if [ "$deps_rc" -ne 0 ]; then
+            echo "::warning::playwright install-deps exit ${deps_rc}"
+            tail -n 15 /tmp/pwdeps.log | sed 's/^/deps: /' | while IFS= read -r line; do echo "::warning::$line"; done
+          fi
