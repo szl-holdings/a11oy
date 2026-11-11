@@ -3,6 +3,7 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """The 2026-11-10 gap observations match the catalog and do not grant admission."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -14,7 +15,7 @@ NOTE = ROOT / "docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-10.md"
 PRIOR_DOSSIER = ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-07.json"
 # Rows added by later dated records. Each later record names its own rows, so
 # exact catalog membership stays checked as this record's rows plus those.
-LATER_DOSSIERS = ()
+LATER_DOSSIERS = (ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-11.json",)
 DISPOSITION = "No support discussion for this repository is recorded in this catalog."
 ROUTE = "No serving route is authorized. The observed provider mapping was empty."
 ASSIGNED = {
@@ -171,8 +172,13 @@ def test_recorded_observations_cover_the_fourteen_reviewed_ids_without_admission
         (FIRST_REGENERATION, 87, 12), (LATE_REGENERATION, 88, 2),
     ]
     assert regenerations[-1]["catalog_ids_equal_inventory_ids"] is True
-    assert dossier["sources"]["support_model_count"] == len(document["models"])
-    assert dossier["sources"]["support_model_ids_sha256"] == document["inventory_source"]["model_ids_sha256"]
+    # This record observed the catalog as it stood on 2026-11-10. The later
+    # 2026-11-11 record grew it, so the recorded count and digest are pinned to
+    # the ids this record covers instead of the live catalog size.
+    historical_ids = sorted(set(preserved) | set(added))
+    assert dossier["sources"]["support_model_count"] == len(historical_ids)
+    assert dossier["sources"]["support_model_ids_sha256"] == hashlib.sha256(
+        support.canonical_bytes(historical_ids)).hexdigest()
     assert all(value is False for value in document["authority"].values())
 
 

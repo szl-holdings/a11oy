@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - public inventory regeneration, 2026-11-11, and catalog coverage
+
+- `docs/huggingface-ecosystem-manifest.json` is regenerated and committed at
+  2026-11-11T15:08:20Z with 90 models, 65 datasets, 47 Spaces, and 14 kernels.
+  The lockstep generated consumers are regenerated together: the stage matrix,
+  the three public-estate Markdown projections, and the model pretraining
+  snapshot. `scripts/render_public_estate_alignment.py` passes against the
+  committed contract: the 20 Spaces it declares are present and every public
+  Space is classified. `SZLHOLDINGS/immune-lattice` and
+  `SZLHOLDINGS/salad-worker-smoke` are absent from the measured Hub inventory,
+  so the earlier blockers they caused are resolved at the Hub level.
+- `docs/model-inference-support.json` lists 90 model-namespace repositories.
+  The 2 added on 2026-11-11 come from the committed regeneration and are
+  HTTP 200 empty `inferenceProviderMapping` observations
+  (`NO_PROVIDER_MAPPING`). `SZLHOLDINGS/abstention-v2-candidate` is an
+  `adapter_bundle` row by its recursive revision file list, and
+  `SZLHOLDINGS/physics-master-v1-candidate` is a `non_provider_artifact` row.
+  Both returned HTTP 404 for `README.md` at their revision root. Routing,
+  qualification, promotion, and deployment authority stay false. All live
+  revisions match the committed regeneration. The 90 catalog ids equal its
+  model ids, so `scripts/collect_model_inference_support.py --check` exits 0.
+  The dated record is
+  `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-11.md`.
+
 ### Changed - model inference catalog coverage, 2026-11-10 gap
 
 - `docs/model-inference-support.json` lists 88 model-namespace repositories.

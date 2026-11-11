@@ -13,7 +13,10 @@ DOSSIER = ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-07.json"
 NOTE = ROOT / "docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-07.md"
 # Rows added by later dated records. Each later record names its own rows, so
 # exact catalog membership stays checked as this record's rows plus those.
-LATER_DOSSIERS = (ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-10.json",)
+LATER_DOSSIERS = (
+    ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-10.json",
+    ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-11.json",
+)
 
 
 def _later_recorded_ids():
