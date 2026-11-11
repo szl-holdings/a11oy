@@ -26,5 +26,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `a4f40950419d597f392dc3fb2978f7c06f9eb33dc65bb6a1444c1e6de76ae577`.
+Alignment receipt: `52b0db1e9189b75a2f53b8ddbdeae89995969aa6d3354c888690c217189a85a8`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
