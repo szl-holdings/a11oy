@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-11-11T15:08:20Z",
+  "observedAt": "2026-11-11T16:54:31Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -23,7 +23,7 @@
   "counts": {
     "models": 90,
     "datasets": 65,
-    "spaces": 47,
+    "spaces": 48,
     "kernels": 14
   },
   "guardrails": [
@@ -2029,11 +2029,12 @@
         "disabled": false,
         "sdk": null,
         "license": null,
-        "sha": "b6aa4f01476421acce9beeec60fe42cd00e594a3",
-        "lastModified": "2026-11-11T04:08:59.000Z",
+        "sha": "9118c9e2ea577bf5abd91b13ed3f8cf6235d653e",
+        "lastModified": "2026-11-11T15:56:28.000Z",
         "cardSemanticSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         "createdAt": "2026-11-11T04:08:59.000Z",
         "tags": [
+          "safetensors",
           "region:us"
         ],
         "claimStatus": "inventory",
@@ -3594,8 +3595,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "9a911a620ee7c5e495910b2b36cd536756253f2d",
-        "lastModified": "2026-11-11T15:08:05.000Z",
+        "sha": "057044b4f130faa84b8165c41091bd08c223462d",
+        "lastModified": "2026-11-11T16:53:45.000Z",
         "cardSemanticSha256": "4535eaff10556ee4b2792895471a3a3d30b2ba774f47d72a86ea4869856f3adf",
         "createdAt": "2026-11-09T01:14:35.000Z",
         "tags": [
@@ -3898,8 +3899,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "494e8c3f5528b206845342262bcb601ef9e3959e",
-        "lastModified": "2026-11-11T15:05:58.000Z",
+        "sha": "56754cbe61d88d33a4b4024ae58a9022fb22a7ab",
+        "lastModified": "2026-11-11T16:49:49.000Z",
         "cardSemanticSha256": "2062f8a7461392e79949029144cffe0e7690821603c87c95e7a8db2146056ab5",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -4363,8 +4364,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "db1596bee442523c4853ee050fedbf333387835e",
-        "lastModified": "2026-11-11T14:41:36.000Z",
+        "sha": "84eecc999feda0ce18cd912c916472c72b8d03ba",
+        "lastModified": "2026-11-11T16:41:52.000Z",
         "cardSemanticSha256": "a64917389c247960bfe2a2add5ca928abbc6f74e84ef631ee0ba7bf6e49c4abf",
         "createdAt": "2026-06-01T13:06:04.000Z",
         "tags": [
@@ -5327,8 +5328,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "df6f6de748e61e83c0e1c57e6940603a5bc27bac",
-        "lastModified": "2026-11-10T21:46:18.000Z",
+        "sha": "32c218bb6c6949b05f1176143726b062a9a86359",
+        "lastModified": "2026-11-11T15:59:51.000Z",
         "cardSemanticSha256": "446a2e369133b7018871d438da5c64136279d735d67984962e79641381d900f5",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -5377,8 +5378,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "7eba5c4c45a813856c4f4e7d275d267d98022c6a",
-        "lastModified": "2026-11-11T00:40:28.000Z",
+        "sha": "833f43916123601f5ebf66543529ef9552c79098",
+        "lastModified": "2026-11-11T16:22:44.000Z",
         "cardSemanticSha256": "2fb1f0396524a9ca89e63a1a68bac7274675df68fb04246bb7e2465bdead780a",
         "createdAt": "2026-09-04T00:12:25.000Z",
         "tags": [
@@ -6225,6 +6226,28 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-receipts-chain",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "52a280d52d60c365138ee33cb70d8f67f77076b4",
+        "lastModified": "2026-11-11T16:17:25.000Z",
+        "cardSemanticSha256": "d67cf3c267f2eef8f8129a7b167aa9c4d0fb0c77dfdbeba7c8c3b7177c13cee7",
+        "createdAt": "2026-11-11T15:49:44.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-receipts-chain"
         ],
         "unsafeFlags": []
       },
