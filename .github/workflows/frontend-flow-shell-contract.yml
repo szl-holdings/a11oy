@@ -116,7 +116,8 @@ jobs:
 
   landing-browser:
     name: Homepage source reflow
-    runs-on: ubuntu-latest
+    # Playwright 1.57.0 has no Chromium host build for ubuntu-26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -140,7 +141,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install --prefix "$RUNNER_TEMP/landing-browser" --no-audit --no-fund playwright@1.63.0
+          npm install --prefix "$RUNNER_TEMP/landing-browser" --no-audit --no-fund playwright@1.57.0
           "$RUNNER_TEMP/landing-browser/node_modules/.bin/playwright" install --with-deps chromium
       - name: Compare exact source reflow against its base
         shell: bash
