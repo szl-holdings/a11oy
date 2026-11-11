@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - classify szl-receipts-chain and refresh the public inventory
+
+- `SZLHOLDINGS/szl-receipts-chain`, a public docker demo Space first observed at
+  2026-11-11T15:49:44Z, is classified `INVENTORY_ONLY` / `FOLD` in
+  `static/shared/public-estate-contract.v1.json`, following the classification
+  pattern its 33 peer Spaces already use. The keep-list file is unchanged; the
+  policy already treats non-keepers as FOLD. No Space visibility was changed on
+  the Hub.
+- `docs/huggingface-ecosystem-manifest.json` is regenerated and committed at
+  2026-11-11T16:54:31Z with 90 models, 65 datasets, 48 Spaces, and 14 kernels,
+  with its lockstep generated consumers regenerated together: the stage matrix,
+  the three public-estate Markdown projections, and the model pretraining
+  snapshot. `SZLHOLDINGS/physics-master-v1-candidate` advanced to revision
+  `9118c9e2ea577bf5abd91b13ed3f8cf6235d653e` (checkpoint content, provider
+  mapping still empty); its catalog row keeps the revision it was observed at.
+  This closes the two drift items recorded in issue #1282.
+- The public-estate alignment test lists are extended to cover the new Space.
+  The contract version stays `1.0.2`: the 2026-11-10 classification batch added
+  20 rows under the same version, and additive classification rows do not
+  change the contract schema.
+
 ### Changed - public inventory regeneration, 2026-11-11, and catalog coverage
 
 - `docs/huggingface-ecosystem-manifest.json` is regenerated and committed at

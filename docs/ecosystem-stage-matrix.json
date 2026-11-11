@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-11-11T15:08:20Z",
+  "observedAt": "2026-11-11T16:54:31Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -28,7 +28,7 @@
     "huggingFacePublic": {
       "models": 90,
       "datasets": 65,
-      "spaces": 47,
+      "spaces": 48,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -2691,6 +2691,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receipts-chain",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-receipts-chain"
       ]
     },
     {
