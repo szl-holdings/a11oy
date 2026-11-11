@@ -85,6 +85,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
+      # Same pinned egress audit as the DOM-text and Finance browser jobs. On
+      # 2026-11-11 their --with-deps apt fetches succeeded while this job's
+      # failed on hosted-resolver errors for *.ubuntu.com. The agent resolves
+      # over DNS-over-HTTPS; this is a mitigation, not a guarantee.
+      - uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
