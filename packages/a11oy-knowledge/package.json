@@ -18,7 +18,7 @@
   "devDependencies": {
     "typescript": "^5.4.0",
     "vitest": "^5.0.5",
-    "vite": "6.4.5"
+    "vite": "6.4.6"
   },
   "files": [
     "dist",

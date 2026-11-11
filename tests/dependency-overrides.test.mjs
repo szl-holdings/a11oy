@@ -308,3 +308,96 @@ test('the installed PostCSS source-map dependency preserves ordinary mapping rou
     { source: 'input.css', line: 3, column: 2, name: 'color' });
   assert.equal(consumer.sourceContentFor('input.css'), '.sample { color: blue; }');
 });
+
+// https://github.com/vitejs/vite/security/advisories/GHSA-p4f5-76q4-ffq7
+// The same-major patch also includes GHSA-8g5g-mxqh-grgj on the 6.x line.
+function verifyPatchedVite(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  assert.ok(match, 'an exact stable Vite version is required');
+  const [major, minor, patch] = match.slice(1).map(Number);
+  const floor = { '6.4': 6, '7.3': 8, '8.1': 7, '8.2': 5, '8.3': 7 }[`${major}.${minor}`];
+  assert.ok(floor !== undefined && patch >= floor, `unqualified Vite version: ${version}`);
+}
+
+test('Vite advisory floors reject affected, unreviewed and prerelease versions', () => {
+  for (const version of ['4.5.0', '5.4.0', '6.4.4', '6.4.5', '7.3.7', '8.0.9',
+    '8.1.6', '8.2.4', '8.3.4', '8.3.6', '8.3.7-rc.1', '^6.4.6', '9.0.0']) {
+    assert.throws(() => verifyPatchedVite(version), version);
+  }
+  for (const version of ['6.4.6', '7.3.8', '8.1.7', '8.2.5', '8.3.7']) verifyPatchedVite(version);
+});
+
+test('all declared standalone Vite floors and existing locks include the security patch', () => {
+  const rootPackage = JSON.parse(source('package.json'));
+  const workspace = yaml.load(source('pnpm-workspace.yaml'));
+  const lock = yaml.load(source('pnpm-lock.yaml'));
+  const selected = rootPackage.pnpm.overrides.vite;
+  verifyPatchedVite(selected);
+  assert.equal(workspace.overrides.vite, selected);
+  assert.equal(lock.overrides.vite, selected);
+  assert.equal(JSON.parse(source('packages/a11oy-knowledge/package.json')).devDependencies.vite, selected);
+  for (const section of ['packages', 'snapshots']) {
+    const versions = Object.keys(lock[section]).filter((name) => name.startsWith('vite@'));
+    assert.ok(versions.length > 0, `${section}: missing Vite resolutions`);
+    for (const entry of versions) {
+      const version = entry.slice(5).split('(')[0];
+      verifyPatchedVite(version);
+      assert.equal(version, selected, 'stale resolved Vite must not hide behind a patched override');
+    }
+  }
+  for (const path of ['docs/site', 'web/civilian-observatory']) {
+    const pkg = JSON.parse(source(`${path}/package.json`));
+    const npmLock = JSON.parse(source(`${path}/package-lock.json`));
+    verifyPatchedVite(pkg.devDependencies.vite);
+    assert.equal(npmLock.packages[''].devDependencies.vite, pkg.devDependencies.vite);
+    if (pkg.overrides?.vite) assert.equal(pkg.overrides.vite, pkg.devDependencies.vite);
+    const copies = Object.entries(npmLock.packages).filter(([name]) => name.endsWith('node_modules/vite'));
+    assert.ok(copies.length > 0, `${path}: missing Vite resolutions`);
+    for (const [, entry] of copies) {
+      verifyPatchedVite(entry.version);
+      assert.equal(entry.version, pkg.devDependencies.vite);
+      assert.equal(entry.resolved, `https://registry.npmjs.org/vite/-/vite-${entry.version}.tgz`);
+      assert.match(entry.integrity, /^sha512-/);
+    }
+  }
+  for (const path of ['web/console', 'organs/amaru/web']) {
+    const declared = JSON.parse(source(`${path}/package.json`)).devDependencies.vite;
+    assert.match(declared, /^\^\d+\.\d+\.\d+$/);
+    verifyPatchedVite(declared.slice(1));
+  }
+});
+
+test('installed Vite treats hostile virtual-module names as data', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { pathToFileURL } = await import('node:url');
+  const { runInNewContext } = await import('node:vm');
+  const knowledgeRequire = createRequire(new URL('../packages/a11oy-knowledge/package.json', import.meta.url));
+  const vitePackagePath = knowledgeRequire.resolve('vite/package.json');
+  verifyPatchedVite(JSON.parse(readFileSync(vitePackagePath, 'utf8')).version);
+  const { createServer } = await import(new URL('./dist/node/index.js', pathToFileURL(vitePackagePath)));
+  const directory = await mkdtemp(join(tmpdir(), 'szl-vite-name-'));
+  let server;
+  try {
+    server = await createServer({ root: directory, configFile: false, logLevel: 'silent',
+      server: { middlewareMode: true }, optimizeDeps: { noDiscovery: true, include: [] } });
+    // Harmless assignment in an isolated VM: vulnerable interpolation changes the marker.
+    const hostile = '${(globalThis.__szlViteInjection = true, "canary")}';
+    for (const id of [`__vite-browser-external:${hostile}`, `__vite-optional-peer-dep:${hostile}:parent`]) {
+      const loaded = await server.pluginContainer.load(id);
+      const code = typeof loaded === 'string' ? loaded : loaded?.code;
+      assert.equal(typeof code, 'string');
+      const context = {};
+      const executable = id.startsWith('__vite-browser-external:')
+        ? `${code.replace('export default ', 'globalThis.external = ')}\nexternal.check;`
+        : code;
+      assert.throws(() => runInNewContext(executable, context, { timeout: 1000 }),
+        (error) => error.message.includes(hostile), 'the rejected name must survive literally in the error');
+      assert.equal(context.__szlViteInjection, undefined, 'virtual-module names must never become executable code');
+    }
+  } finally {
+    await server?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
