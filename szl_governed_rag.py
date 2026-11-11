@@ -505,6 +505,34 @@ def _sign_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
         }
 
 
+def _unsigned_anonymous() -> dict[str, Any]:
+    """Receipt signature for a caller without the operator credential.
+
+    The receipt carries caller-supplied query and corpus text, so signing it with
+    the server key for anyone would make the public route a signing oracle."""
+    return {
+        "alg": "ECDSA-P256",
+        "envelope": "DSSE",
+        "signed": False,
+        "value": "UNSIGNED-ANONYMOUS",
+        "keyid": None,
+        "payloadType": RAG_PAYLOAD_TYPE,
+        "pae_sha256": None,
+        "honesty": ("UNSIGNED — server-key signing requires the operator credential; "
+                    "anonymous answers are returned unsigned."),
+        "verify_key_url": None,
+    }
+
+
+def _caller_is_operator(request: Request) -> bool:
+    """True only for the operator Bearer; any resolver error denies."""
+    try:
+        import szl_operator_auth
+        return bool(szl_operator_auth.principal(request)["operator"])
+    except Exception:
+        return False
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Forum ingest — shared /llm/forum ring (same substrate the router writes to).
 # ─────────────────────────────────────────────────────────────────────────────
@@ -538,7 +566,7 @@ def _seed_forum() -> None:
 
 def query(query_text: str, corpus: "list[dict[str, str]] | str | None" = None,
           model_id: str = "", harness_profile_id: str = "", top_k: int = 4,
-          ns: str = "a11oy", forum: bool = True) -> dict[str, Any]:
+          ns: str = "a11oy", forum: bool = True, sign: bool = True) -> dict[str, Any]:
     """Governed RAG query — deterministic hybrid retrieval → per-claim citation-
     grounded answer → RAGAS-style scoring → Λ-gate → SIGNED receipt → forum ingest.
 
@@ -754,7 +782,7 @@ def query(query_text: str, corpus: "list[dict[str, str]] | str | None" = None,
         "kernel_commit": _KERNEL,
         "conjecture_note": _CONJECTURE_NOTE,
     }
-    receipt["signature"] = _sign_receipt(receipt)
+    receipt["signature"] = _sign_receipt(receipt) if sign else _unsigned_anonymous()
 
     forum_status = _forum_ingest(receipt, query_text) if forum else {"ingested": False, "skipped": True}
 
@@ -832,6 +860,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict:
             top_k=int(body.get("top_k", 4) or 4),
             ns=ns,
             forum=True,
+            sign=_caller_is_operator(request),
         )
         if not res.get("ok"):
             return JSONResponse(

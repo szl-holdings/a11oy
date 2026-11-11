@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - anonymous governed-RAG answers are not server-signed
+
+- `POST /api/a11oy/v1/rag/query` stays public, but only a caller with the
+  operator credential gets a DSSE signature from the server key. Anonymous
+  answers return the same body with an honest `UNSIGNED-ANONYMOUS` signature,
+  so caller-supplied query and corpus text can no longer obtain server-signed
+  receipts. In-process `szl_governed_rag.query()` callers still sign by default.
+
 ### Changed - model inference catalog coverage
 
 - `docs/model-inference-support.json` lists the 74 public model-namespace
