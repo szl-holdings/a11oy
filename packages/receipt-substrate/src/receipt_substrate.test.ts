@@ -12,6 +12,7 @@ import {
   readReceiptJsonl,
   verifyChain,
   verifyReceipt,
+  type OperationalReceipt,
 } from "./index.ts";
 
 const policy = {
@@ -90,6 +91,34 @@ assert.equal(witness.shor_repetition_count, 9);
 assert.equal(witness.payload_byte, witness.shor_majority_payload);
 assert.equal(witness.css_consistent, true);
 
+// A JSON "__proto__" key is payload data. It must stay in the canonical form,
+// so adding one to a stored receipt changes its hashes.
+const protoPayload = JSON.parse('{"b":1,"__proto__":{"x":1},"a":"e\\u0301"}');
+assert.equal(canonicalJson(protoPayload), '{"__proto__":{"x":1},"a":"é","b":1}');
+assert.notEqual(canonicalJson(protoPayload), canonicalJson({ b: 1, a: "é" }));
+assert.equal(({} as Record<string, unknown>).x, undefined);
+
+const protoTampered = JSON.parse(JSON.stringify(genesis).replace(
+  '"payload":{"query":"status","limit":3}',
+  '"payload":{"query":"status","limit":3,"__proto__":{"approved":true}}',
+)) as OperationalReceipt;
+assert.equal(Object.hasOwn(protoTampered.envelope.payload as object, "__proto__"), true);
+const protoTamperedResult = verifyChain([protoTampered], policy);
+assert.equal(protoTamperedResult.valid, false);
+assert.match(protoTamperedResult.errors.join("\n"), /payload_hash mismatch/);
+
+const protoEnvelope = createToolEnvelope({
+  actor_id: "did:key:z6MkOperator",
+  tool_name: "receipted_retrieval",
+  payload: JSON.parse('{"query":"status","__proto__":{"x":1}}'),
+  metadata: { source: "receipt-substrate-test" },
+});
+assert.deepEqual(Object.keys(protoEnvelope.payload as object), ["query", "__proto__"]);
+assert.equal(Object.getPrototypeOf(protoEnvelope.payload), Object.prototype);
+assert.equal((protoEnvelope.payload as Record<string, unknown>).x, undefined);
+assert.equal(Object.getPrototypeOf(protoEnvelope.metadata), Object.prototype);
+assert.deepEqual(envelope().payload, { query: "status", limit: 3 });
+
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "a11oy-receipt-substrate-"));
 const tmp = path.join(tmpDir, "receipts.jsonl");
 try {
@@ -99,4 +128,4 @@ try {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 }
 
-console.log("[receipt-substrate] OK 12 tests");
+console.log("[receipt-substrate] OK 15 tests");
