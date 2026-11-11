@@ -96,7 +96,15 @@ jobs:
       - name: Install pinned isolated browser runner
         run: |
           python -m pip install --disable-pip-version-check 'playwright==1.57.0'
-          python -m playwright install --with-deps chromium
+          for browser in google-chrome chromium chromium-browser; do
+            if command -v "$browser" >/dev/null 2>&1; then
+              printf 'SZL_TEST_CHROMIUM=%s\\n' "$(command -v "$browser")" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          if [ -z "${SZL_TEST_CHROMIUM:-}" ]; then
+            python -m playwright install chromium
+          fi
       - name: Test actual page and assets with synthetic source fixtures
         shell: bash
         run: |
@@ -130,7 +138,15 @@ jobs:
       - name: Install pinned isolated browser runner
         run: |
           python -m pip install --disable-pip-version-check 'playwright==1.57.0'
-          python -m playwright install --with-deps chromium
+          for browser in google-chrome chromium chromium-browser; do
+            if command -v "$browser" >/dev/null 2>&1; then
+              printf 'SZL_TEST_CHROMIUM=%s\\n' "$(command -v "$browser")" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          if [ -z "${SZL_TEST_CHROMIUM:-}" ]; then
+            python -m playwright install chromium
+          fi
       - name: Observe real public reads and interactions without action execution
         env:
           EXPECTED_SOURCE: ${{ github.sha }}
