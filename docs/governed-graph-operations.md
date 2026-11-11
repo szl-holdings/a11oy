@@ -10,12 +10,63 @@ Governed Graph Operations is a real, deterministic topology analyzer served at
 returns a normalized plan, stable digest, schedule, critical path, and explicit
 gate findings.
 
-The implementation is **REAL**. The proposed plan is **MODELED** and
-`PLAN_ONLY`. This surface has zero effectors, zero provider calls, and zero
+The analyzer implementation is **REAL**. Its proposed plan is **MODELED** and
+`PLAN_ONLY`. The HTTP surface has zero effectors, zero provider calls, and zero
 writes. It does not run agents, authorize a release, sign a read, or upgrade
-evidence. Any future executor must bind itself to the exact contract digest,
-re-evaluate policy, honor the declared human gates, and emit a receipt for every
+evidence. Production execution must bind itself to the exact contract digest,
+re-evaluate policy, honor declared human gates, and emit a receipt for every
 write.
+
+`szl_sgh_scheduler.execute_governed_plan` now supplies a separate, explicitly
+called **local read-only** executor for the same contract. It is not registered
+as an HTTP route or enabled by a flag. It runs injected in-memory Python
+callables only; those callables are trusted capabilities, not sandboxed code.
+
+## Local plan execution
+
+The local interface is:
+
+```python
+execute_governed_plan(
+    contract, expected_digest,
+    input_values={"input.key": value},
+    admissions={"node-id": admission_callable},
+    implementations={"node-id": implementation_callable},
+    verifiers={"node-id": verifier_callable},
+    max_attempts_per_node=2,
+    max_total_attempts=256,
+    cancelled=None, clock=None, deadline=None,
+)
+```
+
+Each callable receives a separate JSON snapshot context containing the exact
+`contract_digest`, normalized `node`, declared `inputs`, `attempt`, and direct
+`predecessor_receipts`. The verifier context also contains candidate `outputs`.
+Admission and verification return exactly `True` or `False`. An implementation
+returns `{"status": "SUCCEEDED", "outputs": {<declared keys>: <JSON values>}}`
+or an explicit local retry result,
+`{"status": "RETRYABLE_FAILURE", "failure_kind": "LOCAL"}` (also
+`SYNTHETIC`). Other outcomes fail closed. No capability is supplied by default.
+
+The executor snapshots strict JSON inputs, recomputes `analyse_graph`, compares
+the exact digest, and refuses blockers before calling any capability. It flattens
+the analyzer's deterministic schedule serially. A node sees only its declared
+external inputs and verified direct data predecessor outputs. `control_after`
+orders dispatch without supplying artifacts. Ambiguous providers, missing
+outputs, fake data edges, unsupported roles or loop semantics, side effects,
+writes, `WRITE_GOVERNED` authority, and `HUMAN` authority are refused. Admission
+is checked before each implementation attempt, including retries. A denial,
+failed verification, cancellation, deadline, or ambiguous outcome stops further
+dispatch and marks unrun nodes `BLOCKED`.
+
+The graph's `max_total_iterations` bounds aggregate attempts, with hard ceilings
+of 9 attempts per node and 256 total. A deadline checks an injected clock before
+dispatch; it cannot interrupt a synchronous callable already running. The
+result includes node dispositions and deterministic SHA-256 in-memory
+transition records binding input and output hashes, attempt, predecessor
+receipt identities, and prior record identity. These records are inspectable
+local evidence. They are not signed, durable, independently verified, or an
+exactly-once effect log.
 
 ## Routes
 
@@ -96,7 +147,9 @@ derive run graph`
 
 External repository, deployment, CRM, or data writes require a later
 outbox/saga design, explicit approval, idempotency, and source-bound receipts.
-They are outside this plan-only release.
+They remain outside this local read-only implementation. Production effect
+execution and durable replay require a separate integration through the
+existing Governed Delta Workspace transaction and receipt history.
 
 ## Verification
 
@@ -104,3 +157,7 @@ Focused tests live in `tests/test_governed_graph_operations.py`. They cover all
 three samples, stable digests, graph cycles, bounded loops, fake edges, fan-in,
 resource conflicts, verifier independence, write authority, receipt anchors,
 body limits, read purity, and route precedence ahead of the SPA catch-all.
+`tests/test_sgh_plan_execution.py` covers serial chain and diamond dispatch,
+fail-closed admission and verification, bounded local retry, cancellation,
+snapshot isolation, deterministic transition records, and legacy wrapper
+compatibility.
