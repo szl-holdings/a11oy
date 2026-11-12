@@ -97,8 +97,15 @@ jobs:
 
       - name: Install Syft (for embedded SBOM)
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
-            | sh -s -- -b /usr/local/bin v1.44.0
+          set -euo pipefail
+          # Pinned release archive + committed SHA-256 (SCPIN-CURL-1). Checksum copied from
+          # https://github.com/anchore/syft/releases/download/v1.44.0/syft_1.44.0_checksums.txt
+          SYFT_VERSION=1.44.0
+          SYFT_SHA256=0e91737aee2b5baf1d255b959630194a302335d848ff97bb07921eb6205b5f5a
+          curl -sSfLo /tmp/syft.tar.gz "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          echo "${SYFT_SHA256}  /tmp/syft.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/syft.tar.gz -C /usr/local/bin syft
+          rm -f /tmp/syft.tar.gz
           syft version
 
       - name: Build tar.zst with embedded Syft SBOM
