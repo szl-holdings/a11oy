@@ -1,8 +1,9 @@
 # API Reference
 
 All endpoints are HTTPS. Base URLs are the live Hugging Face Spaces. Doctrine v11 · Apache-2.0.
-Honest note: some routes are demo/public; commercial usage is metered via API keys issued by the
-customer portal. Λ uniqueness is **Conjecture 1 (not a theorem)**; SLSA **L1 (honest)**.
+Honest note: some routes are demo/public. There is no customer portal yet, so API keys are not
+issued self-serve and commercial usage is not metered by key (access: hello@a-11-oy.com).
+Λ uniqueness is **Conjecture 1 (not a theorem)**; SLSA **L1 (honest)**.
 
 Two products ship live today; their Spaces are deployed and return `/healthz`:
 
