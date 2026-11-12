@@ -57,6 +57,66 @@ def _gen_ephemeral_keypair():
     return priv_pem, pub_pem
 
 
+@pytest.mark.parametrize("number", [float("nan"), float("inf"), -float("inf")])
+@pytest.mark.parametrize("placement", ["scalar", "object", "array", "nested", "key"])
+def test_new_nonfinite_payload_rejected_before_key_access(monkeypatch, number, placement):
+    payloads = {
+        "scalar": number,
+        "object": {"score": number},
+        "array": [number],
+        "nested": {"evidence": [{"score": number}]},
+        "key": {number: "score"},
+    }
+
+    def key_access_is_forbidden():
+        raise AssertionError("invalid JSON reached signing material")
+
+    monkeypatch.setattr(szl_dsse, "_load_private_key", key_access_is_forbidden)
+    with pytest.raises(ValueError):
+        szl_dsse.sign_payload(payloads[placement])
+
+
+@pytest.mark.parametrize(("payload", "expected"), [
+    ({"z": [None, True, False], "a": "λ"}, '{"a":"λ","z":[null,true,false]}'.encode()),
+    ({"n": -0.0}, b'{"n":-0.0}'),
+    ({"n": 1e-300}, b'{"n":1e-300}'),
+    ({"n": 10**40}, b'{"n":10000000000000000000000000000000000000000}'),
+])
+def test_finite_payload_retains_canonical_and_pae_bytes(monkeypatch, payload, expected):
+    monkeypatch.setattr(szl_dsse, "_load_private_key", lambda: None)
+    envelope = szl_dsse.sign_payload(payload)
+    assert base64.b64decode(envelope["payload"]) == expected
+    assert envelope["signed"] is False
+    assert envelope["signatures"] == []
+    payload_type = szl_dsse.KHIPU_PAYLOAD_TYPE.encode()
+    expected_pae = (b"DSSEv1 " + str(len(payload_type)).encode() + b" " + payload_type
+                    + b" " + str(len(expected)).encode() + b" " + expected)
+    assert szl_dsse.pae(szl_dsse.KHIPU_PAYLOAD_TYPE, expected) == expected_pae
+
+
+@pytest.mark.parametrize("raw", [b'{"n":NaN}', b'{"n":Infinity}', b'{"n":-Infinity}'])
+def test_historical_nonfinite_signed_bytes_still_verify(monkeypatch, raw):
+    private = ec.generate_private_key(ec.SECP256R1())
+    public_pem = private.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("ascii")
+    keyid = szl_dsse.keyid_for_public_pem(public_pem)
+    monkeypatch.setattr(szl_dsse, "active_public_key_pem", lambda: public_pem)
+    monkeypatch.setattr(szl_dsse, "_trusted_public_key_pems", lambda: {keyid: public_pem})
+    signature = private.sign(
+        szl_dsse.pae(szl_dsse.KHIPU_PAYLOAD_TYPE, raw), ec.ECDSA(hashes.SHA256()),
+    )
+    envelope = {
+        "payloadType": szl_dsse.KHIPU_PAYLOAD_TYPE,
+        "payload": base64.b64encode(raw).decode("ascii"),
+        "signatures": [{"keyid": keyid, "sig": base64.b64encode(signature).decode("ascii")}],
+    }
+    # This is only a cryptographic verdict, not schema or numeric admission.
+    assert szl_dsse.verify_envelope(envelope)["verified"] is True
+    envelope["payload"] = base64.b64encode(raw + b" ").decode("ascii")
+    assert szl_dsse.verify_envelope(envelope)["verified"] is False
+
+
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     """Ensure no ambient secret leaks between tests unless a test sets one."""
