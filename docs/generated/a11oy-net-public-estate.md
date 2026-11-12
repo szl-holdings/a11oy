@@ -3,7 +3,7 @@
 
 This proof surface follows the A11oy public-estate contract. Product, GitHub source, Hugging Face runtime, and evidence state are distinct and must agree before a lane is called current.
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/agents-studio`, `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/gdw-frontier`, `SZLHOLDINGS/holographic-unify`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/nexus`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-khipu`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-second-brain`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/agents-studio`, `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/counsel-assurance`, `SZLHOLDINGS/estate-gardener`, `SZLHOLDINGS/eternal-auditor`, `SZLHOLDINGS/frontier-showcase`, `SZLHOLDINGS/gdw-frontier`, `SZLHOLDINGS/holographic-unify`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/living-anatomy`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/measured-honesty-census`, `SZLHOLDINGS/newton-trust-upgrade`, `SZLHOLDINGS/nexus`, `SZLHOLDINGS/puriq-markets`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-chief-engineer`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-cyber-shield`, `SZLHOLDINGS/szl-dream-architect`, `SZLHOLDINGS/szl-energy-hologram`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-frontier-deck`, `SZLHOLDINGS/szl-infra-warden`, `SZLHOLDINGS/szl-khipu`, `SZLHOLDINGS/szl-receipts-chain`, `SZLHOLDINGS/szl-research-council`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-second-brain`, `SZLHOLDINGS/szlholdings-si`, `SZLHOLDINGS/terra-assurance`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/truth-router`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
 
 | Product body | GitHub source | Hugging Face runtime | Truth class |
 |---|---|---|---|
@@ -13,5 +13,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 | PRISM Counsel | `szl-holdings/a11oy` | `SZLHOLDINGS/counsel` | `PUBLIC_SOURCE_EVIDENCE` |
 | PURIQ Finance | `szl-holdings/puriq-live` | `SZLHOLDINGS/finance` | `PUBLIC_SOURCE_EVIDENCE` |
 
-Contract alignment SHA-256: `2416313c2cd07b593a775d5362e218e9f51e083e22f6b1e1b92dc97e2bf4ef18`.
+Contract alignment SHA-256: `05e501e1669eacee05bbed6eca7f917c787d48b72de5438f546d42ab59ba1e6a`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->

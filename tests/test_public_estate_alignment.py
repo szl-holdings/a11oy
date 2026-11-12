@@ -71,16 +71,37 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             [
                 "SZLHOLDINGS/agents-studio",
                 "SZLHOLDINGS/ayllu",
+                "SZLHOLDINGS/counsel-assurance",
+                "SZLHOLDINGS/estate-gardener",
+                "SZLHOLDINGS/eternal-auditor",
+                "SZLHOLDINGS/frontier-showcase",
                 "SZLHOLDINGS/gdw-frontier",
                 "SZLHOLDINGS/holographic-unify",
                 "SZLHOLDINGS/immune",
+                "SZLHOLDINGS/living-anatomy",
                 "SZLHOLDINGS/llm-router-live",
+                "SZLHOLDINGS/measured-honesty-census",
+                "SZLHOLDINGS/newton-trust-upgrade",
                 "SZLHOLDINGS/nexus",
+                "SZLHOLDINGS/puriq-markets",
+                "SZLHOLDINGS/sentra",
+                "SZLHOLDINGS/szl-chief-engineer",
+                "SZLHOLDINGS/szl-constellation",
+                "SZLHOLDINGS/szl-cyber-shield",
+                "SZLHOLDINGS/szl-dream-architect",
+                "SZLHOLDINGS/szl-energy-hologram",
                 "SZLHOLDINGS/szl-forge-lab",
+                "SZLHOLDINGS/szl-frontier-deck",
+                "SZLHOLDINGS/szl-infra-warden",
                 "SZLHOLDINGS/szl-khipu",
+                "SZLHOLDINGS/szl-receipts-chain",
+                "SZLHOLDINGS/szl-research-council",
                 "SZLHOLDINGS/szl-router-control",
                 "SZLHOLDINGS/szl-second-brain",
+                "SZLHOLDINGS/szlholdings-si",
+                "SZLHOLDINGS/terra-assurance",
                 "SZLHOLDINGS/the-grid",
+                "SZLHOLDINGS/truth-router",
                 "SZLHOLDINGS/yarqa",
             ],
         )
@@ -91,7 +112,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
 
     def test_new_public_inventory_is_not_a_keeper_or_runtime_promotion(self) -> None:
         # anatomy is a governed org keeper (owner decision 2026-11-07); the rest remain inventory-only
-        for name in ('agents-studio', 'gdw-frontier', 'holographic-unify', 'llm-router-live', 'nexus', 'szl-forge-lab', 'szl-khipu', 'szl-router-control', 'szl-second-brain', 'the-grid'):
+        for name in ('agents-studio', 'counsel-assurance', 'estate-gardener', 'eternal-auditor', 'frontier-showcase', 'gdw-frontier', 'holographic-unify', 'living-anatomy', 'llm-router-live', 'measured-honesty-census', 'newton-trust-upgrade', 'nexus', 'puriq-markets', 'sentra', 'szl-chief-engineer', 'szl-constellation', 'szl-cyber-shield', 'szl-dream-architect', 'szl-energy-hologram', 'szl-forge-lab', 'szl-frontier-deck', 'szl-infra-warden', 'szl-khipu', 'szl-receipts-chain', 'szl-research-council', 'szl-router-control', 'szl-second-brain', 'szlholdings-si', 'terra-assurance', 'the-grid', 'truth-router'):
             repo_id = 'SZLHOLDINGS/' + name
             with self.subTest(repo_id=repo_id):
                 row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
