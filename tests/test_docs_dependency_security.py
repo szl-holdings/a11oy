@@ -4,6 +4,7 @@
 """Manifest/lock regressions; these are not deployed-bundle or browser proofs."""
 
 import json
+import re
 from pathlib import Path
 
 
@@ -45,19 +46,31 @@ def test_docs_mermaid_remains_in_the_plugins_supported_major():
     assert plugin["peerDependencies"]["mermaid"] == "10 || 11"
 
 
+# npm registry integrity of each KaTeX release admitted after review. Admitting
+# a release means adding its registry integrity here; any other version, or a
+# listed version locked with a different integrity, still fails the contract.
+REVIEWED_KATEX_INTEGRITY = {
+    "0.19.0": "sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q==",
+    "0.19.1": "sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==",
+}
+
+
 def test_docs_katex_override_covers_every_locked_copy():
     # Keep every resolved copy bound to the reviewed direct KaTeX version.
     manifest = read_json("docs/site/package.json")
     packages = read_json("docs/site/package-lock.json")["packages"]
     assert manifest["overrides"]["katex"] == "$katex"
-    assert manifest["dependencies"]["katex"] == "^0.19.0"
-    assert packages[""]["dependencies"]["katex"] == "^0.19.0"
+    declared = manifest["dependencies"]["katex"]
+    reviewed = re.fullmatch(r"\^(\d+\.\d+\.\d+)", declared)
+    assert reviewed, f"KaTeX must be declared as ^<reviewed release>, got {declared!r}"
+    version = reviewed.group(1)
+    assert version in REVIEWED_KATEX_INTEGRITY, f"KaTeX {version} is not a reviewed release"
+    assert packages[""]["dependencies"]["katex"] == declared
     copies = [entry for path, entry in packages.items()
               if path.endswith("node_modules/katex")]
     assert copies, "the test must inspect an actual resolved KaTeX package"
-    assert all(entry["version"] == "0.19.0" for entry in copies)
-    assert all(entry["resolved"] == "https://registry.npmjs.org/katex/-/katex-0.19.0.tgz"
+    assert all(entry["version"] == version for entry in copies)
+    assert all(entry["resolved"] == f"https://registry.npmjs.org/katex/-/katex-{version}.tgz"
                for entry in copies)
-    assert all(entry["integrity"] ==
-               "sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q=="
+    assert all(entry["integrity"] == REVIEWED_KATEX_INTEGRITY[version]
                for entry in copies)
