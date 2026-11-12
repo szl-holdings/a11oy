@@ -853,7 +853,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
     "ayllu/keys/council-runtime-2026-07-21.pub": "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe",
-    "szl_dsse.py": "e095670051088929365f3eb4c76716122148d8f6b898db52f0e27867c221608c",
+    "szl_dsse.py": "dbe0188605d77610dee97f5b6efc069166a2a15fe46cf4f89881d4f5fa209d2f",
     # The runtime signer whose served public key the verifier checks.
     "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
     # Read-only exact-byte verifier used only by the least-privilege readiness job.

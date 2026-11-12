@@ -102,8 +102,9 @@ PUB_KEY_URL = "/cosign.pub"
 # ---------------------------------------------------------------------------
 
 def canonical_json(obj: Any) -> bytes:
-    """Deterministic canonical JSON: sorted keys, no extra whitespace, UTF-8."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    """Deterministic finite JSON; non-finite numbers raise ValueError."""
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False, allow_nan=False).encode("utf-8")
 
 
 def pae(payload_type: str, body: bytes) -> bytes:
