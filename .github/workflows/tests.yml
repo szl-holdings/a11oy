@@ -1042,6 +1042,8 @@ jobs:
         # divergence from szl-receipt, and the honest UNSIGNED path — turning a
         # future naive "just import szl-receipt" refactor into a red gate.
         run: python3 -m unittest tests.test_szl_dsse_parity -v
+      - name: Verify DSSE finite emission and historical signature compatibility
+        run: pytest tests/test_dsse_real_signing.py -q
       - name: Verify shared credential and receipt hardening
         run: pytest tests/test_shared_security_hardening.py -q
       - name: Verify Ayllu wall key pin, payload-type scope and untrusted isolation
