@@ -3,7 +3,7 @@
 
 [A11oy](https://a-11-oy.com) is the product and command fabric; [a11oy.net](https://a11oy.net) is the proof and diligence surface. GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.
 
-**Measured Hub inventory:** 48 public Spaces · 90 model repositories · 14 native kernels · 65 datasets as of `2026-11-11T16:54:31Z`.
+**Measured Hub inventory:** 48 public Spaces · 90 model repositories · 14 native kernels · 65 datasets as of `2026-11-12T00:07:25Z`.
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
 Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/agents-studio`, `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/counsel-assurance`, `SZLHOLDINGS/estate-gardener`, `SZLHOLDINGS/eternal-auditor`, `SZLHOLDINGS/frontier-showcase`, `SZLHOLDINGS/gdw-frontier`, `SZLHOLDINGS/holographic-unify`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/living-anatomy`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/measured-honesty-census`, `SZLHOLDINGS/newton-trust-upgrade`, `SZLHOLDINGS/nexus`, `SZLHOLDINGS/puriq-markets`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-chief-engineer`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-cyber-shield`, `SZLHOLDINGS/szl-dream-architect`, `SZLHOLDINGS/szl-energy-hologram`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-frontier-deck`, `SZLHOLDINGS/szl-infra-warden`, `SZLHOLDINGS/szl-khipu`, `SZLHOLDINGS/szl-receipts-chain`, `SZLHOLDINGS/szl-research-council`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-second-brain`, `SZLHOLDINGS/szlholdings-si`, `SZLHOLDINGS/terra-assurance`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/truth-router`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
 
@@ -26,5 +26,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `05e501e1669eacee05bbed6eca7f917c787d48b72de5438f546d42ab59ba1e6a`.
+Alignment receipt: `4030a688854acf301d1c432df42f32304c17b25a344d0e04ce3a3cea868396e3`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
