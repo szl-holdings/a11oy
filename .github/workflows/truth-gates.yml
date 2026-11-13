@@ -1,18 +1,21 @@
 # truth-gates.yml — round-10 payload truth gates.
 #
 #   1. py_compile of tools/*.py and src/          hard gate (syntax)
-#   2. docs lexicon gate                          blocking on a release path.
-#      A non-zero exit fails the job. Other refs stay observe-mode: the
-#      step still runs and still returns the tool status, and the job
-#      continues. Findings stay the docs fix list (CANON section 11).
-#   3. commercial release gate                    same release-path rule.
-#      Raise-blocking COMMERCIAL_LEDGER rows that are not VERIFIED with
-#      evidence fail a release-path job (CANON section 8).
+#   2. docs lexicon gate                          blocking on a push to
+#      main or a tag. A non-zero exit fails the job. Other refs stay
+#      observe-mode: the step still runs and still returns the tool
+#      status, and the job continues (CANON section 11).
+#   3. commercial release gate                    blocking on a tag push
+#      only. A push to main and every pull request stay observe-mode.
+#      The tool still runs and still returns its status. Unverified
+#      raise-blocking COMMERCIAL_LEDGER rows fail a tag-push job
+#      (CANON section 8). Real evidence is what clears those rows.
 #   4. demo harness                               hard gate: the 12-step
 #      acceptance demo must stay 12/12 on every run.
 #
-# Release path: a push whose ref is refs/heads/main or refs/tags/*.
-# continue-on-error is true only for the negation of that predicate.
+# Lexicon blocking: push AND (refs/heads/main OR refs/tags/*).
+# Commercial blocking: push AND refs/tags/*.
+# continue-on-error is true only for the negation of that step's predicate.
 # Any expression failure fails the workflow rather than skipping the gate.
 # Finding cleanup: docs/RUNBOOK_WEEK1.md.
 # Triggers, action pins, permissions, and secrets are unchanged.
@@ -30,10 +33,10 @@ jobs:
   truth-gates:
     runs-on: ubuntu-latest
     env:
-      # "true" on a release path, "false" otherwise. The shell uses this
-      # only to choose the annotation. Job failure is decided by
-      # continue-on-error below, from the same predicate.
-      TRUTH_GATE_BLOCKING: "${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}"
+      # Shell annotations only. Job failure is continue-on-error below,
+      # from the same predicate as the matching variable.
+      LEXICON_GATE_BLOCKING: "${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}"
+      COMMERCIAL_GATE_BLOCKING: "${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}"
     steps:
       # Org policy: all actions pinned to full-length commit SHAs (same pins
       # as the existing workflows in this repo).
@@ -43,7 +46,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify release-path gates fail the job
+      - name: Verify lexicon and commercial gate failure rules
         run: python3 tests/test_truth_gates_release_blocking.py
 
       - name: Install demo-slice runtime deps (pydantic, cryptography)
@@ -62,26 +65,26 @@ jobs:
           rc=$?
           set -e
           if [ "$rc" -ne 0 ]; then
-            if [ "$TRUTH_GATE_BLOCKING" = "true" ]; then
-              echo "::error title=docs lexicon gate::exit $rc — findings above fail this release path (push to main or a tag; CANON section 11)"
+            if [ "$LEXICON_GATE_BLOCKING" = "true" ]; then
+              echo "::error title=docs lexicon gate::exit $rc — findings above fail this push to main or a tag (CANON section 11)"
             else
-              echo "::notice title=docs lexicon gate::exit $rc — findings above are recorded; this ref is not a release path, so the job continues (CANON section 11)"
+              echo "::notice title=docs lexicon gate::exit $rc — findings above are recorded; this ref is not a push to main or a tag, so the job continues (CANON section 11)"
             fi
           fi
           exit "$rc"
 
       - name: Commercial release gate
-        continue-on-error: "${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))) }}"
+        continue-on-error: "${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) }}"
         run: |
           set +e
           python3 tools/commercial_release_gate.py --root .
           rc=$?
           set -e
           if [ "$rc" -ne 0 ]; then
-            if [ "$TRUTH_GATE_BLOCKING" = "true" ]; then
-              echo "::error title=commercial release gate::exit $rc — findings above fail this release path (push to main or a tag; CANON section 8)"
+            if [ "$COMMERCIAL_GATE_BLOCKING" = "true" ]; then
+              echo "::error title=commercial release gate::exit $rc — findings above fail this tag push (CANON section 8)"
             else
-              echo "::notice title=commercial release gate::exit $rc — findings above are recorded; this ref is not a release path, so the job continues (CANON section 8)"
+              echo "::notice title=commercial release gate::exit $rc — findings above are recorded; this ref is not a tag push, so the job continues (CANON section 8)"
             fi
           fi
           exit "$rc"

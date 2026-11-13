@@ -11,11 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed - truth gates block on release paths
 
-- In `.github/workflows/truth-gates.yml`, the docs lexicon gate and the
-  commercial release gate fail the `truth-gates` job on a push to `main` or
-  a tag when the tool exits non-zero. Pull requests and other branch pushes
-  still record that exit without failing the job. Gate commands, workflow
-  triggers, action pins, permissions, and secrets are unchanged.
+- In `.github/workflows/truth-gates.yml`, the docs lexicon gate fails the
+  `truth-gates` job on a push to `main` or a tag when the tool exits
+  non-zero. The commercial release gate fails that job only on a tag push
+  (`refs/tags/*`). A push to `main`, other branch pushes, and pull requests
+  still record the commercial exit without failing the job. Gate commands,
+  workflow triggers, action pins, permissions, and secrets are unchanged.
+- Two docs sentences that the lexicon gate reported were reworded to
+  describe the product-specific composition pass and the `RUNNING` status
+  bound. The gate and its word list are unchanged.
 
 ### Changed - classify szl-receipts-chain and refresh the public inventory
 
