@@ -62,7 +62,9 @@ class GovernedError extends Error {
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === "object") {
-    const result = {};
+    // Null-prototype target: a "__proto__" key must stay an own, hashed member
+    // instead of invoking the Object.prototype.__proto__ setter and vanishing.
+    const result = Object.create(null);
     for (const key of Object.keys(value).sort()) {
       result[key] = canonicalize(value[key]);
     }
