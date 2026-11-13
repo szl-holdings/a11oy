@@ -124,9 +124,10 @@ COPY vsp_otel/__init__.py vsp_otel/middleware.py ./vsp_otel/
 # Copy the pre-built SPA (Brand Orchestration Layer) to the static root.
 # index.html + assets/* are served directly at / and /assets/*; unknown GET -> index.html.
 COPY console/ ./static/
-# Security discovery is maintained at repository root; copy it into the static
-# tree so /.well-known/security.txt resolves before the SPA fallback.
-COPY .well-known/security.txt ./static/.well-known/security.txt
+# Discovery files are maintained at repository root; copy them into the static
+# tree so they resolve before the SPA fallback: security.txt, and the x402 price
+# manifest generated from szl-gov pricing/catalog.yaml (one layer: budget 118).
+COPY .well-known/security.txt .well-known/x402-pricing.json ./static/.well-known/
 
 # Build cache-bust 2026-06-08T23:30Z (Wave23 instillation): knowledge.json was
 # … (full rationale: docs/DOCKERFILE_NOTES.md §4)
