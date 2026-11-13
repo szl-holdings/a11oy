@@ -19,6 +19,15 @@ function tracked(path = "/api/a11oy/v1/version", headers = {}, cf = {}) {
   return request;
 }
 
+function inferenceRequest(method = "GET", path = "/v1/completions", headers = {}) {
+  const request = new Request(`https://inference.a-11-oy.com${path}`, {
+    method,
+    headers: { origin: "https://a-11-oy.com", ...headers },
+  });
+  Object.defineProperty(request, "cf", { value: {} });
+  return request;
+}
+
 test("forwards the request unchanged and returns the origin response", async () => {
   let forwarded;
   const env = recorder();
@@ -99,6 +108,29 @@ test("a missing binding or a failing write never changes the response", async ()
   assert.equal(failing.headers.get("x-szl-tracker"), "error");
 });
 
+test("answers inference preflight without contacting the paid origin", async () => {
+  const env = recorder();
+  let forwarded = false;
+  const response = await handleRequest(inferenceRequest("OPTIONS"), env, async () => {
+    forwarded = true;
+    return new Response("origin");
+  }, () => 1);
+  assert.equal(forwarded, false);
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(response.headers.get("access-control-allow-methods"), "GET, POST, OPTIONS");
+  assert.equal(response.headers.get("access-control-expose-headers"), "PAYMENT-REQUIRED, PAYMENT-RESPONSE");
+  assert.equal(response.headers.get("x-szl-tracker"), "written");
+  assert.equal(env.points[0].doubles[1], 204);
+});
+
+test("adds x402 CORS headers to inference origin responses", async () => {
+  const response = await handleRequest(inferenceRequest(), {}, async () => new Response("ok", { status: 200 }), () => 1);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
+  assert.equal(response.headers.get("access-control-expose-headers"), "PAYMENT-REQUIRED, PAYMENT-RESPONSE");
+});
+
 test("an origin failure is passed through, not replaced, and is still recorded", async () => {
   const env = recorder();
   await assert.rejects(handleRequest(tracked(), env, async () => { throw new TypeError("network"); }, () => 1),
@@ -115,7 +147,7 @@ test("the source config pins the live Worker's name, routes and dataset", async 
   assert.equal(config.compatibility_date, "2024-09-01");
   assert.equal(config.workers_dev, false);
   assert.deepEqual(config.routes.map((route) => route.pattern),
-    ["a-11-oy.com/api/a11oy/v1/*", "a-11-oy.com/v1/*"]);
+    ["a-11-oy.com/api/a11oy/v1/*", "a-11-oy.com/v1/*", "inference.a-11-oy.com/v1/*"]);
   assert.deepEqual(config.analytics_engine_datasets, [{ binding: "ANALYTICS", dataset: "x402_revenue" }]);
   assert.equal(JSON.stringify(config).includes("VISITOR_KEY_SECRET"), false);
 });
