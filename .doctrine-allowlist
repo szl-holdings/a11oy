@@ -433,3 +433,10 @@ routers/command_centre_web/szl/szl-design-system.css
 # Authored source, application chunks, documentation and CSS remain scanned.
 # This exact content-hashed path must be reviewed again when dependencies change.
 civilian_observatory/static/assets/dependencies-CM0DJIsD.js
+
+# 2026-11-07: byte-identical copy of szl-trust scripts/x402_payment_context.py
+# (blob e447a8eb7873858b56a3a653700460f4c5ba66ca, sha256
+# c5d22596c582e2e93b21c40496969f39da3c725a267c3064881941f9a1e07ade, SPDX CC-BY-4.0).
+# The one hit is a comment about a leading byte-order mark, not a product claim.
+# tests/test_x402_origin_admission.py rejects any edit that breaks the pin.
+szl_trust_x402_payment_context.py

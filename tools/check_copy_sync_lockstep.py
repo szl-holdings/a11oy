@@ -836,7 +836,7 @@ REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "7590b85e303209c953e267aa5bd8b861e557e
 REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
-    ".github/scripts/admit_execution_handoff.py": "1eae1718aa25f21f06b5e1f2e80732215308fcc6efd6196bf5319626873ee930",
+    ".github/scripts/admit_execution_handoff.py": "45deef8b3e733ecc0a8ea582a689f8fd039b1f78ad4372eb939fd23c00b665fe",
     ".github/scripts/collect_execution_readiness.py": "0eaeab6c214000706a2d7a20d833285002d0192300bb43f75d49def81c64d399",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
@@ -853,7 +853,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
     "ayllu/keys/council-runtime-2026-07-21.pub": "f8ee566d8f1e8ee8a9bb7eba37c24c18ae73605542fc29f7d3e5366ef75562fe",
-    "szl_dsse.py": "e095670051088929365f3eb4c76716122148d8f6b898db52f0e27867c221608c",
+    "szl_dsse.py": "dbe0188605d77610dee97f5b6efc069166a2a15fe46cf4f89881d4f5fa209d2f",
     # The runtime signer whose served public key the verifier checks.
     "a11oy_signing_key.py": "3315e58f39e0727590ecd6545f4f125d40b2ff0eea9f5fced15539da5d764d5c",
     # Read-only exact-byte verifier used only by the least-privilege readiness job.
