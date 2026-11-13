@@ -34,3 +34,43 @@ test("verifyChain reports NFC-colliding keys and non-object entries as invalid i
   assert.equal(verifyChain([null as never]).valid, false);
   assert.equal(verifyChain([rec, null as never, rec]).valid, false);
 });
+
+test("every non-object verifyChain entry is invalid and does not skip later checks into valid:true", () => {
+  const env = createToolEnvelope({ actor_id: "did:example:operator", tool_name: "t", payload: { q: 1 } });
+  const good = JSON.parse(receiptToJsonl(appendReceipt([], env)[0]));
+  const hittingGuard = [
+    null,
+    undefined,
+    0,
+    1,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    "",
+    "x",
+    false,
+    true,
+    1n,
+    Symbol("s"),
+    function receipt() {},
+    [],
+    [1],
+    [{ a: 1 }],
+    Array(1)[0],
+  ];
+  for (const value of hittingGuard) {
+    const alone = verifyChain([value as never]);
+    assert.equal(alone.valid, false);
+    assert.deepEqual(alone.errors, ["position 0: receipt must be an object"]);
+    const before = verifyChain([value as never, good]);
+    assert.equal(before.valid, false);
+    assert.equal(before.errors[0], "position 0: receipt must be an object");
+    const after = verifyChain([good, value as never]);
+    assert.equal(after.valid, false);
+    assert.ok(after.errors.includes("position 1: receipt must be an object"));
+  }
+  assert.equal(verifyChain([good]).valid, true);
+  const emptyObject = verifyChain([{} as never]);
+  assert.equal(emptyObject.valid, false);
+  assert.match(emptyObject.errors.join(" "), /canonicalJson: unsupported root value/);
+  assert.ok(emptyObject.errors.some((error) => error.includes("prev_receipt_hash mismatch")));
+});

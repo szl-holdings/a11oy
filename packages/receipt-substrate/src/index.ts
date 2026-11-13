@@ -273,6 +273,12 @@ export function appendReceipt(chain: readonly OperationalReceipt[], envelope: To
 }
 
 export function verifyReceipt(receipt: OperationalReceipt): VerifyResult {
+  if (receipt === null || typeof receipt !== "object" || Array.isArray(receipt)) {
+    // Thrown so verifyChain's catch records a failed verification. Skipping
+    // this call with `continue` is the shape CodeQL reports as a
+    // user-controlled bypass of verifyReceipt.
+    throw new Error("receipt must be an object");
+  }
   const errors: string[] = [];
   const algorithm = receipt.policy?.algorithm ?? DEFAULT_POLICY.algorithm;
   const expectedPayloadHash = hashHex(receipt.envelope, algorithm);
@@ -308,19 +314,18 @@ export function verifyChain(chain: readonly OperationalReceipt[], policyOverride
 
   for (let i = 0; i < chain.length; i += 1) {
     const receipt = chain[i];
-    if (receipt === null || typeof receipt !== "object" || Array.isArray(receipt)) {
-      errors.push(`position ${i}: receipt must be an object`);
-      continue;
-    }
     let receiptResult: VerifyResult;
     try {
       receiptResult = verifyReceipt(receipt);
     } catch (error) {
-      // A canonicalization refusal (for example NFC-colliding keys) is a
-      // verification failure, not a server error.
+      // A canonicalization refusal (for example NFC-colliding keys) or a
+      // non-object entry is a verification failure, not a server error.
       receiptResult = { valid: false, errors: [error instanceof Error ? error.message : String(error)] };
     }
     errors.push(...receiptResult.errors.map((error) => `position ${i}: ${error}`));
+    if (receiptResult.errors.includes("receipt must be an object")) {
+      continue;
+    }
 
     if (seen.has(receipt.receipt_id)) {
       errors.push(`position ${i}: duplicate receipt_id ${receipt.receipt_id}`);
