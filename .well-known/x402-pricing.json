@@ -5,7 +5,7 @@
   "as_of": "2026-11-12T16:27:00Z",
   "source": {
     "catalog": "https://github.com/szl-holdings/szl-gov/blob/main/pricing/catalog.yaml",
-    "catalog_sha256": "3c0033d21cedd8d328c58db24b3e7beedd436ad7ea50252f2d000d60bc1c229e",
+    "catalog_sha256": "5ed1a057e9340d5c3d1555cf510f85d4e99afe29670dd7a4dd7b6cd5ef65ced0",
     "generator": "szl-gov tools/pricing_catalog.py",
     "rules_checked_against": "the 2026-11-12 wallet snapshot (a-11-oy.com pay-to switched at 11:27 AM ET; names, prices and enabled states unchanged from the 2026-11-11 readback)"
   },
