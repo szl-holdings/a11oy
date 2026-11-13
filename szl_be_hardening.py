@@ -797,6 +797,9 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "doctrine": DOCTRINE,
             "lock": "749/14/163",
             "commit": "c7c0ba17",
+            # "commit" is the locked-kernel doctrine pin, not this runtime's source.
+            "commit_scope": "LOCKED_KERNEL_DOCTRINE_COMMIT_NOT_RUNTIME_SOURCE",
+            "runtime_source_endpoint": "/api/build-info",
             "signer": dict(_SIGNER_ABSENT),
             "dsse_live": live,
             "signing_state": signing_state,
@@ -809,6 +812,11 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         storage_block = gdw_storage_block()
         ready = ok and storage_block is None
         body = {"status": "ready" if ready else "degraded", "organ": organ,
+                # /readyz answers "can this process serve and persist receipts";
+                # it never asserts product/frontier readiness.
+                "scope": "KHIPU_CHAIN_AND_STORAGE",
+                "capability_readiness_asserted": False,
+                "operational_readiness_endpoint": f"/api/{organ}/healthz",
                 "khipu_backend": store.backend, "khipu_durable": store.backend in ("sqlite", "json"),
                 "khipu_depth": depth, "khipu_chain_ok": ok,
                 "khipu_first_break_seq": brk, "doctrine": DOCTRINE}
