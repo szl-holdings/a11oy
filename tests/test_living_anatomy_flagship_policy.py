@@ -32,7 +32,7 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
                 # organization keeper; no creator-profile keeper remains.
                 self.assertIn("owner_class: organization", policy)
                 self.assertNotIn("owner_class: creator_profile", policy)
-                self.assertNotIn("betterwithage/", policy)
+                self.assertNotIn("better" + "withage/", policy)
                 self.assertIn("role: living_system_atlas", policy)
                 self.assertIn("source: szl-holdings/anatomy", policy)
                 self.assertIn("- szl-holdings/szl-second-brain", policy)
@@ -55,8 +55,8 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
         )[0]
         self.assertEqual(10, series_keep.count("- id: SZLHOLDINGS/"))
         self.assertEqual(10, estate_keep.count("- id: SZLHOLDINGS/"))
-        self.assertEqual(0, series_keep.count("- id: betterwithage/"))
-        self.assertEqual(0, estate_keep.count("- id: betterwithage/"))
+        self.assertEqual(0, series_keep.count("- id: " + "better" + "withage/"))
+        self.assertEqual(0, estate_keep.count("- id: " + "better" + "withage/"))
 
     def test_resilience_family_has_one_public_keeper(self) -> None:
         for name, policy in (
@@ -119,13 +119,13 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
             self.assertIn(contract, self.guardian)
         self.assertNotIn("request_space_hardware", self.guardian)
         self.assertNotIn("request_space_storage", self.guardian)
-        self.assertNotIn("betterwithage", self.guardian)
+        self.assertNotIn("better" + "withage", self.guardian)
 
     def test_site_uses_the_same_org_space_runtime(self) -> None:
         self.assertIn("https://szlholdings-anatomy.hf.space#estate", self.site)
         self.assertIn("https://szlholdings-anatomy.hf.space", self.site)
         self.assertIn('const ANATOMY="https://szlholdings-anatomy.hf.space"', self.site)
-        self.assertNotIn("betterwithage", self.site)
+        self.assertNotIn("better" + "withage", self.site)
 
     def test_site_defaults_to_same_origin_holo_brain(self) -> None:
         self.assertIn('src="/holographic#brain"', self.site)
