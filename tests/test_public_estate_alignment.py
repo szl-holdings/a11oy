@@ -59,7 +59,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 13)
+        self.assertEqual(len(topology), 14)
         self.assertEqual(
             self.contract["supportingSystems"][0]["huggingFaceRepositories"],
             [],
@@ -70,18 +70,38 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             inventory_only,
             [
                 "SZLHOLDINGS/agents-studio",
-                "SZLHOLDINGS/anatomy",
                 "SZLHOLDINGS/ayllu",
+                "SZLHOLDINGS/counsel-assurance",
+                "SZLHOLDINGS/estate-gardener",
+                "SZLHOLDINGS/eternal-auditor",
+                "SZLHOLDINGS/frontier-showcase",
                 "SZLHOLDINGS/gdw-frontier",
                 "SZLHOLDINGS/holographic-unify",
                 "SZLHOLDINGS/immune",
+                "SZLHOLDINGS/living-anatomy",
                 "SZLHOLDINGS/llm-router-live",
+                "SZLHOLDINGS/measured-honesty-census",
+                "SZLHOLDINGS/newton-trust-upgrade",
                 "SZLHOLDINGS/nexus",
+                "SZLHOLDINGS/puriq-markets",
+                "SZLHOLDINGS/sentra",
+                "SZLHOLDINGS/szl-chief-engineer",
+                "SZLHOLDINGS/szl-constellation",
+                "SZLHOLDINGS/szl-cyber-shield",
+                "SZLHOLDINGS/szl-dream-architect",
+                "SZLHOLDINGS/szl-energy-hologram",
                 "SZLHOLDINGS/szl-forge-lab",
+                "SZLHOLDINGS/szl-frontier-deck",
+                "SZLHOLDINGS/szl-infra-warden",
                 "SZLHOLDINGS/szl-khipu",
+                "SZLHOLDINGS/szl-receipts-chain",
+                "SZLHOLDINGS/szl-research-council",
                 "SZLHOLDINGS/szl-router-control",
                 "SZLHOLDINGS/szl-second-brain",
+                "SZLHOLDINGS/szlholdings-si",
+                "SZLHOLDINGS/terra-assurance",
                 "SZLHOLDINGS/the-grid",
+                "SZLHOLDINGS/truth-router",
                 "SZLHOLDINGS/yarqa",
             ],
         )
@@ -91,7 +111,8 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         )
 
     def test_new_public_inventory_is_not_a_keeper_or_runtime_promotion(self) -> None:
-        for name in ('agents-studio', 'anatomy', 'gdw-frontier', 'holographic-unify', 'llm-router-live', 'nexus', 'szl-forge-lab', 'szl-khipu', 'szl-router-control', 'szl-second-brain', 'the-grid'):
+        # anatomy is a governed org keeper (owner decision 2026-11-07); the rest remain inventory-only
+        for name in ('agents-studio', 'counsel-assurance', 'estate-gardener', 'eternal-auditor', 'frontier-showcase', 'gdw-frontier', 'holographic-unify', 'living-anatomy', 'llm-router-live', 'measured-honesty-census', 'newton-trust-upgrade', 'nexus', 'puriq-markets', 'sentra', 'szl-chief-engineer', 'szl-constellation', 'szl-cyber-shield', 'szl-dream-architect', 'szl-energy-hologram', 'szl-forge-lab', 'szl-frontier-deck', 'szl-infra-warden', 'szl-khipu', 'szl-receipts-chain', 'szl-research-council', 'szl-router-control', 'szl-second-brain', 'szlholdings-si', 'terra-assurance', 'the-grid', 'truth-router'):
             repo_id = 'SZLHOLDINGS/' + name
             with self.subTest(repo_id=repo_id):
                 row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
@@ -191,7 +212,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         organization_keepers = [
             item for item in governed if item.startswith("SZLHOLDINGS/")
         ]
-        self.assertEqual(len(organization_keepers), 9)
+        self.assertEqual(len(organization_keepers), 10)
         self.assertNotIn("SZLHOLDINGS/ayllu", governed)
         self.assertEqual(governed, load_keep_ids(alignment.KEEP_POLICY))
         self.assertEqual(
@@ -295,7 +316,9 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertIn('`SZLHOLDINGS/README`', org_text)
 
     def test_new_observed_spaces_remain_inventory_only_and_fail_closed_if_undeclared(self) -> None:
-        for repo_id in ('SZLHOLDINGS/anatomy', 'SZLHOLDINGS/szl-second-brain'):
+        # SZLHOLDINGS/anatomy is a governed org keeper (owner decision 2026-11-07),
+        # not inventory-only; szl-second-brain remains the inventory-only probe.
+        for repo_id in ('SZLHOLDINGS/szl-second-brain',):
             row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
             self.assertEqual(row['classification'], 'INVENTORY_ONLY')
             self.assertEqual(row['disposition'], 'FOLD')
@@ -427,7 +450,9 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertIn("Inventory-only / FOLD", content)
             self.assertIn("`SZLHOLDINGS/ayllu`", content)
             self.assertIn("`SZLHOLDINGS/immune`", content)
-            self.assertIn("`SZLHOLDINGS/anatomy`", content)
+            # anatomy is a governed org keeper (owner decision 2026-11-07), so it must
+            # NOT appear in the inventory-only list; it appears as a keeper instead.
+            self.assertNotIn("`SZLHOLDINGS/anatomy`", content.split("Inventory-only")[1].split("Canonical keep")[0]) if "Inventory-only" in content else None
             self.assertIn("`SZLHOLDINGS/szl-second-brain`", content)
             self.assertNotIn("`SZLHOLDINGS/immune-lattice`", content)
             self.assertNotIn("`SZLHOLDINGS/README`", content)

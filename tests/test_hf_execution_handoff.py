@@ -174,6 +174,47 @@ class ExecutionHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(HANDOFF.HandoffBlocked, "SOURCE_RUNTIME_OR_STORAGE_CHANGED"):
                 HANDOFF.admit(object(), context, pins)
 
+    def test_invalid_context_retains_fixed_reason_without_values_or_network(self):
+        cases = [
+            ({"A11OY_EXECUTION_RUN_NONCE": "c" * 32}, "RUN_NONCE_REQUIRED"),
+            ({"A11OY_EXECUTION_RUN_NONCE": "private-input-value"}, "RUN_NONCE_REQUIRED"),
+            ({"A11OY_EXECUTION_HF_REVISION": "main"}, "EXACT_EXECUTION_REVISIONS_REQUIRED"),
+            ({"A11OY_EXECUTION_BOOT_ID": " fixture-boot"}, "RUNTIME_BOOT_REQUIRED"),
+        ]
+        for pins, expected in (
+            (dict(self.pins, approval_key_id=self.pins["runtime_key_id"]),
+             "SEPARATE_APPROVAL_AUTHORITY_REQUIRED"),
+            (dict(self.pins, approval_key_id="short"), "PUBLIC_KEY_PIN_REQUIRED"),
+            (dict(self.pins, approval_public_pem="not a public key"), "INVALID_PUBLIC_KEY"),
+            (dict(self.pins, approval_key_id="f" * 64), "PUBLIC_KEY_PIN_MISMATCH"),
+        ):
+            cases.append(({"A11OY_EXECUTION_AUTHORITY_PINS_JSON": json.dumps(pins)}, expected))
+        for changes, expected in cases:
+            with self.subTest(reason=expected), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                output, failure, github = (root / name for name in
+                                           ("handoff.json", "failure.json", "outputs.txt"))
+                stderr = io.StringIO()
+                with mock.patch.dict(os.environ, {**self.env, **changes}, clear=True), \
+                        mock.patch.object(HANDOFF, "admit") as network, redirect_stderr(stderr):
+                    result = HANDOFF.main([
+                        "--source-sha", "a" * 40, "--output", str(output),
+                        "--failure-output", str(failure), "--github-output", str(github),
+                    ])
+                self.assertEqual(result, 2)
+                network.assert_not_called()
+                self.assertFalse(output.exists())
+                self.assertFalse(github.exists())
+                report = json.loads(failure.read_bytes())
+                self.assertEqual(report["stage"], "CONTEXT_CONFIGURATION")
+                self.assertEqual(report["error"], expected)
+                self.assertFalse(report["context_frozen"])
+                self.assertFalse(report["execution_authorized"])
+                self.assertFalse(report["provider_state_changed"])
+                self.assertEqual(json.loads(stderr.getvalue()), report)
+                self.assertNotIn("private-input-value", failure.read_text())
+                self.assertNotIn("PUBLIC KEY", failure.read_text())
+
     def test_frozen_outputs_ignore_later_environment_changes(self):
         context, pins = self.context()
         with mock.patch.dict(os.environ, {"A11OY_EXECUTION_HF_REVISION": "d" * 40}):
@@ -182,6 +223,37 @@ class ExecutionHandoffTests(unittest.TestCase):
         self.assertEqual(outputs["run_nonce"], "c" * 64)
         self.assertEqual(json.loads(outputs["authority_pins"]), pins)
         self.assertEqual(len(outputs), 4)
+
+    def test_context_reason_classifier_never_echoes_unknown_or_untyped_errors(self):
+        gate = HANDOFF.collector().gate
+        errors = (
+            gate.CombinedEvidenceError("private-input-value"),
+            gate.acceptance.EvidenceError("UNKNOWN_PROVIDER_CODE"),
+            gate.CombinedEvidenceError("RUN_NONCE_REQUIRED\nprivate-input-value"),
+            ValueError("RUN_NONCE_REQUIRED"),
+        )
+        for error in errors:
+            with self.subTest(kind=type(error).__name__), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                failure, output, github = (root / name for name in
+                                           ("failure.json", "handoff.json", "outputs.txt"))
+                stderr = io.StringIO()
+                with mock.patch.dict(os.environ, self.env, clear=True), \
+                        mock.patch.object(gate, "_context", side_effect=error), \
+                        mock.patch.object(HANDOFF, "admit") as network, redirect_stderr(stderr):
+                    result = HANDOFF.main([
+                        "--source-sha", "a" * 40, "--output", str(output),
+                        "--failure-output", str(failure), "--github-output", str(github),
+                    ])
+                self.assertEqual(result, 2)
+                network.assert_not_called()
+                self.assertFalse(output.exists())
+                self.assertFalse(github.exists())
+                report = json.loads(failure.read_bytes())
+                self.assertEqual(report["error"], "EXECUTION_HANDOFF_UNAVAILABLE")
+                self.assertEqual(json.loads(stderr.getvalue()), report)
+                self.assertNotIn("private-input-value", failure.read_text())
+                self.assertNotIn("UNKNOWN_PROVIDER_CODE", failure.read_text())
 
     def test_failed_admission_emits_no_outputs_or_provider_exception(self):
         with tempfile.TemporaryDirectory() as directory:

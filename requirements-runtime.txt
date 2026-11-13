@@ -18,10 +18,11 @@ uvicorn[standard]==0.54.0
 httpx==0.28.1
 starlette==1.10.0
 huggingface_hub==1.33.0
-hf-xet==1.7.1
+hf-xet==1.8.0
 openai==2.43.0
-python-multipart==0.0.32
+python-multipart==0.0.33
 cryptography==50.0.2
+pyjwt==2.15.1
 lmdb==3.0.0
 slowapi==0.1.10
 defusedxml==0.7.1

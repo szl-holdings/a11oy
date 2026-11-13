@@ -5,11 +5,46 @@
 
 `docs/model-inference-support.json` is the source for the A11oy model catalog and
 downstream card presentation. It records public Hub provider observations and
-support discussions. The reviewed source covers the **48 public model-namespace
-repositories** in `docs/huggingface-ecosystem-manifest.json`. That namespace also
-contains kernels, software, adapters, GGUF bundles, and NumPy artifacts; its count
-is not an LLM count. Entries from the separate native-kernel namespace are not
-added to the model count.
+support discussions. The source lists **90 public model-namespace
+repositories**. The committed `docs/huggingface-ecosystem-manifest.json` held 74
+at its 2026-11-06 observation. A local regeneration at 2026-11-10T11:13:26Z held
+87, a second one at 2026-11-10T17:55:29Z held 88, and the committed regeneration
+at 2026-11-11T15:08:20Z holds 90. All 16 additions are assessed here, and the
+catalog ids equal the 90 model ids of the committed regeneration, so
+`scripts/collect_model_inference_support.py --check` exits 0 against it. That
+check is the refresh workflow's model coverage step only, not the whole
+workflow. That namespace also contains kernels, software, adapters,
+GGUF bundles, and NumPy artifacts; its count is not an LLM count. Entries from
+the separate native-kernel namespace are not added to the model count. A listed
+row is catalog coverage, not routing, qualification, promotion, or deployment
+authority.
+
+On 2026-11-07 the 33 repositories that were in the inventory and absent from
+this file were assessed from their public revision file list and a provider-mapping
+read. Each mapping response was HTTP 200 with an empty object, so those rows are
+`NO_PROVIDER_MAPPING`. No support discussion was submitted for them.
+
+On 2026-11-10 the 14 repositories that were in those regenerations and absent
+from the committed inventory were assessed the same way. Each mapping response
+was HTTP 200 with an empty object, so those rows are `NO_PROVIDER_MAPPING`.
+`SZLHOLDINGS/a11oy-code-r1-candidate` and
+`SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate` list `adapter_config.json` and
+`adapter_model.safetensors` and no `config.json` at their observed revisions, so
+they are `adapter_bundle` rows.
+`SZLHOLDINGS/szl-brain` returned HTTP 404 for `README.md` at its observed
+revision. No support discussion was submitted for them. The
+dated record is `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-10.md`.
+
+On 2026-11-11 the 2 repositories that were in the committed regeneration and
+absent from this file were assessed the same way. Each mapping response was
+HTTP 200 with an empty object, so those rows are `NO_PROVIDER_MAPPING`.
+`SZLHOLDINGS/abstention-v2-candidate` shows training checkpoint directories with
+`adapter_config.json` and `adapter_model.safetensors` and no root-level serving
+bundle at its observed revision, so it is an `adapter_bundle` row.
+`SZLHOLDINGS/physics-master-v1-candidate` lists only `.gitattributes`, so it is
+a `non_provider_artifact` row. Both returned HTTP 404 for `README.md` at their
+revision root. No support discussion was submitted for them. The dated record is
+`docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-11.md`.
 
 ## Evidence boundaries
 
