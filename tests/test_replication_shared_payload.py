@@ -14,6 +14,7 @@ SNAPSHOT = ".github/shared-source-payloads/replication-snapshot-delivery-2026102
 MCP_ARCHIVE = ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json"
 RETAINED = "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
 SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json"
+PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
 ACTIVE = ".github/shared-source-payload-manifest.json"
 
 
@@ -103,14 +104,16 @@ def _assert_current_shared_payload(root):
         if retained["files"][relative] != security["files"][relative]
     } == {connector, security_test}
 
-    manifest = json.loads((root / ACTIVE).read_bytes())
-    assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "snowflake-proof-retention-20261103-v1"
-    assert set(manifest["files"]) == set(security["files"]) | {RETAINED, SNOWFLAKE}
-    assert manifest["files"][RETAINED] == (
+    prior_raw = (root / PROOF).read_bytes()
+    assert hashlib.sha256(prior_raw).hexdigest() == "fd63c97faa83ba598cba37e4c79f74c85f56676e89c11eb10084f8220e1d4462"
+    prior = json.loads(prior_raw)
+    assert prior["schema"] == "szl-shared-source-payload/v1"
+    assert prior["payload_id"] == "snowflake-proof-retention-20261103-v1"
+    assert set(prior["files"]) == set(security["files"]) | {RETAINED, SNOWFLAKE}
+    assert prior["files"][RETAINED] == (
         "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
     )
-    assert manifest["files"][SNOWFLAKE] == (
+    assert prior["files"][SNOWFLAKE] == (
         "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b"
     )
     # Only the proof test and the signing-capability binding change in this
@@ -118,8 +121,22 @@ def _assert_current_shared_payload(root):
     for relative, expected in security["files"].items():
         if relative not in {"tests/test_replication_shared_payload.py",
                             "szl_signing_state.py"}:
+            assert prior["files"][relative] == expected
+    manifest = json.loads((root / ACTIVE).read_bytes())
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "dsse-finite-reload-20261112-v1"
+    assert set(manifest["files"]) == set(prior["files"]) | {
+        PROOF, "szl_dsse.py", "tests/test_dsse_real_signing.py",
+    }
+    assert manifest["files"][PROOF] == hashlib.sha256(prior_raw).hexdigest()
+    # Finite emission adds the DSSE source and its tests. Provenance reload now
+    # checks stored envelope bytes, so that file moves in this generation.
+    # Every other predecessor entry stays pinned.
+    for relative, expected in prior["files"].items():
+        if relative not in {"tests/test_replication_shared_payload.py",
+                            "szl_provenance.py"}:
             assert manifest["files"][relative] == expected
-    # Genuine full current-source verification, including this changed test.
+    # Verify all current bytes; predecessor receipts above stay immutable.
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected
 
@@ -132,7 +149,7 @@ def test_current_shared_payload_manifest_matches_current_peer():
 
 @pytest.mark.parametrize("change", [
     "source", "source_and_digest", "missing_entry", "schema", "generation",
-    "security_digest", "retained_bytes", "security_bytes",
+    "security_digest", "retained_bytes", "security_bytes", "proof_bytes", "dsse_source",
 ])
 def test_current_payload_rejects_tampering(tmp_path, change):
     manifest = json.loads((ROOT / ACTIVE).read_bytes())
@@ -156,7 +173,10 @@ def test_current_payload_rejects_tampering(tmp_path, change):
             _retained_signing_payload(tmp_path)["files"]["szl_connectors/warehouse/warehouse_connectors.py"]
         )
     else:
-        source = tmp_path / (RETAINED if change == "retained_bytes" else SNOWFLAKE)
+        source = tmp_path / {
+            "retained_bytes": RETAINED, "security_bytes": SNOWFLAKE,
+            "proof_bytes": PROOF, "dsse_source": "szl_dsse.py",
+        }[change]
         source.write_bytes(source.read_bytes() + b"\n")
     (tmp_path / ACTIVE).write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(AssertionError):
