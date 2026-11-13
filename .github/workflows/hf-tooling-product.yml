@@ -155,11 +155,23 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - name: Read the immutable published source without executing its code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          path: source-snapshot
-          persist-credentials: false
+        # The published SHA comes from the workflow_run event. Instead of handing
+        # that event value to actions/checkout in this privileged default-branch
+        # context, accept it only when it is a full SHA already in protected
+        # main history, then materialise it as a read-only worktree. Nothing in
+        # source-snapshot/ is executed. Fails closed if main moved more than the
+        # fetched depth past the published commit.
+        shell: bash
+        env:
+          PUBLISHED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$PUBLISHED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::published SHA is not a full commit id"; exit 1; }
+          git fetch --no-tags --depth=500 origin "+refs/heads/main:refs/remotes/origin/main"
+          git merge-base --is-ancestor "$PUBLISHED_SHA" refs/remotes/origin/main \
+            || { echo "::error::published SHA is not in protected main history"; exit 1; }
+          git worktree add --detach source-snapshot "$PUBLISHED_SHA"
+          test "$(git -C source-snapshot rev-parse --verify HEAD)" = "$PUBLISHED_SHA"
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.12'
