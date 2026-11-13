@@ -118,13 +118,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          found=0
           for browser in google-chrome chromium chromium-browser; do
             if command -v "$browser" >/dev/null 2>&1; then
               printf 'SZL_TEST_CHROMIUM=%s\n' "$(command -v "$browser")" >> "$GITHUB_ENV"
+              found=1
               break
             fi
           done
-          if [ -z "${SZL_TEST_CHROMIUM:-}" ]; then
+          if [ "$found" -eq 0 ]; then
             python -m playwright install chromium
           fi
       - name: Exercise the real Python API and responsive view
