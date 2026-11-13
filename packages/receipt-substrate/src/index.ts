@@ -90,9 +90,17 @@ function normaliseStrings(value: unknown): unknown {
     // `__proto__` setter for a payload key "__proto__": it swaps the object's
     // prototype and drops the key, so canonicalJson() hashed a payload carrying
     // that key exactly like the payload without it.
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, child]) => [key.normalize("NFC"), normaliseStrings(child)]),
-    );
+    // Distinct source keys that collapse to one NFC key would otherwise merge
+    // silently (last one wins), so two different payloads could share a hash.
+    const entries: [string, unknown][] = [];
+    const seen = new Set<string>();
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      const normalizedKey = key.normalize("NFC");
+      if (seen.has(normalizedKey)) throw new Error("canonicalJson: duplicate NFC key");
+      seen.add(normalizedKey);
+      entries.push([normalizedKey, normaliseStrings(child)]);
+    }
+    return Object.fromEntries(entries);
   }
   return value;
 }
@@ -300,7 +308,18 @@ export function verifyChain(chain: readonly OperationalReceipt[], policyOverride
 
   for (let i = 0; i < chain.length; i += 1) {
     const receipt = chain[i];
-    const receiptResult = verifyReceipt(receipt);
+    if (receipt === null || typeof receipt !== "object" || Array.isArray(receipt)) {
+      errors.push(`position ${i}: receipt must be an object`);
+      continue;
+    }
+    let receiptResult: VerifyResult;
+    try {
+      receiptResult = verifyReceipt(receipt);
+    } catch (error) {
+      // A canonicalization refusal (for example NFC-colliding keys) is a
+      // verification failure, not a server error.
+      receiptResult = { valid: false, errors: [error instanceof Error ? error.message : String(error)] };
+    }
     errors.push(...receiptResult.errors.map((error) => `position ${i}: ${error}`));
 
     if (seen.has(receipt.receipt_id)) {
@@ -308,7 +327,7 @@ export function verifyChain(chain: readonly OperationalReceipt[], policyOverride
     }
     seen.add(receipt.receipt_id);
 
-    const expectedPrev = i === 0 ? null : chain[i - 1].merkle_root;
+    const expectedPrev = i === 0 ? null : chain[i - 1]?.merkle_root;
     if (receipt.prev_receipt_hash !== expectedPrev) {
       errors.push(`position ${i}: prev_receipt_hash mismatch`);
     }
@@ -317,7 +336,7 @@ export function verifyChain(chain: readonly OperationalReceipt[], policyOverride
       errors.push(`position ${i}: sequence mismatch`);
     }
 
-    if (i > 0 && receipt.timestamp_tai64n <= chain[i - 1].timestamp_tai64n) {
+    if (i > 0 && receipt.timestamp_tai64n <= chain[i - 1]?.timestamp_tai64n) {
       errors.push(`position ${i}: timestamp regression`);
     }
 
