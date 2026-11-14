@@ -14974,16 +14974,9 @@ async def marketing_landing_page() -> Response:
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
 
-# /verify — Tier-1 Demo: Buyer-Verifiable Receipt + Λ-Gated Refusal + Verifiable Thesis.
-# Served from pages/verify.html (COPYed wholesale by the Dockerfile COPY pages/ ./pages/).
-# Registered BEFORE the SPA catch-all so /verify returns the real page, not the SPA soft-404.
-# ADDITIVE — no existing route touched.
-@app.api_route("/verify", methods=["GET", "HEAD"])
-async def verify_demo_page() -> Response:
-    f = PAGES_DIR / "verify.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
+# /verify is registered once, earlier (web/verify-receipt.html via _ptg_serve).
+# A second /verify handler serving pages/verify.html used to live here; Starlette
+# matches in registration order, so it was unreachable. Removed 2026-11 (P3).
 
 
 # /pinn-console — Governed Inverse-PINN Console. Public front-end for the LIVE
