@@ -215,7 +215,8 @@ def test_extra_unprojected_input_never_leaks(tmp_path, monkeypatch, contract, cl
     ('governedKeep', 0), ('policySource', '../private.json'),
 ])
 def test_ayllu_cannot_be_promoted_by_binding(tmp_path, monkeypatch, contract, field, value):
-    contract['inventoryOnlyHuggingFaceRepositories'][0][field] = value
+    next(row for row in contract['inventoryOnlyHuggingFaceRepositories']
+         if row['id'] == 'SZLHOLDINGS/ayllu')[field] = value
     install_contract(tmp_path, monkeypatch, contract)
     assert centre.public_estate()['state'] == 'UNAVAILABLE'
 
@@ -233,7 +234,10 @@ def test_malformed_public_binding_fails_closed(tmp_path, monkeypatch, contract, 
     elif change == 'duplicate':
         contract['inventoryOnlyHuggingFaceRepositories'].append(copy.deepcopy(contract['inventoryOnlyHuggingFaceRepositories'][0]))
     elif change == 'missing':
-        contract['inventoryOnlyHuggingFaceRepositories'].pop(0)
+        contract['inventoryOnlyHuggingFaceRepositories'] = [
+            row for row in contract['inventoryOnlyHuggingFaceRepositories']
+            if row['id'] != 'SZLHOLDINGS/ayllu'
+        ]
     elif change == 'overlap':
         contract['laboratorySurfaces'].append('SZLHOLDINGS/ayllu')
     elif change == 'invalid-topology':

@@ -29,8 +29,12 @@ async def _a11oy_frontier_health(request: Request):
     # QHAPAQ 2026-08-28: GET 200 / HEAD 404 (HEAD fell through to the Node proxy).
     # This lean kernel probe does not share the /api/a11oy/healthz rollup signer.
     # Fail closed ABSENT — never copy DSSE-LIVE.
+    from szl_signing_state import read_state
     return _FJSON({
         "status": "ok", "flagship": "a11oy", "doctrine": _DOCTRINE,
+        "scope": "PROCESS_LIVENESS",
+        "capability_readiness_asserted": False,
+        "operational_readiness_endpoint": "/api/a11oy/healthz",
         "kernel_commit": _KERNEL, "declarations": _DECLS, "axioms": _AXIOMS,
         "lambda_threshold": _LAMBDA_THRESHOLD, "slsa": _SLSA,
         "mcp_tools": "/api/a11oy/v1/mcp/tools",
@@ -39,9 +43,16 @@ async def _a11oy_frontier_health(request: Request):
             "status": "ABSENT",
             "signing_available": False,
             "scheme": "UNAVAILABLE",
+            "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+            "availability_evaluated": False,
+            "runtime_status_endpoint": "/api/a11oy/healthz",
+            "legacy_status_deprecated": True,
+            "legacy_status_semantics": "LIVENESS_SENTINEL_NOT_A_SIGNER_OBSERVATION",
+            "replacement": "signing_state",
         },
+        "signing_state": read_state(request.app),
         "ts": _NOW(),
-    })
+    }, headers={"Cache-Control": "no-store"})
 
 async def _a11oy_frontier_version(request: Request):
     import os as _os

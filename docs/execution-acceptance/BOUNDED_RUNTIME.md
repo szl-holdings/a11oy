@@ -65,10 +65,14 @@ completion and model-qualification labels retain those distinctions.
 
 The offline plan validator requires explicit limits on both model cases and
 binds them into the approved request hashes. Runtime admission and enforcement
-remain separate checks. The full acceptance producer, distinct approval-key
-admission, process-to-HF identity binding, durable observation export, and
-combined passive/execution release artifact remain outstanding. Preserve all
-five passive `NOT_PROBED` records until those actual observations are verified.
+remain separate checks. The [acceptance producer](../execution-observer.md)
+implements distinct approval-key validation, authenticated process-to-HF identity
+binding and durable observation export. The
+[combined readiness consumers](../execution-readiness.md) validate the separate
+passive and execution evidence. These implementations do not supply an independent
+approval custodian, provision runtime credentials or establish a completed live
+run. All five passive `NOT_PROBED` records remain unchanged even when qualifying
+execution observations are combined with them.
 
 ## Shared engine rollout
 

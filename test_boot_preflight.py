@@ -168,6 +168,29 @@ def test_empty_string_counts_as_absent():
     assert "HF_TOKEN" in rep["absent"] and "HF_TOKEN" not in rep["present"]
 
 
+def test_inference_bearer_does_not_hide_missing_meter_credentials():
+    env = {"A11OY_GPU_TOKEN": _SECRET_SENTINEL}
+    energy = next(s for s in pf.readiness(env=env)["subsystems"]
+                  if s["subsystem"] == "energy")
+    assert energy["label"] == pf.DEGRADED, energy
+    assert energy["missing_secrets"] == ["SZL_METER_HMAC_TARGETS"], energy
+    assert "SZL_METER_HMAC_TARGETS" in pf.preflight_report(env=env)["absent"]
+
+
+def test_meter_credentials_are_secret_names_only_in_preflight():
+    import io
+    env = {"A11OY_GPU_TOKEN": _SECRET_SENTINEL,
+           "SZL_METER_HMAC_TARGETS": _SECRET_SENTINEL}
+    stream = io.StringIO()
+    out = pf.run_preflight(env=env, stream=stream)
+    assert _SECRET_SENTINEL not in repr(out) + stream.getvalue()
+    assert "SZL_METER_HMAC_TARGETS" in out["report"]["present"]
+    spec = next(s for s in pf.registry()
+                if s["name"] == "SZL_METER_HMAC_TARGETS")
+    assert spec["kind"] == pf.SECRET
+    assert "SZL_METER_HMAC_TARGETS" in pf.collision_names()
+
+
 def test_series_a_storage_requires_exact_attached_mount():
     env = {
         "A11OY_REQUIRE_PERSISTENT_STORAGE": "1",

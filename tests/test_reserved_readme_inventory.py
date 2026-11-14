@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Offline reserved-Space regressions; fixtures are not live inventory proof."""
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -66,6 +67,7 @@ class ReservedReadmeTests(unittest.TestCase):
 
     def test_emitter_manifest_records_negative_reserved_observations_without_details(self):
         for response in ({'status': 404},
+                         {'status': 401, 'json': {'private_detail': 'never retain'}},
                          {'status': 200, 'json': {**ROW, 'private': True,
                           'private_detail': 'never retain'}}):
             with self.subTest(status=response['status']):
@@ -79,7 +81,7 @@ class ReservedReadmeTests(unittest.TestCase):
                 self.assertNotIn('never retain', rendered)
 
     def test_emitter_manifest_refuses_invalid_or_unavailable_reserved_metadata(self):
-        invalid = ({'status': 401}, {'status': 500},
+        invalid = ({'status': 500},
                    {'status': 200, 'json': []},
                    {'status': 200, 'json': {**ROW, 'id': 'other/README'}},
                    {'status': 200, 'json': {**ROW, 'private': None}})
@@ -120,6 +122,8 @@ class ReservedReadmeTests(unittest.TestCase):
 
     def test_explicit_absent_and_nonpublic_dispositions_complete_without_details(self):
         for response, state in (({'status': 404}, 'NOT_PUBLICLY_OBSERVABLE'),
+                                ({'status': 401, 'json': {'private_detail': 'never retain'}},
+                                 'ANONYMOUS_UNAUTHORIZED'),
                                 ({'status': 200, 'json': {**ROW, 'private': True,
                                   'private_detail': 'never retain'}}, 'EXPLICITLY_NON_PUBLIC')):
             for collect in (public.collect, release.hf_inventory):
@@ -130,7 +134,7 @@ class ReservedReadmeTests(unittest.TestCase):
                 self.assertNotIn('never retain', str(result))
 
     def test_unavailable_or_invalid_metadata_never_completes_scope(self):
-        cases = [{'status': status} for status in (401, 403, 429, 500, 302, None)]
+        cases = [{'status': status} for status in (403, 429, 500, 302, None)]
         cases += [{'status': 200, 'json': value} for value in (
             [], None, {}, {**ROW, 'id': 'other/README'}, {**ROW, 'id': 'SZLHOLDINGS/readme'},
             {**ROW, 'private': None}, {**ROW, 'private': 0}, {**ROW, 'private': 'false'})]
@@ -179,6 +183,38 @@ class ReservedReadmeTests(unittest.TestCase):
                 with self.assertRaises(public.InventoryError):
                     public.validate_reserved_url(url, ORG)
                 opener.assert_not_called()
+
+    def test_reserved_401_is_anonymous_unauthorized_and_listing_401_stays_fatal(self):
+        body = b'{"error":"Invalid username or password."}'
+        error = HTTPError(URL, 401, 'Unauthorized', {}, io.BytesIO(body))
+        with patch.object(public, 'build_opener') as opener:
+            opener.return_value.open.side_effect = error
+            result = public.public_get(URL)
+        self.assertEqual(result['status'], 401)
+        self.assertEqual(result['disposition'], 'ANONYMOUS_UNAUTHORIZED')
+        self.assertIsNone(result['json'])
+        self.assertEqual(result['response_sha256'], hashlib.sha256(body).hexdigest())
+        self.assertNotIn(b'password', json.dumps(result).encode())
+        row, evidence = public.reserved_readme(ORG, lambda _url: result)
+        self.assertIsNone(row)
+        self.assertEqual(evidence['state'], 'ANONYMOUS_UNAUTHORIZED')
+        listing = f'https://huggingface.co/api/spaces?author={ORG}&limit=100&full=true'
+        listed = HTTPError(listing, 401, 'Unauthorized', {}, io.BytesIO(body))
+        with patch.object(public, 'build_opener') as opener:
+            opener.return_value.open.side_effect = listed
+            with self.assertRaisesRegex(public.InventoryError, 'HTTP_UNAVAILABLE'):
+                public.public_get(listing)
+
+        def listing_401(url):
+            if url == URL:
+                return {'status': 401}
+            return {'status': 401, 'json': []}
+
+        for collect in (public.collect, release.hf_inventory):
+            observed = collect(ORG, listing_401)
+            self.assertFalse(observed['observed'])
+            self.assertIsNone(observed['counts']['spaces'])
+            self.assertNotEqual(observed['errors'].get('spaces'), 'ANONYMOUS_UNAUTHORIZED')
 
     def test_reserved_404_transport_retains_bounded_raw_digest(self):
         error = HTTPError(URL, 404, 'absent', {}, io.BytesIO(b'not found'))

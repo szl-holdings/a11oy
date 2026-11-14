@@ -189,6 +189,10 @@ _REGISTRY = [
     EnvSpec("A11OY_GPU_TOKEN", SECRET, "energy",
             "Bearer token for the sovereign GPU node(s). Absent => joules are "
             "honest SAMPLE, never MEASURED.", required=False, default=None),
+    EnvSpec("SZL_METER_HMAC_TARGETS", SECRET, "energy",
+            "Origin-keyed meter client credentials used by szl_meter_access. "
+            "Absent => authenticated meter reads fail closed. Presence does "
+            "not verify authentication or an energy measurement.", default=None),
     EnvSpec("A11OY_OMEN_BASE_URL", VARIABLE, "energy",
             "OMEN GPU-lung base URL (energy MEASURED path).", default=None),
     EnvSpec("A11OY_OMEN_STANDBY", VARIABLE, "energy",

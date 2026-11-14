@@ -40,7 +40,7 @@ TOKEN_NAMES = (
 
 
 @pytest.fixture
-def surface(monkeypatch, tmp_path):
+def surface(monkeypatch, tmp_path, request):
     for name in TOKEN_NAMES:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.delenv("SZL_SECOND_BRAIN_RAG", raising=False)
@@ -99,8 +99,11 @@ def surface(monkeypatch, tmp_path):
     monkeypatch.setattr(serve, "_ac_sb_retrieve", retrieve)
     monkeypatch.setattr(serve, "_safe_json_body", parser)
     monkeypatch.setattr(serve.app.state, "szl_emit_signed_receipt", receipt, raising=False)
+    # The served app is shared across tests; isolate each test's rate-limit
+    # identity while preserving the real limiter for requests within that test.
+    client_host = "completion-" + hashlib.sha256(request.node.nodeid.encode()).hexdigest()[:12]
     return types.SimpleNamespace(
-        serve=serve, client=TestClient(serve.app), tier=tier, route=route,
+        serve=serve, client=TestClient(serve.app, client=(client_host, 50000)), tier=tier, route=route,
         complete=complete, retrieve=retrieve, receipt=receipt, parser=parser,
         original_complete=original_complete, original_router=original_router,
     )

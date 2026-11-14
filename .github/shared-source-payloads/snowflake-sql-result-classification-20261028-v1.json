@@ -1,0 +1,10 @@
+{
+  "files": {
+    ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json": "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35",
+    "szl_connectors/warehouse/warehouse_connectors.py": "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f",
+    "tests/test_gitleaks_archived_payload_digest.py": "8ede2847f5a77426485f88747e7ffa238c24a6c4662905433fc3695940204a4a",
+    "tests/test_snowflake_sql_result_classification.py": "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
+  },
+  "payload_id": "snowflake-sql-result-classification-20261028-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

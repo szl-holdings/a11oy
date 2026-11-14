@@ -88,10 +88,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Create a custom Cloudflare USER API token with these exact permissions:"
-Write-Host "  Account > Workers Scripts > Edit — your SZL Cloudflare account"
-Write-Host "  Zone > Workers Routes > Edit — a-11-oy.com and a11oy.net"
-Write-Host "  Zone > DNS > Edit — a-11-oy.com and a11oy.net"
-Write-Host "  Zone > Zone > Read — a-11-oy.com and a11oy.net"
+Write-Host "  Account > Workers Scripts > Edit - your SZL Cloudflare account"
+Write-Host "  Zone > Workers Routes > Edit - a-11-oy.com and a11oy.net"
+Write-Host "  Zone > DNS > Edit - a-11-oy.com and a11oy.net"
+Write-Host "  Zone > Zone > Read - a-11-oy.com and a11oy.net"
 Write-Host "Do not use the Global API Key. Do not paste the token into chat or source code."
 Start-Process $TokenPage
 

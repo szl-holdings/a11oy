@@ -24,6 +24,9 @@ from huggingface_hub import HfApi
 from huggingface_hub import _commit_api, file_download, hf_api
 from huggingface_hub.errors import BucketBatchError, EntryNotFoundError
 from huggingface_hub.utils import _http, _pagination, _xet
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import Version
 
 import a11oy_state_store as store
 from tests.state_store_support import FakeClock, FakeHeadBackend, fingerprint, make_db, replica
@@ -160,14 +163,63 @@ def sdk(monkeypatch, tmp_path):
     client.close()
 
 
+SDK_DISTRIBUTIONS = ("huggingface-hub", "hf-xet")
+
+
+def _assert_pinned_sdk_closure(requirements_text, installed_versions):
+    """The runtime declares each SDK once with an exact pin, and that exact version is installed.
+
+    Versions come from requirements-runtime.txt, so a dependency bump updates one place.
+    """
+    pins = {}
+    for line in requirements_text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        requirement = Requirement(line)
+        name = canonicalize_name(requirement.name)
+        if name not in SDK_DISTRIBUTIONS:
+            continue
+        assert name not in pins, f"duplicate SDK dependency: {name}"
+        specifiers = list(requirement.specifier)
+        assert (len(specifiers) == 1 and specifiers[0].operator == "=="
+                and requirement.url is None and requirement.marker is None
+                and not requirement.extras), f"expected one unconditional exact pin: {name}"
+        pins[name] = Version(specifiers[0].version)
+    assert set(pins) == set(SDK_DISTRIBUTIONS), "missing SDK dependency declaration"
+    for name, pinned in pins.items():
+        assert name in installed_versions, f"missing installed SDK distribution: {name}"
+        installed = Version(installed_versions[name])
+        assert installed == pinned, f"installed {name} {installed} does not match pin {pinned}"
+
+
 def test_installed_runtime_and_native_extension_match_declared_dependencies():
     import hf_xet
-    assert version("huggingface-hub") == "1.33.0"
-    assert version("hf-xet") == "1.7.0"
+    requirements = (Path(__file__).resolve().parents[1] / "requirements-runtime.txt").read_text()
+    _assert_pinned_sdk_closure(requirements, {name: version(name) for name in SDK_DISTRIBUTIONS})
     assert hf_xet.XetFileInfo("a" * 64, 1).file_size == 1
-    pins = (Path(__file__).resolve().parents[1] / "requirements-runtime.txt").read_text().splitlines()
-    assert pins.count("huggingface_hub==1.33.0") == 1
-    assert pins.count("hf-xet==1.7.0") == 1
+
+
+def test_sdk_closure_follows_declared_bumps_and_canonical_names():
+    declared = "# fixture only\nHuggingFace_Hub==10.0\nHF.XET==20.0\n"
+    installed = {"huggingface-hub": "10.0", "hf-xet": "20.0"}
+    _assert_pinned_sdk_closure(declared, installed)
+    bumped = declared.replace("20.0", "20.1")
+    with pytest.raises(AssertionError, match="does not match pin"):
+        _assert_pinned_sdk_closure(bumped, installed)
+    _assert_pinned_sdk_closure(bumped, dict(installed, **{"hf-xet": "20.1"}))
+
+
+@pytest.mark.parametrize("declared, message", [
+    ("huggingface-hub>=10,<11\nhf-xet==20.0\n", "exact pin"),
+    ("huggingface-hub==10.0\nhf_xet~=20.0\n", "exact pin"),
+    ("huggingface-hub==10.0\nhf-xet==20.0; python_version<'3.13'\n", "exact pin"),
+    ("huggingface-hub==10.0\nhf-xet==20.0\nhf_xet==20.0\n", "duplicate SDK"),
+    ("huggingface-hub==10.0\n", "missing SDK dependency"),
+])
+def test_sdk_closure_rejects_unpinned_conditional_duplicate_or_missing(declared, message):
+    with pytest.raises(AssertionError, match=message):
+        _assert_pinned_sdk_closure(declared, {"huggingface-hub": "10.0", "hf-xet": "20.0"})
 
 
 def test_dataset_observation_binds_immutable_revision_and_exact_bytes(sdk):
