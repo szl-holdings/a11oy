@@ -1534,6 +1534,42 @@ class ProductEdgeContract(unittest.TestCase):
             with self.assertRaisesRegex(edge.EdgeError, "PUBLIC_PROBE_FAILED"):
                 edge.public_probe(attempts=1)
 
+    def test_public_probe_accepts_foreign_served_honest_and_redirect_rule_www(self) -> None:
+        observations = clean_public_probe_observations()
+        # The direct honest path is served by the pass-through revenue
+        # tracker: the exact contract without the edge marker.
+        observations[2]["edge"] = None
+        # www is issued by the documented zone-level redirect rule: the
+        # exact path/query-preserving 301 without the Worker marker.
+        observations[0]["edge"] = None
+        with mock.patch.object(edge, "_observation", side_effect=observations):
+            result = edge.public_probe(attempts=1)
+        self.assertTrue(result["honest_verified"])
+        self.assertTrue(result["www_verified"])
+
+    def test_public_probe_rejects_honest_contract_drift(self) -> None:
+        observations = clean_public_probe_observations()
+        observations[2]["body"] = json.dumps(
+            {"organ": "a11oy", "locked_formula_count": 7}
+        )
+        with (
+            mock.patch.object(edge, "_observation", side_effect=observations),
+            mock.patch.object(edge.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(edge.EdgeError, "PUBLIC_PROBE_FAILED"):
+                edge.public_probe(attempts=1)
+
+    def test_public_probe_rejects_www_location_drift(self) -> None:
+        observations = clean_public_probe_observations()
+        observations[0]["location"] = "https://a-11-oy.com/elsewhere"
+        observations[0]["edge"] = None
+        with (
+            mock.patch.object(edge, "_observation", side_effect=observations),
+            mock.patch.object(edge.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(edge.EdgeError, "PUBLIC_PROBE_FAILED"):
+                edge.public_probe(attempts=1)
+
     def test_public_probe_rejects_header_link_and_cors_regressions(self) -> None:
         regressions = {
             "root topology leak": lambda rows: rows[1].__setitem__(
