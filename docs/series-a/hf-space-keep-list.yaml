@@ -99,3 +99,10 @@ retirement_gate:
   - no_unique_secret_dependency
   - secret_free_retirement_receipt
 note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience runtime. Sentra, IMMUNE, Vessels and Aegis are capability planes, not separate flagships. Policy amended 2026-10-01 to retain eight organization Spaces, including the separately qualified exploratory Confirmation CPU lab, plus the creator-profile Living Anatomy Space. Owner selected retention of the newly created Curation Atlas public CPU-basic, read-only GitHub metadata audit API on 2026-10-28 EDT, increasing the target to nine organization Spaces plus one creator-profile Space. The 57-Space observation is the September 4 census; target counts are policy, not a current visibility observation or a statement that the newly added Space existed in that census. Atlas source, process liveness, product deployment, and independent proof remain separate evidence states. Confirmation remains a laboratory with a FAILED registered scientific gate and no wider-system qualification. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Owner decision 2026-11-07 (a11oy PR #3268) moved Living Anatomy from the retired creator-profile Space to the organization Space SZLHOLDINGS/anatomy, so the current target is ten organization Spaces and zero creator-profile Spaces. Living Anatomy is source-bound to szl-holdings/anatomy, published at SZLHOLDINGS/anatomy, and exposes only the handles-only public Second Brain projection."
+
+# Fold execution 2026-11-14 (owner-delegated audit pass):
+# 40 Spaces flipped private (33 Class-A contract FOLD + 7 newly classified Class B:
+# khipu-playground, szl-bench-suite, szl-command-lab, szl-frontier, szl-marketing,
+# szl-model-inference-lab, vertical-services). Held: SZLHOLDINGS/immune
+# (killinchu /immune route 404 - MIGRATION_REQUIRED). Public remaining: 11
+# (10 keepers + immune held). Log: pvf_flip_log.jsonl (owner machine).

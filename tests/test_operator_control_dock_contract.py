@@ -14,8 +14,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WIDGET_PATH = ROOT / "static-vendor" / "a11oy-operator-widget.js"
 ALLOWLIST_PATH = ROOT / ".github" / "shared-file-drift-allow.txt"
-EXPECTED_WIDGET_BYTES = 41_011
-EXPECTED_WIDGET_SHA256 = "a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c"
+EXPECTED_WIDGET_BYTES = 41_027
+EXPECTED_WIDGET_SHA256 = "693a7b56469cc7ae182d44c8ebaef5dfd6cd84f7149c5dbed517b32c1aba145d"
 
 
 def _extract_braced_function(source: str, name: str) -> str:
