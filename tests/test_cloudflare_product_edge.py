@@ -1524,6 +1524,50 @@ class ProductEdgeContract(unittest.TestCase):
         self.assertNotIn("body", result["health"])
         self.assertNotIn("body", result["spectral"])
 
+    def test_public_probe_accepts_expected_foreign_honest_without_edge_marker(self) -> None:
+        # /api/a11oy/v1/* is expected foreign territory (revenue-tracker
+        # precedence): the direct honest probe proves the served contract
+        # without the marker; the edge-mediated contract stays verified via
+        # /controller, which still requires the marker.
+        observations = clean_public_probe_observations()
+        observations[2].pop("edge")
+        with mock.patch.object(edge, "_observation", side_effect=observations):
+            result = edge.public_probe(attempts=1)
+        self.assertTrue(result["honest_verified"])
+        self.assertTrue(result["controller_verified"])
+        self.assertNotIn("edge", result["honest"])
+
+        # A foreign owner serving the wrong contract still fails closed.
+        broken = clean_public_probe_observations()
+        broken[2]["body"] = json.dumps({"organ": "a11oy", "locked_formula_count": 7})
+        with (
+            mock.patch.object(edge, "_observation", side_effect=broken),
+            mock.patch.object(edge.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(edge.EdgeError, "PUBLIC_PROBE_FAILED"):
+                edge.public_probe(attempts=1)
+
+    def test_public_probe_accepts_zone_level_www_redirect_with_exact_location(self) -> None:
+        # A zone-level Bulk Redirect (runs before Worker routes) serves
+        # www -> apex; the observable contract is the exact path-and-query-
+        # preserving 301, without the worker marker.
+        observations = clean_public_probe_observations()
+        observations[0].pop("edge")
+        observations[0]["content_type"] = "text/html; charset=UTF-8"
+        with mock.patch.object(edge, "_observation", side_effect=observations):
+            result = edge.public_probe(attempts=1)
+        self.assertTrue(result["www_verified"])
+
+        # A drifted redirect target still fails closed.
+        drifted = clean_public_probe_observations()
+        drifted[0]["location"] = "https://a-11-oy.com/"
+        with (
+            mock.patch.object(edge, "_observation", side_effect=drifted),
+            mock.patch.object(edge.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(edge.EdgeError, "PUBLIC_PROBE_FAILED"):
+                edge.public_probe(attempts=1)
+
     def test_public_probe_rejects_missing_edge_marker(self) -> None:
         observations = clean_public_probe_observations()
         observations[1]["edge"] = None
