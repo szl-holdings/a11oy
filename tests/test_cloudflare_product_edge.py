@@ -41,6 +41,19 @@ def dns_record(
     }
 
 
+def content_v2_readback(source: bytes) -> bytes:
+    """Wrap module source bytes the way /content/v2 readbacks do."""
+    return (
+        b'--d1cd991f8ab24e8e9f905ad0e6c94d2b\r\n'
+        b'Content-Disposition: form-data; name="worker.mjs"; '
+        b'filename="worker.mjs"\r\n'
+        b"Content-Type: application/javascript+module\r\n\r\n"
+        + source
+        + b"\r\n--d1cd991f8ab24e8e9f905ad0e6c94d2b--\r\n"
+    )
+
+
+
 def clean_public_probe_observations() -> list[dict[str, object]]:
     return [
         {
@@ -350,7 +363,8 @@ class ProductEdgeContract(unittest.TestCase):
                 return_value={"success": True, "result": [{"id": script}]},
             ),
             mock.patch.object(
-                edge.urllib.request, "urlopen", return_value=io.BytesIO(source)
+                edge.urllib.request, "urlopen",
+                return_value=io.BytesIO(content_v2_readback(source)),
             ),
         ):
             self.assertEqual(
@@ -363,10 +377,25 @@ class ProductEdgeContract(unittest.TestCase):
                 return_value={"success": True, "result": [{"id": script}]},
             ),
             mock.patch.object(
-                edge.urllib.request, "urlopen", return_value=io.BytesIO(b"foreign")
+                edge.urllib.request, "urlopen",
+                return_value=io.BytesIO(content_v2_readback(b"foreign")),
             ),
         ):
             with self.assertRaisesRegex(edge.EdgeError, "WORKER_SCRIPT_NAME_COLLISION"):
+                edge.inspect_worker_script("account", "secret", script, source)
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": [{"id": script}]},
+            ),
+            mock.patch.object(
+                edge.urllib.request, "urlopen",
+                return_value=io.BytesIO(b"not multipart"),
+            ),
+        ):
+            with self.assertRaisesRegex(
+                edge.EdgeError, "WORKER_SCRIPT_READBACK_UNPARSEABLE"
+            ):
                 edge.inspect_worker_script("account", "secret", script, source)
 
     def test_incomplete_script_listing_blocks_upload(self) -> None:

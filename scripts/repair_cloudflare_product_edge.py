@@ -273,6 +273,39 @@ def upload_worker(
     return value
 
 
+CONTENT_V2_MODULE_HEADERS = (
+    b'Content-Disposition: form-data; name="worker.mjs"; '
+    b'filename="worker.mjs"\r\n'
+    b"Content-Type: application/javascript+module"
+)
+
+
+def content_v2_module_payload(body: bytes) -> bytes:
+    """Extract the worker.mjs module payload from a content/v2 readback.
+
+    Cloudflare's /content/v2 endpoint returns module Worker scripts wrapped
+    in a multipart body (a single part named worker.mjs) instead of the bare
+    source bytes, so a byte-identical deployed script still reads back
+    wrapped. Parse strictly and fail closed on anything unexpected.
+    """
+    first, separator, remainder = body.partition(b"\r\n")
+    if not first.startswith(b"--") or not separator:
+        raise EdgeError("WORKER_SCRIPT_READBACK_UNPARSEABLE") from None
+    boundary = first[2:]
+    if not boundary:
+        raise EdgeError("WORKER_SCRIPT_READBACK_UNPARSEABLE") from None
+    headers, header_separator, payload = remainder.partition(b"\r\n\r\n")
+    if not header_separator or headers != CONTENT_V2_MODULE_HEADERS:
+        raise EdgeError("WORKER_SCRIPT_READBACK_UNPARSEABLE") from None
+    closing = b"\r\n--" + boundary + b"--"
+    if payload.endswith(closing + b"\r\n"):
+        return payload[: -len(closing) - 2]
+    if payload.endswith(closing):
+        return payload[: -len(closing)]
+    raise EdgeError("WORKER_SCRIPT_READBACK_UNPARSEABLE") from None
+
+
+
 def inspect_worker_script(
     account_id: str, bearer: str, script_name: str, expected_source: bytes
 ) -> str:
@@ -305,9 +338,10 @@ def inspect_worker_script(
     )
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
-            actual = response.read(len(expected_source) + 1)
+            body = response.read()
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
         raise EdgeError("WORKER_SCRIPT_READBACK_UNAVAILABLE") from exc
+    actual = content_v2_module_payload(body)
     if actual != expected_source:
         raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
     return "identical"
