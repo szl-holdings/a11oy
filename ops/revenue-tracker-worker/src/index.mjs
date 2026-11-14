@@ -15,6 +15,25 @@ const CLI = /^(curl|wget|httpie|xh)\//i;
 const LIBRARY = /^(python-requests|python-urllib|python-httpx|httpx|aiohttp|go-http-client|node-fetch|undici|node|axios|okhttp|java\/|libwww|scrapy|postmanruntime|insomnia|deno|bun)\b/i;
 const BROWSER = /^Mozilla\/5\.0 .*(Chrome|Firefox|Safari|Edg|OPR)\//;
 
+const INFERENCE_HOST = "inference.a-11-oy.com";
+const INFERENCE_PATHS = ["/v1/completions", "/v1/chat/", "/v1/responses"];
+
+function isInferenceRequest(request) {
+  const url = new URL(request.url);
+  return url.hostname === INFERENCE_HOST
+    && INFERENCE_PATHS.some((path) => url.pathname.startsWith(path));
+}
+
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Payment-Signature, Payment-Context, X-PAYMENT",
+    "Access-Control-Expose-Headers": "PAYMENT-REQUIRED, PAYMENT-RESPONSE",
+    "Access-Control-Max-Age": "600",
+  };
+}
+
 export function classifyClient(userAgent, verifiedBotCategory) {
   if (verifiedBotCategory) return "verified-bot";
   const ua = (userAgent || "").trim();
@@ -77,6 +96,12 @@ async function record(request, env, status, startedMs, finishedMs) {
 
 export async function handleRequest(request, env, fetchImpl = fetch, now = Date.now) {
   const startedMs = now();
+  if (request.method === "OPTIONS" && isInferenceRequest(request)) {
+    const state = await record(request, env, 204, startedMs, now());
+    const headers = new Headers(corsHeaders());
+    headers.set("x-szl-tracker", state);
+    return new Response(null, { status: 204, headers });
+  }
   let response;
   try {
     response = await fetchImpl(request);
@@ -87,6 +112,9 @@ export async function handleRequest(request, env, fetchImpl = fetch, now = Date.
   const state = await record(request, env, response.status, startedMs, now());
   const tracked = new Response(response.body, response);
   tracked.headers.set("x-szl-tracker", state);
+  if (isInferenceRequest(request)) {
+    for (const [name, value] of Object.entries(corsHeaders())) tracked.headers.set(name, value);
+  }
   return tracked;
 }
 
