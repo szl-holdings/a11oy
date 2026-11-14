@@ -181,7 +181,8 @@ function sortKeys(obj: unknown): unknown {
       .reduce((acc, k) => {
         (acc as Record<string, unknown>)[k] = sortKeys((obj as Record<string, unknown>)[k]);
         return acc;
-      }, {} as Record<string, unknown>);
+        // Null-prototype accumulator keeps a "__proto__" member in the signed bytes.
+      }, Object.create(null) as Record<string, unknown>);
   }
   return obj;
 }
