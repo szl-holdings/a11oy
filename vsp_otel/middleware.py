@@ -19,6 +19,10 @@ collector — but the traceparent propagation (the cross-pod contract) still wor
 purely in-process. We never claim "exported" when the exporter is unavailable;
 the middleware sets request.state.vsp_otel_exporter to the real status string.
 
+The configured provider belongs to this middleware installation. It neither
+replaces nor borrows a process-global provider from another instrumentor.
+A configured exporter is not a collector delivery receipt.
+
 Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1.
 """
 from __future__ import annotations
@@ -134,14 +138,16 @@ class _Tracer:
         self.endpoint = self.endpoint_policy["endpoint"]
         self.endpoint_fingerprint = self.endpoint_policy["fingerprint"]
         self._tracer = None
+        self._provider = None
         if not self.endpoint_policy["allowed"]:
             # No OTLP endpoint configured — do NOT spin up an exporter that would
             # silently drop spans. Traceparent propagation still works in-process.
             self.exporter = f"in-process-only:{self.endpoint_policy['state'].lower()}"
             return
         self.exporter = "in-process-only"
+        provider = processor = exporter = None
+        attached = False
         try:
-            from opentelemetry import trace
             from opentelemetry.sdk.resources import Resource
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -156,14 +162,30 @@ class _Tracer:
                 "szl.lambda": "Conjecture-1",
             })
             provider = TracerProvider(resource=resource)
-            provider.add_span_processor(
-                BatchSpanProcessor(OTLPSpanExporter(
-                    endpoint=self.endpoint,
-                    insecure=self.endpoint_policy["transport_security"] != "TLS")))
-            trace.set_tracer_provider(provider)
-            self._tracer = trace.get_tracer(f"vsp-otel.{service_name}")
+            exporter = OTLPSpanExporter(
+                endpoint=self.endpoint,
+                insecure=self.endpoint_policy["transport_security"] != "TLS")
+            processor = BatchSpanProcessor(exporter)
+            provider.add_span_processor(processor)
+            attached = True
+            # The process-global provider is write-once and may belong to a
+            # different instrumentor. Bind these spans to this admitted endpoint.
+            self._tracer = provider.get_tracer(f"vsp-otel.{service_name}")
+            self._provider = provider
             self.exporter = f"otlp-grpc:configured:{self.endpoint_fingerprint}"
         except Exception as e:  # SDK absent — propagation still works
+            self._tracer = None
+            self._provider = None
+            # Release partially constructed local SDK resources, never the
+            # unrelated process-global provider. Cleanup must not break the app.
+            resources = (provider, processor if not attached else None,
+                         exporter if processor is None else None)
+            for resource in resources:
+                if resource is not None:
+                    try:
+                        resource.shutdown()
+                    except Exception:
+                        pass
             self.exporter = f"in-process-only ({type(e).__name__})"
 
     @contextmanager
