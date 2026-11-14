@@ -59,7 +59,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 14)
+        self.assertEqual(len(topology), 10)
         self.assertEqual(
             self.contract["supportingSystems"][0]["huggingFaceRepositories"],
             [],
@@ -69,40 +69,8 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertEqual(
             inventory_only,
             [
-                "SZLHOLDINGS/agents-studio",
-                "SZLHOLDINGS/ayllu",
-                "SZLHOLDINGS/counsel-assurance",
-                "SZLHOLDINGS/estate-gardener",
-                "SZLHOLDINGS/eternal-auditor",
-                "SZLHOLDINGS/frontier-showcase",
-                "SZLHOLDINGS/gdw-frontier",
-                "SZLHOLDINGS/holographic-unify",
                 "SZLHOLDINGS/immune",
-                "SZLHOLDINGS/living-anatomy",
-                "SZLHOLDINGS/llm-router-live",
-                "SZLHOLDINGS/measured-honesty-census",
-                "SZLHOLDINGS/newton-trust-upgrade",
-                "SZLHOLDINGS/nexus",
-                "SZLHOLDINGS/puriq-markets",
-                "SZLHOLDINGS/sentra",
-                "SZLHOLDINGS/szl-chief-engineer",
-                "SZLHOLDINGS/szl-constellation",
-                "SZLHOLDINGS/szl-cyber-shield",
-                "SZLHOLDINGS/szl-dream-architect",
-                "SZLHOLDINGS/szl-energy-hologram",
-                "SZLHOLDINGS/szl-forge-lab",
-                "SZLHOLDINGS/szl-frontier-deck",
-                "SZLHOLDINGS/szl-infra-warden",
-                "SZLHOLDINGS/szl-khipu",
-                "SZLHOLDINGS/szl-receipts-chain",
-                "SZLHOLDINGS/szl-research-council",
-                "SZLHOLDINGS/szl-router-control",
-                "SZLHOLDINGS/szl-second-brain",
-                "SZLHOLDINGS/szlholdings-si",
-                "SZLHOLDINGS/terra-assurance",
-                "SZLHOLDINGS/the-grid",
-                "SZLHOLDINGS/truth-router",
-                "SZLHOLDINGS/yarqa",
+                "SZLHOLDINGS/README",
             ],
         )
         self.assertEqual(
@@ -111,8 +79,9 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         )
 
     def test_new_public_inventory_is_not_a_keeper_or_runtime_promotion(self) -> None:
-        # anatomy is a governed org keeper (owner decision 2026-11-07); the rest remain inventory-only
-        for name in ('agents-studio', 'counsel-assurance', 'estate-gardener', 'eternal-auditor', 'frontier-showcase', 'gdw-frontier', 'holographic-unify', 'living-anatomy', 'llm-router-live', 'measured-honesty-census', 'newton-trust-upgrade', 'nexus', 'puriq-markets', 'sentra', 'szl-chief-engineer', 'szl-constellation', 'szl-cyber-shield', 'szl-dream-architect', 'szl-energy-hologram', 'szl-forge-lab', 'szl-frontier-deck', 'szl-infra-warden', 'szl-khipu', 'szl-receipts-chain', 'szl-research-council', 'szl-router-control', 'szl-second-brain', 'szlholdings-si', 'terra-assurance', 'the-grid', 'truth-router'):
+        # The 2026-11-14 privatization wave folded the remaining inventory-only
+        # Spaces; immune is the surviving FOLD probe.
+        for name in ('immune',):
             repo_id = 'SZLHOLDINGS/' + name
             with self.subTest(repo_id=repo_id):
                 row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
@@ -194,20 +163,15 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         }
         self.assertEqual(historical["immune"], "FOLDING_INTO_KILLINCHU")
 
-    def test_ayllu_is_inventory_only_fold_not_a_governed_keeper(self) -> None:
-        ayllu = [row for row in self.contract["inventoryOnlyHuggingFaceRepositories"] if row["id"] == "SZLHOLDINGS/ayllu"]
-        self.assertEqual(
-            ayllu,
-            [
-                {
-                    "id": "SZLHOLDINGS/ayllu",
-                    "classification": "INVENTORY_ONLY",
-                    "governedKeep": False,
-                    "disposition": "FOLD",
-                    "policySource": "docs/series-a/hf-space-keep-list.yaml",
-                }
-            ],
-        )
+    def test_privatized_folds_are_absent_from_the_settled_public_estate(self) -> None:
+        # The 2026-11-14 privatization wave removed ayllu, yarqa, and
+        # szl-second-brain from the public Hub estate; none may appear as
+        # inventory-only rows, topology bindings, or measured surfaces.
+        rows = self.contract["inventoryOnlyHuggingFaceRepositories"]
+        for repo_id in ("SZLHOLDINGS/ayllu", "SZLHOLDINGS/yarqa", "SZLHOLDINGS/szl-second-brain"):
+            self.assertNotIn(repo_id, [row["id"] for row in rows])
+            self.assertNotIn(repo_id, alignment.topology_spaces(self.contract))
+            self.assertNotIn(repo_id, alignment.measured_spaces(self.manifest))
         governed = alignment.governed_keep_spaces()
         organization_keepers = [
             item for item in governed if item.startswith("SZLHOLDINGS/")
@@ -224,30 +188,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             hashlib.sha256(alignment.KEEP_POLICY.read_bytes()).hexdigest(),
         )
 
-    def test_yarqa_is_observed_without_promoting_keep_or_topology(self) -> None:
-        rows = self.contract["inventoryOnlyHuggingFaceRepositories"]
-        yarqa = next(row for row in rows if row["id"] == "SZLHOLDINGS/yarqa")
-        self.assertEqual(yarqa, {
-            "id": "SZLHOLDINGS/yarqa", "classification": "INVENTORY_ONLY",
-            "governedKeep": False, "disposition": "FOLD",
-            "policySource": "docs/series-a/hf-space-keep-list.yaml",
-        })
-        self.assertNotIn(yarqa["id"], alignment.governed_keep_spaces())
-        self.assertNotIn(yarqa["id"], alignment.topology_spaces(self.contract))
-        removed = copy.deepcopy(self.contract)
-        removed["inventoryOnlyHuggingFaceRepositories"] = [row for row in rows if row["id"] != yarqa["id"]]
-        with self.assertRaisesRegex(alignment.ContractError, "undeclared=.*yarqa"):
-            alignment.validate(removed, self.manifest)
-        promoted = copy.deepcopy(self.contract)
-        promoted_yarqa = next(
-            row for row in promoted["inventoryOnlyHuggingFaceRepositories"]
-            if row["id"] == "SZLHOLDINGS/yarqa"
-        )
-        promoted_yarqa["governedKeep"] = True
-        with self.assertRaisesRegex(alignment.ContractError, "cannot be a governed keeper"):
-            alignment.validate(promoted, self.manifest)
 
-    def test_inventory_only_classification_is_strict_and_disjoint(self) -> None:
         for field, value, message in (
             ("classification", "LABORATORY", "classification drifted"),
             ("governedKeep", True, "cannot be a governed keeper"),
@@ -256,38 +197,30 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         ):
             with self.subTest(field=field):
                 changed = copy.deepcopy(self.contract)
-                changed["inventoryOnlyHuggingFaceRepositories"][0][field] = value
+                row = next(r for r in changed["inventoryOnlyHuggingFaceRepositories"] if r["id"] == "SZLHOLDINGS/immune")
+                row[field] = value
                 with self.assertRaisesRegex(alignment.ContractError, message):
                     alignment.validate(changed, self.manifest)
 
         overlap = copy.deepcopy(self.contract)
-        overlap["laboratorySurfaces"].append("SZLHOLDINGS/ayllu")
+        overlap["laboratorySurfaces"].append("SZLHOLDINGS/immune")
         with self.assertRaisesRegex(alignment.ContractError, "cannot be topology bindings"):
             alignment.validate(overlap, self.manifest)
 
     def test_reserved_org_card_requires_exact_existing_policy_and_no_promotion(self) -> None:
         import re
-        self.assertNotIn('SZLHOLDINGS/README', alignment.measured_spaces(self.manifest))
-        self.assertNotIn('SZLHOLDINGS/README', alignment.inventory_only_spaces(self.contract))
-        self.assertIsNone(self.evidence['huggingFaceOrgCard'])
+        self.assertIn('SZLHOLDINGS/README', alignment.measured_spaces(self.manifest))
+        self.assertIn('SZLHOLDINGS/README', alignment.inventory_only_spaces(self.contract))
+        self.assertEqual(self.evidence['huggingFaceOrgCard'], 'SZLHOLDINGS/README')
         live = alignment.render_huggingface(self.contract, self.evidence)
-        self.assertNotIn('Reserved organization card', live)
-        self.assertNotIn('`SZLHOLDINGS/README`', live)
+        self.assertIn('Reserved organization card', live)
+        self.assertIn('`SZLHOLDINGS/README`', live)
         self.assertEqual(
             re.findall(r'^org_card:([^\n]*)$', alignment.KEEP_POLICY.read_text(encoding='utf-8'), re.MULTILINE),
             [' SZLHOLDINGS/README'],
         )
         synthetic = copy.deepcopy(self.contract)
-        synthetic['inventoryOnlyHuggingFaceRepositories'].append({
-            'id': 'SZLHOLDINGS/README',
-            'classification': 'INVENTORY_ONLY',
-            'governedKeep': False,
-            'disposition': 'ORG_CARD',
-            'policySource': 'docs/series-a/hf-space-keep-list.yaml',
-        })
         manifest = copy.deepcopy(self.manifest)
-        manifest['inventory']['spaces'].append({'id': 'SZLHOLDINGS/README', 'repoType': 'space'})
-        manifest['counts']['spaces'] += 1
         evidence = alignment.validate(synthetic, manifest)
         self.assertEqual(evidence['huggingFaceOrgCard'], 'SZLHOLDINGS/README')
         self.assertNotIn('SZLHOLDINGS/README', alignment.governed_keep_spaces())
@@ -307,7 +240,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         with self.assertRaises(alignment.ContractError):
             alignment.validate(readme_folded, manifest)
         promoted = copy.deepcopy(self.contract)
-        next(r for r in promoted['inventoryOnlyHuggingFaceRepositories'] if r['id'] == 'SZLHOLDINGS/ayllu')['disposition'] = 'ORG_CARD'
+        next(r for r in promoted['inventoryOnlyHuggingFaceRepositories'] if r['id'] == 'SZLHOLDINGS/immune')['disposition'] = 'ORG_CARD'
         with self.assertRaises(alignment.ContractError):
             alignment.validate(promoted, self.manifest)
         rendered = alignment.render_huggingface(synthetic, evidence)
@@ -317,8 +250,9 @@ class PublicEstateAlignmentTests(unittest.TestCase):
 
     def test_new_observed_spaces_remain_inventory_only_and_fail_closed_if_undeclared(self) -> None:
         # SZLHOLDINGS/anatomy is a governed org keeper (owner decision 2026-11-07),
-        # not inventory-only; szl-second-brain remains the inventory-only probe.
-        for repo_id in ('SZLHOLDINGS/szl-second-brain',):
+        # not inventory-only; immune remains the inventory-only probe after
+        # the 2026-11-14 privatization wave.
+        for repo_id in ('SZLHOLDINGS/immune',):
             row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
             self.assertEqual(row['classification'], 'INVENTORY_ONLY')
             self.assertEqual(row['disposition'], 'FOLD')
@@ -332,15 +266,15 @@ class PublicEstateAlignmentTests(unittest.TestCase):
     def test_quoted_keeper_ids_are_normalized_before_overlap_checks(self) -> None:
         policy = alignment.KEEP_POLICY.read_text(encoding="utf-8").replace(
             "  - id: SZLHOLDINGS/a11oy",
-            '  - id: "SZLHOLDINGS/ayllu"',
+            '  - id: "SZLHOLDINGS/immune"',
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "keep.yaml"
             path.write_text(policy, encoding="utf-8")
             keepers = alignment.governed_keep_spaces(path)
 
-        self.assertIn("SZLHOLDINGS/ayllu", keepers)
-        self.assertNotIn('"SZLHOLDINGS/ayllu"', keepers)
+        self.assertIn("SZLHOLDINGS/immune", keepers)
+        self.assertNotIn('"SZLHOLDINGS/immune"', keepers)
         self.assertTrue(
             set(alignment.inventory_only_spaces(self.contract)) & set(keepers)
         )
@@ -448,19 +382,19 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertIn(self.evidence["alignmentSha256"], content)
             self.assertIn("inventory is observational", content)
             self.assertIn("Inventory-only / FOLD", content)
-            self.assertIn("`SZLHOLDINGS/ayllu`", content)
+            self.assertNotIn("`SZLHOLDINGS/ayllu`", content)
             self.assertIn("`SZLHOLDINGS/immune`", content)
             # anatomy is a governed org keeper (owner decision 2026-11-07), so it must
             # NOT appear in the inventory-only list; it appears as a keeper instead.
             self.assertNotIn("`SZLHOLDINGS/anatomy`", content.split("Inventory-only")[1].split("Canonical keep")[0]) if "Inventory-only" in content else None
-            self.assertIn("`SZLHOLDINGS/szl-second-brain`", content)
+            self.assertNotIn("`SZLHOLDINGS/szl-second-brain`", content)
             self.assertNotIn("`SZLHOLDINGS/immune-lattice`", content)
-            self.assertNotIn("`SZLHOLDINGS/README`", content)
-            self.assertIn("`SZLHOLDINGS/szl-forge-lab`", content)
-            self.assertIn("`SZLHOLDINGS/the-grid`", content)
-            self.assertIn("`SZLHOLDINGS/nexus`", content)
+            self.assertIn("`SZLHOLDINGS/README`", content)
+            self.assertNotIn("`SZLHOLDINGS/szl-forge-lab`", content)
+            self.assertNotIn("`SZLHOLDINGS/the-grid`", content)
+            self.assertNotIn("`SZLHOLDINGS/nexus`", content)
             self.assertNotIn("SZLHOLDINGS/szl-constellation-staging", content)
-            self.assertIn("`SZLHOLDINGS/yarqa`", content)
+            self.assertNotIn("`SZLHOLDINGS/yarqa`", content)
 
     def test_product_front_door_names_canonical_origins(self) -> None:
         landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")

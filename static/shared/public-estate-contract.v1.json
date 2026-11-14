@@ -89,28 +89,33 @@
       "name": "Locked Formula Kernel",
       "lockedProvenCount": 8,
       "lambdaStatus": "CONJECTURE_1_OPEN_ADVISORY_ONLY",
-      "authority": "ADVISORY_ONLY"
+      "authority": "ADVISORY_ONLY",
+      "huggingFaceRepositories": []
     },
     {
       "id": "second-brain",
       "name": "Governed Second Brain",
       "publicProjection": "HANDLES_REVISIONS_COUNTS_DIGESTS_ONLY",
-      "authority": "NO_EXECUTION_AUTHORITY"
+      "authority": "NO_EXECUTION_AUTHORITY",
+      "huggingFaceRepositories": []
     },
     {
       "id": "inference",
       "name": "Governed Inference",
-      "authority": "PROPOSAL_ONLY"
+      "authority": "PROPOSAL_ONLY",
+      "huggingFaceRepositories": []
     },
     {
       "id": "hatun-policy",
       "name": "Hatun and Covenant Policy",
-      "authority": "HUMAN_APPROVAL_REQUIRED"
+      "authority": "HUMAN_APPROVAL_REQUIRED",
+      "huggingFaceRepositories": []
     },
     {
       "id": "proof-chain",
       "name": "Proof Chain and Outcome Graph",
-      "authority": "EVIDENCE_AND_VERIFICATION"
+      "authority": "EVIDENCE_AND_VERIFICATION",
+      "huggingFaceRepositories": []
     }
   ],
   "supportingSystems": [
@@ -125,9 +130,7 @@
       "id": "vertical-services",
       "name": "Vertical Services",
       "githubRepository": "szl-holdings/vertical-services",
-      "huggingFaceRepositories": [
-        "SZLHOLDINGS/vertical-services"
-      ],
+      "huggingFaceRepositories": [],
       "classification": "SHARED_EVIDENCE_RUNTIME"
     },
     {
@@ -141,69 +144,10 @@
     }
   ],
   "laboratorySurfaces": [
-    "SZLHOLDINGS/szl-command-lab",
     "SZLHOLDINGS/david-leads",
-    "SZLHOLDINGS/szl-frontier",
-    "SZLHOLDINGS/szl-model-inference-lab",
     "SZLHOLDINGS/szl-foundation-confirmation"
   ],
   "inventoryOnlyHuggingFaceRepositories": [
-    {
-      "id": "SZLHOLDINGS/agents-studio",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/ayllu",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/counsel-assurance",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/estate-gardener",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/eternal-auditor",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/frontier-showcase",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/gdw-frontier",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/holographic-unify",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
     {
       "id": "SZLHOLDINGS/immune",
       "classification": "INVENTORY_ONLY",
@@ -212,178 +156,10 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
-      "id": "SZLHOLDINGS/living-anatomy",
+      "id": "SZLHOLDINGS/README",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/llm-router-live",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/measured-honesty-census",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/newton-trust-upgrade",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/nexus",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/puriq-markets",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/sentra",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-chief-engineer",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-constellation",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-cyber-shield",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-dream-architect",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-energy-hologram",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-forge-lab",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-frontier-deck",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-infra-warden",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-khipu",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-receipts-chain",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-research-council",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-router-control",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-second-brain",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szlholdings-si",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/terra-assurance",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/the-grid",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/truth-router",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/yarqa",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
+      "disposition": "ORG_CARD",
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     }
   ],
