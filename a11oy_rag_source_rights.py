@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import math
 import re
 import threading
 import time
@@ -195,6 +196,14 @@ class SourceRightsRegistry:
             raise SourceRightsError("VISIBILITY_INVALID")
         if not (isinstance(tenant_owner, str) and tenant_owner.strip()):
             raise SourceRightsError("TENANT_OWNER_INVALID")
+        if retention_until is not None:
+            try:
+                valid_deadline = (type(retention_until) in (int, float)
+                                  and math.isfinite(retention_until))
+            except OverflowError:
+                valid_deadline = False
+            if not valid_deadline:
+                raise SourceRightsError("RETENTION_DEADLINE_INVALID")
         rights = frozenset(rights)
         if not rights <= PURPOSES:
             raise SourceRightsError("RIGHT_INVALID")
