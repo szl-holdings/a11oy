@@ -21,10 +21,20 @@ Failed public proof rolls
 back only newly created routes; an uncertain provider outcome is reported as
 UNKNOWN. Foreign or ambiguous provider state fails closed. Credentials and
 full provider IDs are never written to the receipt.
+
+Four production routes owned by other estate Workers (the x402 revenue
+tracker, the governed-inference gateway, the evidence-snapshot service and
+the curation atlas) are explicitly enumerated and expected during proxied
+cutover. Their more specific Cloudflare route patterns keep precedence over
+the apex catch-all, so the product edge never shadows their traffic;
+anything not enumerated, or an expected pattern under an unexpected owner,
+still fails closed.
 """
 from __future__ import annotations
 
 import argparse
+import email.parser
+import email.policy
 import hashlib
 import json
 import os
@@ -51,6 +61,16 @@ APEX_ROUTE = "a-11-oy.com/*"
 WWW_ROUTE = "www.a-11-oy.com/*"
 LEGACY_APEX_ROOT_ROUTE = "a-11-oy.com/"
 DESIRED_ROUTES = (APEX_ROUTE, WWW_ROUTE)
+EXPECTED_FOREIGN_ROUTES: dict[str, tuple[str, ...]] = {
+    "a-11-oy.com/api/a11oy/v1/*": ("szl-revenue-tracker",),
+    "a-11-oy.com/v1/*": ("szl-revenue-tracker",),
+    "api.a-11-oy.com/v1/evidence-snapshot": ("szl-evidence-snapshot",),
+    "atlas.a-11-oy.com/*": ("curation-atlas",),
+}
+EXPECTED_FOREIGN_ROUTE_SCRIPT_PREFIXES: dict[str, tuple[str, ...]] = {
+    # The governed-inference gateway deploys under a content-addressed name.
+    "a-11-oy.com/api/v2/*": ("szl-a11oy-governed-inference-",),
+}
 WEB_HOSTS = (ZONE_NAME, f"www.{ZONE_NAME}")
 WEB_RECORD_TYPES = frozenset({"A", "AAAA", "CNAME"})
 EDGE_MARKER = "a11oy-product-edge-v3"
@@ -287,12 +307,42 @@ def inspect_worker_script(
     )
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
-            actual = response.read(len(expected_source) + 1)
+            actual = response.read()
+            headers = getattr(response, "headers", None)
+            content_type = headers.get("Content-Type", "") if headers else ""
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
         raise EdgeError("WORKER_SCRIPT_READBACK_UNAVAILABLE") from exc
+    if "multipart/form-data" in content_type.lower():
+        module = _module_part_from_multipart(actual, content_type)
+        if module is None:
+            raise EdgeError("WORKER_SCRIPT_READBACK_UNPARSEABLE")
+        actual = module
     if actual != expected_source:
         raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
     return "identical"
+
+
+def _module_part_from_multipart(body: bytes, content_type: str) -> bytes | None:
+    """Fail-closed extraction of the single worker.mjs part of a readback."""
+    header = (
+        b"Content-Type: "
+        + content_type.encode("utf-8", "replace")
+        + b"\r\nMIME-Version: 1.0\r\n\r\n"
+    )
+    try:
+        message = email.parser.BytesParser(
+            policy=email.policy.default
+        ).parsebytes(header + body)
+        modules = [
+            part.get_payload(decode=True)
+            for part in message.walk()
+            if part.get_filename() == "worker.mjs"
+        ]
+    except Exception:
+        return None
+    if len(modules) != 1 or not isinstance(modules[0], bytes):
+        return None
+    return modules[0]
 
 
 def _routes_by_pattern(current: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -305,6 +355,14 @@ def _routes_by_pattern(current: list[dict[str, Any]]) -> dict[str, dict[str, Any
             raise EdgeError(f"DUPLICATE_ROUTE_PATTERN: {pattern}")
         by_pattern[pattern] = row
     return by_pattern
+
+
+def foreign_route_is_expected(pattern: str, script: str) -> bool:
+    """True only for an explicitly enumerated production foreign route."""
+    if pattern in EXPECTED_FOREIGN_ROUTES:
+        return script in EXPECTED_FOREIGN_ROUTES[pattern]
+    prefixes = EXPECTED_FOREIGN_ROUTE_SCRIPT_PREFIXES.get(pattern, ())
+    return any(script.startswith(prefix) for prefix in prefixes)
 
 
 def route_plan(
@@ -330,7 +388,12 @@ def route_plan(
             # Cloudflare route wildcards can match more than their literal host
             # text suggests; refuse every other route in this exact zone.
             overlapping = [
-                pattern for pattern in by_pattern if pattern not in DESIRED_ROUTES
+                pattern
+                for pattern in by_pattern
+                if pattern not in DESIRED_ROUTES
+                and not foreign_route_is_expected(
+                    pattern, str(by_pattern[pattern].get("script") or "")
+                )
             ]
             if overlapping:
                 raise EdgeError("OVERLAPPING_LIVE_ROUTE: " + ", ".join(sorted(overlapping)))
@@ -1006,9 +1069,14 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
                 honest_json = parsed
         except json.JSONDecodeError:
             honest_json = {}
+        # /api/a11oy/v1/* is enumerated expected foreign territory (the x402
+        # revenue-tracker route keeps precedence over the apex catch-all), so
+        # the direct honest probe proves only the served contract; a foreign
+        # owner does not emit the product-edge marker. The edge-mediated
+        # honest contract stays verified through /controller below, which
+        # still requires the marker and the alias.
         honest_ok = (
             honest.get("status") == 200
-            and honest.get("edge") == EDGE_MARKER
             and honest_json.get("organ") == "a11oy"
             and honest_json.get("locked_formula_count") == 8
         )
@@ -1041,10 +1109,15 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
             and health.get("edge") == EDGE_MARKER
             and health_headers_ok
         )
+        # A zone-level Bulk Redirect serves www -> apex before Worker routes
+        # (outside this controller's bounded authority); verified live on
+        # 2026-11-14 in repair run 43626864871, where the 301 carried the
+        # exact path-and-query-preserving location without the worker marker
+        # (the worker's own 301 would set it, but never runs). The observable
+        # contract is therefore the exact redirect target, not the marker.
         www_ok = (
             www.get("status") == 301
             and www.get("location") == www_expected
-            and www.get("edge") == EDGE_MARKER
         )
 
         last = {
