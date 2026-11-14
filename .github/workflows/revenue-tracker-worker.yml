@@ -1,0 +1,119 @@
+name: Request tracker worker
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/revenue-tracker-worker.yml'
+      - 'ops/revenue-tracker-worker/**'
+      - 'scripts/resolve_cloudflare_relay_account.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/revenue-tracker-worker.yml'
+      - 'ops/revenue-tracker-worker/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: revenue-tracker-worker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test the pass-through tracker and its pinned config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6.1.0
+        with:
+          node-version: '22'
+          check-latest: false
+      - name: Run tracker tests
+        run: node --test ops/revenue-tracker-worker/test/index.test.mjs
+
+  deploy:
+    name: Deploy the exact tracker and prove it serves
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6.1.0
+        with:
+          node-version: '22'
+          check-latest: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Require Cloudflare deployment token
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "::error::No Cloudflare API token is configured for the tracker deployment."
+            exit 1
+          fi
+      - name: Resolve account from active owned Cloudflare zones
+        run: python scripts/resolve_cloudflare_relay_account.py
+      - name: Deploy the exact source-controlled Worker
+        shell: bash
+        run: >-
+          npx --yes wrangler@4.128.0 deploy
+          --config ops/revenue-tracker-worker/wrangler.jsonc
+      - name: Prove the deployed tracker serves a live request
+        shell: bash
+        run: |
+          python - <<'PY'
+          import time
+          import urllib.error
+          import urllib.request
+
+          url = "https://a-11-oy.com/api/a11oy/v1/version"
+          last = "no response"
+          for attempt in range(12):
+              request = urllib.request.Request(url, headers={"user-agent": "szl-tracker-deploy-check/1"})
+              try:
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      headers = response.headers
+              except urllib.error.HTTPError as error:
+                  headers = error.headers
+              except OSError as error:
+                  last = type(error).__name__
+                  time.sleep(5)
+                  continue
+              state = headers.get("x-szl-tracker")
+              if state in ("written", "no-binding", "error"):
+                  print(f"x-szl-tracker: {state}")
+                  if state != "written":
+                      raise SystemExit(f"tracker serves but did not write a point: {state}")
+                  raise SystemExit(0)
+              last = "challenged by Cloudflare" if headers.get("cf-mitigated") else "no tracker header"
+              time.sleep(5)
+          raise SystemExit(f"could not prove the deployed tracker serves: {last}")
+          PY

@@ -71,6 +71,18 @@ def no_external_network(monkeypatch):
             raise OSError("acceptance tests forbid DNS: %r" % (host,))
         return real_getaddrinfo(host, *args, **kwargs)
 
+    # Importing serve runs szl_lake_ingest.register(), which starts a daemon
+    # 'szl-lake-hydrate' thread that reads the public HF dataset mirror. That read
+    # is unrelated to R4/R7/R8/R9 and has no environment switch, so keep the lake
+    # mirror offline here: no bucket, and a hydrate that reports itself disabled.
+    try:
+        import szl_lake_ingest as _lake
+    except Exception:  # module absent in this checkout
+        _lake = None
+    if _lake is not None:
+        monkeypatch.setattr(_lake, "_get_bucket", lambda: None)
+        monkeypatch.setattr(_lake, "hydrate_from_dataset",
+                            lambda limit=0: {"ok": False, "reason": "lake mirror offline in acceptance tests"})
     # Unrelated a11oy modules start on-demand readiness/evidence builds in daemon threads
     # (szl_readiness._kick_background_build) that probe public endpoints; they are not
     # part of R4/R7/R8/R9. Neutralise them for the duration of each test so the guard
@@ -943,10 +955,6 @@ def test_r8_feed_does_not_promote_mocked_signature_without_verifier():
     assert signer.calls == 1
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "MEASURED gap: with no verify_fn, POST /api/<ns>/v1/agent/verify-chain falls back to a "
-    "structural check (signature_valid = envelope['signed']) and returns verified=True for "
-    "mocked signature bytes (szl_agentic_loop._verify_chain)."))
 def test_r8_verify_chain_without_verifier_does_not_call_mocked_signature_verified():
     client, _signer = _hatun(verifier=None)
     run = client.post("/api/a11oy/v1/agent/run", json=_RUN).json()
@@ -956,9 +964,6 @@ def test_r8_verify_chain_without_verifier_does_not_call_mocked_signature_verifie
     assert result["verified"] is False
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "MEASURED gap: verify-chain without a verifier reports verified=True for a forged "
-    "envelope {'signed': true} that carries no signature bytes at all."))
 def test_r8_verify_chain_without_verifier_rejects_forged_signed_flag():
     client, _signer = _hatun(verifier=None)
     run = client.post("/api/a11oy/v1/agent/run", json=_RUN).json()
@@ -967,9 +972,6 @@ def test_r8_verify_chain_without_verifier_rejects_forged_signed_flag():
     assert result["verified"] is False
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "MEASURED gap: the anonymous MCP tool verify_receipt returns signature_valid=True for "
-    "{'signed': true, signatures: [mock]} when no verify_fn is configured."))
 def test_r8_mcp_verify_receipt_without_verifier_is_not_valid():
     client, _signer = _hatun(verifier=None)
     response = client.post("/mcp/", json={

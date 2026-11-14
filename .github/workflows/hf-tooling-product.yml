@@ -19,6 +19,8 @@ on:
       - 'scripts/test_model_pretraining_browser.py'
       - 'scripts/verify_model_pretraining_live.py'
       - 'scripts/prepare_hf_inventory_refresh.py'
+      - 'scripts/format_inventory_stop_annotation.py'
+      - 'scripts/format_hf_check_result.py'
       - 'tests/test_hf_inventory_refresh*.py'
       - '.github/workflows/hf-ecosystem-drift.yml'
       - 'scripts/prune_hf_inventory_branches.py'
@@ -48,6 +50,8 @@ on:
       - 'scripts/test_model_pretraining_browser.py'
       - 'scripts/verify_model_pretraining_live.py'
       - 'scripts/prepare_hf_inventory_refresh.py'
+      - 'scripts/format_inventory_stop_annotation.py'
+      - 'scripts/format_hf_check_result.py'
       - 'tests/test_hf_inventory_refresh*.py'
       - '.github/workflows/hf-ecosystem-drift.yml'
       - 'scripts/prune_hf_inventory_branches.py'
@@ -111,7 +115,20 @@ jobs:
           assert 'href="/frontier-tooling"' in Path('routers/frontier_now_web/index.html').read_text()
           PY
       - name: Install the pinned test browser
-        run: python -m playwright install --with-deps chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          for browser in google-chrome chromium chromium-browser; do
+            if command -v "$browser" >/dev/null 2>&1; then
+              printf 'SZL_TEST_CHROMIUM=%s\n' "$(command -v "$browser")" >> "$GITHUB_ENV"
+              found=1
+              break
+            fi
+          done
+          if [ "$found" -eq 0 ]; then
+            python -m playwright install chromium
+          fi
       - name: Exercise the real Python API and responsive view
         run: |
           python scripts/test_hf_tooling_browser.py
