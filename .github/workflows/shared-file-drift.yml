@@ -19,8 +19,13 @@ on:
 permissions:
   contents: read
 
+# Key the group on the exact head SHA for pull requests. The previous key
+# (github.ref) is constant per PR, so any new push to the same PR cancelled the
+# in-flight run and left the required check "cancelled" on the reporting head.
+# With a per-head group, a new head never cancels the check GitHub must report
+# for the current head; same-head duplicate events still dedupe.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.ref }}
   cancel-in-progress: true
 
 jobs:
