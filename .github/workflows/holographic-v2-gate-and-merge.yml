@@ -56,14 +56,14 @@ jobs:
           repo="${GITHUB_REPOSITORY##*/}"
           author="${{ github.event.pull_request.user.login }}"
           payload="$(gh api graphql \
-            -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewDecision reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}}reviews(first:100){pageInfo{hasNextPage}nodes{state author{login}}}}}}' \
+            -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewDecision reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved isOutdated}}reviews(first:100){pageInfo{hasNextPage}nodes{state author{login}}}}}}' \
             -F owner="$owner" \
             -F repo="$repo" \
             -F number="$PR_NUMBER")"
           graphql_errors="$(jq '[.errors[]?] | length' <<<"$payload")"
           decision="$(jq -r '.data.repository.pullRequest.reviewDecision // "NULL"' <<<"$payload")"
           threads_page="$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage // true' <<<"$payload")"
-          unresolved="$(jq '[.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved == false)] | length' <<<"$payload")"
+          unresolved="$(jq '[.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved == false and .isOutdated == false)] | length' <<<"$payload")"
           independent_approvals="$(jq --arg author "$author" '[.data.repository.pullRequest.reviews.nodes[]? | select(.state == "APPROVED" and .author.login != $author)] | length' <<<"$payload")"
           reviews_page="$(jq -r '.data.repository.pullRequest.reviews.pageInfo.hasNextPage // true' <<<"$payload")"
           (( graphql_errors == 0 )) || { echo "GraphQL returned $graphql_errors error(s)"; exit 1; }
