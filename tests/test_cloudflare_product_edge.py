@@ -41,6 +41,28 @@ def dns_record(
     }
 
 
+class ReadbackResponse(io.BytesIO):
+    """A content readback carrying provider response headers."""
+
+    def __init__(self, body: bytes, content_type: str | None = None) -> None:
+        super().__init__(body)
+        self.headers = Message()
+        if content_type is not None:
+            self.headers["Content-Type"] = content_type
+
+
+def multipart_envelope(module: bytes, boundary: str) -> bytes:
+    """Mirror the Cloudflare multipart readback envelope for worker.mjs."""
+    delimiter = f"--{boundary}"
+    return (
+        f"{delimiter}\r\n"
+        'Content-Disposition: form-data; name="worker.mjs"; '
+        'filename="worker.mjs"\r\n'
+        "Content-Type: application/javascript+module\r\n"
+        "\r\n"
+    ).encode("utf-8") + module + f"\r\n{delimiter}--\r\n".encode("utf-8")
+
+
 def clean_public_probe_observations() -> list[dict[str, object]]:
     return [
         {
@@ -350,7 +372,8 @@ class ProductEdgeContract(unittest.TestCase):
                 return_value={"success": True, "result": [{"id": script}]},
             ),
             mock.patch.object(
-                edge.urllib.request, "urlopen", return_value=io.BytesIO(source)
+                edge.urllib.request, "urlopen",
+                return_value=ReadbackResponse(source),
             ),
         ):
             self.assertEqual(
@@ -363,11 +386,66 @@ class ProductEdgeContract(unittest.TestCase):
                 return_value={"success": True, "result": [{"id": script}]},
             ),
             mock.patch.object(
-                edge.urllib.request, "urlopen", return_value=io.BytesIO(b"foreign")
+                edge.urllib.request, "urlopen",
+                return_value=ReadbackResponse(b"foreign"),
             ),
         ):
             with self.assertRaisesRegex(edge.EdgeError, "WORKER_SCRIPT_NAME_COLLISION"):
                 edge.inspect_worker_script("account", "secret", script, source)
+
+    def test_multipart_readback_compares_only_the_worker_module_part(self) -> None:
+        source = WORKER.read_bytes()
+        script = edge.immutable_script_name(WORKER)
+        boundary = "db54c9210aa75163a82e56605dfe604312e391c9c4bf3dd1e9ee3ca7b4fd"
+        content_type = f"multipart/form-data; boundary={boundary}"
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": [{"id": script}]},
+            ),
+            mock.patch.object(
+                edge.urllib.request, "urlopen",
+                return_value=ReadbackResponse(
+                    multipart_envelope(source, boundary), content_type
+                ),
+            ),
+        ):
+            self.assertEqual(
+                edge.inspect_worker_script("account", "secret", script, source),
+                "identical",
+            )
+        # A wrapped foreign module still collides.
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": [{"id": script}]},
+            ),
+            mock.patch.object(
+                edge.urllib.request, "urlopen",
+                return_value=ReadbackResponse(
+                    multipart_envelope(b"foreign", boundary), content_type
+                ),
+            ),
+        ):
+            with self.assertRaisesRegex(edge.EdgeError, "WORKER_SCRIPT_NAME_COLLISION"):
+                edge.inspect_worker_script("account", "secret", script, source)
+        # A malformed or truncated envelope is never guessed at.
+        closing_only = b"--" + boundary.encode("utf-8") + b"--\r\n"
+        for broken in (multipart_envelope(source, boundary)[:-24], closing_only):
+            with (
+                mock.patch.object(
+                    edge, "request_json",
+                    return_value={"success": True, "result": [{"id": script}]},
+                ),
+                mock.patch.object(
+                    edge.urllib.request, "urlopen",
+                    return_value=ReadbackResponse(broken, content_type),
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    edge.EdgeError, "WORKER_SCRIPT_READBACK_UNPARSEABLE"
+                ):
+                    edge.inspect_worker_script("account", "secret", script, source)
 
     def test_incomplete_script_listing_blocks_upload(self) -> None:
         with mock.patch.object(
