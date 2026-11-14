@@ -713,3 +713,75 @@ def test_expected_contract_file_rejects_invalid_or_dynamic_values(
     contract.write_text(source, encoding="utf-8")
     with pytest.raises(verifier.VerificationError, match="expected contract file"):
         verifier.read_expected_contract(contract)
+
+
+@pytest.mark.parametrize("header", tuple(verifier.STATIC_HEADERS))
+def test_cli_retains_failed_header_receipt_without_accepting_drift(monkeypatch, capsys, header):
+    opener, _, _, _ = _site(origin=verifier.PRODUCT_ORIGIN)
+    key = ("GET", verifier.PRODUCT_ORIGIN + verifier.PREFIX + "/source.json")
+    opener.responses[key].headers[header] = "NON_SECRET_UNTRUSTED_PROVIDER_VALUE"
+    real_verify = verifier.verify
+    monkeypatch.setattr(
+        verifier, "verify", lambda origin, **kwargs: real_verify(origin, opener=opener, **kwargs)
+    )
+    code = verifier.main(["--base-url", verifier.PRODUCT_ORIGIN])
+    output = capsys.readouterr()
+    report = json.loads(output.out)
+    assert code == 1
+    assert report["schema"] == verifier.REPORT_SCHEMA
+    assert report["status"] == "FAIL"
+    assert report["error_code"] == "STATIC_HEADER_MISMATCH"
+    assert report["failed_header"] == header
+    assert report["candidate_state"] == "CANDIDATE_DEMO"
+    assert report["production_ready"] is False
+    assert report["runtime_api_binding"] == "UNAVAILABLE"
+    assert report["effectors"] == 0
+    assert "NON_SECRET_UNTRUSTED_PROVIDER_VALUE" not in output.out
+    assert "verified_assets" not in report
+    assert "verified_routes" not in report
+    assert [method for method, _, _ in opener.calls] == ["GET", "HEAD"]
+
+
+def test_cli_failure_receipt_does_not_reflect_raw_error_text(monkeypatch, capsys):
+    def refused(*_args, **_kwargs):
+        raise verifier.VerificationError("NON_SECRET_UNTRUSTED_ERROR_SENTINEL")
+    monkeypatch.setattr(verifier, "verify", refused)
+    assert verifier.main(["--base-url", verifier.PRODUCT_ORIGIN]) == 1
+    output = capsys.readouterr()
+    report = json.loads(output.out)
+    assert report["status"] == "FAIL"
+    assert report["error_code"] == "CANDIDATE_VERIFICATION_FAILED"
+    assert "failed_header" not in report
+    assert "NON_SECRET_UNTRUSTED_ERROR_SENTINEL" not in output.out
+
+
+@pytest.mark.parametrize("origin", ["http://candidate.example", "https://user:NON_SECRET_TEST@candidate.example"])
+def test_cli_invalid_origin_retains_failure_without_echoing_input(capsys, origin):
+    assert verifier.main(["--base-url", origin]) == 1
+    output = capsys.readouterr()
+    report = json.loads(output.out)
+    assert report["status"] == "FAIL"
+    assert report["error_code"] == "CANDIDATE_VERIFICATION_FAILED"
+    assert "NON_SECRET_TEST" not in output.out
+    assert "base_url" not in report
+
+
+def test_cli_bad_contract_file_retains_failure_receipt(tmp_path, capsys):
+    assert verifier.main([
+        "--base-url", verifier.PRODUCT_ORIGIN,
+        "--expected-contract-file", str(tmp_path / "missing.py"),
+    ]) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["status"] == "FAIL"
+    assert report["error_code"] == "CANDIDATE_VERIFICATION_FAILED"
+
+
+def test_cli_success_report_is_unchanged(monkeypatch, capsys):
+    opener, _, _, _ = _site(origin=verifier.PRODUCT_ORIGIN)
+    real_verify = verifier.verify
+    expected = real_verify(verifier.PRODUCT_ORIGIN, opener=opener)
+    monkeypatch.setattr(
+        verifier, "verify", lambda origin, **kwargs: real_verify(origin, opener=opener, **kwargs)
+    )
+    assert verifier.main(["--base-url", verifier.PRODUCT_ORIGIN]) == 0
+    assert json.loads(capsys.readouterr().out) == expected
