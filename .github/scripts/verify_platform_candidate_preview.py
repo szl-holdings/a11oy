@@ -129,6 +129,10 @@ EXACT_CONTENT_TYPES = {
 class VerificationError(RuntimeError):
     """The live preview does not satisfy the reviewed publication contract."""
 
+    def __init__(self, message: str, *, failed_header: str | None = None) -> None:
+        super().__init__(message)
+        self.failed_header = failed_header if failed_header in STATIC_HEADERS else None
+
 
 class _NoRedirect(HTTPRedirectHandler):
     """Return redirects to the verifier without issuing the target request."""
@@ -335,7 +339,8 @@ def _require_static_headers(observation: Observation) -> None:
     for name, expected in STATIC_HEADERS.items():
         if observation.header(name) != expected:
             raise VerificationError(
-                f"{observation.method} {observation.url} returned an invalid {name} header"
+                f"{observation.method} {observation.url} returned an invalid {name} header",
+                failed_header=name,
             )
     _require_provider_edge_headers(observation)
     encodings = observation.headers.get("content-encoding", ())
@@ -663,6 +668,21 @@ def main(argv: list[str] | None = None) -> int:
             expected_manifest_sha256=expected_manifest_sha256,
         )
     except VerificationError as error:
+        # A redirected stdout artifact must retain failure, not an empty file.
+        # Never copy request URLs, provider values, or raw exceptions into it.
+        report = {
+            "schema": REPORT_SCHEMA,
+            "status": "FAIL",
+            "error_code": "CANDIDATE_VERIFICATION_FAILED",
+            "candidate_state": STATE,
+            "production_ready": False,
+            "runtime_api_binding": "UNAVAILABLE",
+            "effectors": 0,
+        }
+        if error.failed_header is not None:
+            report["error_code"] = "STATIC_HEADER_MISMATCH"
+            report["failed_header"] = error.failed_header
+        print(json.dumps(report, sort_keys=True, separators=(",", ":")))
         print(f"platform candidate verification failed: {error}", file=sys.stderr)
         return 1
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
