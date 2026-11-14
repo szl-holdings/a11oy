@@ -666,7 +666,7 @@ def public_probe(
             payload={
                 "prompt": PROBE_PROMPT,
                 "effort": "fast",
-                "max_new_tokens": 96,
+                "max_new_tokens": 512,
                 "evidence": [
                     {
                         "source": "deployment-live-proof",
