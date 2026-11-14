@@ -7639,6 +7639,52 @@ async def _a11oy_codex_alias():
 
 
 # ---------------------------------------------------------------------------
+# COOKIE RECOGNITION LEDGER (2026-11-07) — playful, honest, receipted.
+# Cookies are RECOGNITION ONLY: they have no monetary value, confer no
+# rights, and are never tradable. Every award carries the verified action
+# that earned it. The ledger is append-only in spirit: awards are never
+# silently revoked; corrections are new entries with reasons.
+# ---------------------------------------------------------------------------
+
+_COOKIE_LEDGER = [
+    {"cookie": 1, "awarded_to": "Sara Behnamian", "for": "certified-unique benchmark collaboration; two PRs merged upstream",
+     "verified_action": "PR #1 and #2 merged in sarabehnamian/Puzzle-generation-with-guaranteed-uniqueness",
+     "awarded_at": "2026-11-05", "label": "RECOGNITION_ONLY"},
+    {"cookie": 2, "awarded_to": "Andres Vidal-Gadea", "for": "adopting the four governance concepts into the lab's register and proposing the multi-arm study",
+     "verified_action": "lab adoption 2026-09-30; collaboration correspondence 2026-11-06",
+     "awarded_at": "2026-11-07", "label": "RECOGNITION_ONLY"},
+    {"cookie": 3, "awarded_to": "Pulin Gong and Andrew Ly", "for": "the riddled-basins result that reframes reproducibility",
+     "verified_action": "Nature Machine Intelligence 2026, arXiv:2510.05606",
+     "awarded_at": "2026-11-07", "label": "RECOGNITION_ONLY"},
+]
+
+
+@app.get("/api/a11oy/v1/cookies")
+async def _a11oy_cookies():
+    """The cookie ledger: recognition for verified contributions.
+
+    Cookies are RECOGNITION ONLY - no monetary value, no rights, never
+    tradable. Anyone may verify the underlying action from the recorded
+    provenance. New awards require a verifiable action; the ledger never
+    silently revokes - corrections are new entries with reasons.
+    """
+    return JSONResponse({
+        "schema": "szl.cookies/v1",
+        "label": "RECOGNITION_ONLY",
+        "note": ("Cookies are playful recognition for verified contributions to the "
+                 "estate and its collaborations. They have no monetary value, confer "
+                 "no rights, and are never tradable. Every award names the verified "
+                 "action that earned it."),
+        "total_awarded": len(_COOKIE_LEDGER),
+        "ledger": _COOKIE_LEDGER,
+        "how_to_earn": ("A verified contribution: a merged PR, an independently "
+                        "replicated result, an adopted method, or an honest published "
+                        "failure that made the estate measurably better."),
+        "doctrine": "v11",
+    })
+
+
+# ---------------------------------------------------------------------------
 # MONETIZED PRODUCT SURFACES (2026-11-06) — real backends for the x402 rules.
 # Acoustic validation, dataset access and the experimental-surface index each
 # serve genuine payloads (measured computation, public catalog, declared
@@ -7868,6 +7914,12 @@ async def _a11oy_experimental_index():
     })
 
 
+# Origin payment admission for the three monetized families above. Unconfigured
+# by default: no price is stored here, and Host is not a payment boundary.
+import a11oy_x402_admission as _x402_admission
+app.middleware("http")(_x402_admission.payment_gate)
+
+
 @app.get("/api/a11oy/v1/anatomy")
 async def _a11oy_anatomy_index():
     """Index only. Does not claim the creator-profile anatomy Space is LIVE."""
@@ -7885,7 +7937,7 @@ async def _a11oy_anatomy_index():
         "codex": "/api/a11oy/v1/codex",
         "ouroboros": "/api/a11oy/v1/ouroboros",
         "external_estate": {
-            "origin": "https://betterwithage-anatomy.hf.space",
+            "origin": "https://szlholdings-anatomy.hf.space",
             "label": "SEPARATE_ORIGIN",
         },
         "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
@@ -14348,7 +14400,7 @@ try:
     from starlette.responses import Response as _OPW_Response
 
     _OPW_TAG = (
-        b'<script src="/vendor/a11oy-operator-widget.js?v=a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c" '
+        b'<script src="/vendor/a11oy-operator-widget.js?v=693a7b56469cc7ae182d44c8ebaef5dfd6cd84f7149c5dbed517b32c1aba145d" '
         b'data-surface="a11oy" defer></script>'
     )
     _OPW_MARKER = b'a11oy-operator-widget.js'
@@ -14436,7 +14488,7 @@ async def spa_root():
     emits http.response.body bytes that every middleware handles correctly. Idempotent
     + try/except guarded; FileResponse fallback only if no file is readable."""
     from starlette.responses import Response as _SPA_Resp
-    _SPA_TAG = (b'<script src="/vendor/a11oy-operator-widget.js?v=a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c" '
+    _SPA_TAG = (b'<script src="/vendor/a11oy-operator-widget.js?v=693a7b56469cc7ae182d44c8ebaef5dfd6cd84f7149c5dbed517b32c1aba145d" '
                 b'data-surface="a11oy" defer></script>')
     # Front door order: the holographic landing first (governed-inference field,
     # vendored Three.js r160, live receipt/mesh weave-ins + in-browser WebCrypto
@@ -15484,8 +15536,9 @@ except Exception as _spine_move_e:  # pragma: no cover
 
 # ---------------------------------------------------------------------------
 # Federated router spend — surface the BOX szl-router's REAL paid spend on the
-# /sovereign board. The a11oy container's own szl_spend_cap ledger is local/advisory
-# and stays ~$0 (no paid inference runs in THIS container); the durable source of
+# /sovereign board. The a11oy container's own szl_spend_cap ledger is in-process
+# memory. Its lock is not a restart-durable or cross-replica cap, and the
+# monetized read handlers do not call it. The durable source of
 # truth for real paid spend is the Hetzner box szl-router's append-only hash-linked
 # ledger. This reads it live, read-only, at request time (the HF Space FS is ephemeral,
 # so a pushed copy could never be durable). Honest by construction: env unset ->
