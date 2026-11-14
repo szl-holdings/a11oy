@@ -6,7 +6,8 @@
   "workers_dev": false,
   "routes": [
     { "pattern": "a-11-oy.com/api/a11oy/v1/*", "zone_name": "a-11-oy.com" },
-    { "pattern": "a-11-oy.com/v1/*", "zone_name": "a-11-oy.com" }
+    { "pattern": "a-11-oy.com/v1/*", "zone_name": "a-11-oy.com" },
+    { "pattern": "inference.a-11-oy.com/v1/*", "zone_name": "a-11-oy.com" }
   ],
   "analytics_engine_datasets": [
     { "binding": "ANALYTICS", "dataset": "x402_revenue" }
