@@ -74,6 +74,11 @@ def topology_spaces(contract: dict[str, Any]) -> list[str]:
         spaces.extend(row["huggingFaceRepositories"])
     for row in contract["supportingSystems"]:
         spaces.extend(row["huggingFaceRepositories"])
+    for row in contract.get("internalEngines", []):
+        # Internal engines may bind their own governed Hub repositories
+        # (e.g. living-anatomy -> SZLHOLDINGS/anatomy, owner decision
+        # 2026-11-07); those are topology bindings, not inventory-only.
+        spaces.extend(row.get("huggingFaceRepositories", []))
     spaces.extend(contract["laboratorySurfaces"])
     return sorted(_unique(spaces, "Hugging Face topology bindings"), key=str.casefold)
 
