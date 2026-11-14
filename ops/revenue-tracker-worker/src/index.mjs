@@ -28,7 +28,7 @@ function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Payment-Signature, X-PAYMENT",
+    "Access-Control-Allow-Headers": "Content-Type, Payment-Signature, Payment-Context, X-PAYMENT",
     "Access-Control-Expose-Headers": "PAYMENT-REQUIRED, PAYMENT-RESPONSE",
     "Access-Control-Max-Age": "600",
   };

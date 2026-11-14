@@ -119,6 +119,8 @@ test("answers inference preflight without contacting the paid origin", async () 
   assert.equal(response.status, 204);
   assert.equal(response.headers.get("access-control-allow-origin"), "*");
   assert.equal(response.headers.get("access-control-allow-methods"), "GET, POST, OPTIONS");
+  assert.equal(response.headers.get("access-control-allow-headers"),
+    "Content-Type, Payment-Signature, Payment-Context, X-PAYMENT");
   assert.equal(response.headers.get("access-control-expose-headers"), "PAYMENT-REQUIRED, PAYMENT-RESPONSE");
   assert.equal(response.headers.get("x-szl-tracker"), "written");
   assert.equal(env.points[0].doubles[1], 204);
