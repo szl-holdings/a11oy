@@ -96,7 +96,7 @@ jobs:
       - name: Install pinned isolated browser runner
         run: |
           python -m pip install --disable-pip-version-check 'playwright==1.57.0'
-          python -m playwright install --with-deps chromium
+          python -m playwright install chromium
       - name: Test actual page and assets with synthetic source fixtures
         shell: bash
         run: |
@@ -130,7 +130,7 @@ jobs:
       - name: Install pinned isolated browser runner
         run: |
           python -m pip install --disable-pip-version-check 'playwright==1.57.0'
-          python -m playwright install --with-deps chromium
+          python -m playwright install chromium
       - name: Observe real public reads and interactions without action execution
         env:
           EXPECTED_SOURCE: ${{ github.sha }}
