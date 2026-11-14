@@ -44,6 +44,28 @@ jobs:
           node --check console/assets/szl-hologram-v2.js
           python tests/test_holographic_experience_v2.py
           git diff --check
+      - name: Require an independent approval and resolved review threads
+        shell: bash
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repo="${GITHUB_REPOSITORY##*/}"
+          author="${{ github.event.pull_request.user.login }}"
+          payload="$(gh api graphql \
+            -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewDecision reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}}reviews(first:100){pageInfo{hasNextPage}nodes{state author{login}}}}}}' \
+            -F owner="$owner" \
+            -F repo="$repo" \
+            -F number="$PR_NUMBER")"
+          decision="$(jq -r '.data.repository.pullRequest.reviewDecision // "UNKNOWN"' <<<"$payload")"
+          threads_page="$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage // true' <<<"$payload")"
+          unresolved="$(jq '[.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved == false)] | length' <<<"$payload")"
+          independent_approvals="$(jq --arg author "$author" '[.data.repository.pullRequest.reviews.nodes[]? | select(.state == "APPROVED" and .author.login != $author)] | length' <<<"$payload")"
+          reviews_page="$(jq -r '.data.repository.pullRequest.reviews.pageInfo.hasNextPage // true' <<<"$payload")"
+          [[ "$decision" == "APPROVED" ]] || { echo "review decision is $decision"; exit 1; }
+          [[ "$threads_page" == "false" ]] || { echo "review-thread inventory is incomplete"; exit 1; }
+          [[ "$reviews_page" == "false" ]] || { echo "review inventory is incomplete"; exit 1; }
+          (( unresolved == 0 )) || { echo "unresolved review threads: $unresolved"; exit 1; }
+          (( independent_approvals > 0 )) || { echo "no approval from an author other than $author"; exit 1; }
       - name: Wait for every peer check to finish green
         shell: bash
         run: |
