@@ -23,9 +23,11 @@ Routes:
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
+import math
 import os
 import threading
 import time
@@ -80,6 +82,10 @@ ASK_MAX_TOKENS = 384
 ASK_TURN_TIMEOUT_S = 45.0
 COUNCIL_MAX_TOKENS = 192
 COUNCIL_TURN_TIMEOUT_S = 45.0
+# Overall wall budget for ONE council deliberation (all rounds), measured on a
+# monotonic clock. Per-turn waits are bounded by min(per-turn, remaining). When
+# it is spent the route answers 504 with no partial council (W45 typed expiry).
+COUNCIL_DEADLINE_S = 2 * COUNCIL_TURN_TIMEOUT_S + 10.0
 COUNCIL_DEFAULT = ["Amaru", "Kamachiq", "Qhatuq"]  # architect · orchestrator · markets
 
 COUNCIL_CONTRACT_VERSION = "2.0"
@@ -90,6 +96,170 @@ RUNTIME_VERIFY_KEY_URL = "/api/a11oy/cosign.pub"
 # One process-wide opt-in lounge (in-memory, honest source labels). Public ask and
 # council handlers do not automatically publish caller output into it.
 _LOUNGE = Lounge()
+
+
+# ---- W45: typed overall deadline for council deliberation -------------------
+# Monotonic clock source; module-level so tests can inject a fake clock.
+_COUNCIL_CLOCK = time.monotonic
+
+_DEADLINE_CANCEL_HONESTY = (
+    "cancellation was requested for in-flight turns; asyncio cancellation does "
+    "not prove the backend worker, thread, or upstream request stopped, so "
+    "termination is NOT confirmed by this layer")
+
+
+def _validate_deadline_budget(value: Any, name: str = "budget_s") -> float:
+    """Fail closed: a budget must be a finite real number of seconds > 0."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a finite number of seconds > 0")
+    budget = float(value)
+    if math.isnan(budget) or math.isinf(budget) or not budget > 0.0:
+        raise ValueError(f"{name} must be a finite number of seconds > 0")
+    return budget
+
+
+class AylluDeadlineExceeded(Exception):
+    """Typed expiry of the overall council deadline (never a 200 partial)."""
+
+    def __init__(self, stage: str, elapsed_s: float, budget_s: float,
+                 deadline: "Optional[_CouncilDeadline]" = None) -> None:
+        self.stage = str(stage)
+        self.elapsed_s = float(elapsed_s)
+        self.budget_s = float(budget_s)
+        self._deadline = deadline
+        super().__init__(
+            f"council deadline exceeded at {self.stage}: "
+            f"{self.elapsed_s:.3f}s elapsed of {self.budget_s:g}s budget")
+
+    def to_body(self) -> Dict[str, Any]:
+        d = self._deadline
+        return {
+            "error": "council deadline exceeded",
+            "type": "AylluDeadlineExceeded",
+            "status": "DEADLINE_EXCEEDED",
+            "evidence_state": "DEADLINE_EXCEEDED",
+            "decision_state": "NOT_PRODUCED",
+            "correctness_state": "NOT_VERIFIED",
+            "complete": False,
+            "partial_results": "WITHHELD",
+            "stage": self.stage,
+            "elapsed_s": round(self.elapsed_s, 6),
+            "budget_s": self.budget_s,
+            "turns_dispatched": d.turns_dispatched if d is not None else None,
+            "turns_completed": d.turns_completed if d is not None else None,
+            "cancellation": {
+                "cancel_requested": bool(d.cancel_requested) if d is not None else False,
+                "termination_confirmed": False,
+                "honesty": _DEADLINE_CANCEL_HONESTY,
+            },
+            "receipt": None,
+            "honesty": ("the council did not finish inside its deadline; no "
+                        "partial deliberation is presented as a council result"),
+        }
+
+
+class _CouncilDeadline:
+    """One monotonic budget shared by every turn of one deliberation."""
+
+    def __init__(self, budget_s: Any, *, clock=None, wait_for=None) -> None:
+        self.budget_s = _validate_deadline_budget(budget_s)
+        self._clock = clock if clock is not None else time.monotonic
+        self._wait_for = wait_for if wait_for is not None else asyncio.wait_for
+        self._t0 = float(self._clock())
+        self.exceeded: Optional[AylluDeadlineExceeded] = None
+        self.turns_dispatched = 0
+        self.turns_completed = 0
+        self.cancel_requested = False
+        self._inflight: set = set()
+
+    def elapsed(self) -> float:
+        return float(self._clock()) - self._t0
+
+    def remaining(self) -> float:
+        return self.budget_s - self.elapsed()
+
+    def trip(self, stage: str) -> AylluDeadlineExceeded:
+        if self.exceeded is None:
+            self.exceeded = AylluDeadlineExceeded(
+                stage, self.elapsed(), self.budget_s, deadline=self)
+        try:
+            current = asyncio.current_task()
+        except RuntimeError:
+            current = None
+        for task in list(self._inflight):
+            if task is not current and not task.done():
+                task.cancel()
+                self.cancel_requested = True
+        return self.exceeded
+
+    def check(self, stage: str) -> float:
+        if self.exceeded is not None:
+            raise self.exceeded
+        remaining = self.remaining()
+        if not remaining > 0.0:            # also refuses NaN from a bad clock
+            raise self.trip(stage)
+        return remaining
+
+
+def _deadline_bounded_complete(inner, per_turn_s: Any, deadline: _CouncilDeadline):
+    """Wrap a model_complete so every turn honours the shared deadline.
+
+    ayllu.loop.run_turn swallows exceptions from model_complete into stub turns,
+    so the expiry is also recorded on ``deadline`` for the route to re-raise.
+    """
+    per_turn = _validate_deadline_budget(per_turn_s, "per_turn_s")
+
+    async def _complete(**kwargs):
+        remaining = deadline.check("turn_dispatch")   # no dispatch once spent
+        wait_s = min(per_turn, remaining)
+        kwargs["timeout_s"] = wait_s
+        deadline.turns_dispatched += 1
+        task = asyncio.current_task()
+        deadline._inflight.add(task)
+        try:
+            out = await deadline._wait_for(inner(**kwargs), timeout=remaining)
+        except asyncio.TimeoutError:
+            deadline.cancel_requested = True     # wait_for cancelled the turn
+            raise deadline.trip("turn_wait") from None
+        finally:
+            deadline._inflight.discard(task)
+        if (wait_s < per_turn and isinstance(out, Mapping)
+                and out.get("timeout")):
+            raise deadline.trip("turn_wait")     # bounded by remaining: expiry
+        deadline.check("turn_return")
+        deadline.turns_completed += 1
+        return out
+
+    return _complete
+
+
+def _consume_task_outcome(task) -> None:
+    if not task.cancelled():
+        task.exception()
+
+
+async def _deliberate_within_deadline(deliberate, deadline: _CouncilDeadline,
+                                      *args, **kwargs) -> Dict[str, Any]:
+    """Run one deliberation under the overall deadline; typed expiry or result."""
+    remaining = deadline.check("pre_deliberate")
+    task = asyncio.ensure_future(deliberate(*args, **kwargs))
+    try:
+        done, _pending = await asyncio.wait({task}, timeout=remaining)
+    except asyncio.CancelledError:
+        task.cancel()
+        raise
+    if task not in done:
+        exc = deadline.trip("deliberate")
+        task.cancel()
+        deadline.cancel_requested = True
+        task.add_done_callback(_consume_task_outcome)
+        raise exc
+    if deadline.exceeded is not None:      # a turn expired (even if swallowed)
+        _consume_task_outcome(task)
+        raise deadline.exceeded
+    result = task.result()
+    deadline.check("post_deliberate")
+    return result
 
 
 class _BodyTooLarge(ValueError):
@@ -1418,14 +1588,29 @@ def register(app, ns: str = "a11oy") -> str:
             return JSONResponse(
                 {"error": "no known personas in request",
                  "known": [x.name for x in ROSTER]}, status_code=422)
-        async def _council_complete(**kwargs):
+        async def _council_complete(*, timeout_s: float = COUNCIL_TURN_TIMEOUT_S,
+                                    **kwargs):
             return await _backend.model_complete(
                 **kwargs, max_tokens=COUNCIL_MAX_TOKENS,
-                timeout_s=COUNCIL_TURN_TIMEOUT_S)
+                timeout_s=timeout_s)
 
-        result = await _LOUNGE.deliberate(
-            prompt, personas, model_complete=_council_complete, debate=debate,
-            publish_to_lounge=False)
+        try:
+            deadline = _CouncilDeadline(COUNCIL_DEADLINE_S, clock=_COUNCIL_CLOCK)
+            bounded_complete = _deadline_bounded_complete(
+                _council_complete, COUNCIL_TURN_TIMEOUT_S, deadline)
+        except ValueError as exc:
+            return JSONResponse(
+                {"error": "council deadline misconfigured", "detail": str(exc),
+                 "evidence_state": "BLOCKED", "decision_state": "NOT_PRODUCED",
+                 "complete": False}, status_code=503)
+        try:
+            result = await _deliberate_within_deadline(
+                _LOUNGE.deliberate, deadline,
+                prompt, personas, model_complete=bounded_complete, debate=debate,
+                publish_to_lounge=False)
+        except AylluDeadlineExceeded as exc:
+            # Typed expiry -> 504 before any chain mint / receipt / 200 body.
+            return JSONResponse(exc.to_body(), status_code=504)
         if cap_note:
             result["cap_note"] = cap_note
         council_id = str(uuid.uuid4())
