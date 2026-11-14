@@ -599,7 +599,9 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         self.assertIn(artifact, passive)
         self.assertIn(artifact, execution)
         self.assertNotIn("run-id:", execution)
-        self.assertIn("verify_current_deployment=true", job)
+        helper = (ROOT / ".github/scripts/admit_execution_handoff.py").read_text(encoding="utf-8")
+        self.assertIn("--record-workflow-failure", job)
+        self.assertIn("verify_current_deployment=true", helper)
 
     def test_preflight_readmits_main_immediately_before_deploy(self) -> None:
         job = job_block(self.workflow, "Classify the canonical runtime and converge configuration before deploy")
@@ -646,13 +648,16 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         self.assertIn("id: window", window)
         self.assertIn("if [ \"${STAGE:-}\" = 'PAUSED' ] || [ \"${DISPATCH_WINDOW:-false}\" = 'true' ]; then", window)
         self.assertIn("DISPATCH_WINDOW: ${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}", window)
+        # Closed window may skip only when live build-info equals protected main.
         self.assertIn("echo 'open=false' >> \"$GITHUB_OUTPUT\"", window)
-        self.assertIn("::warning::", window)
+        self.assertIn("PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED", window)
+        self.assertIn("::error::", window)
+        self.assertIn("/api/build-info", window)
         dispatch = workflow_document(self.workflow)["on"]["workflow_dispatch"]["inputs"]
         self.assertEqual(dispatch["open_deploy_window"]["type"], "boolean")
         self.assertIs(dispatch["open_deploy_window"]["default"], False)
-        # A closed window leaves preflight green with publish=false: nothing
-        # is written or deployed and the run ends neutral.
+        # When publish stays false (already locked or superseded), deploy path
+        # remains skipped and the run ends neutral — not a soft-green publish.
         jobs = assert_deploy_dependency_graph(self.workflow)
         results = simulate(jobs, outputs={"preflight": {"publish": "false"}})
         self.assertNotIn("failure", results.values())

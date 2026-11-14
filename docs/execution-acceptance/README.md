@@ -6,16 +6,19 @@
 Layer: **provenance / supply-chain tooling**. `tools/execution_acceptance.py`
 checks a complete five-case bundle offline. It has no HTTP client, private-key
 loader, signing function, provider mutation, environment-secret discovery or
-runtime route. It is not wired into CI, the readiness probe, the compact publisher,
-the served reader or the canonical deploy workflow.
+runtime route. Its shared signed-plan and bundle validators are used by the
+[runtime producer](../execution-observer.md) and the
+[combined readiness consumers](../execution-readiness.md). The standalone CLI
+does not grant the independent context required by those integrations.
 
 A successful result has `status: REPORTED` and `binding_checks_passed: true`.
 It always has `publication_eligible: false`, `execution_authorized: false` and
 `passive_probe_modified: false`. Exit 0 means only that these cryptographic and
 structural checks passed. It is **not** a release-gate exit code.
 
-The proposed actual requests and outstanding prerequisites are in
-[PROPOSED_PLAN.md](PROPOSED_PLAN.md). No synthetic fixture in the tests represents
+The original request proposal is in [PROPOSED_PLAN.md](PROPOSED_PLAN.md); current
+runtime prerequisites are in [execution-observer.md](../execution-observer.md).
+No synthetic fixture in the tests represents
 production evidence. The test suite generates ephemeral keys only in memory.
 Its envelopes are signed over the existing `szl_dsse.canonical_json` and
 `szl_dsse.pae` helpers, with `szl_dsse.keyid_for_public_pem` identifiers, to check
@@ -79,11 +82,14 @@ Approval validity and observation freshness are bounded to fifteen minutes.
 These typed observation receipts are an adapter contract, not an assertion that
 current endpoint receipts already have this payload. Current native DSSE receipts
 must be verified using their existing schema and trust model before a real adapter
-can attest the captured execution and readback. The five-route producer, adapters,
-semantic success verification, durable nonce consumption and live authority
-admission are not wired into execution. Internal storage prerequisites are
-described below. Re-validating the same offline bundle is permitted; it must never
-cause replay of an execution.
+can attest the captured execution and readback. The producer in
+[`observer_runtime.py`](../../observer_runtime.py), fixed-route adapters in
+[`observer_adapters.py`](../../observer_adapters.py), and owner readbacks in
+[`native_readbacks.py`](../../native_readbacks.py) implement that integration,
+including semantic success verification and durable nonce consumption. Their
+presence does not establish live authority admission. Internal storage
+prerequisites are described below. Re-validating the same offline bundle is
+permitted; it must never cause replay of an execution.
 
 ## Internal storage prerequisites
 
@@ -119,20 +125,21 @@ request. Ordinary periodic snapshot behavior is unchanged.
 
 This primitive observes a storage acknowledgment at that instant. It does not
 prove source or HF runtime identity, validate operator custody, admit a request,
-or make storage atomic with a later external effect. There is no route, signing
-path, automatic call, configuration switch or publisher change in this increment.
-A future consumer must verify the actual active manager and Series-A path, admit
-the independently identified runtime and signed plan, reserve before dispatch,
-recheck identity/expiry/fence after acknowledgment, and refuse export until the
-completed record is acknowledged. It must burn attempts on cancellation or
-uncertainty and reject old-boot plans after restoration. The local row alone is
-never permission to execute or export.
+or make storage atomic with a later external effect. The
+[runtime producer](../execution-observer.md) verifies the actual active manager
+and Series-A path, admits the independently identified runtime and signed plan,
+reserves before dispatch, rechecks identity/expiry/fence after acknowledgment,
+and refuses export until the completed record is acknowledged. Cancellation or
+uncertainty burns attempts; old-boot plans are rejected after restoration. The
+local row alone is never permission to execute or export.
 
 The read helpers use SQLite read-only connections without schema initialization,
 DML or journal-mode changes. A WAL database may still require SQLite coordination
 sidecars; these helpers alone do not establish a completely inert HTTP GET. The
-runtime producer, immutable runtime identity admission, export guard, cancellation
-handling and end-to-end crash/replay contract remain **ROADMAP**.
+runtime producer adds immutable runtime identity admission, an export guard and
+cancellation handling; see its [lifecycle and validation](../execution-observer.md).
+These implementation contracts and offline tests do not demonstrate production
+provisioning, an admitted live run or recovery of a particular deployed boot.
 
 ## Local commands
 
@@ -158,11 +165,14 @@ itself, grant credentials, or replace the independent five-case observations.
 ## Integration boundary
 
 The passive observer must continue to retain its five required `NOT_PROBED`
-records. A future independently reviewed consumer may combine those observations
-with qualifying execution evidence, retaining their distinct provenance. It must
-not overwrite passive counts or treat this tool's structural success as runtime
-readiness. The existing compact publisher, canonical verifier, artifact reader,
-auth gate and workflow remain owned by their current lanes.
+records. The [combined readiness consumers](../execution-readiness.md) combine
+those observations with qualifying execution evidence while retaining their
+distinct provenance. They require independently admitted context and the raw
+evidence; they do not overwrite passive counts or treat this tool's structural
+success as runtime readiness. Missing authority, a current completed export or
+any required proof keeps the release gate blocked. The compact publisher,
+canonical verifier, artifact reader, auth gate and workflow remain owned by
+their current lanes.
 
 Related source contracts inspected for this change: `szl_dsse.py`,
 `szl_operator_auth.py`, `szl_eval_arena.py`, `szl_agent_loop_governed.py`,

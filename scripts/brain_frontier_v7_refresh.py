@@ -7,7 +7,9 @@ The reconciler owns one narrow write boundary: a content-addressed review branch
 whose tree is the exact protected ``main`` tree plus the materialized snapshot.
 It never force-pushes, merges, approves, or mutates a provider. Existing branches
 are accepted only after their snapshot, history scope, and source ancestry are
-validated; a missing or closed pull request is then recovered.
+validated; a missing or closed pull request is then recovered. Once the current
+review PR reads back open, older review PRs from this job that change only the
+snapshot are closed as superseded; a review PR changed beyond the snapshot stays open.
 """
 from __future__ import annotations
 
@@ -44,6 +46,10 @@ SUCCESSFUL_PROPOSAL_STATES = {
 BLOCKED_PROPOSAL_STATE = "BLOCKED_AUTHORIZATION"
 BLOCKED_RECEIPT_OUTCOME = "REVIEW_PR_BLOCKED"
 BLOCKED_FAILURE = "proposal_authorization_blocked"
+SUPERSEDED_COMMENT = (
+    "Superseded by #{number}, which replaces the same snapshot file from a newer "
+    "protected-main source."
+)
 AUTOMATION_AUTHORS = {
     "41898282+github-actions[bot]@users.noreply.github.com",
     # Legacy branches were created by the previous workflow under this identity.
@@ -632,6 +638,64 @@ def ensure_review_pr(
     return state, validate_pr(payload, branch, head_sha)
 
 
+def close_superseded_review_prs(
+    runner: Runner, current_branch: str, current_url: str
+) -> tuple[list[int], list[int]]:
+    current = PR_URL.fullmatch(current_url)
+    if current is None:
+        raise RefreshError("current review PR URL is not canonical")
+    listed = runner.run(
+        (
+            "gh", "pr", "list", "--repo", REPOSITORY, "--state", "open",
+            "--base", BASE_BRANCH, "--limit", "200",
+            "--json", "number,state,url,headRefName,baseRefName",
+        )
+    )
+    closed: list[int] = []
+    kept: list[int] = []
+    for item in parse_prs(listed.stdout):
+        branch = str(item.get("headRefName") or "")
+        if (
+            item.get("state") != "OPEN"
+            or item.get("baseRefName") != BASE_BRANCH
+            or not branch.startswith(BRANCH_PREFIX)
+            or branch == current_branch
+        ):
+            continue
+        number = str(item.get("number") or "")
+        if re.fullmatch(r"[1-9][0-9]*", number) is None or number == current.group("number"):
+            raise RefreshError("superseded review PR lacks a distinct valid number")
+        viewed = runner.run(
+            (
+                "gh", "pr", "view", number, "--repo", REPOSITORY,
+                "--json", "number,state,headRefName,baseRefName,files",
+            )
+        )
+        detail = json.loads(viewed.stdout)
+        paths = [entry.get("path") for entry in detail.get("files") or [] if isinstance(entry, Mapping)]
+        if (
+            detail.get("state") != "OPEN"
+            or detail.get("headRefName") != branch
+            or detail.get("baseRefName") != BASE_BRANCH
+            or paths != [SNAPSHOT_PATH]
+        ):
+            kept.append(int(number))
+            continue
+        runner.run(
+            (
+                "gh", "pr", "close", number, "--repo", REPOSITORY, "--comment",
+                SUPERSEDED_COMMENT.format(number=current.group("number")),
+            )
+        )
+        readback = json.loads(
+            runner.run(("gh", "pr", "view", number, "--repo", REPOSITORY, "--json", "number,state")).stdout
+        )
+        if readback.get("state") != "CLOSED":
+            raise RefreshError(f"superseded review PR #{number} did not read back closed")
+        closed.append(int(number))
+    return closed, kept
+
+
 def reconcile(args: argparse.Namespace) -> int:
     evidence_path = Path(args.evidence)
     output_path = Path(args.github_output) if args.github_output else None
@@ -673,6 +737,8 @@ def reconcile(args: argparse.Namespace) -> int:
             source_sha,
         )
         require_exact_main(runner, source_sha, BASE_BRANCH)
+        superseded_closed, superseded_kept_open = close_superseded_review_prs(runner, branch, url)
+        require_exact_main(runner, source_sha, BASE_BRANCH)
         evidence = {
             "schema": "szl.a11oy.brain-frontier-v7-proposal/v1",
             "terminal": True,
@@ -685,6 +751,8 @@ def reconcile(args: argparse.Namespace) -> int:
             "snapshot_sha256": snapshot_digest,
             "candidate_set_sha256": candidate_set,
             "permissions_preflight": preflight,
+            "superseded_closed": superseded_closed,
+            "superseded_kept_open": superseded_kept_open,
             "signature_state": "UNSIGNED",
         }
         write_json(evidence_path, evidence)

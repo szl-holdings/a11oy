@@ -34,6 +34,22 @@ class CollectionBlocked(ValueError):
     pass
 
 
+# Diagnostic only: report the fixed reason code raised by the collector, the gate
+# or the acceptance module. Never echo free text or any secret value.
+_REASON = re.compile(r"[A-Z][A-Z0-9_]{0,95}")
+
+
+def _safe_reason(exc, secrets=()):
+    coded = (CollectionBlocked, gate.CombinedEvidenceError, gate.acceptance.EvidenceError)
+    text = str(exc)
+    if (isinstance(exc, coded) and _REASON.fullmatch(text) is not None
+            and not any(value and value in text for value in secrets)):
+        return text
+    if isinstance(exc, ImportError):
+        return "EXECUTION_EXPORT_CLIENT_IMPORT_FAILED"
+    return "EXECUTION_EXPORT_COLLECTION_UNAVAILABLE"
+
+
 def require(value, code):
     if value is not True:
         raise CollectionBlocked(code)
@@ -202,7 +218,7 @@ def main():
                           "execution_authorized": False, "provider_state_changed": False}))
         return 0
     except Exception as exc:
-        code = str(exc) if isinstance(exc, CollectionBlocked) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", str(exc)) else "EXECUTION_EXPORT_COLLECTION_UNAVAILABLE"
+        code = _safe_reason(exc, (os.environ.get("A11OY_CODE_ADMIN_KEY", ""), os.environ.get("A11OY_CODE_TENANT", "")))
         print(json.dumps({"collected": False, "error": code, "execution_authorized": False}), file=sys.stderr)
         return 2
 
