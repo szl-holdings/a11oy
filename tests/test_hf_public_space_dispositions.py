@@ -71,9 +71,11 @@ class PublicSpaceDispositionsTests(unittest.TestCase):
         keeper_ids = set(re.findall(r"^  - id: (SZLHOLDINGS/[^\s]+)$", keep_block, re.MULTILINE))
         receipt_ids = {item["id"] for item in self.receipt["items"]}
         # The receipt remains an eight-keeper observation from 2026-10-03;
-        # the current policy additionally retains Atlas after that date.
-        self.assertEqual(len(keeper_ids), 9)
+        # the current policy additionally retains Atlas (2026-10-28) and the
+        # organization Living Anatomy Space (owner decision 2026-11-07, #3268).
+        self.assertEqual(len(keeper_ids), 10)
         self.assertIn("SZLHOLDINGS/curation-atlas", keeper_ids)
+        self.assertIn("SZLHOLDINGS/anatomy", keeper_ids)
         self.assertTrue(receipt_ids.isdisjoint(keeper_ids))
 
 

@@ -114,3 +114,94 @@ def test_observer_rejects_contradictory_facts():
         with pytest.raises(ValueError):
             sample(owner, **changes)
     assert owner.read()["key_material_available"] is False
+
+
+# ---- capability evidence binding (2026-11-06) ----
+
+from szl_signing_state import SignerCapabilityEvidence
+
+
+def record(owner, **changes):
+    ev = dict(boot_id="boot-simulated", observed_at="2026-10-22T00:00:01+00:00",
+              payload_digest="b" * 64, signature_b64="c2ln", key_fingerprint="a" * 64,
+              verified=True)
+    ev.update(changes)
+    return owner.record_capability_evidence(**ev)
+
+
+def test_verified_evidence_measures_capability_and_clears_blockers():
+    owner = SigningState(clock=lambda: 100)
+    sample(owner)
+    record(owner)
+    state = owner.read()
+    assert state["signing_ready"] is True
+    assert state["evidence_class"] == "MEASURED"
+    assert state["permission"]["state"] == "OBSERVED_PROCESS_LOCAL_SIGN"
+    assert state["observed_capability"]["state"] == "MEASURED"
+    assert state["backend"]["operating_capability_observed"] is True
+    assert "PERMISSION_UNOBSERVED" not in state["blockers"]
+    assert "RETAINED_SIGNING_CAPABILITY_UNOBSERVED" not in state["blockers"]
+    # honest boundaries preserved
+    assert state["execution_authorized"] is False
+    assert state["non_repudiation"] == "UNKNOWN"
+
+
+def test_no_evidence_keeps_fail_closed_blockers():
+    owner = SigningState(clock=lambda: 100)
+    sample(owner)
+    state = owner.read()
+    assert state["signing_ready"] is False
+    assert "PERMISSION_UNOBSERVED" in state["blockers"]
+    assert "RETAINED_SIGNING_CAPABILITY_UNOBSERVED" in state["blockers"]
+
+
+def test_unverified_evidence_is_refused():
+    owner = SigningState(clock=lambda: 100)
+    sample(owner)
+    with pytest.raises(ValueError):
+        record(owner, verified=False)
+    assert "PERMISSION_UNOBSERVED" in owner.read()["blockers"]
+
+
+def test_wrong_boot_evidence_is_refused():
+    owner = SigningState(clock=lambda: 100)
+    sample(owner)
+    with pytest.raises(ValueError):
+        record(owner, boot_id="boot-other")
+    assert "PERMISSION_UNOBSERVED" in owner.read()["blockers"]
+
+
+def test_stale_evidence_fails_closed():
+    now = [100]
+    owner = SigningState(clock=lambda: now[0])
+    sample(owner)
+    record(owner)
+    assert owner.read()["signing_ready"] is True
+    now[0] = 1000  # both the observation and the evidence go stale
+    state = owner.read()
+    assert state["signing_ready"] is False
+    assert "PERMISSION_UNOBSERVED" in state["blockers"]
+
+
+def test_invalidate_clears_evidence():
+    owner = SigningState(clock=lambda: 100)
+    sample(owner)
+    record(owner)
+    assert owner.read()["signing_ready"] is True
+    owner.invalidate()
+    state = owner.read()
+    assert state["signing_ready"] is False
+    assert "PERMISSION_UNOBSERVED" in state["blockers"]
+
+
+def test_evidence_fingerprint_mismatch_fails_closed():
+    owner = SigningState(clock=lambda: 100)
+    sample(owner, verification_key_fingerprint="a" * 64,
+           loaded_key_fingerprint="a" * 64, expected_key_fingerprint="a" * 64)
+    record(owner)
+    # observation rotates to a different key; old evidence must not count
+    sample(owner, verification_key_fingerprint="e" * 64,
+           loaded_key_fingerprint="e" * 64, expected_key_fingerprint="e" * 64)
+    state = owner.read()
+    assert state["signing_ready"] is False
+    assert "PERMISSION_UNOBSERVED" in state["blockers"]

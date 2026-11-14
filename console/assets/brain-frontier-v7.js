@@ -288,7 +288,7 @@
     if (!Number.isSafeInteger(brain.candidate_count) || brain.candidate_count < 72) return false;
     if (!exactKeys(anatomy, ["repository", "revision", "live_origin", "holographic_v7_path"])) return false;
     if (anatomy.repository !== "szl-holdings/anatomy" || !matches(anatomy.revision, REVISION)) return false;
-    if (anatomy.live_origin !== "https://betterwithage-anatomy.hf.space"
+    if (anatomy.live_origin !== "https://szlholdings-anatomy.hf.space"
       || anatomy.holographic_v7_path !== "/api/anatomy/v1/holographic-v7") return false;
     const formulas = payload.sources.formulas;
     const ouroboros = payload.sources.ouroboros;
@@ -459,7 +459,7 @@
           <div class="bf7__tools">
             <input class="bf7__search" type="search" maxlength="160" autocomplete="off" spellcheck="false" aria-label="Filter Brain Frontier handles" placeholder="Filter by formula, quant domain, source or handle…" />
             <button class="bf7__refresh" type="button">Refresh</button>
-            <a class="bf7__link" href="https://betterwithage-anatomy.hf.space" target="_blank" rel="noopener noreferrer">Open Living Anatomy ↗</a>
+            <a class="bf7__link" href="https://szlholdings-anatomy.hf.space" target="_blank" rel="noopener noreferrer">Open Living Anatomy ↗</a>
           </div>
           <div class="bf7__stream" tabindex="0" aria-live="polite">
             <div class="bf7__cards" data-bf7-cards></div>
