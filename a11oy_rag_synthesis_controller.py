@@ -88,12 +88,18 @@ _STATE: dict[str, Any] = {"grant_source": None, "destination": None}
 def configure(*, grant_source: Optional[SynthesisGrantSource] = None,
               destination: Optional[FixedDestination] = None) -> None:
     """Install (or clear, with no arguments) the controller capabilities."""
-    _STATE["grant_source"] = grant_source
-    _STATE["destination"] = destination
+    # Publish one coherent configuration. Updating its two entries in place
+    # lets a concurrent request combine grants and destination from different
+    # controller installations. This does not replace per-source revocation.
+    global _STATE
+    _STATE = {"grant_source": grant_source, "destination": destination}
 
 
 def configured() -> tuple[Optional[SynthesisGrantSource], Optional[FixedDestination]]:
-    return _STATE["grant_source"], _STATE["destination"]
+    # Retain one snapshot even if configure() publishes a replacement between
+    # these two reads. Grant callbacks still perform their current-policy checks.
+    state = _STATE
+    return state["grant_source"], state["destination"]
 
 
 def _require(condition: bool, reason: str) -> None:
