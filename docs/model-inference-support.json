@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-11-11T15:15:10.529657+00:00",
+  "generated_at": "2026-11-14T17:53:53.263685+00:00",
   "inventory_source": {
-    "model_ids_sha256": "1d22f94de4bd10cfc679be7bee92707b71aabb8720bb46ef2f5a98ce959bc296",
+    "model_ids_sha256": "857e94881b0f2ac87531ece5a9e02cbffabc2ac82f502bfda18e0d0cdf2b0df7",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -573,6 +573,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "2cbaf7bf943eb8caa5e2c4a2b0ef066cd4a2ecce",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-v2-trained/blob/2cbaf7bf943eb8caa5e2c4a2b0ef066cd4a2ecce/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "181942b5a9e8dcb1e773cade8fad320b8d4f1c83c41a03216a8d9bd26f028fb7",
+        "error": null,
+        "hub_revision": "2cbaf7bf943eb8caa5e2c4a2b0ef066cd4a2ecce",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "decebd8be9255239c1507ebc61159099d38ba6bc",
         "observed_at": "2026-11-07T10:52:23.043846+00:00",
@@ -1008,6 +1035,114 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "8874c7ef3e1904d72d6961701f17f7e49f74856f",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/acoustic-r1-v2-trained/blob/8874c7ef3e1904d72d6961701f17f7e49f74856f/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/acoustic-r1-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b7c0dd995de79dd7e98e9f05258d4639e0b77f89824c14eb233d87fcbdc440a0",
+        "error": null,
+        "hub_revision": "8874c7ef3e1904d72d6961701f17f7e49f74856f",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/acoustic-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "218a0734060393ada51f03db53bee4f04ddde68d",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/acoustic-v2-trained/blob/218a0734060393ada51f03db53bee4f04ddde68d/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/acoustic-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "6f4f79408d0804f774da84551999d8b9672312fa432ef0788bf8c363d3fd758b",
+        "error": null,
+        "hub_revision": "218a0734060393ada51f03db53bee4f04ddde68d",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/acoustic-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "0c518292055253bf9441b7c5adf50b829b9537dc",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/ancient-math-r1-v2-trained/blob/0c518292055253bf9441b7c5adf50b829b9537dc/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/ancient-math-r1-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "79c12f3e98972adc45a88b5abc9b1b116ac140e0cb195c052a234898e5a2159e",
+        "error": null,
+        "hub_revision": "0c518292055253bf9441b7c5adf50b829b9537dc",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ancient-math-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "5130ee057695cff0345d675d9065909ac2cb8b13",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/ancient-math-v2-trained/blob/5130ee057695cff0345d675d9065909ac2cb8b13/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/ancient-math-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "72a58c89263c32edb204062c4b19bd76da49ee433c62e35d407f747c1e7e28e1",
+        "error": null,
+        "hub_revision": "5130ee057695cff0345d675d9065909ac2cb8b13",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ancient-math-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
         "observed_at": "2026-10-04T15:32:16.953124+00:00",
@@ -1077,6 +1212,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "0be03cef8c93faa1c29eef7e906f3d687813b8e6",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-v2-trained/blob/0be03cef8c93faa1c29eef7e906f3d687813b8e6/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/brain-navigator-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "65382ffb5ecd481544cce3d1d7f3b6bd3fe07945d61efc266871fc89ddbac367",
+        "error": null,
+        "hub_revision": "0be03cef8c93faa1c29eef7e906f3d687813b8e6",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "73219a8ada0e73ab4216d9e70d730e38455f2425",
         "observed_at": "2026-11-07T10:52:23.447254+00:00",
@@ -1094,6 +1256,60 @@
         "observed_at": "2026-11-07T10:52:23.447254+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "b932b7b53a6ffe9df0e998e64622f0c00ab15d11",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chakana-r1-v2-trained/blob/b932b7b53a6ffe9df0e998e64622f0c00ab15d11/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/chakana-r1-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "f4c9b81c9232a5565be5519e3aca248662864003e64cc00aaa62b4c5862e46fa",
+        "error": null,
+        "hub_revision": "b932b7b53a6ffe9df0e998e64622f0c00ab15d11",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "fc88cb73aa8a5d33f132bab31357a615c07532a5",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chakana-v2-trained/blob/fc88cb73aa8a5d33f132bab31357a615c07532a5/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/chakana-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e66615957ee0064bf291d6ad64acfb247fcc1cbfda20083abe4d97644c573c32",
+        "error": null,
+        "hub_revision": "fc88cb73aa8a5d33f132bab31357a615c07532a5",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1215,6 +1431,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "1a8700f87d246faacc39f5f3c34efbf412419d87",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-v2-trained/blob/1a8700f87d246faacc39f5f3c34efbf412419d87/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/chaski-5050-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "943221a4d28fe59fe7702dd47203338afc2455c47b6b3f83b27b63b98471ae0d",
+        "error": null,
+        "hub_revision": "1a8700f87d246faacc39f5f3c34efbf412419d87",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
         "observed_at": "2026-11-07T10:52:23.563603+00:00",
@@ -1312,6 +1555,33 @@
     {
       "assessment": {
         "artifact_class": "adapter_bundle",
+        "hub_revision": "aefb81f3bc37329f0891a90bc3f6aa2391ec708f",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-v2-trained/blob/aefb81f3bc37329f0891a90bc3f6aa2391ec708f/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/chaski-r2-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9f472ff44ad0119af8da291bb31a15680fb9f52330885bda821e493dc28079ae",
+        "error": null,
+        "hub_revision": "aefb81f3bc37329f0891a90bc3f6aa2391ec708f",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
         "hub_revision": "6275945fab2515ee41019eb60703c6b5dbdf5640",
         "observed_at": "2026-10-04T15:32:16.991237+00:00",
         "qualification_note": "NOT_PROMOTABLE; receipt C reports 192/192 applied tensors and 5/5 + 6/6 named-N envelopes. Earlier non-comparable/mismatched receipts remain; base runtime/adapter deployment must be pinned separately.",
@@ -1328,6 +1598,141 @@
         "observed_at": "2026-10-04T16:22:43.221466+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "85080dd8d8d2cf2f82d84ee2670d070d694cd31b",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r4-v2-trained/blob/85080dd8d8d2cf2f82d84ee2670d070d694cd31b/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/chaski-r4-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "99334c4e66a3d6f30b5560aee0509ea4af08312a436dd8988d2c0ebf61a3badc",
+        "error": null,
+        "hub_revision": "85080dd8d8d2cf2f82d84ee2670d070d694cd31b",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "aff104346fdfcae30b9ec769d42daa08b9eb30b0",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-v2-trained/blob/aff104346fdfcae30b9ec769d42daa08b9eb30b0/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/chaski-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "18c042305301689c1985e7e23260867eb243cc719024b514243821bf86b4066c",
+        "error": null,
+        "hub_revision": "aff104346fdfcae30b9ec769d42daa08b9eb30b0",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "a660d7d7a90f4ed527c966650041a6fa28724cf4",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/code-master-v3-fresh/blob/a660d7d7a90f4ed527c966650041a6fa28724cf4/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/code-master-v3-fresh",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "065124a355703c47250d07b4b8abc51e00db47f40794795b2c218dd0a3f774c9",
+        "error": null,
+        "hub_revision": "a660d7d7a90f4ed527c966650041a6fa28724cf4",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/code-master-v3-fresh?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "c9d9cb9e7722d69922a44e3fe4f9393bdc66e544",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/creativity-v2-trained/blob/c9d9cb9e7722d69922a44e3fe4f9393bdc66e544/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/creativity-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "5b7a00671cb75a829aba351ae1d903b381d4c855a59065b904a9d627c3337a57",
+        "error": null,
+        "hub_revision": "c9d9cb9e7722d69922a44e3fe4f9393bdc66e544",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/creativity-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "83713903efb2ba5f5da541a6fbf767825aa7cd40",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/doctrine-master-v1-candidate/blob/83713903efb2ba5f5da541a6fbf767825aa7cd40/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/doctrine-master-v1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "78fc683d29aa1797b1269a93c45d0127a70fdab11477f86aa319676de9217c68",
+        "error": null,
+        "hub_revision": "83713903efb2ba5f5da541a6fbf767825aa7cd40",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1365,6 +1770,60 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "a3dc0ac564453d52216ce8bf6cf2758b2dca98aa",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/doctrine-v2-r2-trained/blob/a3dc0ac564453d52216ce8bf6cf2758b2dca98aa/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/doctrine-v2-r2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "a03712e05c54c14faced6bf5d0c853b371e5f4e7ade2949b3431a70cbf3ae51e",
+        "error": null,
+        "hub_revision": "a3dc0ac564453d52216ce8bf6cf2758b2dca98aa",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-r2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "37af7132eaae98ce714b60d16d176ac171d0841b",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/doctrine-v2-trained/blob/37af7132eaae98ce714b60d16d176ac171d0841b/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/doctrine-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "07b8849678d771df4631ac06ead243d91ab49c5b6d4da7ee80db9549c91c7e6c",
+        "error": null,
+        "hub_revision": "37af7132eaae98ce714b60d16d176ac171d0841b",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "0c26c6ba127f87863f1c3d98ab96120264aba91a",
         "observed_at": "2026-11-10T11:14:37.143987+00:00",
@@ -1382,6 +1841,60 @@
         "observed_at": "2026-11-10T11:14:37.143987+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine1-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "971811b32ae48f2295bdf6e7c09b5802c6418a07",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/doctrine1-r1-v2-trained/blob/971811b32ae48f2295bdf6e7c09b5802c6418a07/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/doctrine1-r1-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "22a7af5807b8fe66247461fe813c971c197d7be7f933e2ed501ab526f6824e22",
+        "error": null,
+        "hub_revision": "971811b32ae48f2295bdf6e7c09b5802c6418a07",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine1-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "1e37622c66d253775786de76cd5da684ec6d9a3d",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/forge-1.5b-v2-trained/blob/1e37622c66d253775786de76cd5da684ec6d9a3d/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/forge-1.5b-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "591b6bb5ece804b4068124608852b8989f9a664aa055b711b6a7768fd18c7e3a",
+        "error": null,
+        "hub_revision": "1e37622c66d253775786de76cd5da684ec6d9a3d",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1446,6 +1959,60 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "3d396856d939bef9061652973c736fec6c165d1a",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/freeenergy-r1-v2-trained/blob/3d396856d939bef9061652973c736fec6c165d1a/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/freeenergy-r1-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "3cb87befab24fc47ad55f345f567068de8a048a65ba5b7959ff5af85d04f2e09",
+        "error": null,
+        "hub_revision": "3d396856d939bef9061652973c736fec6c165d1a",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "3b097b6c23a2ac1f20ca698bfcf8a988b4a237f1",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/freeenergy-v2-trained/blob/3b097b6c23a2ac1f20ca698bfcf8a988b4a237f1/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/freeenergy-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "131e3806cca54b2a717c817071c3592a802b2da824bb73fbace60e75b00a1172",
+        "error": null,
+        "hub_revision": "3b097b6c23a2ac1f20ca698bfcf8a988b4a237f1",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "kernel_library",
         "hub_revision": "5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74",
         "observed_at": "2026-10-04T15:32:26.066134+00:00",
@@ -1463,6 +2030,33 @@
         "observed_at": "2026-10-04T16:22:43.267678+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/governed-inference-meter?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "4c90264bfa6fc2dc48641e9726b7c79a33135751",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/governed-norm-v2-trained/blob/4c90264bfa6fc2dc48641e9726b7c79a33135751/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/governed-norm-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "ac41063378158ddd96c711f8841d0e8f5313c7ce8f04b00f26a9128a46f71b02",
+        "error": null,
+        "hub_revision": "4c90264bfa6fc2dc48641e9726b7c79a33135751",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/governed-norm-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1500,6 +2094,60 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "3ad159374c0fd4a9f5a1521dd86121b3b16eb81f",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/hatun-24-v2-trained/blob/3ad159374c0fd4a9f5a1521dd86121b3b16eb81f/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/hatun-24-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "c01b4e01e39eec617c710ac4e7e3419871f96e4bd5d0a7218554b541d8732396",
+        "error": null,
+        "hub_revision": "3ad159374c0fd4a9f5a1521dd86121b3b16eb81f",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "90c82516a3436b7526de62f9a790874d96ff2802",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-abstain-1.5b-v2-trained/blob/90c82516a3436b7526de62f9a790874d96ff2802/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/khipu-abstain-1.5b-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0155fbd1e1e7735e080e016b1d63afa094b6ab028a0473079090dcefb29b9dff",
+        "error": null,
+        "hub_revision": "90c82516a3436b7526de62f9a790874d96ff2802",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "non_provider_artifact",
         "hub_revision": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
         "observed_at": "2026-11-07T10:52:23.647265+00:00",
@@ -1517,6 +2165,60 @@
         "observed_at": "2026-11-07T10:52:23.647265+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-r3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "d81c31086e3869219cb6304366d3f973681dc3b0",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-abstain-v2-trained/blob/d81c31086e3869219cb6304366d3f973681dc3b0/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/khipu-abstain-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "aa2f6f38d2814fb0bbcc95cfabf98241b6dd72cfd375847e13938b3afe0b84d9",
+        "error": null,
+        "hub_revision": "d81c31086e3869219cb6304366d3f973681dc3b0",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "92f8a8cae4d1cde0e060268b39a71eca6a4c8b54",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r2-v2-trained/blob/92f8a8cae4d1cde0e060268b39a71eca6a4c8b54/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/khipu-r2-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "994eaf2079ec2f43ec08958a7b54d678ea52d1bdf9ee38d56e2823cfc2ba8563",
+        "error": null,
+        "hub_revision": "92f8a8cae4d1cde0e060268b39a71eca6a4c8b54",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1596,6 +2298,114 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "6c440e2c7da4d564c05ddc9d49a3ff16a43b84de",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-v2-trained/blob/6c440e2c7da4d564c05ddc9d49a3ff16a43b84de/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/khipu-r3-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b7e0415daf3c69495a0400cc29e18fab8b902b15fca932ec39fb855fc91cfd71",
+        "error": null,
+        "hub_revision": "6c440e2c7da4d564c05ddc9d49a3ff16a43b84de",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "929a7b94ff81c7fb66d62d9bc4275dd4e0a357b6",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/lean-inv-r1-v2-trained/blob/929a7b94ff81c7fb66d62d9bc4275dd4e0a357b6/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/lean-inv-r1-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "f7f56f9dca7511c1e7775179ffc5305d194fb1c170920f888f8cf27c851e14bc",
+        "error": null,
+        "hub_revision": "929a7b94ff81c7fb66d62d9bc4275dd4e0a357b6",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/lean-inv-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "dece8d8ca24c8a36091c25478ae4e766aea16d48",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/lean-invariants-v2-trained/blob/dece8d8ca24c8a36091c25478ae4e766aea16d48/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/lean-invariants-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "cf1b721f6c01ee12598d022c21019f4da492bb405be161effa82769d89d3555d",
+        "error": null,
+        "hub_revision": "dece8d8ca24c8a36091c25478ae4e766aea16d48",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/lean-invariants-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "fae6b77cda8457361362d2457d60a886ee7561af",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/measurement-master-v1-candidate/blob/fae6b77cda8457361362d2457d60a886ee7561af/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/measurement-master-v1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "47532ed7eda92998ef9350811758daf0fa0cccb27222c514f2fe65ccd15001c0",
+        "error": null,
+        "hub_revision": "fae6b77cda8457361362d2457d60a886ee7561af",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/measurement-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "40e0c6ab9511586014457d354c00f05777b34fd1",
         "observed_at": "2026-11-07T10:52:23.713052+00:00",
@@ -1613,6 +2423,60 @@
         "observed_at": "2026-11-07T10:52:23.713052+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "5a708009947882d08be3bbcb795d49062a8d5a90",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/miniembed-nano-v2-trained/blob/5a708009947882d08be3bbcb795d49062a8d5a90/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/miniembed-nano-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "064f97d2d2727aa9fb7c567421fbded829b1632371789aefdfb115e7831333e6",
+        "error": null,
+        "hub_revision": "5a708009947882d08be3bbcb795d49062a8d5a90",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "97244b9430b1f4ed0aae14948153d88421a61686",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/miniembed-v2-trained/blob/97244b9430b1f4ed0aae14948153d88421a61686/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/miniembed-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "f49a644ef1e24f50412f32c6121ad99aec835fad86d7b5b632ebf1623b6e6197",
+        "error": null,
+        "hub_revision": "97244b9430b1f4ed0aae14948153d88421a61686",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1704,6 +2568,87 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "df1b7a0380f9e7a5d31e5bc17eb59c59638f905c",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/ouroboros-r2-v2-trained/blob/df1b7a0380f9e7a5d31e5bc17eb59c59638f905c/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/ouroboros-r2-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "86e9778a6368534556b77b8499c596f5b736c3db4546e7cd793bf2d7456a92a0",
+        "error": null,
+        "hub_revision": "df1b7a0380f9e7a5d31e5bc17eb59c59638f905c",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "ff81eed29c690db0a1fc1afa24ca43bc62760993",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/ouroboros-v2-trained/blob/ff81eed29c690db0a1fc1afa24ca43bc62760993/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/ouroboros-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "2ec8772f44d3acae6c9f18867df582618a9ccaa4ae5fd731aae16229da9ccfe1",
+        "error": null,
+        "hub_revision": "ff81eed29c690db0a1fc1afa24ca43bc62760993",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "c1595d9ebd50577d877f0eeee9f07031819026e0",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/papers-v2-trained/blob/c1595d9ebd50577d877f0eeee9f07031819026e0/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/papers-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "a4cd5f712677c6873bd822b20983cf64a54acb562ad5d0657064f26cb34fc599",
+        "error": null,
+        "hub_revision": "c1595d9ebd50577d877f0eeee9f07031819026e0",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/papers-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "non_provider_artifact",
         "hub_revision": "b6aa4f01476421acce9beeec60fe42cd00e594a3",
         "observed_at": "2026-11-11T15:15:10.416290+00:00",
@@ -1721,6 +2666,195 @@
         "observed_at": "2026-11-11T15:15:10.416290+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/physics-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "1b56b7505d6dadb04e9d4b25edb97651a9387058",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/quant-master-1.7b-500step-candidate/blob/1b56b7505d6dadb04e9d4b25edb97651a9387058/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/quant-master-1.7b-500step-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "376b0ecc2d30d332840be3c68bf8929ea45d95f603773873834aa0e4573eeff5",
+        "error": null,
+        "hub_revision": "1b56b7505d6dadb04e9d4b25edb97651a9387058",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-1.7b-500step-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "c23b1ba66faa2fad79860f06e8c794fc1431e530",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/quant-master-4b-500step-candidate/blob/c23b1ba66faa2fad79860f06e8c794fc1431e530/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/quant-master-4b-500step-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b20a844945bb0e6c495b7036ea4b555f1daab6c9f06ac874f96f2f487de54207",
+        "error": null,
+        "hub_revision": "c23b1ba66faa2fad79860f06e8c794fc1431e530",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-4b-500step-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "fcc85dc0ea5df5dc46aca1574a1750fe70712a2d",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/quant-master-4b-v1-candidate/blob/fcc85dc0ea5df5dc46aca1574a1750fe70712a2d/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/quant-master-4b-v1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "1996039faa5529c6e9ba4a5a45ad6ff0f923eb116656408c753310a846dc8e7b",
+        "error": null,
+        "hub_revision": "fcc85dc0ea5df5dc46aca1574a1750fe70712a2d",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-4b-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "f5c1a56dee08267ae21057a43cc23eeeeb30973e",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/quant-master-v1-candidate/blob/f5c1a56dee08267ae21057a43cc23eeeeb30973e/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/quant-master-v1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "5b7bd869b53f95ddfa44750662010f01961f9d69efc1ac227543e2bd3f45b19b",
+        "error": null,
+        "hub_revision": "f5c1a56dee08267ae21057a43cc23eeeeb30973e",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "1a49b9e58c9d9b7dfb37110b06a2d3aa002df712",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/reasoning-master-v1-candidate/blob/1a49b9e58c9d9b7dfb37110b06a2d3aa002df712/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/reasoning-master-v1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "71d50b957d3bfb5d4395775bd3139287ad7d13c2958692ee700db626301fcff5",
+        "error": null,
+        "hub_revision": "1a49b9e58c9d9b7dfb37110b06a2d3aa002df712",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/reasoning-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "66fdad3fcbd2fb2949fda93ab3e436d9b432bc52",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/receiptagent-1.5b-v2-trained/blob/66fdad3fcbd2fb2949fda93ab3e436d9b432bc52/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/receiptagent-1.5b-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "cc1502d7161af9c4580b7723f3ac571151f42516c3346e441fde70d24e18ab15",
+        "error": null,
+        "hub_revision": "66fdad3fcbd2fb2949fda93ab3e436d9b432bc52",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "e5ee23a3a6f0b474bb1acd3edc4ca26cf90c2345",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/receiptagent-v2-trained/blob/e5ee23a3a6f0b474bb1acd3edc4ca26cf90c2345/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/receiptagent-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e82a3652db9be9e9211e803a5b442f6efa89d58f1adb8b1534ed7be80bcb9cbf",
+        "error": null,
+        "hub_revision": "e5ee23a3a6f0b474bb1acd3edc4ca26cf90c2345",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -2236,6 +3370,33 @@
     {
       "assessment": {
         "artifact_class": "adapter_bundle",
+        "hub_revision": "27a3cedc675f5d4cc7498bd04c6a48b6e40d5775",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-0.8b-v2-trained/blob/27a3cedc675f5d4cc7498bd04c6a48b6e40d5775/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-0.8b-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "3b492ea28b4681528ce40703168bc00cc1d6a5f49aa61f036f1fc7424b3e9cde",
+        "error": null,
+        "hub_revision": "27a3cedc675f5d4cc7498bd04c6a48b6e40d5775",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-0.8b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
         "hub_revision": "b2ec04727f46314b680ee26366159243924c1f67",
         "observed_at": "2026-11-07T10:52:23.837753+00:00",
         "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision b2ec04727f46314b680ee26366159243924c1f67 matches the inventory revision. The file list at that revision shows adapter_config.json and adapter_model.safetensors. README.md returned HTTP 200 and 706 bytes, sha256 ca58489fb60802fac036a8fe3f782337ac7c60c408c923f68d0d811bf567adcb. Weights were not downloaded and the model was not run.",
@@ -2616,6 +3777,60 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "3519264cb800daed117de76d323a42ffc0445ad6",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/triage-0.8b-v2-trained/blob/3519264cb800daed117de76d323a42ffc0445ad6/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/triage-0.8b-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "17fe31734d132088e2d9998eb6572b2668876b8874c1d6c1e62d8e4e10006cc1",
+        "error": null,
+        "hub_revision": "3519264cb800daed117de76d323a42ffc0445ad6",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/triage-0.8b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "0f8f39a4a7dc894545dddfb8191c64e9bc12e4c6",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/triage-v2-trained/blob/0f8f39a4a7dc894545dddfb8191c64e9bc12e4c6/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/triage-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "f390f89466ba7e3bc0530e25d33f98e1cf30067d94b8e1a2dd2893fc025c7686",
+        "error": null,
+        "hub_revision": "0f8f39a4a7dc894545dddfb8191c64e9bc12e4c6",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/triage-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "abdb04de040c71b491d7b39eb887fba72989c916",
         "observed_at": "2026-11-10T11:14:40.489564+00:00",
@@ -2643,6 +3858,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "d20c1e70a357787a64bf421d58d9922e20115122",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/willay-r1-v2-trained/blob/d20c1e70a357787a64bf421d58d9922e20115122/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/willay-r1-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "66bdec688843b2d357c491a192e21ce32fffaa55b805346773679b0304afea7b",
+        "error": null,
+        "hub_revision": "d20c1e70a357787a64bf421d58d9922e20115122",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "a165ea780c7b4972dba19ce70fbfd28a5bb8603c",
         "observed_at": "2026-11-10T11:14:40.943726+00:00",
@@ -2660,6 +3902,60 @@
         "observed_at": "2026-11-10T11:14:40.943726+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "431733451c8ddc5e90c14d814aa4578f92715cd3",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/willay-r2-v2-trained/blob/431733451c8ddc5e90c14d814aa4578f92715cd3/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/willay-r2-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "386c7ea432cd0fc4e0c8174c192f5ce9ef982defd91dac749139d2226aa96e61",
+        "error": null,
+        "hub_revision": "431733451c8ddc5e90c14d814aa4578f92715cd3",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "bf80c8b7bddbe1efda54ba85885fc61a5f67745a",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
+        "request_disposition": "NOT_REQUESTED",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/willay-v2-trained/blob/bf80c8b7bddbe1efda54ba85885fc61a5f67745a/README.md",
+        "suggested_route": "No inference provider route claimed; local runtime use only after owner qualification review."
+      },
+      "id": "SZLHOLDINGS/willay-v2-trained",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "809c8f7c10c1a4a26a0d6f775f816ffc3a18f133d11c7c64c37b1f0026e57de3",
+        "error": null,
+        "hub_revision": "bf80c8b7bddbe1efda54ba85885fc61a5f67745a",
+        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",

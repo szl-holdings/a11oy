@@ -235,6 +235,89 @@ class ProductEdgeContract(unittest.TestCase):
                         allow_proxied_create=True,
                     )
 
+    def test_expected_foreign_production_routes_do_not_block_proxied_cutover(self) -> None:
+        script = edge.immutable_script_name(WORKER)
+        foreign_routes = [
+            {
+                "id": "rev-1",
+                "pattern": "a-11-oy.com/api/a11oy/v1/*",
+                "script": "szl-revenue-tracker",
+            },
+            {
+                "id": "rev-2",
+                "pattern": "a-11-oy.com/v1/*",
+                "script": "szl-revenue-tracker",
+            },
+            {
+                "id": "evid",
+                "pattern": "api.a-11-oy.com/v1/evidence-snapshot",
+                "script": "szl-evidence-snapshot",
+            },
+            {
+                "id": "atlas",
+                "pattern": "atlas.a-11-oy.com/*",
+                "script": "curation-atlas",
+            },
+            {
+                "id": "gateway",
+                "pattern": "a-11-oy.com/api/v2/*",
+                "script": "szl-a11oy-governed-inference-f9bd7a86f72e2d8c",
+            },
+        ]
+        plan = edge.route_plan(
+            foreign_routes,
+            dns_is_proxied=True,
+            script_name=script,
+            allow_proxied_create=True,
+        )
+        self.assertEqual(
+            [(item["action"], item["pattern"]) for item in plan],
+            [
+                ("create-apex-route", edge.APEX_ROUTE),
+                ("create-www-route", edge.WWW_ROUTE),
+            ],
+        )
+        for pattern, owners in edge.EXPECTED_FOREIGN_ROUTES.items():
+            with self.subTest(pattern=pattern):
+                for owner in owners:
+                    self.assertTrue(
+                        edge.foreign_route_is_expected(pattern, owner)
+                    )
+        for pattern, prefixes in edge.EXPECTED_FOREIGN_ROUTE_SCRIPT_PREFIXES.items():
+            with self.subTest(prefix_pattern=pattern):
+                self.assertTrue(
+                    edge.foreign_route_is_expected(pattern, prefixes[0] + "abcdef")
+                )
+
+        # An expected pattern under an unexpected owner still fails closed.
+        with self.assertRaisesRegex(edge.EdgeError, "OVERLAPPING_LIVE_ROUTE"):
+            edge.route_plan(
+                [
+                    {
+                        "id": "hijack",
+                        "pattern": "a-11-oy.com/api/a11oy/v1/*",
+                        "script": "foreign",
+                    }
+                ],
+                dns_is_proxied=True,
+                script_name=script,
+                allow_proxied_create=True,
+            )
+        # A route outside the allowlist still fails closed.
+        with self.assertRaisesRegex(edge.EdgeError, "OVERLAPPING_LIVE_ROUTE"):
+            edge.route_plan(
+                [
+                    {
+                        "id": "extra",
+                        "pattern": "a-11-oy.com/api/*",
+                        "script": "foreign",
+                    }
+                ],
+                dns_is_proxied=True,
+                script_name=script,
+                allow_proxied_create=True,
+            )
+
     def test_incomplete_route_listing_fails_closed(self) -> None:
         with mock.patch.object(
             edge,

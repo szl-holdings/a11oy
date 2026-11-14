@@ -21,6 +21,14 @@ Failed public proof rolls
 back only newly created routes; an uncertain provider outcome is reported as
 UNKNOWN. Foreign or ambiguous provider state fails closed. Credentials and
 full provider IDs are never written to the receipt.
+
+Four production routes owned by other estate Workers (the x402 revenue
+tracker, the governed-inference gateway, the evidence-snapshot service and
+the curation atlas) are explicitly enumerated and expected during proxied
+cutover. Their more specific Cloudflare route patterns keep precedence over
+the apex catch-all, so the product edge never shadows their traffic;
+anything not enumerated, or an expected pattern under an unexpected owner,
+still fails closed.
 """
 from __future__ import annotations
 
@@ -51,6 +59,16 @@ APEX_ROUTE = "a-11-oy.com/*"
 WWW_ROUTE = "www.a-11-oy.com/*"
 LEGACY_APEX_ROOT_ROUTE = "a-11-oy.com/"
 DESIRED_ROUTES = (APEX_ROUTE, WWW_ROUTE)
+EXPECTED_FOREIGN_ROUTES: dict[str, tuple[str, ...]] = {
+    "a-11-oy.com/api/a11oy/v1/*": ("szl-revenue-tracker",),
+    "a-11-oy.com/v1/*": ("szl-revenue-tracker",),
+    "api.a-11-oy.com/v1/evidence-snapshot": ("szl-evidence-snapshot",),
+    "atlas.a-11-oy.com/*": ("curation-atlas",),
+}
+EXPECTED_FOREIGN_ROUTE_SCRIPT_PREFIXES: dict[str, tuple[str, ...]] = {
+    # The governed-inference gateway deploys under a content-addressed name.
+    "a-11-oy.com/api/v2/*": ("szl-a11oy-governed-inference-",),
+}
 WEB_HOSTS = (ZONE_NAME, f"www.{ZONE_NAME}")
 WEB_RECORD_TYPES = frozenset({"A", "AAAA", "CNAME"})
 EDGE_MARKER = "a11oy-product-edge-v3"
@@ -307,6 +325,14 @@ def _routes_by_pattern(current: list[dict[str, Any]]) -> dict[str, dict[str, Any
     return by_pattern
 
 
+def foreign_route_is_expected(pattern: str, script: str) -> bool:
+    """True only for an explicitly enumerated production foreign route."""
+    if pattern in EXPECTED_FOREIGN_ROUTES:
+        return script in EXPECTED_FOREIGN_ROUTES[pattern]
+    prefixes = EXPECTED_FOREIGN_ROUTE_SCRIPT_PREFIXES.get(pattern, ())
+    return any(script.startswith(prefix) for prefix in prefixes)
+
+
 def route_plan(
     current: list[dict[str, Any]],
     *,
@@ -330,7 +356,12 @@ def route_plan(
             # Cloudflare route wildcards can match more than their literal host
             # text suggests; refuse every other route in this exact zone.
             overlapping = [
-                pattern for pattern in by_pattern if pattern not in DESIRED_ROUTES
+                pattern
+                for pattern in by_pattern
+                if pattern not in DESIRED_ROUTES
+                and not foreign_route_is_expected(
+                    pattern, str(by_pattern[pattern].get("script") or "")
+                )
             ]
             if overlapping:
                 raise EdgeError("OVERLAPPING_LIVE_ROUTE: " + ", ".join(sorted(overlapping)))
