@@ -224,6 +224,13 @@
       "foldHeld": "killinchu /immune target route not live (404) - hold until migration lands"
     },
     {
+      "id": "SZLHOLDINGS/khipu-playground",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/living-anatomy",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
@@ -278,6 +285,13 @@
       "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
     },
     {
+      "id": "SZLHOLDINGS/README",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "ORG_CARD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/sentra",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
@@ -285,6 +299,13 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml",
       "foldedAt": "2026-11-14",
       "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-bench-suite",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/szl-chief-engineer",
@@ -366,6 +387,13 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml",
       "foldedAt": "2026-11-14",
       "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-marketing",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/szl-receipts-chain",
