@@ -104,6 +104,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authority stay false. The inventory file was not changed. Four live revisions
   differ from that inventory snapshot.
 
+### Fixed - model pretraining snapshot lockstep digest
+
+- The 2026-11-14 manifest refresh (#3394) committed
+  `docs/huggingface-ecosystem-manifest.json` without regenerating its lockstep
+  `routers/data/model-pretraining-snapshot.json` projection, so the projection
+  still embedded the previous manifest digest and only 90 of the observed
+  models, and the container feature contract check "model API and source
+  declarations" failed closed for every pull request. The projection is
+  regenerated with the sanctioned generator
+  `scripts/build_model_pretraining_projection.py --write` (the same step
+  `public-inventory-refresh.yml` runs) and now embeds the current manifest
+  digest with all 138 observed models. No provider, Hub, or Space state was
+  mutated.
+
 ### Fixed - development URI parser dependency
 
 - Resolve Ajv's development-only `fast-uri` dependency to 3.1.9 in both npm
