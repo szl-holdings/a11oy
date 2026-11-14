@@ -16,7 +16,10 @@ settings, and rolls back every proxy-state change if public proof fails.
 When the web records are already proxied, a missing exact route may be created
 only with a content-addressed Worker script whose account-wide name is absent
 or has exact source bytes. A new upload uses a create-only precondition, and
-the source is read back before any route write. Existing routes are not changed.
+the source is read back before any route write. Cloudflare returns module
+worker source wrapped in a multipart envelope; the readback therefore
+compares only the extracted worker.mjs part, and an envelope that cannot be
+parsed exactly fails closed. Existing routes are not changed.
 Failed public proof rolls
 back only newly created routes; an uncertain provider outcome is reported as
 UNKNOWN. Foreign or ambiguous provider state fails closed. Credentials and
@@ -273,6 +276,50 @@ def upload_worker(
     return value
 
 
+def multipart_module_part(body: bytes, content_type: str) -> bytes | None:
+    """Extract the exact worker.mjs module bytes from a multipart readback.
+
+    Cloudflare's content endpoint returns module worker source wrapped in a
+    multipart/form-data envelope. The envelope is transport, not source, so
+    only the extracted worker.mjs part may be compared. Anything that cannot
+    be parsed exactly returns None and the caller fails closed.
+    """
+    lowered = content_type.lower()
+    if "multipart/form-data" not in lowered:
+        return None
+    marker = "boundary="
+    index = lowered.find(marker)
+    if index == -1:
+        return None
+    boundary = (
+        content_type[index + len(marker):].split(";", 1)[0].strip().strip('"')
+    )
+    if not boundary:
+        return None
+    delimiter = b"--" + boundary.encode("utf-8")
+    segments = body.split(delimiter)
+    if len(segments) < 3:
+        return None
+    for segment in segments[1:]:
+        if segment.startswith(b"--"):
+            break  # closing delimiter reached
+        if not segment.startswith(b"\r\n"):
+            return None
+        headers, separator, part = segment[2:].partition(b"\r\n\r\n")
+        if not separator:
+            return None
+        header_text = headers.decode("utf-8", "replace").lower()
+        if (
+            'name="worker.mjs"' not in header_text
+            and 'filename="worker.mjs"' not in header_text
+        ):
+            continue
+        if not part.endswith(b"\r\n"):
+            return None
+        return part[:-2]
+    return None
+
+
 def inspect_worker_script(
     account_id: str, bearer: str, script_name: str, expected_source: bytes
 ) -> str:
@@ -305,11 +352,22 @@ def inspect_worker_script(
     )
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
-            actual = response.read(len(expected_source) + 1)
+            actual = response.read(len(expected_source) + 4096)
+            readback_content_type = str(
+                response.headers.get("Content-Type") or ""
+            )
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
         raise EdgeError("WORKER_SCRIPT_READBACK_UNAVAILABLE") from exc
     if actual != expected_source:
-        raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
+        module_part = multipart_module_part(actual, readback_content_type)
+        if module_part is None:
+            if "multipart/form-data" in readback_content_type.lower():
+                # An envelope that cannot be parsed exactly is never treated
+                # as identical or as someone else's bytes; it is unusable.
+                raise EdgeError("WORKER_SCRIPT_READBACK_UNPARSEABLE")
+            raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
+        if module_part != expected_source:
+            raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
     return "identical"
 
 
