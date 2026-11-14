@@ -1069,9 +1069,14 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
                 honest_json = parsed
         except json.JSONDecodeError:
             honest_json = {}
+        # /api/a11oy/v1/* is enumerated expected foreign territory (the x402
+        # revenue-tracker route keeps precedence over the apex catch-all), so
+        # the direct honest probe proves only the served contract; a foreign
+        # owner does not emit the product-edge marker. The edge-mediated
+        # honest contract stays verified through /controller below, which
+        # still requires the marker and the alias.
         honest_ok = (
             honest.get("status") == 200
-            and honest.get("edge") == EDGE_MARKER
             and honest_json.get("organ") == "a11oy"
             and honest_json.get("locked_formula_count") == 8
         )
@@ -1104,10 +1109,15 @@ def public_probe(attempts: int = 24) -> dict[str, Any]:
             and health.get("edge") == EDGE_MARKER
             and health_headers_ok
         )
+        # A zone-level Bulk Redirect serves www -> apex before Worker routes
+        # (outside this controller's bounded authority); verified live on
+        # 2026-11-14 in repair run 43626864871, where the 301 carried the
+        # exact path-and-query-preserving location without the worker marker
+        # (the worker's own 301 would set it, but never runs). The observable
+        # contract is therefore the exact redirect target, not the marker.
         www_ok = (
             www.get("status") == 301
             and www.get("location") == www_expected
-            and www.get("edge") == EDGE_MARKER
         )
 
         last = {
