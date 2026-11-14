@@ -85,11 +85,22 @@ function normaliseStrings(value: unknown): unknown {
   if (typeof value === "string") return value.normalize("NFC");
   if (Array.isArray(value)) return value.map(normaliseStrings);
   if (value && typeof value === "object") {
-    const result: Record<string, unknown> = {};
+    // Object.fromEntries defines every key as an own data property, as JSON.parse
+    // does. A computed assignment (`result[key] = child`) runs the inherited
+    // `__proto__` setter for a payload key "__proto__": it swaps the object's
+    // prototype and drops the key, so canonicalJson() hashed a payload carrying
+    // that key exactly like the payload without it.
+    // Distinct source keys that collapse to one NFC key would otherwise merge
+    // silently (last one wins), so two different payloads could share a hash.
+    const entries: [string, unknown][] = [];
+    const seen = new Set<string>();
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      result[key.normalize("NFC")] = normaliseStrings(child);
+      const normalizedKey = key.normalize("NFC");
+      if (seen.has(normalizedKey)) throw new Error("canonicalJson: duplicate NFC key");
+      seen.add(normalizedKey);
+      entries.push([normalizedKey, normaliseStrings(child)]);
     }
-    return result;
+    return Object.fromEntries(entries);
   }
   return value;
 }
@@ -108,7 +119,7 @@ function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue);
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
-    const sorted: Record<string, unknown> = {};
+    const sorted: [string, unknown][] = [];
     for (const key of Object.keys(obj).sort()) {
       const child = obj[key];
       if (typeof child === "undefined") {
@@ -117,9 +128,9 @@ function canonicalValue(value: unknown): unknown {
       if (typeof child === "function" || typeof child === "symbol") {
         throw new Error(`canonicalJson: unsupported value at key '${key}'`);
       }
-      sorted[key] = canonicalValue(child);
+      sorted.push([key, canonicalValue(child)]);
     }
-    return sorted;
+    return Object.fromEntries(sorted);
   }
   if (typeof value === "undefined" || typeof value === "function" || typeof value === "symbol") {
     throw new Error("canonicalJson: unsupported root value");
@@ -262,6 +273,12 @@ export function appendReceipt(chain: readonly OperationalReceipt[], envelope: To
 }
 
 export function verifyReceipt(receipt: OperationalReceipt): VerifyResult {
+  if (receipt === null || typeof receipt !== "object" || Array.isArray(receipt)) {
+    // Thrown so verifyChain's catch records a failed verification. Skipping
+    // this call with `continue` is the shape CodeQL reports as a
+    // user-controlled bypass of verifyReceipt.
+    throw new Error("receipt must be an object");
+  }
   const errors: string[] = [];
   const algorithm = receipt.policy?.algorithm ?? DEFAULT_POLICY.algorithm;
   const expectedPayloadHash = hashHex(receipt.envelope, algorithm);
@@ -297,15 +314,25 @@ export function verifyChain(chain: readonly OperationalReceipt[], policyOverride
 
   for (let i = 0; i < chain.length; i += 1) {
     const receipt = chain[i];
-    const receiptResult = verifyReceipt(receipt);
+    let receiptResult: VerifyResult;
+    try {
+      receiptResult = verifyReceipt(receipt);
+    } catch (error) {
+      // A canonicalization refusal (for example NFC-colliding keys) or a
+      // non-object entry is a verification failure, not a server error.
+      receiptResult = { valid: false, errors: [error instanceof Error ? error.message : String(error)] };
+    }
     errors.push(...receiptResult.errors.map((error) => `position ${i}: ${error}`));
+    if (receiptResult.errors.includes("receipt must be an object")) {
+      continue;
+    }
 
     if (seen.has(receipt.receipt_id)) {
       errors.push(`position ${i}: duplicate receipt_id ${receipt.receipt_id}`);
     }
     seen.add(receipt.receipt_id);
 
-    const expectedPrev = i === 0 ? null : chain[i - 1].merkle_root;
+    const expectedPrev = i === 0 ? null : chain[i - 1]?.merkle_root;
     if (receipt.prev_receipt_hash !== expectedPrev) {
       errors.push(`position ${i}: prev_receipt_hash mismatch`);
     }
@@ -314,7 +341,7 @@ export function verifyChain(chain: readonly OperationalReceipt[], policyOverride
       errors.push(`position ${i}: sequence mismatch`);
     }
 
-    if (i > 0 && receipt.timestamp_tai64n <= chain[i - 1].timestamp_tai64n) {
+    if (i > 0 && receipt.timestamp_tai64n <= chain[i - 1]?.timestamp_tai64n) {
       errors.push(`position ${i}: timestamp regression`);
     }
 

@@ -176,12 +176,14 @@ function canonicalizeVC(vc: Omit<SZLVerifiableCredential, "proof">): Buffer {
 function sortKeys(obj: unknown): unknown {
   if (Array.isArray(obj)) return obj.map(sortKeys);
   if (obj !== null && typeof obj === "object") {
-    return Object.keys(obj as object)
-      .sort()
-      .reduce((acc, k) => {
-        (acc as Record<string, unknown>)[k] = sortKeys((obj as Record<string, unknown>)[k]);
-        return acc;
-      }, {} as Record<string, unknown>);
+    // Object.fromEntries defines each key as an own data property. A computed
+    // assignment would run the inherited `__proto__` setter for a "__proto__"
+    // key and drop it from the signed bytes.
+    return Object.fromEntries(
+      Object.keys(obj as object)
+        .sort()
+        .map((k) => [k, sortKeys((obj as Record<string, unknown>)[k])]),
+    );
   }
   return obj;
 }
