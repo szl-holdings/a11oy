@@ -17,6 +17,8 @@ The census enumerates the public organization through the Hugging Face Spaces AP
 
 Unresolved or unavailable values remain unavailable; the audit never reconstructs identities from aggregate counts.
 
+The listing names every field it reads with `expand` (`sha`, `runtime`, `sdk`, `cardData`, `subdomain`). The Hub list endpoint returns only expanded fields, and its `full=true` form omits `runtime`; before 2026-11-06 the census used `full=true`, so every Space was reported `SPACE_RUNTIME_NOT_RUNNING` with stage `UNAVAILABLE` and no viewport was checked. A record that still carries no runtime stage is reported as not observed, never as an observed stage.
+
 ## Browser matrix
 
 Every `RUNNING` Space is rendered at:
