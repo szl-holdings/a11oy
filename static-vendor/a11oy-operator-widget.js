@@ -304,7 +304,7 @@
   var panel = el('div', { class: 'aow-panel', role: 'dialog', 'aria-label': 'a11oy operator assistant', 'aria-modal': 'false' },
     [head, quickActions, threadEl, form]);
 
-  var toasts = el('div', { class: 'aow-toasts', 'aria-live': 'polite', 'aria-label': 'a11oy operator notifications' });
+  var toasts = el('div', { class: 'aow-toasts', role: 'status', 'aria-live': 'polite', 'aria-label': 'a11oy operator notifications' });
 
   root.appendChild(toasts);
   root.appendChild(panel);
