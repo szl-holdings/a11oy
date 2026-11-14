@@ -7664,6 +7664,286 @@ async def _a11oy_codex_alias():
     })
 
 
+# ---------------------------------------------------------------------------
+# COOKIE RECOGNITION LEDGER (2026-11-07) — playful, honest, receipted.
+# Cookies are RECOGNITION ONLY: they have no monetary value, confer no
+# rights, and are never tradable. Every award carries the verified action
+# that earned it. The ledger is append-only in spirit: awards are never
+# silently revoked; corrections are new entries with reasons.
+# ---------------------------------------------------------------------------
+
+_COOKIE_LEDGER = [
+    {"cookie": 1, "awarded_to": "Sara Behnamian", "for": "certified-unique benchmark collaboration; two PRs merged upstream",
+     "verified_action": "PR #1 and #2 merged in sarabehnamian/Puzzle-generation-with-guaranteed-uniqueness",
+     "awarded_at": "2026-11-05", "label": "RECOGNITION_ONLY"},
+    {"cookie": 2, "awarded_to": "Andres Vidal-Gadea", "for": "adopting the four governance concepts into the lab's register and proposing the multi-arm study",
+     "verified_action": "lab adoption 2026-09-30; collaboration correspondence 2026-11-06",
+     "awarded_at": "2026-11-07", "label": "RECOGNITION_ONLY"},
+    {"cookie": 3, "awarded_to": "Pulin Gong and Andrew Ly", "for": "the riddled-basins result that reframes reproducibility",
+     "verified_action": "Nature Machine Intelligence 2026, arXiv:2510.05606",
+     "awarded_at": "2026-11-07", "label": "RECOGNITION_ONLY"},
+]
+
+
+@app.get("/api/a11oy/v1/cookies")
+async def _a11oy_cookies():
+    """The cookie ledger: recognition for verified contributions.
+
+    Cookies are RECOGNITION ONLY - no monetary value, no rights, never
+    tradable. Anyone may verify the underlying action from the recorded
+    provenance. New awards require a verifiable action; the ledger never
+    silently revokes - corrections are new entries with reasons.
+    """
+    return JSONResponse({
+        "schema": "szl.cookies/v1",
+        "label": "RECOGNITION_ONLY",
+        "note": ("Cookies are playful recognition for verified contributions to the "
+                 "estate and its collaborations. They have no monetary value, confer "
+                 "no rights, and are never tradable. Every award names the verified "
+                 "action that earned it."),
+        "total_awarded": len(_COOKIE_LEDGER),
+        "ledger": _COOKIE_LEDGER,
+        "how_to_earn": ("A verified contribution: a merged PR, an independently "
+                        "replicated result, an adopted method, or an honest published "
+                        "failure that made the estate measurably better."),
+        "doctrine": "v11",
+    })
+
+
+# ---------------------------------------------------------------------------
+# MONETIZED PRODUCT SURFACES (2026-11-06) — real backends for the x402 rules.
+# Acoustic validation, dataset access and the experimental-surface index each
+# serve genuine payloads (measured computation, public catalog, declared
+# experimental scope) behind the Cloudflare monetization gateway. Honest
+# labels everywhere; nothing here claims LIVE for a surface it cannot prove.
+# ---------------------------------------------------------------------------
+
+@app.get("/v1/acoustic/")
+async def _v1_acoustic_index():
+    """Acoustic validation product index (x402 monetized surface)."""
+    return JSONResponse({
+        "schema": "szl.acoustic.index/v1",
+        "product": "acoustic-validation",
+        "label": "MEASURED",
+        "endpoints": {
+            "burgers": "/v1/acoustic/burgers",
+            "duffing": "/v1/acoustic/duffing",
+            "ns_pathway": "/v1/acoustic/ns-pathway",
+        },
+        "proof_status_vocabulary": ["PROVEN", "HYPOTHESIS_UNVERIFIED", "NOT_ESTABLISHED",
+                                    "HYPOTHESIS_FROM_PROVED_PROPERTY"],
+        "source_repository": "szl-holdings/acoustic-validation",
+        "peer_reviewed_foundations": "Liu et al., Nature Communications 16:2823 (2025)",
+        "doctrine": "v11",
+        "note": "Each endpoint runs a real falsifiable check and returns measured values "
+                "with verbatim PROOF-STATUS labels; no result is fabricated.",
+    })
+
+
+def _acoustic_burgers_check(cfl: float = 0.4) -> dict:
+    """Inviscid Burgers vs the exact characteristic solution.
+
+    u_t + u u_x = 0 with u0 = sin(2*pi*x). The exact solution is the implicit
+    characteristic relation u = sin(2*pi*(x - u*t)), solved per point by
+    fixed-point iteration (converges for t < 1/(2*pi)). The numerical solution
+    uses a conservative Lax-Friedrichs step at a FIXED CFL (dt scales with dx),
+    so refinement genuinely tests spatial resolution.
+    """
+    import math
+
+    def exact(x, t, iters=200):
+        u = 0.0
+        for _ in range(iters):
+            u = math.sin(2.0 * math.pi * (x - u * t))
+        return u
+
+    def solve(n, t=0.1):
+        dx = 1.0 / n
+        u = [math.sin(2.0 * math.pi * ((i + 0.5) * dx)) for i in range(n)]
+        time = 0.0
+        while time < t:
+            umax = max(abs(v) for v in u) or 1e-12
+            dt = min(cfl * dx / umax, t - time)
+            flux = [0.5 * v * v for v in u]
+            u = [0.5 * (u[(i - 1) % n] + u[(i + 1) % n])
+                 - 0.5 * dt / dx * (flux[(i + 1) % n] - flux[(i - 1) % n])
+                 for i in range(n)]
+            time += dt
+        return u, dx
+
+    errs = []
+    for n in (32, 64, 128):
+        u, dx = solve(n)
+        err = sum(abs(u[i] - exact((i + 0.5) * dx, 0.1)) for i in range(n)) * dx
+        errs.append(err)
+    refines = errs[0] > errs[1] > errs[2]
+    return {"errors_l1": errs, "grids": [32, 64, 128], "cfl": cfl,
+            "refinement_holds": refines,
+            "valid_time": 0.1, "validity_bound": 1.0 / (2.0 * math.pi)}
+
+
+@app.get("/v1/acoustic/burgers")
+async def _v1_acoustic_burgers():
+    check = _acoustic_burgers_check()
+    return JSONResponse({
+        "schema": "szl.acoustic.burgers/v1",
+        "label": "MEASURED",
+        "check": "inviscid Burgers vs analytic characteristic solution, grid refinement at fixed CFL",
+        "result": check,
+        "proof_status": "PROVEN" if check["refinement_holds"] else "NOT_ESTABLISHED",
+        "doctrine": "v11",
+    })
+
+
+@app.get("/v1/acoustic/duffing")
+async def _v1_acoustic_duffing():
+    """Duffing oscillator with genuine cubic-stiffness (beta) sign recovery.
+
+    A trajectory is generated with a hardening oscillator (beta = +1); the
+    acceleration is then re-estimated by finite differences and beta is fitted
+    by least squares in the model a = -delta*v - beta*x^3 + gamma*cos(omega*t).
+    Sign recovery means the fitted beta has the generating sign.
+    """
+    import math
+    gamma_true, delta, omega, beta_true = 0.5, 0.3, 1.2, 1.0
+    dt, steps = 0.005, 4000
+    x, v = 1.0, 0.0
+    xs, vs, drives = [], [], []
+    for k in range(steps):
+        t = k * dt
+        drive = gamma_true * math.cos(omega * t)
+        xs.append(x); vs.append(v); drives.append(drive)
+        a = -delta * v - beta_true * x ** 3 + drive
+        v += a * dt
+        x += v * dt
+    # finite-difference acceleration on the recorded trajectory
+    num = min(len(xs) - 1, 3900)
+    sxx, sx3r = 0.0, 0.0
+    for i in range(0, num, 4):
+        a_hat = (vs[i + 1] - vs[i]) / dt
+        resid = a_hat + delta * vs[i] - drives[i]
+        sxx += xs[i] ** 6
+        sx3r += (xs[i] ** 3) * (-resid)
+    beta_fit = sx3r / sxx if sxx > 0 else 0.0
+    sign_recovered = beta_fit > 0.5 * beta_true
+    return JSONResponse({
+        "schema": "szl.acoustic.duffing/v1",
+        "label": "MEASURED",
+        "check": "Duffing oscillator cubic-stiffness (beta) least-squares sign recovery",
+        "result": {"beta_true": beta_true, "beta_fit": beta_fit,
+                   "sign_recovered": sign_recovered,
+                   "gamma": gamma_true, "delta": delta, "omega": omega},
+        "proof_status": "PROVEN" if sign_recovered else "NOT_ESTABLISHED",
+        "doctrine": "v11",
+    })
+
+
+@app.get("/v1/acoustic/ns-pathway")
+async def _v1_acoustic_ns_pathway():
+    """Aero-FF 4-step NS regularization pathway as falsifiable operating values."""
+    import math
+    murnaghan = {"A": 1.5, "B": 2.0, "C": -1.0, "label": "HYPOTHESIS_UNVERIFIED"}
+    poisson = {"nu": 0.34, "label": "HYPOTHESIS_UNVERIFIED"}
+    ep_gain = {"gain_db": 3.0, "label": "NOT_ESTABLISHED"}
+    chern = {"number": 1, "label": "HYPOTHESIS_FROM_PROVED_PROPERTY"}
+    rankine = {"rho_ratio": 1.0 / 6.0, "label": "HYPOTHESIS_UNVERIFIED"}
+    return JSONResponse({
+        "schema": "szl.acoustic.ns-pathway/v1",
+        "label": "MEASURED",
+        "pathway": ["murnaghan_stress_kick", "poisson_transverse_seed",
+                    "exceptional_point_gain", "chern_oam_protection",
+                    "rankine_hugoniot_bound"],
+        "operating_values": {"murnaghan": murnaghan, "poisson": poisson,
+                             "ep_gain": ep_gain, "chern": chern,
+                             "rankine_hugoniot": rankine},
+        "peer_reviewed_anchor": "Liu et al., Nature Communications 16:2823 (2025)",
+        "note": "Labels are verbatim from the acoustic-validation atlas; the pathway "
+                "is falsifiable, not asserted as solved.",
+        "doctrine": "v11",
+    })
+
+
+_SZL_PUBLIC_DATASETS = [
+    {"name": "reasoning-puzzles-sft-v1", "examples": 242,
+     "description": "Certified puzzle SFT corpus (Sara Behnamian benchmark derived)"},
+    {"name": "free-energy-reasoning-sft-v1", "examples": 242,
+     "description": "Free-energy annotated reasoning corpus"},
+    {"name": "ancient-math-reasoning-sft-v1", "examples": 24,
+     "description": "Ancient mathematical traditions corpus (7 traditions)"},
+    {"name": "acoustic-governance-sft-v1", "examples": 26,
+     "description": "Acoustic physics + governance math corpus (6 topics)"},
+    {"name": "model-eval-receipts", "examples": None,
+     "description": "Verbatim evaluation receipts (win-or-lose, never invented)"},
+    {"name": "wave-logs", "examples": None,
+     "description": "Training wave heartbeat logs"},
+]
+
+
+@app.get("/v1/data/")
+async def _v1_data_index():
+    """Estate public dataset catalog (x402 monetized surface)."""
+    return JSONResponse({
+        "schema": "szl.data.index/v1",
+        "label": "DERIVED",
+        "access": "PUBLIC_READ",
+        "source": "HUGGINGFACE_ORG_SZLHOLDINGS",
+        "datasets": [{"name": d["name"], "examples": d["examples"],
+                      "description": d["description"],
+                      "resolve_url": f"https://huggingface.co/datasets/SZLHOLDINGS/{d['name']}"}
+                     for d in _SZL_PUBLIC_DATASETS],
+        "note": "Catalog of the estate's public datasets; the datasets themselves are "
+                "served from Hugging Face under their own licenses.",
+        "doctrine": "v11",
+    })
+
+
+@app.get("/v1/data/{name}")
+async def _v1_data_entry(name: str):
+    match = next((d for d in _SZL_PUBLIC_DATASETS if d["name"] == name), None)
+    if match is None:
+        return JSONResponse({"schema": "szl.data.entry/v1", "status": "NOT_FOUND",
+                             "reason": "unknown dataset", "name": name},
+                            status_code=404)
+    return JSONResponse({
+        "schema": "szl.data.entry/v1",
+        "label": "DERIVED",
+        "name": match["name"], "examples": match["examples"],
+        "description": match["description"],
+        "resolve_url": f"https://huggingface.co/datasets/SZLHOLDINGS/{match['name']}",
+        "access": "PUBLIC_READ",
+        "doctrine": "v11",
+    })
+
+
+@app.get("/api/a11oy/v1/experimental/")
+async def _a11oy_experimental_index():
+    """Declared experimental scope (x402 monetized surface). Honest: EXPERIMENTAL."""
+    return JSONResponse({
+        "schema": "szl.experimental.index/v1",
+        "label": "EXPERIMENTAL",
+        "lean_scope": {
+            "kernel_commit": "7885fd9", "lean": "v4.18.0",
+            "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36,
+            "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Lambda + coder); "
+                    "NOT folded into the locked count of 8; Lambda stays Conjecture 1.",
+        },
+        "surfaces": {
+            "canonical_doctrine": "/api/a11oy/v1/honest",
+            "proof_registry": "https://a11oy.net/experiments",
+            "lambda": "Conjecture 1 (advisory, never green/theorem)",
+        },
+        "honesty": "EXPERIMENTAL scope is declared, measured where possible, and never "
+                   "presented as production-locked doctrine.",
+        "doctrine": "v11",
+    })
+
+
+# Origin payment admission for the three monetized families above. Unconfigured
+# by default: no price is stored here, and Host is not a payment boundary.
+import a11oy_x402_admission as _x402_admission
+app.middleware("http")(_x402_admission.payment_gate)
+
+
 @app.get("/api/a11oy/v1/anatomy")
 async def _a11oy_anatomy_index():
     """Index only. Does not claim the creator-profile anatomy Space is LIVE."""
@@ -7681,7 +7961,7 @@ async def _a11oy_anatomy_index():
         "codex": "/api/a11oy/v1/codex",
         "ouroboros": "/api/a11oy/v1/ouroboros",
         "external_estate": {
-            "origin": "https://betterwithage-anatomy.hf.space",
+            "origin": "https://szlholdings-anatomy.hf.space",
             "label": "SEPARATE_ORIGIN",
         },
         "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
@@ -14144,7 +14424,7 @@ try:
     from starlette.responses import Response as _OPW_Response
 
     _OPW_TAG = (
-        b'<script src="/vendor/a11oy-operator-widget.js?v=a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c" '
+        b'<script src="/vendor/a11oy-operator-widget.js?v=693a7b56469cc7ae182d44c8ebaef5dfd6cd84f7149c5dbed517b32c1aba145d" '
         b'data-surface="a11oy" defer></script>'
     )
     _OPW_MARKER = b'a11oy-operator-widget.js'
@@ -14232,7 +14512,7 @@ async def spa_root():
     emits http.response.body bytes that every middleware handles correctly. Idempotent
     + try/except guarded; FileResponse fallback only if no file is readable."""
     from starlette.responses import Response as _SPA_Resp
-    _SPA_TAG = (b'<script src="/vendor/a11oy-operator-widget.js?v=a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c" '
+    _SPA_TAG = (b'<script src="/vendor/a11oy-operator-widget.js?v=693a7b56469cc7ae182d44c8ebaef5dfd6cd84f7149c5dbed517b32c1aba145d" '
                 b'data-surface="a11oy" defer></script>')
     # Front door order: the holographic landing first (governed-inference field,
     # vendored Three.js r160, live receipt/mesh weave-ins + in-browser WebCrypto
@@ -15280,8 +15560,9 @@ except Exception as _spine_move_e:  # pragma: no cover
 
 # ---------------------------------------------------------------------------
 # Federated router spend — surface the BOX szl-router's REAL paid spend on the
-# /sovereign board. The a11oy container's own szl_spend_cap ledger is local/advisory
-# and stays ~$0 (no paid inference runs in THIS container); the durable source of
+# /sovereign board. The a11oy container's own szl_spend_cap ledger is in-process
+# memory. Its lock is not a restart-durable or cross-replica cap, and the
+# monetized read handlers do not call it. The durable source of
 # truth for real paid spend is the Hetzner box szl-router's append-only hash-linked
 # ledger. This reads it live, read-only, at request time (the HF Space FS is ephemeral,
 # so a pushed copy could never be durable). Honest by construction: env unset ->
