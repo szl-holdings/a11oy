@@ -112,4 +112,4 @@ The shared shell is the foundation, not the finished product design. Each flagsh
 - product-specific mobile navigation and keyboard flows;
 - visual regression baselines and performance traces.
 
-That second layer is how the estate becomes state of the art without becoming a collection of identical neon dashboards.
+That second layer is the product-specific composition pass above, so the flagship applications do not collapse into one shared neon dashboard.

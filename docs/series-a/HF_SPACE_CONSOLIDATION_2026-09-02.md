@@ -30,4 +30,4 @@ Immutable Actions artifact: `hf-space-consolidation-33684002630-1`
 
 Artifact digest: `sha256:f2ad9b440ce463089717eb4b38701e652024d64fbad9f4eb159b2a483f291d92`
 
-The operator is intentionally bounded: it does not delete Spaces and does not change accelerator, billing, secrets, or hardware settings. Source modernization of the seven canonical Spaces is a separate workstream from fleet consolidation; a Space being `RUNNING` is not treated as evidence that its UX/model/runtime is state of the art.
+The operator is intentionally bounded: it does not delete Spaces and does not change accelerator, billing, secrets, or hardware settings. Source modernization of the seven canonical Spaces is a separate workstream from fleet consolidation; a Space being `RUNNING` is not treated as evidence about the condition of its UX, model, or runtime.

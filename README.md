@@ -251,13 +251,14 @@ python3 tools/commercial_release_gate.py # commercial truth gate: COMMERCIAL_LED
 python3 tools/demo_harness.py --conformance evidence/conformance/eu-ai-act-article-12.v1.yaml
 ```
 
-Expected first-run exit codes: `docs_lexicon_gate.py` **1** and
-`commercial_release_gate.py` **1** — those failures are intended. The lexicon
-output is the Week 1 documentation fix list; the release-gate output is the 24
-raise-blocking COMMERCIAL_LEDGER rows still `UNKNOWN` (the real work, per the
-funding discipline). `demo_harness.py` must stay **0** (12/12 steps) on every
-PR. The two observe-mode gates run `continue-on-error` until their finding
-lists reach zero; flip procedure: `docs/RUNBOOK_WEEK1.md`.
+On this tree `docs_lexicon_gate.py` exits **0** and
+`commercial_release_gate.py` exits **1**. The release-gate output is the
+raise-blocking COMMERCIAL_LEDGER rows still `UNKNOWN` (the real work, per
+the funding discipline). `demo_harness.py` must stay **0** (12/12 steps) on
+every run. The lexicon gate fails the `truth-gates` job on a push to `main`
+or a tag. The commercial gate fails that job only on a tag push; a push to
+`main` and every pull request record its exit with `continue-on-error`.
+Cleanup procedure: `docs/RUNBOOK_WEEK1.md`.
 
 Naming note (no file was overwritten): `tools/lexicon_gate.py` and
 `tools/release_gate.py` already exist here as the round-5 gates, so the

@@ -1,17 +1,24 @@
-# truth-gates.yml — round-10 payload truth gates, wired as observe-mode CI.
+# truth-gates.yml — round-10 payload truth gates.
 #
 #   1. py_compile of tools/*.py and src/          hard gate (syntax)
-#   2. docs lexicon gate                          continue-on-error (initially):
-#      existing docs carry banned-phrase findings; the printed list is the
-#      Week 1 fix checklist. The failure is intended, per CANON.
-#   3. commercial release gate                    continue-on-error (initially):
-#      all 24 COMMERCIAL_LEDGER rows are UNKNOWN and blocks_raise — that is
-#      the real work (CANON section 8), not a CI bug.
+#   2. docs lexicon gate                          blocking on a push to
+#      main or a tag. A non-zero exit fails the job. Other refs stay
+#      observe-mode: the step still runs and still returns the tool
+#      status, and the job continues (CANON section 11).
+#   3. commercial release gate                    blocking on a tag push
+#      only. A push to main and every pull request stay observe-mode.
+#      The tool still runs and still returns its status. Unverified
+#      raise-blocking COMMERCIAL_LEDGER rows fail a tag-push job
+#      (CANON section 8). Real evidence is what clears those rows.
 #   4. demo harness                               hard gate: the 12-step
-#      acceptance demo must stay 12/12 on every PR.
+#      acceptance demo must stay 12/12 on every run.
 #
-# The two continue-on-error gates flip to hard gates once their finding
-# lists are worked to zero; flip procedure: docs/RUNBOOK_WEEK1.md.
+# Lexicon blocking: push AND (refs/heads/main OR refs/tags/*).
+# Commercial blocking: push AND refs/tags/*.
+# continue-on-error is true only for the negation of that step's predicate.
+# Any expression failure fails the workflow rather than skipping the gate.
+# Finding cleanup: docs/RUNBOOK_WEEK1.md.
+# Triggers, action pins, permissions, and secrets are unchanged.
 
 name: truth-gates
 
@@ -25,6 +32,11 @@ permissions:
 jobs:
   truth-gates:
     runs-on: ubuntu-latest
+    env:
+      # Shell annotations only. Job failure is continue-on-error below,
+      # from the same predicate as the matching variable.
+      LEXICON_GATE_BLOCKING: "${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}"
+      COMMERCIAL_GATE_BLOCKING: "${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}"
     steps:
       # Org policy: all actions pinned to full-length commit SHAs (same pins
       # as the existing workflows in this repo).
@@ -34,6 +46,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Verify lexicon and commercial gate failure rules
+        run: python3 tests/test_truth_gates_release_blocking.py
+
       - name: Install demo-slice runtime deps (pydantic, cryptography)
         run: python3 -m pip install --quiet "pydantic>=2" "cryptography>=42"
 
@@ -42,27 +57,35 @@ jobs:
           python3 -m py_compile tools/*.py
           find src -name '*.py' -print0 | xargs -0 python3 -m py_compile
 
-      - name: Docs lexicon gate (observe mode — continue-on-error initially)
-        continue-on-error: true
+      - name: Docs lexicon gate
+        continue-on-error: "${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))) }}"
         run: |
           set +e
           python3 tools/docs_lexicon_gate.py --root .
           rc=$?
           set -e
           if [ "$rc" -ne 0 ]; then
-            echo "::notice title=docs lexicon gate (observe mode)::exit $rc — banned-phrase / empty-truth-state findings are the Week 1 fix list; intended to fail until the docs are cleaned (CANON section 11)"
+            if [ "$LEXICON_GATE_BLOCKING" = "true" ]; then
+              echo "::error title=docs lexicon gate::exit $rc — findings above fail this push to main or a tag (CANON section 11)"
+            else
+              echo "::notice title=docs lexicon gate::exit $rc — findings above are recorded; this ref is not a push to main or a tag, so the job continues (CANON section 11)"
+            fi
           fi
           exit "$rc"
 
-      - name: Commercial release gate (observe mode — continue-on-error initially)
-        continue-on-error: true
+      - name: Commercial release gate
+        continue-on-error: "${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) }}"
         run: |
           set +e
           python3 tools/commercial_release_gate.py --root .
           rc=$?
           set -e
           if [ "$rc" -ne 0 ]; then
-            echo "::notice title=commercial release gate (observe mode)::exit $rc — expected while raise-blocking COMMERCIAL_LEDGER rows are UNKNOWN; the 24 open commercial rows are the real work (CANON section 8)"
+            if [ "$COMMERCIAL_GATE_BLOCKING" = "true" ]; then
+              echo "::error title=commercial release gate::exit $rc — findings above fail this tag push (CANON section 8)"
+            else
+              echo "::notice title=commercial release gate::exit $rc — findings above are recorded; this ref is not a tag push, so the job continues (CANON section 8)"
+            fi
           fi
           exit "$rc"
 
