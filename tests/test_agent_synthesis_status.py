@@ -3,6 +3,8 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Actual status route never equates provider readiness with content admission."""
 import importlib
+import sys
+import a11oy_rag_synthesis_controller as controller
 import hashlib
 import json
 import ast
@@ -181,3 +183,56 @@ def test_requested_agentic_chat_never_falls_back_when_local_loop_is_unavailable(
         "synthesis_admission": {"state": "UNAVAILABLE", "reason": "AGENT_LOOP_UNAVAILABLE"},
     }
     assert calls == []
+
+
+"""Offline deterministic interleavings: controller authority must be one coherent pair."""
+
+
+def _observed_during_configure(monkeypatch, old, new):
+    monkeypatch.setattr(controller, '_STATE', {'grant_source': old[0], 'destination': old[1]})
+    observed = []
+    previous = sys.gettrace()
+    def trace(frame, event, arg):
+        if frame.f_code is controller.configure.__code__ and event in ('line', 'return'):
+            observed.append(controller.configured())
+        return trace
+    try:
+        sys.settrace(trace)
+        controller.configure(grant_source=new[0], destination=new[1])
+    finally:
+        sys.settrace(previous)
+    return observed
+
+
+def test_install_never_exposes_mixed_authority_pair(monkeypatch):
+    old, new = (object(), object()), (object(), object())
+    observed = _observed_during_configure(monkeypatch, old, new)
+    assert observed
+    assert all(pair == old or pair == new for pair in observed), 'mixed grant-source/destination pair exposed'
+    assert controller.configured() == new
+
+
+def test_clear_never_exposes_half_revoked_configuration(monkeypatch):
+    old, cleared = (object(), object()), (None, None)
+    observed = _observed_during_configure(monkeypatch, old, cleared)
+    assert all(pair == old or pair == cleared for pair in observed), 'half-cleared configuration exposed'
+    assert controller.configured() == cleared
+
+
+def test_read_uses_one_snapshot_even_if_configuration_changes(monkeypatch):
+    old, new = (object(), object()), (object(), object())
+    class SwitchAfterGrantRead(dict):
+        def __getitem__(self, key):
+            value = super().__getitem__(key)
+            if key == 'grant_source':
+                controller._STATE = {'grant_source': new[0], 'destination': new[1]}
+            return value
+    monkeypatch.setattr(controller, '_STATE', SwitchAfterGrantRead(grant_source=old[0], destination=old[1]))
+    assert controller.configured() == old, 'reader combined two configuration generations'
+    assert controller.configured() == new
+
+
+def test_default_clear_preserves_fail_closed_pair(monkeypatch):
+    monkeypatch.setattr(controller, '_STATE', {'grant_source': object(), 'destination': object()})
+    controller.configure()
+    assert controller.configured() == (None, None)
