@@ -7434,6 +7434,34 @@ except Exception as _lb_e:  # pragma: no cover — guarded; never take down the 
 # observed signing capability, independent custody or non-repudiation.
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # ============================================================================
+def _signing_status_honesty(state):
+    """Public sentence for a passive read. Capability evidence is not authorization.
+
+    Lives on this entrypoint, not in szl_signing_state.py: that module stays
+    byte-identical with killinchu.
+    """
+    measured = (
+        isinstance(state, dict)
+        and state.get("evidence_class") == "MEASURED"
+        and state.get("signing_ready") is True
+        and state.get("execution_authorized") is False
+        and state.get("non_repudiation") == "UNKNOWN"
+        and state.get("sign_on_read") is False
+        and not state.get("blockers")
+    )
+    if measured:
+        return (
+            "MEASURED process-local sign-and-verify evidence. "
+            "signing_ready is not execution authorization. "
+            "non_repudiation stays UNKNOWN. No signing on this read."
+        )
+    return (
+        "DECLARED local signer metadata, not observed signing capability. "
+        "Key possession, persistence and HMAC configuration do not establish "
+        "permission, independent custody or non-repudiation. No signing on read."
+    )
+
+
 @app.api_route("/api/a11oy/v1/signing-status", methods=["GET", "HEAD"])
 async def _a11oy_signing_status():
     """Passive metadata read; configuration is not signing qualification."""
@@ -7453,9 +7481,7 @@ async def _a11oy_signing_status():
         "non_repudiation_state": "UNKNOWN",
         "signing_state": state,
         "doctrine": "v11",
-        "honesty": ("DECLARED local signer metadata, not observed signing capability. "
-                    "Key possession, persistence and HMAC configuration do not establish "
-                    "permission, independent custody or non-repudiation. No signing on read."),
+        "honesty": _signing_status_honesty(state),
     }, headers={"Cache-Control": "no-store"})
 
 
