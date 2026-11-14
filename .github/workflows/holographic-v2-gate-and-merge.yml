@@ -3,6 +3,10 @@ name: Holographic v2 Gate and Merge
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_thread:
+    types: [created, edited, deleted]
 
 permissions: read-all
 concurrency:
@@ -56,12 +60,14 @@ jobs:
             -F owner="$owner" \
             -F repo="$repo" \
             -F number="$PR_NUMBER")"
-          decision="$(jq -r '.data.repository.pullRequest.reviewDecision // "UNKNOWN"' <<<"$payload")"
+          graphql_errors="$(jq '[.errors[]?] | length' <<<"$payload")"
+          decision="$(jq -r '.data.repository.pullRequest.reviewDecision // "NULL"' <<<"$payload")"
           threads_page="$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage // true' <<<"$payload")"
           unresolved="$(jq '[.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved == false)] | length' <<<"$payload")"
           independent_approvals="$(jq --arg author "$author" '[.data.repository.pullRequest.reviews.nodes[]? | select(.state == "APPROVED" and .author.login != $author)] | length' <<<"$payload")"
           reviews_page="$(jq -r '.data.repository.pullRequest.reviews.pageInfo.hasNextPage // true' <<<"$payload")"
-          [[ "$decision" == "APPROVED" ]] || { echo "review decision is $decision"; exit 1; }
+          (( graphql_errors == 0 )) || { echo "GraphQL returned $graphql_errors error(s)"; exit 1; }
+          [[ "$decision" == "APPROVED" || "$decision" == "NULL" ]] || { echo "review decision is $decision"; exit 1; }
           [[ "$threads_page" == "false" ]] || { echo "review-thread inventory is incomplete"; exit 1; }
           [[ "$reviews_page" == "false" ]] || { echo "review inventory is incomplete"; exit 1; }
           (( unresolved == 0 )) || { echo "unresolved review threads: $unresolved"; exit 1; }
