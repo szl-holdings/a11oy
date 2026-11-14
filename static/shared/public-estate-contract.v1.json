@@ -477,26 +477,6 @@
       "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
     },
     {
-      "id": "SZLHOLDINGS/khipu-playground",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-bench-suite",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
       "id": "SZLHOLDINGS/szl-command-lab",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
@@ -508,16 +488,6 @@
     },
     {
       "id": "SZLHOLDINGS/szl-frontier",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-marketing",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -545,15 +515,6 @@
       "foldedAt": "2026-11-14",
       "addedBy": "2026-11-14 estate audit (previously unclassified)",
       "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/README",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "ORG_CARD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "addedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (org card observed in the manifest inventory, previously undeclared)"
     }
   ],
   "historicalBindings": [
