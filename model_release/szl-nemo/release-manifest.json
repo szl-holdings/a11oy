@@ -10,7 +10,7 @@
   "training_state": "NOT_FINE_TUNED",
   "hub": {
     "repository": "SZLHOLDINGS/szl-nemo",
-    "revision": "7866203c481d1baadadcb3dc81a6934d770868bc",
+    "revision": "122fb852349f024a3c9576b2df7d706be3acaf99",
     "repository_role": "VERSIONED_CONFIGURATION_RECIPE_NOT_WEIGHT_REPOSITORY"
   },
   "base": {
