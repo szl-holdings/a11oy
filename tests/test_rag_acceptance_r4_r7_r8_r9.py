@@ -87,14 +87,18 @@ def no_external_network(monkeypatch):
     # (szl_readiness._kick_background_build) that probe public endpoints; they are not
     # part of R4/R7/R8/R9. Neutralise them for the duration of each test so the guard
     # below measures only the code under test.
-    for _mod_name in ("szl_readiness", "szl_evidence_research"):
+    # Import-time math-corpus boot is another unrelated producer. It starts
+    # Hugging Face snapshot downloads when serve.py is imported; replace that
+    # boundary before importing the application so this file's guard observes
+    # only R4/R7/R8/R9 behavior.
+    for _mod_name in ("szl_readiness", "szl_evidence_research", "szl_math_corpus"):
         try:
             _mod = __import__(_mod_name)
         except Exception:  # module absent in this checkout
             continue
-        for _fn in ("_kick_background_build", "_start_warmer"):
+        for _fn in ("_kick_background_build", "_start_warmer", "boot_snapshot"):
             if callable(getattr(_mod, _fn, None)):
-                monkeypatch.setattr(_mod, _fn, lambda *a, **k: None)
+                monkeypatch.setattr(_mod, _fn, lambda *a, **k: {})
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
     yield attempts
