@@ -26,6 +26,22 @@ import szl_router_client as adapter
 
 PIN = "c" * 40
 TOKEN = "isolated-test-credential"
+# Independent protocol fixture; do not derive admission expectations from the client.
+CONTROLLED_FILES = (
+    "router_control/app.py",
+    "router_control/local_store.py",
+    "router_control/verification.py",
+    "router_control/free_tier.py",
+    "router_control/static/index.html",
+    "router_control/static/app.js",
+    "router_control/static/styles.css",
+    "router_control/static/free-options.js",
+    "router_control/static/free-options.css",
+    "router_control/static/szl/szl-tokens.css",
+    "router_control/static/szl/szl-icon-32.svg",
+    "router_control/static/szl/SOURCE.json",
+    "router_control/static/szl/PROJECTION.json",
+)
 _Client = httpx.Client
 _AsyncClient = httpx.AsyncClient
 
@@ -45,7 +61,7 @@ def wired(monkeypatch):
         "SOURCE_REVISION": PIN, "SZL_ROUTER_ENABLE_EGRESS": "1",
         "SZL_ROUTER_ALLOWED_HOSTS": "provider.example", "ISOLATED_PROVIDER_TOKEN": "isolated-provider",
         "SZL_ROUTER_PROVIDERS_JSON": json.dumps({"providers": [{
-            "id": "isolated", "base_url": "https://provider.example/v1",
+            "id": "isolated", "base_url": "https://provider.example/v1", "enabled": True,
             "models": {"example": "fixture-model"}, "token_env": "ISOLATED_PROVIDER_TOKEN",
             "classifications": ["public", "internal"], "cost_tier": 0,
         }]}),
@@ -54,6 +70,8 @@ def wired(monkeypatch):
     state = {
         "requests": [], "providers": [], "status": 200, "source_revision": PIN,
         "mutate": None, "source_mutate": None, "response_mode": None,
+        "source_receipt_mutate": None, "sources": [], "match_receipt_header": False,
+        "peer_module": None,
         "completion": {"id": "chat-isolated", "object": "chat.completion", "model": "fixture-model",
                        "choices": [{"index": 0, "message": {"role": "assistant", "content": "Public fixture answer."},
                                     "finish_reason": "stop"}]},
@@ -67,11 +85,18 @@ def wired(monkeypatch):
 
     peer = os.getenv("SZL_ROUTER_CONTRACT_CHECKOUT")
     if peer:
-        path = Path(peer).resolve() / "router_control" / "app.py"
+        peer_root = Path(peer).resolve()
+        monkeypatch.syspath_prepend(str(peer_root))
+        path = peer_root / "router_control" / "app.py"
         spec = importlib.util.spec_from_file_location("isolated_peer_router", path)
         module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
+        monkeypatch.setitem(sys.modules, spec.name, module)
         spec.loader.exec_module(module)
+        assert Path(module.__file__).resolve() == path
+        for name, imported in tuple(sys.modules.items()):
+            if name.startswith("router_control.") and getattr(imported, "__file__", None):
+                assert Path(imported.__file__).resolve().is_relative_to(peer_root)
+        state["peer_module"] = module
         gateway = module.app
         monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _AsyncClient(
             **{**kw, "transport": httpx.MockTransport(provider)}))
@@ -87,9 +112,7 @@ def wired(monkeypatch):
         @gateway.get("/api/source")
         def source():
             body = {"schema": "szl.router-source/v1", "repository": "szl-holdings/szl-router",
-                    "revision": PIN, "controlled_files": {name: "a" * 64 for name in (
-                        "router_control/app.py", "router_control/static/index.html",
-                        "router_control/static/app.js", "router_control/static/styles.css")},
+                    "revision": PIN, "controlled_files": {name: "a" * 64 for name in CONTROLLED_FILES},
                     "default_egress": False, "secret_output": False, "arbitrary_url_routing": False}
             return {**body, "receipt": {"algorithm": "sha256", "digest": digest(body)}}
 
@@ -99,6 +122,7 @@ def wired(monkeypatch):
 
         def model_plan(body):
             plan = {"schema": "szl.router-plan/v1", "model": body["model"],
+                    "required_provider_id": body.get("required_provider_id"),
                     "classification": body["data_classification"], "max_cost_tier": body["max_cost_tier"],
                     "registry_state": "VALIDATED", "egress_enabled": True,
                     "selected": "isolated", "selection_algorithm": "sovereignty-desc_priority-asc_cost-asc_id-asc/v1",
@@ -116,6 +140,8 @@ def wired(monkeypatch):
             if req.headers.get("authorization") != f"Bearer {TOKEN}":
                 return JSONResponse({"detail": {"code": "INVALID_ROUTER_CREDENTIAL"}}, status_code=401)
             body = await req.json()
+            # ChatRequest.model_dump includes this default even when the wire omits it.
+            body.setdefault("required_provider_id", None)
             payload = {"model": "fixture-model", "messages": [
                 {k: v for k, v in m.items() if v is not None} for m in body["messages"]], "stream": False}
             upstream = provider(httpx.Request("POST", "https://provider.example/v1/chat/completions",
@@ -140,18 +166,24 @@ def wired(monkeypatch):
         assert req.url.host == "router.example"
         response = test_gateway.request(req.method, req.url.raw_path.decode(), content=req.content, headers=dict(req.headers))
         value = response.json()
+        if req.url.path == "/api/source":
+            state["sources"].append(value)
         if req.url.path == "/api/source" and state["source_revision"] != PIN:
             value["revision"] = state["source_revision"]
             value["receipt"]["digest"] = digest({k: v for k, v in value.items() if k != "receipt"})
         if req.url.path == "/api/source" and state["source_mutate"]:
             state["source_mutate"](value)
             value["receipt"]["digest"] = digest({k: v for k, v in value.items() if k != "receipt"})
+        if req.url.path == "/api/source" and state["source_receipt_mutate"]:
+            state["source_receipt_mutate"](value["receipt"])
         if req.url.path == "/api/plan" and state.get("plan_mutate"):
             state["plan_mutate"](value)
             value["receipt"]["digest"] = digest({k: v for k, v in value.items() if k != "receipt"})
         if req.url.path == "/v1/chat/completions" and state["mutate"]:
             state["mutate"](value)
         headers = dict(response.headers)
+        if req.url.path == "/v1/chat/completions" and state["match_receipt_header"]:
+            headers["x-szl-receipt"] = value["szl_receipt"]["digest"]
         if state["response_mode"] == "cacheable":
             headers["cache-control"] = "public, max-age=3600"
         if state["response_mode"] == "duplicate":
@@ -178,7 +210,15 @@ def test_request_response_receipt_and_source_binding(wired):
     assert len(wired["providers"]) == 1
     sent = next(req for req in wired["requests"] if req.method == "POST")
     assert sent.headers["x-request-id"] == "case-123"
-    assert json.loads(sent.content)["user"] == "case-123"
+    payload = json.loads(sent.content)
+    assert payload["user"] == "case-123"
+    assert "required_provider_id" in payload and payload["required_provider_id"] is None
+    assert len(wired["sources"]) == 2
+    assert all(set(source["controlled_files"]) == set(CONTROLLED_FILES)
+               for source in wired["sources"])
+    if wired["peer_module"] is not None:
+        normalized = wired["peer_module"].ChatRequest.model_validate(payload).model_dump(mode="json")
+        assert payload == normalized
     assert all("authorization" not in req.headers for req in wired["requests"] if req.method == "GET")
     assert TOKEN not in json.dumps(result)
 
@@ -208,6 +248,65 @@ def test_source_contract_cannot_admit_missing_or_changed_guarantees(wired, mutat
     assert wired["providers"] == []
 
 
+@pytest.mark.parametrize("path", CONTROLLED_FILES)
+def test_each_controlled_source_path_is_required(wired, path):
+    wired["source_mutate"] = lambda value: value["controlled_files"].pop(path)
+    result = run()
+    assert result["error"] == "ROUTER_SOURCE_BINDING_INVALID"
+    assert result["answer"] is None
+    assert wired["providers"] == []
+
+
+@pytest.mark.parametrize("path", [
+    "router_control/extra.py", "../router_control/app.py", "/router_control/app.py",
+    "router_control/../router_control/app.py", "router_control\\app.py",
+    "Router_Control/app.py", "C:/router_control/app.py",
+])
+@pytest.mark.parametrize("replace", [False, True])
+def test_unadmitted_source_paths_are_rejected_even_when_rehashed(wired, path, replace):
+    def change(value):
+        if replace:
+            value["controlled_files"].pop("router_control/app.py")
+        value["controlled_files"][path] = "a" * 64
+    wired["source_mutate"] = change
+    result = run()
+    assert result["error"] == "ROUTER_SOURCE_BINDING_INVALID"
+    assert result["answer"] is None
+    assert wired["providers"] == []
+
+
+@pytest.mark.parametrize("path", CONTROLLED_FILES)
+@pytest.mark.parametrize("bad_hash", ["A" * 64, "g" * 64, "a" * 63, None, 123, True])
+def test_each_controlled_source_digest_requires_lowercase_sha256(wired, path, bad_hash):
+    wired["source_mutate"] = lambda value: value["controlled_files"].update({path: bad_hash})
+    result = run()
+    assert result["error"] == "ROUTER_SOURCE_BINDING_INVALID"
+    assert result["answer"] is None
+    assert wired["providers"] == []
+
+
+def test_source_envelope_digest_tamper_is_rejected(wired):
+    wired["source_receipt_mutate"] = lambda receipt: receipt.update(digest="e" * 64)
+    result = run()
+    assert result["error"] == "ROUTER_SOURCE_BINDING_INVALID"
+    assert result["answer"] is None
+    assert wired["providers"] == []
+
+
+@pytest.mark.parametrize("path", CONTROLLED_FILES)
+def test_each_controlled_source_change_after_generation_rejects_answer(wired, path):
+    def change(value):
+        if len(wired["sources"]) == 2:
+            previous = value["controlled_files"][path]
+            value["controlled_files"][path] = ("0" if previous[0] != "0" else "1") + previous[1:]
+    wired["source_mutate"] = change
+    result = run()
+    assert result["error"] == "ROUTER_SOURCE_CHANGED_DURING_REQUEST"
+    assert result["answer"] is None
+    assert len(wired["sources"]) == 2
+    assert len(wired["providers"]) == 1
+
+
 @pytest.mark.parametrize("mutation", [
     lambda value: value["choices"][0]["message"].update(content="Tampered"),
     lambda value: value["szl_receipt"].update(request_digest="e" * 64),
@@ -218,6 +317,24 @@ def test_tampered_or_missing_receipt_rejects_answer(wired, mutation):
     wired["mutate"] = mutation
     result = run()
     assert result["state"] == "UNAVAILABLE"
+    assert result["answer"] is None
+    assert len(wired["providers"]) == 1
+
+
+@pytest.mark.parametrize("omit_default", [False, True])
+def test_rehashed_request_digest_tamper_rejects_answer(wired, omit_default):
+    def change(value):
+        request = json.loads(wired["requests"][-1].content)
+        assert "required_provider_id" in request and request["required_provider_id"] is None
+        request.pop("required_provider_id")
+        receipt = value["szl_receipt"]
+        receipt["request_digest"] = digest(request) if omit_default else "e" * 64
+        receipt["digest"] = digest({key: item for key, item in receipt.items()
+                                    if key not in {"digest", "algorithm"}})
+    wired["mutate"] = change
+    wired["match_receipt_header"] = True
+    result = run()
+    assert result["error"] == "ROUTER_PROVENANCE_INVALID"
     assert result["answer"] is None
     assert len(wired["providers"]) == 1
 

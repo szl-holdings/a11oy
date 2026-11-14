@@ -63,6 +63,14 @@ def test_console_claims_fail_closed() -> None:
     assert "every inference turn mints a signed energy receipt here" not in console
 
 
+def test_grid_carbon_stays_roadmap() -> None:
+    grid = _between(_console(), "V['energyGrid']", "function injectNav")
+    assert "badge:'CARBON ROADMAP · NO LIVE GRID FEED'" in grid
+    assert "var label='ROADMAP'" in grid
+    assert "grid_intensity_label==='MEASURED'" not in grid
+    assert "real-time MEASURED" not in grid
+
+
 def test_energy_receipts_runtime_never_promotes_unbound_billing_metadata() -> None:
     """Execute the renderer against honest and adversarial unbound metadata."""
     node = shutil.which("node")
@@ -164,7 +172,8 @@ def test_investor_locked_formulas_use_canonical_doctrine_payload() -> None:
     assert 'id="inv-locked-list">UNAVAILABLE' in investor
     assert "locked_formula_count" in investor
     assert "locked_formula_ids" in investor
-    assert "H.doctrine==='v11'" in compact
+    assert "H.doctrine_lock.doctrine==='v11'" in compact
+    assert "H.doctrine==='v11'" not in compact
     assert "lockedCount===8" in compact
     assert "lockedIds.length===8" in compact
     assert "(newSet(lockedIds)).size===8" in compact
@@ -201,15 +210,16 @@ global.esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char]);
 let ledgerRows = [{receipt_id: '<img src=x onerror=alert(1)>', simulated: true}];
+let honest = {
+  doctrine_lock: {doctrine: 'v11'},
+  locked_formula_count: 9,
+  locked_formula_ids: ['F1','F2','F3','F4','F5','F6','F7','F8','F9'],
+};
 global.window = {
   VIEWS: {},
   getJSON: async (url) => {
     if (url === '/api/a11oy/v1/honest') {
-      return {
-        doctrine: 'v11',
-        locked_formula_count: 9,
-        locked_formula_ids: ['F1','F2','F3','F4','F5','F6','F7','F8','F9'],
-      };
+      return honest;
     }
     if (url === '/api/a11oy/v1/wow/ledger?limit=1&advance=0') {
       return {receipts: ledgerRows};
@@ -237,6 +247,32 @@ vm.runInThisContext(logic);
   await window.VIEWS.investor.render(container);
   assert.equal(element('inv-one-ep').textContent, 'UNAVAILABLE');
   assert.doesNotMatch(element('inv-one-receipt').innerHTML, /SIMULATED|REPORTED/);
+  // The producer nests the version, but retains count and IDs at the top level.
+  const canonical = ['F1','F4','F7','F11','F12','F18','F19','F22'];
+  const valid = {doctrine_lock: {doctrine: 'v11'}, locked_formula_count: 8, locked_formula_ids: canonical};
+  for (const payload of [valid, {data: valid}]) {
+    honest = payload;
+    await window.VIEWS.investor.render(container);
+    assert.equal(element('inv-locked-ep').textContent, '8 locked');
+    assert.equal(element('inv-locked-list').textContent, '{'+canonical.join(', ')+'}');
+  }
+  for (const payload of [
+    null, {}, {...valid, doctrine_lock: null},
+    {...valid, doctrine_lock: {doctrine: 'v10'}},
+    {...valid, doctrine_lock: undefined, doctrine: 'v11'},
+    {...valid, locked_formula_count: 9}, {...valid, locked_formula_count: '8'},
+    {...valid, locked_formula_ids: canonical.slice(0, 7)},
+    {...valid, locked_formula_ids: [...canonical.slice(0, 7), 'F19']},
+    {...valid, locked_formula_ids: [...canonical.slice(0, 7), 'F2']},
+  ]) {
+    honest = payload;
+    // The minimal DOM mock does not parse the renderer's fresh HTML shell.
+    element('inv-locked-ep').textContent = 'UNAVAILABLE';
+    element('inv-locked-list').textContent = 'UNAVAILABLE';
+    await window.VIEWS.investor.render(container);
+    assert.equal(element('inv-locked-ep').textContent, 'UNAVAILABLE');
+    assert.equal(element('inv-locked-list').textContent, 'UNAVAILABLE');
+  }
 })().catch((error) => {
   console.error(error && error.stack || error);
   process.exitCode = 1;

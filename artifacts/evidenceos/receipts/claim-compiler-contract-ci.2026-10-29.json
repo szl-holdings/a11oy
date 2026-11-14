@@ -1,0 +1,27 @@
+{
+  "schema_version": "test-receipt.v1",
+  "subject": "EvidenceOS Claim Compiler focused contract suite",
+  "repository": "szl-holdings/a11oy",
+  "source_revision": "a6b4d40fc6168270d5b7e47379a7d081b5b76ab4",
+  "workflow": "Claim Compiler contract",
+  "job": "bounded route and core contract",
+  "source_url": "https://github.com/szl-holdings/a11oy/actions/runs/40872654682/job/123443417478",
+  "completed_at": "2026-10-29T12:22:25Z",
+  "command": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/test_claim_rupture_gate.py",
+    "tests/test_claim_compiler_routes.py",
+    "tests/test_integrity_control_surface.py",
+    "tests/test_public_claim_manifest.py"
+  ],
+  "tests_passed": 108,
+  "warnings": 107,
+  "exit_code": 0,
+  "conclusion": "SUCCESS",
+  "signed": false,
+  "attests_truth": false,
+  "scope": "Records the cited GitHub Actions job and archived log observations only; tests_passed and warnings are not independently verified by this unsigned receipt. It is not a production, deployment, or truth certificate."
+}

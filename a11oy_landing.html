@@ -523,10 +523,10 @@
 <!-- ====================== HUB CATALOG — collections, not a zoo ====================== -->
 <section class="band" id="ecosystem">
   <div class="wrap" id="catalog">
-    <p class="kick">Hub catalog · four collections</p>
+    <p class="kick">Hub catalog · three collections</p>
     <h2>Collections are the catalog — not forty product SKUs.</h2>
     <p class="intro">Open a collection for its current inventory. A reachable URL is reachability only — not source/runtime alignment, not model quality, and not a claim that every Hub card is trained. ROADMAP cards are empty on purpose.</p>
-    <div class="grid g4" aria-label="Canonical Hugging Face collections">
+    <div class="grid g3" aria-label="Canonical Hugging Face collections">
       <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">
         <div class="status-row"><span class="chip software"><span class="dot"></span>TRAINED WEIGHTS</span></div>
         <h3>Flagship models</h3>
@@ -539,12 +539,11 @@
         <p>Software kernels. Not LoRA-trained models. Source on GitHub; Hub is the mirror.</p>
         <div class="golinks"><span class="go">Open collection →</span></div>
       </a>
-      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener">
-        <div class="status-row"><span class="chip roadmap"><span class="dot"></span>ROADMAP</span></div>
-        <h3>Roadmap</h3>
-        <p>Honest empty cards. Not trained. Do not treat as product SKUs or admitted data.</p>
-        <div class="golinks"><span class="go">Open collection →</span></div>
-      </a>
+      <!-- Roadmap collection card REMOVED 2026-11-04: the hash-suffixed
+           szl-roadmap-no-admitted-data collection no longer exists on the Hub
+           (404 on /api/collections and the public page, token-verified).
+           ROADMAP policy above stays as text; a dead link must not be sold as
+           a catalog entry. No replacement collection exists. -->
       <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener">
         <div class="status-row"><span class="chip software"><span class="dot"></span>SOFTWARE</span></div>
         <h3>Flagship Spaces</h3>
@@ -555,7 +554,6 @@
     <div class="estate-grid" aria-label="Canonical public catalog sources">
       <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener"><b>OPEN</b><span>Models</span></a>
       <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64" rel="noopener"><b>OPEN</b><span>Kernels</span></a>
-      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener"><b>OPEN</b><span>Roadmap</span></a>
       <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener"><b>OPEN</b><span>Spaces</span></a>
     </div>
   </div>
@@ -651,7 +649,6 @@
       <div class="lk"><strong>Catalog</strong>
         <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Flagship models</a>
         <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64" rel="noopener">Kernels · SOFTWARE</a>
-        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener">ROADMAP · no admitted data</a>
         <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener">Flagship Spaces</a></div>
       <div class="lk"><strong>Honesty</strong>
         <a href="/static/viz/router/">LLM Router · STALE NOT_MEASURED · snapshot 2026-07-11</a>
@@ -1195,7 +1192,7 @@
   if(bl){ bl.addEventListener("click", function(){
     const wrap = $("body-embed");
     const f = document.createElement("iframe");
-    f.src = "https://betterwithage-anatomy.hf.space#estate";
+    f.src = "https://szlholdings-anatomy.hf.space#estate";
     f.title = "a11oy living body — 3D governed organism (V10 · Estate + Ayllu wirings)";
     f.loading = "lazy"; f.referrerPolicy = "no-referrer";
     f.allow = "fullscreen"; f.setAttribute("allowfullscreen", "");

@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43
         with:
           egress-policy: audit
       - name: Checkout exact protected base verifier
@@ -103,7 +103,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43
         with:
           egress-policy: audit
       - name: Checkout exact protected-base verifier
@@ -588,7 +588,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             VALID_WORKFLOW.replace(
                 "    steps:\n",
                 "    steps:\n      - uses: &action "
-                "step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2\n",
+                "step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43\n",
                 1,
             ),
             VALID_WORKFLOW.replace(
@@ -762,7 +762,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         self.assertEqual(validator._validate_parity_jobs(workflow), [])
 
     def test_both_current_jobs_keep_the_exact_reviewed_hardener(self) -> None:
-        expected = "step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2"
+        expected = "step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43"
         self.assertEqual(validator.HARDEN_RUNNER_ACTION, expected)
         workflow = (HERE.parent / validator.WORKFLOW_PATH).read_text(encoding="utf-8")
         for job_name in (validator.BASELINE_JOB, validator.CANDIDATE_JOB):
@@ -775,7 +775,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
                 self.assertEqual(validator._nested_mapping(steps[0], "with"), {"egress-policy": "audit"})
 
     def test_unreviewed_or_mutable_runner_identity_is_rejected(self) -> None:
-        approved = "step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2"
+        approved = "step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43"
         replacements = (
             "step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1",
             "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920",
@@ -784,7 +784,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             "step-security/harden-runner@main",
             "step-security/harden-runner@" + "0" * 40,
             "step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25",
-            "attacker/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2",
+            "attacker/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43",
         )
         self.assertEqual(VALID_WORKFLOW.count(approved), 2)
         for replacement in replacements:
@@ -807,7 +807,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
     def test_missing_hardener_cannot_be_replaced_by_a_comment(self) -> None:
         step = (
             "      - name: Harden runner\n"
-            "        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2\n"
+            "        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43\n"
             "        with:\n"
             "          egress-policy: audit\n"
         )
@@ -824,7 +824,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             workflow = VALID_WORKFLOW.replace(
                 "    steps:\n",
                 "    steps:\n      - name: Extra hardener\n"
-                "        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2\n",
+                "        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43\n",
                 1,
             )
             (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")

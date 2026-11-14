@@ -6,6 +6,7 @@ No source execution or test pass is claimed by this unapplied proposal.
 import importlib
 import json
 import unittest
+from urllib.parse import urlsplit
 from unittest.mock import patch
 
 
@@ -155,6 +156,81 @@ class SyntheticSnowflakeSQLResultTests(unittest.TestCase):
         self.assertEqual(result.state, self.mod.State.READY)
         self.assertFalse(result.live)
         self.assertEqual(result.records, [])
+
+    def test_account_identifier_cannot_move_bearer_token_off_snowflake_host(self):
+        token = "synthetic-bearer-must-not-leave-snowflake"
+        invalid = (
+            "attacker.example/path",
+            "org.account",
+            "https://attacker.example",
+            "org_account",
+            "org/account",
+            "org:443",
+            "org@account",
+            "org?account",
+            "org#account",
+            " org-account",
+            "org-account ",
+            "org\naccount",
+            "\u043e\u0440g-account",
+            "-org-account",
+            "org-account-",
+            "a" * 64,
+        )
+        for account in invalid:
+            with self.subTest(account=repr(account)), \
+                 patch.dict(
+                     "os.environ",
+                     {
+                         "SZL_SNOWFLAKE_ACCOUNT": account,
+                         "SZL_SNOWFLAKE_ACCESS_TOKEN": token,
+                     },
+                     clear=True,
+                 ), \
+                 patch.object(
+                     self.mod,
+                     "http_json",
+                     side_effect=AssertionError("HTTP forbidden"),
+                 ) as http:
+                result = self.mod.SnowflakeConnector().read()
+            self.assertEqual(http.call_count, 0)
+            self.assertEqual(result.state, self.mod.State.ERROR)
+            self.assertFalse(result.live)
+            self.assertNotIn(token, result.note)
+            self.assertNotIn(account, result.note)
+
+    def test_valid_account_builds_only_the_fixed_snowflake_api_origin(self):
+        token = "synthetic-bearer-for-mocked-request"
+        with patch.dict(
+            "os.environ",
+            {
+                "SZL_SNOWFLAKE_ACCOUNT": "orgname-acct",
+                "SZL_SNOWFLAKE_ACCESS_TOKEN": token,
+            },
+            clear=True,
+        ), patch.object(
+            self.mod,
+            "http_json",
+            return_value=(200, completed([])),
+        ) as http:
+            result = self.mod.SnowflakeConnector().read()
+
+        self.assertTrue(result.live)
+        self.assertEqual(http.call_count, 1)
+        url = http.call_args.args[0]
+        parsed = urlsplit(url)
+        self.assertEqual(parsed.scheme, "https")
+        self.assertEqual(parsed.hostname, "orgname-acct.snowflakecomputing.com")
+        self.assertEqual(parsed.port, None)
+        self.assertEqual(parsed.username, None)
+        self.assertEqual(parsed.password, None)
+        self.assertEqual(parsed.path, "/api/v2/statements")
+        self.assertEqual(parsed.query, "")
+        self.assertEqual(parsed.fragment, "")
+        self.assertEqual(
+            http.call_args.kwargs["headers"]["Authorization"],
+            "Bearer " + token,
+        )
 
 
 if __name__ == "__main__":

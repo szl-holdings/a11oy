@@ -729,7 +729,7 @@ def build_snapshot(
             "anatomy": {
                 "repository": ANATOMY_REPOSITORY,
                 "revision": dependency_revisions[ANATOMY_REPOSITORY],
-                "live_origin": "https://betterwithage-anatomy.hf.space",
+                "live_origin": "https://szlholdings-anatomy.hf.space",
                 "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
             },
             "formulas": {

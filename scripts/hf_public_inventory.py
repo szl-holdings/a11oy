@@ -88,14 +88,19 @@ def public_get(url: str) -> Mapping[str, Any]:
     try:
         response = opener.open(request, timeout=20)
     except HTTPError as exc:
-        if not reserved or exc.code != 404 or exc.geturl() != url:
+        # A listing-endpoint 401 stays fatal. Only the reserved README Space
+        # may answer 401 to an anonymous caller: that is private, not an outage.
+        if not reserved or exc.code not in (401, 404) or exc.geturl() != url:
             raise InventoryError('HTTP_UNAVAILABLE') from exc
         raw = exc.read(MAX_BYTES + 1)
         exc.close()
         if len(raw) > MAX_BYTES:
             raise InventoryError('RESPONSE_BYTE_BUDGET')
-        return {'status': 404, 'json': None, 'link': None,
-                'response_sha256': hashlib.sha256(raw).hexdigest()}
+        payload = {'status': exc.code, 'json': None, 'link': None,
+                   'response_sha256': hashlib.sha256(raw).hexdigest()}
+        if exc.code == 401:
+            payload['disposition'] = 'ANONYMOUS_UNAUTHORIZED'
+        return payload
     with response:
         if response.status != 200 or response.geturl() != url:
             raise InventoryError('UNEXPECTED_HTTP_RESPONSE')
@@ -122,8 +127,10 @@ def reserved_readme(org: str, get: Callable[[str], Mapping[str, Any]] = public_g
                     ) -> tuple[Mapping[str, Any] | None, dict[str, Any]]:
     """Observe the one reserved Space omitted by the provider's author listing.
 
-    A 404 or explicit private disposition excludes it from this public scope.
-    Other failures cannot support a complete public membership observation.
+    A 404, an anonymous 401 (ANONYMOUS_UNAUTHORIZED), or an explicit private
+    disposition excludes it from this public scope. A listing-endpoint 401 is
+    not this observation and stays fatal. Other failures cannot support a
+    complete public membership observation.
     """
     url = f'https://huggingface.co/api/spaces/{org}/README'
     validate_reserved_url(url, org)
@@ -132,6 +139,8 @@ def reserved_readme(org: str, get: Callable[[str], Mapping[str, Any]] = public_g
                 'response_sha256': response.get('response_sha256', response.get('sha256'))}
     if response.get('status') == 404:
         return None, {**evidence, 'state': 'NOT_PUBLICLY_OBSERVABLE'}
+    if response.get('status') == 401:
+        return None, {**evidence, 'state': 'ANONYMOUS_UNAUTHORIZED'}
     if response.get('status') != 200:
         raise InventoryError('RESERVED_README_HTTP_UNAVAILABLE')
     row = response.get('json')

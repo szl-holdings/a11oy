@@ -123,6 +123,40 @@ must include its reciprocal peer payload and updated shared-module manifest.
 The default missing-admission behavior applies to both peers. This change is
 separate from the read-only Second Brain/Ouroboros/Living Anatomy wiring.
 
+## Controller wiring at the Code call sites
+
+`a11oy_rag_synthesis_controller.py` is the controller capability factory. The
+three Code agent call sites (`POST /agent/run`, `POST /agent/stream` and agentic
+`POST /chat/stream`) each pass `answer_synthesizer=_answer_synthesizer_for(request,
+who)` to `run_agent`. That helper returns `None` unless the controller has called
+`configure(grant_source=..., destination=...)` at process composition. No request
+field, environment variable, model label or operator credential can install
+either object. With nothing installed, which is the default, every call site
+halts with `CONTENT_ADMISSION_UNAVAILABLE`, and its response is unchanged.
+`/agent/status` still reports `available=false`; admission is decided per request.
+
+The factory consumes one injected protocol, `SynthesisGrantSource`. The rights
+registry (identity, tenancy, revision-bound sources) must implement it:
+
+| Method | Contract |
+|---|---|
+| `resolve_subject(request, operator)` | Verified caller to `SynthesisSubject` (named principal, tenant, immutable policy revision) or `None`. `operator["operator"] is True` is required but is not sufficient. Exceptions mean unavailable. |
+| `source_grant(subject, handle)` | Current `SynthesisSourceGrant` for the exact subject and full handle. Called on every check (initial, inside hydration, pre-egress); it must not be cached. |
+| `admit_transfer(decision)` | Strict `True` admits one `TransferDecision`: subject, the exact `(generation_id, chunk_id, sha256, source_revision)` tuples, the fixed provider/model/trust domain, purpose `ANSWER_SYNTHESIS`, task SHA-256, `history_forwarded=False` and `expression_authority="NONE"`. Truthy non-bool values refuse. |
+
+`FixedDestination(provider_id, model_id, trust_domain, transport)` names the
+single admitted destination. The fixed backend calls `transport` at most once,
+with `allow_fallback=False`, and refuses a response whose `provider_id` or `model`
+differs from the destination or which reports a fallback. The orchestrator never
+admits `agent_model_complete` or `_call_model_resilient` as a transport. Each
+request gets a single-use capability bound to one subject; the shared adapter
+still re-checks source and provider admission immediately before egress.
+
+Enabling this path on a deployed route requires the R2/R3 grant source, an
+owner-chosen destination and separate runtime qualification. This wiring is
+not a deployment claim. `tests/test_authorized_rag_synthesis_wiring.py` runs
+it through all three routes with real SQLite and a local spy transport.
+
 ## Verification
 
 `tests/test_authorized_rag_synthesis.py` executes the actual SQLite generation

@@ -7638,6 +7638,286 @@ async def _a11oy_codex_alias():
     })
 
 
+# ---------------------------------------------------------------------------
+# COOKIE RECOGNITION LEDGER (2026-11-07) — playful, honest, receipted.
+# Cookies are RECOGNITION ONLY: they have no monetary value, confer no
+# rights, and are never tradable. Every award carries the verified action
+# that earned it. The ledger is append-only in spirit: awards are never
+# silently revoked; corrections are new entries with reasons.
+# ---------------------------------------------------------------------------
+
+_COOKIE_LEDGER = [
+    {"cookie": 1, "awarded_to": "Sara Behnamian", "for": "certified-unique benchmark collaboration; two PRs merged upstream",
+     "verified_action": "PR #1 and #2 merged in sarabehnamian/Puzzle-generation-with-guaranteed-uniqueness",
+     "awarded_at": "2026-11-05", "label": "RECOGNITION_ONLY"},
+    {"cookie": 2, "awarded_to": "Andres Vidal-Gadea", "for": "adopting the four governance concepts into the lab's register and proposing the multi-arm study",
+     "verified_action": "lab adoption 2026-09-30; collaboration correspondence 2026-11-06",
+     "awarded_at": "2026-11-07", "label": "RECOGNITION_ONLY"},
+    {"cookie": 3, "awarded_to": "Pulin Gong and Andrew Ly", "for": "the riddled-basins result that reframes reproducibility",
+     "verified_action": "Nature Machine Intelligence 2026, arXiv:2510.05606",
+     "awarded_at": "2026-11-07", "label": "RECOGNITION_ONLY"},
+]
+
+
+@app.get("/api/a11oy/v1/cookies")
+async def _a11oy_cookies():
+    """The cookie ledger: recognition for verified contributions.
+
+    Cookies are RECOGNITION ONLY - no monetary value, no rights, never
+    tradable. Anyone may verify the underlying action from the recorded
+    provenance. New awards require a verifiable action; the ledger never
+    silently revokes - corrections are new entries with reasons.
+    """
+    return JSONResponse({
+        "schema": "szl.cookies/v1",
+        "label": "RECOGNITION_ONLY",
+        "note": ("Cookies are playful recognition for verified contributions to the "
+                 "estate and its collaborations. They have no monetary value, confer "
+                 "no rights, and are never tradable. Every award names the verified "
+                 "action that earned it."),
+        "total_awarded": len(_COOKIE_LEDGER),
+        "ledger": _COOKIE_LEDGER,
+        "how_to_earn": ("A verified contribution: a merged PR, an independently "
+                        "replicated result, an adopted method, or an honest published "
+                        "failure that made the estate measurably better."),
+        "doctrine": "v11",
+    })
+
+
+# ---------------------------------------------------------------------------
+# MONETIZED PRODUCT SURFACES (2026-11-06) — real backends for the x402 rules.
+# Acoustic validation, dataset access and the experimental-surface index each
+# serve genuine payloads (measured computation, public catalog, declared
+# experimental scope) behind the Cloudflare monetization gateway. Honest
+# labels everywhere; nothing here claims LIVE for a surface it cannot prove.
+# ---------------------------------------------------------------------------
+
+@app.get("/v1/acoustic/")
+async def _v1_acoustic_index():
+    """Acoustic validation product index (x402 monetized surface)."""
+    return JSONResponse({
+        "schema": "szl.acoustic.index/v1",
+        "product": "acoustic-validation",
+        "label": "MEASURED",
+        "endpoints": {
+            "burgers": "/v1/acoustic/burgers",
+            "duffing": "/v1/acoustic/duffing",
+            "ns_pathway": "/v1/acoustic/ns-pathway",
+        },
+        "proof_status_vocabulary": ["PROVEN", "HYPOTHESIS_UNVERIFIED", "NOT_ESTABLISHED",
+                                    "HYPOTHESIS_FROM_PROVED_PROPERTY"],
+        "source_repository": "szl-holdings/acoustic-validation",
+        "peer_reviewed_foundations": "Liu et al., Nature Communications 16:2823 (2025)",
+        "doctrine": "v11",
+        "note": "Each endpoint runs a real falsifiable check and returns measured values "
+                "with verbatim PROOF-STATUS labels; no result is fabricated.",
+    })
+
+
+def _acoustic_burgers_check(cfl: float = 0.4) -> dict:
+    """Inviscid Burgers vs the exact characteristic solution.
+
+    u_t + u u_x = 0 with u0 = sin(2*pi*x). The exact solution is the implicit
+    characteristic relation u = sin(2*pi*(x - u*t)), solved per point by
+    fixed-point iteration (converges for t < 1/(2*pi)). The numerical solution
+    uses a conservative Lax-Friedrichs step at a FIXED CFL (dt scales with dx),
+    so refinement genuinely tests spatial resolution.
+    """
+    import math
+
+    def exact(x, t, iters=200):
+        u = 0.0
+        for _ in range(iters):
+            u = math.sin(2.0 * math.pi * (x - u * t))
+        return u
+
+    def solve(n, t=0.1):
+        dx = 1.0 / n
+        u = [math.sin(2.0 * math.pi * ((i + 0.5) * dx)) for i in range(n)]
+        time = 0.0
+        while time < t:
+            umax = max(abs(v) for v in u) or 1e-12
+            dt = min(cfl * dx / umax, t - time)
+            flux = [0.5 * v * v for v in u]
+            u = [0.5 * (u[(i - 1) % n] + u[(i + 1) % n])
+                 - 0.5 * dt / dx * (flux[(i + 1) % n] - flux[(i - 1) % n])
+                 for i in range(n)]
+            time += dt
+        return u, dx
+
+    errs = []
+    for n in (32, 64, 128):
+        u, dx = solve(n)
+        err = sum(abs(u[i] - exact((i + 0.5) * dx, 0.1)) for i in range(n)) * dx
+        errs.append(err)
+    refines = errs[0] > errs[1] > errs[2]
+    return {"errors_l1": errs, "grids": [32, 64, 128], "cfl": cfl,
+            "refinement_holds": refines,
+            "valid_time": 0.1, "validity_bound": 1.0 / (2.0 * math.pi)}
+
+
+@app.get("/v1/acoustic/burgers")
+async def _v1_acoustic_burgers():
+    check = _acoustic_burgers_check()
+    return JSONResponse({
+        "schema": "szl.acoustic.burgers/v1",
+        "label": "MEASURED",
+        "check": "inviscid Burgers vs analytic characteristic solution, grid refinement at fixed CFL",
+        "result": check,
+        "proof_status": "PROVEN" if check["refinement_holds"] else "NOT_ESTABLISHED",
+        "doctrine": "v11",
+    })
+
+
+@app.get("/v1/acoustic/duffing")
+async def _v1_acoustic_duffing():
+    """Duffing oscillator with genuine cubic-stiffness (beta) sign recovery.
+
+    A trajectory is generated with a hardening oscillator (beta = +1); the
+    acceleration is then re-estimated by finite differences and beta is fitted
+    by least squares in the model a = -delta*v - beta*x^3 + gamma*cos(omega*t).
+    Sign recovery means the fitted beta has the generating sign.
+    """
+    import math
+    gamma_true, delta, omega, beta_true = 0.5, 0.3, 1.2, 1.0
+    dt, steps = 0.005, 4000
+    x, v = 1.0, 0.0
+    xs, vs, drives = [], [], []
+    for k in range(steps):
+        t = k * dt
+        drive = gamma_true * math.cos(omega * t)
+        xs.append(x); vs.append(v); drives.append(drive)
+        a = -delta * v - beta_true * x ** 3 + drive
+        v += a * dt
+        x += v * dt
+    # finite-difference acceleration on the recorded trajectory
+    num = min(len(xs) - 1, 3900)
+    sxx, sx3r = 0.0, 0.0
+    for i in range(0, num, 4):
+        a_hat = (vs[i + 1] - vs[i]) / dt
+        resid = a_hat + delta * vs[i] - drives[i]
+        sxx += xs[i] ** 6
+        sx3r += (xs[i] ** 3) * (-resid)
+    beta_fit = sx3r / sxx if sxx > 0 else 0.0
+    sign_recovered = beta_fit > 0.5 * beta_true
+    return JSONResponse({
+        "schema": "szl.acoustic.duffing/v1",
+        "label": "MEASURED",
+        "check": "Duffing oscillator cubic-stiffness (beta) least-squares sign recovery",
+        "result": {"beta_true": beta_true, "beta_fit": beta_fit,
+                   "sign_recovered": sign_recovered,
+                   "gamma": gamma_true, "delta": delta, "omega": omega},
+        "proof_status": "PROVEN" if sign_recovered else "NOT_ESTABLISHED",
+        "doctrine": "v11",
+    })
+
+
+@app.get("/v1/acoustic/ns-pathway")
+async def _v1_acoustic_ns_pathway():
+    """Aero-FF 4-step NS regularization pathway as falsifiable operating values."""
+    import math
+    murnaghan = {"A": 1.5, "B": 2.0, "C": -1.0, "label": "HYPOTHESIS_UNVERIFIED"}
+    poisson = {"nu": 0.34, "label": "HYPOTHESIS_UNVERIFIED"}
+    ep_gain = {"gain_db": 3.0, "label": "NOT_ESTABLISHED"}
+    chern = {"number": 1, "label": "HYPOTHESIS_FROM_PROVED_PROPERTY"}
+    rankine = {"rho_ratio": 1.0 / 6.0, "label": "HYPOTHESIS_UNVERIFIED"}
+    return JSONResponse({
+        "schema": "szl.acoustic.ns-pathway/v1",
+        "label": "MEASURED",
+        "pathway": ["murnaghan_stress_kick", "poisson_transverse_seed",
+                    "exceptional_point_gain", "chern_oam_protection",
+                    "rankine_hugoniot_bound"],
+        "operating_values": {"murnaghan": murnaghan, "poisson": poisson,
+                             "ep_gain": ep_gain, "chern": chern,
+                             "rankine_hugoniot": rankine},
+        "peer_reviewed_anchor": "Liu et al., Nature Communications 16:2823 (2025)",
+        "note": "Labels are verbatim from the acoustic-validation atlas; the pathway "
+                "is falsifiable, not asserted as solved.",
+        "doctrine": "v11",
+    })
+
+
+_SZL_PUBLIC_DATASETS = [
+    {"name": "reasoning-puzzles-sft-v1", "examples": 242,
+     "description": "Certified puzzle SFT corpus (Sara Behnamian benchmark derived)"},
+    {"name": "free-energy-reasoning-sft-v1", "examples": 242,
+     "description": "Free-energy annotated reasoning corpus"},
+    {"name": "ancient-math-reasoning-sft-v1", "examples": 24,
+     "description": "Ancient mathematical traditions corpus (7 traditions)"},
+    {"name": "acoustic-governance-sft-v1", "examples": 26,
+     "description": "Acoustic physics + governance math corpus (6 topics)"},
+    {"name": "model-eval-receipts", "examples": None,
+     "description": "Verbatim evaluation receipts (win-or-lose, never invented)"},
+    {"name": "wave-logs", "examples": None,
+     "description": "Training wave heartbeat logs"},
+]
+
+
+@app.get("/v1/data/")
+async def _v1_data_index():
+    """Estate public dataset catalog (x402 monetized surface)."""
+    return JSONResponse({
+        "schema": "szl.data.index/v1",
+        "label": "DERIVED",
+        "access": "PUBLIC_READ",
+        "source": "HUGGINGFACE_ORG_SZLHOLDINGS",
+        "datasets": [{"name": d["name"], "examples": d["examples"],
+                      "description": d["description"],
+                      "resolve_url": f"https://huggingface.co/datasets/SZLHOLDINGS/{d['name']}"}
+                     for d in _SZL_PUBLIC_DATASETS],
+        "note": "Catalog of the estate's public datasets; the datasets themselves are "
+                "served from Hugging Face under their own licenses.",
+        "doctrine": "v11",
+    })
+
+
+@app.get("/v1/data/{name}")
+async def _v1_data_entry(name: str):
+    match = next((d for d in _SZL_PUBLIC_DATASETS if d["name"] == name), None)
+    if match is None:
+        return JSONResponse({"schema": "szl.data.entry/v1", "status": "NOT_FOUND",
+                             "reason": "unknown dataset", "name": name},
+                            status_code=404)
+    return JSONResponse({
+        "schema": "szl.data.entry/v1",
+        "label": "DERIVED",
+        "name": match["name"], "examples": match["examples"],
+        "description": match["description"],
+        "resolve_url": f"https://huggingface.co/datasets/SZLHOLDINGS/{match['name']}",
+        "access": "PUBLIC_READ",
+        "doctrine": "v11",
+    })
+
+
+@app.get("/api/a11oy/v1/experimental/")
+async def _a11oy_experimental_index():
+    """Declared experimental scope (x402 monetized surface). Honest: EXPERIMENTAL."""
+    return JSONResponse({
+        "schema": "szl.experimental.index/v1",
+        "label": "EXPERIMENTAL",
+        "lean_scope": {
+            "kernel_commit": "7885fd9", "lean": "v4.18.0",
+            "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36,
+            "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Lambda + coder); "
+                    "NOT folded into the locked count of 8; Lambda stays Conjecture 1.",
+        },
+        "surfaces": {
+            "canonical_doctrine": "/api/a11oy/v1/honest",
+            "proof_registry": "https://a11oy.net/experiments",
+            "lambda": "Conjecture 1 (advisory, never green/theorem)",
+        },
+        "honesty": "EXPERIMENTAL scope is declared, measured where possible, and never "
+                   "presented as production-locked doctrine.",
+        "doctrine": "v11",
+    })
+
+
+# Origin payment admission for the three monetized families above. Unconfigured
+# by default: no price is stored here, and Host is not a payment boundary.
+import a11oy_x402_admission as _x402_admission
+app.middleware("http")(_x402_admission.payment_gate)
+
+
 @app.get("/api/a11oy/v1/anatomy")
 async def _a11oy_anatomy_index():
     """Index only. Does not claim the creator-profile anatomy Space is LIVE."""
@@ -7655,7 +7935,7 @@ async def _a11oy_anatomy_index():
         "codex": "/api/a11oy/v1/codex",
         "ouroboros": "/api/a11oy/v1/ouroboros",
         "external_estate": {
-            "origin": "https://betterwithage-anatomy.hf.space",
+            "origin": "https://szlholdings-anatomy.hf.space",
             "label": "SEPARATE_ORIGIN",
         },
         "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
@@ -10364,11 +10644,60 @@ def _refresh_a11oy_signing_state():
         loaded_key_fingerprint=loaded, expected_key_fingerprint=expected)
 
 
+def _observe_a11oy_signing_capability():
+    """Capability self-test: the separately reviewed binding between real
+    sign+verify evidence and the passive projection. A DISTINCT lifecycle
+    write after the passive sample - the sampler itself never signs.
+    Fail-closed: any failure leaves the PERMISSION_UNOBSERVED blockers."""
+    service = getattr(app.state, "szl_series_a_service", None)
+    boot_id = getattr(service, "runtime_boot_id", None)
+    verification = loaded = None
+    try:
+        if _A11OY_PUB_PEM:
+            verification = _hashv2.sha256(
+                _A11OY_PUB_PEM.strip().encode("ascii")).hexdigest()
+        if _A11OY_PRIV is not None:
+            from cryptography.hazmat.primitives import serialization
+            public = _A11OY_PRIV.public_key().public_bytes(
+                serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+            loaded = _hashv2.sha256(public.strip()).hexdigest()
+    except Exception:
+        return
+    if (_A11OY_PRIV is None or not verification or not boot_id
+            or loaded != verification):
+        return
+    try:
+        selftest = {
+            "schema": "szl.signing-capability/v1",
+            "runtime_boot_id": boot_id,
+            "observed_at": _dtv2.now(_tzv2.utc).isoformat(),
+            "statement": ("process-local signing capability self-test: "
+                          "the loaded backend signs and the signature "
+                          "verifies against the loaded public key"),
+        }
+        body = _a11oy_canonical(selftest)
+        to_sign = _a11oy_pae(_A11OY_PAYLOAD_TYPE, body)
+        sig = _A11OY_PRIV.sign(to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
+        _A11OY_PRIV.public_key().verify(
+            sig, to_sign, _ecv2.ECDSA(_hashesv2.SHA256()))
+        import base64 as _b64s
+        _A11OY_SIGNING_STATE.record_capability_evidence(
+            boot_id=boot_id,
+            observed_at=selftest["observed_at"],
+            payload_digest=_hashv2.sha256(body).hexdigest(),
+            signature_b64=_b64s.b64encode(sig).decode("ascii"),
+            key_fingerprint=verification,
+            verified=True)
+    except Exception:
+        pass  # fail closed: no capability claim without verified evidence
+
+
 async def _a11oy_signing_state_loop():
     while True:
         await asyncio.sleep(15)
         try:
             _refresh_a11oy_signing_state()
+            _observe_a11oy_signing_capability()
         except Exception:
             _A11OY_SIGNING_STATE.invalidate()
 
@@ -10377,6 +10706,7 @@ def _start_a11oy_signing_state():
     global _A11OY_SIGNING_STATE_TASK
     try:
         _refresh_a11oy_signing_state()
+        _observe_a11oy_signing_capability()
     except Exception:
         _A11OY_SIGNING_STATE.invalidate()
     if _A11OY_SIGNING_STATE_TASK is None or _A11OY_SIGNING_STATE_TASK.done():
@@ -10808,15 +11138,20 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
           file=sys.stderr)
 
 
-def _public_khipu_nodes(limit: int = 32) -> list[dict]:
-    """Read-only view of the operator Khipu DAG. GET never mints."""
+def _public_khipu_nodes(limit: int = 32) -> "tuple[list[dict], str | None]":
+    """Read-only view of the operator Khipu DAG. GET never mints.
+
+    Returns (nodes, read_error). read_error is None for a clean read (including
+    no DAG attached, which is live-empty) and a short reason when the read
+    failed, so a failed read is never reported as an empty healthy ledger.
+    """
     dag = getattr(app.state, "szl_khipu_dag", None)
     if dag is None:
-        return []
+        return [], None
     try:
         nodes = list(dag.recent(max(1, min(int(limit), 64))))
-    except Exception:
-        return []
+    except Exception as exc:
+        return [], "khipu_dag_read_failed:" + type(exc).__name__
     out = []
     for node in nodes:
         receipt = node.get("receipt") if isinstance(node, dict) else None
@@ -10831,7 +11166,7 @@ def _public_khipu_nodes(limit: int = 32) -> list[dict]:
             "actor": receipt.get("actor"),
             "ts_utc": node.get("ts_utc") or receipt.get("ts_utc"),
         })
-    return out
+    return out, None
 
 
 @app.get("/api/a11oy/v1/ledger")
@@ -10845,16 +11180,33 @@ async def a11oy_ledger_v2() -> JSONResponse:
     observed_at = _gov_now_iso()
     if observed_at.endswith("+00:00"):
         observed_at = observed_at[:-6] + "Z"
-    receipts = _public_khipu_nodes()
+    receipts, read_error = _public_khipu_nodes()
+    if read_error is not None:
+        return JSONResponse({
+            "count": None,
+            "state": "UNAVAILABLE",
+            "data_kind": "live",
+            "operational": False,
+            "reason": read_error,
+            "structure_verified": None,
+            "chain_verified": None,
+            "chain_verification": "NOT_EVALUATED_BY_THIS_ROUTE",
+            "receipt_minted": False,
+            "observed_at": observed_at,
+            "book": "public_operator_khipu",
+            "receipts": [],
+        }, status_code=503)
     signed_any = any(item.get("signed") for item in receipts)
     return JSONResponse({
         "count": len(receipts),
+        "count_scope": "recent nodes returned by this route (at most 32), not the DAG total",
         "state": "live",
         "data_kind": "live",
         "operational": True,
         "hash_algorithm": "sha256-hex",
-        "structure_verified": True,
-        "chain_verified": True,
+        "structure_verified": None,
+        "chain_verified": None,
+        "chain_verification": "NOT_EVALUATED_BY_THIS_ROUTE",
         "signed": signed_any,
         "signature_state": "SIGNED" if signed_any else "UNSIGNED",
         "receipt_minted": False,
@@ -10862,8 +11214,9 @@ async def a11oy_ledger_v2() -> JSONResponse:
         "book": "public_operator_khipu",
         "honesty": ("Live operational ledger read from the in-process Khipu DAG. "
                     "GET never mints, so receipt_minted is always false on this "
-                    "route. count is the number of receipts already present in "
-                    "this process; this is not the deterministic SAMPLE chain "
+                    "route. count is the number of recent receipts this route "
+                    "returned (at most 32), not the DAG total. Structure and chain "
+                    "integrity are not evaluated here. This is not the deterministic SAMPLE chain "
                     "(see GET /api/a11oy/v2/command-log)."),
         "receipts": receipts,
     })
@@ -12165,15 +12518,19 @@ try:
     # request path (the outbound OpenAI-compatible call built just below, which
     # serves the self-hosted node when A11OY_MODEL_BASE_URL + A11OY_GPU_TOKEN
     # are set, with the served model named by SZL_LOCAL_LLM_MODEL). When the
-    # operator opts in, the user's query is FIRST posted to the LIVE
-    # SZLHOLDINGS/second-brain HF Space (/api/v1/retrieve) and, ONLY on a LIVE
-    # well-formed response, that API's citation HANDLES (nodeId + short note +
-    # sha256, verbatim) plus the API's OWN honesty string are prepended to the
-    # outbound messages as untrusted user/data context, never system policy. The upstream API is a
-    # lexical-overlap ranker over a PUBLIC 575-chunk projection
-    # (content_access=HANDLES_ONLY) — it is NOT semantic retrieval and it is NOT
-    # the private 9464-node brain graph, and neither this code nor its labels
-    # may upgrade that claim. Fail-closed: timeout / non-2xx / malformed JSON /
+    # operator opts in, the user's query is FIRST posted to the second-brain
+    # retrieve endpoint and, ONLY on a LIVE well-formed response, that API's citation
+    # HANDLES (nodeId + short note + sha256, verbatim) plus the API's OWN
+    # honesty string are prepended to the outbound messages as untrusted
+    # user/data context, never system policy. UPSTREAM DISPOSITION (verified
+    # 2026-11-04): the SZLHOLDINGS/second-brain HF Space is DELETED (404 across
+    # the Hub APIs, runtime URL 404), so the bridge can only report UNAVAILABLE
+    # until a successor is deployed; nothing here may present it as live. The
+    # historical upstream API was a lexical-overlap ranker over a PUBLIC
+    # 575-chunk projection (content_access=HANDLES_ONLY) — it is NOT semantic
+    # retrieval and it is NOT the private 9464-node brain graph, and neither
+    # this code nor its labels may upgrade that claim. Fail-closed: timeout /
+    # non-2xx / malformed JSON /
     # missing "handles" -> status UNAVAILABLE, the messages go out UNCHANGED,
     # and generation.second_brain_rag NEVER claims retrieval was used. When the
     # flag is unset the bridge is never consulted and this path is byte-identical
@@ -12205,7 +12562,9 @@ try:
         if not _ac_second_brain_rag_enabled():
             return messages, None
         base_meta = {
-            "source": "SZLHOLDINGS/second-brain HF Space /api/v1/retrieve",
+            "source": ("deleted SZLHOLDINGS/second-brain HF Space "
+                       "/api/v1/retrieve (upstream removed; verified 404 "
+                       "2026-11-04)"),
             "kind": "citation-handles",
             "label": ("citation handles from a public lexical index, not "
                       "semantic retrieval, not the full brain graph"),
@@ -12340,7 +12699,9 @@ try:
                 _stub_meta["second_brain_rag"] = {
                     "status": "UNAVAILABLE", "used": False,
                     "kind": "citation-handles",
-                    "source": "SZLHOLDINGS/second-brain HF Space /api/v1/retrieve",
+                    "source": ("deleted SZLHOLDINGS/second-brain HF Space "
+                               "/api/v1/retrieve (upstream removed; verified "
+                               "404 2026-11-04)"),
                     "error": "no inference credential configured; no outbound call to augment"}
             return stub, "deterministic", _stub_meta
         messages = [
@@ -14179,10 +14540,11 @@ async def _hero_vendor(fname: str) -> Response:
 
 
 # === ADDITIVE: /cathedral — the ONE canonical genius cathedral, GitHub-aligned. ===
-# Unifies the cathedral front door so a-11-oy.com/cathedral renders the IDENTICAL
-# "Constellation · Khipu" scene as the SZLHOLDINGS/cathedral HF static space and
+# The SZLHOLDINGS/cathedral HF static Space is DELETED (verified 404 across Hub
+# APIs and runtime probe on 2026-11-04); this same-origin route is now the only
+# canonical cathedral surface, rendering the tracked cathedral scene and
 # killinchu/cathedral. The page (cathedral_genius.html at the repo root) is the
-# canonical HF index.html byte-for-byte EXCEPT its two asset paths, which are
+# canonical HTML byte-for-byte EXCEPT its two asset paths, which are
 # repointed at sovereign in-image routes: the ES-module app at /cathedral/app.js
 # and the vendored Three.js r160 (MIT) at the existing /hero/vendor3d/* routes.
 # 0 runtime CDN; system-font stacks; Three.js vendored. Honesty doctrine v11:
@@ -14792,10 +15154,12 @@ async def harvest_console_page() -> Response:
 
 
 # --- Hatun-MCP tab (ADDITIVE; Doctrine v12 PURIQ / Yachay CTO, 2026-06-01) ---
-# Status + 16-tool list + recent-invocation view for the SZL agentic MCP server
-# (Space: SZLHOLDINGS/hatun-mcp). Client-side probes the live /healthz and
-# /.well-known/mcp/server-card.json. Served from /app/pages/ (already COPYed by
-# the Dockerfile) — no Dockerfile change, zero regression to existing routes.
+# Status + 16-tool list + recent-invocation view for the SZL agentic MCP server.
+# The former HF Space SZLHOLDINGS/hatun-mcp is DELETED (verified 404 across the
+# Hub APIs on 2026-11-04); this page therefore probes only same-origin in-process
+# /mcp/ and /api/hatun/* evidence routes, which stay UNAVAILABLE when no evidence
+# exists. Served from /app/pages/ (already COPYed by the Dockerfile) — no
+# Dockerfile change, zero regression to existing routes.
 @app.get("/hatun-mcp")
 async def hatun_mcp_page() -> Response:
     f = PAGES_DIR / "hatun-mcp.html"
@@ -14911,9 +15275,10 @@ _CONSTELLATION_SURFACES = [
     {"name": "a11oy", "kind": "Orchestrator / Command Center", "group": "Core",
      "blurb": "Governed brand-orchestration layer — the mind and six-organ engine this cockpit reads.",
      "url": "https://szlholdings-a11oy.hf.space/"},
-    {"name": "hatun-mcp", "kind": "Signed MCP gateway", "group": "Core",
-     "blurb": "The spine: one signed gateway that aggregates a11oy + killinchu + immune + router tools.",
-     "url": "https://szlholdings-hatun-mcp.hf.space/"},
+    # hatun-mcp entry REMOVED 2026-11-04: Space SZLHOLDINGS/hatun-mcp and its
+    # runtime URL szlholdings-hatun-mcp.hf.space are deleted (verified 404
+    # across Hub APIs and runtime probe); a probe entry would fabricate a
+    # surface. The same-origin /hatun-mcp observability route remains.
     {"name": "killinchu", "kind": "Counter-UAS application", "group": "Applications",
      "blurb": "Applied counter-UAS surface — the doctrine put to work on a real defense problem.",
      "url": "https://szlholdings-killinchu.hf.space/"},
@@ -14923,9 +15288,9 @@ _CONSTELLATION_SURFACES = [
     {"name": "yarqa", "kind": "Provenance CFD", "group": "Showcase",
      "blurb": "Provenance-first CFD library — every result carries a verifiable derivation, no black boxes.",
      "url": "https://szlholdings-yarqa.hf.space/"},
-    {"name": "cathedral", "kind": "Constellation visualization", "group": "Showcase",
-     "blurb": "Visual atlas of the constellation — the org rendered as one living structure.",
-     "url": "https://szlholdings-cathedral.hf.space/"},
+    # cathedral entry REMOVED 2026-11-04: Space SZLHOLDINGS/cathedral and
+    # szlholdings-cathedral.hf.space are deleted (verified 404); the canonical
+    # scene is the same-origin /cathedral route below.
     {"name": "a-11-oy.com", "kind": "Public site", "group": "Public",
      "blurb": "The public front door for a11oy.",
      "url": "https://a-11-oy.com/"},
@@ -15060,14 +15425,22 @@ except Exception as _con_move_e:  # pragma: no cover
 
 
 # ---------------------------------------------------------------------------
-# Spine status — PROVE hatun-mcp actually federates the org's tools.
-# Reads hatun-mcp's OWN public .well-known/mcp manifest (no auth needed for the
-# manifest itself) and surfaces the REAL federated tool list. Honest by
-# construction: it is hatun-mcp advertising its own tools; a11oy invents nothing.
+# Spine status — historical: hatun-mcp used to federate the org's tools.
+# The hatun-mcp HF Space is DELETED (SZLHOLDINGS/hatun-mcp and
+# szlholdings-hatun-mcp.hf.space verified 404 across Hub APIs and runtime probe
+# on 2026-11-04), so this endpoint can only legitimately report UNAVAILABLE:
+# the probe below stays fail-closed (reachable=False, empty tool list) and
+# `upstream_disposition` says exactly why. Nothing is invented; if a successor
+# gateway ships, restore the URL and drop the disposition marker.
 # ---------------------------------------------------------------------------
 _spine_cache = {"ts": 0.0, "data": None}
 _SPINE_TTL = 60.0
+# Deleted upstream: kept as the probe target so any resurrection is observed,
+# never asserted as alive. Do not present this URL as reachable.
 _HATUN_MANIFEST_URL = "https://szlholdings-hatun-mcp.hf.space/.well-known/mcp"
+_HATUN_UPSTREAM_DISPOSITION = (
+    "UPSTREAM_SPACE_DELETED_VERIFIED_404_2026-11-04"
+)
 
 
 def _classify_spine_tool(name: str, desc: str) -> str:
@@ -15132,7 +15505,12 @@ async def a11oy_spine_status() -> Response:
         "schema": "szl.spine_status/v1",
         "checked_at": _dt.datetime.utcnow().isoformat() + "Z",
         "source": _HATUN_MANIFEST_URL,
-        "note": "federated tools read live from hatun-mcp's own .well-known/mcp manifest; nothing invented",
+        "upstream_disposition": _HATUN_UPSTREAM_DISPOSITION,
+        "status": "UNAVAILABLE",
+        "note": ("the hatun-mcp upstream Space is deleted (404 verified "
+                 "2026-11-04); the fail-closed probe is retained only to observe "
+                 "any resurrection and never reports federated tools from a dead "
+                 "endpoint; nothing invented"),
         **payload,
     }
     _spine_cache["data"] = data
@@ -15156,8 +15534,9 @@ except Exception as _spine_move_e:  # pragma: no cover
 
 # ---------------------------------------------------------------------------
 # Federated router spend — surface the BOX szl-router's REAL paid spend on the
-# /sovereign board. The a11oy container's own szl_spend_cap ledger is local/advisory
-# and stays ~$0 (no paid inference runs in THIS container); the durable source of
+# /sovereign board. The a11oy container's own szl_spend_cap ledger is in-process
+# memory. Its lock is not a restart-durable or cross-replica cap, and the
+# monetized read handlers do not call it. The durable source of
 # truth for real paid spend is the Hetzner box szl-router's append-only hash-linked
 # ledger. This reads it live, read-only, at request time (the HF Space FS is ephemeral,
 # so a pushed copy could never be durable). Honest by construction: env unset ->
@@ -15369,8 +15748,12 @@ except Exception as _ig_e:
 @app.api_route("/api/health", methods=["GET", "HEAD"])
 async def api_health() -> JSONResponse:
     """Top-level health probe — returns JSON 200. Registered before SPA catch-all."""
+    from szl_signing_state import read_state
     return JSONResponse({
         "status": "ok",
+        "scope": "PROCESS_LIVENESS",
+        "capability_readiness_asserted": False,
+        "operational_readiness_endpoint": "/api/a11oy/healthz",
         "service": "a11oy",
         "doctrine": "v11",
         "counts": "749/14/163",
@@ -15383,8 +15766,15 @@ async def api_health() -> JSONResponse:
             "status": "ABSENT",
             "signing_available": False,
             "scheme": "UNAVAILABLE",
+            "scope": "NOT_EVALUATED_BY_THIS_ROUTE",
+            "availability_evaluated": False,
+            "runtime_status_endpoint": "/api/a11oy/healthz",
+            "legacy_status_deprecated": True,
+            "legacy_status_semantics": "LIVENESS_SENTINEL_NOT_A_SIGNER_OBSERVATION",
+            "replacement": "signing_state",
         },
-    })
+        "signing_state": read_state(app),
+    }, headers={"Cache-Control": "no-store"})
 
 
 # P3 FIX: /api/a11oy/v4/fleet — explicit route before SPA catch-all

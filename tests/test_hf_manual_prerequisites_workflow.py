@@ -119,8 +119,18 @@ if [ "${STAGE:-}" = 'PAUSED' ] || [ "${DISPATCH_WINDOW:-false}" = 'true' ]; then
   echo 'open=true' >> "$GITHUB_OUTPUT"
   exit 0
 fi
-echo "::warning::Deploy window closed (stage=${STAGE:-UNKNOWN}); nothing was written or deployed. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
-echo 'open=false' >> "$GITHUB_OUTPUT"'''
+live=""
+if [ "${STAGE:-}" = 'RUNNING' ]; then
+  live="$(curl -fsS --max-time 20 "$CANONICAL_ORIGIN/api/build-info" \
+    | python3 -I -c 'import json,sys; d=json.load(sys.stdin); print(((d.get("build") or {}).get("revision") or ""))')" || live=""
+fi
+if [ -n "$live" ] && [ "$live" = "$GITHUB_SHA" ]; then
+  echo "::notice::Deploy window closed; live /api/build-info already equals protected main ${GITHUB_SHA}."
+  echo 'open=false' >> "$GITHUB_OUTPUT"
+  exit 0
+fi
+echo "::error::PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED: stage=${STAGE:-UNKNOWN} protected_main=${GITHUB_SHA} live_revision=${live:-UNAVAILABLE}. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
+exit 1'''
 WINDOW_ENV = {"STAGE": "${{ steps.runtime.outputs.stage }}",
               "DISPATCH_WINDOW": "${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}"}
 ADMITTED = "${{ steps.admit.outputs.publish == 'true' }}"
@@ -223,7 +233,7 @@ RUN_VERDICT = "${{ needs.execution-readiness.outputs.verdict }}"
 # Reviewed publisher 5f140bab: isolated identity attestation and exact-main gates.
 REVIEWED_DEPLOY_JOB_SHA256 = "472ec55d0cb1a4bfec47fd6053bedf5497c8dff2015482dc50ee2c6ebc34678d"
 REVIEWED_RELOCK_JOB_SHA256 = "8debe2a787278449dc5a50a1e946169129179e5655d8eefac2a7fa3dc7cc6975"
-REVIEWED_HANDOFF_JOB_SHA256 = "58ebd551d9c2bc93f90e217a150eca4d66ef3ff619ef43feb5cb470861b92bf3"
+REVIEWED_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 
 
 def exact_job_digest(source: str, name: str) -> str:
@@ -825,6 +835,39 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def test_actual_deploy_path_contract(self):
         jobs = assert_deploy_path_contract(self.source)
         self.assertNotIn("secrets.", json.dumps(jobs["source-admission"]))
+
+    def test_execution_handoff_retains_exactly_one_outcome_artifact(self):
+        handoff = workflow_document(self.source)["jobs"]["execution-handoff"]
+        context = named_step(handoff, "Admit exact current runtime with independent context")
+        recorder = named_step(handoff, "Retain and explain the exact blocked handoff stage")
+        succeeded = named_step(handoff, "Retain successful secret-free execution handoff evidence")
+        failed = named_step(handoff, "Retain blocked secret-free execution handoff evidence")
+
+        self.assertEqual(context.get("id"), "context")
+        self.assertIn('--failure-output "$RUNNER_TEMP/execution-handoff-failure.json"',
+                      context.get("run", ""))
+        self.assertEqual(recorder.get("if"), "failure()")
+        self.assertEqual(recorder.get("env"), {
+            "HANDOFF_OWNER_BEFORE_OUTCOME": "${{ steps.owner_before.outcome }}",
+            "HANDOFF_OWNER_BEFORE_STATUS": "${{ steps.owner_before.outputs.ownership_status }}",
+            "HANDOFF_CONTEXT_OUTCOME": "${{ steps.context.outcome }}",
+            "HANDOFF_OWNER_AFTER_OUTCOME": "${{ steps.owner_after.outcome }}",
+            "HANDOFF_OWNER_AFTER_STATUS": "${{ steps.owner_after.outputs.ownership_status }}",
+        })
+        self.assertIn("--record-workflow-failure", recorder.get("run", ""))
+        self.assertIn('--summary-output "$GITHUB_STEP_SUMMARY"', recorder.get("run", ""))
+
+        self.assertEqual(succeeded.get("if"), "success()")
+        self.assertEqual(failed.get("if"), "failure()")
+        self.assertEqual(succeeded.get("uses"), UPLOAD)
+        self.assertEqual(failed.get("uses"), UPLOAD)
+        success_with, failure_with = succeeded["with"], failed["with"]
+        self.assertNotEqual(success_with["name"], failure_with["name"])
+        self.assertNotIn("execution-handoff-failure.json", success_with["path"])
+        self.assertIn("execution-handoff-failure.json", failure_with["path"])
+        for retained in (success_with, failure_with):
+            self.assertEqual(retained.get("if-no-files-found"), "error")
+            self.assertEqual(retained.get("retention-days"), "90")
 
     def test_verification_mode_rejects_unreviewed_authority_and_mutable_context(self):
         input_block = re.search(

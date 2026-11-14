@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0.0",
   "manifest_id": "a11oy-integrity-control",
-  "revision": "claim-compiler-contract-2026-09-25",
-  "generated_at": "2026-09-25T16:27:53Z",
+  "revision": "claim-compiler-contract-2026-10-29",
+  "generated_at": "2026-10-29T12:22:25Z",
   "claims": [
     {
       "claim_id": "claim-compiler-focused-contract-pass",
-      "assertion": "At source revision 3394458ab83c6d008a985d97fecd0e836495eed6, the EvidenceOS Claim Compiler contract job completed successfully.",
+      "assertion": "At source revision a6b4d40fc6168270d5b7e47379a7d081b5b76ab4, the EvidenceOS Claim Compiler contract job completed successfully.",
       "maturity": "MEASURED",
       "scope": "The cited GitHub Actions test job only; not production deployment, live endpoint behavior, semantic truth, or EvidenceOS completion across the wider estate.",
       "owner": {
@@ -19,17 +19,17 @@
       ],
       "source": {
         "repository": "szl-holdings/a11oy",
-        "revision": "3394458ab83c6d008a985d97fecd0e836495eed6"
+        "revision": "a6b4d40fc6168270d5b7e47379a7d081b5b76ab4"
       },
       "evidence": [
         {
-          "evidence_id": "claim-compiler-contract-ci-2026-09-25",
-          "path": "artifacts/evidenceos/receipts/claim-compiler-contract-ci.2026-09-25.json",
-          "content_sha256": "23c7bd36dd710b65c71d7d1542af64540556f013ca226407bc927c53811097d0",
-          "collected_at": "2026-09-25T16:27:53Z",
+          "evidence_id": "claim-compiler-contract-ci-2026-10-29",
+          "path": "artifacts/evidenceos/receipts/claim-compiler-contract-ci.2026-10-29.json",
+          "content_sha256": "ab58fade1058bae79ca83c8dca581daf100018a38f016ee7353cc12699942210",
+          "collected_at": "2026-10-29T12:22:25Z",
           "max_age_seconds": 2592000,
           "kind": "TEST_RECEIPT",
-          "verification_ref": "https://github.com/szl-holdings/a11oy/actions/runs/36160875868/job/108156826732"
+          "verification_ref": "https://github.com/szl-holdings/a11oy/actions/runs/40872654682/job/123443417478"
         }
       ],
       "reproduction_argv": [

@@ -9,6 +9,30 @@ import {
   rewriteOriginLocation,
 } from "../cloudflare/a11oy-product-root-worker.mjs";
 
+const BLOCKED_RESPONSE_HEADERS = [
+  "traceparent",
+  "tracestate",
+  "x-backend-server",
+  "x-hf-replica",
+  "x-proxied-host",
+  "x-proxied-path",
+  "x-proxied-replica",
+  "x-replica",
+  "x-replica-id",
+  "x-span-id",
+  "x-trace-id",
+  "x-upstream-addr",
+  "x-upstream-address",
+  "x-upstream-host",
+  "x-vsp-otel",
+];
+
+function corsHeaderNames(headers) {
+  return [...headers.keys()].filter((name) =>
+    name.toLowerCase().startsWith("access-control-"),
+  );
+}
+
 test("www redirects permanently while preserving path and query", async () => {
   const response = await handleRequest(
     new Request("https://www.a-11-oy.com/console/view?tab=proof&n=1"),
@@ -29,6 +53,7 @@ test("apex proxies the exact path to the fixed Space origin", async () => {
       headers: {
         authorization: "Bearer opaque",
         "cf-connecting-ip": "192.0.2.1",
+        origin: "https://a-11-oy.com",
         "x-forwarded-for": "192.0.2.1",
       },
     }),
@@ -67,6 +92,135 @@ test("apex proxies the exact path to the fixed Space origin", async () => {
     response.headers.get("link"),
     '<https://a-11-oy.com/api/a11oy/v1/honest>; rel="canonical"',
   );
+  assert.match(response.headers.get("vary"), /(?:^|,\s*)Origin(?:,|$)/i);
+});
+
+test("apex strips final-hop topology and trace headers and collapses canonical Link", async () => {
+  const upstreamHeaders = new Headers({
+    "access-control-expose-headers": "*",
+    "access-control-future-policy": "unsafe",
+    "access-control-allow-origin": "*",
+    "x-request-id": "public-correlation-id",
+  });
+  for (const name of BLOCKED_RESPONSE_HEADERS) {
+    upstreamHeaders.set(name, "private-origin-value");
+  }
+  upstreamHeaders.append(
+    "link",
+    '<https://a-11-oy.com/stale>; rel="canonical"',
+  );
+  upstreamHeaders.append(
+    "link",
+    '<https://huggingface.co/spaces/SZLHOLDINGS/a11oy>; rel="canonical"',
+  );
+
+  const response = await handleRequest(
+    new Request("https://a-11-oy.com/trust?campaign=private"),
+    async () => new Response("ok", { headers: upstreamHeaders }),
+  );
+
+  for (const name of BLOCKED_RESPONSE_HEADERS) {
+    assert.equal(response.headers.get(name), null, `${name} must be stripped`);
+  }
+  assert.deepEqual(corsHeaderNames(response.headers), []);
+  assert.equal(response.headers.get("x-request-id"), "public-correlation-id");
+  assert.equal(response.headers.get("x-szl-edge"), "a11oy-product-edge-v3");
+  assert.equal(
+    response.headers.get("link"),
+    '<https://a-11-oy.com/trust>; rel="canonical"',
+  );
+  assert.equal(
+    [...response.headers.keys()].filter((name) => name === "link").length,
+    1,
+  );
+});
+
+test("CORS is rebuilt from the request and rejects untrusted preflights", async () => {
+  const broadOrigin = async () =>
+    new Response(null, {
+      status: 204,
+      headers: {
+        "access-control-allow-credentials": "true",
+        "access-control-allow-headers": "*",
+        "access-control-allow-methods": "*",
+        "access-control-allow-origin": "*",
+        "access-control-allow-private-network": "true",
+        "access-control-expose-headers": "*",
+        "access-control-max-age": "86400",
+      },
+    });
+
+  const allowed = await handleRequest(
+    new Request("https://a-11-oy.com/api/a11oy/healthz", {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://immune.a-11-oy.com",
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "Authorization, X-Requested-With",
+      },
+    }),
+    broadOrigin,
+  );
+  assert.equal(
+    allowed.headers.get("access-control-allow-origin"),
+    "https://immune.a-11-oy.com",
+  );
+  assert.equal(
+    allowed.headers.get("access-control-allow-methods"),
+    "GET, HEAD, POST, OPTIONS",
+  );
+  assert.equal(
+    allowed.headers.get("access-control-allow-headers"),
+    "Content-Type, Authorization, X-Requested-With, X-A11oy-Second-Approver",
+  );
+  assert.equal(allowed.headers.get("access-control-allow-credentials"), null);
+  assert.equal(allowed.headers.get("access-control-expose-headers"), null);
+  assert.equal(allowed.headers.get("access-control-allow-private-network"), null);
+  for (const name of [
+    "Origin",
+    "Access-Control-Request-Method",
+    "Access-Control-Request-Headers",
+  ]) {
+    assert.match(
+      allowed.headers.get("vary"),
+      new RegExp(`(?:^|,\\s*)${name}(?:,|$)`, "i"),
+    );
+  }
+
+  for (const headers of [
+    {
+      origin: "https://edge-probe.invalid",
+      "access-control-request-method": "GET",
+    },
+    {
+      origin: "https://nested.evil.a-11-oy.com",
+      "access-control-request-method": "GET",
+    },
+    {
+      origin: "https://a-11-oy.com",
+      "access-control-request-method": "DELETE",
+    },
+    {
+      origin: "https://a-11-oy.com",
+      "access-control-request-method": "GET",
+      "access-control-request-headers": "X-Untrusted",
+    },
+    {
+      origin: "https://a-11-oy.com",
+      "access-control-request-method": "GET",
+      "access-control-request-private-network": "true",
+    },
+  ]) {
+    const denied = await handleRequest(
+      new Request("https://a-11-oy.com/api/a11oy/healthz", {
+        method: "OPTIONS",
+        headers,
+      }),
+      broadOrigin,
+    );
+    assert.deepEqual(corsHeaderNames(denied.headers), []);
+    assert.match(denied.headers.get("vary"), /(?:^|,\s*)Origin(?:,|$)/i);
+  }
 });
 
 test("public spectral and controller aliases resolve to canonical origin routes", async () => {

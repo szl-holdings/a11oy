@@ -550,9 +550,11 @@ def _readiness_warm_targets() -> list:
         (feed_courtlistener, ("defense", 1), {}),
         (feed_courtlistener, ("insurance", 1), {}),
         (feed_fedregister, (1, None), {}),
-        (feed_fr_agencies, (14, None), {}),
+        # feed_fr_agencies accepts only limit. A term slot raises TypeError.
+        (feed_fr_agencies, (14,), {}),
     ]
-    targets.extend((feed_sec, (cik,), {}) for cik in _EXPOSURE_PANEL)
+    # Panel rows are (cik, label). feed_sec takes the CIK string.
+    targets.extend((feed_sec, (cik,), {}) for cik, _label in _EXPOSURE_PANEL)
     return targets
 
 

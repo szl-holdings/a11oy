@@ -1,0 +1,846 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "authority": {
+    "deployment": false,
+    "exclusion": false,
+    "inference_admission": false,
+    "promotion": false,
+    "qualification": false,
+    "routing": false
+  },
+  "counts": {
+    "artifact_classes": {
+      "adapter_bundle": 1,
+      "non_provider_artifact": 1
+    },
+    "assessments_recorded": 2,
+    "file_list_reads_retried": 0,
+    "inventory_models_outside_this_record": 0,
+    "owner_follow_up": [
+      "SZLHOLDINGS/abstention-v2-candidate has no README.md at its revision root; README.md exists only inside its checkpoint directories.",
+      "SZLHOLDINGS/physics-master-v1-candidate has no README.md at its observed revision."
+    ],
+    "provider_lookups_failed": 0,
+    "provider_lookups_retried": 0,
+    "provider_mappings_empty": 2,
+    "provider_mappings_present": 0,
+    "provider_observations_http_200": 2,
+    "readme_http_200": 0,
+    "readme_http_404": 2,
+    "recorded_no_provider_mapping": 2,
+    "revision_differs_from_inventory": 0,
+    "revision_matches_inventory": 2,
+    "rows": 2,
+    "rows_with_card_self_labels": 0,
+    "unresolved_owner_decisions": 2,
+    "verified_exclusion_authority": 0,
+    "verified_inference_admission_authority": 0
+  },
+  "decisions": [
+    {
+      "admission": "NOT_GRANTED",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "decision_id": "D01",
+      "model_id": "SZLHOLDINGS/abstention-v2-candidate",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "selected": null
+    },
+    {
+      "admission": "NOT_GRANTED",
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "decision_id": "D02",
+      "model_id": "SZLHOLDINGS/physics-master-v1-candidate",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "selected": null
+    }
+  ],
+  "inventory_models_outside_this_record": [],
+  "preserved_prior_rows": [
+    {
+      "assessment_hub_revision": "7ea56236ea7988b3915b5ef07548cb2c3930a3cf",
+      "id": "SZLHOLDINGS/A11OY-MINI",
+      "inference_capture_sha256": "1347e0ca8162dc981c9f8bd921e5d2a6da0a28369515a51bd58f8bd03cd1e053",
+      "inference_observed_at": "2026-10-04T16:22:20.567960+00:00"
+    },
+    {
+      "assessment_hub_revision": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76",
+      "id": "SZLHOLDINGS/KHIPU-R2",
+      "inference_capture_sha256": "ff3d20343ee85d1d35a8847c9d6cbf7bd23b57b6a79f9f554ca855b1750c97da",
+      "inference_observed_at": "2026-10-04T16:22:20.606778+00:00"
+    },
+    {
+      "assessment_hub_revision": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
+      "id": "SZLHOLDINGS/KHIPU-R2-estate-sft-v1",
+      "inference_capture_sha256": "bf0b4b06d71e240d85f3a3d60587376de179bbe98d8151fecc75e9ead73aa794",
+      "inference_observed_at": "2026-11-07T10:52:22.846520+00:00"
+    },
+    {
+      "assessment_hub_revision": "70557d12b91ca556939e559e540b70fb3c2c9e5b",
+      "id": "SZLHOLDINGS/MiniEmbed-Nano",
+      "inference_capture_sha256": "1ff23f5fbcef46c95d80808ae0619c057c9576dc4274c04721d1e2ff29ac2198",
+      "inference_observed_at": "2026-10-04T16:22:20.621148+00:00"
+    },
+    {
+      "assessment_hub_revision": "4631d0fb54ad90423c3ae76f812ff4d0e80fbfdf",
+      "id": "SZLHOLDINGS/Moons-Nano",
+      "inference_capture_sha256": "46000a760070a5177b0d02dbf1e37591502546fdb9cb94175ab9c33611d25287",
+      "inference_observed_at": "2026-10-04T16:22:20.618502+00:00"
+    },
+    {
+      "assessment_hub_revision": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+      "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "inference_capture_sha256": "a2f7144253caafbeeaa84638e3977d2a19fd850be2717389dd63cf62d466c3eb",
+      "inference_observed_at": "2026-11-07T10:52:22.848331+00:00"
+    },
+    {
+      "assessment_hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c",
+      "id": "SZLHOLDINGS/ReceiptAgent-Nano",
+      "inference_capture_sha256": "db9652098cd08abcc986754da7a8ef0a80e61174c95580fd6e51a98ca4103f04",
+      "inference_observed_at": "2026-10-04T16:22:26.593758+00:00"
+    },
+    {
+      "assessment_hub_revision": "bf12e89bb5049efcf48c58613c49bb41ee8cb81b",
+      "id": "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+      "inference_capture_sha256": "3bfeb7dbe20776a7df6cf4a1e09e37b2ff318ac3ed835cf43e52e41a5dbcd04a",
+      "inference_observed_at": "2026-11-10T11:14:39.081639+00:00"
+    },
+    {
+      "assessment_hub_revision": "382e9c263b568b68967972d28803bf567746e1de",
+      "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "inference_capture_sha256": "ed81bdfaeddb39e720f136426a465aecbcb603e25957a95f22adc205876c3dee",
+      "inference_observed_at": "2026-11-07T10:52:22.848752+00:00"
+    },
+    {
+      "assessment_hub_revision": "7fea926b22a99e0e9704d3500741467ae357eec2",
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "inference_capture_sha256": "0c85302243fdf75fc750960adfa864c50f77c1b4873118913f0d1b377c3537de",
+      "inference_observed_at": "2026-10-04T16:22:26.583433+00:00"
+    },
+    {
+      "assessment_hub_revision": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
+      "inference_capture_sha256": "13089cb5dcbc0694e459508b4100b1fdcf2b66861c06b479379c0c1fe7749722",
+      "inference_observed_at": "2026-11-07T10:52:22.849077+00:00"
+    },
+    {
+      "assessment_hub_revision": "f3bd9aeca3596269d499761eaad43678b9c92182",
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+      "inference_capture_sha256": "e8bd854d7c0656f27b4a8cdab30bdfa96d78d5a3331448dbcd34b90b651836d1",
+      "inference_observed_at": "2026-11-10T11:14:39.631931+00:00"
+    },
+    {
+      "assessment_hub_revision": "c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0",
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "inference_capture_sha256": "9d88014d6adefb3d09c5d5088a4c0996fe18d21dc9e22167797f04a2aba93202",
+      "inference_observed_at": "2026-11-07T10:52:22.987019+00:00"
+    },
+    {
+      "assessment_hub_revision": "d454bd3238680f119920fd3a993a3573ca564e34",
+      "id": "SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+      "inference_capture_sha256": "f31026ed1ec9764d43d832fb3f17f43772bc5bb25d34e72c27e241101c3021d6",
+      "inference_observed_at": "2026-11-10T11:14:40.033662+00:00"
+    },
+    {
+      "assessment_hub_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329",
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "inference_capture_sha256": "807ded92057fae7b4f9c69fcfb98c2cf874cbe07b088863bda1fd9e51f23152e",
+      "inference_observed_at": "2026-10-04T16:22:26.588978+00:00"
+    },
+    {
+      "assessment_hub_revision": "0737ae93c009322e4deffbe89ff34d2155a1b6c1",
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "inference_capture_sha256": "e18d2120f7161ab78db30dfa3040ab67f50adea8bd542b1da4d0da5a7f480c9b",
+      "inference_observed_at": "2026-10-04T16:22:26.596111+00:00"
+    },
+    {
+      "assessment_hub_revision": "942c02dd4e94f2cb7cfb0432a051c2db2219ee79",
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
+      "inference_capture_sha256": "4856c675954b28587d378d86561364667dfad73c371e314bd0f6cd8385601105",
+      "inference_observed_at": "2026-10-04T16:22:34.256206+00:00"
+    },
+    {
+      "assessment_hub_revision": "b4ae083265f2f0a6749af4111162d3582dc4dace",
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
+      "inference_capture_sha256": "aa9dcde3493d0333d595da731906e65818f1a101f8ed4c4c6da21c879160f220",
+      "inference_observed_at": "2026-11-07T10:52:22.991475+00:00"
+    },
+    {
+      "assessment_hub_revision": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
+      "inference_capture_sha256": "322b4b930dfff91be6bf5f63cff914eb74c0c0c771f3a23400c5f81a8f2fdecd",
+      "inference_observed_at": "2026-11-07T10:52:22.998301+00:00"
+    },
+    {
+      "assessment_hub_revision": "decebd8be9255239c1507ebc61159099d38ba6bc",
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "inference_capture_sha256": "63078222ff59418ecd6451ed455d0bd1caede4969b335eaabd852a10b5e0070a",
+      "inference_observed_at": "2026-11-07T10:52:23.043846+00:00"
+    },
+    {
+      "assessment_hub_revision": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "inference_capture_sha256": "23e165d350708f4dcd375b2c1b29bd0e6484b3b45db1317c2b563bc9ecb46719",
+      "inference_observed_at": "2026-11-07T10:52:23.132039+00:00"
+    },
+    {
+      "assessment_hub_revision": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "inference_capture_sha256": "98ff181c277a61452055ad9c8c8d1fb5cb877e169ac6307a90b923f9907aaa0a",
+      "inference_observed_at": "2026-11-07T10:52:23.168826+00:00"
+    },
+    {
+      "assessment_hub_revision": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "inference_capture_sha256": "16ccf16aaa6162e0db51f5515bf5b64fd0f7cafe6b7f59b1a847226e93fd3bf0",
+      "inference_observed_at": "2026-11-07T10:52:23.191871+00:00"
+    },
+    {
+      "assessment_hub_revision": "4caa36a0fdeb4d54fabe13079cceb031ecfa3471",
+      "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "inference_capture_sha256": "5d400c9933c04ac01e99f23d5673f3dbd6434271c995d8424ac6120b076ba129",
+      "inference_observed_at": "2026-11-07T10:52:23.272031+00:00"
+    },
+    {
+      "assessment_hub_revision": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+      "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "inference_capture_sha256": "a685c5529a5f417a4bb0038c7f705a712665319df90cdb36c864e8632552769c",
+      "inference_observed_at": "2026-11-07T10:52:23.285074+00:00"
+    },
+    {
+      "assessment_hub_revision": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+      "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "inference_capture_sha256": "5cace433718cd94dfebb735942454f4499c2570aaa7ba798dc030efa66e81c2f",
+      "inference_observed_at": "2026-11-07T10:52:23.347036+00:00"
+    },
+    {
+      "assessment_hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67",
+      "id": "SZLHOLDINGS/TinyKhipu-Nano",
+      "inference_capture_sha256": "a0a482c68b5fb48af51c2ec8ae01bed83c7b9f95c0fefe051a5d7889b1ca9e32",
+      "inference_observed_at": "2026-10-04T16:22:34.251690+00:00"
+    },
+    {
+      "assessment_hub_revision": "96a0ac5c5c26e89f732b72d747b3577e1ea5236f",
+      "id": "SZLHOLDINGS/WILLAY",
+      "inference_capture_sha256": "277bcb223f2cb91bde14a05c0fffac40a4eef66eea8982d07eed343a31fada67",
+      "inference_observed_at": "2026-10-04T16:22:34.283042+00:00"
+    },
+    {
+      "assessment_hub_revision": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
+      "id": "SZLHOLDINGS/WILLAY-estate-sft-v1",
+      "inference_capture_sha256": "8e1c863132fbf3e7aa1ed878e57dbcf94beaccaa4d71812aabaf9f6230e9974b",
+      "inference_observed_at": "2026-11-07T10:52:23.352902+00:00"
+    },
+    {
+      "assessment_hub_revision": "d6aeb4f24655c07acc155eed7acade5ad249724f",
+      "id": "SZLHOLDINGS/YARQA-ATTN",
+      "inference_capture_sha256": "d9c3db68a7c4dffdc6a2153b3aa756f7d3a58114d449e60a3d37c1fb89e63a20",
+      "inference_observed_at": "2026-10-04T16:22:34.232168+00:00"
+    },
+    {
+      "assessment_hub_revision": "541951e09431269c32b7093141a64643eb51113a",
+      "id": "SZLHOLDINGS/a11oy-code-r1-candidate",
+      "inference_capture_sha256": "e49e6b914568be4b3fc32bfd13e822eeba0a2043e8a731b8f566f8278d5fdda7",
+      "inference_observed_at": "2026-11-10T17:54:56.684236+00:00"
+    },
+    {
+      "assessment_hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+      "id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "inference_capture_sha256": "14776b3f4ec1f246c2bbb8f2729bb0532c36a91a8b675da163d7f02bacd8f076",
+      "inference_observed_at": "2026-10-04T16:22:38.833035+00:00"
+    },
+    {
+      "assessment_hub_revision": "41cb72545e75b284ec62d271499e4487b75876d5",
+      "id": "SZLHOLDINGS/abstain-doctrine-r1",
+      "inference_capture_sha256": "a3745e9f835793481be2a93f45d8fe6ba92c9ac8060a5f1a61eebc889d7c7d73",
+      "inference_observed_at": "2026-11-10T11:14:36.319602+00:00"
+    },
+    {
+      "assessment_hub_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
+      "id": "SZLHOLDINGS/brain-navigator-r2",
+      "inference_capture_sha256": "73ea7881fc94a875c086cffab754d5d95110a88db7f93526fc69112523f5975e",
+      "inference_observed_at": "2026-10-04T16:22:38.883798+00:00"
+    },
+    {
+      "assessment_hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "inference_capture_sha256": "8b5a2dac2ad0bc81e211aef244528cf8a1fe03fd8decbd9854e6e8f0f8a7c26e",
+      "inference_observed_at": "2026-11-07T10:52:23.427023+00:00"
+    },
+    {
+      "assessment_hub_revision": "73219a8ada0e73ab4216d9e70d730e38455f2425",
+      "id": "SZLHOLDINGS/chakana-r1-candidate",
+      "inference_capture_sha256": "de4df4ee6481708a4f84816bfa7deceb1681930fa3cceeb4065081a76d4c3e6c",
+      "inference_observed_at": "2026-11-07T10:52:23.447254+00:00"
+    },
+    {
+      "assessment_hub_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90",
+      "id": "SZLHOLDINGS/chaski",
+      "inference_capture_sha256": "e139dbeeabd46066582da9989851166b5419c0545c1e714535f4747ee91635b3",
+      "inference_observed_at": "2026-10-04T16:22:38.881709+00:00"
+    },
+    {
+      "assessment_hub_revision": "0e324a93761abb7069ce0e40597780e734bf342b",
+      "id": "SZLHOLDINGS/chaski-5050",
+      "inference_capture_sha256": "e986a2dfdaeb01172c8c3c5a3c752588714e69e498f32a3f964d45dc02b3a44c",
+      "inference_observed_at": "2026-10-04T16:22:38.883290+00:00"
+    },
+    {
+      "assessment_hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "inference_capture_sha256": "fed455b0fcad4462d62aaded97de74d0f7ebaa51d7854f1c782a71906ee3b3e4",
+      "inference_observed_at": "2026-11-07T10:52:23.499197+00:00"
+    },
+    {
+      "assessment_hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "inference_capture_sha256": "cbb7cc563ce64e38bf52d4ba371de516b0e045f570561f9f4197407305b099c1",
+      "inference_observed_at": "2026-11-07T10:52:23.563603+00:00"
+    },
+    {
+      "assessment_hub_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45",
+      "id": "SZLHOLDINGS/chaski-r2",
+      "inference_capture_sha256": "952d99aed91f9db3c9aa49d39f8626c2895a8de2159615b77219052a73d17e2f",
+      "inference_observed_at": "2026-10-04T16:22:43.219554+00:00"
+    },
+    {
+      "assessment_hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "inference_capture_sha256": "0364df47ae5ef381c3318398a1d1336780a993416d7500390ec711f762c97846",
+      "inference_observed_at": "2026-11-07T10:52:23.565231+00:00"
+    },
+    {
+      "assessment_hub_revision": "6275945fab2515ee41019eb60703c6b5dbdf5640",
+      "id": "SZLHOLDINGS/chaski-r4",
+      "inference_capture_sha256": "5f85ef6e6abd0a145a6f229077e48f135077c2e8c00116e62daf3fb67e66b542",
+      "inference_observed_at": "2026-10-04T16:22:43.221466+00:00"
+    },
+    {
+      "assessment_hub_revision": "0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e",
+      "id": "SZLHOLDINGS/doctrine-v2-r2-candidate",
+      "inference_capture_sha256": "6e22cdd9135b8c40adba9760cf2fa1c5705e8d2373a45cf9727162e48c9cca71",
+      "inference_observed_at": "2026-11-10T11:14:36.719392+00:00"
+    },
+    {
+      "assessment_hub_revision": "0c26c6ba127f87863f1c3d98ab96120264aba91a",
+      "id": "SZLHOLDINGS/doctrine1-r1-candidate",
+      "inference_capture_sha256": "7b4b95aee1377f0986cedef8512d0112007b5727619e63331d1d0f74b0ec428c",
+      "inference_observed_at": "2026-11-10T11:14:37.143987+00:00"
+    },
+    {
+      "assessment_hub_revision": "19b57bbe5668fe39233e36ceebf489143d65f1bc",
+      "id": "SZLHOLDINGS/forge-v3",
+      "inference_capture_sha256": "cae6a0219b8fe7f9f7f04ea88f9c93e2d28e9012e49f6d58adf591a4bc77fb60",
+      "inference_observed_at": "2026-11-10T11:14:37.552125+00:00"
+    },
+    {
+      "assessment_hub_revision": "d038e7ffb0ee9563be9e35513d2b33e3f76db32d",
+      "id": "SZLHOLDINGS/freeenergy-r1-candidate",
+      "inference_capture_sha256": "38660381359b8de559539a39001039764259fb5621dccaeff67f9ae24fe0cadf",
+      "inference_observed_at": "2026-11-10T11:14:38.000501+00:00"
+    },
+    {
+      "assessment_hub_revision": "5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74",
+      "id": "SZLHOLDINGS/governed-inference-meter",
+      "inference_capture_sha256": "b2494204b9a4465df85b0076c983f2eafcd015ea7a995669ef1eb46f7c8f3464",
+      "inference_observed_at": "2026-10-04T16:22:43.267678+00:00"
+    },
+    {
+      "assessment_hub_revision": "470fff332953b352fede85419140b8d76c2122e2",
+      "id": "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
+      "inference_capture_sha256": "c6b6a7e6009bb635ab1508d6f85a35a7c440a59868d158985b9996ab6e7ea81f",
+      "inference_observed_at": "2026-11-10T17:54:57.117866+00:00"
+    },
+    {
+      "assessment_hub_revision": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+      "id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
+      "inference_capture_sha256": "7e2b179bf074bd3d99fdf89d670b574c230a7e90031eb93da1c46c73f06e0854",
+      "inference_observed_at": "2026-11-07T10:52:23.647265+00:00"
+    },
+    {
+      "assessment_hub_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64",
+      "id": "SZLHOLDINGS/khipu-r3",
+      "inference_capture_sha256": "9044c24f66953ac1010843f146a6135c69836c2621a100077cd0fd63ded35e07",
+      "inference_observed_at": "2026-10-04T16:22:43.220181+00:00"
+    },
+    {
+      "assessment_hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "inference_capture_sha256": "91f82405ead9cd283feff6b3579664503e196b2bc806d40fa749e39b92386e8f",
+      "inference_observed_at": "2026-11-07T10:52:23.703884+00:00"
+    },
+    {
+      "assessment_hub_revision": "40e0c6ab9511586014457d354c00f05777b34fd1",
+      "id": "SZLHOLDINGS/miniembed-nano-r1-candidate",
+      "inference_capture_sha256": "7d6621cd5b5db00b8adbe08c7e8f87560c8d7919af3fb3aad9084770a2679bf5",
+      "inference_observed_at": "2026-11-07T10:52:23.713052+00:00"
+    },
+    {
+      "assessment_hub_revision": "90df75bf58d91ea723128a86d7ed9af57535dbd8",
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "inference_capture_sha256": "36f3b7204d4181ff1f97cbbd24933ffec7c9d197e3c24d7fe5c85af60456aadd",
+      "inference_observed_at": "2026-11-07T10:52:23.758461+00:00"
+    },
+    {
+      "assessment_hub_revision": "a99c3ec1157af351fa24da64f3b413620cae07fe",
+      "id": "SZLHOLDINGS/oac-system-health-v1",
+      "inference_capture_sha256": "60ad41be418747a40d38208b41fb3517d914b77aa058061d406c751a9ffc8a0c",
+      "inference_observed_at": "2026-11-07T10:52:23.762153+00:00"
+    },
+    {
+      "assessment_hub_revision": "07e422d37a3d0fb4a2517e95bafde7795ce6d0e9",
+      "id": "SZLHOLDINGS/ouroboros-r2-candidate",
+      "inference_capture_sha256": "42b78224f2b879bcd31e1e90b9569b9465406fcbd6f41e57812633de472419d6",
+      "inference_observed_at": "2026-11-10T11:14:38.631173+00:00"
+    },
+    {
+      "assessment_hub_revision": "b5e86e4038e630eda94e3bd83cee1c5729d6d826",
+      "id": "SZLHOLDINGS/szl-block-kv",
+      "inference_capture_sha256": "45914bec2360244e4ae1386c6d8c51e6cc9b5bfcfb899b5ef3574e17d4fdbc58",
+      "inference_observed_at": "2026-10-04T16:22:47.073249+00:00"
+    },
+    {
+      "assessment_hub_revision": "74caaabb4a001fb3d2e8a346c1114008ad9c4f5d",
+      "id": "SZLHOLDINGS/szl-blocked",
+      "inference_capture_sha256": "8750dcd90614fa0297d65f2c98979f25a9e901b82c209eceb2e429bd4574d528",
+      "inference_observed_at": "2026-10-04T16:22:47.108354+00:00"
+    },
+    {
+      "assessment_hub_revision": "8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1",
+      "id": "SZLHOLDINGS/szl-brain",
+      "inference_capture_sha256": "df79ffc05179e27fb416017586505a41bd445f985cd3976cffe662488bc908d7",
+      "inference_observed_at": "2026-11-10T11:16:42.667186+00:00"
+    },
+    {
+      "assessment_hub_revision": "9146d35730139f8b7797dc40b4d5be5547387f1b",
+      "id": "SZLHOLDINGS/szl-energy-attest",
+      "inference_capture_sha256": "262478d912c031893c6c1768711ba6c76deb164e8833c6e8789100b5ce7a9787",
+      "inference_observed_at": "2026-10-04T16:22:51.199825+00:00"
+    },
+    {
+      "assessment_hub_revision": "d3f2dbbb7c59bef13cf1b755edf487bfb2960653",
+      "id": "SZLHOLDINGS/szl-formulas",
+      "inference_capture_sha256": "0dad0210bb5f825364a083393fff700963d4af27f369238f7f202181110803db",
+      "inference_observed_at": "2026-10-04T16:22:51.201752+00:00"
+    },
+    {
+      "assessment_hub_revision": "5abbd073ff159385be1f4e51c9fee4613cf52513",
+      "id": "SZLHOLDINGS/szl-governed-norm",
+      "inference_capture_sha256": "5c9e0f21678cdcedba36cb045137a3e096008e06cda5d0d530c8b3a96c477cfa",
+      "inference_observed_at": "2026-10-04T16:22:51.245551+00:00"
+    },
+    {
+      "assessment_hub_revision": "52576849d074aa7d251219241fe12888b02f1edd",
+      "id": "SZLHOLDINGS/szl-govsign",
+      "inference_capture_sha256": "b766529af64ca89d881112c354af579c99ff0a2642d482ddf3f490ae25bad8bc",
+      "inference_observed_at": "2026-10-04T16:22:51.205405+00:00"
+    },
+    {
+      "assessment_hub_revision": "acfc77fbd3da15bb2a7957f11b3a9c8d81bf4a2c",
+      "id": "SZLHOLDINGS/szl-invariants",
+      "inference_capture_sha256": "95c5eafcf7839ddd0e8ffc5c795aa73e3c4d171d7a848db1b1a3a85bca007b4a",
+      "inference_observed_at": "2026-10-04T16:22:55.220875+00:00"
+    },
+    {
+      "assessment_hub_revision": "72df0342e34a1f198dd9c428cca072e9b1389ccd",
+      "id": "SZLHOLDINGS/szl-kernels",
+      "inference_capture_sha256": "91d8dc993c04780d0fdb13a78276e4ca37f60900cd5326473316dc9806191081",
+      "inference_observed_at": "2026-10-04T16:22:55.201332+00:00"
+    },
+    {
+      "assessment_hub_revision": "ee635354cb0b3d71965b17a227a374e40071e110",
+      "id": "SZLHOLDINGS/szl-khipu",
+      "inference_capture_sha256": "d7919e72542a49ce35c3076c55ac337daacf169b3e0c8e84970fc68652f40e5b",
+      "inference_observed_at": "2026-10-04T16:22:55.224015+00:00"
+    },
+    {
+      "assessment_hub_revision": "594bc58eb0f691f53f8493fa032be9ee8aab9ff3",
+      "id": "SZLHOLDINGS/szl-khipu-kernels",
+      "inference_capture_sha256": "7fe3366b6a97c1b7905b2de698626956cff6fa4f8b2068e57519f22c8efd0a74",
+      "inference_observed_at": "2026-10-04T16:22:55.235956+00:00"
+    },
+    {
+      "assessment_hub_revision": "f0c518b22f488e9f008deed27765c9fced32001e",
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "inference_capture_sha256": "9d6d8f9c2ec0147aa8f32d302b8987bd868954cbad9ed9879d8dcf0bb75434d0",
+      "inference_observed_at": "2026-10-04T16:22:58.878108+00:00"
+    },
+    {
+      "assessment_hub_revision": "654a01aaaf86d06471f019cf2f84305703ccc260",
+      "id": "SZLHOLDINGS/szl-maskmod",
+      "inference_capture_sha256": "a528c57239d6181b4ec3fca38fd38a312a24b235be0135d8b78fabfcee97f060",
+      "inference_observed_at": "2026-10-04T16:22:58.875585+00:00"
+    },
+    {
+      "assessment_hub_revision": "8ba68dcf72f0b9e40c8114e5dd4e341aa7fac7b7",
+      "id": "SZLHOLDINGS/szl-nemo",
+      "inference_capture_sha256": "1e02e7361a979f8c3e02cc677b9d14d5553151a8cd035de67ba1c20e507222fd",
+      "inference_observed_at": "2026-10-04T16:22:58.852850+00:00"
+    },
+    {
+      "assessment_hub_revision": "ea49dcae37ea15e155b77f837f21a668871c6673",
+      "id": "SZLHOLDINGS/szl-ouroboros",
+      "inference_capture_sha256": "e07619c720012d2fce04e6ec121c7d08d9be04eabdb97770f54dacd80fc88ec7",
+      "inference_observed_at": "2026-10-04T16:22:58.889873+00:00"
+    },
+    {
+      "assessment_hub_revision": "4e688726df8de19f2eafd1382d448fdf37e475d0",
+      "id": "SZLHOLDINGS/szl-provctl",
+      "inference_capture_sha256": "ab6a764bd405a753d4b2645a9ed152ae77639abe9802cb6f906cd250db7e299a",
+      "inference_observed_at": "2026-10-04T16:23:02.831254+00:00"
+    },
+    {
+      "assessment_hub_revision": "e1383537e2dd74316a07fcbb683352af62dd24b0",
+      "id": "SZLHOLDINGS/szl-receipt-attn",
+      "inference_capture_sha256": "9dd6bd1be557cae509c3e7ba71ffc08db317e6691e9466996732216d3618d19e",
+      "inference_observed_at": "2026-10-04T16:23:02.808677+00:00"
+    },
+    {
+      "assessment_hub_revision": "b2ec04727f46314b680ee26366159243924c1f67",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
+      "inference_capture_sha256": "7f6b1d09d91e6c8d72ee98e856f20487ba9ce8521d03adea0206033e83b09ae6",
+      "inference_observed_at": "2026-11-07T10:52:23.837753+00:00"
+    },
+    {
+      "assessment_hub_revision": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+      "inference_capture_sha256": "703a94b4c25d966973d6cb07aa8781e1a68cc66ec3743d18bcd9ffdfe4cf21e2",
+      "inference_observed_at": "2026-11-07T10:52:23.872619+00:00"
+    },
+    {
+      "assessment_hub_revision": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+      "inference_capture_sha256": "9cb3e5f2c669948d9e8d8589af018b599b3466c40552d0a0e0c8e9f1364359cb",
+      "inference_observed_at": "2026-11-07T10:52:23.889389+00:00"
+    },
+    {
+      "assessment_hub_revision": "0340c300052e248367a3407aa493ef72a0da79fe",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+      "inference_capture_sha256": "c3237b4cc9588365b19dd3011d72e6a7d4ac36c1823a6b2e02f8d3e97c7fc5b3",
+      "inference_observed_at": "2026-11-07T10:52:23.925468+00:00"
+    },
+    {
+      "assessment_hub_revision": "fcb1f08c3925daeabcdca4c90c637a775a8ea7ca",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "inference_capture_sha256": "f557c6ff36358cad50c2abc0351a5653b91534f4339235191b4e57a07c7d1e4c",
+      "inference_observed_at": "2026-10-04T16:23:02.788763+00:00"
+    },
+    {
+      "assessment_hub_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+      "inference_capture_sha256": "357db72db551ad6c103ba9ea94ef35041408f4ffc631600ec92c391c855da32d",
+      "inference_observed_at": "2026-10-04T16:23:02.822332+00:00"
+    },
+    {
+      "assessment_hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "inference_capture_sha256": "173a0d372a2e6dc723549632cba73e747e0d926180730760c6e3cd18b2bc97d3",
+      "inference_observed_at": "2026-11-07T10:52:23.986516+00:00"
+    },
+    {
+      "assessment_hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
+      "inference_capture_sha256": "ead0bd68d566ed3c793051d289ede53d6c2b89036088d0e9b309adef4dd5773f",
+      "inference_observed_at": "2026-10-04T16:23:06.687420+00:00"
+    },
+    {
+      "assessment_hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "inference_capture_sha256": "63acfa11d5dc26d8f16861dc270fff8a0462b520ebe73a4b24608969aba793b7",
+      "inference_observed_at": "2026-11-07T10:52:24.035685+00:00"
+    },
+    {
+      "assessment_hub_revision": "31e589422ceb33461fe0f8d57208ccedccbcf387",
+      "id": "SZLHOLDINGS/szl-specdecode",
+      "inference_capture_sha256": "f34ccc054532d1da473b82883bf0f0fafdca08a3ff8e42b17af4a361132cee21",
+      "inference_observed_at": "2026-11-07T10:52:24.037945+00:00"
+    },
+    {
+      "assessment_hub_revision": "d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5",
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+      "inference_capture_sha256": "5b628462e687a93a9ed8afb29c969201982c64bf075658f30ec3c7ae94ee82dc",
+      "inference_observed_at": "2026-10-04T16:23:10.355451+00:00"
+    },
+    {
+      "assessment_hub_revision": "96546ad212115e80012fb1ccb93cdab912d00538",
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+      "inference_capture_sha256": "520d714be5e3468f1d2d6e7f355c96bdc01a1cb5c37339deb4d70c074239708b",
+      "inference_observed_at": "2026-10-04T16:23:10.310795+00:00"
+    },
+    {
+      "assessment_hub_revision": "e821e660b5940cd988307bba4b5c9a29a09605ec",
+      "id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
+      "inference_capture_sha256": "6d2876379878a6d224a77f300b77facc54cd862463b656b59cc9918eb61413f5",
+      "inference_observed_at": "2026-11-07T10:52:24.056321+00:00"
+    },
+    {
+      "assessment_hub_revision": "abdb04de040c71b491d7b39eb887fba72989c916",
+      "id": "SZLHOLDINGS/willay-r1-candidate",
+      "inference_capture_sha256": "3f1061aa27171d8779bbe5dd458c37b6417afc1dbca32748dfc559611ee0cbd9",
+      "inference_observed_at": "2026-11-10T11:14:40.489564+00:00"
+    },
+    {
+      "assessment_hub_revision": "a165ea780c7b4972dba19ce70fbfd28a5bb8603c",
+      "id": "SZLHOLDINGS/willay-r2-candidate",
+      "inference_capture_sha256": "7d982e98a2e496a0faa4b2bf76fc52757b60cb24b368905bcddae30d31012734",
+      "inference_observed_at": "2026-11-10T11:14:40.943726+00:00"
+    }
+  ],
+  "rows": [
+    {
+      "admission_activated": false,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "catalog_row_added": true,
+      "exclusion_decision": "ABSENT",
+      "id": "SZLHOLDINGS/abstention-v2-candidate",
+      "identity": {
+        "json_pointer": "/inventory/models/33",
+        "name": "abstention-v2-candidate",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inference_admission": "UNVERIFIED",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inventory_row": {
+        "card_observation": null,
+        "card_semantic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "claim_status": "inventory",
+        "disabled": false,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/abstention-v2-candidate"
+        ],
+        "gated": false,
+        "license": null,
+        "private": false,
+        "unsafe_flags": []
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "capture_sha256": "47184a57c90cef409103f505e318f85104798e361bc9b3e507607c2a2f6827bd",
+        "earlier_attempts": [],
+        "filename_count": 57,
+        "http_status": 200,
+        "inventory_sha": "2025383caf3a1d1341d51f0fd98634072262ae76",
+        "mapping": "empty",
+        "observed_at": "2026-11-11T15:15:10.279086+00:00",
+        "observed_sha": "2025383caf3a1d1341d51f0fd98634072262ae76",
+        "raw_bytes": 156,
+        "raw_sha256": "2a8c1e2e0f63c884aa6659ce09c1a0f9aa9377ebb33947bdd631b26eb53b4f70",
+        "readme_bytes": null,
+        "readme_http_status": 404,
+        "readme_sha256": null,
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/abstention-v2-candidate/raw/2025383caf3a1d1341d51f0fd98634072262ae76/README.md",
+        "redirected": false,
+        "revision_matches_inventory": true,
+        "state": "NO_PROVIDER_MAPPING",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "f5e1de9cdc62f97c2c18fbc74e4bf4cd926805fc09ead252a2472a4a26ca2877",
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-v2-candidate/tree/2025383caf3a1d1341d51f0fd98634072262ae76?recursive=true",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-v2-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "release_bindings": [],
+      "revision": {
+        "created_at": "2026-11-11T04:02:38.000Z",
+        "inventory_observed_at": "2026-11-11T15:08:20Z",
+        "last_modified": "2026-11-11T15:00:18.000Z",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-v2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/abstention-v2-candidate/blob/2025383caf3a1d1341d51f0fd98634072262ae76/README.md",
+        "sha": "2025383caf3a1d1341d51f0fd98634072262ae76"
+      },
+      "revision_class": {
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion.",
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "source": "docs/huggingface-revision-classes.v1.json"
+      },
+      "stage_matrix": {
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/abstention-v2-candidate"
+        ],
+        "observed_at": "2026-11-11T15:08:20Z",
+        "private": false,
+        "source": "docs/ecosystem-stage-matrix.json",
+        "stage": "inventory",
+        "unsafe_flags": []
+      },
+      "support_catalog": {
+        "row_present": false,
+        "source": "docs/model-inference-support.json",
+        "unmatched_prior_request": false
+      }
+    },
+    {
+      "admission_activated": false,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "catalog_row_added": true,
+      "exclusion_decision": "ABSENT",
+      "id": "SZLHOLDINGS/physics-master-v1-candidate",
+      "identity": {
+        "json_pointer": "/inventory/models/57",
+        "name": "physics-master-v1-candidate",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inference_admission": "UNVERIFIED",
+      "inventory_observation": "OBSERVED_IN_LOCAL_REGENERATION",
+      "inventory_row": {
+        "card_observation": null,
+        "card_semantic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "claim_status": "inventory",
+        "disabled": false,
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/physics-master-v1-candidate"
+        ],
+        "gated": false,
+        "license": null,
+        "private": false,
+        "unsafe_flags": []
+      },
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "artifact_class": "non_provider_artifact",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "capture_sha256": "23ac3a6486ff5b3647e1d3cbbacb5c76f19d660e80ef5923e063f6e28572e6f8",
+        "earlier_attempts": [],
+        "filename_count": 1,
+        "http_status": 200,
+        "inventory_sha": "b6aa4f01476421acce9beeec60fe42cd00e594a3",
+        "mapping": "empty",
+        "observed_at": "2026-11-11T15:15:10.416290+00:00",
+        "observed_sha": "b6aa4f01476421acce9beeec60fe42cd00e594a3",
+        "raw_bytes": 160,
+        "raw_sha256": "ccb69d3eec49c250bfa923147fe94434589491ee7143161fab759ea2ac54f90c",
+        "readme_bytes": null,
+        "readme_http_status": 404,
+        "readme_sha256": null,
+        "readme_url": "https://huggingface.co/SZLHOLDINGS/physics-master-v1-candidate/raw/b6aa4f01476421acce9beeec60fe42cd00e594a3/README.md",
+        "redirected": false,
+        "revision_matches_inventory": true,
+        "state": "NO_PROVIDER_MAPPING",
+        "tree_http_status": 200,
+        "tree_raw_sha256": "e27e84f64bb8ff4430cc89a0ea4d4a3357cbef1610c3cb478d740b96a8d053fc",
+        "tree_url": "https://huggingface.co/api/models/SZLHOLDINGS/physics-master-v1-candidate/tree/b6aa4f01476421acce9beeec60fe42cd00e594a3?recursive=true",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/physics-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha"
+      },
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "release_bindings": [],
+      "revision": {
+        "created_at": "2026-11-11T04:08:59.000Z",
+        "inventory_observed_at": "2026-11-11T15:08:20Z",
+        "last_modified": "2026-11-11T04:08:59.000Z",
+        "provider_mapping_url": "https://huggingface.co/api/models/SZLHOLDINGS/physics-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "readme_blob_url_not_fetched": "https://huggingface.co/SZLHOLDINGS/physics-master-v1-candidate/blob/b6aa4f01476421acce9beeec60fe42cd00e594a3/README.md",
+        "sha": "b6aa4f01476421acce9beeec60fe42cd00e594a3"
+      },
+      "revision_class": {
+        "class": "SOURCE_TRACKED",
+        "explicit_entry": false,
+        "meaning": "Default class for an unlisted row. It is not an admission and not an exclusion.",
+        "policy_source": [
+          "default:SOURCE_TRACKED"
+        ],
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+        "source": "docs/huggingface-revision-classes.v1.json"
+      },
+      "stage_matrix": {
+        "evidence_urls": [
+          "https://huggingface.co/SZLHOLDINGS/physics-master-v1-candidate"
+        ],
+        "observed_at": "2026-11-11T15:08:20Z",
+        "private": false,
+        "source": "docs/ecosystem-stage-matrix.json",
+        "stage": "inventory",
+        "unsafe_flags": []
+      },
+      "support_catalog": {
+        "row_present": false,
+        "source": "docs/model-inference-support.json",
+        "unmatched_prior_request": false
+      }
+    }
+  ],
+  "runtime_change": {
+    "authority_flags_changed": false,
+    "coverage_expectation_changed": false,
+    "inventory_rows_removed": 0,
+    "prior_support_rows_preserved": 88,
+    "support_rows_added": 2,
+    "validator_changed": false
+  },
+  "schema": "szl.model-inference-inventory-gap-dossier/v1",
+  "sources": {
+    "canonical_rule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
+    "committed_inventory_model_count": 74,
+    "committed_inventory_observed_at": "2026-11-06T02:04:19Z",
+    "inventory": "docs/huggingface-ecosystem-manifest.json",
+    "inventory_binding": "LOCAL_REGENERATION_COMMITTED_WITH_THIS_CHANGE",
+    "inventory_binding_note": "The inventory was regenerated locally at 2026-11-11T15:08:20Z and is committed with this change instead of restored. Against that committed regeneration, collect_model_inference_support.py --check exits 0 with this catalog, and render_public_estate_alignment.py passes with every public Space classified by the committed contract.",
+    "inventory_model_count": 90,
+    "inventory_observed_at": "2026-11-11T15:08:20Z",
+    "inventory_regenerations": [
+      {
+        "binding": "LOCAL_REGENERATION_COMMITTED_WITH_THIS_CHANGE",
+        "catalog_ids_equal_inventory_ids": true,
+        "model_count": 90,
+        "observed_at": "2026-11-11T15:08:20Z",
+        "rows_read_against_it": 2
+      }
+    ],
+    "inventory_scope": "public-only",
+    "revision_classes_sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9",
+    "self_label_tags": [
+      "proposal-only",
+      "not-promotable",
+      "research-memory",
+      "experimental",
+      "not-canonical",
+      "research-candidate",
+      "not-promoted"
+    ],
+    "self_label_tags_first_used_here": [],
+    "stage_matrix_observed_at": "2026-11-11T15:08:20Z",
+    "support": "docs/model-inference-support.json",
+    "support_doc_sentence": "The support file now lists 90 model ids. The 2 additions are empty-mapping observations. Authority flags stay false.",
+    "support_generated_at": "2026-11-11T15:15:10.529657+00:00",
+    "support_model_count": 90,
+    "support_model_ids_sha256": "1d22f94de4bd10cfc679be7bee92707b71aabb8720bb46ef2f5a98ce959bc296"
+  }
+}

@@ -1,0 +1,256 @@
+{
+  "schema": "szl.x402-pricing/v2",
+  "protocol": "x402",
+  "x402_version": 2,
+  "as_of": "2026-11-06T16:27:25Z",
+  "source": {
+    "catalog": "https://github.com/szl-holdings/szl-gov/blob/main/pricing/catalog.yaml",
+    "catalog_sha256": "e0f6fb4017042a7ed91b14afc795fb95316e1167611c6b441b9be235eae61cec",
+    "generator": "szl-gov tools/pricing_catalog.py",
+    "rules_checked_against": "the Cloudflare Monetization Gateway rules export of 2026-11-06 with the 16:27 UTC change log applied"
+  },
+  "authority": "The HTTP 402 PAYMENT-REQUIRED response from the gateway is authoritative. This file lists what the exported gateway rules charged at as_of; a rule edited in the Cloudflare dashboard after as_of is not reflected until the catalog is updated and regenerated.",
+  "payment": {
+    "network": "eip155:8453",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "asset_name": "USD Coin",
+    "atomic_per_usd": 1000000,
+    "pay_to": "0x50E9B335ac233fcc5e87404367E7De253A63D460",
+    "max_timeout_seconds": 3600
+  },
+  "seller": {
+    "contact": "hello@a-11-oy.com"
+  },
+  "paid_surfaces": [
+    {
+      "id": "chat",
+      "surface": "OpenAI-compatible chat",
+      "zone": "a-11-oy.com",
+      "host": "*",
+      "host_note": "the rule has no host condition: every proxied hostname in the zone",
+      "path_prefixes": [
+        "/v1/chat/"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "methods_basis": "The rules export records no HTTP method selection. Cloudflare documents that a rule charges GET requests by default (Monetization Gateway docs, Monetization rules, updated 2026-09-30), so GET is listed; whether POST requests are charged is unverified.",
+      "audience": "everyone",
+      "scheme": "exact",
+      "amount_atomic": "20000",
+      "price_usd": "0.02",
+      "rule_id": "41cee0f88822411baf864bb54e8b4727",
+      "rule_description": "Doctrine chat - Nemotron Estate flagship (everyone, x402)"
+    },
+    {
+      "id": "inference-completions-responses",
+      "surface": "completions and responses on the inference host",
+      "zone": "a-11-oy.com",
+      "host": "inference.a-11-oy.com",
+      "host_note": "the rule matches this hostname only",
+      "path_prefixes": [
+        "/v1/completions",
+        "/v1/responses"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "methods_basis": "The rules export records no HTTP method selection. Cloudflare documents that a rule charges GET requests by default (Monetization Gateway docs, Monetization rules, updated 2026-09-30), so GET is listed; whether POST requests are charged is unverified.",
+      "audience": "everyone",
+      "scheme": "exact",
+      "amount_atomic": "20000",
+      "price_usd": "0.02",
+      "rule_id": "6babfd10032746f7863cda066d95125d",
+      "rule_description": "Completions/Responses - Nemotron Estate flagship (everyone, x402) [2026-11-06 leak fix]"
+    },
+    {
+      "id": "a11oy-mesh-frontier",
+      "surface": "a11oy mesh and frontier APIs",
+      "zone": "a-11-oy.com",
+      "host": "*",
+      "host_note": "the rule has no host condition: every proxied hostname in the zone",
+      "path_prefixes": [
+        "/api/a11oy/v1/mesh/",
+        "/api/a11oy/v1/frontier/"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "methods_basis": "The rules export records no HTTP method selection. Cloudflare documents that a rule charges GET requests by default (Monetization Gateway docs, Monetization rules, updated 2026-09-30), so GET is listed; whether POST requests are charged is unverified.",
+      "audience": "verified_bots",
+      "scheme": "exact",
+      "amount_atomic": "50000",
+      "price_usd": "0.05",
+      "rule_id": "94dc6d8169a84173bf0005bea66e50eb",
+      "rule_description": "Premium API mesh/frontier (bots)"
+    },
+    {
+      "id": "a11oy-attest-ledger",
+      "surface": "a11oy attest and ledger APIs",
+      "zone": "a-11-oy.com",
+      "host": "*",
+      "host_note": "the rule has no host condition: every proxied hostname in the zone",
+      "path_prefixes": [
+        "/api/a11oy/v1/attest/",
+        "/api/a11oy/v1/ledger"
+      ],
+      "methods": [
+        "GET"
+      ],
+      "methods_basis": "The rules export records no HTTP method selection. Cloudflare documents that a rule charges GET requests by default (Monetization Gateway docs, Monetization rules, updated 2026-09-30), so GET is listed; whether POST requests are charged is unverified.",
+      "audience": "verified_bots",
+      "scheme": "exact",
+      "amount_atomic": "25000",
+      "price_usd": "0.025",
+      "rule_id": "b8026fdb4f0d42c6ba734ddd77e75644",
+      "rule_description": "Premium attest/ledger APIs (bots)"
+    }
+  ],
+  "not_offered_yet": [
+    {
+      "id": "mcp-tool-calls",
+      "surface": "MCP tool calls",
+      "path_prefixes": [
+        "/mcp/"
+      ],
+      "status": "not offered yet",
+      "note": "Both /mcp/ rules are disabled; the gateway charges nothing there."
+    },
+    {
+      "id": "model-inference",
+      "surface": "model inference",
+      "path_prefixes": [
+        "/v1/inference/"
+      ],
+      "status": "not offered yet",
+      "note": "Both /v1/inference/ rules are disabled."
+    },
+    {
+      "id": "a11oy-experimental",
+      "surface": "a11oy experimental APIs",
+      "path_prefixes": [
+        "/api/a11oy/v1/experimental/"
+      ],
+      "status": "not offered yet",
+      "note": "Both experimental-surface rules are disabled."
+    },
+    {
+      "id": "acoustic-validation",
+      "surface": "acoustic validation",
+      "path_prefixes": [
+        "/v1/acoustic/"
+      ],
+      "status": "not offered yet",
+      "note": "The rule is disabled."
+    },
+    {
+      "id": "dataset-access",
+      "surface": "dataset access",
+      "path_prefixes": [
+        "/v1/data/"
+      ],
+      "status": "not offered yet",
+      "note": "The rule is disabled."
+    },
+    {
+      "id": "living-anatomy",
+      "surface": "Living Anatomy API",
+      "path_prefixes": [
+        "/v1/anatomy/"
+      ],
+      "status": "not offered yet",
+      "note": "The rule is disabled."
+    },
+    {
+      "id": "second-brain-retrieval",
+      "surface": "Second Brain retrieval",
+      "path_prefixes": [
+        "/v1/brain/"
+      ],
+      "status": "not offered yet",
+      "note": "The rule is disabled."
+    },
+    {
+      "id": "evidence-snapshot",
+      "surface": "evidence snapshot",
+      "path_prefixes": [
+        "/api/v1/evidence-snapshot"
+      ],
+      "status": "not offered yet",
+      "note": "No gateway rule exists for this path."
+    }
+  ],
+  "free_surfaces": [
+    {
+      "surface": "websites",
+      "examples": [
+        "https://a-11-oy.com/",
+        "https://www.a-11-oy.com/",
+        "https://holdings.a-11-oy.com/",
+        "https://killinchu.a-11-oy.com/",
+        "https://gdw.a-11-oy.com/",
+        "https://a-11-oy.com/robots.txt",
+        "https://a-11-oy.com/llms.txt"
+      ]
+    },
+    {
+      "surface": "pricing page",
+      "examples": [
+        "https://a-11-oy.com/pricing"
+      ]
+    },
+    {
+      "surface": "proof site",
+      "examples": [
+        "https://a11oy.net/",
+        "https://a11oy.net/experiments/"
+      ]
+    },
+    {
+      "surface": "health checks",
+      "examples": [
+        "https://a-11-oy.com/healthz",
+        "https://a-11-oy.com/api/a11oy/healthz",
+        "https://inference.a-11-oy.com/healthz",
+        "https://mcp.a-11-oy.com/healthz",
+        "https://agents-store.a-11-oy.com/healthz"
+      ]
+    },
+    {
+      "surface": "well-known files",
+      "examples": [
+        "https://a-11-oy.com/.well-known/x402-pricing.json",
+        "https://a-11-oy.com/.well-known/security.txt",
+        "https://mcp.a-11-oy.com/.well-known/mcp.json"
+      ]
+    }
+  ],
+  "rule_counts": {
+    "as_of": "2026-11-06T16:27:25Z",
+    "zones": [
+      {
+        "zone": "a-11-oy.com",
+        "rules_defined": 15,
+        "rules_enabled": 4
+      },
+      {
+        "zone": "a11oy.net",
+        "rules_defined": 2,
+        "rules_enabled": 0
+      },
+      {
+        "zone": "szlholdings.com",
+        "rules_defined": 0,
+        "rules_enabled": 0
+      }
+    ],
+    "rules_defined": 17,
+    "rules_enabled": 4
+  },
+  "limits": [
+    "Methods: the rules export records no HTTP method selection, and Cloudflare's documented default charges GET only, so whether POST requests to these paths are charged is unverified.",
+    "Origins: paying clears the gateway only; whether each origin then serves a paid caller without its own credential has not been verified.",
+    "Eligibility: Cloudflare's Monetization Gateway requires buyers and sellers to be based in the United States.",
+    "Revenue: this catalog records prices, not settlements; it says nothing about whether any payment has settled."
+  ]
+}

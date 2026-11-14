@@ -9,6 +9,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - classify szl-receipts-chain and refresh the public inventory
+
+- `SZLHOLDINGS/szl-receipts-chain`, a public docker demo Space first observed at
+  2026-11-11T15:49:44Z, is classified `INVENTORY_ONLY` / `FOLD` in
+  `static/shared/public-estate-contract.v1.json`, following the classification
+  pattern its 33 peer Spaces already use. The keep-list file is unchanged; the
+  policy already treats non-keepers as FOLD. No Space visibility was changed on
+  the Hub.
+- `docs/huggingface-ecosystem-manifest.json` is regenerated and committed at
+  2026-11-11T16:54:31Z with 90 models, 65 datasets, 48 Spaces, and 14 kernels,
+  with its lockstep generated consumers regenerated together: the stage matrix,
+  the three public-estate Markdown projections, and the model pretraining
+  snapshot. `SZLHOLDINGS/physics-master-v1-candidate` advanced to revision
+  `9118c9e2ea577bf5abd91b13ed3f8cf6235d653e` (checkpoint content, provider
+  mapping still empty); its catalog row keeps the revision it was observed at.
+  This closes the two drift items recorded in issue #1282.
+- The public-estate alignment test lists are extended to cover the new Space.
+  The contract version stays `1.0.2`: the 2026-11-10 classification batch added
+  20 rows under the same version, and additive classification rows do not
+  change the contract schema.
+
+### Changed - public inventory regeneration, 2026-11-11, and catalog coverage
+
+- `docs/huggingface-ecosystem-manifest.json` is regenerated and committed at
+  2026-11-11T15:08:20Z with 90 models, 65 datasets, 47 Spaces, and 14 kernels.
+  The lockstep generated consumers are regenerated together: the stage matrix,
+  the three public-estate Markdown projections, and the model pretraining
+  snapshot. `scripts/render_public_estate_alignment.py` passes against the
+  committed contract: the 20 Spaces it declares are present and every public
+  Space is classified. `SZLHOLDINGS/immune-lattice` and
+  `SZLHOLDINGS/salad-worker-smoke` are absent from the measured Hub inventory,
+  so the earlier blockers they caused are resolved at the Hub level.
+- `docs/model-inference-support.json` lists 90 model-namespace repositories.
+  The 2 added on 2026-11-11 come from the committed regeneration and are
+  HTTP 200 empty `inferenceProviderMapping` observations
+  (`NO_PROVIDER_MAPPING`). `SZLHOLDINGS/abstention-v2-candidate` is an
+  `adapter_bundle` row by its recursive revision file list, and
+  `SZLHOLDINGS/physics-master-v1-candidate` is a `non_provider_artifact` row.
+  Both returned HTTP 404 for `README.md` at their revision root. Routing,
+  qualification, promotion, and deployment authority stay false. All live
+  revisions match the committed regeneration. The 90 catalog ids equal its
+  model ids, so `scripts/collect_model_inference_support.py --check` exits 0.
+  The dated record is
+  `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-11.md`.
+
+### Changed - model inference catalog coverage, 2026-11-10 gap
+
+- `docs/model-inference-support.json` lists 88 model-namespace repositories.
+  The 14 added on 2026-11-10 come from two local inventory regenerations
+  (2026-11-10T11:13:26Z for 12 rows, 2026-11-10T17:55:29Z for
+  `SZLHOLDINGS/a11oy-code-r1-candidate` and
+  `SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate`) and are HTTP 200 empty
+  `inferenceProviderMapping` observations (`NO_PROVIDER_MAPPING`). The last two
+  are `adapter_bundle` rows by revision file names. `SZLHOLDINGS/szl-brain`
+  returned HTTP 404 for `README.md` at its observed revision. Routing,
+  qualification, promotion, and deployment authority stay false. The inventory
+  file was not changed. All 14 live revisions match the regeneration each row
+  was read against. The 88 catalog ids equal the later regeneration's model ids,
+  so `scripts/collect_model_inference_support.py --check` exits 0 against it.
+  A local run of the reviewed public-inventory refresh still stops earlier, at
+  `scripts/render_public_estate_alignment.py`, because the Space
+  `SZLHOLDINGS/immune-lattice` is public and has no contract classification
+  (BLOCKED; owner decision).
+
+### Changed - model inference catalog coverage
+
+- `docs/model-inference-support.json` lists the 74 public model-namespace
+  repositories from the 2026-11-06 inventory. The 33 repositories added on
+  2026-11-07 are HTTP 200 empty `inferenceProviderMapping` observations
+  (`NO_PROVIDER_MAPPING`). Routing, qualification, promotion, and deployment
+  authority stay false. The inventory file was not changed. Four live revisions
+  differ from that inventory snapshot.
+
+### Fixed - development URI parser dependency
+
+- Resolve Ajv's development-only `fast-uri` dependency to 3.1.9 in both npm
+  and pnpm lockfiles, addressing the host, scheme, path-equivalence, and suffix
+  reference advisories
+  [GHSA-wjr9-j795-jxcr](https://github.com/advisories/GHSA-wjr9-j795-jxcr),
+  [GHSA-w74x-v6f9-j3xg](https://github.com/advisories/GHSA-w74x-v6f9-j3xg),
+  [GHSA-xhq7-xmqj-769h](https://github.com/advisories/GHSA-xhq7-xmqj-769h), and
+  [GHSA-333x-w4r6-6crp](https://github.com/advisories/GHSA-333x-w4r6-6crp).
+  Keep Ajv and the application runtime unchanged.
+
+### Fixed - Rosie cross-link receipt verification
+
+- Separate receipt observation from schema-, role-, identity-, and digest-bound
+  verification. Only validated digest leaves enter cross-link Merkle roots;
+  unverified attestation claims are stripped from retained receipt evidence.
+- Use `chain_observed` for remote receipt presence. `chain_verified` now stays
+  false until both receipt digests and cryptographic signatures are verified.
+
+### Fixed - Windows PowerShell authorization helper
+
+- Keep Cloudflare authorization prompts compatible with Windows PowerShell 5.1
+  when cloned or downloaded without a UTF-8 BOM. Validate both Windows bootstrap
+  scripts with the native parser without executing installation, secret writes
+  or deployment.
+
+### Fixed - root test-tooling minimatch dependency
+
+- Resolve the root Jest discovery and coverage tooling through `glob` 14.0.3
+  and `minimatch` 11.0.3 in both npm and pnpm lockfiles, addressing
+  [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+  Keep the existing Jest/ts-jest versions, tests, and coverage configuration.
+- Include the pinned `glob` major in its override selector so CI's npm 10
+  resolver accepts the same patched dependency tree during `npm ci`.
+
+### Fixed - meter authentication preflight
+
+- Include the meter HMAC client mapping in the secret registry. An inference
+  bearer alone no longer hides missing meter credentials from the energy
+  preflight. Configuration presence does not establish measured execution.
+### Fixed - lean health signer diagnostics
+
+- Label the legacy signer fields on `/api/health` and `/api/a11oy/v1/health`
+  as unevaluated liveness sentinels, and expose the same cached `signing_state`
+  as `/healthz`. Reads do not load keys, sign receipts, or grant readiness.
+
 ### Fixed - release-train repair deploy window
 
 - The manual estate release-train repair can now forward the operator's
