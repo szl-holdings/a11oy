@@ -273,6 +273,26 @@ def upload_worker(
     return value
 
 
+def _module_bytes_from_readback(raw: bytes) -> bytes:
+    """Extract exact module source from a content/v2 readback.
+
+    Cloudflare returns a module Worker as a multipart/form-data body whose
+    part carries the uploaded source; a classic service Worker is returned
+    as raw source bytes. Fail closed on a malformed multipart shape.
+    """
+    if not raw.startswith(b"--"):
+        return raw
+    first_crlf = raw.find(b"\r\n")
+    head_end = raw.find(b"\r\n\r\n")
+    if first_crlf < 0 or head_end < 0:
+        raise EdgeError("WORKER_SCRIPT_READBACK_MALFORMED_MULTIPART")
+    boundary = raw[:first_crlf]
+    closing = raw.rfind(b"\r\n" + boundary + b"--")
+    if closing <= head_end:
+        raise EdgeError("WORKER_SCRIPT_READBACK_MALFORMED_MULTIPART")
+    return raw[head_end + 4 : closing]
+
+
 def inspect_worker_script(
     account_id: str, bearer: str, script_name: str, expected_source: bytes
 ) -> str:
@@ -305,9 +325,10 @@ def inspect_worker_script(
     )
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
-            actual = response.read(len(expected_source) + 1)
+            raw = response.read(len(expected_source) + 8192)
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
         raise EdgeError("WORKER_SCRIPT_READBACK_UNAVAILABLE") from exc
+    actual = _module_bytes_from_readback(raw)
     if actual != expected_source:
         raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
     return "identical"
