@@ -615,6 +615,9 @@ COPY szl_braincorpus.py szl_brain_reranker.py szl_brain_capabilities.py szl_brai
 # BRAIN GAPS (feat/frontier-braingaps) — per-file COPY (this Dockerfile has NO
 # … (full rationale: docs/DOCKERFILE_NOTES.md §90)
 COPY szl_brainconsensus.py szl_brainqueryaudit.py szl_brainlineage.py szl_brainexplain.py szl_braingaps.py szl_spend_cap.py ./
+# BRAIN V3 (feat/brain-v3-router) — per-file COPY; serve.py mounts it guardedly.
+COPY szl_brain_v3.py ./
+
 
 
 
