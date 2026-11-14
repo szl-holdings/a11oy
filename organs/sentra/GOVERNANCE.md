@@ -6,7 +6,7 @@ Sentra is sponsored and maintained by **SZL Holdings, LLC**. This document descr
 
 | Role | Who | What they can do |
 |---|---|---|
-| **Project Lead** | Stephen Z. Lopez (`@szl`) | Final say on doctrine, license, releases, signing keys, roadmap |
+| **Project Lead** | Stephen P. Lutar Jr. (`@stephenlutar2-hash`) | Final say on doctrine, license, releases, signing keys, roadmap |
 | **Maintainer** | Listed in [`.github/CODEOWNERS`](./.github/CODEOWNERS) | Triage, review, merge in Lane A; approve `core:accept-pr` labels |
 | **Contributor** | Anyone with a merged commit | Open issues, open PRs in Lane A, request reviews |
 | **Downstream operator** | E.g. Defense Unicorns republishing Sentra under their own signing key | Owns their fork end-to-end; upstream issues welcome; see [`docs/FORKING.md`](./docs/FORKING.md) |
