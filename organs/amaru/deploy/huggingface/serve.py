@@ -138,8 +138,8 @@ if STATIC_DIR.exists():
         # Never intercept /console (handled above) or /api
         if path.startswith("console") or path.startswith("api"):
             return HTMLResponse("Not found", status_code=404)
-        file_path = STATIC_DIR / path
-        if file_path.exists() and file_path.is_file():
+        file_path = (STATIC_DIR / path).resolve()
+        if file_path.is_relative_to(STATIC_DIR.resolve()) and file_path.is_file():
             return FileResponse(file_path)
         return FileResponse(STATIC_DIR / "index.html")
 

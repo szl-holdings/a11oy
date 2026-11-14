@@ -1178,8 +1178,9 @@ if CONSOLE_DIR.exists():
     async def console_static(path: str):
         if not path or path == "/":
             return FileResponse(CONSOLE_DIR / "index.html", media_type="text/html")
-        file_path = CONSOLE_DIR / path
-        if file_path.exists() and file_path.is_file():
+        # Containment: reject "..", encoded "%2F" and absolute segments outside CONSOLE_DIR.
+        file_path = (CONSOLE_DIR / path).resolve()
+        if file_path.is_relative_to(CONSOLE_DIR.resolve()) and file_path.is_file():
             return FileResponse(file_path)
         # SPA fallback
         return FileResponse(CONSOLE_DIR / "index.html", media_type="text/html")
@@ -2214,13 +2215,13 @@ async def catch_all(path: str):
     if path == "console" or path.startswith("console/"):
         console_path = path[len("console"):].lstrip("/")
         if console_path:
-            file_path = CONSOLE_DIR / console_path
-            if file_path.exists() and file_path.is_file():
+            file_path = (CONSOLE_DIR / console_path).resolve()
+            if file_path.is_relative_to(CONSOLE_DIR.resolve()) and file_path.is_file():
                 return FileResponse(file_path)
         return FileResponse(CONSOLE_DIR / "index.html", media_type="text/html")
     # Try static dir first
-    file_path = STATIC_DIR / path
-    if file_path.exists() and file_path.is_file():
+    file_path = (STATIC_DIR / path).resolve()
+    if file_path.is_relative_to(STATIC_DIR.resolve()) and file_path.is_file():
         return FileResponse(file_path)
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html")
 
