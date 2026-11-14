@@ -2,12 +2,12 @@
   "schema": "szl.x402-pricing/v2",
   "protocol": "x402",
   "x402_version": 2,
-  "as_of": "2026-11-06T16:27:25Z",
+  "as_of": "2026-11-14T18:15:00Z",
   "source": {
     "catalog": "https://github.com/szl-holdings/szl-gov/blob/main/pricing/catalog.yaml",
     "catalog_sha256": "e0f6fb4017042a7ed91b14afc795fb95316e1167611c6b441b9be235eae61cec",
     "generator": "szl-gov tools/pricing_catalog.py",
-    "rules_checked_against": "the Cloudflare Monetization Gateway rules export of 2026-11-06 with the 16:27 UTC change log applied"
+    "rules_checked_against": "verified live: pay_to read from the gateway HTTP 402 challenge (x402 v2 accepts[0]) at https://inference.a-11-oy.com/v1/completions on 2026-11-14; dashboard rules export not re-pulled"
   },
   "authority": "The HTTP 402 PAYMENT-REQUIRED response from the gateway is authoritative. This file lists what the exported gateway rules charged at as_of; a rule edited in the Cloudflare dashboard after as_of is not reflected until the catalog is updated and regenerated.",
   "payment": {
@@ -15,7 +15,7 @@
     "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "asset_name": "USD Coin",
     "atomic_per_usd": 1000000,
-    "pay_to": "0x50E9B335ac233fcc5e87404367E7De253A63D460",
+    "pay_to": "0x7b133ef996852c223379d6d1245430300970291A",
     "max_timeout_seconds": 3600
   },
   "seller": {
@@ -226,7 +226,7 @@
     }
   ],
   "rule_counts": {
-    "as_of": "2026-11-06T16:27:25Z",
+    "as_of": "2026-11-14T18:15:00Z",
     "zones": [
       {
         "zone": "a-11-oy.com",
