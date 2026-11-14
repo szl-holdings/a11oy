@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { handleRequest, toUpstreamUrl } from "../src/index.mjs";
+import { REVISION_PATH, handleRequest, toUpstreamUrl } from "../src/index.mjs";
 
 function relayRequest(path, init = {}) {
   return new Request(`https://ntfy.a11oy.net${path}`, init);
@@ -145,4 +145,66 @@ test("rejects alternate hosts and reports transport failure as 502", async () =>
     },
   );
   assert.equal(unavailable.status, 502);
+});
+
+test("the reserved revision path reports the deployed commit and never relays", async () => {
+  const revision = "0123456789abcdef0123456789abcdef01234567";
+  const neverFetch = async () => {
+    assert.fail("the revision path must not reach the upstream");
+  };
+
+  const live = await handleRequest(relayRequest(REVISION_PATH), neverFetch, {
+    SOURCE_REVISION: revision,
+  });
+  assert.equal(live.status, 200);
+  assert.equal(live.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await live.json(), {
+    worker: "szl-alert-relay",
+    source_revision: revision,
+  });
+
+  for (const SOURCE_REVISION of [undefined, "", "d739c95b", revision.toUpperCase()]) {
+    const unset = await handleRequest(relayRequest(REVISION_PATH), neverFetch, {
+      SOURCE_REVISION,
+    });
+    assert.equal((await unset.json()).source_revision, null);
+  }
+  const noEnv = await handleRequest(relayRequest(REVISION_PATH), neverFetch);
+  assert.equal((await noEnv.json()).source_revision, null);
+
+  for (const method of ["POST", "PUT", "HEAD", "OPTIONS"]) {
+    const write = await handleRequest(
+      relayRequest(REVISION_PATH, {
+        method,
+        ...(method === "POST" || method === "PUT" ? { body: "not a topic" } : {}),
+      }),
+      neverFetch,
+      { SOURCE_REVISION: revision },
+    );
+    assert.equal(write.status, 405, method);
+    assert.equal(write.headers.get("allow"), "GET");
+  }
+
+  const wrongHost = await handleRequest(
+    new Request(`https://example.com${REVISION_PATH}`),
+    neverFetch,
+    { SOURCE_REVISION: revision },
+  );
+  assert.equal(wrongHost.status, 421);
+});
+
+test("nearby paths stay opaque topics, not the reserved revision path", async () => {
+  for (const path of [
+    `${REVISION_PATH}/json`,
+    `${REVISION_PATH}x`,
+    "/.well-known/other",
+    REVISION_PATH.toUpperCase(),
+  ]) {
+    let forwarded;
+    await handleRequest(relayRequest(path), async (request) => {
+      forwarded = request;
+      return new Response("ok");
+    });
+    assert.match(new URL(forwarded.url).pathname, /^\/szl_[a-f0-9]{60}(\/json)?$/, path);
+  }
 });
