@@ -136,6 +136,22 @@ jobs:
       - name: Derive conservation from the submitted decision and emitted node
         run: python -m pytest -q tests/test_policy_receipt_conservation.py
 
+  python-x402-price-manifest:
+    name: x402 price manifest, /pricing table and runtime COPY agree
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Bind the generated manifest, the per-call table and the runtime COPY
+        run: python -m pytest -q tests/test_x402_pricing_manifest.py
+
   liu-hui-float64:
     name: Liu Hui float64 recurrence
     runs-on: ubuntu-latest

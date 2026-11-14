@@ -26,6 +26,12 @@ FAILURE_SCHEMA = "szl.execution-handoff-failure/v1"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SAFE_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,95}$")
 STEP_OUTCOMES = frozenset(("success", "failure", "cancelled", "skipped"))
+CONTEXT_FAILURE_CODES = frozenset((
+    "INDEPENDENT_EXECUTION_CONTEXT_REQUIRED", "EXECUTION_SOURCE_MISMATCH",
+    "EXACT_EXECUTION_REVISIONS_REQUIRED", "RUNTIME_BOOT_REQUIRED", "RUN_NONCE_REQUIRED",
+    "SEPARATE_APPROVAL_AUTHORITY_REQUIRED", "PUBLIC_KEY_PIN_REQUIRED", "INVALID_PUBLIC_KEY",
+    "P256_KEY_REQUIRED", "PUBLIC_KEY_PIN_MISMATCH",
+))
 
 
 class HandoffBlocked(ValueError):
@@ -80,7 +86,13 @@ def independent_context(source, env):
     context = gate.acceptance.AdmissionContext(source, *selected,
         pins["approval_public_pem"].encode(), pins["approval_key_id"],
         pins["runtime_public_pem"].encode(), pins["runtime_key_id"])
-    gate._context(context, source)
+    try:
+        gate._context(context, source)
+    except (gate.CombinedEvidenceError, gate.acceptance.EvidenceError) as exc:
+        # Preserve only fixed context diagnostics; never print caller data.
+        code = str(exc)
+        raise HandoffBlocked(code if code in CONTEXT_FAILURE_CODES
+                             else "EXECUTION_HANDOFF_UNAVAILABLE") from exc
     return context, pins
 
 
