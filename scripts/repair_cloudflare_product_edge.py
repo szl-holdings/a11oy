@@ -33,6 +33,8 @@ still fails closed.
 from __future__ import annotations
 
 import argparse
+import email.parser
+import email.policy
 import hashlib
 import json
 import os
@@ -305,12 +307,42 @@ def inspect_worker_script(
     )
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
-            actual = response.read(len(expected_source) + 1)
+            actual = response.read()
+            headers = getattr(response, "headers", None)
+            content_type = headers.get("Content-Type", "") if headers else ""
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
         raise EdgeError("WORKER_SCRIPT_READBACK_UNAVAILABLE") from exc
+    if "multipart/form-data" in content_type.lower():
+        module = _module_part_from_multipart(actual, content_type)
+        if module is None:
+            raise EdgeError("WORKER_SCRIPT_READBACK_UNPARSEABLE")
+        actual = module
     if actual != expected_source:
         raise EdgeError("WORKER_SCRIPT_NAME_COLLISION")
     return "identical"
+
+
+def _module_part_from_multipart(body: bytes, content_type: str) -> bytes | None:
+    """Fail-closed extraction of the single worker.mjs part of a readback."""
+    header = (
+        b"Content-Type: "
+        + content_type.encode("utf-8", "replace")
+        + b"\r\nMIME-Version: 1.0\r\n\r\n"
+    )
+    try:
+        message = email.parser.BytesParser(
+            policy=email.policy.default
+        ).parsebytes(header + body)
+        modules = [
+            part.get_payload(decode=True)
+            for part in message.walk()
+            if part.get_filename() == "worker.mjs"
+        ]
+    except Exception:
+        return None
+    if len(modules) != 1 or not isinstance(modules[0], bytes):
+        return None
+    return modules[0]
 
 
 def _routes_by_pattern(current: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
