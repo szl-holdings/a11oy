@@ -53,8 +53,10 @@ def test_security_txt_is_canonical_and_copied_into_runtime_static_tree() -> None
     assert "Encryption:" not in security, "do not advertise a nonexistent public key"
     assert "Canonical: https://a-11-oy.com/.well-known/security.txt" in security
     assert "Policy: https://github.com/szl-holdings/a11oy/blob/main/SECURITY.md" in security
+    # Batched with the x402 price manifest so the runtime layer budget is unchanged.
     assert (
-        "COPY .well-known/security.txt ./static/.well-known/security.txt" in dockerfile
+        "COPY .well-known/security.txt .well-known/x402-pricing.json ./static/.well-known/"
+        in dockerfile
     )
 
 

@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "szl-revenue-tracker",
+  "main": "src/index.mjs",
+  "compatibility_date": "2024-09-01",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "a-11-oy.com/api/a11oy/v1/*", "zone_name": "a-11-oy.com" },
+    { "pattern": "a-11-oy.com/v1/*", "zone_name": "a-11-oy.com" }
+  ],
+  "analytics_engine_datasets": [
+    { "binding": "ANALYTICS", "dataset": "x402_revenue" }
+  ]
+}
