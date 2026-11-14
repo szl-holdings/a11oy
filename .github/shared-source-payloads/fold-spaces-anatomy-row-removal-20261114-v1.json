@@ -1,0 +1,8 @@
+{
+  "files": {
+    ".github/shared-source-payloads/anatomy-org-keeper-space-policy-20261108-v1.json": "1dcfabbeedba88cd34d7f8cf454bbe217dc5e3bcac71a87750ad3977a20f7ae1",
+    "szl_spaces_surface.py": "0d33f06277c9c60efadd7a7fa2f2c7541c4f23b7a9bba755981b3f7f78a7cbc2"
+  },
+  "payload_id": "fold-spaces-anatomy-row-removal-20261114-v1",
+  "schema": "szl-shared-source-payload/v1"
+}

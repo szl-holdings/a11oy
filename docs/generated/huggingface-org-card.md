@@ -19,5 +19,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 A repository card is not a production certificate. Runtime, source revision, evidence freshness, and receipt state are verified separately. Λ remains Conjecture 1 and advisory only. No public model or formula may authorize consequential action.
 
-Alignment receipt: `56a40129f3ec7ce20b0099d2718fd42c2d6aa740f32b12776820bf733f2beb65`.
+Alignment receipt: `17bd30920baebad59c34e62cffef4e9540d3fe7a9601d8d99100d20cb25a42d1`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
