@@ -369,6 +369,83 @@ class ProductEdgeContract(unittest.TestCase):
             with self.assertRaisesRegex(edge.EdgeError, "WORKER_SCRIPT_NAME_COLLISION"):
                 edge.inspect_worker_script("account", "secret", script, source)
 
+
+    def test_multipart_readback_with_exact_module_bytes_is_identical(self) -> None:
+        source = WORKER.read_bytes()
+        script = edge.immutable_script_name(WORKER)
+        boundary = "3886e510a480a84af42694da229b1f0bad3facc9a2d7dba6c5eefefa645f"
+        content_type = f"multipart/form-data; boundary={boundary}"
+
+        class Readback(io.BytesIO):
+            def __init__(self, module: bytes) -> None:
+                body = (
+                    f"--{boundary}\r\n"
+                    'Content-Disposition: form-data; name="worker.mjs"; '
+                    'filename="worker.mjs"\r\n'
+                    "Content-Type: application/javascript+module\r\n"
+                    "\r\n"
+                ).encode("utf-8") + module + f"\r\n--{boundary}--\r\n".encode("utf-8")
+                super().__init__(body)
+                self.headers = {"Content-Type": content_type}
+
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": [{"id": script}]},
+            ),
+            mock.patch.object(
+                edge.urllib.request, "urlopen", return_value=Readback(source)
+            ),
+        ):
+            self.assertEqual(
+                edge.inspect_worker_script("account", "secret", script, source),
+                "identical",
+            )
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": [{"id": script}]},
+            ),
+            mock.patch.object(
+                edge.urllib.request, "urlopen",
+                return_value=Readback(b"tampered" + source[8:]),
+            ),
+        ):
+            with self.assertRaisesRegex(
+                edge.EdgeError, "WORKER_SCRIPT_NAME_COLLISION"
+            ):
+                edge.inspect_worker_script("account", "secret", script, source)
+
+    def test_multipart_readback_without_worker_part_fails_closed(self) -> None:
+        source = WORKER.read_bytes()
+        script = edge.immutable_script_name(WORKER)
+        boundary = "cafebabedeadbeefcafebabedeadbeef"
+        body = (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="metadata"\r\n'
+            "Content-Type: application/json\r\n"
+            "\r\n"
+            '{"main_module": "worker.mjs"}\r\n'
+            f"--{boundary}--\r\n"
+        ).encode("utf-8")
+
+        class Readback(io.BytesIO):
+            headers = {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+
+        with (
+            mock.patch.object(
+                edge, "request_json",
+                return_value={"success": True, "result": [{"id": script}]},
+            ),
+            mock.patch.object(
+                edge.urllib.request, "urlopen", return_value=Readback(body)
+            ),
+        ):
+            with self.assertRaisesRegex(
+                edge.EdgeError, "WORKER_SCRIPT_READBACK_UNPARSEABLE"
+            ):
+                edge.inspect_worker_script("account", "secret", script, source)
+
     def test_incomplete_script_listing_blocks_upload(self) -> None:
         with mock.patch.object(
             edge,
