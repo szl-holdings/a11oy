@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Optional, Sequence
 
@@ -211,4 +212,402 @@ def wrap_governed_cycle(first_cycle: Mapping[str, Any],
         "inspiration": "arXiv:2604.11378 (position paper; own-code reimplementation, not vendored)",
         "issued_at": datetime.now(timezone.utc).isoformat(),
         "cycle": first_cycle,
+    }
+
+
+# This is a local, serial executor for the separate governed-graph contract.
+# It does not alter the legacy cycle wrapper or grant production authority.
+MAX_LOCAL_NODE_ATTEMPTS = 1 + MAX_RECOVER_CEILING
+MAX_LOCAL_TOTAL_ATTEMPTS = 256
+_LOCAL_ROLES = frozenset({
+    "scope", "planner", "worker", "reducer", "verifier", "synthesizer",
+})
+_LOCAL_GENESIS = "SGH-LOCAL-GENESIS"
+
+
+def _local_json_copy(value: Any) -> Any:
+    """Copy strict JSON data, rejecting Python-only and non-finite values."""
+    if value is None or type(value) in (str, bool, int):
+        return value
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError("non-finite JSON number")
+        return value
+    if type(value) is list:
+        return [_local_json_copy(item) for item in value]
+    if type(value) is dict:
+        if any(type(key) is not str for key in value):
+            raise ValueError("non-string JSON key")
+        return {key: _local_json_copy(item) for key, item in value.items()}
+    raise ValueError("non-JSON value")
+
+
+def _local_not_invoked(reason: str, digest: Optional[str] = None,
+                       node_ids: Sequence[str] = (),
+                       blockers: Sequence[str] = ()) -> dict:
+    return {
+        "disposition": "NOT_INVOKED",
+        "reason": reason,
+        "contract_digest": digest,
+        "plan_id": "ggp-" + digest[:20] if digest else None,
+        "nodes": {
+            node_id: {"status": "NOT_INVOKED", "reason": reason,
+                      "attempts": 0, "outputs": None, "receipt_id": None}
+            for node_id in node_ids
+        },
+        "transitions": [],
+        "chain_final_hash": _LOCAL_GENESIS,
+        "attempts_used": 0,
+        "implementation_invocations": 0,
+        "blockers": list(blockers),
+        "mode": "LOCAL_READ_ONLY",
+        "durable": False,
+    }
+
+
+def execute_governed_plan(
+    contract: Mapping[str, Any], expected_digest: str, *,
+    input_values: Mapping[str, Any],
+    admissions: Mapping[str, Callable[[dict], bool]],
+    implementations: Mapping[str, Callable[[dict], dict]],
+    verifiers: Mapping[str, Callable[[dict], bool]],
+    max_attempts_per_node: int = 2,
+    max_total_attempts: int = MAX_LOCAL_TOTAL_ATTEMPTS,
+    cancelled: Optional[Callable[[], bool]] = None,
+    clock: Optional[Callable[[], float]] = None,
+    deadline: Optional[float] = None,
+) -> dict:
+    """Execute one analyzed graph using explicitly supplied local capabilities.
+
+    Each implementation receives an isolated context and returns either
+    ``{"status": "SUCCEEDED", "outputs": {...}}`` or the explicit local-only
+    ``{"status": "RETRYABLE_FAILURE", "failure_kind": "LOCAL"}`` (also
+    ``SYNTHETIC``). Admission and verification must return exact booleans.
+    Callables are trusted Python code; this function is not an I/O sandbox.
+    The returned receipts are deterministic, in-memory records, not signatures
+    or durable effect receipts. A synchronous callback cannot be preempted.
+    """
+    try:
+        from routers.governed_graph_operations import analyse_graph
+
+        frozen_request = _local_json_copy(contract)
+        # Check serializability before invoking the analyzer or any capability.
+        json.dumps(frozen_request, allow_nan=False)
+        analysis = analyse_graph(frozen_request)
+        frozen = _local_json_copy(analysis["normalized_contract"])
+        digest = _sha(frozen)
+    except Exception:
+        return _local_not_invoked("INVALID_CONTRACT")
+
+    schedule = [node_id for batch in analysis["topology"]["schedule"]
+                for node_id in batch["nodes"]]
+    by_id = {node["id"]: node for node in frozen["nodes"]}
+    if len(schedule) != len(by_id) or set(schedule) != set(by_id):
+        return _local_not_invoked("INVALID_SCHEDULE", digest)
+    if digest != analysis["contract_digest"]:
+        return _local_not_invoked("ANALYSIS_DIGEST_MISMATCH", digest, schedule)
+    if type(expected_digest) is not str or digest != expected_digest:
+        return _local_not_invoked("DIGEST_MISMATCH", digest, schedule)
+    if analysis["gates"]["pass"] is not True:
+        blocker_codes = [issue["code"] for issue in analysis["gates"]["blockers"]]
+        return _local_not_invoked("ANALYSIS_BLOCKED", digest, schedule,
+                                  blocker_codes)
+
+    if (type(max_attempts_per_node) is not int
+            or not 1 <= max_attempts_per_node <= MAX_LOCAL_NODE_ATTEMPTS
+            or type(max_total_attempts) is not int
+            or not 1 <= max_total_attempts <= MAX_LOCAL_TOTAL_ATTEMPTS):
+        return _local_not_invoked("INVALID_ATTEMPT_BUDGET", digest, schedule)
+    attempt_budget = min(max_total_attempts,
+                         frozen["budget"]["max_total_iterations"])
+    if len(schedule) > attempt_budget:
+        return _local_not_invoked("ATTEMPT_BUDGET_INSUFFICIENT", digest, schedule)
+    if cancelled is not None and not callable(cancelled):
+        return _local_not_invoked("INVALID_CANCELLATION_CAPABILITY", digest,
+                                  schedule)
+    if deadline is not None:
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+                or not callable(clock)):
+            return _local_not_invoked("INVALID_DEADLINE_CAPABILITY", digest,
+                                      schedule)
+
+    try:
+        values = _local_json_copy(input_values)
+        json.dumps(values, allow_nan=False)
+    except Exception:
+        return _local_not_invoked("INVALID_INPUT_VALUES", digest, schedule)
+    if (type(values) is not dict
+            or set(values) != set(frozen["external_inputs"])):
+        return _local_not_invoked("INPUT_VALUES_MISMATCH", digest, schedule)
+
+    try:
+        admitted = {node_id: admissions[node_id] for node_id in schedule}
+        implemented = {node_id: implementations[node_id] for node_id in schedule}
+        verified = {node_id: verifiers[node_id] for node_id in schedule}
+    except (KeyError, TypeError):
+        return _local_not_invoked("MISSING_CAPABILITY", digest, schedule)
+    if any(not callable(capability) for capabilities in
+           (admitted, implemented, verified)
+           for capability in capabilities.values()):
+        return _local_not_invoked("MISSING_CAPABILITY", digest, schedule)
+
+    # Resolve every consumed artifact to exactly one declared source before any
+    # callback. Control predecessors are never data providers.
+    sources = {}
+    external = set(frozen["external_inputs"])
+    for node_id in schedule:
+        node = by_id[node_id]
+        if (node["role"] not in _LOCAL_ROLES or node["max_iterations"] is not None
+                or node["exit_conditions"]):
+            return _local_not_invoked("UNSUPPORTED_NODE_SEMANTICS", digest,
+                                      schedule)
+        if (node["side_effecting"] or node["writes"]
+                or node["authority"] in ("WRITE_GOVERNED", "HUMAN")):
+            return _local_not_invoked("EFFECTS_UNSUPPORTED", digest, schedule)
+        for predecessor in node["depends_on"]:
+            if not set(by_id[predecessor]["produces"]) & set(node["consumes"]):
+                return _local_not_invoked("FAKE_DATA_EDGE_UNSUPPORTED", digest,
+                                          schedule)
+        for key in node["consumes"]:
+            providers = (["external"] if key in external else []) + [
+                predecessor for predecessor in node["depends_on"]
+                if key in by_id[predecessor]["produces"]
+            ]
+            if len(providers) != 1:
+                return _local_not_invoked(
+                    "INPUT_PROVIDER_AMBIGUOUS" if providers else "INPUT_UNAVAILABLE",
+                    digest, schedule)
+            sources[(node_id, key)] = providers[0]
+
+    states = {
+        node_id: {"status": "PENDING", "reason": None, "attempts": 0,
+                  "outputs": None, "receipt_id": None}
+        for node_id in schedule
+    }
+    transitions = []
+    chain = _LOCAL_GENESIS
+    attempts_used = 0
+    implementation_invocations = 0
+
+    def predecessor_receipts(node: dict) -> list[dict]:
+        return [
+            {"node_id": predecessor,
+             "receipt_id": states[predecessor]["receipt_id"]}
+            for predecessor in sorted(set(node["depends_on"] +
+                                          node["control_after"]))
+            if states[predecessor]["receipt_id"] is not None
+        ]
+
+    def emit(node_id: str, attempt: int, predecessors: list[dict],
+             inputs: Any, outputs: Any, result: str,
+             reason: str, terminal: bool) -> str:
+        nonlocal chain
+        body = {
+            "sequence": len(transitions),
+            "contract_digest": digest,
+            "node_id": node_id,
+            "attempt": attempt,
+            "predecessor_receipts": _local_json_copy(predecessors),
+            "input_hash": _sha(inputs),
+            "output_hash": _sha(outputs),
+            "result": result,
+            "reason": reason,
+            "terminal": terminal,
+        }
+        receipt_id = _sha({"kind": "sgh_local_transition/v1",
+                           "body": body, "previous_receipt_id": chain})
+        transitions.append({**body, "kind": "sgh_local_transition/v1",
+                            "previous_receipt_id": chain,
+                            "receipt_id": receipt_id})
+        chain = receipt_id
+        return receipt_id
+
+    halt_reason = None
+    for node_id in schedule:
+        node = by_id[node_id]
+        predecessors = predecessor_receipts(node)
+        if any(states[dep]["status"] != "SUCCEEDED" for dep in
+               node["depends_on"] + node["control_after"]):
+            halt_reason = "PREDECESSOR_UNVERIFIED"
+            states[node_id].update(status="BLOCKED", reason=halt_reason)
+            break
+
+        inputs = {}
+        for key in node["consumes"]:
+            provider = sources[(node_id, key)]
+            if provider == "external":
+                inputs[key] = _local_json_copy(values[key])
+            else:
+                predecessor_outputs = states[provider]["outputs"]
+                if (states[provider]["status"] != "SUCCEEDED"
+                        or predecessor_outputs is None
+                        or key not in predecessor_outputs):
+                    halt_reason = "PREDECESSOR_OUTPUT_UNAVAILABLE"
+                    states[node_id].update(status="BLOCKED", reason=halt_reason)
+                    break
+                inputs[key] = _local_json_copy(predecessor_outputs[key])
+        if halt_reason:
+            break
+
+        for attempt in range(1, max_attempts_per_node + 1):
+            if attempts_used >= attempt_budget:
+                halt_reason = "ATTEMPT_BUDGET_EXHAUSTED"
+            if halt_reason is None and cancelled is not None:
+                try:
+                    cancellation = cancelled()
+                    if cancellation is True:
+                        halt_reason = "CANCELLED"
+                    elif cancellation is not False:
+                        halt_reason = "CANCELLATION_AMBIGUOUS"
+                except Exception:
+                    halt_reason = "CANCELLATION_CHECK_ERROR"
+            if halt_reason is None and deadline is not None:
+                try:
+                    observed = clock()
+                    if (type(observed) not in (int, float)
+                            or not math.isfinite(observed)):
+                        halt_reason = "CLOCK_INVALID"
+                    elif observed >= deadline:
+                        halt_reason = "DEADLINE_REACHED"
+                except Exception:
+                    halt_reason = "CLOCK_ERROR"
+            if halt_reason is not None:
+                states[node_id].update(status="BLOCKED", reason=halt_reason)
+                break
+
+            attempts_used += 1
+            states[node_id]["attempts"] = attempt
+            context = {
+                "contract_digest": digest,
+                "node": _local_json_copy(node),
+                "inputs": _local_json_copy(inputs),
+                "attempt": attempt,
+                "predecessor_receipts": _local_json_copy(predecessors),
+            }
+            try:
+                permission = admitted[node_id](_local_json_copy(context))
+            except Exception:
+                permission = None
+                reason = "ADMISSION_EXCEPTION"
+            else:
+                reason = ("ADMISSION_DENIED" if permission is False
+                          else "ADMISSION_AMBIGUOUS")
+            if permission is not True:
+                status = "DENIED" if permission is False else "FAILED"
+                states[node_id].update(status=status, reason=reason)
+                states[node_id]["receipt_id"] = emit(
+                    node_id, attempt, predecessors, inputs, None,
+                    status, reason, True)
+                halt_reason = reason
+                break
+
+            implementation_invocations += 1
+            try:
+                raw_outcome = implemented[node_id](_local_json_copy(context))
+            except Exception:
+                outcome = None
+                reason = "IMPLEMENTATION_EXCEPTION"
+            else:
+                try:
+                    outcome = _local_json_copy(raw_outcome)
+                except Exception:
+                    outcome = None
+                reason = "AMBIGUOUS_OUTCOME"
+
+            if (type(outcome) is dict and set(outcome) == {"status", "failure_kind"}
+                    and outcome["status"] == "RETRYABLE_FAILURE"
+                    and outcome["failure_kind"] in ("LOCAL", "SYNTHETIC")):
+                if (attempt < max_attempts_per_node
+                        and attempts_used < attempt_budget):
+                    emit(node_id, attempt, predecessors, inputs, None,
+                         "RETRYABLE_FAILURE", "LOCAL_RETRYABLE_FAILURE", False)
+                    continue
+                reason = "RETRY_BUDGET_EXHAUSTED"
+                states[node_id].update(status="FAILED", reason=reason)
+                states[node_id]["receipt_id"] = emit(
+                    node_id, attempt, predecessors, inputs, None,
+                    "FAILED", reason, True)
+                halt_reason = reason
+                break
+
+            if (type(outcome) is not dict or set(outcome) != {"status", "outputs"}
+                    or outcome["status"] != "SUCCEEDED"):
+                states[node_id].update(status="FAILED", reason=reason)
+                states[node_id]["receipt_id"] = emit(
+                    node_id, attempt, predecessors, inputs, None,
+                    "FAILED", reason, True)
+                halt_reason = reason
+                break
+            try:
+                outputs = _local_json_copy(outcome["outputs"])
+                json.dumps(outputs, allow_nan=False)
+            except Exception:
+                outputs = None
+            if (type(outputs) is not dict
+                    or set(outputs) != set(node["produces"])):
+                reason = "OUTPUT_CONTRACT_VIOLATION"
+                states[node_id].update(status="FAILED", reason=reason)
+                states[node_id]["receipt_id"] = emit(
+                    node_id, attempt, predecessors, inputs, None,
+                    "FAILED", reason, True)
+                halt_reason = reason
+                break
+
+            verification_context = {**context, "outputs": outputs}
+            try:
+                accepted = verified[node_id](
+                    _local_json_copy(verification_context))
+            except Exception:
+                accepted = None
+                reason = "VERIFIER_EXCEPTION"
+            else:
+                reason = ("VERIFIER_REJECTED" if accepted is False
+                          else "VERIFIER_AMBIGUOUS")
+            if accepted is not True:
+                states[node_id].update(status="FAILED", reason=reason)
+                states[node_id]["receipt_id"] = emit(
+                    node_id, attempt, predecessors, inputs, outputs,
+                    "FAILED", reason, True)
+                halt_reason = reason
+                break
+
+            receipt_id = emit(node_id, attempt, predecessors, inputs, outputs,
+                              "SUCCEEDED", "VERIFIED", True)
+            states[node_id].update(status="SUCCEEDED", reason="VERIFIED",
+                                   outputs=_local_json_copy(outputs),
+                                   receipt_id=receipt_id)
+            break
+        if halt_reason is not None:
+            break
+
+    if halt_reason is not None:
+        for node_id in schedule:
+            state = states[node_id]
+            if state["status"] not in ("PENDING", "BLOCKED"):
+                continue
+            node = by_id[node_id]
+            if state["status"] == "PENDING":
+                reason = ("PREDECESSOR_UNVERIFIED" if any(
+                    states[dep]["status"] != "SUCCEEDED"
+                    for dep in node["depends_on"] + node["control_after"])
+                    else "RUN_HALTED")
+                state.update(status="BLOCKED", reason=reason)
+            state["receipt_id"] = emit(
+                node_id, 0, predecessor_receipts(node), None, None,
+                "BLOCKED", state["reason"], True)
+
+    return {
+        "disposition": "BLOCKED" if halt_reason else "SUCCEEDED",
+        "reason": halt_reason or "COMPLETED",
+        "contract_digest": digest,
+        "plan_id": analysis["plan_id"],
+        "nodes": states,
+        "transitions": transitions,
+        "chain_final_hash": chain,
+        "attempts_used": attempts_used,
+        "implementation_invocations": implementation_invocations,
+        "attempt_budget": attempt_budget,
+        "blockers": [],
+        "mode": "LOCAL_READ_ONLY",
+        "durable": False,
     }

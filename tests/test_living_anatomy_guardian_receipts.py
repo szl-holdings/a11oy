@@ -12,6 +12,7 @@ import sys
 import textwrap
 from types import ModuleType, SimpleNamespace
 import unittest
+import urllib.error
 from unittest.mock import Mock, patch
 
 
@@ -23,11 +24,14 @@ BRAIN_SHA = "3" * 40
 
 class GuardianReceiptTest(unittest.TestCase):
     def run_guardian(self, *, private=False, stage="RUNNING", hardware="cpu-basic",
-                     failure=None, timeout=False, missing_token=False):
+                     failure=None, timeout=False, missing_token=False, host=None,
+                     unrouted_alias=False):
         source = WORKFLOW.read_text(encoding="utf-8")
         inline = source.split("python - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
         program = compile(textwrap.dedent(inline), str(WORKFLOW), "exec")
-        info = SimpleNamespace(private=private, sha=HF_SHA)
+        declared = "https://fixture-owner-anatomy.hf.space"
+        resolved = declared if host is None else host
+        info = SimpleNamespace(private=private, sha=HF_SHA, host=resolved)
         runtime = SimpleNamespace(stage=stage, hardware=hardware)
         api = Mock()
         api.space_info.return_value = info
@@ -50,6 +54,10 @@ class GuardianReceiptTest(unittest.TestCase):
 
         def urlopen(request, timeout):
             url = request.full_url
+            if unrouted_alias and url.startswith(declared):
+                raise urllib.error.HTTPError(url, 404, "Not Found", {}, BytesIO(b"missing"))
+            if url.startswith("https://evil.example"):
+                raise AssertionError(f"refused host was fetched: {url}")
             if url.startswith("https://api.github.com/"):
                 payload = {"sha": SOURCE_SHA}
             elif "/living-health" in url:
@@ -159,7 +167,29 @@ class GuardianReceiptTest(unittest.TestCase):
         self.assertEqual(575, receipt["live_contract"]["second_brain_public_chunks"])
         self.assertEqual("FORBIDDEN", receipt["hardware_mutation"])
         self.assertEqual("RUNNING", receipt["after"]["stage"])
+        self.assertEqual("https://fixture-owner-anatomy.hf.space", receipt["origin"])
         api.set_space_sleep_time.assert_not_called()
+
+    def test_unrouted_declared_alias_still_proves_canonical_host(self):
+        canonical = "https://fixture-canonical-anatomy.hf.space"
+        receipt, api, error = self.run_guardian(host=canonical, unrouted_alias=True)
+        self.assertIsNone(error)
+        self.assertEqual("PASS", receipt["status"])
+        self.assertEqual(canonical, receipt["origin"])
+        self.assertEqual("https://fixture-owner-anatomy.hf.space", receipt["declared_origin"])
+        self.assertEqual(SOURCE_SHA, receipt["live_contract"]["anatomy_source_revision"])
+        self.assertEqual(575, receipt["live_contract"]["second_brain_public_chunks"])
+        api.restart_space.assert_not_called()
+
+    def test_non_hf_space_host_fails_closed_before_mutation(self):
+        receipt, api, error = self.run_guardian(host="https://evil.example/anatomy", stage="PAUSED")
+        self.assertIsInstance(error, RuntimeError)
+        self.assertIn("exact https hf.space origin", receipt["error"])
+        self.assertEqual("FAIL", receipt["status"])
+        self.assertNotIn("live_contract", receipt)
+        self.assertEqual([], receipt["actions"])
+        api.update_repo_settings.assert_not_called()
+        api.restart_space.assert_not_called()
 
 
 if __name__ == "__main__":
