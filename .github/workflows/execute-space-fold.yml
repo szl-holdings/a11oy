@@ -54,24 +54,31 @@ jobs:
       - name: Validate dispatch inputs against the registry
         id: inputs
         shell: bash
+        env:
+          FOLD_SPACE_ID: ${{ inputs.space_id }}
+          FOLD_CONFIRM: ${{ inputs.confirm }}
+          FOLD_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
-          space_id='${{ inputs.space_id }}'
-          slug="${space_id##*/}"
-          # Artifact names reject '/', so the receipt is named by slug only.
-          echo "slug=$slug" >> "$GITHUB_OUTPUT"
           python - <<'PY'
-          import json, re
+          import json, os, re
           from pathlib import Path
-          space_id = '${{ inputs.space_id }}'.strip()
-          confirm = '${{ inputs.confirm }}'.strip()
-          assert re.fullmatch(r'SZLHOLDINGS/[A-Za-z0-9_.][A-Za-z0-9_.-]*[A-Za-z0-9_.]', space_id), space_id
+          space_id = os.environ['FOLD_SPACE_ID']
+          confirm = os.environ['FOLD_CONFIRM']
+          if not re.fullmatch(r'SZLHOLDINGS/[A-Za-z0-9_.][A-Za-z0-9_.-]*[A-Za-z0-9_.]', space_id):
+              raise SystemExit('invalid space id')
+          if os.environ['FOLD_DRY_RUN'] not in {'true', 'false'}:
+              raise SystemExit('dry_run must be true or false')
           registry = json.loads(Path('publishing/space-fold-registry.json').read_text(encoding='utf-8'))
           entry = next((t for t in registry['targets'] if t.get('space_id') == space_id), None)
-          assert entry is not None, f'{space_id} is not a registered fold target'
-          assert entry.get('status') == 'pending', entry
+          if entry is None or entry.get('status') != 'pending':
+              raise SystemExit('target must be registered and pending')
           expected = 'FOLD-' + space_id.upper().replace('/', '-')
-          assert confirm == expected, f'confirmation must equal {expected}'
+          if confirm != expected:
+              raise SystemExit(f'confirmation must equal {expected}')
+          # Only validated data may reach the runner's output command file.
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f"slug={space_id.split('/', 1)[1]}\n")
           PY
 
       - name: Set up Python
@@ -91,28 +98,37 @@ jobs:
           set -euo pipefail
           python -m py_compile .github/scripts/fold_space.py
           python -m unittest tests.test_space_fold_executor -v
+          python -m unittest tests.test_space_fold_safety -v
           git diff --check
 
       - name: Execute bounded fold
         id: fold
         shell: bash
         env:
+          FOLD_SPACE_ID: ${{ inputs.space_id }}
+          FOLD_CONFIRM: ${{ inputs.confirm }}
+          FOLD_DRY_RUN: ${{ inputs.dry_run }}
           HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
           HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          set +e
+          set -euo pipefail
           args=(
             --repo-root .
             --report /tmp/space-fold.json
-            --space-id '${{ inputs.space_id }}'
-            --confirm '${{ inputs.confirm }}'
+            --space-id "$FOLD_SPACE_ID"
+            --confirm "$FOLD_CONFIRM"
           )
-          if [ '${{ inputs.dry_run }}' = 'true' ]; then
-            args+=(--dry-run)
+          case "$FOLD_DRY_RUN" in
+            true) args+=(--dry-run) ;;
+            false) ;;
+            *) echo 'invalid dry_run' >&2; exit 1 ;;
+          esac
+          if python .github/scripts/fold_space.py "${args[@]}"; then
+            code=0
+          else
+            code=$?
           fi
-          python .github/scripts/fold_space.py "${args[@]}"
-          code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
 
@@ -128,9 +144,11 @@ jobs:
       - name: Enforce proved terminal state
         if: always()
         shell: bash
+        env:
+          FOLD_EXIT_CODE: ${{ steps.fold.outputs.exit_code }}
         run: |
           set -euo pipefail
-          code='${{ steps.fold.outputs.exit_code }}'
+          code="$FOLD_EXIT_CODE"
           test -n "$code"
           test "$code" -eq 0
           python - <<'PY'
