@@ -36,7 +36,7 @@ The following two records were independently read back as public preprints. They
 
 Existing associated records remain separately typed:
 
-- Ouroboros concept: https://doi.org/10.5281/zenodo.19944926
+- Ouroboros concept: https://doi.org/10.5281/zenodo.24239896
 - Thesis/formal artifact record: https://doi.org/10.5281/zenodo.20434276
 - Repository preservation records: `20434306`, `20162352`, and `21184984`
 
