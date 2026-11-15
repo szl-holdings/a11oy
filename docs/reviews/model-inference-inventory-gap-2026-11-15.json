@@ -10,25 +10,26 @@
     "routing": false
   },
   "counts": {
-    "rows": 5,
+    "rows": 21,
     "absorbed_unrecorded_rows": 48,
-    "inventory_rows_removed": 45,
+    "inventory_rows_removed": 38,
     "prior_support_rows_preserved": 45,
-    "provider_observations_http_200": 5,
-    "provider_mappings_empty": 5,
+    "provider_observations_http_200": 28,
+    "provider_mappings_empty": 28,
     "provider_mappings_present": 0,
     "provider_lookups_failed": 0,
     "provider_lookups_retried": 0,
     "file_list_reads_retried": 0,
-    "readme_http_200": 5,
-    "readme_http_404": 0,
+    "readme_http_200": 26,
+    "readme_http_404": 2,
     "revision_differs_from_inventory": 0,
-    "revision_matches_inventory": 5,
+    "revision_matches_inventory": 28,
     "inventory_models_outside_this_record": 0,
     "verified_inference_admission_authority": 0,
     "verified_exclusion_authority": 0,
     "unmatched_prior_requests": 3,
-    "unresolved_owner_decisions": 0
+    "unresolved_owner_decisions": 0,
+    "restored_rows": 7
   },
   "rows": [
     {
@@ -255,6 +256,742 @@
       "identity": {
         "json_pointer": "/inventory/models/94",
         "name": "waman",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "d61c815f53be5c3a551fa90fec7b8a2e3a61045e",
+        "inventory_sha": "d61c815f53be5c3a551fa90fec7b8a2e3a61045e",
+        "revision_matches_inventory": true,
+        "capture_sha256": "af505f42059718de2f9fba60b7aba654c96bb5598f168e626822e53c99afedfd",
+        "observed_at": "2026-11-15T05:17:53.008174+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/9",
+        "name": "SZL-Forge-1.5B-ReceiptAgent-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "e31d71ac3d5e09b0ebc8bdd6a22d4cdea31232f9",
+        "inventory_sha": "e31d71ac3d5e09b0ebc8bdd6a22d4cdea31232f9",
+        "revision_matches_inventory": true,
+        "capture_sha256": "0bb3abb8f144aef7d548917151d3223e1f7d6bcc0a2c21677c9763ca3ef89b5e",
+        "observed_at": "2026-11-15T05:17:53.268983+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/14",
+        "name": "SZL-Khipu-1.5B-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "60b6fdd72bb745bb8b195f3a1e9120f2e05a0562",
+        "inventory_sha": "60b6fdd72bb745bb8b195f3a1e9120f2e05a0562",
+        "revision_matches_inventory": true,
+        "capture_sha256": "ab87804bffc9be3e54b679161702ccfe625e42903845e70d9670579d0a613664",
+        "observed_at": "2026-11-15T05:17:53.624135+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/29",
+        "name": "brain-navigator-r2-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "7072215ed8bb74d9b9996748467d0d1cc79a56cf",
+        "inventory_sha": "7072215ed8bb74d9b9996748467d0d1cc79a56cf",
+        "revision_matches_inventory": true,
+        "capture_sha256": "ec80fddc0d91cda965cf3eec68d4ccc5d63e110b3542fc1cf91fad3e51782582",
+        "observed_at": "2026-11-15T05:17:53.935077+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/38",
+        "name": "chaski-5050-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "824aa4610537b76e646b2ab14b1cff8812317e7d",
+        "inventory_sha": "824aa4610537b76e646b2ab14b1cff8812317e7d",
+        "revision_matches_inventory": true,
+        "capture_sha256": "533c1c98113c43bfb3cd61ac91781faaa955af2b29ee7e4eb91424175b73827d",
+        "observed_at": "2026-11-15T05:17:54.270667+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/41",
+        "name": "chaski-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "cfff1cd2274af706028c5c6a1c08eeaf2a1d2695",
+        "inventory_sha": "cfff1cd2274af706028c5c6a1c08eeaf2a1d2695",
+        "revision_matches_inventory": true,
+        "capture_sha256": "50a057385998451b9e685d87f80ee067391b681294914564efe009b2745aa4b2",
+        "observed_at": "2026-11-15T05:17:54.679042+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/44",
+        "name": "chaski-r2-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r4-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "d3da618277263d012ac5fbfb50cecd6553380cd3",
+        "inventory_sha": "d3da618277263d012ac5fbfb50cecd6553380cd3",
+        "revision_matches_inventory": true,
+        "capture_sha256": "22dc7743d0b16dd641df3c085f4b4e355c233e5e7d6e2aa9db4ad87dadb35238",
+        "observed_at": "2026-11-15T05:17:54.852365+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/47",
+        "name": "chaski-r4-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-math-r1-candidate",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "640062012ff0d003c74239911272d58d752ac820",
+        "inventory_sha": "640062012ff0d003c74239911272d58d752ac820",
+        "revision_matches_inventory": true,
+        "capture_sha256": "2579e1b780a49ac3fc1231aadcf5fb71878ccc21171a1fa779f601e603c3c5ce",
+        "observed_at": "2026-11-15T05:17:55.064656+00:00",
+        "artifact_class": "non_provider_artifact",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md was absent from the public revision file list at its observed revision; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/53",
+        "name": "doctrine-math-r1-candidate",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "0cd399061064bdf30b2636b4815bc61214951b63",
+        "inventory_sha": "0cd399061064bdf30b2636b4815bc61214951b63",
+        "revision_matches_inventory": true,
+        "capture_sha256": "0e48c97f2b97f211c6a9bb93c47e4cd305561544ae4b1f3fe1ce98d0ee6bd595",
+        "observed_at": "2026-11-15T05:17:55.432828+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/68",
+        "name": "khipu-r3-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/qwen2.5-0.5b-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/qwen2.5-0.5b-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "29f815ba8069d1fc9060b5e906e83cc8a7a1c2eb",
+        "inventory_sha": "29f815ba8069d1fc9060b5e906e83cc8a7a1c2eb",
+        "revision_matches_inventory": true,
+        "capture_sha256": "f91e4be0f2439abf176a5502ccb3837b50144504a1fa4ac06cb46f0eb2bd83ef",
+        "observed_at": "2026-11-15T05:17:55.620918+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/86",
+        "name": "qwen2.5-0.5b-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/receiptagent-v3-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-v3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "a009f6cc5195c834475a368fb52310284d04c43c",
+        "inventory_sha": "a009f6cc5195c834475a368fb52310284d04c43c",
+        "revision_matches_inventory": true,
+        "capture_sha256": "56df4dd3f927351d64bbd6e3ea711889521270219852e6276dbd88e106ae0559",
+        "observed_at": "2026-11-15T05:17:55.843518+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/90",
+        "name": "receiptagent-v3-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "97809211c5470d1abb9dddb1d4ccba21fa94c0f0",
+        "inventory_sha": "97809211c5470d1abb9dddb1d4ccba21fa94c0f0",
+        "revision_matches_inventory": true,
+        "capture_sha256": "979a5c298afe5acb10882753c8e634dbf9d6afa3a7eae2b21bc2b555c7cc70a2",
+        "observed_at": "2026-11-15T05:17:56.076228+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/105",
+        "name": "szl-receiptagent-qwen35-0.8b-v2-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "f68bb5cf1e51cbdbaf7a929ed140af81421138fa",
+        "inventory_sha": "f68bb5cf1e51cbdbaf7a929ed140af81421138fa",
+        "revision_matches_inventory": true,
+        "capture_sha256": "8cecdeafdd79e2e0c9be809a574475de10f8cee9c2d1fefd18db1cf9698d3bc3",
+        "observed_at": "2026-11-15T05:17:56.273454+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/106",
+        "name": "szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "5d33565030f04ac1bf0b2fdb012b90f238cc5dc0",
+        "inventory_sha": "5d33565030f04ac1bf0b2fdb012b90f238cc5dc0",
+        "revision_matches_inventory": true,
+        "capture_sha256": "cf5a5d8e55beed1a881b358c31149e13d1e26af460099145d80c53c85de39350",
+        "observed_at": "2026-11-15T05:17:56.723750+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md was absent from the public revision file list at its observed revision; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/109",
+        "name": "szl-receiptagent-qwen35-0.8b-v3-candidate",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "033108dd8a6a0205995216d3849387fcc3ec36d1",
+        "inventory_sha": "033108dd8a6a0205995216d3849387fcc3ec36d1",
+        "revision_matches_inventory": true,
+        "capture_sha256": "737386545d054c60e448332808abfaba08bea1c7ae7fa138f864b45cd9f8a564",
+        "observed_at": "2026-11-15T05:17:57.149059+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/111",
+        "name": "szl-receiptagent-qwen35-0.8b-v3-laptop-lora",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "17592f5fff6ee1119986af297dc16b745ed2b4c5",
+        "inventory_sha": "17592f5fff6ee1119986af297dc16b745ed2b4c5",
+        "revision_matches_inventory": true,
+        "capture_sha256": "5ecd24f5844514138c7c30e58926bd0ebe47ec49db93054be28069f150737a64",
+        "observed_at": "2026-11-15T05:17:57.407332+00:00",
+        "artifact_class": "adapter_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/112",
+        "name": "szl-triage-qwen3.5-0.8b-lora-laptop-lora",
         "org": "SZLHOLDINGS",
         "repo_type": "model",
         "source": "docs/huggingface-ecosystem-manifest.json"
@@ -1385,134 +2122,6 @@
       "evidence_destination": "No recorded request; no evidence carried forward."
     },
     {
-      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
-      "final_row": {
-        "assessment": {
-          "artifact_class": "standalone_weight_bundle",
-          "hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
-          "observed_at": "2026-11-07T10:52:23.427023+00:00",
-          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision f774b4b0b7e3d2a0a640543c95527e932a4e8301 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1382 bytes, sha256 0764a75cb02614414c57fb8b8bd47f34bd710456c58564155cb91ea078a9e90a. Weights were not downloaded and the model was not run.",
-          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
-          "source_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1/blob/f774b4b0b7e3d2a0a640543c95527e932a4e8301/README.md",
-          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
-        },
-        "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
-        "inference": {
-          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-          "capture_sha256": "8b5a2dac2ad0bc81e211aef244528cf8a1fe03fd8decbd9854e6e8f0f8a7c26e",
-          "error": null,
-          "hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
-          "observed_at": "2026-11-07T10:52:23.427023+00:00",
-          "providers": [],
-          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-          "state": "NO_PROVIDER_MAPPING"
-        },
-        "repo_type": "model",
-        "support": {
-          "requests": [],
-          "state": "NO_RECORDED_REQUEST"
-        }
-      },
-      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
-      "evidence_destination": "No recorded request; no evidence carried forward."
-    },
-    {
-      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
-      "final_row": {
-        "assessment": {
-          "artifact_class": "standalone_weight_bundle",
-          "hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
-          "observed_at": "2026-11-07T10:52:23.499197+00:00",
-          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 0278ef6fb06c622748a1043fa4c7efb9bccc716b matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1347 bytes, sha256 eb554f2b8e9b9d5fe83f0b3ae21557714d828400ec8f08a0b69b7667ff2bad80. Weights were not downloaded and the model was not run.",
-          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
-          "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1/blob/0278ef6fb06c622748a1043fa4c7efb9bccc716b/README.md",
-          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
-        },
-        "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
-        "inference": {
-          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-          "capture_sha256": "fed455b0fcad4462d62aaded97de74d0f7ebaa51d7854f1c782a71906ee3b3e4",
-          "error": null,
-          "hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
-          "observed_at": "2026-11-07T10:52:23.499197+00:00",
-          "providers": [],
-          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-          "state": "NO_PROVIDER_MAPPING"
-        },
-        "repo_type": "model",
-        "support": {
-          "requests": [],
-          "state": "NO_RECORDED_REQUEST"
-        }
-      },
-      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
-      "evidence_destination": "No recorded request; no evidence carried forward."
-    },
-    {
-      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
-      "final_row": {
-        "assessment": {
-          "artifact_class": "standalone_weight_bundle",
-          "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
-          "observed_at": "2026-11-07T10:52:23.563603+00:00",
-          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1608 bytes, sha256 1320738ba59e778db0de56ef75d9f26a8d695568655aaf25bb83dd3930aea9bb. Weights were not downloaded and the model was not run.",
-          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
-          "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1/blob/4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d/README.md",
-          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
-        },
-        "id": "SZLHOLDINGS/chaski-estate-sft-v1",
-        "inference": {
-          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-          "capture_sha256": "cbb7cc563ce64e38bf52d4ba371de516b0e045f570561f9f4197407305b099c1",
-          "error": null,
-          "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
-          "observed_at": "2026-11-07T10:52:23.563603+00:00",
-          "providers": [],
-          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-          "state": "NO_PROVIDER_MAPPING"
-        },
-        "repo_type": "model",
-        "support": {
-          "requests": [],
-          "state": "NO_RECORDED_REQUEST"
-        }
-      },
-      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
-      "evidence_destination": "No recorded request; no evidence carried forward."
-    },
-    {
-      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
-      "final_row": {
-        "assessment": {
-          "artifact_class": "standalone_weight_bundle",
-          "hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
-          "observed_at": "2026-11-07T10:52:23.565231+00:00",
-          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1337 bytes, sha256 36b0fdf5e644e05c1a04a9e1ef934df2f99ad2e9dac89abb93c09d9e642a53d8. Weights were not downloaded and the model was not run.",
-          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
-          "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1/blob/6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5/README.md",
-          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
-        },
-        "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
-        "inference": {
-          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-          "capture_sha256": "0364df47ae5ef381c3318398a1d1336780a993416d7500390ec711f762c97846",
-          "error": null,
-          "hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
-          "observed_at": "2026-11-07T10:52:23.565231+00:00",
-          "providers": [],
-          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-          "state": "NO_PROVIDER_MAPPING"
-        },
-        "repo_type": "model",
-        "support": {
-          "requests": [],
-          "state": "NO_RECORDED_REQUEST"
-        }
-      },
-      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
-      "evidence_destination": "No recorded request; no evidence carried forward."
-    },
-    {
       "id": "SZLHOLDINGS/doctrine-v2-r2-candidate",
       "final_row": {
         "assessment": {
@@ -1693,38 +2302,6 @@
           "observed_at": "2026-11-07T10:52:23.647265+00:00",
           "providers": [],
           "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-r3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
-          "state": "NO_PROVIDER_MAPPING"
-        },
-        "repo_type": "model",
-        "support": {
-          "requests": [],
-          "state": "NO_RECORDED_REQUEST"
-        }
-      },
-      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
-      "evidence_destination": "No recorded request; no evidence carried forward."
-    },
-    {
-      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
-      "final_row": {
-        "assessment": {
-          "artifact_class": "standalone_weight_bundle",
-          "hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
-          "observed_at": "2026-11-07T10:52:23.703884+00:00",
-          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision b3c240a8540254ef294d9fbc320ff442ef31f393 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1318 bytes, sha256 981a9910c4c139ac15d3b58d41e33346e3665ac47f38a39ca48ca38367ec6298. Weights were not downloaded and the model was not run.",
-          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
-          "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1/blob/b3c240a8540254ef294d9fbc320ff442ef31f393/README.md",
-          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
-        },
-        "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
-        "inference": {
-          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-          "capture_sha256": "91f82405ead9cd283feff6b3579664503e196b2bc806d40fa749e39b92386e8f",
-          "error": null,
-          "hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
-          "observed_at": "2026-11-07T10:52:23.703884+00:00",
-          "providers": [],
-          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
           "state": "NO_PROVIDER_MAPPING"
         },
         "repo_type": "model",
@@ -2136,70 +2713,6 @@
       "evidence_destination": "unmatched_prior_requests (discussion 12788)"
     },
     {
-      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
-      "final_row": {
-        "assessment": {
-          "artifact_class": "standalone_weight_bundle",
-          "hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
-          "observed_at": "2026-11-07T10:52:23.986516+00:00",
-          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 8419537ecad5930f022eb89720e92ba18ed6605d matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1476 bytes, sha256 f6fa12051ffb5d6ff299a09a73f5bf4b0f818e1d4ea4af3afbb355ce82b9e8b1. Weights were not downloaded and the model was not run.",
-          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
-          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1/blob/8419537ecad5930f022eb89720e92ba18ed6605d/README.md",
-          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
-        },
-        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
-        "inference": {
-          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-          "capture_sha256": "173a0d372a2e6dc723549632cba73e747e0d926180730760c6e3cd18b2bc97d3",
-          "error": null,
-          "hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
-          "observed_at": "2026-11-07T10:52:23.986516+00:00",
-          "providers": [],
-          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-          "state": "NO_PROVIDER_MAPPING"
-        },
-        "repo_type": "model",
-        "support": {
-          "requests": [],
-          "state": "NO_RECORDED_REQUEST"
-        }
-      },
-      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
-      "evidence_destination": "No recorded request; no evidence carried forward."
-    },
-    {
-      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
-      "final_row": {
-        "assessment": {
-          "artifact_class": "standalone_weight_bundle",
-          "hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
-          "observed_at": "2026-11-07T10:52:24.035685+00:00",
-          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 9bde1943e8d60c461391bbcd86ffca340da321a8 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1433 bytes, sha256 f3e7f7f171d1d58010ed003b7e478a06fdb0b130673fecc9465c735d639a2826. Weights were not downloaded and the model was not run.",
-          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
-          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1/blob/9bde1943e8d60c461391bbcd86ffca340da321a8/README.md",
-          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
-        },
-        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
-        "inference": {
-          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-          "capture_sha256": "63acfa11d5dc26d8f16861dc270fff8a0462b520ebe73a4b24608969aba793b7",
-          "error": null,
-          "hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
-          "observed_at": "2026-11-07T10:52:24.035685+00:00",
-          "providers": [],
-          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
-          "state": "NO_PROVIDER_MAPPING"
-        },
-        "repo_type": "model",
-        "support": {
-          "requests": [],
-          "state": "NO_RECORDED_REQUEST"
-        }
-      },
-      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
-      "evidence_destination": "No recorded request; no evidence carried forward."
-    },
-    {
       "id": "SZLHOLDINGS/szl-specdecode",
       "final_row": {
         "assessment": {
@@ -2358,6 +2871,561 @@
       },
       "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
       "evidence_destination": "No recorded request; no evidence carried forward."
+    }
+  ],
+  "restored_rows": [
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "1943a58d83a8fbe3aa974dd243233d0354defcc8",
+        "inventory_sha": "1943a58d83a8fbe3aa974dd243233d0354defcc8",
+        "revision_matches_inventory": true,
+        "capture_sha256": "6a649483ac3614f177e43c97df8759b6afdf15b48603e3e8c4e9ce704a4315f8",
+        "observed_at": "2026-11-15T05:17:53.458056+00:00",
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/28",
+        "name": "brain-navigator-r2-estate-sft-v1",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST",
+      "removal_reversed": true,
+      "prior_removal": {
+        "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+        "evidence_destination": "No recorded request; no evidence carried forward.",
+        "removed_against_manifest_observed_at": "2026-11-15T02:13:32Z",
+        "final_row": {
+          "assessment": {
+            "artifact_class": "standalone_weight_bundle",
+            "hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+            "observed_at": "2026-11-07T10:52:23.427023+00:00",
+            "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision f774b4b0b7e3d2a0a640543c95527e932a4e8301 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1382 bytes, sha256 0764a75cb02614414c57fb8b8bd47f34bd710456c58564155cb91ea078a9e90a. Weights were not downloaded and the model was not run.",
+            "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+            "source_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1/blob/f774b4b0b7e3d2a0a640543c95527e932a4e8301/README.md",
+            "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+          },
+          "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+          "inference": {
+            "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+            "capture_sha256": "8b5a2dac2ad0bc81e211aef244528cf8a1fe03fd8decbd9854e6e8f0f8a7c26e",
+            "error": null,
+            "hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+            "observed_at": "2026-11-07T10:52:23.427023+00:00",
+            "providers": [],
+            "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+            "state": "NO_PROVIDER_MAPPING"
+          },
+          "repo_type": "model",
+          "support": {
+            "requests": [],
+            "state": "NO_RECORDED_REQUEST"
+          }
+        }
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "b8034b05d39f3aff2cf059918d1b020129d0de15",
+        "inventory_sha": "b8034b05d39f3aff2cf059918d1b020129d0de15",
+        "revision_matches_inventory": true,
+        "capture_sha256": "74841642c12864d15b0857e2642c0af7a2e9e49516ffac5ca2aa95a13a37007e",
+        "observed_at": "2026-11-15T05:17:53.775919+00:00",
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/37",
+        "name": "chaski-5050-estate-sft-v1",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST",
+      "removal_reversed": true,
+      "prior_removal": {
+        "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+        "evidence_destination": "No recorded request; no evidence carried forward.",
+        "removed_against_manifest_observed_at": "2026-11-15T02:13:32Z",
+        "final_row": {
+          "assessment": {
+            "artifact_class": "standalone_weight_bundle",
+            "hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+            "observed_at": "2026-11-07T10:52:23.499197+00:00",
+            "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 0278ef6fb06c622748a1043fa4c7efb9bccc716b matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1347 bytes, sha256 eb554f2b8e9b9d5fe83f0b3ae21557714d828400ec8f08a0b69b7667ff2bad80. Weights were not downloaded and the model was not run.",
+            "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+            "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1/blob/0278ef6fb06c622748a1043fa4c7efb9bccc716b/README.md",
+            "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+          },
+          "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+          "inference": {
+            "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+            "capture_sha256": "fed455b0fcad4462d62aaded97de74d0f7ebaa51d7854f1c782a71906ee3b3e4",
+            "error": null,
+            "hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+            "observed_at": "2026-11-07T10:52:23.499197+00:00",
+            "providers": [],
+            "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+            "state": "NO_PROVIDER_MAPPING"
+          },
+          "repo_type": "model",
+          "support": {
+            "requests": [],
+            "state": "NO_RECORDED_REQUEST"
+          }
+        }
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "bb457141f3ac910b41e1b951d5b3d735cbec2838",
+        "inventory_sha": "bb457141f3ac910b41e1b951d5b3d735cbec2838",
+        "revision_matches_inventory": true,
+        "capture_sha256": "4ce5fdc6ec2bc12be6c362c863279b7ba48439778248919fdd945d36f8fa754a",
+        "observed_at": "2026-11-15T05:17:54.073692+00:00",
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/40",
+        "name": "chaski-estate-sft-v1",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST",
+      "removal_reversed": true,
+      "prior_removal": {
+        "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+        "evidence_destination": "No recorded request; no evidence carried forward.",
+        "removed_against_manifest_observed_at": "2026-11-15T02:13:32Z",
+        "final_row": {
+          "assessment": {
+            "artifact_class": "standalone_weight_bundle",
+            "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+            "observed_at": "2026-11-07T10:52:23.563603+00:00",
+            "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1608 bytes, sha256 1320738ba59e778db0de56ef75d9f26a8d695568655aaf25bb83dd3930aea9bb. Weights were not downloaded and the model was not run.",
+            "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+            "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1/blob/4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d/README.md",
+            "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+          },
+          "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+          "inference": {
+            "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+            "capture_sha256": "cbb7cc563ce64e38bf52d4ba371de516b0e045f570561f9f4197407305b099c1",
+            "error": null,
+            "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+            "observed_at": "2026-11-07T10:52:23.563603+00:00",
+            "providers": [],
+            "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+            "state": "NO_PROVIDER_MAPPING"
+          },
+          "repo_type": "model",
+          "support": {
+            "requests": [],
+            "state": "NO_RECORDED_REQUEST"
+          }
+        }
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "532ef3fb751a828c6211af252c68025995b266c9",
+        "inventory_sha": "532ef3fb751a828c6211af252c68025995b266c9",
+        "revision_matches_inventory": true,
+        "capture_sha256": "1ef276356593cd45252947e7fa641c469a642329cdc5498304401989cbc86653",
+        "observed_at": "2026-11-15T05:17:54.504296+00:00",
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/43",
+        "name": "chaski-r2-estate-sft-v1",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST",
+      "removal_reversed": true,
+      "prior_removal": {
+        "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+        "evidence_destination": "No recorded request; no evidence carried forward.",
+        "removed_against_manifest_observed_at": "2026-11-15T02:13:32Z",
+        "final_row": {
+          "assessment": {
+            "artifact_class": "standalone_weight_bundle",
+            "hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+            "observed_at": "2026-11-07T10:52:23.565231+00:00",
+            "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1337 bytes, sha256 36b0fdf5e644e05c1a04a9e1ef934df2f99ad2e9dac89abb93c09d9e642a53d8. Weights were not downloaded and the model was not run.",
+            "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+            "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1/blob/6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5/README.md",
+            "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+          },
+          "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+          "inference": {
+            "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+            "capture_sha256": "0364df47ae5ef381c3318398a1d1336780a993416d7500390ec711f762c97846",
+            "error": null,
+            "hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+            "observed_at": "2026-11-07T10:52:23.565231+00:00",
+            "providers": [],
+            "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+            "state": "NO_PROVIDER_MAPPING"
+          },
+          "repo_type": "model",
+          "support": {
+            "requests": [],
+            "state": "NO_RECORDED_REQUEST"
+          }
+        }
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "882ac37445b6cefa865992474737246758434b44",
+        "inventory_sha": "882ac37445b6cefa865992474737246758434b44",
+        "revision_matches_inventory": true,
+        "capture_sha256": "ab6fa4d0ec7d59923e694c94b3557147f4d3e70443659508004ce8abd414ee98",
+        "observed_at": "2026-11-15T05:17:55.252051+00:00",
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/67",
+        "name": "khipu-r3-estate-sft-v1",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST",
+      "removal_reversed": true,
+      "prior_removal": {
+        "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+        "evidence_destination": "No recorded request; no evidence carried forward.",
+        "removed_against_manifest_observed_at": "2026-11-15T02:13:32Z",
+        "final_row": {
+          "assessment": {
+            "artifact_class": "standalone_weight_bundle",
+            "hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+            "observed_at": "2026-11-07T10:52:23.703884+00:00",
+            "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision b3c240a8540254ef294d9fbc320ff442ef31f393 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1318 bytes, sha256 981a9910c4c139ac15d3b58d41e33346e3665ac47f38a39ca48ca38367ec6298. Weights were not downloaded and the model was not run.",
+            "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+            "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1/blob/b3c240a8540254ef294d9fbc320ff442ef31f393/README.md",
+            "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+          },
+          "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+          "inference": {
+            "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+            "capture_sha256": "91f82405ead9cd283feff6b3579664503e196b2bc806d40fa749e39b92386e8f",
+            "error": null,
+            "hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+            "observed_at": "2026-11-07T10:52:23.703884+00:00",
+            "providers": [],
+            "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+            "state": "NO_PROVIDER_MAPPING"
+          },
+          "repo_type": "model",
+          "support": {
+            "requests": [],
+            "state": "NO_RECORDED_REQUEST"
+          }
+        }
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "ad7833f225c28771b52c34351cebb1b9a95689dc",
+        "inventory_sha": "ad7833f225c28771b52c34351cebb1b9a95689dc",
+        "revision_matches_inventory": true,
+        "capture_sha256": "499e87ba5e65dd59a8d4ee23f82db477b3a28878501f73ccdd1ed95f13794da3",
+        "observed_at": "2026-11-15T05:17:56.476524+00:00",
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/107",
+        "name": "szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST",
+      "removal_reversed": true,
+      "prior_removal": {
+        "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+        "evidence_destination": "No recorded request; no evidence carried forward.",
+        "removed_against_manifest_observed_at": "2026-11-15T02:13:32Z",
+        "final_row": {
+          "assessment": {
+            "artifact_class": "standalone_weight_bundle",
+            "hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
+            "observed_at": "2026-11-07T10:52:23.986516+00:00",
+            "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 8419537ecad5930f022eb89720e92ba18ed6605d matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1476 bytes, sha256 f6fa12051ffb5d6ff299a09a73f5bf4b0f818e1d4ea4af3afbb355ce82b9e8b1. Weights were not downloaded and the model was not run.",
+            "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+            "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1/blob/8419537ecad5930f022eb89720e92ba18ed6605d/README.md",
+            "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+          },
+          "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+          "inference": {
+            "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+            "capture_sha256": "173a0d372a2e6dc723549632cba73e747e0d926180730760c6e3cd18b2bc97d3",
+            "error": null,
+            "hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
+            "observed_at": "2026-11-07T10:52:23.986516+00:00",
+            "providers": [],
+            "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+            "state": "NO_PROVIDER_MAPPING"
+          },
+          "repo_type": "model",
+          "support": {
+            "requests": [],
+            "state": "NO_RECORDED_REQUEST"
+          }
+        }
+      }
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "7ce8a2303b97b490f33c8b22da013868b4863ef0",
+        "inventory_sha": "7ce8a2303b97b490f33c8b22da013868b4863ef0",
+        "revision_matches_inventory": true,
+        "capture_sha256": "57c5f64e17c8401445d97b4b82b9dfc6fae450a9f480270e845df425e5c4b6c1",
+        "observed_at": "2026-11-15T05:17:56.900564+00:00",
+        "artifact_class": "standalone_weight_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/110",
+        "name": "szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST",
+      "removal_reversed": true,
+      "prior_removal": {
+        "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+        "evidence_destination": "No recorded request; no evidence carried forward.",
+        "removed_against_manifest_observed_at": "2026-11-15T02:13:32Z",
+        "final_row": {
+          "assessment": {
+            "artifact_class": "standalone_weight_bundle",
+            "hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+            "observed_at": "2026-11-07T10:52:24.035685+00:00",
+            "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 9bde1943e8d60c461391bbcd86ffca340da321a8 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1433 bytes, sha256 f3e7f7f171d1d58010ed003b7e478a06fdb0b130673fecc9465c735d639a2826. Weights were not downloaded and the model was not run.",
+            "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+            "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1/blob/9bde1943e8d60c461391bbcd86ffca340da321a8/README.md",
+            "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+          },
+          "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+          "inference": {
+            "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+            "capture_sha256": "63acfa11d5dc26d8f16861dc270fff8a0462b520ebe73a4b24608969aba793b7",
+            "error": null,
+            "hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+            "observed_at": "2026-11-07T10:52:24.035685+00:00",
+            "providers": [],
+            "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+            "state": "NO_PROVIDER_MAPPING"
+          },
+          "repo_type": "model",
+          "support": {
+            "requests": [],
+            "state": "NO_RECORDED_REQUEST"
+          }
+        }
+      }
     }
   ],
   "preserved_prior_rows": [
@@ -2712,22 +3780,391 @@
         "No support discussion was submitted or read back for this repository.",
         "An owner exclusion record still does not exist; the empty mapping is not one."
       ]
+    },
+    {
+      "decision_id": "D06",
+      "model_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D07",
+      "model_id": "SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D08",
+      "model_id": "SZLHOLDINGS/brain-navigator-r2-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D09",
+      "model_id": "SZLHOLDINGS/chaski-5050-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D10",
+      "model_id": "SZLHOLDINGS/chaski-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D11",
+      "model_id": "SZLHOLDINGS/chaski-r2-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D12",
+      "model_id": "SZLHOLDINGS/chaski-r4-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D13",
+      "model_id": "SZLHOLDINGS/doctrine-math-r1-candidate",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D14",
+      "model_id": "SZLHOLDINGS/khipu-r3-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D15",
+      "model_id": "SZLHOLDINGS/qwen2.5-0.5b-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D16",
+      "model_id": "SZLHOLDINGS/receiptagent-v3-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D17",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D18",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D19",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D20",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D21",
+      "model_id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D22",
+      "model_id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "proposal": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D23",
+      "model_id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "proposal": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D24",
+      "model_id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "proposal": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D25",
+      "model_id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "proposal": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D26",
+      "model_id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "proposal": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D27",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "proposal": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D28",
+      "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "proposal": "RECORDED_RESTORED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
     }
   ],
   "runtime_change": {
     "prior_support_rows_preserved": 45,
-    "support_rows_added": 5,
+    "support_rows_added": 21,
     "absorbed_unrecorded_rows": 48,
-    "inventory_rows_removed": 45,
+    "inventory_rows_removed": 38,
     "validator_changed": false,
-    "authority_flags_changed": false
+    "authority_flags_changed": false,
+    "restored_rows": 7
   },
   "sources": {
     "canonical_rule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
     "inventory": "docs/huggingface-ecosystem-manifest.json",
     "inventory_binding": "COMMITTED_MANIFEST",
-    "inventory_model_count": 98,
-    "inventory_observed_at": "2026-11-15T02:13:32Z",
+    "inventory_model_count": 121,
+    "inventory_observed_at": "2026-11-15T03:48:57Z",
     "inventory_regenerations": [
       {
         "binding": "COMMITTED_MANIFEST",
@@ -2735,6 +4172,13 @@
         "model_count": 98,
         "observed_at": "2026-11-15T02:13:32Z",
         "rows_read_against_it": 5
+      },
+      {
+        "binding": "COMMITTED_MANIFEST",
+        "catalog_ids_equal_inventory_ids": true,
+        "model_count": 121,
+        "observed_at": "2026-11-15T03:48:57Z",
+        "rows_read_against_it": 28
       }
     ],
     "inventory_scope": {
@@ -2746,10 +4190,10 @@
       "revisionFields": "Every item has sha and lastModified snapshot evidence. Ungated cards have a cardSemanticSha256 claim digest at observedAt; gated cards have explicit restricted metadata evidence. --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
     },
     "support": "docs/model-inference-support.json",
-    "support_doc_sentence": "The support file lists 98 model ids after the 2026-11-15 reconciliation: 45 retired rows removed, 5 measured rows added, and 48 rows that had entered without a dated record absorbed by this record.",
-    "support_generated_at": "2026-11-15T02:42:30.811599+00:00",
-    "support_model_count": 98,
-    "support_model_ids_sha256": "8682a4ffb09aec2fca408b59b220bc158b87d1bd44e4ff9d4a96194bfc7e76ec",
+    "support_doc_sentence": "The support file lists 121 model ids after the 2026-11-15 reconciliation and its same-day extension: 45 retired rows removed of which 7 were restored when the regenerated manifest re-included them, 21 measured rows added (5 in the first pass and 16 in the later pass), and 48 rows that had entered without a dated record absorbed by this record.",
+    "support_generated_at": "2026-11-15T05:17:57.503695+00:00",
+    "support_model_count": 121,
+    "support_model_ids_sha256": "dedd4bc8afb637a7f6df287251a2cb7914b6cc8ef26c359f29767c3d4de910e2",
     "review_note": "docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-15.md"
   },
   "inventory_models_outside_this_record": []

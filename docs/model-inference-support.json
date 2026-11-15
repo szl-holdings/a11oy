@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-11-15T02:42:30.811599+00:00",
+  "generated_at": "2026-11-15T05:17:57.503695+00:00",
   "inventory_source": {
-    "model_ids_sha256": "8682a4ffb09aec2fca408b59b220bc158b87d1bd44e4ff9d4a96194bfc7e76ec",
+    "model_ids_sha256": "dedd4bc8afb637a7f6df287251a2cb7914b6cc8ef26c359f29767c3d4de910e2",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -288,6 +288,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "d61c815f53be5c3a551fa90fec7b8a2e3a61045e",
+        "observed_at": "2026-11-15T05:17:53.008174+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora/blob/d61c815f53be5c3a551fa90fec7b8a2e3a61045e/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "af505f42059718de2f9fba60b7aba654c96bb5598f168e626822e53c99afedfd",
+        "error": null,
+        "hub_revision": "d61c815f53be5c3a551fa90fec7b8a2e3a61045e",
+        "observed_at": "2026-11-15T05:17:53.008174+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329",
         "observed_at": "2026-10-04T15:32:07.513304+00:00",
@@ -401,6 +428,33 @@
         "observed_at": "2026-11-07T10:52:22.991475+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "e31d71ac3d5e09b0ebc8bdd6a22d4cdea31232f9",
+        "observed_at": "2026-11-15T05:17:53.268983+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora/blob/e31d71ac3d5e09b0ebc8bdd6a22d4cdea31232f9/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0bb3abb8f144aef7d548917151d3223e1f7d6bcc0a2c21677c9763ca3ef89b5e",
+        "error": null,
+        "hub_revision": "e31d71ac3d5e09b0ebc8bdd6a22d4cdea31232f9",
+        "observed_at": "2026-11-15T05:17:53.268983+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -792,6 +846,60 @@
     },
     {
       "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "1943a58d83a8fbe3aa974dd243233d0354defcc8",
+        "observed_at": "2026-11-15T05:17:53.458056+00:00",
+        "qualification_note": "Standalone model weights measured in the public revision; no hosted provider qualification is inferred.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1/blob/1943a58d83a8fbe3aa974dd243233d0354defcc8/README.md",
+        "suggested_route": "Serve locally with a matching architecture runtime; no generic hosted inference route is asserted."
+      },
+      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "6a649483ac3614f177e43c97df8759b6afdf15b48603e3e8c4e9ce704a4315f8",
+        "error": null,
+        "hub_revision": "1943a58d83a8fbe3aa974dd243233d0354defcc8",
+        "observed_at": "2026-11-15T05:17:53.458056+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "60b6fdd72bb745bb8b195f3a1e9120f2e05a0562",
+        "observed_at": "2026-11-15T05:17:53.624135+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-laptop-lora/blob/60b6fdd72bb745bb8b195f3a1e9120f2e05a0562/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/brain-navigator-r2-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "ab87804bffc9be3e54b679161702ccfe625e42903845e70d9670579d0a613664",
+        "error": null,
+        "hub_revision": "60b6fdd72bb745bb8b195f3a1e9120f2e05a0562",
+        "observed_at": "2026-11-15T05:17:53.624135+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "adapter_bundle",
         "hub_revision": "0be03cef8c93faa1c29eef7e906f3d687813b8e6",
         "observed_at": "2026-11-14T17:53:53.263685+00:00",
@@ -1011,6 +1119,60 @@
     },
     {
       "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "b8034b05d39f3aff2cf059918d1b020129d0de15",
+        "observed_at": "2026-11-15T05:17:53.775919+00:00",
+        "qualification_note": "Standalone model weights measured in the public revision; no hosted provider qualification is inferred.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1/blob/b8034b05d39f3aff2cf059918d1b020129d0de15/README.md",
+        "suggested_route": "Serve locally with a matching architecture runtime; no generic hosted inference route is asserted."
+      },
+      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "74841642c12864d15b0857e2642c0af7a2e9e49516ffac5ca2aa95a13a37007e",
+        "error": null,
+        "hub_revision": "b8034b05d39f3aff2cf059918d1b020129d0de15",
+        "observed_at": "2026-11-15T05:17:53.775919+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "7072215ed8bb74d9b9996748467d0d1cc79a56cf",
+        "observed_at": "2026-11-15T05:17:53.935077+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-laptop-lora/blob/7072215ed8bb74d9b9996748467d0d1cc79a56cf/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/chaski-5050-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "ec80fddc0d91cda965cf3eec68d4ccc5d63e110b3542fc1cf91fad3e51782582",
+        "error": null,
+        "hub_revision": "7072215ed8bb74d9b9996748467d0d1cc79a56cf",
+        "observed_at": "2026-11-15T05:17:53.935077+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "adapter_bundle",
         "hub_revision": "1a8700f87d246faacc39f5f3c34efbf412419d87",
         "observed_at": "2026-11-14T17:53:53.263685+00:00",
@@ -1028,6 +1190,60 @@
         "observed_at": "2026-11-14T17:53:53.263685+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "bb457141f3ac910b41e1b951d5b3d735cbec2838",
+        "observed_at": "2026-11-15T05:17:54.073692+00:00",
+        "qualification_note": "Standalone model weights measured in the public revision; no hosted provider qualification is inferred.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1/blob/bb457141f3ac910b41e1b951d5b3d735cbec2838/README.md",
+        "suggested_route": "Serve locally with a matching architecture runtime; no generic hosted inference route is asserted."
+      },
+      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "4ce5fdc6ec2bc12be6c362c863279b7ba48439778248919fdd945d36f8fa754a",
+        "error": null,
+        "hub_revision": "bb457141f3ac910b41e1b951d5b3d735cbec2838",
+        "observed_at": "2026-11-15T05:17:54.073692+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "824aa4610537b76e646b2ab14b1cff8812317e7d",
+        "observed_at": "2026-11-15T05:17:54.270667+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-laptop-lora/blob/824aa4610537b76e646b2ab14b1cff8812317e7d/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/chaski-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "533c1c98113c43bfb3cd61ac91781faaa955af2b29ee7e4eb91424175b73827d",
+        "error": null,
+        "hub_revision": "824aa4610537b76e646b2ab14b1cff8812317e7d",
+        "observed_at": "2026-11-15T05:17:54.270667+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1080,6 +1296,60 @@
     },
     {
       "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "532ef3fb751a828c6211af252c68025995b266c9",
+        "observed_at": "2026-11-15T05:17:54.504296+00:00",
+        "qualification_note": "Standalone model weights measured in the public revision; no hosted provider qualification is inferred.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1/blob/532ef3fb751a828c6211af252c68025995b266c9/README.md",
+        "suggested_route": "Serve locally with a matching architecture runtime; no generic hosted inference route is asserted."
+      },
+      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "1ef276356593cd45252947e7fa641c469a642329cdc5498304401989cbc86653",
+        "error": null,
+        "hub_revision": "532ef3fb751a828c6211af252c68025995b266c9",
+        "observed_at": "2026-11-15T05:17:54.504296+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "cfff1cd2274af706028c5c6a1c08eeaf2a1d2695",
+        "observed_at": "2026-11-15T05:17:54.679042+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-laptop-lora/blob/cfff1cd2274af706028c5c6a1c08eeaf2a1d2695/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/chaski-r2-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "50a057385998451b9e685d87f80ee067391b681294914564efe009b2745aa4b2",
+        "error": null,
+        "hub_revision": "cfff1cd2274af706028c5c6a1c08eeaf2a1d2695",
+        "observed_at": "2026-11-15T05:17:54.679042+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "adapter_bundle",
         "hub_revision": "aefb81f3bc37329f0891a90bc3f6aa2391ec708f",
         "observed_at": "2026-11-14T17:53:53.263685+00:00",
@@ -1124,6 +1394,33 @@
         "observed_at": "2026-10-04T16:22:43.221466+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "d3da618277263d012ac5fbfb50cecd6553380cd3",
+        "observed_at": "2026-11-15T05:17:54.852365+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r4-laptop-lora/blob/d3da618277263d012ac5fbfb50cecd6553380cd3/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/chaski-r4-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "22dc7743d0b16dd641df3c085f4b4e355c233e5e7d6e2aa9db4ad87dadb35238",
+        "error": null,
+        "hub_revision": "d3da618277263d012ac5fbfb50cecd6553380cd3",
+        "observed_at": "2026-11-15T05:17:54.852365+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1259,6 +1556,33 @@
         "observed_at": "2026-11-14T17:53:53.263685+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "non_provider_artifact",
+        "hub_revision": "640062012ff0d003c74239911272d58d752ac820",
+        "observed_at": "2026-11-15T05:17:55.064656+00:00",
+        "qualification_note": "No standalone provider model artifact is inferred from the measured public revision file list.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/doctrine-math-r1-candidate/blob/640062012ff0d003c74239911272d58d752ac820/README.md",
+        "suggested_route": "Use the artifact for its recorded purpose; no generic hosted inference route is asserted."
+      },
+      "id": "SZLHOLDINGS/doctrine-math-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "2579e1b780a49ac3fc1231aadcf5fb71878ccc21171a1fa779f601e603c3c5ce",
+        "error": null,
+        "hub_revision": "640062012ff0d003c74239911272d58d752ac820",
+        "observed_at": "2026-11-15T05:17:55.064656+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1631,6 +1955,60 @@
           }
         ],
         "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "882ac37445b6cefa865992474737246758434b44",
+        "observed_at": "2026-11-15T05:17:55.252051+00:00",
+        "qualification_note": "Standalone model weights measured in the public revision; no hosted provider qualification is inferred.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1/blob/882ac37445b6cefa865992474737246758434b44/README.md",
+        "suggested_route": "Serve locally with a matching architecture runtime; no generic hosted inference route is asserted."
+      },
+      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "ab6fa4d0ec7d59923e694c94b3557147f4d3e70443659508004ce8abd414ee98",
+        "error": null,
+        "hub_revision": "882ac37445b6cefa865992474737246758434b44",
+        "observed_at": "2026-11-15T05:17:55.252051+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "0cd399061064bdf30b2636b4815bc61214951b63",
+        "observed_at": "2026-11-15T05:17:55.432828+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-laptop-lora/blob/0cd399061064bdf30b2636b4815bc61214951b63/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/khipu-r3-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0e48c97f2b97f211c6a9bb93c47e4cd305561544ae4b1f3fe1ce98d0ee6bd595",
+        "error": null,
+        "hub_revision": "0cd399061064bdf30b2636b4815bc61214951b63",
+        "observed_at": "2026-11-15T05:17:55.432828+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
       }
     },
     {
@@ -2095,6 +2473,33 @@
     {
       "assessment": {
         "artifact_class": "adapter_bundle",
+        "hub_revision": "29f815ba8069d1fc9060b5e906e83cc8a7a1c2eb",
+        "observed_at": "2026-11-15T05:17:55.620918+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/qwen2.5-0.5b-laptop-lora/blob/29f815ba8069d1fc9060b5e906e83cc8a7a1c2eb/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/qwen2.5-0.5b-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "f91e4be0f2439abf176a5502ccb3837b50144504a1fa4ac06cb46f0eb2bd83ef",
+        "error": null,
+        "hub_revision": "29f815ba8069d1fc9060b5e906e83cc8a7a1c2eb",
+        "observed_at": "2026-11-15T05:17:55.620918+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/qwen2.5-0.5b-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
         "hub_revision": "1a49b9e58c9d9b7dfb37110b06a2d3aa002df712",
         "observed_at": "2026-11-14T17:53:53.263685+00:00",
         "qualification_note": "HOLD; no inference provider mapping observed; published repository artifact recorded from public file listing only; no qualification or routing claim.",
@@ -2165,6 +2570,33 @@
         "observed_at": "2026-11-14T17:53:53.263685+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "a009f6cc5195c834475a368fb52310284d04c43c",
+        "observed_at": "2026-11-15T05:17:55.843518+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/receiptagent-v3-laptop-lora/blob/a009f6cc5195c834475a368fb52310284d04c43c/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/receiptagent-v3-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "56df4dd3f927351d64bbd6e3ea711889521270219852e6276dbd88e106ae0559",
+        "error": null,
+        "hub_revision": "a009f6cc5195c834475a368fb52310284d04c43c",
+        "observed_at": "2026-11-15T05:17:55.843518+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-v3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -2598,6 +3030,87 @@
     },
     {
       "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "97809211c5470d1abb9dddb1d4ccba21fa94c0f0",
+        "observed_at": "2026-11-15T05:17:56.076228+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora/blob/97809211c5470d1abb9dddb1d4ccba21fa94c0f0/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "979a5c298afe5acb10882753c8e634dbf9d6afa3a7eae2b21bc2b555c7cc70a2",
+        "error": null,
+        "hub_revision": "97809211c5470d1abb9dddb1d4ccba21fa94c0f0",
+        "observed_at": "2026-11-15T05:17:56.076228+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "f68bb5cf1e51cbdbaf7a929ed140af81421138fa",
+        "observed_at": "2026-11-15T05:17:56.273454+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora/blob/f68bb5cf1e51cbdbaf7a929ed140af81421138fa/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "8cecdeafdd79e2e0c9be809a574475de10f8cee9c2d1fefd18db1cf9698d3bc3",
+        "error": null,
+        "hub_revision": "f68bb5cf1e51cbdbaf7a929ed140af81421138fa",
+        "observed_at": "2026-11-15T05:17:56.273454+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "ad7833f225c28771b52c34351cebb1b9a95689dc",
+        "observed_at": "2026-11-15T05:17:56.476524+00:00",
+        "qualification_note": "Standalone model weights measured in the public revision; no hosted provider qualification is inferred.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1/blob/ad7833f225c28771b52c34351cebb1b9a95689dc/README.md",
+        "suggested_route": "Serve locally with a matching architecture runtime; no generic hosted inference route is asserted."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "499e87ba5e65dd59a8d4ee23f82db477b3a28878501f73ccdd1ed95f13794da3",
+        "error": null,
+        "hub_revision": "ad7833f225c28771b52c34351cebb1b9a95689dc",
+        "observed_at": "2026-11-15T05:17:56.476524+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "standalone_weight_bundle",
         "hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
         "observed_at": "2026-10-04T15:33:00.148956+00:00",
@@ -2636,6 +3149,114 @@
           }
         ],
         "state": "REQUESTED"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "5d33565030f04ac1bf0b2fdb012b90f238cc5dc0",
+        "observed_at": "2026-11-15T05:17:56.723750+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate/blob/5d33565030f04ac1bf0b2fdb012b90f238cc5dc0/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "cf5a5d8e55beed1a881b358c31149e13d1e26af460099145d80c53c85de39350",
+        "error": null,
+        "hub_revision": "5d33565030f04ac1bf0b2fdb012b90f238cc5dc0",
+        "observed_at": "2026-11-15T05:17:56.723750+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "7ce8a2303b97b490f33c8b22da013868b4863ef0",
+        "observed_at": "2026-11-15T05:17:56.900564+00:00",
+        "qualification_note": "Standalone model weights measured in the public revision; no hosted provider qualification is inferred.",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1/blob/7ce8a2303b97b490f33c8b22da013868b4863ef0/README.md",
+        "suggested_route": "Serve locally with a matching architecture runtime; no generic hosted inference route is asserted."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "57c5f64e17c8401445d97b4b82b9dfc6fae450a9f480270e845df425e5c4b6c1",
+        "error": null,
+        "hub_revision": "7ce8a2303b97b490f33c8b22da013868b4863ef0",
+        "observed_at": "2026-11-15T05:17:56.900564+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "033108dd8a6a0205995216d3849387fcc3ec36d1",
+        "observed_at": "2026-11-15T05:17:57.149059+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora/blob/033108dd8a6a0205995216d3849387fcc3ec36d1/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "737386545d054c60e448332808abfaba08bea1c7ae7fa138f864b45cd9f8a564",
+        "error": null,
+        "hub_revision": "033108dd8a6a0205995216d3849387fcc3ec36d1",
+        "observed_at": "2026-11-15T05:17:57.149059+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "17592f5fff6ee1119986af297dc16b745ed2b4c5",
+        "observed_at": "2026-11-15T05:17:57.407332+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora/blob/17592f5fff6ee1119986af297dc16b745ed2b4c5/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "5ecd24f5844514138c7c30e58926bd0ebe47ec49db93054be28069f150737a64",
+        "error": null,
+        "hub_revision": "17592f5fff6ee1119986af297dc16b745ed2b4c5",
+        "observed_at": "2026-11-15T05:17:57.407332+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
       }
     },
     {
