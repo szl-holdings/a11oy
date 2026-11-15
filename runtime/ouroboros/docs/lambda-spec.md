@@ -2,7 +2,7 @@
 
 **Status:** canonical. Supersedes any prior or differing definition in code.
 **Authority:** Thesis v14 §3.3 (Definition 2 + Theorem 1); `lutar-lean/Lutar/Invariant.lean`; `lutar-lean/Lutar/Uniqueness.lean`.
-**Concept DOI:** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
+**Concept DOI:** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896).
 
 This document resolves the dual-definition inconsistency in which
 `ouroboros/runtime/lambda-gate/src/gate.ts` computed `lambda = min(axes)`
