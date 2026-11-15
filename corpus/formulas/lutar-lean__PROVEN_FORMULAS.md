@@ -141,7 +141,7 @@ All Wave-8 theorems are kernel-verified and **CI-green**; they are **experimenta
 
 - Λ axiomatic characterization: Aczél & Saaty (1983), *Procedures for synthesizing ratio judgements*, J. Math. Psych. 27(1):93–102, [doi:10.1016/0022-2496(83)90028-7](https://doi.org/10.1016/0022-2496(83)90028-7); Csató (2018), [arXiv:1706.07256](https://arxiv.org/abs/1706.07256); Kiss & Shulman (2026), Theorem 1.1, [arXiv:2606.05221](https://arxiv.org/abs/2606.05221).
 - Loop: Goguen & Meseguer (1982), [doi:10.1109/SP.1982.10014](https://doi.org/10.1109/SP.1982.10014); Merkle (1987); NIST FIPS 180-4.
-- DOI lineage: [Zenodo concept DOI 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
+- DOI lineage: [Zenodo concept DOI 10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896).
 
 *Proof reports: `team/PROVE_WAVE5..7_REPORT.md`, `team/PROVE_AGENTIC_LOOP_REPORT.md`, `team/LAMBDA_UNIQUENESS_PROOF_REPORT.md`. All commits Signed-off-by Stephen P. Lutar Jr. <stephenlutar2@gmail.com>.*
 
