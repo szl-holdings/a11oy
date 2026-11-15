@@ -76,6 +76,28 @@ def key_fingerprint(pem_bytes: bytes) -> str:
     return hashlib.sha256(normalize_pem(pem_bytes)).hexdigest()
 
 
+def key_fingerprints(pem_bytes: bytes) -> set:
+    """Every fingerprint spelling in use for one key.
+
+    The offline sample uses SHA-256 of the normalized PEM *with* a trailing
+    newline (key_fingerprint above). The live runtime signer (szl_dsse
+    public_key_fingerprint) and .github/cosign-keys/MANIFEST.json use SHA-256 of
+    the stripped PEM *without* it. Both name the same key, so both are accepted
+    as a keyid match; neither changes what the signature check proves.
+    """
+    stripped = normalize_pem(pem_bytes).rstrip(b"\n")
+    return {key_fingerprint(pem_bytes), hashlib.sha256(stripped).hexdigest()}
+
+
+def manifest_signer(pem_bytes: bytes, manifest: dict):
+    """Return the manifest entry name whose fingerprint names this key, else None."""
+    fprs = key_fingerprints(pem_bytes)
+    for name, entry in (manifest.get("organs") or {}).items():
+        if isinstance(entry, dict) and entry.get("fingerprint_sha256") in fprs:
+            return name
+    return None
+
+
 def load_public_key(path: Path):
     pem = path.read_bytes()
     try:
@@ -126,7 +148,7 @@ def verify_signature(envelope: dict, pubkey, pem: bytes, strict_keyid: bool) -> 
             last_err = "ECDSA signature invalid"
             continue
         keyid = entry.get("keyid", "")
-        if keyid == fpr:
+        if keyid == fpr or keyid in key_fingerprints(pem):
             keyid_note = "keyid matches key fingerprint"
         elif keyid in LEGACY_KEYIDS:
             keyid_note = f"legacy keyid {keyid!r} accepted (signature is what matters)"
@@ -198,6 +220,9 @@ def main(argv=None) -> int:
                     help="skip canonical-JSON byte check on payloads")
     ap.add_argument("--quiet", action="store_true", help="suppress per-beat lines")
     ap.add_argument("--json", action="store_true", help="emit machine-readable verdict")
+    ap.add_argument("--manifest", type=Path,
+                    help="org trust manifest (.github/cosign-keys/MANIFEST.json); "
+                         "if the key is not listed, report SIGNER UNKNOWN and exit 3")
     args = ap.parse_args(argv)
 
     try:
@@ -223,12 +248,32 @@ def main(argv=None) -> int:
             print(f"CHAIN FAILED — {exc}", file=sys.stderr)
         return 1
 
+    signer, code = None, 0
+    if args.manifest is not None:
+        try:
+            manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"error: cannot load manifest {args.manifest}: {exc}", file=sys.stderr)
+            return 2
+        signer = manifest_signer(pem, manifest)
+        code = 0 if signer else 3
+
     if args.json:
-        print(json.dumps({"ok": True, **result}))
+        out = {"ok": True, **result}
+        if args.manifest is not None:
+            out["signer"] = signer or "UNKNOWN"
+            out["signer_anchored"] = bool(signer)
+        print(json.dumps(out))
     else:
         print(f"CHAIN OK — {result['beats']} beats verified, root sha256:{result['root']}")
         print(f"signer fingerprint (sha256 of normalized PEM): {result['fingerprint']}")
-    return 0
+        if args.manifest is not None:
+            if signer:
+                print(f"SIGNER ANCHORED — key listed in manifest as {signer!r}")
+            else:
+                print("SIGNER UNKNOWN — integrity verified, but this key is not in the "
+                      "trust manifest; treat the receipts as unauthenticated (abstain)")
+    return code
 
 
 if __name__ == "__main__":
