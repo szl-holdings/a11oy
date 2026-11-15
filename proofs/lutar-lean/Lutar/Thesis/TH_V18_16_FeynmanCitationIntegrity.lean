@@ -20,7 +20,7 @@ Lean Czar audit trail.
              Lutar.Feynman.Lineage.chain_length,
              Lutar.Feynman.Lineage.feynmanToSZLChain
 ## Citations:
-  - Lutar.Feynman.FeynmanLineage (v18.x) — DOI:10.5281/zenodo.19944926
+  - Lutar.Feynman.FeynmanLineage (v18.x) — DOI:10.5281/zenodo.24239896
   - Feynman (1949) Physical Review 76:769. DOI:10.1103/PhysRev.76.769
   - Witten (1989) Commun. Math. Phys. 121:351. DOI:10.1007/BF01217730
   - Bar-Natan (1995) Topology 34:423. DOI:10.1016/0040-9383(95)93237-2
