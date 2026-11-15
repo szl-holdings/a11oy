@@ -3,9 +3,9 @@
 
 [A11oy](https://a-11-oy.com) is the product and command fabric; [a11oy.net](https://a11oy.net) is the proof and diligence surface. GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.
 
-**Measured Hub inventory:** 52 public Spaces · 138 model repositories · 14 native kernels · 68 datasets as of `2026-11-14T04:09:48Z`.
+**Measured Hub inventory:** 34 public Spaces · 131 model repositories · 14 native kernels · 71 datasets as of `2026-11-15T06:33:28Z`.
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/agents-studio`, `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/counsel-assurance`, `SZLHOLDINGS/estate-gardener`, `SZLHOLDINGS/eternal-auditor`, `SZLHOLDINGS/frontier-showcase`, `SZLHOLDINGS/gdw-frontier`, `SZLHOLDINGS/holographic-unify`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/khipu-playground`, `SZLHOLDINGS/living-anatomy`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/measured-honesty-census`, `SZLHOLDINGS/newton-trust-upgrade`, `SZLHOLDINGS/nexus`, `SZLHOLDINGS/puriq-markets`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-chief-engineer`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-cyber-shield`, `SZLHOLDINGS/szl-dream-architect`, `SZLHOLDINGS/szl-energy-hologram`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-frontier-deck`, `SZLHOLDINGS/szl-infra-warden`, `SZLHOLDINGS/szl-khipu`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-receipts-chain`, `SZLHOLDINGS/szl-research-council`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-second-brain`, `SZLHOLDINGS/szlholdings-si`, `SZLHOLDINGS/terra-assurance`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/truth-router`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/estate-gardener`, `SZLHOLDINGS/eternal-auditor`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/oac-system-health-lab`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-chief-engineer`, `SZLHOLDINGS/szl-cyber-shield`, `SZLHOLDINGS/szl-dream-architect`, `SZLHOLDINGS/szl-energy-ledger`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-infra-warden`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-marketing-1-1`, `SZLHOLDINGS/szl-provenance-pitch`, `SZLHOLDINGS/szl-research-council`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
 ### Five public domain bodies
 
@@ -26,5 +26,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `faf91b7687290508c1aa1517ddde0a1520ddce4bb90bd903dab7b6965c59e393`.
+Alignment receipt: `6dbed89939f154e8abbbbe16b933b4f983320f058851c57ced259cd832860366`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
