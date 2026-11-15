@@ -63,6 +63,36 @@ on:
 
 
 class SyntheticRepositoryTests(unittest.TestCase):
+    def test_required_source_contract_cannot_fall_back_to_declared_mirror_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".github" / "workflows").mkdir(parents=True)
+            (root / "static").mkdir()
+            (root / "Dockerfile").write_text(
+                "COPY serve.py /app/serve.py\nCOPY static/app.js /app/static/app.js\n",
+                encoding="utf-8",
+            )
+            (root / "serve.py").write_text("VALUE = 1\n", encoding="utf-8")
+            (root / "static" / "app.js").write_text("console.log('ok');\n", encoding="utf-8")
+            (root / ".github" / "workflows" / "hf-sync.yml").write_text(
+                "on:\n  push:\n    branches: [main]\njobs: {}\n", encoding="utf-8"
+            )
+            for required, expected in ((None, 0), (False, 0), (True, 1), ("true", 2), (1, 2)):
+                with self.subTest(required=required):
+                    config = {"mirror_asset_exts": [".js"], "extra_mirror_paths": ["static/app.js"]}
+                    if required is not None:
+                        config["require_source_derived_deploy"] = required
+                    (root / ".github" / "copy-sync-lockstep.json").write_text(
+                        json.dumps(config), encoding="utf-8"
+                    )
+                    stdout = io.StringIO()
+                    with mock.patch.object(sys, "argv", ["guard", str(root)]), contextlib.redirect_stdout(stdout):
+                        result = lockstep.main()
+                    self.assertEqual(expected, result, stdout.getvalue())
+                    if required is True:
+                        self.assertIn("required source-derived deploy contract invalid", stdout.getvalue())
+                        self.assertNotIn("OK: COPY", stdout.getvalue())
+
     def test_guard_passes_with_windows_relpath_separators(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
