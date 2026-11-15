@@ -9,15 +9,15 @@
  * The managed gateway response shape is fixed; this first-party Worker adds
  * the Bazaar metadata without changing price, payee, or verification.
  *
- * FAILOL-CLOSED CONTRACT:
+ * FAIL-CLOSED CONTRACT:
  * - Unpaid request (no PAYMENT-SIGNATURE): respond 402 with a challenge
- *   byte-parity to the live gateway challenge (same accepts / payTo / asset /
+ *   parity to the live gateway challenge (same accepts / payTo / asset /
  *   amount / maxTimeoutSeconds / help) PLUS extensions.bazaar. Never a 200.
  * - Paid request (PAYMENT-SIGNATURE present): passthrough mode. This worker
  *   does NOT verify payments. It forwards the request with a sentinel header
  *   so the CF Monetization Gateway performs real verification on the inner
- *   subrequest. If passthrough cannot be established, respond 502 with an
- *   honest error - never serve content unpaid.
+ *   subrequest. See README open-questions for the re-entry caveat — verify
+ *   in staging before production; never assume the passthrough works.
  * - Route precedence: this worker claims a NARROWER route than the gateway
  *   (exact /v1/chat/completions vs /v1/*). CF runs only the first matching
  *   worker; the gateway keeps every other route.
@@ -114,7 +114,7 @@ function challengeBody() {
     ...JSON.parse(JSON.stringify(CHALLENGE)),
     error: "PAYMENT-SIGNATURE header is required",
   };
-  body.extensions = { ...JSON.parse(JSON.stringify(BAZAAR_EXTENSION)) };
+  body.extensions = JSON.parse(JSON.stringify(BAZAAR_EXTENSION));
   return JSON.stringify(body);
 }
 
@@ -129,10 +129,12 @@ export default {
       });
     }
 
-    // Inner subrequest re-entry: hand off to the managed gateway / origin.
+    // Inner subrequest re-entry: strip the sentinel and fall through to
+    // origin. CAVEAT (README open-questions): if the inner fetch re-enters
+    // THIS worker instead of the managed gateway, passthrough must be
+    // redesigned to forward to a dedicated gateway-claimed path. Verify in
+    // staging before production cutover.
     if (request.headers.get(BAZAAR_PASSTHROUGH_HEADER) === "1") {
-      // Strip the sentinel and fall through to origin by NOT claiming the
-      // inner request: return a passthrough fetch to the same resource.
       const inner = new Request(request);
       inner.headers.delete(BAZAAR_PASSTHROUGH_HEADER);
       return fetch(inner);
@@ -157,7 +159,6 @@ export default {
       status: 402,
       headers: {
         "content-type": "application/json",
-        "PAYMENT-REQUIRED": Buffer ? body : body, // see README: header set via gateway parity is optional; body is authoritative
         "cache-control": "private, no-store",
         "x-szl-edge": "x402-bazaar-shim-v1",
         "access-control-expose-headers": "PAYMENT-REQUIRED, PAYMENT-RESPONSE",
