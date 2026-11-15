@@ -1141,8 +1141,27 @@ def _kick_background_build(ns: str) -> None:
 
 # --- background warmer: rebuild every organ's snapshot on a fixed interval ---
 
+def _initial_warm_delay() -> float:
+    """Seconds to postpone the first readiness sweep after registration.
+
+    SZL_READINESS_WARM_DELAY wins; otherwise SZL_EVIDENCE_WARM_DELAY (the knob
+    the isolated no-effects CI steps already set) is honoured, so a postponed
+    warm-up postpones *every* cache sweep, not only the evidence one. Unset or
+    invalid means 0, which keeps the existing behaviour (build at register,
+    first warm sweep after 12 s)."""
+    for name in ("SZL_READINESS_WARM_DELAY", "SZL_EVIDENCE_WARM_DELAY"):
+        raw = (os.environ.get(name) or "").strip()
+        if raw:
+            try:
+                return max(0.0, float(raw))
+            except ValueError:
+                return 0.0
+    return 0.0
+
+
 def _warm_loop() -> None:
-    time.sleep(12)  # let app startup settle before the first sweep
+    # let app startup settle before the first sweep; honour a requested postponement
+    time.sleep(max(12.0, _initial_warm_delay()))
     while True:
         try:
             for ns in list(_WARM_NS):
@@ -1179,7 +1198,8 @@ def register(app, ns: str = "a11oy") -> None:
 
     _WARM_NS.add(ns)
     _start_warmer()
-    _kick_background_build(ns)  # warm the snapshot ASAP, off the request path
+    if _initial_warm_delay() <= 0:
+        _kick_background_build(ns)  # warm the snapshot ASAP, off the request path
 
     base = "/api/%s/v1/readiness" % ns
 

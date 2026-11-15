@@ -6,9 +6,9 @@ These connectors are GENUINELY ready, NOT stubs: each declares the provider's
 documented REST endpoint, the documented record shape (schema_preview), the auth
 header builder, and a real `read()` that performs the documented HTTP call. With
 NO credentials it returns state=READY + "set <ENV_VAR> to activate" + the exact
-secret name(s) — and NEVER fabricates records. The moment the customer's
-credentials land in the Space secret, `health()`/`read()` flip to CONNECTED and
-render the customer's live data.
+secret name(s) — and NEVER fabricates records. Credentials make the connector
+configured; `health()`/`read()` report CONNECTED only after a successful
+provider response and then render the customer's live data.
 
 DOCTRINE: env-only creds; never a fabricated record; honest READY/CONNECTED/ERROR.
 """
@@ -123,7 +123,8 @@ class WritableReadyConnector(ReadyConnector):
 
     def write(self, action: dict | None = None) -> WriteResult:
         action = action or {}
-        connected = not self._primary_missing()
+        connection = self.health(probe=True)
+        connected = connection.state == State.CONNECTED
         gate_action = {"method": action.get("method", "create"),
                        "object": action.get("object", self._write_path or "record"),
                        "values_keys": sorted((action.get("values") or {}).keys())}
@@ -134,7 +135,7 @@ class WritableReadyConnector(ReadyConnector):
             cred_fingerprints=creds_fp, quorum_present=action.get("quorum_present"))
         if not allowed:
             return WriteResult(connector_id=self.id, ok=False,
-                               state=State.READY if not connected else State.CONNECTED,
+                               state=connection.state,
                                receipt_hash=receipt["receipt_hash"], lambda_value=lam,
                                quorum=quorum, detail=detail, dsse=receipt["dsse"])
         import json as _json
