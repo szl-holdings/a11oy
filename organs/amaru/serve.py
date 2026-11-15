@@ -1278,8 +1278,9 @@ if CONDUIT_DIR.exists():
 
     @app.get("/conduit/{path:path}")
     async def conduit_spa(path: str):
-        candidate = CONDUIT_DIR / path
-        if candidate.exists() and candidate.is_file():
+        # Containment: reject "..", encoded "%2F" and absolute segments outside CONDUIT_DIR.
+        candidate = (CONDUIT_DIR / path).resolve()
+        if candidate.is_relative_to(CONDUIT_DIR.resolve()) and candidate.is_file():
             return FileResponse(candidate)
         return FileResponse(CONDUIT_DIR / "index.html", media_type="text/html")
 
@@ -1527,8 +1528,8 @@ async def serve_spa(path: str):
     if (path.startswith("api/") or path.startswith("v1/")
             or path.startswith("v2/") or path.startswith("v3/")):
         return JSONResponse({"error": "not found", "path": "/" + path}, status_code=404)
-    file_path = STATIC_DIR / path
-    if file_path.exists() and file_path.is_file():
+    file_path = (STATIC_DIR / path).resolve()
+    if file_path.is_relative_to(STATIC_DIR.resolve()) and file_path.is_file():
         return FileResponse(file_path)
     return FileResponse(STATIC_DIR / "index.html")
 

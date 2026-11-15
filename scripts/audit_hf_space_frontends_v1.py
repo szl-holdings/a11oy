@@ -60,15 +60,21 @@ def _request_json(url: str, timeout: int = 45) -> Any:
         return json.load(response)
 
 
+# Fields the census reads from every listed Space. The Hub list endpoint
+# returns only the fields named by ``expand`` (plus the identity), and its
+# ``full=true`` form does not include ``runtime``: requesting it explicitly is
+# what makes the runtime stage and runtime SHA observable at all.
+SPACE_LIST_FIELDS = ("sha", "runtime", "sdk", "cardData", "subdomain")
+
+
+def spaces_query(author: str = HF_ORG) -> str:
+    params: list[tuple[str, str]] = [("author", author), ("limit", "100")]
+    params.extend(("expand", field) for field in SPACE_LIST_FIELDS)
+    return urllib.parse.urlencode(params)
+
+
 def fetch_spaces(author: str = HF_ORG) -> list[dict[str, Any]]:
-    query = urllib.parse.urlencode(
-        {
-            "author": author,
-            "limit": 100,
-            "full": "true",
-        }
-    )
-    payload = _request_json(f"{HF_SPACES_API}?{query}")
+    payload = _request_json(f"{HF_SPACES_API}?{spaces_query(author)}")
     if not isinstance(payload, list):
         raise ValueError("Hugging Face Spaces API did not return a list")
     records = [item for item in payload if isinstance(item, dict)]
@@ -230,7 +236,13 @@ def metadata_failures(record: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "code": "SPACE_RUNTIME_NOT_RUNNING",
                 "priority": "P1",
-                "detail": f"Observed runtime stage is {stage}.",
+                # UNAVAILABLE is this script's sentinel for "no stage in the
+                # record"; it is never a Hub stage, so it is not an observation.
+                "detail": (
+                    "The Hub record carried no runtime stage; it was not observed."
+                    if stage == "UNAVAILABLE"
+                    else f"Observed runtime stage is {stage}."
+                ),
             }
         )
     if not space_sdk:
