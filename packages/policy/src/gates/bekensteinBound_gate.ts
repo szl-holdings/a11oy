@@ -21,7 +21,7 @@
 //   Policy: advisory (severity: 'warning') — entropy > 8*sizeBytes → warn
 //
 // References:
-//   Zenodo: https://doi.org/10.5281/zenodo.19944926
+//   Zenodo: https://doi.org/10.5281/zenodo.24239896
 //   Thesis §4.5: bekensteinBound axiom; TH6 DPI proof discharges this
 
 export interface BekensteinBoundGateConfig {
@@ -72,7 +72,7 @@ const DEFAULT_BPB    = 8;
  *
  * Lean axiom: `bekensteinBound` (A7) — conjectured; TH6 provides elementary proof
  * Lean file: Lutar/Gate/BekensteinBound.lean (pending; commit 1dca00032dfc9aa8559cc6c2e4b63192fcf52371)
- * Zenodo: https://doi.org/10.5281/zenodo.19944926
+ * Zenodo: https://doi.org/10.5281/zenodo.24239896
  */
 export function bekensteinBoundGate(
   config: BekensteinBoundGateConfig = {}
