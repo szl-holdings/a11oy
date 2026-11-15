@@ -1,4 +1,6 @@
 cff-version: 1.2.0
+# Zenodo DOI for the A11oy archive (owner account 1628948, June 2026 original)
+doi: 10.5281/zenodo.20563581
 message: "If you use A11oy, cite this software and the associated research record."
 type: software
 title: "A11oy: governed AI execution fabric"

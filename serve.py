@@ -7724,7 +7724,7 @@ async def _v1_acoustic_index():
     return JSONResponse({
         "schema": "szl.acoustic.index/v1",
         "product": "acoustic-validation",
-        "label": "MEASURED",
+        "label": "DERIVED",
         "endpoints": {
             "burgers": "/v1/acoustic/burgers",
             "duffing": "/v1/acoustic/duffing",
@@ -7735,8 +7735,10 @@ async def _v1_acoustic_index():
         "source_repository": "szl-holdings/acoustic-validation",
         "peer_reviewed_foundations": "Liu et al., Nature Communications 16:2823 (2025)",
         "doctrine": "v11",
-        "note": "Each endpoint runs a real falsifiable check and returns measured values "
-                "with verbatim PROOF-STATUS labels; no result is fabricated.",
+        "note": "GET /v1/acoustic/burgers and GET /v1/acoustic/duffing each run a local "
+                "numerical check and are labeled MEASURED. GET /v1/acoustic/ns-pathway "
+                "returns declared operating values with the labels on those values; "
+                "that response is not a measurement. No result is fabricated.",
     })
 
 
@@ -7849,7 +7851,7 @@ async def _v1_acoustic_ns_pathway():
     rankine = {"rho_ratio": 1.0 / 6.0, "label": "HYPOTHESIS_UNVERIFIED"}
     return JSONResponse({
         "schema": "szl.acoustic.ns-pathway/v1",
-        "label": "MEASURED",
+        "label": "MODELED",
         "pathway": ["murnaghan_stress_kick", "poisson_transverse_seed",
                     "exceptional_point_gain", "chern_oam_protection",
                     "rankine_hugoniot_bound"],
@@ -15000,16 +15002,9 @@ async def marketing_landing_page() -> Response:
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
 
-# /verify — Tier-1 Demo: Buyer-Verifiable Receipt + Λ-Gated Refusal + Verifiable Thesis.
-# Served from pages/verify.html (COPYed wholesale by the Dockerfile COPY pages/ ./pages/).
-# Registered BEFORE the SPA catch-all so /verify returns the real page, not the SPA soft-404.
-# ADDITIVE — no existing route touched.
-@app.api_route("/verify", methods=["GET", "HEAD"])
-async def verify_demo_page() -> Response:
-    f = PAGES_DIR / "verify.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
+# /verify is registered once, earlier (web/verify-receipt.html via _ptg_serve).
+# A second /verify handler serving pages/verify.html used to live here; Starlette
+# matches in registration order, so it was unreachable. Removed 2026-11 (P3).
 
 
 # /pinn-console — Governed Inverse-PINN Console. Public front-end for the LIVE
