@@ -46,6 +46,25 @@ a `non_provider_artifact` row. Both returned HTTP 404 for `README.md` at their
 revision root. No support discussion was submitted for them. The dated record is
 `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-11.md`.
 
+On 2026-11-15 a source review reconciled this catalog with the committed
+`docs/huggingface-ecosystem-manifest.json` regeneration, which holds 98 public
+model-namespace repositories. 45 catalog ids whose repositories had been
+retired from the Hub were removed after review; the verified submission
+discussion 12788 for the retired
+`SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged` is recorded as a prior
+discussion with its proof fields set to null, and its full verified readback
+evidence is preserved in the dated record. 5 newly measured repositories
+(`SZLHOLDINGS/KILLINCHU-EYE`, `SZLHOLDINGS/chakana`, `SZLHOLDINGS/qantu`,
+`SZLHOLDINGS/tinku`, `SZLHOLDINGS/waman`) were assessed from their public
+revision file lists and a provider-mapping read; each mapping response was
+HTTP 200 with an empty object, so those rows are `NO_PROVIDER_MAPPING`, and
+each lists a README and a NumPy artifact bundle, so each is a
+`numpy_model_bundle` row. No support discussion was submitted for them. The
+catalog ids again equal the measured model ids, so
+`scripts/collect_model_inference_support.py --check` exits 0 against it. The
+dated record is
+`docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-15.md`.
+
 ## Evidence boundaries
 
 Each exact, case-sensitive model ID has three independent records:
