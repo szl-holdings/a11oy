@@ -2,7 +2,7 @@
   "title": "SZL Holdings — Ouroboros Thesis & Proven Formula Kernel",
   "byline": "Stephen P. Lutar Jr.",
   "orcid": "0009-0001-0110-4173",
-  "concept_doi": "https://doi.org/10.5281/zenodo.19944926",
+  "concept_doi": "https://doi.org/10.5281/zenodo.24239896",
   "doctrine_pin": "lutar-lean v11 LOCKED @ c7c0ba17 — 749 declarations / 14 unique axioms / 163 sorries",
   "lambda_status": "Λ = Conjecture 1 — NEVER a theorem.",
   "lean_repo": "https://github.com/szl-holdings/lutar-lean",
@@ -80,13 +80,13 @@
     {
       "ver": "v12",
       "date": "2026-05-14",
-      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "doi": "https://doi.org/10.5281/zenodo.24239896",
       "contribution": "The Λ-Ouroboros substrate — first four machine-verified theorems (Λ itself stays Conjecture 1, not a theorem)"
     },
     {
       "ver": "v13",
       "date": "2026-05-18",
-      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "doi": "https://doi.org/10.5281/zenodo.24239896",
       "contribution": "Anatomy as architecture (exhaustive)"
     },
     {
@@ -104,13 +104,13 @@
     {
       "ver": "v16",
       "date": "2026-05-28",
-      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "doi": "https://doi.org/10.5281/zenodo.24239896",
       "contribution": "Λ-invariant stack + Feynman path-integral audit sum"
     },
     {
       "ver": "v17",
       "date": "2026-05-28",
-      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "doi": "https://doi.org/10.5281/zenodo.24239896",
       "contribution": "Wheelerian audit closure; Shannon doctrine (Kraft inequality)"
     },
     {
@@ -128,13 +128,13 @@
     {
       "ver": "v20",
       "date": "2026-06-01",
-      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "doi": "https://doi.org/10.5281/zenodo.24239896",
       "contribution": "\"The Culmination\" — formally-verified anatomical substrate"
     },
     {
       "ver": "v21",
       "date": "2026-06-01",
-      "doi": "https://doi.org/10.5281/zenodo.19944926",
+      "doi": "https://doi.org/10.5281/zenodo.24239896",
       "contribution": "The PURIQ-OS Substrate — 12-organ runtime, 23 agentic formulas (5 proved in Lean 4)"
     },
     {
