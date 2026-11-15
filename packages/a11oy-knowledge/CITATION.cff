@@ -21,7 +21,7 @@ url: "https://github.com/szl-holdings/a11oy"
 identifiers:
   - description: "Concept DOI for the canonical Ouroboros Thesis"
     type: doi
-    value: "10.5281/zenodo.19944926"
+    value: "10.5281/zenodo.24239896"
   - description: "v11 Applied Lambda paper"
     type: doi
     value: "10.5281/zenodo.20119582"
