@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Doctrine v11 LOCKED](https://img.shields.io/badge/Doctrine-v11_LOCKED-d4a444.svg)](https://github.com/szl-holdings/lutar-lean)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239896.svg)](https://doi.org/10.5281/zenodo.24239896)
 [![CI](https://github.com/szl-holdings/szl-cookbook/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/szl-cookbook/actions)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg)](SECURITY.md)
 
@@ -17,7 +17,7 @@ Worked, runnable recipes — each verified end-to-end against the live mesh, eac
 [![Λ = Conjecture 1](https://img.shields.io/badge/%CE%9B-Conjecture_1-d4a444?style=flat-square)](https://github.com/szl-holdings/lambda-bounty)
 [![SLSA L1](https://img.shields.io/badge/SLSA-L1_honest-2C5F2D?style=flat-square)](https://slsa.dev/spec/v1.0/levels)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)](LICENSE)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434308.svg)](https://doi.org/10.5281/zenodo.20434308)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239654.svg)](https://doi.org/10.5281/zenodo.24239654)
 
 [Hugging Face](https://huggingface.co/SZLHOLDINGS) · [GitHub Org](https://github.com/szl-holdings) · [Docs Site](https://docs.szlholdings.com)
 
@@ -163,7 +163,7 @@ cd recipes/anatomy-evolved-v1/code && npm install && npm run test:smoke
   author       = {{SZL Holdings}},
   year         = {2026},
   howpublished = {\url{https://github.com/szl-holdings/szl-cookbook}},
-  doi          = {10.5281/zenodo.20434308},
+  doi          = {10.5281/zenodo.24239654},
   note         = {Doctrine v11 LOCKED 749/14/163, kernel c7c0ba17, Λ = Conjecture 1, SLSA L1 (honest).}
 }
 ```
