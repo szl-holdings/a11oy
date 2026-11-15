@@ -2039,14 +2039,16 @@ def register(app: FastAPI) -> dict:
         from this anonymous response.
         """
         matrix = sovereign_mesh_matrix()
-        base = _sovereign_base()
-        primary_probe = sovereign_probe(base)
-        env_present = bool(primary_probe.get("env_present"))
+        nodes = matrix.get("nodes") or []
+        primary_node = nodes[0] if nodes and nodes[0].get("role") == "primary" else None
+        env_present = _sovereign_env_present()
         any_reachable = bool(matrix.get("any_reachable"))
-        # Primary-node reachability (Wave-M compact contract mirrors the primary).
-        reachable = bool(primary_probe.get("live"))
+        # Reuse the matrix observation. A second probe can time out after the
+        # first succeeded and flip the compact contract to UNAVAILABLE.
+        reachable = bool(primary_node and primary_node.get("reachable"))
         resolution = _reconcile_sovereign_model(
-            primary_probe.get("models", []), requested=_sovereign_model_slug())
+            (primary_node or {}).get("served_models") or [],
+            requested=_sovereign_model_slug())
         selected_model = resolution.get("selected_model")
         receipt_state = (_inference_receipt_state(selected_model)
                          if selected_model else
@@ -2123,7 +2125,7 @@ def register(app: FastAPI) -> dict:
             "live": False,  # model execution not observed by this GET
             "honest_stub": True,
             "base_url": None,
-            "api_style": primary_probe.get("api_style"),
+            "api_style": (primary_node or {}).get("api_style"),
             "served_models": [],
             "configured_model": None,
             "probed": [],
