@@ -6,7 +6,7 @@
 Exposes THREE governed tools to Chaski / the a11oy agent loop:
 
   szl_connector_health(connector_id)        → honest health (CONNECTED/READY/SAMPLE/ERROR)
-  szl_connector_read(connector_id, limit, q) → live records | READY (no creds) | SAMPLE
+  szl_connector_read(connector_id, limit, q) → live records | READY (pending) | SAMPLE
   szl_connector_write(connector_id, action)  → Λ-gated + DSSE-receipted write (state-changing)
 
 These are ADDITIVE. `TOOL_SCHEMAS` is the OpenAI-style function-tool list to be
@@ -29,7 +29,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "name": "szl_connector_health",
         "description": ("Honest health of an enterprise connector (CRM/ERP/identity/"
                         "comms/ITSM/warehouse/storage/observability/data-source). Returns "
-                        "state CONNECTED (live)/READY (set the named secrets)/SAMPLE (no "
+                        "state CONNECTED (observed live)/READY (credentials or provider "
+                        "verification pending)/SAMPLE (no "
                         "free tier)/ERROR — plus the exact env-var secret names. NEVER fabricates."),
         "parameters": {"type": "object", "properties": {
             "connector_id": {"type": "string", "description": "e.g. salesforce, nvd_cve, odoo, okta"}},
@@ -37,8 +38,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     {"type": "function", "function": {
         "name": "szl_connector_read",
         "description": ("Read records from an enterprise connector. CONNECTED → live "
-                        "provider records; READY → [] + 'provide credentials' + exact secret "
-                        "names; SAMPLE → labelled fixture (no free tier). NEVER fabricates a record."),
+                        "provider records; READY → [] + credentials/verification detail + exact "
+                        "secret names; SAMPLE → labelled fixture (no free tier). NEVER fabricates a record."),
         "parameters": {"type": "object", "properties": {
             "connector_id": {"type": "string"},
             "limit": {"type": "integer", "default": 12},
@@ -48,8 +49,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "name": "szl_connector_write",
         "description": ("Write to an enterprise connector (create/update). STATE-CHANGING: "
                         "Λ-gated (Λ never 1.0) + DSSE/Khipu-receipted; requires quorum for "
-                        "state-changing actions. Blocked (with an honest receipt) when no "
-                        "credentials are present or the gate denies."),
+                        "state-changing actions. Blocked (with an honest receipt) until provider "
+                        "reachability is verified or whenever the gate denies."),
         "parameters": {"type": "object", "properties": {
             "connector_id": {"type": "string"},
             "action": {"type": "object", "description":

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 · Perplexity Computer Agent.
-"""a11oy research / model-atlas / ontology live connectors (keyless → CONNECTED now).
+"""a11oy research / model-atlas / ontology live connectors (keyless live clients).
+
+CONNECTED requires an observed successful provider probe/read.
 
   arxiv     arXiv API (Atom XML)                     keyless
   hf_hub    Hugging Face Hub API (models/datasets)   public keyless; token → higher rate
