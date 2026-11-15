@@ -73,6 +73,7 @@ whether the *subsystem* is unavailable without it (never means "crash").
 | Env name | Kind | Required | Purpose | Honest default |
 |---|---|---|---|---|
 | `ANTHROPIC_API_KEY` | secret | optional | Anthropic Opus flagship key for the v3 Brain router. | (unset → subsystem DEGRADED) |
+| `ANTHROPIC_WORKSPACE_ID` | variable | optional | Claude Platform workspace id required by user-scoped ANTHROPIC_API_KEY keys (sent as the anthropic-workspace-id header; NOT a secret — Variables tab only). | (unset → user-scoped keys 400 at Anthropic; brain v3 reports the exact unblock action) |
 | `DEEPSEEK_API_KEY` | secret | optional | DeepSeek voter key. | (unset → subsystem DEGRADED) |
 | `GEMINI_API_KEY` | secret | optional | Google Gemini voter key. | (unset → subsystem DEGRADED) |
 | `GROQ_API_KEY` | secret | optional | Groq voter/provider key. | (unset → subsystem DEGRADED) |

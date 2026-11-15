@@ -742,6 +742,7 @@ REVIEWED_PUBLIC_WRITE_ROUTES = {
         "own gdw_auth credential registry (atelier:write); anonymous refusal tested in test_atelier_grok_cpu_lab.py",
     "/api/a11oy/chaski/onboard/step": "session-scoped onboarding step (in-memory, per session id)",
     "/api/a11oy/code/chat/stream": "anonymous: model-only, tools disabled, never persisted",
+    "/api/a11oy/v3/brain/chat/stream": "anonymous: model-only (Anthropic flagship router), tools never dispatched, never persisted (metadata-only in-memory ledger)",
     "/api/a11oy/v1/agent/cycle": "own credential registry (gdw_auth) + A11OY_OUROBOROS flag",
     "/api/a11oy/v1/agent/operate": "bounded model proposals over the brain; no tool dispatch",
     "/api/a11oy/v1/agent/react/memory/search": "read-only memory search",
