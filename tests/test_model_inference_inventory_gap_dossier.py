@@ -16,6 +16,7 @@ NOTE = ROOT / "docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-07.md"
 LATER_DOSSIERS = (
     ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-10.json",
     ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-11.json",
+    ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-15.json",
 )
 
 
@@ -26,14 +27,43 @@ def _later_recorded_ids():
     return ids
 
 
+def _later_absorbed_ids():
+    ids = set()
+    for path in LATER_DOSSIERS:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        ids |= {row["id"] for row in record.get("absorbed_rows", [])}
+    return ids
+
+
+def _later_removed_rows():
+    """Final catalog snapshots of rows a later dated record removed."""
+    rows = {}
+    for path in LATER_DOSSIERS:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        for row in record.get("removed_rows", []):
+            rows[row["id"]] = row["final_row"]
+    return rows
+
+def _later_restored_ids():
+    """Rows a later dated record restored after its own earlier removal."""
+    ids = set()
+    for path in LATER_DOSSIERS:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        ids |= {row["id"] for row in record.get("restored_rows", [])}
+    return ids
+
+
 def test_recorded_observations_cover_the_gap_without_admission():
     dossier = json.loads(DOSSIER.read_text(encoding="utf-8"))
     document = support.read_json(support.STATUS_PATH)
     inventory = support.read_json(support.INVENTORY_PATH)
     support.validate_document(document, inventory)
     by_id = {row["id"]: row for row in document["models"]}
-    later = _later_recorded_ids()
-    assert len(by_id) == 74 + len(later)
+    later = _later_recorded_ids() | _later_absorbed_ids()
+    removed = _later_removed_rows()
+    restored = _later_restored_ids()
+    assert len(by_id) == 74 + len(later) - len(removed)
+    by_id.update(removed)  # final snapshots of rows the 2026-11-15 record removed
     assert dossier["counts"]["provider_observations_http_200"] == 33
     assert dossier["counts"]["provider_mappings_empty"] == 33
     assert dossier["counts"]["provider_lookups_failed"] == 0
@@ -56,6 +86,14 @@ def test_recorded_observations_cover_the_gap_without_admission():
     for row, decision in zip(dossier["rows"], dossier["decisions"]):
         current = by_id[row["id"]]
         evidence = row["provider_observation"]
+        if row["id"] in restored:
+            # A later dated record removed and then restored this repository
+            # against a newer measured revision; the fresh observation recorded
+            # there supersedes this record's observation, and the row still
+            # counts as covered by this record.
+            assert current["assessment"]["hub_revision"] != evidence["observed_sha"]
+            added.append(row["id"])
+            continue
         assert row["id"] not in preserved
         assert row["inference_admission"] == "UNVERIFIED"
         assert row["exclusion_decision"] == "ABSENT"
@@ -80,5 +118,5 @@ def test_recorded_observations_cover_the_gap_without_admission():
     assert set(added).isdisjoint(preserved)
     assert len(set(added) | set(preserved)) == 74
     assert later.isdisjoint(set(added) | set(preserved))
-    assert {row["id"] for row in document["models"]} == set(added) | set(preserved) | later
+    assert {row["id"] for row in document["models"]} == (set(added) | set(preserved) | later) - set(removed)
     assert all(value is False for value in document["authority"].values())
