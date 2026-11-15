@@ -48,3 +48,4 @@ khipu/**/*.ndjson
 !spaces/immune/dist/**
 .release-controller-peer/
 hf-lyte-release-evidence/
+szl_energy_ledger.jsonl.writer.lock
