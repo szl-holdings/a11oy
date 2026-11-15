@@ -171,7 +171,7 @@ That is the SZL invariant `receipts.in ≡ receipts.out`, made concrete.
   author       = {{SZL Holdings}},
   year         = {2026},
   howpublished = {\url{https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/01-verify-a-receipt-end-to-end.md}},
-  note         = {Doctrine v11 LOCKED 749/14/163, kernel c7c0ba17. DOI 10.5281/zenodo.20434308}
+  note         = {Doctrine v11 LOCKED 749/14/163, kernel c7c0ba17. DOI 10.5281/zenodo.24239654}
 }
 ```
 
