@@ -8,7 +8,7 @@ State: VENDORED — deterministic local render
 (bundle_kind="vendored" in VENDOR.json).
 
 Upstream publication: https://github.com/szl-holdings/ouroboros-thesis
-Canonical concept DOI: 10.5281/zenodo.19944926 (always resolves to the
+Canonical concept DOI: 10.5281/zenodo.24239896 (always resolves to the
 latest published version of the Ouroboros thesis; see
 upstream CITATION.cff). v13 release DOI: 10.5281/zenodo.20195368.
 
