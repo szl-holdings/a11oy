@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-11-15T03:48:57Z",
+  "observedAt": "2026-11-15T06:12:34Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -15,16 +15,16 @@
   "canonicalRule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
   "publicApiEndpoints": [
     "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true",
-    "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true&cursor=eyIkb3IiOlt7InRyZW5kaW5nU2NvcmUiOjAsIl9pZCI6eyIkZ3QiOiI2YWY3YTQzNDdlMTcyMjY4MzU2MWQ5MjgifX0seyJ0cmVuZGluZ1Njb3JlIjp7IiRsdCI6MH19LHsidHJlbmRpbmdTY29yZSI6bnVsbH1dLCJzZWFyY2hTZXF1ZW5jZVRva2VuIjoiQ0xmeXhBSWFDU0VBQUFBQUFBQUFBQm9PV2d4cTk2UTBmaGNpYURWaDJTZ2lEbG9NYXZla05INFhJbWcxWWRrbyJ9",
+    "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true&cursor=eyIkb3IiOlt7InRyZW5kaW5nU2NvcmUiOjAsIl9pZCI6eyIkZ3QiOiI2YWY3OTBiZmMxODYwZjViYzI5NTQ5YzgifX0seyJ0cmVuZGluZ1Njb3JlIjp7IiRsdCI6MH19LHsidHJlbmRpbmdTY29yZSI6bnVsbH1dLCJzZWFyY2hTZXF1ZW5jZVRva2VuIjoiQ0pmd3hBSWFDU0VBQUFBQUFBQUFBQm9PV2d4cTk1Qy93WVlQVzhLVlNjZ2lEbG9NYXZlUXY4R0dEMXZDbFVuSSJ9",
     "https://huggingface.co/api/datasets?author=SZLHOLDINGS&limit=100&full=true",
     "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true",
     "https://huggingface.co/api/spaces/SZLHOLDINGS/README",
     "https://huggingface.co/api/kernels?author=SZLHOLDINGS&limit=100&full=true"
   ],
   "counts": {
-    "models": 121,
-    "datasets": 69,
-    "spaces": 22,
+    "models": 131,
+    "datasets": 71,
+    "spaces": 34,
     "kernels": 14
   },
   "guardrails": [
@@ -142,6 +142,32 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/KHIPU-R2-laptop-lora",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "ec55c4cbd36243371ecffaeb85e762f0ed2c7f3c",
+        "lastModified": "2026-11-15T05:55:39.000Z",
+        "cardSemanticSha256": "174c5bf5479accc5fe008b0931dde487635dc321fe7448c9d705e94c6de4475d",
+        "createdAt": "2026-10-25T05:35:57.000Z",
+        "tags": [
+          "safetensors",
+          "research-artifact",
+          "experimental",
+          "private-estate",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/KHIPU-R2-laptop-lora"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/KILLINCHU-EYE",
         "repoType": "model",
         "private": false,
@@ -177,17 +203,20 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "c4fa4f67fe48fd4d4e3d878f40bab2cc40b0ffa4",
-        "lastModified": "2026-11-14T20:51:39.000Z",
-        "cardSemanticSha256": "f1ae7ce3375ee90365412e668c635fa90c9417922cf365e23f35ab961cf5d7fb",
+        "sha": "97b0c95ebdc8214165461d47364f1fde65282049",
+        "lastModified": "2026-11-15T05:22:20.000Z",
+        "cardSemanticSha256": "8d362cc1298dc98b55a33915a2434a58156dc48bb25a8d5e066169ec3d6a156f",
         "createdAt": "2026-08-29T02:09:12.000Z",
         "tags": [
           "numpy",
           "governed-ai",
+          "khipu",
           "szl-holdings",
-          "doctrine-v11",
-          "nano",
-          "measured",
+          "embedding",
+          "silhouette",
+          "software",
+          "reference",
+          "test-fixture",
           "license:apache-2.0",
           "region:us"
         ],
@@ -205,17 +234,21 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "76a53013a87f0064fe71fe3124d8eb4176ee00f5",
-        "lastModified": "2026-11-14T20:53:08.000Z",
-        "cardSemanticSha256": "abb6f2c9fcbbb5a80e58214f2ffa3a2e885b3e2f9f2edb5011ac30acb5017bf6",
+        "sha": "042a2b17f286ff7d083120df433e257112cda4ce",
+        "lastModified": "2026-11-15T05:22:19.000Z",
+        "cardSemanticSha256": "5a2508cab397b3129e493c5a9c5051aa2b59017083914356953b9d1ff05c59b8",
         "createdAt": "2026-08-29T02:09:09.000Z",
         "tags": [
           "numpy",
           "governed-ai",
+          "khipu",
           "szl-holdings",
-          "doctrine-v11",
-          "nano",
-          "measured",
+          "moons",
+          "mlp",
+          "silhouette",
+          "software",
+          "reference",
+          "test-fixture",
           "license:apache-2.0",
           "region:us"
         ],
@@ -233,9 +266,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "b4fdffa51df86ae26a4967abc9bd89fd191526d2",
-        "lastModified": "2026-11-15T02:45:10.000Z",
-        "cardSemanticSha256": "8a9ab8c74504c16a516d0e6c3afd7626f4e22163879457ca2f19ca57565ed975",
+        "sha": "5b6cc0c99c830d0a7fdb114c4ca6e1e3b353599f",
+        "lastModified": "2026-11-15T05:22:18.000Z",
+        "cardSemanticSha256": "3f5d6d04ef08d19cb0beaa1cd5f05363a5e59b61c3bdcb4419d53c4dfb2c4bc0",
         "createdAt": "2026-08-29T01:17:06.000Z",
         "tags": [
           "numpy",
@@ -467,6 +500,32 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain-laptop-lora",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "d78c85e2ce1c91fa80d4c25b94c115a8cda31bbf",
+        "lastModified": "2026-11-15T05:55:41.000Z",
+        "cardSemanticSha256": "cd191e192d97dc60bb92494ffddb85a49ef246cb085325c2ccc9b9d41dc6f09f",
+        "createdAt": "2026-10-25T05:10:47.000Z",
+        "tags": [
+          "safetensors",
+          "research-artifact",
+          "experimental",
+          "private-estate",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-abstain-laptop-lora"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
         "repoType": "model",
         "private": false,
@@ -608,9 +667,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "3b716d328a9667cbe2b24d58505338141271e7ec",
-        "lastModified": "2026-11-15T02:44:49.000Z",
-        "cardSemanticSha256": "bee6fda980b6db124975981f5888fe540fdd68a1d0393602e3ba0ecefb2de7f8",
+        "sha": "eac5f8813bad6637df988dacc78b2215b7367037",
+        "lastModified": "2026-11-15T05:22:17.000Z",
+        "cardSemanticSha256": "0a7eab85c7cd5792767ea5c5a340c7fa5097d1ff7fbe02c16eeb2554c899c4e7",
         "createdAt": "2026-08-29T01:17:05.000Z",
         "tags": [
           "numpy",
@@ -696,6 +755,32 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/SZLHOLDINGS/WILLAY-estate-sft-v1"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/WILLAY-laptop-lora",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "85b7dffeca94837eb93b88fb6ebc294b6254cd43",
+        "lastModified": "2026-11-15T05:55:52.000Z",
+        "cardSemanticSha256": "d4328fc24a7560c2461d6f101eb7e5c262fcaa3adc907e3302b550178e9eb914",
+        "createdAt": "2026-10-25T05:08:00.000Z",
+        "tags": [
+          "safetensors",
+          "research-artifact",
+          "experimental",
+          "private-estate",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/WILLAY-laptop-lora"
         ],
         "unsafeFlags": []
       },
@@ -1911,6 +1996,41 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/forge-v3",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "0c80e886f7787a59a4ca01a4fc56d74b4711d98a",
+        "lastModified": "2026-11-15T05:55:37.000Z",
+        "cardSemanticSha256": "5de42cfa5b518f4f93b8613a424cbfd008263908145d428eca34bde49383e724",
+        "createdAt": "2026-10-25T20:45:59.000Z",
+        "tags": [
+          "transformers",
+          "safetensors",
+          "qwen3_5",
+          "image-text-to-text",
+          "szl-holdings",
+          "doctrine-v11",
+          "launch-contract-governed",
+          "research-candidate",
+          "text-generation",
+          "conversational",
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "license:apache-2.0",
+          "endpoints_compatible",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/forge-v3"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/freeenergy-r1-v2-trained",
         "repoType": "model",
         "private": false,
@@ -2484,15 +2604,21 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "347240c4a377a66c52314a1cbc81291997068606",
-        "lastModified": "2026-11-14T20:38:25.000Z",
-        "cardSemanticSha256": "e2a864aff107036b6f704330aec7fc17a1e696a1ae389257a8e1f24c0c6cbbda",
+        "sha": "013c43b217bb0cd0e0de4565aaa539d4b3a048c2",
+        "lastModified": "2026-11-15T03:53:24.000Z",
+        "cardSemanticSha256": "4be50fdddc2cc031b5b1be8c48d064a102b4bada29abf295c887cb46cd75a9df",
         "createdAt": "2026-09-08T11:06:20.000Z",
         "tags": [
-          "research-artifact",
-          "experimental",
-          "not-a-transformers-checkpoint",
+          "logistic-regression",
+          "operations",
+          "observability",
+          "synthetic-data",
+          "standard-library",
+          "tabular-classification",
+          "dataset:SZLHOLDINGS/oac-clinical-transport-observability-synthetic",
+          "arxiv:2308.07832",
           "license:apache-2.0",
+          "model-index",
           "region:us"
         ],
         "claimStatus": "inventory",
@@ -3083,17 +3209,18 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "a0af38864dec3427202551f13515fa4cc088efb4",
-        "lastModified": "2026-11-14T20:53:00.000Z",
-        "cardSemanticSha256": "637cc9e90a162b49112770762ffe490f10e229c8547ea2e28c645bd3a4505100",
+        "sha": "fc17098e7ec6857bd2d0ca6725132998c8d02f6b",
+        "lastModified": "2026-11-15T05:22:21.000Z",
+        "cardSemanticSha256": "2fb789498c351a7630c13a688d027ed5ad1c050ea0b699adb1adb030ee8bbcaf",
         "createdAt": "2026-08-29T01:17:03.000Z",
         "tags": [
           "numpy",
           "governed-ai",
+          "khipu",
           "szl-holdings",
-          "doctrine-v11",
-          "nano",
-          "measured",
+          "receipts",
+          "lambda-gate",
+          "arxiv:2412.05496",
           "license:apache-2.0",
           "region:us"
         ],
@@ -3291,6 +3418,120 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "51319f2213cb9dc1cc1a498967ccbd37117fe740",
+        "lastModified": "2026-11-15T05:55:42.000Z",
+        "cardSemanticSha256": "79100c5c26751b51df74530f8d5f8a49cfebf562b9f23470402e5357a9169658",
+        "createdAt": "2026-11-05T04:10:48.000Z",
+        "tags": [
+          "transformers",
+          "safetensors",
+          "qwen3_5",
+          "image-text-to-text",
+          "szl-holdings",
+          "receiptagent",
+          "dpo",
+          "preference",
+          "abstention",
+          "measured",
+          "text-generation",
+          "conversational",
+          "en",
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "license:apache-2.0",
+          "endpoints_compatible",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "119fb1c68ee5a83d0f09d5649e78d432ea4c7eab",
+        "lastModified": "2026-11-15T05:55:44.000Z",
+        "cardSemanticSha256": "eb5d085325dc545e9d08758ccdf4b1c47943dd64d76dbc1342322e45f4b4d0ff",
+        "createdAt": "2026-11-05T05:09:37.000Z",
+        "tags": [
+          "transformers",
+          "safetensors",
+          "qwen3_5",
+          "image-text-to-text",
+          "szl-holdings",
+          "receiptagent",
+          "dpo",
+          "abstention",
+          "eval-driven",
+          "measured",
+          "text-generation",
+          "conversational",
+          "en",
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+          "license:apache-2.0",
+          "endpoints_compatible",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "376a55e6120673d5404a3c7d48a5540a4d7b97b5",
+        "lastModified": "2026-11-15T05:55:45.000Z",
+        "cardSemanticSha256": "1ab9e72334bb8642fc10eea0b8519c6f43c2e120a44c26e4722ed00ad283f31e",
+        "createdAt": "2026-11-05T03:46:35.000Z",
+        "tags": [
+          "transformers",
+          "safetensors",
+          "qwen3_5",
+          "image-text-to-text",
+          "szl-holdings",
+          "receiptagent",
+          "sft",
+          "unsloth",
+          "lora",
+          "measured",
+          "text-generation",
+          "conversational",
+          "en",
+          "base_model:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+          "base_model:finetune:SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+          "license:apache-2.0",
+          "endpoints_compatible",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
         "repoType": "model",
         "private": false,
@@ -3351,6 +3592,34 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "fe55644363dd1e794a14fe5438903dd626726b4f",
+        "lastModified": "2026-11-15T05:55:46.000Z",
+        "cardSemanticSha256": "8b6d04ca7e1e22bc9a16379e009ba13666bab57508a6b97d7fa57b3a7ee76522",
+        "createdAt": "2026-09-14T03:30:00.000Z",
+        "tags": [
+          "safetensors",
+          "qwen3_5",
+          "research-artifact",
+          "experimental",
+          "szl-estate",
+          "not-measured",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora",
         "repoType": "model",
         "private": false,
@@ -3358,9 +3627,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "f68bb5cf1e51cbdbaf7a929ed140af81421138fa",
-        "lastModified": "2026-11-15T03:43:03.000Z",
-        "cardSemanticSha256": "10b7be2d81f89ca3264972ecbc05d6068847a6a00bdb37509fdbcefc90c7e1a7",
+        "sha": "a7674df15a53f8e4b1cd1bc008a0c9e37979fa5e",
+        "lastModified": "2026-11-15T05:55:48.000Z",
+        "cardSemanticSha256": "b55c69a75efa482d17667e6e434860c4e20db7ad6fb078c820c8145db75ad228",
         "createdAt": "2026-10-25T05:02:31.000Z",
         "tags": [
           "safetensors",
@@ -3528,9 +3797,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "033108dd8a6a0205995216d3849387fcc3ec36d1",
-        "lastModified": "2026-11-15T03:43:06.000Z",
-        "cardSemanticSha256": "6af478c4ae27c74f65a2d37100265d5d76e030c0de53bc04dbb7d18d9de2a3bd",
+        "sha": "004ead880954d5fff247615c530b1d092f56892a",
+        "lastModified": "2026-11-15T05:55:49.000Z",
+        "cardSemanticSha256": "70d9ab1662540567546ad6c7e3aea9c6a4f825078b25e2bb9e7823aeaf057ac4",
         "createdAt": "2026-10-25T05:04:00.000Z",
         "tags": [
           "safetensors",
@@ -3547,6 +3816,45 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "94391aef62614a5ec48eb2adeaf1ac4dd24bbfed",
+        "lastModified": "2026-11-15T05:55:50.000Z",
+        "cardSemanticSha256": "d5dcd8a5d7b472753617345ed19f9e13a3a9576f4996752cb64bf8b1085f02ae",
+        "createdAt": "2026-09-20T23:30:55.000Z",
+        "tags": [
+          "peft",
+          "safetensors",
+          "lora",
+          "triage",
+          "structured-output",
+          "refusal-preserving",
+          "unsloth",
+          "evaluation-harness",
+          "szl-holdings",
+          "doctrine-v11",
+          "proposal-only",
+          "not-promotable",
+          "text-generation",
+          "conversational",
+          "en",
+          "base_model:Qwen/Qwen3.5-0.8B",
+          "base_model:adapter:Qwen/Qwen3.5-0.8B",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora",
         "repoType": "model",
         "private": false,
@@ -3554,9 +3862,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "17592f5fff6ee1119986af297dc16b745ed2b4c5",
-        "lastModified": "2026-11-15T03:48:11.000Z",
-        "cardSemanticSha256": "6d584aa2310d50ccbc677509f6f539de654f69b3ee114637e1ec81d963ac6772",
+        "sha": "1dd37dccd5fa0d2fffd619a2da2642292ca0fc5d",
+        "lastModified": "2026-11-15T05:55:50.000Z",
+        "cardSemanticSha256": "83899b204bc052642ee1d8c6884322ee38df1a4094297203ba62391254179a4b",
         "createdAt": "2026-10-25T05:05:02.000Z",
         "tags": [
           "safetensors",
@@ -3569,6 +3877,32 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5-laptop-lora",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "31b32c70a3f52a63c9446b8fd885f8e1023c01ec",
+        "lastModified": "2026-11-15T05:55:51.000Z",
+        "cardSemanticSha256": "28e8964d7da636b3b5b8a82921a3a81fea786759d2945f99251e1f2670ace9b0",
+        "createdAt": "2026-10-25T05:06:06.000Z",
+        "tags": [
+          "safetensors",
+          "research-artifact",
+          "experimental",
+          "private-estate",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5-laptop-lora"
         ],
         "unsafeFlags": []
       },
@@ -3927,6 +4261,34 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/absrl-reward-squad2-v1",
+        "repoType": "dataset",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": null,
+        "sha": "e097f31f522d5b67f5d4f0d9e85f6e7dbcdf9d4a",
+        "lastModified": "2026-11-15T04:20:27.000Z",
+        "cardSemanticSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "createdAt": "2026-11-15T03:55:44.000Z",
+        "tags": [
+          "size_categories:1K<n<10K",
+          "format:json",
+          "modality:text",
+          "library:datasets",
+          "library:pandas",
+          "library:polars",
+          "library:mlcroissant",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/datasets/SZLHOLDINGS/absrl-reward-squad2-v1"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/abstention-curriculum-v2",
         "repoType": "dataset",
         "private": false,
@@ -4273,8 +4635,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "234bc456e3b81a9c3df210fed3de4201d8167d7a",
-        "lastModified": "2026-11-15T03:07:36.000Z",
+        "sha": "810b1b119810846ac092eb577e3be8e52381107b",
+        "lastModified": "2026-11-15T05:09:04.000Z",
         "cardSemanticSha256": "0808d7cd5eb34ce0d8ff8651262ecf6254fc7a4b5476449243795ffd5c78a9f0",
         "createdAt": "2026-07-09T15:33:28.000Z",
         "tags": [
@@ -4406,9 +4768,9 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "bf053f5ab09ebe9caf582904d9bc5f387999a943",
-        "lastModified": "2026-11-15T03:46:54.000Z",
-        "cardSemanticSha256": "004b0d488686a7bada24d7dc028fdcf4e8be6b307dd64dc39f612ca22a95aaaa",
+        "sha": "79ffb9fde01b24f0e10fd776cceda18a727bcb17",
+        "lastModified": "2026-11-15T06:11:24.000Z",
+        "cardSemanticSha256": "29c6ff0d5d596431f0719729ccdeaf2154fb33005be979f27f18e931faa50c97",
         "createdAt": "2026-11-09T01:14:35.000Z",
         "tags": [
           "license:apache-2.0",
@@ -4677,9 +5039,9 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "5d0b098826a68846c26b2a0bdb2ca5a80f809a64",
-        "lastModified": "2026-11-15T03:47:18.000Z",
-        "cardSemanticSha256": "f8541809a64d5d831d4e0f0a77c694e6dcd7ac3aaedb6ae6848438dd26845777",
+        "sha": "931e53e657d36df462c2ff501a326cb13d2f497e",
+        "lastModified": "2026-11-15T06:12:21.000Z",
+        "cardSemanticSha256": "2062f8a7461392e79949029144cffe0e7690821603c87c95e7a8db2146056ab5",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
           "license:other",
@@ -4746,6 +5108,14 @@
         "createdAt": "2026-11-15T02:32:45.000Z",
         "tags": [
           "license:apache-2.0",
+          "size_categories:n<1K",
+          "format:json",
+          "modality:tabular",
+          "modality:text",
+          "library:datasets",
+          "library:pandas",
+          "library:polars",
+          "library:mlcroissant",
           "region:us"
         ],
         "claimStatus": "inventory",
@@ -5227,14 +5597,15 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "3b9097fdb394ba928b76cac09f6dc406c56a3e07",
-        "lastModified": "2026-11-15T03:41:43.000Z",
+        "sha": "77ad89f831fcc6680a5249db9687989c3c4aeeec",
+        "lastModified": "2026-11-15T05:41:50.000Z",
         "cardSemanticSha256": "3ea206de79a9e6a80f089300b88206b778cb9400156259349087ba4de4b635c6",
         "createdAt": "2026-06-01T13:06:04.000Z",
         "tags": [
           "task_categories:other",
           "license:apache-2.0",
-          "size_categories:n<1K",
+          "size_categories:1K<n<10K",
+          "modality:text",
           "region:us",
           "szl-holdings",
           "readiness",
@@ -5873,6 +6244,28 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/szl-x402-seller-card",
+        "repoType": "dataset",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "mit",
+        "sha": "28ba53463f88e65cf23ab9516b4df2950c6a7f32",
+        "lastModified": "2026-11-15T04:29:05.000Z",
+        "cardSemanticSha256": "11df7b642eebfcccac908a78771aa0a0b34bdaba5f33eb0e51dd85514ca281b9",
+        "createdAt": "2026-11-15T03:50:33.000Z",
+        "tags": [
+          "license:mit",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/datasets/SZLHOLDINGS/szl-x402-seller-card"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/test-results",
         "repoType": "dataset",
         "private": false,
@@ -6226,13 +6619,14 @@
         "private": false,
         "gated": false,
         "disabled": false,
-        "sdk": null,
-        "license": null,
-        "sha": "71dcd6ec6c3156451e58e6cff86e9bb0e13620ee",
-        "lastModified": "2026-11-15T03:46:13.000Z",
-        "cardSemanticSha256": "0fc4107635300757167ce0910b0d6a22f5ed4d8e9819bea79bad1a35ff665a9d",
+        "sdk": "static",
+        "license": "apache-2.0",
+        "sha": "7ed9d2572780155daeca8a373dfbdb11f19fe8a9",
+        "lastModified": "2026-11-15T05:35:58.000Z",
+        "cardSemanticSha256": "eccc74e2340f5e1b2dfe7f9d65ccf00d93e0a4e63350974c43800736d4397ca9",
         "createdAt": "2026-05-30T08:16:05.000Z",
         "tags": [
+          "static",
           "region:us"
         ],
         "claimStatus": "inventory",
@@ -6249,8 +6643,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "0e8233f22cac8b1f65face0329eb7873b6b39675",
-        "lastModified": "2026-11-15T03:21:58.000Z",
+        "sha": "33f87723dad927bf9ded4783d3d5893c9b8a468f",
+        "lastModified": "2026-11-15T06:02:08.000Z",
         "cardSemanticSha256": "446a2e369133b7018871d438da5c64136279d735d67984962e79641381d900f5",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -6277,9 +6671,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "b939cabb7860292b9965208a7b728c0aba24ade5",
-        "lastModified": "2026-11-15T03:47:38.000Z",
-        "cardSemanticSha256": "27fd38abdb3fd019aefdfd88c2c897eecb1eef31cc2be875293efd7c6753983a",
+        "sha": "a5d86e5171fecd8229ec0acf18a2df259427edf8",
+        "lastModified": "2026-11-15T05:21:50.000Z",
+        "cardSemanticSha256": "222de7dc9304346e384a66b1de46ae1d0ae16a55bb5e8df0b8f32c09fdb875a9",
         "createdAt": "2026-09-04T00:12:25.000Z",
         "tags": [
           "docker",
@@ -6402,6 +6796,50 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/estate-gardener",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "842638f71187f40dcdc4035120d3e1aa674e6e9e",
+        "lastModified": "2026-11-14T18:46:40.000Z",
+        "cardSemanticSha256": "d9825fadce363022bd822e7760964ad2a9eea7fdbbb7a05135b837f8a5769168",
+        "createdAt": "2026-11-09T08:54:26.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/estate-gardener"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/eternal-auditor",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "1d819017eda7381dc2d7fb5a04c630f1b3bb5571",
+        "lastModified": "2026-11-14T18:46:41.000Z",
+        "cardSemanticSha256": "e257e795ebbd67e7faac3be99cdfe5fbdbd99d6a37c6fe471124cc2e39e69d3f",
+        "createdAt": "2026-11-09T08:54:23.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/eternal-auditor"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/finance",
         "repoType": "space",
         "private": false,
@@ -6478,9 +6916,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "f5d9739efb7ad14eed747be347ba9bcfbd3c0cee",
-        "lastModified": "2026-11-15T02:50:56.000Z",
-        "cardSemanticSha256": "4c093fb1f3faf3cadf1a361993d54bb527875a63c9d5a4fe009039d4e77d052c",
+        "sha": "428f2f3894c4f39a73036e0e25a92e9bdd8e36e2",
+        "lastModified": "2026-11-15T05:13:51.000Z",
+        "cardSemanticSha256": "30a55935f707a3a08321082775d800830dcb51bffb58f88338669a51accdd3a1",
         "createdAt": "2026-06-01T05:46:37.000Z",
         "tags": [
           "docker",
@@ -6534,9 +6972,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "2beaeb4475a7258360260ab2209fe0c0c25de3ea",
-        "lastModified": "2026-11-12T23:50:06.000Z",
-        "cardSemanticSha256": "d579b5a8ca15680383645211f2d3c460ff6382cf388bef025c44ad4c39d03d47",
+        "sha": "1a6202824e7453218f2bcab7d839bd564f490780",
+        "lastModified": "2026-11-15T04:42:35.000Z",
+        "cardSemanticSha256": "ad1b218237e296200efc527784c4358e342f92f287e928c702cd663386f78d84",
         "createdAt": "2026-09-02T21:47:54.000Z",
         "tags": [
           "docker",
@@ -6557,6 +6995,53 @@
         ]
       },
       {
+        "id": "SZLHOLDINGS/oac-system-health-lab",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "545cccfe65abbea05e9a12de0ff52ae5b08cec58",
+        "lastModified": "2026-11-15T04:30:00.000Z",
+        "cardSemanticSha256": "289030458716f9c11566e4f5f37aa4d7e06355994280d6ba1f6300311a19bcf6",
+        "createdAt": "2026-09-30T01:31:00.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/oac-system-health-lab"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/sentra",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "1bb386664ae109612a7281cdeadc477fe0754eab",
+        "lastModified": "2026-11-10T18:43:31.000Z",
+        "cardSemanticSha256": "71eeb249ca7c622db819c1dfa2e506da67b430d9885c2f9fdc874149b84612f7",
+        "createdAt": "2026-09-02T21:47:51.000Z",
+        "tags": [
+          "docker",
+          "szl-holdings",
+          "governed-ai",
+          "sentra",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/sentra"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/szl-bench-suite",
         "repoType": "space",
         "private": false,
@@ -6575,6 +7060,28 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/spaces/SZLHOLDINGS/szl-bench-suite"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-chief-engineer",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "c61bdf80121df3eacd37d14101436a2e1845ad12",
+        "lastModified": "2026-11-14T19:01:23.000Z",
+        "cardSemanticSha256": "72ab8d1bd1e6d3d83cc05cd5ca9d13fd8aaf0c692296455a5566f9753d70ad10",
+        "createdAt": "2026-11-09T18:07:57.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-chief-engineer"
         ],
         "unsafeFlags": []
       },
@@ -6605,6 +7112,72 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-cyber-shield",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "efeaf22927c12637ed1f7a8bf2acdb3ac0e3aeb4",
+        "lastModified": "2026-11-14T19:01:26.000Z",
+        "cardSemanticSha256": "b2302e51c0f60035e3b29688f91b4c220bed77f57bed791e8a8de04490080943",
+        "createdAt": "2026-11-09T18:09:34.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-cyber-shield"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-dream-architect",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "c7a5d91dc91f62dd34e339fec70cda8580680239",
+        "lastModified": "2026-11-14T19:10:45.000Z",
+        "cardSemanticSha256": "0b16f3ebd8b8117731cbcc8f75451a741736c11c362cdf756c166e58bbaf8306",
+        "createdAt": "2026-11-09T18:09:39.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-dream-architect"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-energy-ledger",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "static",
+        "license": "apache-2.0",
+        "sha": "070a71963f9f9ccfd55efaa823101c06b8b55f55",
+        "lastModified": "2026-11-15T05:31:24.000Z",
+        "cardSemanticSha256": "4149fca174ca0c47e278c8fc1547df289c3ea4e38a9446135ad147260223e488",
+        "createdAt": "2026-11-15T03:24:45.000Z",
+        "tags": [
+          "static",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-energy-ledger"
         ],
         "unsafeFlags": []
       },
@@ -6685,6 +7258,28 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/szl-infra-warden",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "73c2a8dfc4ca501ae60463134634eb3ee7146191",
+        "lastModified": "2026-11-14T18:46:51.000Z",
+        "cardSemanticSha256": "d8b2a52b62e7ca218bd942238845668cda8bca8c0622daca1e355b0ae7fd2c53",
+        "createdAt": "2026-11-09T18:08:18.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-infra-warden"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/szl-marketing",
         "repoType": "space",
         "private": false,
@@ -6707,6 +7302,32 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/spaces/SZLHOLDINGS/szl-marketing"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-marketing-1-1",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "gradio",
+        "license": "apache-2.0",
+        "sha": "94ad52dfffdef0ccea9bba49d6d86106b1e75424",
+        "lastModified": "2026-11-15T04:27:07.000Z",
+        "cardSemanticSha256": "9d23a7fd4e72fc7fe1fb7ef4b5812ac3f18ab1ea1b42b1f79a86045eafab80a8",
+        "createdAt": "2026-09-30T19:38:06.000Z",
+        "tags": [
+          "gradio",
+          "governed-ai",
+          "compliance",
+          "factbase",
+          "szl-holdings",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-marketing-1-1"
         ],
         "unsafeFlags": []
       },
@@ -6734,6 +7355,50 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-provenance-pitch",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "static",
+        "license": "apache-2.0",
+        "sha": "b525b355341350d7e6d081e4570a3fefde351399",
+        "lastModified": "2026-11-15T04:20:27.000Z",
+        "cardSemanticSha256": "158c2a45c45ad94a5ed3bced10cb976dbdd2992a704774ecb990b938ac5ecee2",
+        "createdAt": "2026-11-15T04:20:26.000Z",
+        "tags": [
+          "static",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-provenance-pitch"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/szl-research-council",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "docker",
+        "license": "apache-2.0",
+        "sha": "bd714e38d69604a4ff3d1db7f3baffdd5c21739b",
+        "lastModified": "2026-11-14T18:46:53.000Z",
+        "cardSemanticSha256": "078a203c3186c4ffa7554cef68175870c6e09137492c6a2854c71849393bbf0d",
+        "createdAt": "2026-11-09T18:09:37.000Z",
+        "tags": [
+          "docker",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/szl-research-council"
         ],
         "unsafeFlags": []
       },
@@ -6770,9 +7435,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "c242aecde2afe1b6fdb4222818144ee3c5a40366",
-        "lastModified": "2026-11-10T11:17:26.000Z",
-        "cardSemanticSha256": "64c440125565b9c642078874b9024f1f6034626df02c3978b13edafeb4cd0997",
+        "sha": "7a4ae79a75178239594480d0a10dbe9d07a6c017",
+        "lastModified": "2026-11-15T05:41:37.000Z",
+        "cardSemanticSha256": "e522d9e917d9829754f92ae3d109600c99f961c0e2ff34fc815946ae09e90e7f",
         "createdAt": "2026-09-03T22:26:50.000Z",
         "tags": [
           "docker",
