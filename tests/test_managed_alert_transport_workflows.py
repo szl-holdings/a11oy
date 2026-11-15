@@ -75,34 +75,72 @@ def test_every_managed_secret_consumer_uses_the_normalizer_in_its_own_step() -> 
     assert actual == EXPECTED
 
 
+WRANGLER_ACTION = "cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0"
+
+
+def _relay_workflow() -> str:
+    return (WORKFLOW_DIR / "alert-relay-worker.yml").read_text(encoding="utf-8")
+
+
+def _relay_deploy_job() -> str:
+    return _relay_workflow().split("\n  deploy:\n", 1)[1]
+
+
 def test_relay_workflow_deploys_and_requires_a_real_post_deploy_canary() -> None:
-    value = (WORKFLOW_DIR / "alert-relay-worker.yml").read_text(encoding="utf-8")
-    assert "wrangler@4.128.0" in value
+    value = _relay_workflow()
+    assert WRANGLER_ACTION in value
+    assert "wranglerVersion: '4.150.0'" in value
+    assert "npm ci --ignore-scripts" in value
+    assert "npx --yes" not in value
     assert "CLOUDFLARE_API_TOKEN" in value
     assert "ntfy.a11oy.net" in value
     assert "alert_channel_canary.py" in value
     assert "--send" in value
-    assert "Enforce real delivery health" in value
+    # The canary's own exit status fails the job; nothing masks it.
+    assert "continue-on-error" not in value
+    assert "set +e" not in value
+    assert "exit 0" not in value
 
 
-def test_relay_deployment_resolves_account_id_before_wrangler() -> None:
-    value = (WORKFLOW_DIR / "alert-relay-worker.yml").read_text(encoding="utf-8")
-    deploy = value.split("\n  deploy:\n", 1)[1]
+def test_relay_deploy_binds_the_exact_sha_and_reads_it_back_before_the_canary() -> None:
+    value = _relay_workflow()
+    deploy = _relay_deploy_job()
+    assert value.startswith("name: Alert relay worker\n")
+    assert "\npermissions:\n  contents: read\n" in value
     assert "if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" in deploy
-    assert "    environment: production\n" in deploy
-    assert deploy.index("environment: production") < deploy.index("CLOUDFLARE_API_TOKEN")
-    assert deploy.index("No Cloudflare API token is configured") < deploy.index(
-        "python scripts/resolve_cloudflare_relay_account.py"
-    )
-    assert deploy.index("python scripts/resolve_cloudflare_relay_account.py") < deploy.index(
-        "wrangler@4.128.0 deploy"
-    )
+    assert "    needs: test\n" in deploy
+    assert "    environment: cloudflare-production\n" in deploy
+    assert "cancel-in-progress: false" in deploy
+    assert "ref: ${{ github.sha }}" in deploy
+    assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in deploy
+    assert "apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}" in deploy
+    assert "accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" in deploy
+    assert "SOURCE_REVISION: ${{ github.sha }}" in deploy
+    assert "vars: |\n            SOURCE_REVISION\n" in deploy
+    # Account binding is explicit now; nothing reads zones (no Zone:Read scope).
+    assert "resolve_cloudflare_relay_account" not in value
+    assert "/zones" not in value
+    order = [
+        "Require Cloudflare deployment credentials",
+        WRANGLER_ACTION,
+        "python scripts/verify_worker_revision.py",
+        "--url https://ntfy.a11oy.net/.well-known/szl-worker-revision",
+        '--expect-revision "${GITHUB_SHA}"',
+        "python scripts/alert_channel_canary.py",
+        "Upload secret-free delivery evidence",
+    ]
+    positions = [deploy.index(marker) for marker in order]
+    assert positions == sorted(positions)
 
 
-def test_relay_account_resolver_changes_trigger_the_workflow() -> None:
-    value = (WORKFLOW_DIR / "alert-relay-worker.yml").read_text(encoding="utf-8")
+def test_relay_readback_and_bundle_changes_trigger_the_workflow() -> None:
+    value = _relay_workflow()
     pull_request = value.split("  pull_request:\n", 1)[1].split("  push:\n", 1)[0]
     push = value.split("  push:\n", 1)[1].split("  workflow_dispatch:\n", 1)[0]
     for trigger in (pull_request, push):
-        assert "'scripts/resolve_cloudflare_relay_account.py'" in trigger
-        assert "'tests/test_resolve_cloudflare_relay_account.py'" in trigger
+        assert "'scripts/verify_worker_revision.py'" in trigger
+        assert "'tests/test_verify_worker_revision.py'" in trigger
+        assert "'ops/alert-relay-worker/**'" in trigger
+    test_job = value.split("\n  test:\n", 1)[1].split("\n  deploy:\n", 1)[0]
+    assert "tests/test_verify_worker_revision.py" in test_job
+    assert "npm run build" in test_job
