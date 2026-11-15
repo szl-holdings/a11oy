@@ -41,7 +41,7 @@ evaluation trajectories.
 - **GitHub:** [`szl-holdings/szl-lake`](https://github.com/szl-holdings/szl-lake)
 - **Hugging Face:** [`SZLHOLDINGS/szl-lake`](https://huggingface.co/datasets/SZLHOLDINGS/szl-lake)
 - **Layout (7 dirs):** `attestations/` · `doctrine/` · `keys/` · `khipu/` · `papers/` · `sboms/` · `trajectories/`
-- **Lean companion DOI:** [10.5281/zenodo.20424992](https://doi.org/10.5281/zenodo.20424992)
+- **Lean formalization DOI (lutar-lean):** [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)
 
 ## Zenodo DOIs
 
@@ -51,8 +51,9 @@ The Ouroboros Thesis and supporting artifacts are deposited with persistent DOIs
 |-----|------|
 | [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) | **Ouroboros Thesis v18.0** (versioned) — cited by every flagship |
 | [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) | **Concept DOI** (always-latest) |
-| [10.5281/zenodo.20424992](https://doi.org/10.5281/zenodo.20424992) | Lean companion |
-| [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308) · [20431181](https://doi.org/10.5281/zenodo.20431181) | Supporting artifacts |
+| [10.5281/zenodo.20424992](https://doi.org/10.5281/zenodo.20424992) | **Ouroboros Thesis v14** (versioned) |
+| [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308) | **lutar-lean v18.0.0** — Lean formalization (canonical) |
+| [10.5281/zenodo.20431181](https://doi.org/10.5281/zenodo.20431181) | **Ouroboros Thesis v17** (versioned) |
 
 A complete, versioned list is maintained in the thesis repository's `CITATION.cff`. The
 [Evidence page](/evidence/) carries the full DOI register and commit anchors.

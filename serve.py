@@ -7698,7 +7698,7 @@ async def _v1_acoustic_index():
     return JSONResponse({
         "schema": "szl.acoustic.index/v1",
         "product": "acoustic-validation",
-        "label": "MEASURED",
+        "label": "DERIVED",
         "endpoints": {
             "burgers": "/v1/acoustic/burgers",
             "duffing": "/v1/acoustic/duffing",
@@ -7709,8 +7709,10 @@ async def _v1_acoustic_index():
         "source_repository": "szl-holdings/acoustic-validation",
         "peer_reviewed_foundations": "Liu et al., Nature Communications 16:2823 (2025)",
         "doctrine": "v11",
-        "note": "Each endpoint runs a real falsifiable check and returns measured values "
-                "with verbatim PROOF-STATUS labels; no result is fabricated.",
+        "note": "GET /v1/acoustic/burgers and GET /v1/acoustic/duffing each run a local "
+                "numerical check and are labeled MEASURED. GET /v1/acoustic/ns-pathway "
+                "returns declared operating values with the labels on those values; "
+                "that response is not a measurement. No result is fabricated.",
     })
 
 
@@ -7823,7 +7825,7 @@ async def _v1_acoustic_ns_pathway():
     rankine = {"rho_ratio": 1.0 / 6.0, "label": "HYPOTHESIS_UNVERIFIED"}
     return JSONResponse({
         "schema": "szl.acoustic.ns-pathway/v1",
-        "label": "MEASURED",
+        "label": "MODELED",
         "pathway": ["murnaghan_stress_kick", "poisson_transverse_seed",
                     "exceptional_point_gain", "chern_oam_protection",
                     "rankine_hugoniot_bound"],
