@@ -123,7 +123,7 @@ sequenceDiagram
 | Hugging Face payload is source-generated | `release-payload` | `scripts/prepare_huggingface_payload.py` |
 | Operational tarball has checksum sidecar | `release-payload` | `scripts/build_operational_payload.py` |
 | Thesis v18.0 is the current claim anchor | `thesis-anchor` | DOI `10.5281/zenodo.20434276` |
-| Lean proofs exist as a public substrate | `lean-backed-needs-current-ci` | `szl-holdings/lutar-lean`, DOI `10.5281/zenodo.20434308` |
+| Lean proofs exist as a public substrate | `lean-backed-needs-current-ci` | `szl-holdings/lutar-lean`, DOI `10.5281/zenodo.24239654` |
 | A11oy live runtime gate count | `verified-runtime` | Seven files under `packages/policy/src/gates`; ten entries in `docs/theorem-runtime-manifest.json` |
 | Vessels signed-asset posture | `release-payload` / guarded | `vessels` `uds-v0.3.0` has zero assets; `uds-v0.2.0` has tarball, `.sig`, `.sha256`, and public key |
 
