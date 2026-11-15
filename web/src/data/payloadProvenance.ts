@@ -42,7 +42,7 @@ export interface DoiEntry {
 
 // 13 DOIs parsed from dev2_runtime/runtime_payload.json::doi_ledger
 export const DOI_LEDGER: DoiEntry[] = [
-  { doi: '10.5281/zenodo.19944926', title: 'Ouroboros Thesis — concept record', kind: 'concept', year: 2026, url: 'https://doi.org/10.5281/zenodo.19944926' },
+  { doi: '10.5281/zenodo.24239896', title: 'Ouroboros Thesis — concept record', kind: 'concept', year: 2026, url: 'https://doi.org/10.5281/zenodo.24239896' },
   { doi: '10.5281/zenodo.19867281', title: 'The Loop Is the Product (v1)', kind: 'version', year: 2026, url: 'https://doi.org/10.5281/zenodo.19867281' },
   { doi: '10.5281/zenodo.19934129', title: 'The Loop Is the Product (v2)', kind: 'version', year: 2026, url: 'https://doi.org/10.5281/zenodo.19934129' },
   { doi: '10.5281/zenodo.19983066', title: 'The Lutar Invariant (v3)', kind: 'version', year: 2026, url: 'https://doi.org/10.5281/zenodo.19983066' },
