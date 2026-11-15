@@ -209,7 +209,7 @@ test("governed inference emits proposal-only receipt without raw prompt persiste
   );
   assert.equal(body.output.includes("private chain"), false);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].model, "@cf/zai-org/glm-4.7-flash");
+  assert.equal(calls[0].model, "@cf/deepseek-ai/deepseek-v4.1-flash-1017");
   assert.equal("tools" in calls[0].input, false);
   assert.equal(calls[0].input.store, false);
 });
@@ -238,8 +238,8 @@ test("frontier model falls back without changing proposal-only boundary", async 
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.deepEqual(models, [
-    "@cf/google/gemma-4-26b-a4b-it",
-    "@cf/zai-org/glm-4.7-flash",
+    "@cf/zai-org/glm-5.3",
+    "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
   ]);
   assert.equal(body.model.fallback_count, 1);
   assert.equal(body.authority_state, "NO_ACTION_AUTHORITY");

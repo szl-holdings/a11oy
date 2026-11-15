@@ -42,8 +42,8 @@ PROBE_PROMPT = (
     "Do not execute any action. Cite the doctrine evidence handle."
 )
 MODEL_CANDIDATES = {
-    "@cf/zai-org/glm-4.7-flash",
-    "@cf/google/gemma-4-26b-a4b-it",
+    "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
+    "@cf/zai-org/glm-5.3",
 }
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
