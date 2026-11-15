@@ -39,7 +39,7 @@ Type-3 bitmap fonts, no nonstandard font packages (arXiv-safe).
 1. **Mint / sign in to the arXiv account** under your name and obtain endorsement for `cs.LO` if needed
    (On-Behalf-of-Submitter / OBS is a founder action).
 2. **Mint the v22 version DOI** on Zenodo via the `paper-v22-1.0.0` release. Then add
-   `\doi{}` or note it in the arXiv comments. Concept DOI `10.5281/zenodo.19944926` already resolves.
+   `\doi{}` or note it in the arXiv comments. Concept DOI `10.5281/zenodo.24239896` already resolves.
 3. **Pin the Walrus reference**: replace the `walrus2025` placeholder in `references.bib` with a
    resolvable arXiv ID/DOI for the Polymathic AI Walrus physical foundation model before final submit
    (it is cited only as a modeling analogy, so this is non-blocking for a v1 preprint but recommended).
