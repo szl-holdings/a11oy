@@ -372,7 +372,7 @@ def spans_recent(ns: str = "a11oy") -> Dict[str, Any]:
                 for r in _KHIPU.get_dag(org, ns).tail(12):
                     spans.append({"name": r.get("action", "op"), "organ": org,
                                   "seq": r.get("seq"), "ts": r.get("ts"),
-                                  "digest": (r.get("digest") or "")[:12], "ok": r.get("chain_verified", True)})
+                                  "digest": (r.get("digest") or "")[:12], "ok": r.get("chain_verified", False)})
         except Exception:
             pass
     return {"ok": True, "anatomy": "nervous", "organ_name": "OTel + vsp",
