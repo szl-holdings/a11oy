@@ -116,6 +116,14 @@ def bootstrap(audit, submitted, prior, inventory_raw):
     return support.validate_document(document, support.decode_json(inventory_raw))
 
 
+def _observe_one(model_id, fetcher):
+    """A dependency failure is an unavailable observation, not an admission or a crash."""
+    try:
+        return fetcher(model_id)
+    except Exception:
+        return support.unavailable_observation(model_id, support.utc_now(), "INVALID_RESPONSE")
+
+
 def refresh(document, inventory_raw, fetcher=fetch_observation):
     """Keep source assessments/requests intact; failed reads replace availability with unknown."""
     inventory = support.decode_json(inventory_raw)
@@ -123,7 +131,7 @@ def refresh(document, inventory_raw, fetcher=fetch_observation):
     output = copy.deepcopy(document)
     ids = [row["id"] for row in output["models"]]
     with ThreadPoolExecutor(max_workers=4) as pool:
-        observations = list(pool.map(fetcher, ids))
+        observations = list(pool.map(lambda model_id: _observe_one(model_id, fetcher), ids))
     for row, observation in zip(output["models"], observations):
         row["inference"] = observation
     output["generated_at"] = support.utc_now()
