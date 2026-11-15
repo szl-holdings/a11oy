@@ -12,9 +12,6 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, edited]
-  schedule:
-    - cron: '23 6 * * 1'
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,14 +27,14 @@ concurrency:
 
 jobs:
   # actions/cache-poisoning/poisonable-step (#1183, #1184) evidence: the
-  # poisonable-step query does not honor step-level event guards (the
-  # identical step-split on killinchu #480 left its alerts open on the
-  # 2026-11-06 analysis of post-fix main), while job-level guards are
-  # honored. The untrusted peer-ref path therefore lives in this
-  # pull_request-only job, and every default-branch trigger (push, schedule,
-  # workflow_dispatch) runs the separate literal-ref job below. The resolver
-  # itself returns the literal "main" for every non-pull_request event, so
-  # behavior is identical on every trigger.
+  # poisonable-step query does not honor step-level event guards (killinchu
+  # #480 step-split left both alerts open) and the first post-#3452 analysis
+  # proved it also ignores the positive job-level guard: alert #1183 survived
+  # the job split on the (schedule) and (workflow_dispatch) paths. Only
+  # trigger removal closes those paths (measured: atelier #1308/#1309 fixed
+  # after workflow_dispatch removal), so the schedule and workflow_dispatch
+  # triggers are removed here. The push trigger still covers the default
+  # branch via the literal-ref job below; pull_request coverage is unchanged.
   shared-drift:
     name: Shared source files in sync with killinchu
     if: github.event_name == 'pull_request'
