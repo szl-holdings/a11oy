@@ -38,7 +38,7 @@ engineering agent) under founder authority, with the Lean corpus maintained in
   year   = {2026},
   doi    = {10.5281/zenodo.20434276},
   url    = {https://github.com/szl-holdings},
-  note   = {Concept DOI 10.5281/zenodo.19944926; ORCID 0009-0001-0110-4173}
+  note   = {Concept DOI 10.5281/zenodo.24239896; ORCID 0009-0001-0110-4173}
 }
 ```
 
