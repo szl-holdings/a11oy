@@ -1,0 +1,20 @@
+{
+  "name": "@szl/email-sender-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "szl-email-sender Cloudflare Worker: authenticated server-to-server plain-text mail from the verified a-11-oy.com sender.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "test:workerd": "node --test test/workerd/send-email.workerd.mjs",
+    "check": "npm test && npm run build && npm run test:workerd"
+  },
+  "devDependencies": {
+    "wrangler": "4.150.0"
+  }
+}

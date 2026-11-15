@@ -23,7 +23,7 @@
 # the builder or the published runtime. The exact release asset is
 # pinned by SHA-256 and verified for size plus glibc linkage.
 ARG A11OY_REQUIRE_LOCAL_LLM=1
-FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS llama-build-1
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS llama-build-1
 ARG LLAMA_CPP_WHEEL=llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
 COPY scripts/fetch_owned_khipu_wheel.py /tmp/fetch_owned_khipu_wheel.py
 RUN python3 /tmp/fetch_owned_khipu_wheel.py && rm /tmp/fetch_owned_khipu_wheel.py
@@ -43,14 +43,14 @@ print("[a11oy] verified official llama-cpp-python CPU wheel", path)
 WHEELCHK
 
 # Explicit opt-out remains available for diagnostic image builds.
-FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS llama-build-0
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS llama-build-0
 RUN mkdir -p /wheels
 
 FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM:-1} AS llama-build
 
 # ---------------------------------------------------------------------------
 # RUNTIME IMAGE (the published a11oy Space / GHCR image).
-FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS runtime
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS runtime
 
 # Build identity is supplied by the canonical container workflow. The runtime
 # contract validates REVISION as a full SHA before exposing it; an absent or
