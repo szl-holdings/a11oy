@@ -135,7 +135,7 @@ as a GitHub Actions artifact.
 - **Operational hub:** `a11oy`
 - **Runtime monorepo:** `platform`
 - **Thesis anchor:** Ouroboros Thesis v18.0, DOI `10.5281/zenodo.20434276`
-- **Proof substrate:** `lutar-lean`, DOI `10.5281/zenodo.20434308`
+- **Proof substrate:** `lutar-lean`, DOI `10.5281/zenodo.24239654`
 - **Org coverage:** 19 visible public `szl-holdings` repos in
   `source/docs/ecosystem-registry.json`, with demo readiness in
   `source/docs/ecosystem-readiness-report.json`
