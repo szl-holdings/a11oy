@@ -174,6 +174,14 @@ PURIQ gate bound to the header principal, so an anonymous turn cannot mint an `a
 decision receipt. `POST /api/a11oy/code/v1/keys` answers `403` without the operator Bearer.
 `szl_ken` `/mcp/call` two-person tools read the same headers, never the body.
 
+**Public API keys (`/api/a11oy/code/v1/chat/completions`):** an issued key is returned once
+and stored only as `HMAC-SHA256(salt, key)` with a per-key random salt (`api_key_digests`);
+verification is a constant-time digest compare. The Space's HF inference token is never a
+client key. Each key's `rpm` is enforced per fixed 60 s window in `api_key_usage` (`429` with
+`Retry-After`, nothing sent upstream); if the counter store fails, the route answers `503`.
+Keys from the old plaintext `api_keys` table move to digests at `init_db()` and keep working;
+if that move fails it is retried at the next start, and those keys are refused until then.
+
 **What `two_person_attested` means:** two distinct secrets arrived in one request. It is a
 two-person control only if custody of the two keys is actually split between two people; it
 is not cryptographic co-signing. Request bodies can never assert it. With a secret unset, the

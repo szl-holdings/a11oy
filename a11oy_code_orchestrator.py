@@ -2590,8 +2590,13 @@ def init_db() -> None:
               yuyay13 REAL, khipu_hash TEXT, created REAL);
             CREATE TABLE IF NOT EXISTS profiles(
               user_id TEXT PRIMARY KEY, prefs TEXT, projects TEXT, doctrine_state TEXT, updated REAL);
-            CREATE TABLE IF NOT EXISTS api_keys(
-              key TEXT PRIMARY KEY, owner TEXT, created REAL, rpm INTEGER, active INTEGER);
+            CREATE TABLE IF NOT EXISTS api_key_digests(
+              key_id TEXT PRIMARY KEY, scheme TEXT NOT NULL, salt TEXT NOT NULL,
+              digest TEXT NOT NULL, owner TEXT, created REAL, rpm INTEGER NOT NULL,
+              active INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS api_key_usage(
+              key_id TEXT NOT NULL, window_start INTEGER NOT NULL, count INTEGER NOT NULL,
+              PRIMARY KEY(key_id, window_start));
             CREATE TABLE IF NOT EXISTS receipts(
               hash TEXT PRIMARY KEY, receipt_id TEXT, action TEXT, ts REAL, body TEXT);
             CREATE UNIQUE INDEX IF NOT EXISTS receipts_receipt_id_idx
@@ -2611,6 +2616,13 @@ def init_db() -> None:
         )
         _rehydrate_khipu_tip(c)
         c.commit()
+        try:
+            _migrate_plaintext_api_keys(c)
+        except sqlite3.Error as exc:
+            # Fail closed for legacy keys only: lookups read digests, so an
+            # unmigrated key is refused; the next init_db() retries the move.
+            print(f"[a11oy.code] plaintext API-key migration deferred ({exc!r}); "
+                  "legacy keys are refused until it completes", file=sys.stderr)
 
 
 def _decode_db_receipt(row: sqlite3.Row | None) -> dict[str, Any] | None:
@@ -3499,30 +3511,194 @@ async def v1_router(request: Request) -> JSONResponse:
     return JSONResponse({"error": "unreachable"}, status_code=500)
 
 
-def _check_api_key(authorization: Optional[str]) -> Optional[str]:
-    """Validate a public API key for /v1/chat/completions. Returns owner or None."""
+# ---------------------------------------------------------------------------
+# Public API keys for /v1/chat/completions.
+#
+# At rest the server keeps HMAC-SHA256(salt, key) with a fresh 16-byte random
+# salt per key, never the key itself; the key is shown once, at issue. A new key
+# is "a11oy-<key_id>.<secret>": key_id is a public handle, so verification is one
+# indexed lookup plus a constant-time digest compare. Each key carries at least
+# 192 random bits, so one keyed hash suffices; a slow KDF would add latency per
+# request without making a guess feasible.
+#
+# Migration: keys issued before this scheme ("a11oy-<secret>") sat in plaintext
+# in the legacy `api_keys` table. init_db() re-stores each as a salted digest
+# under a random "v0-" key id and deletes the plaintext with secure_delete on, so
+# existing holders keep working while the server stops holding their keys. A
+# legacy-format key carries no key id, so it is compared against every migrated
+# digest without early exit; that set is frozen at migration and only shrinks.
+#
+# The Space's HF inference token is an upstream credential, never a client key.
+# ---------------------------------------------------------------------------
+
+API_KEY_PREFIX = "a11oy-"
+API_KEY_SCHEME_V1 = "hmac-sha256/v1"
+API_KEY_SCHEME_V0 = "hmac-sha256/v0-migrated"
+API_KEY_DEFAULT_RPM = 60
+API_KEY_MAX_RPM = 100_000
+API_KEY_WINDOW_S = 60
+API_KEY_USAGE_RETENTION_S = 24 * 3600
+_API_KEY_ID_RE = re.compile(r"[0-9a-f]{16}")
+_API_KEY_DUMMY_SALT = "00" * 16
+_API_KEY_DUMMY_DIGEST = "00" * 32
+
+
+def _api_key_digest(salt_hex: str, key: str) -> str:
+    return hmac.new(bytes.fromhex(salt_hex), key.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _new_api_key() -> tuple[str, str]:
+    """Return (key_id, key) for a freshly minted key."""
+    key_id = secrets.token_hex(8)
+    return key_id, f"{API_KEY_PREFIX}{key_id}.{secrets.token_urlsafe(32)}"
+
+
+def _store_api_key(c: sqlite3.Connection, *, key_id: str, scheme: str, key: str,
+                   owner: Any, created: Any, rpm: int, active: int) -> None:
+    salt = secrets.token_hex(16)
+    c.execute(
+        "INSERT INTO api_key_digests(key_id,scheme,salt,digest,owner,created,rpm,active)"
+        " VALUES(?,?,?,?,?,?,?,?)",
+        (key_id, scheme, salt, _api_key_digest(salt, key), owner, created, rpm, active))
+
+
+def _coerce_stored_rpm(value: Any) -> int:
+    """rpm for a migrated row: the legacy table stored whatever the caller sent."""
+    if isinstance(value, bool):
+        return API_KEY_DEFAULT_RPM
+    try:
+        rpm = int(value)
+    except (TypeError, ValueError):
+        return API_KEY_DEFAULT_RPM
+    return rpm if 1 <= rpm <= API_KEY_MAX_RPM else API_KEY_DEFAULT_RPM
+
+
+def _migrate_plaintext_api_keys(c: sqlite3.Connection) -> int:
+    """Move legacy plaintext keys to salted digests; returns how many moved."""
+    legacy = c.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='api_keys'").fetchone()
+    if legacy is None:
+        return 0
+    c.execute("PRAGMA secure_delete=ON")
+    c.execute("BEGIN IMMEDIATE")
+    try:
+        rows = c.execute("SELECT key,owner,created,rpm,active FROM api_keys").fetchall()
+        moved = 0
+        for row in rows:
+            key = row["key"]
+            if not isinstance(key, str) or not key:
+                continue
+            _store_api_key(c, key_id="v0-" + secrets.token_hex(8), scheme=API_KEY_SCHEME_V0,
+                           key=key, owner=row["owner"], created=row["created"],
+                           rpm=_coerce_stored_rpm(row["rpm"]), active=1 if row["active"] else 0)
+            moved += 1
+        c.execute("DELETE FROM api_keys")
+        c.execute("DROP TABLE api_keys")
+        c.commit()
+    except Exception:
+        c.rollback()
+        raise
+    if moved:
+        khipu_emit("apikey.migrate", {"migrated": moved, "scheme": API_KEY_SCHEME_V0,
+                                      "plaintext_retained": False})
+    return moved
+
+
+def _lookup_api_key(key: str) -> Optional[dict[str, Any]]:
+    """Return {key_id, owner, rpm} for an active key matching ``key``, else None."""
+    if not key.startswith(API_KEY_PREFIX):
+        return None
+    body = key[len(API_KEY_PREFIX):]
+    key_id, sep, _secret = body.partition(".")
+    with closing(_db()) as c:
+        if sep:
+            if not _API_KEY_ID_RE.fullmatch(key_id):
+                return None
+            row = c.execute(
+                "SELECT key_id,salt,digest,owner,rpm,active FROM api_key_digests"
+                " WHERE key_id=? AND scheme=?", (key_id, API_KEY_SCHEME_V1)).fetchone()
+            salt = row["salt"] if row else _API_KEY_DUMMY_SALT
+            expected = row["digest"] if row else _API_KEY_DUMMY_DIGEST
+            ok = hmac.compare_digest(_api_key_digest(salt, key), expected)
+            match = row if (row is not None and ok) else None
+        else:
+            rows = c.execute(
+                "SELECT key_id,salt,digest,owner,rpm,active FROM api_key_digests"
+                " WHERE scheme=?", (API_KEY_SCHEME_V0,)).fetchall()
+            match = None
+            for row in rows:
+                if hmac.compare_digest(_api_key_digest(row["salt"], key), row["digest"]) \
+                        and match is None:
+                    match = row
+    if match is None or not match["active"]:
+        return None
+    return {"key_id": match["key_id"], "owner": match["owner"],
+            "rpm": _coerce_stored_rpm(match["rpm"])}
+
+
+def _check_api_key(authorization: Optional[str]) -> Optional[dict[str, Any]]:
+    """Validate a public API key for /v1/chat/completions; None when invalid."""
     if not authorization or not authorization.lower().startswith("bearer "):
         return None
     key = authorization.split(" ", 1)[1].strip()
-    _tok = _resolve_hf_token()
-    if _tok and hmac.compare_digest(key.encode("utf-8"), _tok.encode("utf-8")):
-        return "internal"
+    if not key:
+        return None
+    return _lookup_api_key(key)
+
+
+def _admit_api_key_request(key_id: str, rpm: int,
+                           now: Optional[float] = None) -> tuple[bool, int]:
+    """Count one request against the key's fixed 60 s window.
+
+    Returns (admitted, retry_after_s). A refused request is not counted. The
+    count lives in the same SQLite file as the keys, so it holds across
+    restarts and across processes that share the database.
+    """
+    now = time.time() if now is None else float(now)
+    window = int(now // API_KEY_WINDOW_S) * API_KEY_WINDOW_S
+    retry_after = max(1, int(math.ceil(window + API_KEY_WINDOW_S - now)))
     with closing(_db()) as c:
-        row = c.execute("SELECT owner,active FROM api_keys WHERE key=?", (key,)).fetchone()
-    if row and row["active"]:
-        return row["owner"]
-    return None
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            row = c.execute("SELECT count FROM api_key_usage WHERE key_id=? AND window_start=?",
+                            (key_id, window)).fetchone()
+            if row is not None and int(row["count"]) >= rpm:
+                c.rollback()
+                return False, retry_after
+            c.execute(
+                "INSERT INTO api_key_usage(key_id,window_start,count) VALUES(?,?,1)"
+                " ON CONFLICT(key_id,window_start) DO UPDATE SET count=count+1",
+                (key_id, window))
+            c.execute("DELETE FROM api_key_usage WHERE key_id=? AND window_start<?",
+                      (key_id, window - API_KEY_USAGE_RETENTION_S))
+            c.commit()
+        except Exception:
+            c.rollback()
+            raise
+    return True, 0
 
 
 @router.post("/v1/chat/completions")
 async def v1_chat_completions(request: Request, authorization: Optional[str] = Header(None)):
     """OpenAI-compatible public endpoint. SSE for stream=true; JSON otherwise.
 
-    External SDKs (openai-python/js) can point base_url here. Rate-limited per key.
+    External SDKs (openai-python/js) can point base_url here. Each key is limited
+    to its issued rpm per fixed 60 s window; past it the route answers 429 with
+    Retry-After and nothing is sent upstream.
     """
-    owner = _check_api_key(authorization)
-    if owner is None:
+    principal = _check_api_key(authorization)
+    if principal is None:
         raise HTTPException(status_code=401, detail="Invalid or missing API key. Issue one via /v1/keys (admin).")
+    try:
+        admitted, retry_after = _admit_api_key_request(principal["key_id"], principal["rpm"])
+    except sqlite3.Error:
+        raise HTTPException(status_code=503, detail=(
+            "API key rate limiter unavailable; the request was not served."))
+    if not admitted:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded: {principal['rpm']} requests per minute for this key.",
+            headers={"Retry-After": str(retry_after)})
     body, _err = await _safe_body(request)
     if _err is not None:
         return _err
@@ -3929,14 +4105,25 @@ async def issue_key(request: Request, authorization: Optional[str] = Header(None
     b, _err = await _safe_body(request)
     if _err is not None:
         return _err
-    key = "a11oy-" + secrets.token_urlsafe(24)
+    owner = b.get("owner", "external")
+    if not isinstance(owner, str) or not owner.strip() or len(owner) > 200:
+        return JSONResponse({"error": "owner must be a non-empty string of at most 200 characters"},
+                            status_code=400)
+    rpm = b.get("rpm", API_KEY_DEFAULT_RPM)
+    if isinstance(rpm, bool) or not isinstance(rpm, int) or not 1 <= rpm <= API_KEY_MAX_RPM:
+        return JSONResponse({"error": f"rpm must be an integer from 1 to {API_KEY_MAX_RPM}"},
+                            status_code=400)
+    key_id, key = _new_api_key()
     with closing(_db()) as c:
-        c.execute("INSERT INTO api_keys(key,owner,created,rpm,active) VALUES(?,?,?,?,1)",
-                  (key, b.get("owner", "external"), time.time(), b.get("rpm", 60)))
+        _store_api_key(c, key_id=key_id, scheme=API_KEY_SCHEME_V1, key=key, owner=owner,
+                       created=time.time(), rpm=rpm, active=1)
         c.commit()
-    khipu_emit("apikey.issue", {"owner": b.get("owner", "external")})
-    return JSONResponse({"api_key": key, "owner": b.get("owner", "external"),
-                         "base_url": "/api/a11oy/code/v1", "rpm": b.get("rpm", 60)})
+    khipu_emit("apikey.issue", {"owner": owner, "key_id": key_id, "rpm": rpm,
+                                "storage": API_KEY_SCHEME_V1})
+    # The key is returned once; only its salted digest is stored.
+    return JSONResponse({"api_key": key, "key_id": key_id, "owner": owner,
+                         "base_url": "/api/a11oy/code/v1", "rpm": rpm},
+                        headers={"Cache-Control": "no-store"})
 
 
 # ---- Voice: STT via Whisper on HF Inference (free tier when available) ----
