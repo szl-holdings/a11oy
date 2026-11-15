@@ -74,7 +74,7 @@ def feynmanToSZLChain : List LineageStep :=
       connects_to_next := "The chord-diagram skeleton (primary circle + chords) is the same combinatorial structure as the khipu hierarchical pendant/subsidiary architecture. The 4T relation is the summation-cord invariant. This is structural identity, not analogy." }
 
   , { author_year      := "SZL Knot Calculus (v15/v16)"
-      citation         := "Lutar, S.P. (2026). Ouroboros Thesis v15. DOI:10.5281/zenodo.19944926 (concept DOI)"
+      citation         := "Lutar, S.P. (2026). Ouroboros Thesis v15. DOI:10.5281/zenodo.24239896 (concept DOI)"
       introduces       := "Audit-Reidemeister moves (R1/R2/R3) as governance analogs of topological Reidemeister moves. Λ as knot invariant of the receipt braid. Khipu chord-diagram skeleton as the receipt DAG substrate."
       connects_to_next := "Terminal node — SZL Knot Calculus is the governance instantiation of the combinatorial structure established in the Feynman → Witten → Bar-Natan chain." }
   ]
