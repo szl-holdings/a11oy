@@ -6,10 +6,10 @@ traces to a versioned, DOI-pinned thesis. This is the canonical timeline.
 [![Doctrine v11 LOCKED](https://img.shields.io/badge/Doctrine-v11_LOCKED-d4a444.svg)](https://github.com/szl-holdings/lutar-lean)
 [![Λ Conjecture 1](https://img.shields.io/badge/Λ-Conjecture_1_(NOT_theorem)-blue.svg)](https://github.com/szl-holdings/lutar-lean)
 [![SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20(Rekor)%20%C2%B7%20L3%2B%20roadmap-2C5F2D?style=flat-square)](https://slsa.dev)
-[![Concept DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![Concept DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239896.svg)](https://doi.org/10.5281/zenodo.24239896)
 
 **Author:** Stephen P. Lutar Jr. · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
-**Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+**Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 **Doctrine pin:** v11 LOCKED — 749 declarations / 14 unique axioms / 163 sorries @ `c7c0ba17`
 **Λ status:** **Conjecture 1 — NEVER a theorem.**
 
@@ -30,16 +30,16 @@ traces to a versioned, DOI-pinned thesis. This is the canonical timeline.
 | **v9** | 2026-05-05 | [zenodo.20053148](https://doi.org/10.5281/zenodo.20053148) | Unified-Operational — the Lutar Invariant family |
 | **v10** | 2026-05-05 | [zenodo.20053163](https://doi.org/10.5281/zenodo.20053163) | Exhaustive-Audit — the audit-closure operator Λ |
 | **v11** | 2026-05-11 | [zenodo.20119582](https://doi.org/10.5281/zenodo.20119582) | Applied Λ — measured per-request governance overhead |
-| **v12** | 2026-05-14 | [concept](https://doi.org/10.5281/zenodo.19944926) | The Λ-Ouroboros substrate — first four machine-verified theorems (Λ itself stays Conjecture 1, NOT a theorem) |
-| **v13** | 2026-05-18 | [concept](https://doi.org/10.5281/zenodo.19944926) | Anatomy as architecture (exhaustive) |
+| **v12** | 2026-05-14 | [concept](https://doi.org/10.5281/zenodo.24239896) | The Λ-Ouroboros substrate — first four machine-verified theorems (Λ itself stays Conjecture 1, NOT a theorem) |
+| **v13** | 2026-05-18 | [concept](https://doi.org/10.5281/zenodo.24239896) | Anatomy as architecture (exhaustive) |
 | **v14** | 2026-05-28 | [zenodo.20173912](https://doi.org/10.5281/zenodo.20173912) | Verifiable multi-agent anatomy — Lutar Calculus; **Λ downgraded to Conjecture 1** |
 | **v15** | 2026-05-28 | [zenodo.20195368](https://doi.org/10.5281/zenodo.20195368) | Knot calculus for governed decision receipts |
-| **v16** | 2026-05-28 | [concept](https://doi.org/10.5281/zenodo.19944926) | Λ-invariant stack + Feynman path-integral audit sum |
-| **v17** | 2026-05-28 | [concept](https://doi.org/10.5281/zenodo.19944926) | Wheelerian audit closure; Shannon doctrine (Kraft inequality) |
+| **v16** | 2026-05-28 | [concept](https://doi.org/10.5281/zenodo.24239896) | Λ-invariant stack + Feynman path-integral audit sum |
+| **v17** | 2026-05-28 | [concept](https://doi.org/10.5281/zenodo.24239896) | Wheelerian audit closure; Shannon doctrine (Kraft inequality) |
 | **v18** | 2026-05-30 | [zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) | **Multi-track Substrate Expansion** — 29 modules, per-theorem Lean index, 7-DOI chain |
 | **v19** | — | *(no release — version gap; v18 → v20)* | — |
-| **v20** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.19944926) | "The Culmination" — formally-verified anatomical substrate |
-| **v21** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.19944926) | **The PURIQ-OS Substrate** — 12-organ runtime, 23 agentic formulas (5 proved in Lean 4) |
+| **v20** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.24239896) | "The Culmination" — formally-verified anatomical substrate |
+| **v21** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.24239896) | **The PURIQ-OS Substrate** — 12-organ runtime, 23 agentic formulas (5 proved in Lean 4) |
 | **v22** | 2026-06-03 | **DOI pending (founder mint)** | **"Convergence"** — A5 axiom merge; VCG truthfulness; Cauchy_ND partial closure; SLSA L1 honest · L2 build-attested (Rekor) · L3+ roadmap; Rounds 10–11; Sim2Real Walrus-parallel (α=0.10) |
 
 > **v19 gap:** intentionally skipped. Numbering jumped v18 → v20 during the late-May
