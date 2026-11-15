@@ -277,7 +277,7 @@ class GovernedInferenceDeploymentContract(unittest.TestCase):
             "authority_state": "NO_ACTION_AUTHORITY",
             "tool_execution": False,
             "model": {
-                "candidate": "@cf/zai-org/glm-4.7-flash",
+                "candidate": "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
                 "kind": "CLOUDFLARE_HOSTED_EXTERNAL_CANDIDATE",
                 "owned_model_served": False,
             },
