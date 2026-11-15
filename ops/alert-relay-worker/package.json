@@ -1,0 +1,19 @@
+{
+  "name": "@szl/alert-relay-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "szl-alert-relay Cloudflare Worker: ntfy.a11oy.net receiving edge for the shared receipt-failure channel.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/index.test.mjs",
+    "build": "wrangler deploy --dry-run --outdir dist --config wrangler.jsonc",
+    "check": "npm test && npm run build"
+  },
+  "devDependencies": {
+    "wrangler": "4.150.0"
+  }
+}
