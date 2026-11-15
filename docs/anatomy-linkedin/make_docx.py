@@ -25,7 +25,7 @@ WHAT'S IN THE BUNDLE
 
 • 7-chakra activation spine (root → crown) with per-chakra leader.md + result.md prose pulled verbatim from upstream — the actual kernel notes (tinygrad → KALLPA dispatch, DSPy → YACHAY retrieval, vLLM → RIMAY sampling), not marketing copy.
 
-• Real DOIs on every section: concept DOI 10.5281/zenodo.19944926 (always resolves to latest), v13 release 10.5281/zenodo.20195368.
+• Real DOIs on every section: concept DOI 10.5281/zenodo.24239896 (always resolves to latest), v13 release 10.5281/zenodo.20195368.
 
 THE INTEGRITY MECHANISM (the part CTOs care about)
 
@@ -57,7 +57,7 @@ A11oy → /anatomy vendors the entire upstream Ouroboros thesis anatomy bundle (
 In the bundle:
 • 8 canonical figures (brain, wires, full-body, heart, blood/immune, skeleton, nervous, body-graph) — the operational schematic of a governed agent: AMARU cortex (9-axis doctrine gate), YUYAY v3 (13-axis AND gate, no averaging), YAWAR append-only ledger, HUKLLA tripwires, OTel/VSP nervous system.
 • 7-chakra activation spine with per-kernel prose pulled verbatim from upstream.
-• Real DOIs (concept 10.5281/zenodo.19944926, v13 10.5281/zenodo.20195368).
+• Real DOIs (concept 10.5281/zenodo.24239896, v13 10.5281/zenodo.20195368).
 
 The integrity proof is ~30 lines of crypto.subtle and inspectable in DevTools. Same construction as Sigstore cosign verify, applied to a documentation bundle. Auditors re-run the hash; CI fails the build the moment a vendored byte changes.
 
@@ -69,7 +69,7 @@ HASHTAGS = "#AIGovernance #AuditableAI #DecisionIntelligence #ReproducibleResear
 
 WARHACKER_BODY = """TO: Defense Unicorns — Warhacker (defenseunicorns.com/warhacker)
 RE: Fixing the drones — accountable autonomy on small UAS
-FROM: SZL Holdings · CC-BY-4.0 · DOI 10.5281/zenodo.19944926
+FROM: SZL Holdings · CC-BY-4.0 · DOI 10.5281/zenodo.24239896
 
 PITCH
 
@@ -104,7 +104,7 @@ Nothing here is a slide."""
 FIRST_COMMENT = """Direct links if anyone wants to dig in:
 
 • Upstream thesis (source of truth): github.com/szl-holdings/ouroboros-thesis
-• Concept DOI (always latest): doi.org/10.5281/zenodo.19944926
+• Concept DOI (always latest): doi.org/10.5281/zenodo.24239896
 • v13 release DOI: doi.org/10.5281/zenodo.20195368
 • Anatomy bundle index (per-figure metadata + sha256 list): docs/anatomy/INDEX.md and docs/anatomy/figures.sha256 in the repo above
 
