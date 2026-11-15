@@ -61,3 +61,11 @@ szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (ap
 szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sovereign-local); killinchu mirrors via /llm/ecosystem-mirror
 
 # --- a11oy-first RAG rights admission. Default path stays the old indexer.
+
+# --- Fail-closed chain_verified default (KI#581, 2026-11-15). killinchu treats a
+#     missing chain_verified flag as False (fail-closed, tests enforce it); a11oy
+#     main still defaults the same rec.get(...) sites to True. Intentional,
+#     safety-first divergence: killinchu will NOT ship the unsafe True default
+#     back. Reconcile by adopting the safe False default on a11oy, then delete
+#     this entry (the guard will also warn stale-allow when identical again).
+a11oy_agent_loop.py        # KI#581 fail-closed chain_verified=False default on killinchu; a11oy main still True — reconcile by fixing a11oy
