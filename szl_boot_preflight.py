@@ -113,6 +113,11 @@ _REGISTRY = [
             default=None),
     EnvSpec("VLLM_API_KEY", SECRET, "brain", "Auth for a private vLLM endpoint.",
             default=None),
+    EnvSpec("ANTHROPIC_WORKSPACE_ID", VARIABLE, "brain",
+            "Claude Platform workspace id for user-scoped ANTHROPIC_API_KEY "
+            "(sent as the anthropic-workspace-id header; NOT a secret — "
+            "Variables tab only).",
+            required=False, default=None),
     # brain routing (VARIABLES — endpoints / model names, NOT secret)
     EnvSpec("A11OY_MODEL_BASE_URL", VARIABLE, "brain",
             "Base URL for the hosted model router.", default=None),

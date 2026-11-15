@@ -106,3 +106,12 @@ note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience 
 # szl-model-inference-lab, vertical-services). Held: SZLHOLDINGS/immune
 # (killinchu /immune route 404 - MIGRATION_REQUIRED). Public remaining: 11
 # (10 keepers + immune held). Log: pvf_flip_log.jsonl (owner machine).
+# Reclassification 2026-11-15 (post-fold contract repair chain, #3427/#3428/#3430):
+# restored public per app product contract and declared topology:
+#   SZLHOLDINGS/ayllu (product-projected inventory-only FOLD row),
+#   SZLHOLDINGS/immune (held), SZLHOLDINGS/szl-frontier and
+#   SZLHOLDINGS/vertical-services (laboratory surfaces, #3414/#3430).
+# folded private as undeclared non-keepers: oac-system-health-lab, szl-marketing-1-1.
+# Contract inventoryOnlyHuggingFaceRepositories reduced to the measured public rows
+# (README ORG_CARD, ayllu, immune, llm-router-live, szl-bench-suite, szl-forge-lab,
+# szl-marketing); 31 folded ids removed. Measured public Spaces: 21.
