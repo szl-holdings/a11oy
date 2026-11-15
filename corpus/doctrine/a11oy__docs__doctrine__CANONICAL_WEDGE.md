@@ -11,4 +11,4 @@
 > honestly disclosed) and mirrored as four public HF Datasets; Λ uniqueness is an open
 > Conjecture. The 9-axis legacy still runs; the 13-axis migration is the next ratchet.
 
-ORCID: 0009-0001-0110-4173 · Concept DOI 10.5281/zenodo.19944926
+ORCID: 0009-0001-0110-4173 · Concept DOI 10.5281/zenodo.24239896
