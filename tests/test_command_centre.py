@@ -211,7 +211,7 @@ def test_page_is_bound_to_python_renderer_and_exact_public_inputs(client):
     model_bytes = json.dumps(manifest, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
     digest = hashlib.sha256(model_bytes).hexdigest()
     assert f'data-view-input-sha256="{digest}"' in response.text
-    assert 'INVENTORY_ONLY · FOLD' in response.text
+    assert 'INVENTORY_ONLY · ORG_CARD' in response.text
     assert 'not a governed keeper' in response.text
 
 
