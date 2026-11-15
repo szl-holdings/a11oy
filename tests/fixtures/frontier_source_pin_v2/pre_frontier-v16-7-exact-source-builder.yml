@@ -9,9 +9,7 @@ on:
   issues:
     types: [opened]
 
-permissions:
-  contents: write
-  issues: write
+permissions: read-all
 
 concurrency:
   group: frontier-v16-7-builder-${{ github.event.issue.number }}
@@ -20,6 +18,9 @@ concurrency:
 jobs:
   build-exact-source:
     name: build-exact-frontier-source
+    permissions:
+      contents: write
+      issues: write
     if: >-
       github.event.issue.user.login == 'stephenlutar2-hash' &&
       github.event.issue.title == 'Frontier v16.7 exact source build'

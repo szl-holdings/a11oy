@@ -1,0 +1,923 @@
+{
+  "schema": "szl.hf-hub-ownership/v1",
+  "effective": "2026-11-04",
+  "policy": "Every Hugging Face repository that any workflow or script in this repository can mutate is listed with exactly one active writer. Other write paths are named under retired_writers (all retire: true) until they are actually removed. Targets written only from another GitHub repository declare writer.external; FOLD-policy targets that must not be written from here declare writer: \"none\" with a pending fold note. tests/test_hf_hub_ownership.py enforces the map.",
+  "targets": [
+    {
+      "repo_id": "SZLHOLDINGS/a11oy",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/hf-sync.yml",
+        "job": "deploy",
+        "scripts": [
+          ".github/scripts/resume_hf_space.py",
+          "scripts/configure_hf_series_a_runtime.py",
+          "scripts/configure_hf_gdw_runtime.py"
+        ],
+        "note": "Deploys go through the pinned szl-holdings/.github reusable-hf-deploy workflow."
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/restart-drill.yml",
+          "scripts": [
+            "scripts/prove_hf_series_a_restart.py",
+            "scripts/prove_hf_gdw_runtime.py"
+          ],
+          "retire": true,
+          "note": "Dispatch-only restart drills restart the canonical Space; consolidation under hf-sync preflight is a pending decision."
+        },
+        {
+          "scripts": [
+            "scripts/enroll_hf_atelier_operator.py"
+          ],
+          "retire": true,
+          "note": "Operator enrollment adds a Space secret; no workflow executes it. Pending decision."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/terra",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/hf-publish-vertical-flagships.yml",
+        "scripts": [
+          "scripts/hf_publish_vertical_flagships_v4.py"
+        ],
+        "dynamic_targets": {
+          "file": "scripts/hf_publish_vertical_flagships_v4.py",
+          "template": "SZLHOLDINGS/{scope}"
+        }
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hf-sync.yml",
+          "job": "publish-vertical-flagships",
+          "retire": true,
+          "note": "Duplicate dispatch write path; serialized today only by the hf-vertical-estate concurrency group."
+        },
+        {
+          "workflow": ".github/workflows/hf-universal-frontend-rollout.yml",
+          "scripts": [
+            "scripts/hf_universal_frontend_control.py"
+          ],
+          "retire": true,
+          "job": "execute",
+          "note": "Revision-bound Hub PR rollout can open PRs against the flagship Spaces; fold into the convergent publisher."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/sentra",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/hf-publish-vertical-flagships.yml",
+        "scripts": [
+          "scripts/hf_publish_vertical_flagships_v4.py",
+          "scripts/hf_publish_vertical_flagships_v4_impl.py"
+        ]
+      },
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending",
+        "note": "FOLD__POLICY_MIGRATION_REQUIRED; the executor refuses while this active writer stands."
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hf-sync.yml",
+          "job": "publish-vertical-flagships",
+          "retire": true,
+          "note": "Duplicate dispatch write path; see SZLHOLDINGS/terra."
+        },
+        {
+          "workflow": ".github/workflows/hf-universal-frontend-rollout.yml",
+          "scripts": [
+            "scripts/hf_universal_frontend_control.py"
+          ],
+          "retire": true,
+          "job": "execute",
+          "note": "PR rollout path; see SZLHOLDINGS/terra."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/counsel",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/hf-publish-vertical-flagships.yml",
+        "scripts": [
+          "scripts/hf_publish_vertical_flagships_v4.py"
+        ],
+        "dynamic_targets": {
+          "file": "scripts/hf_publish_vertical_flagships_v4.py",
+          "template": "SZLHOLDINGS/{scope}"
+        }
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hf-sync.yml",
+          "job": "publish-vertical-flagships",
+          "retire": true,
+          "note": "Duplicate dispatch write path; see SZLHOLDINGS/terra."
+        },
+        {
+          "workflow": ".github/workflows/hf-universal-frontend-rollout.yml",
+          "scripts": [
+            "scripts/hf_universal_frontend_control.py"
+          ],
+          "retire": true,
+          "job": "execute",
+          "note": "PR rollout path; see SZLHOLDINGS/terra."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/finance",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/hf-publish-vertical-flagships.yml",
+        "scripts": [
+          "scripts/hf_publish_vertical_flagships_v4.py"
+        ]
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hf-sync.yml",
+          "job": "publish-vertical-flagships",
+          "retire": true,
+          "note": "Duplicate dispatch write path; see SZLHOLDINGS/terra."
+        },
+        {
+          "workflow": ".github/workflows/hf-universal-frontend-rollout.yml",
+          "scripts": [
+            "scripts/hf_universal_frontend_control.py"
+          ],
+          "retire": true,
+          "job": "execute",
+          "note": "PR rollout path; see SZLHOLDINGS/terra."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/lyte",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/hf-publish-vertical-flagships.yml",
+        "scripts": [
+          "scripts/hf_publish_vertical_flagships_v4.py",
+          "scripts/hf_publish_lyte_enterprise.py"
+        ],
+        "note": "Source-bound to szl-holdings/lyte-services main. The automatic writer is currently UNPLANNED in the convergence plan until durable persistence is admitted; hf-free-tier-recovery.yml references the publisher in path triggers only."
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/vertical-services",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/hf-publish-vertical-flagships.yml",
+        "scripts": [
+          "scripts/hf_publish_vertical_flagships_v4.py",
+          "scripts/hf_publish_vertical_services_intelligence_v4.py",
+          "scripts/hf_publish_vertical_services.py"
+        ]
+      },
+      "retired_writers": [
+        {
+          "scripts": [
+            "scripts/hf_publish_vertical_services_frontier_v3.py"
+          ],
+          "retire": true,
+          "note": "v3 publisher generation; no workflow executes it as a standalone entrypoint."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/killinchu",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "Read-only from a11oy (guards and public readback only); canonically published from szl-holdings/killinchu.",
+      "referenced_by": [
+        "scripts/hf_publish_vertical_flagships_v4.py",
+        ".github/scripts/retire_vessels_space.py",
+        "scripts/hf_publish_vertical_services.py"
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/vessels",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/retire-vessels-space.yml",
+        "scripts": [
+          ".github/scripts/retire_vessels_space.py"
+        ],
+        "note": "The single write is the gated deletion path; the Space itself is pending fold into killinchu."
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/execute-vessels-retirement-once.yml",
+          "scripts": [
+            ".github/scripts/retire_vessels_space.py"
+          ],
+          "retire": true,
+          "note": "Duplicate retirement entrypoint on push of the authorization file; keep dispatch-only retire-vessels-space.yml."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-atelier",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/atelier-hub-publish.yml",
+          "retire": true,
+          "note": "Policy-FOLD Space with a live publisher; push trigger stripped 2026-11-04, workflow_dispatch remains until the fold decision. The workflow stays the writer of the model targets listed here."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/anatomy",
+      "repo_type": "space",
+      "writer": "none",
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hf-living-anatomy-guardian.yml",
+          "retire": true,
+          "note": "Writer targets a creator-profile deployment mirror outside the org (named in docs/audit/2026-11-05-anatomy-personal-namespace-leak.md); retire or repoint to an org-owned Space.",
+          "leak_ref": "docs/audit/2026-11-05-anatomy-personal-namespace-leak.md"
+        }
+      ],
+      "note": "No SZLHOLDINGS/anatomy repo exists on the Hub. Active mirror lives in the creator profile; see leak record docs/audit/2026-11-05-anatomy-personal-namespace-leak.md."
+    },
+    {
+      "repo_id": "SZLHOLDINGS/governed-agent-bench",
+      "repo_type": "space",
+      "writer": {
+        "workflow": ".github/workflows/governed-agent-bench.yml",
+        "scripts": [
+          "benchmarks/governed-agent-bench/publish_huggingface.py"
+        ],
+        "note": "Same repository id serves both the Space and the dataset (--space-repo / --dataset-repo)."
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/aegis-assurance",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "Deleted on Hub. The Packet 8 publisher's write path was removed; payloads stay archived in huggingface/spaces/aegis-assurance.",
+      "referenced_by": [
+        ".github/scripts/publish_packet8_vertical_spaces.py"
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/terra-assurance",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold. Payloads stay archived in huggingface/spaces/terra-assurance.",
+      "referenced_by": [
+        ".github/scripts/publish_packet8_vertical_spaces.py"
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/puriq-markets",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold. Payloads stay archived in huggingface/spaces/puriq-markets.",
+      "referenced_by": [
+        ".github/scripts/publish_packet8_vertical_spaces.py"
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/counsel-assurance",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold. Payloads stay archived in huggingface/spaces/counsel-assurance.",
+      "referenced_by": [
+        ".github/scripts/publish_packet8_vertical_spaces.py"
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/llm-router-live",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/ayllu",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/yarqa",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/nexus",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold"
+    },
+    {
+      "repo_id": "SZLHOLDINGS/a11oy-factory",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold"
+    },
+    {
+      "repo_id": "SZLHOLDINGS/holographic-unify",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/the-grid",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-khipu",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/foundation-confirmation-v2",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold (disposition class retirement_candidate; registered scientific result remains FAILED)",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/gdw-frontier",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/governed-receipt-verifier",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/immune-lattice",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold (parity audit required before any disposition)",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/oac-system-health-lab",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/prove-it",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-bench-suite",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-brand-campaign",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-forge-lab",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-marketing-1.1",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-typesafe-triage",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "pending fold",
+      "fold": {
+        "registry": "publishing/space-fold-registry.json",
+        "relation": "fold-target",
+        "status": "pending"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/immune",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "Manual checklist deploys only; payload lives in spaces/immune in-repo. Ungoverned manual path - no automatic writer admitted."
+    },
+    {
+      "repo_id": "SZLHOLDINGS/orbital",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "Manual checklist deploys only; payload lives in spaces/orbital in-repo. Absent from the Hub audit 2026-11-04."
+    },
+    {
+      "repo_id": "SZLHOLDINGS/sda",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "Manual checklist deploys only; payload lives in spaces/sda in-repo. Absent from the Hub audit 2026-11-04."
+    },
+    {
+      "repo_id": "SZLHOLDINGS/README",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "Org card. Generated into docs/generated/huggingface-org-card.md by the refresh bot; the actual Hub writer is not in this repository."
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-command-lab",
+      "repo_type": "space",
+      "writer": "none",
+      "note": "No a11oy writer; the generated flagship cards link to it (SZLHOLDINGS/szl-command-lab appears in card HTML only).",
+      "referenced_by": [
+        "scripts/hf_publish_vertical_flagships_v4_impl.py"
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-evidence",
+      "repo_type": "dataset",
+      "writer": {
+        "workflow": ".github/workflows/hf-preserve-current-stores.yml",
+        "scripts": [
+          "scripts/preserve_hf_gdw_store.py"
+        ],
+        "note": "Private GDW bucket. gdw_durable_storage.py (root) holds the constants and the HFBucket client used by the serving runtime and the preservation tooling."
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hf-rehearse-current-state-snapshots.yml",
+          "scripts": [
+            "scripts/rehearse_current_state_snapshots.py"
+          ],
+          "retire": true,
+          "note": "Snapshot rehearsal reads the bucket (--fetch); no content write today. Listed until the rehearsal role is decided."
+        }
+      ],
+      "referenced_by": [
+        ".github/workflows/hf-sync.yml",
+        "scripts/configure_hf_series_a_runtime.py",
+        "scripts/configure_hf_gdw_runtime.py",
+        "scripts/acquire_gdw_durable_storage.py"
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/huggingface.yml",
+        "job": "publish",
+        "scripts": [
+          "scripts/publish_huggingface_payload.py"
+        ],
+        "note": "Manual dispatch; additive payload with compare-and-swap on the Hub parent."
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-khipu",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml",
+        "note": "Atelier writes only lambda_gate.npz. The README is do-not-clobber and owned by szl-holdings/szl-khipu's own publisher."
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/WILLAY",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/chaski",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/chaski-5050",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/chaski-r2",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/qantu",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml",
+        "dynamic_targets": {
+          "file": ".github/workflows/atelier-hub-publish.yml",
+          "template": "SZLHOLDINGS/{name}"
+        }
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/waman",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml",
+        "dynamic_targets": {
+          "file": ".github/workflows/atelier-hub-publish.yml",
+          "template": "SZLHOLDINGS/{name}"
+        }
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/chakana",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml",
+        "dynamic_targets": {
+          "file": ".github/workflows/atelier-hub-publish.yml",
+          "template": "SZLHOLDINGS/{name}"
+        }
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/tinku",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml",
+        "dynamic_targets": {
+          "file": ".github/workflows/atelier-hub-publish.yml",
+          "template": "SZLHOLDINGS/{name}"
+        }
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-khipu-kernels",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml",
+        "note": "Kernel pack is SOFTWARE, not SGD. Converged kernels ride their own repos' hf-kernel-publish.yml and are excluded here by tests/test_atelier_hub_publish_contract.py."
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-nemo",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-quarantine.yml",
+          "scripts": [
+            "scripts/hub_quarantine_joblib_estate.py"
+          ],
+          "retire": true,
+          "note": "Security quarantine opens Hub PRs removing joblib; consolidation under one writer is a pending decision."
+        },
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-merge.yml",
+          "scripts": [
+            "scripts/hub_merge_joblib_quarantine_prs.py"
+          ],
+          "retire": true,
+          "note": "Merges the quarantine PRs; paired with the quarantine writer."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-training-scripts",
+      "repo_type": "model",
+      "writer": {
+        "workflow": ".github/workflows/atelier-hub-publish.yml"
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-blocked",
+      "repo_type": "model",
+      "writer": {
+        "external": "szl-holdings/szl-blocked .github/workflows/hf-kernel-publish.yml"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-quarantine.yml",
+          "scripts": [
+            "scripts/hub_quarantine_joblib_estate.py"
+          ],
+          "retire": true,
+          "note": "Joblib quarantine PR path duplicates the kernel repo's own publisher; pending decision."
+        },
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-merge.yml",
+          "scripts": [
+            "scripts/hub_merge_joblib_quarantine_prs.py"
+          ],
+          "retire": true,
+          "note": "Quarantine PR merge path."
+        }
+      ],
+      "note": "Model twin pointer is written by the kernel repo's own hf-kernel-publish.yml (converged-kernel ownership)."
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-formulas",
+      "repo_type": "model",
+      "writer": {
+        "external": "szl-holdings/szl-formulas .github/workflows/hf-kernel-publish.yml"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-quarantine.yml",
+          "scripts": [
+            "scripts/hub_quarantine_joblib_estate.py"
+          ],
+          "retire": true,
+          "note": "Joblib quarantine PR path; pending decision."
+        },
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-merge.yml",
+          "scripts": [
+            "scripts/hub_merge_joblib_quarantine_prs.py"
+          ],
+          "retire": true,
+          "note": "Quarantine PR merge path."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-governed-norm",
+      "repo_type": "model",
+      "writer": {
+        "external": "szl-holdings/szl-lambda-gate .github/workflows/hf-kernel-publish.yml (governed-norm twin)"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-quarantine.yml",
+          "scripts": [
+            "scripts/hub_quarantine_joblib_estate.py"
+          ],
+          "retire": true,
+          "note": "Joblib quarantine PR path; pending decision."
+        },
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-merge.yml",
+          "scripts": [
+            "scripts/hub_merge_joblib_quarantine_prs.py"
+          ],
+          "retire": true,
+          "note": "Quarantine PR merge path."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-govsign",
+      "repo_type": "model",
+      "writer": {
+        "external": "szl-holdings/szl-govsign .github/workflows/hf-kernel-publish.yml"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-quarantine.yml",
+          "scripts": [
+            "scripts/hub_quarantine_joblib_estate.py"
+          ],
+          "retire": true,
+          "note": "Joblib quarantine PR path; pending decision."
+        },
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-merge.yml",
+          "scripts": [
+            "scripts/hub_merge_joblib_quarantine_prs.py"
+          ],
+          "retire": true,
+          "note": "Quarantine PR merge path."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-invariants",
+      "repo_type": "model",
+      "writer": {
+        "external": "szl-holdings/szl-invariants .github/workflows/hf-kernel-publish.yml"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-quarantine.yml",
+          "scripts": [
+            "scripts/hub_quarantine_joblib_estate.py"
+          ],
+          "retire": true,
+          "note": "Joblib quarantine PR path; pending decision."
+        },
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-merge.yml",
+          "scripts": [
+            "scripts/hub_merge_joblib_quarantine_prs.py"
+          ],
+          "retire": true,
+          "note": "Quarantine PR merge path."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-ouroboros",
+      "repo_type": "model",
+      "writer": {
+        "external": "szl-holdings/szl-ouroboros .github/workflows/hf-kernel-publish.yml"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-quarantine.yml",
+          "scripts": [
+            "scripts/hub_quarantine_joblib_estate.py"
+          ],
+          "retire": true,
+          "note": "Joblib quarantine PR path; pending decision."
+        },
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-merge.yml",
+          "scripts": [
+            "scripts/hub_merge_joblib_quarantine_prs.py"
+          ],
+          "retire": true,
+          "note": "Quarantine PR merge path."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/szl-provctl",
+      "repo_type": "model",
+      "writer": {
+        "external": "szl-holdings/szl-provctl .github/workflows/hf-kernel-publish.yml"
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-quarantine.yml",
+          "scripts": [
+            "scripts/hub_quarantine_joblib_estate.py"
+          ],
+          "retire": true,
+          "note": "Joblib quarantine PR path; pending decision."
+        },
+        {
+          "workflow": ".github/workflows/hub-joblib-estate-merge.yml",
+          "scripts": [
+            "scripts/hub_merge_joblib_quarantine_prs.py"
+          ],
+          "retire": true,
+          "note": "Quarantine PR merge path."
+        }
+      ]
+    },
+    {
+      "repo_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "repo_type": "model",
+      "writer": {
+        "scripts": [
+          "scripts/quant_manifest_tool.py"
+        ],
+        "note": "Manifest tool writes the quantization manifest; no workflow invokes it (manual tool)."
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "repo_type": "model",
+      "writer": {
+        "scripts": [
+          "scripts/quant_manifest_tool.py"
+        ],
+        "note": "See SZL-Khipu-1.5B."
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/governed-agent-bench",
+      "repo_type": "dataset",
+      "writer": {
+        "workflow": ".github/workflows/governed-agent-bench.yml",
+        "scripts": [
+          "benchmarks/governed-agent-bench/publish_huggingface.py"
+        ]
+      }
+    },
+    {
+      "repo_id": "SZLHOLDINGS/a11oy-verifiable-corpus",
+      "repo_type": "dataset",
+      "writer": {
+        "scripts": [
+          "szl_corpus_publish.py"
+        ],
+        "note": "Append-only bucket client invoked from the serving runtime; no CI workflow publishes this dataset."
+      },
+      "retired_writers": [
+        {
+          "workflow": ".github/workflows/hf-corpus-repair.yml",
+          "scripts": [
+            "scripts/repair_hf_corpus_reverify.py"
+          ],
+          "retire": true,
+          "note": "Apply-gated manual repair (dry-run by default) can rewrite the corpus; consolidation decision pending."
+        }
+      ]
+    }
+  ]
+}

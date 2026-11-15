@@ -406,26 +406,57 @@ def test_rows_lacking_rights_are_public_unclassified_never_tenant_owned():
 
 
 def test_concurrent_grant_revocations_do_not_restore_each_other():
+    # Force the interleaving instead of hoping for it: the first revocation pauses
+    # after it has read the entry and computed its grants, until the second
+    # revocation has finished (bounded at 0.5 s). If one lock does not span the
+    # read and the write, the first writer puts its stale grants tuple back over
+    # the second revocation. Starting two threads at a barrier does not reach
+    # that window reliably, so that form passes against the unlocked code too.
     reg = _registry()
     reg.register(org="tenant-b-org", repo="notes", commit_sha=C_PRIV, tenant_owner="tenant-b",
                  visibility="private", rights={"read"},
                  grants={"tenant-c": {"read"}, "tenant-d": {"read"}})
-    barrier = threading.Barrier(2)
-    errors = []
+    real_replace = reg._replace
+    first_paused = threading.Event()
+    second_done = threading.Event()
+    gate = threading.Lock()
+    callers: list[str] = []
 
-    def revoke(tenant: str) -> None:
+    def replace_after_pause(*args, **kwargs):
+        with gate:
+            first = not callers
+            callers.append(threading.current_thread().name)
+        if first:
+            first_paused.set()
+            second_done.wait(timeout=0.5)
+        return real_replace(*args, **kwargs)
+
+    reg._replace = replace_after_pause
+    errors: list[BaseException] = []
+
+    def revoke_first() -> None:
         try:
-            barrier.wait(timeout=5)
-            reg.revoke_grant("tenant-b-org", "notes", tenant)
+            reg.revoke_grant("tenant-b-org", "notes", "tenant-c")
         except Exception as exc:
             errors.append(exc)
 
-    threads = [threading.Thread(target=revoke, args=(tenant,)) for tenant in ("tenant-c", "tenant-d")]
+    def revoke_second() -> None:
+        try:
+            assert first_paused.wait(timeout=5)
+            reg.revoke_grant("tenant-b-org", "notes", "tenant-d")
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            second_done.set()
+
+    threads = [threading.Thread(target=revoke_first), threading.Thread(target=revoke_second)]
     for thread in threads:
         thread.start()
     for thread in threads:
-        thread.join()
+        thread.join(timeout=10)
+    assert not any(thread.is_alive() for thread in threads)
     assert errors == []
+    assert len(callers) == 2
     assert reg.entry("tenant-b-org", "notes").grants == ()
 
 

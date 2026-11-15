@@ -312,7 +312,7 @@ def test_navigation_accessibility_and_small_screen_contracts_are_present() -> No
         "/brain",
         "/api/a11oy/v1/second-brain",
         "/ecosystem",
-        "https://betterwithage-anatomy.hf.space",
+        "https://szlholdings-anatomy.hf.space",
         "https://a11oy.net",
     } <= hrefs
     for tag, attrs in structure.elements:

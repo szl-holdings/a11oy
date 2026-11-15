@@ -75,13 +75,13 @@ def _invalid_constant(_value):
 def public_estate():
     """Narrow local consumer, not an inventory scanner or keep-list authority.
 
-    Project only fixed public origins and Ayllu's existing inventory-only row.
+    Project only fixed public origins and the reserved organization card row.
     Unrelated source rows are never serialized into the page or its manifest.
     Full estate/keep-list consistency remains the release validator's job.
     """
     unavailable = {"state": "UNAVAILABLE", "code": "PUBLIC_BINDING_UNAVAILABLE",
                    "source": "static/shared/public-estate-contract.v1.json",
-                   "sha256": None, "canonical": None, "ayllu": None}
+                   "sha256": None, "canonical": None, "orgCard": None}
     try:
         raw = _bounded_source(PUBLIC_ESTATE)
         value = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_object,
@@ -109,7 +109,7 @@ def public_estate():
         if not isinstance(inventory, list) or not 1 <= len(inventory) <= 128:
             raise ValueError("invalid public classifications")
         seen = set()
-        ayllu = None
+        org_card = None
         for row in inventory:
             if not isinstance(row, dict) or not isinstance(row.get("id"), str) or not re.fullmatch(r"SZLHOLDINGS/[A-Za-z0-9_.-]+", row["id"]):
                 raise ValueError("invalid inventory identity")
@@ -118,10 +118,10 @@ def public_estate():
             seen.add(row["id"])
             if row.get("classification") != "INVENTORY_ONLY" or row.get("governedKeep") is not False or row.get("disposition") != ("ORG_CARD" if row["id"] == "SZLHOLDINGS/README" else "FOLD") or row.get("policySource") != "docs/series-a/hf-space-keep-list.yaml":
                 raise ValueError("inventory disposition drifted")
-            if row["id"] == "SZLHOLDINGS/ayllu":
-                ayllu = {key: row[key] for key in ("id", "classification", "governedKeep", "disposition", "policySource")}
-        if ayllu is None:
-            raise ValueError("Ayllu public classification unavailable")
+            if row["id"] == "SZLHOLDINGS/README":
+                org_card = {key: row[key] for key in ("id", "classification", "governedKeep", "disposition", "policySource")}
+        if org_card is None:
+            raise ValueError("reserved org-card classification unavailable")
         topology = [fabric["huggingFaceRepository"]]
         for group in ("publicDomainBodies", "supportingSystems"):
             rows = value.get(group)
@@ -135,12 +135,12 @@ def public_estate():
         if not isinstance(laboratories, list) or len(laboratories) > 128:
             raise ValueError("invalid public laboratory list")
         topology.extend(laboratories)
-        if any(not isinstance(item, str) for item in topology) or "SZLHOLDINGS/ayllu" in topology:
-            raise ValueError("inventory-only Ayllu cannot be promoted")
-        ayllu["href"] = "https://huggingface.co/spaces/" + ayllu["id"]
+        if any(not isinstance(item, str) for item in topology) or "SZLHOLDINGS/README" in topology:
+            raise ValueError("inventory-only org card cannot be promoted")
+        org_card["href"] = "https://huggingface.co/spaces/" + org_card["id"]
         return {"state": "SOURCE_CONTRACT", "source": unavailable["source"],
                 "sha256": hashlib.sha256(raw).hexdigest(), "version": value["version"],
-                "canonical": dict(canonical), "ayllu": ayllu}
+                "canonical": dict(canonical), "orgCard": org_card}
     except (OSError, ValueError, TypeError, KeyError, RecursionError):
         return unavailable
 

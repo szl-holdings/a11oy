@@ -102,7 +102,7 @@ CANONICAL_GITHUB_REPO = "$GITHUB_REPOSITORY"
 CANONICAL_HF_REPO = "SZLHOLDINGS/a11oy"
 CHECKOUT_ACTION = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 HARDEN_RUNNER_ACTION = (
-    "step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2"
+    "step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43"
 )
 SETUP_PYTHON_ACTION = "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0"
 UPLOAD_ARTIFACT_ACTION = (

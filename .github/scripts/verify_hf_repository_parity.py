@@ -574,9 +574,16 @@ def verify_derived_runtime_marker(*, github_repo, github_ref, hf_repo, hf_ref, t
     try:
         marker = contract["marker_document"](raw)
         canonical = json.dumps(marker, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-        if (canonical != raw or marker["source_sha"] != github_ref
-                or marker["publisher_sha"] != pins[0]):
+        if canonical != raw or marker["publisher_sha"] != pins[0]:
             raise ParityError("runtime marker differs from canonical source or publisher")
+        if marker["source_sha"] != github_ref:
+            # Honest MEASURED lag: HF still carries an older publisher binding.
+            raise ParityError(
+                "PUBLICATION_LAG: runtime marker source_sha="
+                f"{marker['source_sha']} does not equal protected github_ref="
+                f"{github_ref}; pause the Space or dispatch hf-sync.yml with "
+                "open_deploy_window=true"
+            )
         binding = json.dumps({"schema": "szl.runtime-source-binding/v1", "marker": marker,
                               "hf_revision": hf_ref, "scope": "FINAL_APP_SOURCE_COPY_FILES",
                               "image_attestation": False, "hardware_attestation": False,
