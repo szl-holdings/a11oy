@@ -7,7 +7,7 @@
 **Author:** Stephen P. Lutar Jr. · SZL Holdings · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
 *Co-authored with the SZL full-stack PhD team (mathematics, scientific writing, physics, CS, ML, philosophy of mathematics).*
 
-**Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) · **v11 metrics DOI:** [10.5281/zenodo.20119582](https://doi.org/10.5281/zenodo.20119582)
+**Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) · **v11 metrics DOI:** [10.5281/zenodo.20119582](https://doi.org/10.5281/zenodo.20119582)
 
 > This markdown file is a faithful rendering of `main.tex`. The typeset 20-page PDF (`main.pdf`) is the canonical presentation; `main.tex` is the authoritative LaTeX source.
 
