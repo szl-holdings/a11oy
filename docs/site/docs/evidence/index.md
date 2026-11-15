@@ -46,8 +46,8 @@ The Ouroboros Thesis and supporting artifacts are deposited on Zenodo with persi
 | DOI | Role |
 |-----|------|
 | [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) | **Ouroboros Thesis v18.0** (versioned) — cited by every flagship |
-| [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) | **Concept DOI** (always-latest) |
-| [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308) | Supporting artifact |
+| [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) | **Concept DOI** (always-latest) |
+| [10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654) | Supporting artifact |
 | [10.5281/zenodo.20431181](https://doi.org/10.5281/zenodo.20431181) | Supporting artifact |
 | [10.5281/zenodo.20195368](https://doi.org/10.5281/zenodo.20195368) · [20173920](https://doi.org/10.5281/zenodo.20173920) · [20162352](https://doi.org/10.5281/zenodo.20162352) | Versioned deposits |
 | [10.5281/zenodo.19867281](https://doi.org/10.5281/zenodo.19867281) · [19934129](https://doi.org/10.5281/zenodo.19934129) · [19983066](https://doi.org/10.5281/zenodo.19983066) | Earlier versioned deposits |
