@@ -12,25 +12,25 @@
       "repo_id": "SZLHOLDINGS/a11oy",
       "repo_type": "space",
       "expected_sha": null,
-      "observed_sha": "02a862ce9e49ce4a859674107b7da12f7788993f",
+      "observed_sha_prefix": "02a862ce",
       "observed_last_modified": "2026-11-15T12:46:36Z",
       "runtime_stage": "RUNNING",
       "hardware": "cpu-basic",
       "parity": "UNVERIFIED",
-      "limitation": "Raw README returned HTTP 401; source/runtime equivalence not established."
+      "limitation": "Only an 8-character metadata prefix was available in this audit; raw README returned HTTP 401, so source/runtime equivalence is not established."
     }
   ],
   "evidence_datasets": [
     {
       "repo_id": "SZLHOLDINGS/readiness-runs",
       "repo_type": "dataset",
-      "observed_sha": "f31c58c",
+      "observed_sha_prefix": "f31c58c",
       "role": "evidence-index"
     },
     {
       "repo_id": "SZLHOLDINGS/energy-attested-runs",
       "repo_type": "dataset",
-      "observed_sha": "9a4c8e4",
+      "observed_sha_prefix": "9a4c8e4",
       "role": "energy-receipts"
     }
   ],
@@ -46,6 +46,7 @@
   },
   "limitations": [
     "HF Space raw README access returned HTTP 401.",
+    "Only abbreviated HF metadata prefixes were captured; exact immutable revision mapping remains pending.",
     "RUNNING is transport metadata, not end-to-end capability evidence.",
     "Cloudflare attestation is MODELED and unsigned with no Rekor entry.",
     "No automatic HF publication, Cloudflare deployment, DNS change, or monetization change is authorized by this manifest.",
