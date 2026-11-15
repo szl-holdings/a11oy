@@ -1,0 +1,403 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "schema": "szl.hf-revision-classes/v1",
+  "defaultClass": "SOURCE_TRACKED",
+  "classes": {
+    "GOVERNED_EXACT": {
+      "status": "ENFORCED",
+      "meaning": "Head sha and lastModified compare exactly in --check, like gated rows. Any head move is INVALID ('governed revision changed') and prepare_hf_inventory_refresh.py stops with SOURCE_REVIEW_REQUIRED. Pins the observed head, not the release binding's own revision."
+    },
+    "SOURCE_TRACKED": {
+      "status": "DEFAULT",
+      "meaning": "Unlisted rows. Identical to the earlier ungated comparison: a later head is tolerated only when the stored revision still resolves with the same card digest; card, tags and policy fields compare exactly."
+    },
+    "APPEND_ONLY_EVIDENCE": {
+      "status": "RESERVED_UNUSED",
+      "meaning": "Reserved for a file-level append proof over the Hub tree API. Not implemented; the validator rejects any entry using it."
+    }
+  },
+  "bindingSources": [
+    {
+      "path": "model_release/szl-nemo/release-manifest.json",
+      "pointer": "/hub/repository",
+      "repoType": "model",
+      "rationale": "SZL-Nemo release manifest binds the recipe repository and states weights_present_in_repository=false; an unreviewed head move must not pass as source-only."
+    },
+    {
+      "path": "model_release/hf-promotion/promotion-manifest.json",
+      "pointer": "/candidates/*/canonical_target",
+      "repoTypeField": "target_kind",
+      "repoTypeMap": {
+        "MODEL": "model"
+      },
+      "rationale": "Promotion guard names the canonical Hub target of each candidate; target_kind gives the namespace."
+    },
+    {
+      "path": "model_release/szl-forge-family.json",
+      "pointer": "/profiles/*/hf_target",
+      "repoType": "model",
+      "rationale": "SZL-Forge family profiles each require a weight artifact, so every hf_target is a model repository."
+    },
+    {
+      "path": "model_release/receipt-agent/release-manifest.json",
+      "pointer": "/hf_artifact_family/*/target_id",
+      "repoTypeField": "artifact_type",
+      "repoTypeMap": {
+        "MODEL_ADAPTER": "model",
+        "EVALUATION_DATASET": "dataset",
+        "SCHEMA_DATASET": "dataset",
+        "SPACE": "space",
+        "COLLECTION": null
+      },
+      "rationale": "ReceiptAgent release family; artifact_type gives the namespace. COLLECTION is a Hub collection, not a repository namespace in the inventory, so it maps to no class."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.json",
+      "pointer": "/public_product/canonical_space_target",
+      "repoType": "space",
+      "rationale": "Compound product names its single public Space target."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.json",
+      "pointer": "/components/*/hf_target",
+      "repoTypeField": "component_type",
+      "repoTypeMap": {
+        "MODEL_PROFILE_PEFT_ADAPTER": "model"
+      },
+      "rationale": "Compound product model profiles name their Hub adapter repositories."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.json",
+      "pointer": "/hub_topology/one_public_entrypoint/target_id",
+      "repoTypeField": "artifact_type",
+      "repoTypeMap": {
+        "SPACE": "space"
+      },
+      "rationale": "Hub topology public entrypoint target."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.json",
+      "pointer": "/hub_topology/canonical_collection/target_id",
+      "repoTypeField": "artifact_type",
+      "repoTypeMap": {
+        "COLLECTION": null
+      },
+      "rationale": "Hub topology collection target; a collection is not a repository namespace in the inventory, so it maps to no class."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.json",
+      "pointer": "/hub_topology/weight_artifacts/*/target_id",
+      "repoTypeField": "artifact_type",
+      "repoTypeMap": {
+        "MODEL_ADAPTER": "model"
+      },
+      "rationale": "Hub topology weight artifact targets."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.json",
+      "pointer": "/hub_topology/support_artifacts/*/target_id",
+      "repoTypeField": "artifact_type",
+      "repoTypeMap": {
+        "EVALUATION_DATASET": "dataset",
+        "SCHEMA_DATASET": "dataset",
+        "RECEIPT_DATASET": "dataset"
+      },
+      "rationale": "Hub topology support dataset targets."
+    },
+    {
+      "path": "model_release/szl-khipu-second-brain.json",
+      "pointer": "/components/navigator_profile/hf_target",
+      "repoType": "model",
+      "rationale": "Second-brain contract names the BrainNavigator adapter repository."
+    },
+    {
+      "path": "model_release/receipt-agent/qualification/fa73dc1-cpu-qualification-receipt.json",
+      "pointer": "/candidate/repository",
+      "repoType": "model",
+      "rationale": "CPU qualification receipt binds a ReceiptAgent repository revision."
+    },
+    {
+      "path": "model_release/receipt-agent/qualification/heldout-contract-v1.json",
+      "pointer": "/candidate/repository",
+      "repoType": "model",
+      "rationale": "Held-out contract binds a ReceiptAgent repository revision."
+    },
+    {
+      "path": "model_release/receipt-agent/reconciliation/observed-hf-tree-fixture.v1.json",
+      "pointer": "/repository",
+      "repoType": "model",
+      "rationale": "Artifact reconciliation fixture binds qualified and public head revisions of the ReceiptAgent repository."
+    },
+    {
+      "path": "model_release/receipt-agent/reconciliation/receipt-agent-artifact-reconciliation.v1.json",
+      "pointer": "/repository",
+      "repoType": "model",
+      "rationale": "MEASURED artifact reconciliation binds qualified and public head revisions of the ReceiptAgent repository."
+    }
+  ],
+  "referenceOnlySources": [
+    {
+      "path": "model_release/a11oy-singleton-policy.json",
+      "pointer": "/canonical_space",
+      "rationale": "The a11oy Space is redeployed from GitHub main by hf-sync.yml on every push, so its revision tracks canonical source by design; exact pinning would need a policy-owner decision. It stays SOURCE_TRACKED."
+    },
+    {
+      "path": "model_release/a11oy-singleton-policy.json",
+      "pointer": "/permanent_a11oy_spaces/*",
+      "rationale": "Same a11oy Space as canonical_space; see that rationale."
+    },
+    {
+      "path": "model_release/a11oy-singleton-policy.json",
+      "pointer": "/retired_clone_ids/*",
+      "rationale": "Retired clone ids that must not be recreated; not release bindings."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.json",
+      "pointer": "/brain_model_truth/current_weight_model",
+      "rationale": "Frontier adoption plan (as_of 2026-08-31, GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION); a strategy reference, not a release binding. Classifying these repositories GOVERNED_EXACT needs policy-owner sign-off."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.json",
+      "pointer": "/flagship_strategy/primary_model",
+      "rationale": "Frontier adoption strategy reference; see brain_model_truth rationale."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.json",
+      "pointer": "/flagship_strategy/distribution_model",
+      "rationale": "Frontier adoption strategy reference; see brain_model_truth rationale."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.json",
+      "pointer": "/flagship_strategy/specialist_candidate",
+      "rationale": "Frontier adoption strategy reference; the repository is already GOVERNED_EXACT through release bindings and its gate."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.json",
+      "pointer": "/hf_estate/repositories/*/repository_id",
+      "rationale": "Estate classification whose observed_revision values are past observations (szl-nemo c69af93e differs from both the release binding and the tracked head), not release bindings. Classifying these repositories GOVERNED_EXACT needs policy-owner sign-off."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.json",
+      "pointer": "/hf_estate/repositories/*/content_equivalent_to",
+      "rationale": "Duplicate-identity cross-reference inside the estate classification; not a binding."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.schema.json",
+      "pointer": "/$defs/brainTruth/properties/current_weight_model/const",
+      "rationale": "JSON Schema constant that restates a binding declared in the matching data file; it is not a binding itself."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.schema.json",
+      "pointer": "/$defs/flagshipStrategy/properties/primary_model/const",
+      "rationale": "JSON Schema constant that restates a binding declared in the matching data file; it is not a binding itself."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.schema.json",
+      "pointer": "/$defs/flagshipStrategy/properties/distribution_model/const",
+      "rationale": "JSON Schema constant that restates a binding declared in the matching data file; it is not a binding itself."
+    },
+    {
+      "path": "model_release/frontier-qualification/frontier-adoption.schema.json",
+      "pointer": "/$defs/flagshipStrategy/properties/specialist_candidate/const",
+      "rationale": "JSON Schema constant that restates a binding declared in the matching data file; it is not a binding itself."
+    },
+    {
+      "path": "model_release/frontier-qualification/top-choice-wave-2026-09-07.json",
+      "pointer": "/canonical_frontier/hugging_face_space",
+      "rationale": "Integration record pins a GitHub repository revision, not a Hub revision; the Space and dataset ids are pointers."
+    },
+    {
+      "path": "model_release/frontier-qualification/top-choice-wave-2026-09-07.json",
+      "pointer": "/canonical_frontier/hugging_face_dataset",
+      "rationale": "Integration record pins a GitHub repository revision, not a Hub revision; the Space and dataset ids are pointers."
+    },
+    {
+      "path": "model_release/receipt-agent/reconciliation/artifact-reconciliation.schema.json",
+      "pointer": "/properties/repository/const",
+      "rationale": "JSON Schema constant that restates a binding declared in the matching data file; it is not a binding itself."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.json",
+      "pointer": "/public_product/canonical_collection_target",
+      "rationale": "Hub collection target; a collection is not a repository namespace in the inventory."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.json",
+      "pointer": "/legacy_repo_migration/*/source_id",
+      "rationale": "Declared migration plan naming legacy repositories (DECLARED_PLAN_NOT_EXECUTED); no revision binding."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.schema.json",
+      "pointer": "/properties/public_product/properties/canonical_space_target/const",
+      "rationale": "JSON Schema constant that restates a binding declared in the matching data file; it is not a binding itself."
+    },
+    {
+      "path": "model_release/szl-forge-compound-product.schema.json",
+      "pointer": "/properties/public_product/properties/canonical_collection_target/const",
+      "rationale": "JSON Schema constant that restates a binding declared in the matching data file; it is not a binding itself."
+    },
+    {
+      "path": "model_release/szl-hf-bucket-topology.json",
+      "pointer": "/topology/*/qualified_name",
+      "rationale": "Private Hub storage buckets; buckets are outside the repository membership scope of the inventory."
+    },
+    {
+      "path": "model_release/szl-nemo/release-manifest.schema.json",
+      "pointer": "/properties/hub/properties/repository/const",
+      "rationale": "JSON Schema constant that restates a binding declared in the matching data file; it is not a binding itself."
+    }
+  ],
+  "entries": [
+    {
+      "repoType": "dataset",
+      "id": "SZLHOLDINGS/SZL-BrainQrels",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/szl-forge-compound-product.json#/hub_topology/support_artifacts/2/target_id"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "dataset",
+      "id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Eval",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/receipt-agent/release-manifest.json#/hf_artifact_family/1/target_id",
+        "model_release/szl-forge-compound-product.json#/hub_topology/support_artifacts/0/target_id"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "dataset",
+      "id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Schemas",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/receipt-agent/release-manifest.json#/hf_artifact_family/2/target_id",
+        "model_release/szl-forge-compound-product.json#/hub_topology/support_artifacts/1/target_id"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "dataset",
+      "id": "SZLHOLDINGS/SZL-ModelReceipts",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/szl-forge-compound-product.json#/hub_topology/support_artifacts/3/target_id"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "kernel",
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "class": "SOURCE_TRACKED",
+      "policySource": [
+        "docs/huggingface-ecosystem-manifest.json (kernel row, gated=false)"
+      ],
+      "rationale": "Ungated kernel twin of the gated szl-lambda-gate model. Rows are keyed by (repoType, id), so the model's exact pin does not extend to this kernel; no model_release binding names it."
+    },
+    {
+      "repoType": "model",
+      "id": "SZLHOLDINGS/SZL-A11oy-1.5B-Operator",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/szl-forge-family.json#/profiles/2/hf_target"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "model",
+      "id": "SZLHOLDINGS/SZL-Anatomy-1.5B",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/szl-forge-family.json#/profiles/4/hf_target"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "model",
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "gated:docs/huggingface-ecosystem-manifest.json (gated=true; restricted rows were already exact-pinned)",
+        "model_release/hf-promotion/promotion-manifest.json#/candidates/2/canonical_target",
+        "model_release/receipt-agent/qualification/fa73dc1-cpu-qualification-receipt.json#/candidate/repository",
+        "model_release/receipt-agent/qualification/heldout-contract-v1.json#/candidate/repository",
+        "model_release/receipt-agent/reconciliation/observed-hf-tree-fixture.v1.json#/repository",
+        "model_release/receipt-agent/reconciliation/receipt-agent-artifact-reconciliation.v1.json#/repository",
+        "model_release/receipt-agent/release-manifest.json#/hf_artifact_family/0/target_id",
+        "model_release/szl-forge-compound-product.json#/components/0/hf_target",
+        "model_release/szl-forge-compound-product.json#/hub_topology/weight_artifacts/0/target_id",
+        "model_release/szl-forge-family.json#/profiles/0/hf_target"
+      ],
+      "rationale": "Gated specialist repository bound by release, promotion, qualification and reconciliation records. Its restricted revision was already exact-pinned; this entry records why."
+    },
+    {
+      "repoType": "model",
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/szl-forge-compound-product.json#/components/1/hf_target",
+        "model_release/szl-forge-compound-product.json#/hub_topology/weight_artifacts/1/target_id",
+        "model_release/szl-forge-family.json#/profiles/1/hf_target",
+        "model_release/szl-khipu-second-brain.json#/components/navigator_profile/hf_target"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "model",
+      "id": "SZLHOLDINGS/SZL-Nemo-Governed-Adapter",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/hf-promotion/promotion-manifest.json#/candidates/1/canonical_target"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "model",
+      "id": "SZLHOLDINGS/SZL-Sentinel-1.5B",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/szl-forge-family.json#/profiles/3/hf_target"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "model",
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "gated:docs/huggingface-ecosystem-manifest.json (gated=true; restricted rows were already exact-pinned)"
+      ],
+      "rationale": "Gated model with no model_release binding. Restricted rows are already exact-pinned; the ungated kernel twin is keyed separately."
+    },
+    {
+      "repoType": "model",
+      "id": "SZLHOLDINGS/szl-nemo",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/hf-promotion/promotion-manifest.json#/candidates/0/canonical_target",
+        "model_release/szl-nemo/release-manifest.json#/hub/repository"
+      ],
+      "rationale": "Ungated recipe repository bound by the SZL-Nemo release and promotion manifests. Before these classes a head move with an unchanged card and verifiable history returned CURRENT (MODELED from code; reproduced with fakes by the SOURCE_TRACKED golden test). The release binding now requires exact head review."
+    },
+    {
+      "repoType": "space",
+      "id": "SZLHOLDINGS/SZL-Forge",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/szl-forge-compound-product.json#/public_product/canonical_space_target",
+        "model_release/szl-forge-compound-product.json#/hub_topology/one_public_entrypoint/target_id"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    },
+    {
+      "repoType": "space",
+      "id": "SZLHOLDINGS/SZL-Forge-ReceiptAgent-Demo",
+      "class": "GOVERNED_EXACT",
+      "policySource": [
+        "model_release/receipt-agent/release-manifest.json#/hf_artifact_family/3/target_id"
+      ],
+      "rationale": "Bound by model_release but not in the public inventory at the tracked observation; GOVERNED_EXACT applies when it appears."
+    }
+  ]
+}

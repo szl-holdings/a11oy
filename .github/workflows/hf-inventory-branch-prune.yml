@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: HF inventory review branch prune
+
+# Dispatch-only and dry run by default: deleting a ref needs a named human
+# dispatch with apply set. Kept out of the drift workflow so a prune dispatch
+# never also runs drift detection or review-branch preparation.
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Delete refs the receipt marks PRUNE (default false: dry run, nothing deleted)'
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: hf-inventory-review-branch-prune
+  cancel-in-progress: false
+
+jobs:
+  prune-superseded-review-branches:
+    name: Prune superseded per-run inventory review refs (receipted, never the rolling ref)
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' && github.repository == 'szl-holdings/a11oy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Verify offline prune controls
+        run: python -B -m unittest discover -s tests -p 'test_hf_inventory_refresh_prune.py' -v
+      - name: Decide, receipt and (only with apply) delete superseded refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPLY: ${{ inputs.apply }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${APPLY}" = 'true' ]; then set -- --apply; fi
+          python -B scripts/prune_hf_inventory_branches.py "$@" \
+            --output "$RUNNER_TEMP/hf-inventory-branch-prune"
+      - name: Retain prune receipt and archived manifests
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hf-inventory-branch-prune-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hf-inventory-branch-prune
+          if-no-files-found: error
+          retention-days: 90

@@ -8,9 +8,12 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import datetime as dt
 import hashlib
+import http.client
 import json
 import re
+import sys
 import time
+import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -19,10 +22,11 @@ from typing import Any, Callable
 
 try:
     from scripts.hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme
+    from scripts import hf_revision_classes as revision_classes
 except ModuleNotFoundError:
-    import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme
+    import hf_revision_classes as revision_classes
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +42,31 @@ RFC3339_UTC_RE = re.compile(
 RETRY_ATTEMPTS = 6
 MAX_RETRY_DELAY = 60.0
 RETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
+CHECK_REPORT_SCHEMA = "szl.hf-ecosystem-check/v1"
+# Every result except CURRENT exits 1, as before; the label only says why.
+CHECK_RESULTS = ("CURRENT", "DRIFT", "INVALID", "UNAVAILABLE")
+
+
+class HubUnavailable(Exception):
+    """Live Hub evidence could not be observed: drift is UNKNOWN, never current."""
+
+
+def hub_unavailable(error: BaseException) -> bool:
+    """True only for transport failures, never for policy or evidence failures.
+
+    401/403/404/410 and malformed or policy-violating responses are evidence
+    (INVALID); only connection, timeout and 429/5xx failures are UNAVAILABLE.
+    """
+    if isinstance(error, HubUnavailable):
+        return True
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in RETRYABLE_HTTP_CODES
+    if isinstance(error, (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException)):
+        return True
+    if isinstance(error, InventoryError) and str(error) == "HTTP_UNAVAILABLE":
+        cause = error.__cause__
+        return isinstance(cause, urllib.error.HTTPError) and cause.code in RETRYABLE_HTTP_CODES
+    return False
 
 
 class ApiItems(list[dict[str, Any]]):
@@ -304,10 +333,21 @@ def validate_snapshot_revisions(
     *,
     observed_at: dt.datetime,
     now: dt.datetime | None = None,
+    classes: revision_classes.RevisionClasses | None = None,
 ) -> None:
-    """Validate retained revision fields without requiring the live head to match."""
+    """Validate retained revision fields.
+
+    The live head may differ only for SOURCE_TRACKED rows; gated and
+    GOVERNED_EXACT rows must keep their exact stored revision. Every check
+    that needs no network runs for every row before any historical revision
+    is fetched, so a Hub outage on one row is reported as UNAVAILABLE only
+    when no revision change was already visible in the listing.
+    """
 
     current = now or dt.datetime.now(dt.timezone.utc)
+    if classes is None:
+        classes = revision_classes.load_revision_classes()
+    advanced: list[tuple[str, str, str, dt.datetime, Any]] = []
     for plural, repo_type in (
         ("models", "model"),
         ("datasets", "dataset"),
@@ -381,49 +421,66 @@ def validate_snapshot_revisions(
                     raise ValueError(
                         f"{item_id} restricted revision changed; refresh the snapshot"
                     )
+            if classes.governed(repo_type, item_id) and live_sha != stored_sha:
+                # A release binding names this repository: a head move is a
+                # source review, never a tolerated source-only advance.
+                raise ValueError(
+                    f"{item_id} governed revision changed ({repo_type}, "
+                    f"{revision_classes.GOVERNED_EXACT}, policySource "
+                    f"{'; '.join(classes.policy_source(repo_type, item_id))}); "
+                    "source review required"
+                )
             if live_sha == stored_sha:
                 if live_modified_at != stored_modified_at:
                     raise ValueError(
                         f"{item_id} unchanged revision has conflicting lastModified"
                     )
                 continue
-
-            try:
-                historical = fetch_revision(item_id, repo_type, stored_sha)
-            except Exception as exc:
-                raise ValueError(
-                    f"{item_id} historical revision {stored_sha} is not verifiable: {exc}"
-                ) from exc
-            if historical.get("sha") != stored_sha:
-                raise ValueError(
-                    f"{item_id} historical revision did not resolve to {stored_sha}"
-                )
-            if historical.get("id") != item_id:
-                raise ValueError(
-                    f"{item_id} historical revision resolved to another repository"
-                )
-            historical_modified_at = parse_rfc3339_utc(
-                historical.get("lastModified"),
-                field=f"{item_id} historical lastModified",
-            )
-            if historical_modified_at != stored_modified_at:
-                raise ValueError(
-                    f"{item_id} lastModified does not match its historical revision"
-                )
-            historical_card_digest = card_semantic_sha256(
-                fetch_card_markdown(item_id, repo_type, stored_sha)
-            )
-            if historical_card_digest != stored_card_digest:
-                raise ValueError(
-                    f"{item_id} cardSemanticSha256 does not match its "
-                    "historical revision"
-                )
-
             if live_modified_at <= stored_modified_at:
                 raise ValueError(
                     f"{item_id} live revision differs but is not newer than "
                     "the checked-in snapshot"
                 )
+            advanced.append(
+                (item_id, repo_type, stored_sha, stored_modified_at, stored_card_digest)
+            )
+
+    # Only SOURCE_TRACKED rows reach here; their advance needs a historical proof.
+    for item_id, repo_type, stored_sha, stored_modified_at, stored_card_digest in advanced:
+        try:
+            historical = fetch_revision(item_id, repo_type, stored_sha)
+        except Exception as exc:
+            if hub_unavailable(exc):
+                raise HubUnavailable(
+                    f"{item_id} historical revision {stored_sha} could not be observed: {exc}"
+                ) from exc
+            raise ValueError(
+                f"{item_id} historical revision {stored_sha} is not verifiable: {exc}"
+            ) from exc
+        if historical.get("sha") != stored_sha:
+            raise ValueError(
+                f"{item_id} historical revision did not resolve to {stored_sha}"
+            )
+        if historical.get("id") != item_id:
+            raise ValueError(
+                f"{item_id} historical revision resolved to another repository"
+            )
+        historical_modified_at = parse_rfc3339_utc(
+            historical.get("lastModified"),
+            field=f"{item_id} historical lastModified",
+        )
+        if historical_modified_at != stored_modified_at:
+            raise ValueError(
+                f"{item_id} lastModified does not match its historical revision"
+            )
+        historical_card_digest = card_semantic_sha256(
+            fetch_card_markdown(item_id, repo_type, stored_sha)
+        )
+        if historical_card_digest != stored_card_digest:
+            raise ValueError(
+                f"{item_id} cardSemanticSha256 does not match its "
+                "historical revision"
+            )
 
 
 def validate_generated_revision_evidence(
@@ -469,22 +526,31 @@ def display_path(path: Path) -> Path:
         return path
 
 
-def semantic_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+def semantic_manifest(
+    manifest: dict[str, Any],
+    classes: revision_classes.RevisionClasses | None = None,
+) -> dict[str, Any]:
     """Return the stable public-estate contract used by ``--check``.
 
     ``observedAt``, ``sha``, and ``lastModified`` remain truthful snapshot
-    evidence in the checked-in file. Hugging Face's content-derived dataset
+    evidence in the checked-in file; ``sha`` and ``lastModified`` stay in the
+    comparison for gated and GOVERNED_EXACT rows. Hugging Face's content-derived dataset
     ``size_categories:*``, ``modality:*``, ``format:*``, and ``library:*`` tags
     are also excluded because Hugging Face derives them from dataset content and
     may temporarily omit them while metadata is converging. Curated tags and
     ``cardSemanticSha256`` remain in this comparison, so claim or policy drift
     still fails closed. A write refreshes every snapshot field.
     """
+    if classes is None:
+        classes = revision_classes.load_revision_classes()
     stable = json.loads(json.dumps(manifest))
     for repo_type in KINDS:
         for item in stable.get("inventory", {}).get(repo_type, []):
-            # A restricted README is unobserved: never ignore revision drift.
-            if item.get("gated") is not True:
+            # A restricted README is unobserved and a governed row is release
+            # bound: never ignore revision drift for either.
+            if item.get("gated") is not True and not classes.governed(
+                revision_classes.PLURALS[repo_type], item.get("id")
+            ):
                 item.pop("sha", None)
                 item.pop("lastModified", None)
             if repo_type == "datasets" and isinstance(item.get("tags"), list):
@@ -685,6 +751,145 @@ def validate_model_rename(
         raise ValueError(f"renamed model is absent or revision differs: {new_id}")
 
 
+def changed_rows(
+    existing: dict[str, Any],
+    live: dict[str, Any],
+    classes: revision_classes.RevisionClasses,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Name each semantically different row with its revision class."""
+    before = semantic_manifest(existing, classes)
+    after = semantic_manifest(live, classes)
+    rows: list[dict[str, Any]] = []
+    for plural in KINDS:
+        repo_type = revision_classes.PLURALS[plural]
+        old = {item.get("id"): item for item in before.get("inventory", {}).get(plural, []) if isinstance(item, dict)}
+        new = {item.get("id"): item for item in after.get("inventory", {}).get(plural, []) if isinstance(item, dict)}
+        for item_id in sorted(set(old) | set(new), key=str):
+            first, second = old.get(item_id), new.get(item_id)
+            if first == second:
+                continue
+            if first is None or second is None:
+                change, fields = ("ADDED" if first is None else "REMOVED"), []
+            else:
+                change = "CHANGED"
+                fields = sorted(key for key in set(first) | set(second) if first.get(key) != second.get(key))
+            rows.append({
+                "repoType": repo_type,
+                "id": item_id,
+                "class": classes.class_of(repo_type, item_id),
+                "policySource": classes.policy_source(repo_type, item_id),
+                "change": change,
+                "fields": fields,
+            })
+    top_level = sorted(
+        key for key in set(before) | set(after)
+        if key != "inventory" and before.get(key) != after.get(key)
+    )
+    return rows, top_level
+
+
+RESULT_MEANING = {
+    "CURRENT": "tracked manifest matches current public Hub evidence",
+    "DRIFT": "tracked manifest differs from current public Hub evidence",
+    "INVALID": "tracked manifest, revision classes or Hub evidence failed validation",
+    "UNAVAILABLE": "public Hub evidence could not be observed; drift was not evaluated (UNKNOWN); not current",
+}
+
+
+def finish_check(
+    result: str,
+    message: str,
+    *,
+    output: Path,
+    report: Path | None,
+    classes: revision_classes.RevisionClasses | None = None,
+    rows: list[dict[str, Any]] | None = None,
+    top_level: list[str] | None = None,
+) -> int:
+    """Print a labelled result; only CURRENT exits 0."""
+    if result not in CHECK_RESULTS:
+        raise ValueError(f"unknown check result {result!r}")
+    code = 0 if result == "CURRENT" else 1
+    if report is not None:
+        document = {
+            "schema": CHECK_REPORT_SCHEMA,
+            "result": result,
+            "exitCode": code,
+            "meaning": RESULT_MEANING[result],
+            "manifest": str(display_path(output)),
+            "reason": message,
+            "revisionClasses": None if classes is None else {
+                "path": classes.path,
+                "sha256": classes.sha256,
+                "governedExact": len(classes.governed_keys()),
+            },
+            "changedRows": rows or [],
+            "changedTopLevelFields": top_level or [],
+        }
+        try:
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8", newline="\n")
+        except OSError as exc:
+            # Without the requested evidence the run cannot be called current.
+            print(message)
+            print(f"Hugging Face ecosystem check report could not be written: {report}: {exc}")
+            print(f"Hugging Face ecosystem check result: INVALID ({RESULT_MEANING['INVALID']})")
+            return 1
+    print(message)
+    for row in rows or []:
+        print(
+            f"  {row['change']} {row['repoType']} {row['id']} [{row['class']}]"
+            + (f" fields={','.join(row['fields'])}" if row["fields"] else "")
+        )
+    print(f"Hugging Face ecosystem check result: {result} ({RESULT_MEANING[result]})")
+    return code
+
+
+def check_manifest(output: Path, rename: list[str] | None, report: Path | None) -> int:
+    done = partial(finish_check, output=output, report=report)
+    if not output.exists():
+        return done("INVALID", f"Hugging Face ecosystem manifest is missing: {output}")
+    try:
+        existing = json.loads(output.read_text(encoding="utf-8"))
+        observed_at = existing["observedAt"]
+        parsed_observed_at = validate_observed_at(observed_at)
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        return done("INVALID", f"Hugging Face ecosystem manifest is invalid: {output}: {exc}")
+    # Checked before any network read, so an outage cannot hide it.
+    canonical_existing = json.dumps(existing, indent=2, sort_keys=False) + "\n"
+    if output.read_text(encoding="utf-8") != canonical_existing:
+        return done("INVALID", f"Hugging Face ecosystem manifest is not canonically rendered: {output}")
+    try:
+        # Loaded before any network read; a broken policy is never a default.
+        classes = revision_classes.load_revision_classes()
+        revision_classes.validate_manifest_coverage(classes, existing, label="tracked manifest")
+    except (TypeError, ValueError) as exc:
+        return done("INVALID", f"Hugging Face revision classes or coverage are invalid: {exc}")
+    done = partial(done, classes=classes)
+    try:
+        live = build_manifest(observed_at=observed_at)
+        revision_classes.validate_manifest_coverage(classes, live, label="live inventory")
+        validate_model_rename(live, rename)
+        validate_snapshot_revisions(
+            existing,
+            live,
+            observed_at=parsed_observed_at,
+            classes=classes,
+        )
+    except Exception as exc:
+        if hub_unavailable(exc):
+            return done("UNAVAILABLE", f"Hugging Face ecosystem evidence is unavailable: {output}: {exc}")
+        detail = str(exc)
+        if not isinstance(exc, (TypeError, ValueError, urllib.error.HTTPError)):
+            traceback.print_exc()
+            detail = f"{type(exc).__name__}: {exc}"
+        return done("INVALID", f"Hugging Face ecosystem manifest is invalid: {output}: {detail}")
+    if semantic_manifest(existing, classes) != semantic_manifest(live, classes):
+        rows, top_level = changed_rows(existing, live, classes)
+        return done("DRIFT", f"Hugging Face ecosystem manifest is stale: {output}", rows=rows, top_level=top_level)
+    return done("CURRENT", f"Hugging Face ecosystem manifest is current: {display_path(output)}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
@@ -699,39 +904,16 @@ def main() -> int:
         "--observed-at",
         help="Explicit RFC 3339 observation time for deterministic generation.",
     )
+    parser.add_argument(
+        "--report",
+        help="With --check, also write the labelled result as JSON to this path.",
+    )
     args = parser.parse_args()
     output = Path(args.output)
     if args.check:
-        if not output.exists():
-            print(f"Hugging Face ecosystem manifest is stale: {output}")
-            return 1
-        try:
-            existing = json.loads(output.read_text(encoding="utf-8"))
-            observed_at = existing["observedAt"]
-            parsed_observed_at = validate_observed_at(observed_at)
-        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
-            print(f"Hugging Face ecosystem manifest is invalid: {output}: {exc}")
-            return 1
-        live = build_manifest(observed_at=observed_at)
-        try:
-            validate_model_rename(live, args.model_rename)
-            validate_snapshot_revisions(
-                existing,
-                live,
-                observed_at=parsed_observed_at,
-            )
-        except (TypeError, ValueError) as exc:
-            print(f"Hugging Face ecosystem manifest is invalid: {output}: {exc}")
-            return 1
-        canonical_existing = json.dumps(existing, indent=2, sort_keys=False) + "\n"
-        if output.read_text(encoding="utf-8") != canonical_existing:
-            print(f"Hugging Face ecosystem manifest is not canonically rendered: {output}")
-            return 1
-        if semantic_manifest(existing) != semantic_manifest(live):
-            print(f"Hugging Face ecosystem manifest is stale: {output}")
-            return 1
-        print(f"Hugging Face ecosystem manifest is current: {display_path(output)}")
-        return 0
+        return check_manifest(output, args.model_rename, Path(args.report) if args.report else None)
+    if args.report:
+        parser.error("--report requires --check")
     observed_at = args.observed_at
     if observed_at is not None:
         try:

@@ -914,7 +914,8 @@ def _append_run_record(run_chain, lock, record):
 # honesty(str). a11oy passes _a11oy_sign_receipt; killinchu passes a thin wrapper
 # over szl_dsse.sign_payload / _emit_receipt.
 # verify_fn(envelope) -> {"signature_valid": bool, "detail": str} OR None (then
-# we fall back to a structural check).  pub_pem_fn() -> PEM str or "".
+# signatures are reported as not checked and nothing is verified; only an
+# explicit signature_valid of True counts).  pub_pem_fn() -> PEM str or "".
 # ----------------------------------------------------------------------------
 def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
              signer_label: str = "in-image key"):
@@ -1362,9 +1363,12 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             except Exception as e:
                 sig_result = {"signature_valid": False, "detail": "verifier error: %s" % e}
         if sig_result is None:
-            sig_result = {"signature_valid": bool(env.get("signed")),
-                          "detail": ("structural check: envelope reports signed=%s; "
-                                     "signature bytes present=%s"
+            # No host verifier: the envelope's own ``signed`` flag is supplied by the
+            # caller and proves nothing. Report the signature as not checked, so this
+            # path can never make a run "verified" (fail closed).
+            sig_result = {"signature_valid": None,
+                          "detail": ("NO_VERIFIER: signature not checked; envelope reports "
+                                     "signed=%s; signature bytes present=%s"
                                      % (env.get("signed"), bool(env.get("signatures"))))}
         # P5/C13/C14/W5-4 (real, executed): independent Merkle re-verification using
         # the shared formula mechanism — recomputes the chain, builds a Merkle root,
@@ -1383,7 +1387,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             "tamper_evidence": (merkle or {}).get("maturity"),
             "signature_valid": sig_result.get("signature_valid"),
             "signature_detail": sig_result.get("detail"),
-            "verified": bool(chain_ok and sig_result.get("signature_valid")),
+            "verified": bool(chain_ok and sig_result.get("signature_valid") is True),
             "note": ("Chain integrity recomputed independently from the receipt bodies "
                      "(two ways: prev_hash chain + Merkle root, P5/C13/C14). "
                      "Flip any byte in any receipt body and chain_intact becomes false."),
@@ -1919,7 +1923,9 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                     return verify_fn(env)
                 except Exception as e:
                     return {"signature_valid": False, "detail": str(e)}
-            return {"signature_valid": bool(env.get("signed"))}
+            return {"signature_valid": None,
+                    "detail": ("NO_VERIFIER: signature not checked; a self-reported "
+                               "signed flag is not evidence")}
         # --- canonical formula tools (reuse szl_anatomy_routes -> szl_formulas) ---
         if name == "list_formulas":
             if _ANAT is None:

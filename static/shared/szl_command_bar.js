@@ -131,7 +131,14 @@
       ])
     ]);
 
-    var svc = el('span', { class: 'szl-chip szl-chip--off', id: 'runtime-status' }, [
+    var svc = el('span', {
+      class: 'szl-chip szl-chip--off',
+      id: 'runtime-status',
+      role: 'status',
+      'aria-live': 'polite',
+      'aria-atomic': 'true',
+      'aria-busy': 'true'
+    }, [
       el('span', { class: 'szl-dot' }),
       el('span', { 'data-lab': '1', id: 'runtime-status-text', text: 'UNAVAILABLE' })
     ]);
@@ -187,6 +194,40 @@
     var moreMenu = el('div', { class: 'szl-overflow-menu', id: menuId, role: 'menu', 'aria-label': 'More surfaces' });
     var overflow = el('div', { class: 'szl-overflow' }, [moreBtn, moreMenu]);
 
+    var evidenceId = menuId + '-evidence';
+    var evidenceBtn = el('button', {
+      class: 'szl-evidence-toggle',
+      type: 'button',
+      'aria-expanded': 'false',
+      'aria-controls': evidenceId,
+      text: 'Evidence'
+    });
+    var evidenceRevision = el('span', { 'data-evidence-revision': '1', text: 'UNAVAILABLE' });
+    var evidenceRuntime = el('span', { 'data-evidence-runtime': '1', text: 'UNAVAILABLE' });
+    var evidenceObserved = el('time', { 'data-evidence-observed': '1', text: 'UNAVAILABLE' });
+    var evidencePanel = el('section', {
+      class: 'szl-evidence-panel',
+      id: evidenceId,
+      role: 'region',
+      'aria-label': 'Runtime evidence',
+      'aria-busy': 'true',
+      hidden: ''
+    }, [
+      el('div', { class: 'szl-evidence-title', text: 'Runtime evidence' }),
+      el('dl', { class: 'szl-evidence-list' }, [
+        el('div', null, [el('dt', { text: 'Source revision' }), el('dd', null, [evidenceRevision])]),
+        el('div', null, [el('dt', { text: 'Environment' }), el('dd', null, [evidenceRuntime])]),
+        el('div', null, [el('dt', { text: 'Observed at' }), el('dd', null, [evidenceObserved])]),
+        el('div', null, [el('dt', { text: 'Scope' }), el('dd', { text: 'Read-only, same-origin runtime probes.' })]),
+        el('div', null, [el('dt', { text: 'Limits' }), el('dd', { text: 'HTTP availability is not capability, proof, deployment identity, or authorization.' })])
+      ]),
+      el('div', { class: 'szl-evidence-links' }, [
+        el('a', { href: '/api/build-info', text: 'Build JSON' }),
+        el('a', { href: '/api/a11oy/v1/readiness/tab-matrix?view=summary', text: 'Readiness JSON' }),
+        el('a', { href: '/verify', text: 'Verify receipt' })
+      ])
+    ]);
+
     var estate = el('nav', { class: 'szl-estate extlinks', 'aria-label': 'Estate switcher' }, [
       el('a', { class: 'flag', href: '/console', text: 'A11OY' }),
       el('a', { class: 'flag', href: 'https://huggingface.co/spaces/szlholdings/killinchu', target: '_blank', rel: 'noopener noreferrer', text: 'KILLINCHU' }),
@@ -205,7 +246,7 @@
     });
     var origins = el('div', { class: 'szl-origins' }, [product, holo, frontier, proof]);
     var sw = el('div', { class: 'szl-hbar-zone szl-hbar-switch', 'aria-label': 'Surface switcher' }, [
-      origins, investor, cmdkBtn, opBtn, estate, overflow
+      origins, evidenceBtn, investor, cmdkBtn, opBtn, estate, overflow
     ]);
 
     root.textContent = '';
@@ -213,6 +254,7 @@
     root.appendChild(scope);
     root.appendChild(live);
     root.appendChild(sw);
+    root.appendChild(evidencePanel);
     if (consoleTheme) {
       var themeButton = el('button', { class: 'szl-origin szl-theme-toggle', type: 'button' });
       themeButton.addEventListener('click', function () {
@@ -234,6 +276,29 @@
     try {
       if (localStorage.getItem('szl.operator') === '1') document.documentElement.setAttribute('data-operator', '1');
     } catch (e) {}
+
+    function closeEvidence(restore) {
+      evidencePanel.hidden = true;
+      evidenceBtn.setAttribute('aria-expanded', 'false');
+      if (restore) evidenceBtn.focus();
+    }
+    function openEvidence() {
+      evidencePanel.hidden = false;
+      evidenceBtn.setAttribute('aria-expanded', 'true');
+    }
+    evidenceBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (evidencePanel.hidden) openEvidence();
+      else closeEvidence(false);
+    });
+    evidencePanel.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && !evidencePanel.hidden) {
+        ev.preventDefault();
+        closeEvidence(true);
+      }
+    });
+    document.addEventListener('click', function () { closeEvidence(false); });
 
     function closeMore(restore) {
       overflow.classList.remove('open');
@@ -336,23 +401,43 @@
     var lastHead = null;
     function probe() {
       var operator = document.documentElement.getAttribute('data-operator') === '1';
+      svc.setAttribute('aria-busy', 'true');
+      evidencePanel.setAttribute('aria-busy', 'true');
       Promise.all([
         fetchJson('/healthz', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/readiness/tab-matrix?view=summary', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/observability/summary', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/lambda', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/wow/ledger?limit=1&advance=0', 6000).catch(function () { return null; }),
-        fetchJson('/api/a11oy/v1/honest', 6000).catch(function () { return null; })
+        fetchJson('/api/a11oy/v1/honest', 6000).catch(function () { return null; }),
+        fetchJson('/api/build-info', 6000).catch(function () { return null; })
       ]).then(function (vals) {
-        var health = vals[0], matrix = vals[1], summary = vals[2], lambda = vals[3], ledger = vals[4], honest = vals[5];
+        var health = vals[0], matrix = vals[1], summary = vals[2], lambda = vals[3], ledger = vals[4], honest = vals[5], build = vals[6];
+        var observedAt = new Date().toISOString();
+        var buildRecord = build && build.build;
+        var revision = buildRecord && buildRecord.revision;
+        var revisionObserved = build && build.status === 'OBSERVED' && typeof revision === 'string' && /^[0-9a-f]{40}$/.test(revision);
+        evidenceRevision.textContent = revisionObserved ? ('OBSERVED / ' + revision.slice(0, 12)) : 'UNAVAILABLE';
+        evidenceRevision.title = revisionObserved ? revision : 'No source-bound 40-hex runtime revision was observed.';
+        var runtime = build && build.runtime;
+        evidenceRuntime.textContent = revisionObserved && runtime
+          ? ('REPORTED / ' + (runtime.platform || 'UNKNOWN') + ' / Python ' + (runtime.python || 'UNKNOWN'))
+          : 'UNAVAILABLE';
+        evidenceObserved.textContent = observedAt;
+        evidenceObserved.setAttribute('datetime', observedAt);
+        evidencePanel.setAttribute('data-evidence-state', revisionObserved ? 'OBSERVED' : 'UNAVAILABLE');
+        evidencePanel.setAttribute('aria-busy', 'false');
+        svc.setAttribute('aria-busy', 'false');
         if (health && (health.status === 'ok' || health.status === 'healthy')) {
           var label = 'ONLINE';
           if (operator && matrix && matrix.available === false) label = 'ONLINE · CONTRACT GAP';
           else if (operator && matrix && matrix.contract_version) label = 'ONLINE · CONTRACT ' + matrix.contract_version;
           setChip(svc, true, label);
+          svc.title = 'Process health observed at ' + observedAt + '; source revision ' + (revisionObserved ? revision : 'UNAVAILABLE') + '.';
           svc.classList.remove('szl-chip--deny');
         } else {
           setChip(svc, false, 'UNAVAILABLE');
+          svc.title = 'Process health unavailable at ' + observedAt + '; source revision ' + (revisionObserved ? revision : 'UNAVAILABLE') + '.';
         }
 
         if (lambda && typeof lambda.lambda === 'number' && isFinite(lambda.lambda)) {
@@ -421,11 +506,21 @@
         } catch (e) {}
         if (deny) svc.classList.add('szl-chip--deny');
       }).catch(function () {
+        var observedAt = new Date().toISOString();
         setChip(svc, false, 'UNAVAILABLE');
         setChip(lam, false, 'CONJECTURE 1 · UNAVAILABLE');
         setChip(kern, false, 'UNAVAILABLE');
         setChip(chain, false, 'UNAVAILABLE');
         setChip(age, false, 'UNAVAILABLE');
+        evidenceRevision.textContent = 'UNAVAILABLE';
+        evidenceRevision.title = 'No source-bound 40-hex runtime revision was observed.';
+        evidenceRuntime.textContent = 'UNAVAILABLE';
+        evidenceObserved.textContent = observedAt;
+        evidenceObserved.setAttribute('datetime', observedAt);
+        evidencePanel.setAttribute('data-evidence-state', 'UNAVAILABLE');
+        evidencePanel.setAttribute('aria-busy', 'false');
+        svc.setAttribute('aria-busy', 'false');
+        svc.title = 'Runtime evidence probe failed at ' + observedAt + '.';
       });
     }
     probe();

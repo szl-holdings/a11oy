@@ -22,6 +22,18 @@ models: [SZLHOLDINGS/SZL-Khipu-1.5B, SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent]
 datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 ---
 
+<!-- szl:header v1 -->
+[![org: szl-holdings](https://img.shields.io/badge/org-szl--holdings-black)](https://github.com/szl-holdings)
+[![doctrine](https://img.shields.io/badge/doctrine-control%20before%20action%20%C2%B7%20evidence%20after-blue)](https://a-11-oy.com)
+
+**Control before action. Evidence after.**
+
+Part of the [szl-holdings](https://github.com/szl-holdings) estate ·
+Product: [a-11-oy.com](https://a-11-oy.com) ·
+Proof: [a11oy.net](https://a11oy.net)
+<!-- /szl:header -->
+
+
 <!-- szl:card-presentation:v1 -->
 <!-- Native identity: szl-brand@4309f6fce89179331b0b3ed8c99494e76c5be256; Orbit v2 icon. -->
 <p>

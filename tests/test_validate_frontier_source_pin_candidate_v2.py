@@ -155,7 +155,7 @@ def test_transition_fixtures_are_exact_and_immutable() -> None:
         PRE_REPAIR_FIXTURES[validator.SOLO_WORKFLOW]:
             "706fba1353d402d7bc6ae3c20485b6e5ad77e46003e96992aceaad9996ac0294",
         PRE_REPAIR_FIXTURES[validator.BUILDER_WORKFLOW]:
-            "3aa55e852c343c3a34560d306836f3c2d7da3042063483772701049f02325d63",
+            "b9a1635ed0e6fa3fc95c331f7681809dde6c894e660be306877c9b6d025b11f6",
         PRE_REPAIR_FIXTURES[validator.CONTRACT]:
             "bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae",
         PRE_REPAIR_FIXTURES[validator.V1_TEST]:
