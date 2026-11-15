@@ -40,10 +40,14 @@ def test_front_door_catalog_links_do_not_invent_runtime_inventory_counts() -> No
     assert "A reachable URL is reachability only" in ecosystem
     assert "not source/runtime alignment" in ecosystem
     assert "ROADMAP cards are empty on purpose" in ecosystem
-    for slug in ("szl-flagship-models", "szl-kernels-software", "szl-roadmap-no-admitted-data", "szl-flagship-spaces"):
+    # The szl-roadmap-no-admitted-data collection was verified deleted on
+    # 2026-11-04 (404 on the Hub with an organization token); only the three
+    # surviving canonical collections may be linked.
+    for slug in ("szl-flagship-models", "szl-kernels-software", "szl-flagship-spaces"):
         assert f'https://huggingface.co/collections/SZLHOLDINGS/{slug}-' in ecosystem
+    assert "szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50\" rel" not in ecosystem
     assert "Canonical public catalog sources" in ecosystem
-    assert ecosystem.count('<b>OPEN</b>') == 4
+    assert ecosystem.count('<b>OPEN</b>') == 3
     assert not re.search(r'<b>\d+</b>', ecosystem)
     assert "snapshot observed 2026-07-16" not in landing
 

@@ -11,8 +11,13 @@ FRONT = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
 COLLECTIONS = (
     "https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d",
     "https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64",
-    "https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50",
     "https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62",
+)
+
+# Verified deleted on the Hub on 2026-11-04 (404 on /api/collections and the
+# public page with an organization token); the landing page must not link it.
+DEAD_COLLECTION_URL = (
+    "https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50"
 )
 
 HONESTY = ("REACHABLE", "MEASURED", "REPORTED", "ROADMAP", "SOFTWARE", "UNAVAILABLE", "SIMULATED")
@@ -61,6 +66,7 @@ def test_hub_collections_are_the_catalog() -> None:
     catalog = FRONT.split('id="catalog"', 1)[1].split("</section>", 1)[0]
     for url in COLLECTIONS:
         assert url in catalog
+    assert DEAD_COLLECTION_URL not in FRONT
     assert "not forty product SKUs" in FRONT
     assert "ROADMAP cards are empty on purpose" in FRONT or "Not trained" in catalog
     assert "40 Hub" not in FRONT

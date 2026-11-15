@@ -5,34 +5,17 @@
 import hashlib
 import json
 from pathlib import Path
+import shutil
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ".github/shared-source-payloads/replication-snapshot-delivery-20261021-v1.json"
 MCP_ARCHIVE = ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json"
-CONNECTOR_PAYLOAD = frozenset({
-    "pages/integrations.html",
-    "szl_connector_mcp.py",
-    "szl_connectors/__init__.py",
-    "szl_connectors/base.py",
-    "szl_connectors/bindings.py",
-    "szl_connectors/crm/crm_connectors.py",
-    "szl_connectors/data_sources/geo.py",
-    "szl_connectors/data_sources/macro.py",
-    "szl_connectors/data_sources/maritime_air.py",
-    "szl_connectors/data_sources/research.py",
-    "szl_connectors/data_sources/security.py",
-    "szl_connectors/erp/erpnext.py",
-    "szl_connectors/erp/odoo.py",
-    "szl_connectors/erp/others.py",
-    "szl_connectors/erp/sap_s4.py",
-    "szl_connectors/governance.py",
-    "szl_connectors/identity/identity_connectors.py",
-    "szl_connectors/oauth.py",
-    "szl_connectors/ready.py",
-    "szl_connectors/registry.py",
-    "tests/test_connector_state_truth.py",
-    "tests/test_replication_shared_payload.py",
-})
+RETAINED = "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
+SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json"
+PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
+ACTIVE = ".github/shared-source-payload-manifest.json"
 
 
 def test_snapshot_replication_payload_preserves_prior_manifest_and_source():
@@ -80,12 +63,121 @@ def test_mcp_inventory_payload_is_retained_byte_exact():
     assert manifest["files"]["tests/test_mcp_inventory_observation.py"] == "10a015c982ba92b906e92c755fc0e70e26682e01474062c48a8b2913c8795abe"
 
 
+def _retained_signing_payload(root):
+    raw = (root / RETAINED).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+    )
+    manifest = json.loads(raw)
+    assert manifest["payload_id"] == "retained-signing-ledger-20261101-v1"
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["files"][MCP_ARCHIVE] == "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35"
+    assert manifest["files"]["szl_connectors/warehouse/warehouse_connectors.py"] == "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f"
+    assert manifest["files"]["tests/test_snowflake_sql_result_classification.py"] == "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
+    assert manifest["files"][".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json"] == "74f824946666a293be88af6f554d2b9e786d4b0bf08ad639a10ec756d47a90a1"
+    assert {"a11oy_org_rag.py", "szl_provenance.py", "szl_operator_auth.py", "szl_signing_state.py",
+            "tests/test_replication_shared_payload.py"} <= set(manifest["files"])
+    return manifest
+
+
+def _assert_current_shared_payload(root):
+    retained = _retained_signing_payload(root)
+    # Exact original security-generation bytes, not a regenerated predecessor.
+    raw = (root / SNOWFLAKE).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b"
+    )
+    security = json.loads(raw)
+    assert security["schema"] == "szl-shared-source-payload/v1"
+    assert security["payload_id"] == "snowflake-account-host-boundary-20261102-v1"
+    assert set(security["files"]) == set(retained["files"])
+    connector = "szl_connectors/warehouse/warehouse_connectors.py"
+    security_test = "tests/test_snowflake_sql_result_classification.py"
+    assert security["files"][connector] == (
+        "2ff48cba8b038e5914caff6a2a629d17ed75561081704eb1d659fa9693fd721d"
+    )
+    assert security["files"][security_test] == (
+        "fdf0932898e66378e34953c1b6911eea28b4783edb988c9c9534a0668475d1a0"
+    )
+    assert {
+        relative for relative in retained["files"]
+        if retained["files"][relative] != security["files"][relative]
+    } == {connector, security_test}
+
+    prior_raw = (root / PROOF).read_bytes()
+    assert hashlib.sha256(prior_raw).hexdigest() == "fd63c97faa83ba598cba37e4c79f74c85f56676e89c11eb10084f8220e1d4462"
+    prior = json.loads(prior_raw)
+    assert prior["schema"] == "szl-shared-source-payload/v1"
+    assert prior["payload_id"] == "snowflake-proof-retention-20261103-v1"
+    assert set(prior["files"]) == set(security["files"]) | {RETAINED, SNOWFLAKE}
+    assert prior["files"][RETAINED] == (
+        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+    )
+    assert prior["files"][SNOWFLAKE] == (
+        "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b"
+    )
+    # Only the proof test and the signing-capability binding change in this
+    # generation; every prior runtime/security entry stays pinned.
+    for relative, expected in security["files"].items():
+        if relative not in {"tests/test_replication_shared_payload.py",
+                            "szl_signing_state.py"}:
+            assert prior["files"][relative] == expected
+    manifest = json.loads((root / ACTIVE).read_bytes())
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "dsse-finite-reload-20261112-v1"
+    assert set(manifest["files"]) == set(prior["files"]) | {
+        PROOF, "szl_dsse.py", "tests/test_dsse_real_signing.py",
+    }
+    assert manifest["files"][PROOF] == hashlib.sha256(prior_raw).hexdigest()
+    # Finite emission adds the DSSE source and its tests. Provenance reload now
+    # checks stored envelope bytes, so that file moves in this generation.
+    # Every other predecessor entry stays pinned.
+    for relative, expected in prior["files"].items():
+        if relative not in {"tests/test_replication_shared_payload.py",
+                            "szl_provenance.py"}:
+            assert manifest["files"][relative] == expected
+    # Verify all current bytes; predecessor receipts above stay immutable.
+    for relative, expected in manifest["files"].items():
+        assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected
+
+
 def test_current_shared_payload_manifest_matches_current_peer():
     prior = (ROOT / SNAPSHOT).read_bytes()
     assert hashlib.sha256(prior).hexdigest() == "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166"
-    manifest = json.loads((ROOT / ".github/shared-source-payload-manifest.json").read_bytes())
-    assert manifest["payload_id"] == "connector-reachability-truth-20261102-v1"
-    assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert set(manifest["files"]) == CONNECTOR_PAYLOAD
-    for relative, expected in manifest["files"].items():
-        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == expected
+    _assert_current_shared_payload(ROOT)
+
+
+@pytest.mark.parametrize("change", [
+    "source", "source_and_digest", "missing_entry", "schema", "generation",
+    "security_digest", "retained_bytes", "security_bytes", "proof_bytes", "dsse_source",
+])
+def test_current_payload_rejects_tampering(tmp_path, change):
+    manifest = json.loads((ROOT / ACTIVE).read_bytes())
+    for relative in manifest["files"]:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative, target)
+    if change in {"source", "source_and_digest"}:
+        source = tmp_path / "szl_operator_auth.py"
+        source.write_bytes(source.read_bytes() + b"\n")
+        if change == "source_and_digest":
+            manifest["files"]["szl_operator_auth.py"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    elif change == "missing_entry":
+        del manifest["files"]["szl_signing_state.py"]
+    elif change == "schema":
+        manifest["schema"] = "invalid"
+    elif change == "generation":
+        manifest["payload_id"] = "snowflake-account-host-boundary-20261102-v1"
+    elif change == "security_digest":
+        manifest["files"]["szl_connectors/warehouse/warehouse_connectors.py"] = (
+            _retained_signing_payload(tmp_path)["files"]["szl_connectors/warehouse/warehouse_connectors.py"]
+        )
+    else:
+        source = tmp_path / {
+            "retained_bytes": RETAINED, "security_bytes": SNOWFLAKE,
+            "proof_bytes": PROOF, "dsse_source": "szl_dsse.py",
+        }[change]
+        source.write_bytes(source.read_bytes() + b"\n")
+    (tmp_path / ACTIVE).write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(AssertionError):
+        _assert_current_shared_payload(tmp_path)

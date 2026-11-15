@@ -1,11 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 """
-a11oy_mcp_client — Streamable-HTTP MCP client to the live ``hatun-mcp`` server.
+a11oy_mcp_client — Streamable-HTTP MCP client for the ``hatun-mcp`` server.
 
 SHARED module: deployed BYTE-IDENTICAL on a11oy and killinchu (additive).
 
-The canonical MCP backend for a11oy Code's governed tools is the live, operational
+UPSTREAM DISPOSITION (verified 2026-11-04): the ``SZLHOLDINGS/hatun-mcp`` HF
+Space and its runtime URL ``https://szlholdings-hatun-mcp.hf.space`` are
+DELETED (404 across the Hub APIs and a runtime probe). The default endpoint
+below is therefore a DEAD default: every call fails closed with a labeled
+honest error until an operator points ``HATUN_MCP_URL`` at a successor gateway.
+This module must never present the deleted endpoint as live or operational.
+
+The historical MCP backend for a11oy Code's governed tools was the
 ``hatun-mcp`` server (Streamable HTTP):
 
     https://szlholdings-hatun-mcp.hf.space/mcp
@@ -15,7 +22,7 @@ HTTP POST endpoint (the "Streamable HTTP" transport): ``initialize`` →
 ``tools/list`` → ``tools/call``.  Each ``tools/call`` returns a DSSE-signed
 governance receipt (PURIQ 7-step contract).  This client:
 
-  * lists the live tool surface (49 tools as of the 2026-06-03 probe),
+  * listed the historical tool surface (49 tools as of the 2026-06-03 probe),
   * calls a tool by name with JSON arguments,
   * surfaces the returned Khipu receipt hash so the agent loop can chain it.
 
@@ -44,7 +51,9 @@ try:
 except Exception:  # pragma: no cover - httpx is in-image
     httpx = None  # type: ignore
 
-# Canonical live endpoint (overridable by env for a private mirror / local test).
+# Default endpoint (overridable by env). DEAD DEFAULT since 2026-11-04: the
+# hatun-mcp Space was deleted; calls against this URL fail closed with a
+# labeled honest error until an operator sets HATUN_MCP_URL to a successor.
 HATUN_MCP_URL = os.environ.get(
     "HATUN_MCP_URL", "https://szlholdings-hatun-mcp.hf.space/mcp"
 )
