@@ -186,7 +186,7 @@ def gate_write(*, connector_id: str, connected: bool, action: dict[str, Any],
     receipt_dict, quorum_dict, detail).
 
     Λ axes (each ∈[0,1], conjunctive):
-      connected  — connector is CONNECTED (refuse writes until creds activate it)
+      connected  — connector is CONNECTED after observed provider reachability
       input_ok   — action shape is well-formed (has a method/object)
       no_secret_leak — no raw secret in the action body
       quorum_ok  — 2-person / 3-of-4 quorum satisfied (or honest pending)
@@ -208,7 +208,8 @@ def gate_write(*, connector_id: str, connected: bool, action: dict[str, Any],
     allowed = connected and has_method and not leak
     detail = ""
     if not connected:
-        detail = "write refused — connector not CONNECTED (provide credentials to activate)"
+        detail = ("write refused — connector not CONNECTED "
+                  "(credentials and provider reachability must be verified)")
     elif not has_method:
         detail = "write refused — action shape missing method/object"
     elif leak:

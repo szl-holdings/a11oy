@@ -20,9 +20,13 @@ class WorkflowSourceTests(unittest.TestCase):
         workflow=(ROOT/'.github/workflows/hf-tooling-product.yml').read_text()
         job=workflow.split('  published-model-readback:',1)[1]
         self.assertIn('ref: ${{ github.sha }}',job)
-        self.assertIn('ref: ${{ github.event.workflow_run.head_sha || github.sha }}',job)
+        # The event-supplied SHA is never handed to actions/checkout (Scorecard
+        # DangerousWorkflow); it must be proven to be in main history first.
+        self.assertNotIn('ref: ${{ github.event.workflow_run.head_sha',job)
+        self.assertIn('PUBLISHED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}',job)
+        self.assertIn('git merge-base --is-ancestor "$PUBLISHED_SHA" refs/remotes/origin/main',job)
+        self.assertIn('git worktree add --detach source-snapshot "$PUBLISHED_SHA"',job)
         self.assertIn('SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}',job)
-        self.assertIn('path: source-snapshot',job)
         self.assertIn('--source-root source-snapshot',job)
         self.assertIn('github.event.workflow_run.head_repository.full_name == github.repository',job)
         self.assertIn("github.event.workflow_run.head_branch == 'main'",job)
@@ -33,7 +37,7 @@ class WorkflowSourceTests(unittest.TestCase):
         self.assertNotIn('git checkout',job)
         self.assertNotIn('python source-snapshot/',job)
         self.assertNotIn('working-directory: source-snapshot',job)
-        self.assertEqual(job.count('persist-credentials: false'),2)
+        self.assertEqual(job.count('persist-credentials: false'),1)
 
     def test_trusted_observer_reads_published_snapshot_when_default_branch_moves(self):
         with tempfile.TemporaryDirectory() as folder:
