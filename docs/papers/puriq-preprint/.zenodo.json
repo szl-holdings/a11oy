@@ -31,8 +31,8 @@
   "access_right": "open",
   "language": "eng",
   "related_identifiers": [
-    {"relation": "isVersionOf", "identifier": "10.5281/zenodo.19944926", "scheme": "doi"},
-    {"relation": "references", "identifier": "10.5281/zenodo.19944926", "scheme": "doi"}
+    {"relation": "isVersionOf", "identifier": "10.5281/zenodo.24239896", "scheme": "doi"},
+    {"relation": "references", "identifier": "10.5281/zenodo.24239896", "scheme": "doi"}
   ],
-  "notes": "Concept DOI 10.5281/zenodo.19944926 (Ouroboros line) resolves to the latest related version. PURIQ preprint source: szl-holdings/puriq-preprint, tag preprint-v1.0.0. DOI minted automatically via the GitHub-Zenodo integration on GitHub release; see ZENODO_AUTO_MINT_SETUP.md."
+  "notes": "Concept DOI 10.5281/zenodo.24239896 (Ouroboros line) resolves to the latest related version. PURIQ preprint source: szl-holdings/puriq-preprint, tag preprint-v1.0.0. DOI minted automatically via the GitHub-Zenodo integration on GitHub release; see ZENODO_AUTO_MINT_SETUP.md."
 }
