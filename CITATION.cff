@@ -1,4 +1,6 @@
 cff-version: 1.2.0
+# Zenodo (InvenioRDM) DOI - always resolves to the latest version of this archive
+doi: 10.5281/zenodo.24240090
 message: "If you use A11oy, cite this software and the associated research record."
 type: software
 title: "A11oy: governed AI execution fabric"
