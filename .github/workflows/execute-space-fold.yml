@@ -82,8 +82,7 @@ jobs:
       - name: Install exact Hugging Face client
         shell: bash
         run: >-
-          python -m pip install --disable-pip-version-check --no-cache-dir
-          "huggingface_hub==1.10.1"
+          python -m pip install --disable-pip-version-check --no-cache-dir --require-hashes -r .github/requirements/hf-control-1-10.txt
 
       - name: Validate fold controller before provider access
         shell: bash

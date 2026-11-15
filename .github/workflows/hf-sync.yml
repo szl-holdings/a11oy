@@ -157,9 +157,7 @@ jobs:
       - name: Install exact Hugging Face control client
         if: ${{ steps.admit.outputs.publish == 'true' }}
         run: >-
-          python -I -m pip install --disable-pip-version-check
-          "huggingface_hub==1.31.0"
-          "requests==2.32.5"
+          python -I -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/hf-control-1-31.txt
           "cryptography==50.0.1"
 
       # Never restarts. A serving Space is rebuilt by the deploy commit; a
@@ -334,9 +332,7 @@ jobs:
 
       - name: Install exact Hugging Face control client
         run: >-
-          python -I -m pip install --disable-pip-version-check
-          "huggingface_hub==1.31.0"
-          "requests==2.32.5"
+          python -I -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/hf-control-1-31.txt
           "cryptography==50.0.1"
 
       # Converged before deploy: verify the deployed revision's installed
@@ -490,8 +486,7 @@ jobs:
       - name: Install pinned vertical publisher
         if: ${{ steps.exact_main_owner.outputs.publish == 'true' && steps.vertical_plan.outputs.vertical_flagships == 'true' }}
         run: >-
-          python -I -m pip install --disable-pip-version-check --no-cache-dir
-          "huggingface_hub==1.31.0"
+          python -I -m pip install --disable-pip-version-check --no-cache-dir --require-hashes -r .github/requirements/hf-control-1-31.txt
 
       - name: Publish and verify the v4 vertical estate
         id: vertical_publish
@@ -558,9 +553,7 @@ jobs:
 
       - name: Install exact execution evidence verification clients
         run: >-
-          python -I -m pip install --disable-pip-version-check
-          "huggingface_hub==1.23.0" "requests==2.32.5"
-          "cryptography==50.0.2" "httpx==0.28.1"
+          python -I -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/hf-control-1-23-evidence.txt
 
       - name: Re-admit protected main before runtime handoff
         id: owner_before
@@ -798,9 +791,7 @@ jobs:
 
       - name: Install exact execution evidence verification clients
         run: >-
-          python -I -m pip install --disable-pip-version-check
-          "huggingface_hub==1.23.0" "requests==2.32.5"
-          "cryptography==50.0.2" "httpx==0.28.1"
+          python -I -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/hf-control-1-23-evidence.txt
 
       # GET only: this does not issue a challenge, approve a plan, dispatch POSTs,
       # mint a signature, create credentials, change configuration or restart.
@@ -890,9 +881,7 @@ jobs:
 
       - name: Install exact read-only verification clients
         run: >-
-          python -I -m pip install --disable-pip-version-check
-          "huggingface_hub==1.23.0"
-          "requests==2.32.5"
+          python -I -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/hf-control-1-23-readonly.txt
           "cryptography==50.0.2" "httpx==0.28.1"
 
       - name: Download this exact run and attempt's raw evidence
