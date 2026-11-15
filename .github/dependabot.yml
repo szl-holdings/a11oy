@@ -103,12 +103,16 @@ updates:
   #   "/web/console"         -> standalone Vite console app
   #   "/docs/site"           -> standalone VitePress docs site
   #   "/runtime/ouroboros"   -> standalone ouroboros runtime package
+  #   "/ops/alert-relay-worker"  -> szl-alert-relay Worker (locked Wrangler)
+  #   "/ops/email-sender-worker" -> szl-email-sender Worker (locked Wrangler)
   - package-ecosystem: "npm"
     directories:
       - "/"
       - "/web/console"
       - "/docs/site"
       - "/runtime/ouroboros"
+      - "/ops/alert-relay-worker"
+      - "/ops/email-sender-worker"
     schedule:
       interval: "weekly"
       day: "monday"

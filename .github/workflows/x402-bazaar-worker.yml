@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: x402 Bazaar worker contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/x402-bazaar-worker.yml'
+      - 'ops/x402-bazaar-worker/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/x402-bazaar-worker.yml'
+      - 'ops/x402-bazaar-worker/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: x402-bazaar-contracts-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Verify fail-closed Bazaar worker contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6.1.0
+        with:
+          node-version: '22'
+          check-latest: false
+      - name: Run network-free regression tests
+        run: node --test --test-reporter=tap ops/x402-bazaar-worker/worker.test.mjs
