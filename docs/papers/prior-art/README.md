@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Doctrine v11 LOCKED](https://img.shields.io/badge/Doctrine-v11_LOCKED-d4a444.svg)](https://github.com/szl-holdings/lutar-lean)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239896.svg)](https://doi.org/10.5281/zenodo.24239896)
 
 [![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg)](SECURITY.md)
 
@@ -25,7 +25,7 @@ record so they cannot be exclusively claimed by third parties.
 ## Disclosure: PURIQ Master Formula, 13-Axis Yuyay Gate, Khipu DAG
 
 - **Disclosure date:** 2026-06-01 (EDT)
-- **Concept DOI chain:** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+- **Concept DOI chain:** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 - **Replay-hash anchor:** `bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5`
 
 This disclosure publicly documents:
