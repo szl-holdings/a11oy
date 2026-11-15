@@ -3,7 +3,7 @@
 **16 frontier theorems across formal verification, learning theory, quantum information, and AI governance.**
 Source: [DOI 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276), Chapters 2, 3, 7.
 Lean 4 repository: [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)
-([DOI 10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)).
+([DOI 10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654)).
 
 Verification verdicts follow the Lean Czar classification from Chapter 7:
 **lake-verified** = builds clean, no `sorry`, no new axiom.
@@ -236,5 +236,5 @@ grep -rE "^\s*sorry" Lutar/ --include="*.lean" | wc -l
 ```
 
 Sources: [DOI 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) (thesis, Ch. 2, Ch. 7) ·
-[DOI 10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308) (Lean 4 software archive) ·
+[DOI 10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654) (Lean 4 software archive) ·
 [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean) (production tree).
