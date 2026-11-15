@@ -47,3 +47,5 @@ jobs:
           python-version: '3.12'
       - name: Verify shared-module hash lock
         run: python3 .github/shared-module-hash-check.py
+      - name: Self-test shared-module hash lock
+        run: python3 .github/test-shared-module-hash-lock.py
