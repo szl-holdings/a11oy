@@ -1,33 +1,22 @@
+// SPDX-License-Identifier: Apache-2.0
+// (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 /**
- * SZL x402 Bazaar discovery shim — a11oy monetization edge lane.
- *
- * ARCHITECTURE (measured 2026-11-15, receipt: frontier-54-runs):
- * The Cloudflare Monetization Gateway (closed beta) emits x402 v2 challenges
- * for inference.a-11-oy.com/v1/* with NO extensions field, so the resource is
- * invisible to the CDP x402 Bazaar / agentic.market discovery layer (23k+
- * resources, opt-in: the resource server must advertise extensions.bazaar).
- * The managed gateway response shape is fixed; this first-party Worker adds
- * the Bazaar metadata without changing price, payee, or verification.
- *
- * FAIL-CLOSED CONTRACT:
- * - Unpaid request (no PAYMENT-SIGNATURE): respond 402 with a challenge
- *   parity to the live gateway challenge (same accepts / payTo / asset /
- *   amount / maxTimeoutSeconds / help) PLUS extensions.bazaar. Never a 200.
- * - Paid request (PAYMENT-SIGNATURE present): passthrough mode. This worker
- *   does NOT verify payments. It forwards the request with a sentinel header
- *   so the CF Monetization Gateway performs real verification on the inner
- *   subrequest. See README open-questions for the re-entry caveat — verify
- *   in staging before production; never assume the passthrough works.
- * - Route precedence: this worker claims a NARROWER route than the gateway
- *   (exact /v1/chat/completions vs /v1/*). CF runs only the first matching
- *   worker; the gateway keeps every other route.
- *
- * DEPLOYMENT: OWNER-GATED (Cloudflare dashboard route). This file is the
- * source of truth; the sha256 of the deployed worker must equal the receipted
- * sha (receipts before republish, doctrine).
+ * Source-only x402 discovery shim; deployment remains owner-gated.
+ * A payment header is a request for verification, not proof of payment.
+ * Forward only through an explicitly configured PAYMENT_GATEWAY service
+ * binding. Never use same-zone fetch or a caller-controlled bypass header.
+ * The bound service must verify and settle before releasing inference.
+ * Local tests cannot establish that the managed gateway is bindable,
+ * that settlement succeeds, or that Bazaar accepts the discovery metadata.
  */
-
 const BAZAAR_PASSTHROUGH_HEADER = "x-szl-bazaar-passthrough";
+const CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "POST, OPTIONS",
+  "access-control-allow-headers": "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
+  "access-control-expose-headers": "PAYMENT-REQUIRED, PAYMENT-RESPONSE, EXTENSION-RESPONSES",
+};
+const ALLOWED_REQUEST_HEADERS = new Set(["content-type", "payment-signature", "x-payment"]);
 
 // Parity constants — verified against the live gateway 402 (2026-11-15,
 // probe from owner laptop, C:\SZL\edge-debug\bazaar_probe.txt).
@@ -118,51 +107,102 @@ function challengeBody() {
   return JSON.stringify(body);
 }
 
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
+function responseHeaders(extra = {}) {
+  return {
+    "content-type": "application/json",
+    "cache-control": "private, no-store",
+    "x-szl-edge": "x402-bazaar-shim-v2",
+    ...CORS_HEADERS,
+    ...extra,
+  };
+}
 
+function errorResponse(status, error, extra = {}) {
+  return new Response(JSON.stringify({ error }), { status, headers: responseHeaders(extra) });
+}
+
+function encodePaymentRequired(body) {
+  const bytes = new TextEncoder().encode(body);
+  return btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(""));
+}
+
+function hasSettlementSuccess(header) {
+  // Defensive shape check only; the trusted gateway owns cryptographic verification.
+  if (!header || header.length > 16384) return false;
+  try {
+    const result = JSON.parse(atob(header));
+    return result?.success === true &&
+      result.network === CHALLENGE.accepts[0].network &&
+      typeof result.transaction === "string" && result.transaction.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function rejectUpstream(upstream, error) {
+  try { await upstream.body?.cancel(); } catch { /* Do not disclose upstream errors. */ }
+  return errorResponse(502, error);
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
     if (url.pathname !== "/v1/chat/completions") {
-      return new Response(JSON.stringify({ error: "not_found", detail: "bazaar shim covers only /v1/chat/completions" }), {
-        status: 404,
-        headers: { "content-type": "application/json", "x-szl-edge": "x402-bazaar-shim-v1" },
+      return errorResponse(404, "not_found");
+    }
+    // Reserved headers are untrusted input, including empty or non-1 values.
+    if (request.headers.has(BAZAAR_PASSTHROUGH_HEADER)) {
+      return errorResponse(400, "reserved_header_not_allowed");
+    }
+    if (request.method === "OPTIONS") {
+      const method = request.headers.get("access-control-request-method");
+      if (method && method !== "POST") {
+        return errorResponse(405, "method_not_allowed", { allow: "POST, OPTIONS" });
+      }
+      const requested = (request.headers.get("access-control-request-headers") || "")
+        .split(",").map((name) => name.trim().toLowerCase()).filter(Boolean);
+      if (requested.some((name) => !ALLOWED_REQUEST_HEADERS.has(name))) {
+        return errorResponse(400, "preflight_header_not_allowed");
+      }
+      return new Response(null, { status: 204, headers: responseHeaders() });
+    }
+    if (request.method !== "POST") {
+      return errorResponse(405, "method_not_allowed", { allow: "POST, OPTIONS" });
+    }
+    const hasPayment = Boolean(
+      request.headers.get("payment-signature")?.trim() ||
+      request.headers.get("x-payment")?.trim()
+    );
+    if (!hasPayment) {
+      const body = challengeBody();
+      return new Response(body, {
+        status: 402,
+        headers: responseHeaders({ "PAYMENT-REQUIRED": encodePaymentRequired(body) }),
       });
     }
-
-    // Inner subrequest re-entry: strip the sentinel and fall through to
-    // origin. CAVEAT (README open-questions): if the inner fetch re-enters
-    // THIS worker instead of the managed gateway, passthrough must be
-    // redesigned to forward to a dedicated gateway-claimed path. Verify in
-    // staging before production cutover.
-    if (request.headers.get(BAZAAR_PASSTHROUGH_HEADER) === "1") {
-      const inner = new Request(request);
-      inner.headers.delete(BAZAAR_PASSTHROUGH_HEADER);
-      return fetch(inner);
+    if (typeof env?.PAYMENT_GATEWAY?.fetch !== "function") {
+      return errorResponse(503, "payment_gateway_binding_unavailable");
     }
-
-    const hasPayment = request.headers.has("Payment-Signature") || request.headers.has("X-PAYMENT");
-
-    if (hasPayment) {
-      // Passthrough: mark the subrequest so this worker does not re-claim it,
-      // letting the CF Monetization Gateway perform payment verification.
-      const fwd = new Request(request);
-      fwd.headers.set(BAZAAR_PASSTHROUGH_HEADER, "1");
-      const upstream = await fetch(fwd);
-      const resp = new Response(upstream.body, upstream);
-      resp.headers.set("x-szl-edge", "x402-bazaar-shim-v1-passthrough");
-      return resp;
+    try {
+      const forwarded = new Request(request, { redirect: "manual" });
+      const upstream = await env.PAYMENT_GATEWAY.fetch(forwarded);
+      if (!(upstream instanceof Response)) {
+        return errorResponse(502, "payment_gateway_invalid_response");
+      }
+      if (upstream.redirected || (upstream.status >= 300 && upstream.status < 400)) {
+        return rejectUpstream(upstream, "payment_gateway_redirect_rejected");
+      }
+      if (upstream.ok && !hasSettlementSuccess(upstream.headers.get("payment-response"))) {
+        return rejectUpstream(upstream, "payment_gateway_settlement_response_invalid");
+      }
+      const headers = new Headers(upstream.headers);
+      for (const [name, value] of Object.entries(CORS_HEADERS)) headers.set(name, value);
+      headers.delete("access-control-allow-credentials");
+      headers.set("cache-control", "private, no-store");
+      headers.set("x-szl-edge", "x402-bazaar-shim-v2-gateway");
+      return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
+    } catch {
+      return errorResponse(502, "payment_gateway_unavailable");
     }
-
-    // Unpaid: parity challenge + Bazaar metadata. Never serve content unpaid.
-    const body = challengeBody();
-    return new Response(body, {
-      status: 402,
-      headers: {
-        "content-type": "application/json",
-        "cache-control": "private, no-store",
-        "x-szl-edge": "x402-bazaar-shim-v1",
-        "access-control-expose-headers": "PAYMENT-REQUIRED, PAYMENT-RESPONSE",
-      },
-    });
   },
 };
