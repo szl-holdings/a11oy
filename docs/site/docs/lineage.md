@@ -9,7 +9,7 @@ description: The intellectual provenance of SZL Holdings — every governance cl
 traces to a versioned, DOI-pinned thesis. This is the canonical timeline.
 
 - **Author:** Stephen P. Lutar Jr. · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
-- **Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+- **Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 - **Doctrine:** v11 LOCKED — 749 declarations / 14 unique axioms / 163 sorries @ `c7c0ba17` (v11.1 in flight post-A5)
 - **Λ status:** **Conjecture 1 — never a theorem.**
 - **Canonical source:** [szl-papers / THESIS_LINEAGE.md](https://github.com/szl-holdings/szl-papers/blob/main/thesis/THESIS_LINEAGE.md)
@@ -29,16 +29,16 @@ traces to a versioned, DOI-pinned thesis. This is the canonical timeline.
 | **v9** | 2026-05-05 | [zenodo.20053148](https://doi.org/10.5281/zenodo.20053148) | Unified-Operational — the Lutar Invariant family |
 | **v10** | 2026-05-05 | [zenodo.20053163](https://doi.org/10.5281/zenodo.20053163) | Exhaustive-Audit — the audit-closure operator Λ |
 | **v11** | 2026-05-11 | [zenodo.20119582](https://doi.org/10.5281/zenodo.20119582) | Applied Λ — measured per-request overhead |
-| **v12** | 2026-05-14 | [concept](https://doi.org/10.5281/zenodo.19944926) | The Λ-Ouroboros substrate — first four machine-checked Lean proofs (Λ still Conjecture 1 at this stage) |
-| **v13** | 2026-05-18 | [concept](https://doi.org/10.5281/zenodo.19944926) | Anatomy as architecture |
+| **v12** | 2026-05-14 | [concept](https://doi.org/10.5281/zenodo.24239896) | The Λ-Ouroboros substrate — first four machine-checked Lean proofs (Λ still Conjecture 1 at this stage) |
+| **v13** | 2026-05-18 | [concept](https://doi.org/10.5281/zenodo.24239896) | Anatomy as architecture |
 | **v14** | 2026-05-28 | [zenodo.20173912](https://doi.org/10.5281/zenodo.20173912) | Verifiable multi-agent anatomy; **Λ downgraded to Conjecture 1** |
 | **v15** | 2026-05-28 | [zenodo.20195368](https://doi.org/10.5281/zenodo.20195368) | Knot calculus for governed decision receipts |
-| **v16** | 2026-05-28 | [concept](https://doi.org/10.5281/zenodo.19944926) | Λ-invariant stack + Feynman path-integral audit |
-| **v17** | 2026-05-28 | [concept](https://doi.org/10.5281/zenodo.19944926) | Wheelerian audit closure; Shannon doctrine (Kraft) |
+| **v16** | 2026-05-28 | [concept](https://doi.org/10.5281/zenodo.24239896) | Λ-invariant stack + Feynman path-integral audit |
+| **v17** | 2026-05-28 | [concept](https://doi.org/10.5281/zenodo.24239896) | Wheelerian audit closure; Shannon doctrine (Kraft) |
 | **v18** | 2026-05-30 | [zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) | **Multi-track Substrate Expansion** — 29 modules |
 | **v19** | — | *(no release — version gap; v18 → v20)* | — |
-| **v20** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.19944926) | "The Culmination" — formally-verified anatomical substrate |
-| **v21** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.19944926) | **The PURIQ-OS Substrate** — 12-organ runtime, 23 agentic formulas |
+| **v20** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.24239896) | "The Culmination" — formally-verified anatomical substrate |
+| **v21** | 2026-06-01 | [concept](https://doi.org/10.5281/zenodo.24239896) | **The PURIQ-OS Substrate** — 12-organ runtime, 23 agentic formulas |
 | **v22** | 2026-06-03 | **DOI pending (founder mint)** | **"Convergence"** — A5 merge, Cauchy_ND partial, VCG, Rounds 10–11, Sim-to-Real (α=0.10) (SLSA L1 honest — L2 roadmap) |
 
 ::: tip v19 gap
