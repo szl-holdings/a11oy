@@ -150,3 +150,17 @@ test("SDK refuses external schema references without a network fetch", () => {
     assert.match(result.errors.join(" "), /external/);
   }
 });
+
+
+test("published source files retain LF-only bytes under repository attributes", async () => {
+  const paths = [
+    "../worker.js", "../worker.test.mjs", "../README.md", "../discovery-config.json",
+    "./.gitignore", "./package.json", "./package-lock.json", "./provenance.json",
+    "./generate-discovery.mjs", "./discovery.test.mjs",
+    "../../../.github/workflows/x402-bazaar-worker.yml",
+  ];
+  for (const path of paths) {
+    const bytes = await readFile(new URL(path, import.meta.url));
+    assert.equal(bytes.includes(13), false, `${path} contains CR bytes and cannot round-trip through LF-only checkout`);
+  }
+});
