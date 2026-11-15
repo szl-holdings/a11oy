@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Doctrine v11 LOCKED](https://img.shields.io/badge/Doctrine-v11_LOCKED-d4a444.svg)](https://github.com/szl-holdings/lutar-lean)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239896.svg)](https://doi.org/10.5281/zenodo.24239896)
 
 [![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg)](SECURITY.md)
 
@@ -55,7 +55,7 @@
 > **NOTE:** SLSA Level 1 + Level 2 attested — source + build provenance documented and 5/5 flagship GHCR images empirically verified via `slsa-verifier`. **L3 requires hardened/isolated builders (roadmap) — NOT claimed.**
 
 > Formal AI governance through Λ-axis scoring, audit fibers, and provable receipts — v18.0 Multi-track Substrate Expansion.  
-> **Latest paper: [v22 — Convergence](papers/v22/) (release tag `paper-v22-1.0.0`).** A5 permutation-invariance merged (PR #148 — structure field, NOT a new axiom; axioms still 14); Cauchy_ND uniqueness chain partially closed (topology + functional-analysis + symmetric, in review); VCG mechanism truthfulness proven on branch; **SLSA L1 + L2 attested** (5/5 GHCR images verified via `slsa-verifier`; NOT L3); Innovation Rounds 10–11 (physics, quantum, CS, crypto, distsys); Sim-to-Real Walrus-parallel benchmark (mean α-gap 0.10). The Λ-aggregator remains **Conjecture 1 — NOT a theorem** (uniqueness chain completes only when all Cauchy_ND sorries close on `main`). Version DOI minted by Zenodo on release under Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926). **Full lineage v1→v22:** [`../THESIS_LINEAGE.md`](../THESIS_LINEAGE.md). Prior: [v21.0 — The PURIQ-OS Substrate](papers/v21/).  
+> **Latest paper: [v22 — Convergence](papers/v22/) (release tag `paper-v22-1.0.0`).** A5 permutation-invariance merged (PR #148 — structure field, NOT a new axiom; axioms still 14); Cauchy_ND uniqueness chain partially closed (topology + functional-analysis + symmetric, in review); VCG mechanism truthfulness proven on branch; **SLSA L1 + L2 attested** (5/5 GHCR images verified via `slsa-verifier`; NOT L3); Innovation Rounds 10–11 (physics, quantum, CS, crypto, distsys); Sim-to-Real Walrus-parallel benchmark (mean α-gap 0.10). The Λ-aggregator remains **Conjecture 1 — NOT a theorem** (uniqueness chain completes only when all Cauchy_ND sorries close on `main`). Version DOI minted by Zenodo on release under Concept DOI [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896). **Full lineage v1→v22:** [`../THESIS_LINEAGE.md`](../THESIS_LINEAGE.md). Prior: [v21.0 — The PURIQ-OS Substrate](papers/v21/).  
 > Doctrine v11
 > DOI v18.0: [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 
@@ -81,7 +81,7 @@ The Ouroboros Thesis formalises a governance algebra for bounded-loop AI systems
 > the Lutar Invariant Λ ∈ [0, 1]. Conversely, every Λ-compliant trace admits a unique
 > audit-fiber factorisation witnessing its governance receipt chain.
 
-Machine-checked proofs of uniqueness and bound-closure are in [szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean) (DOI [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)). TH10 uniqueness is axiom-structured (STAGED — `sorry` at `Lutar/Uniqueness.lean:120`).
+Machine-checked proofs of uniqueness and bound-closure are in [szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean) (DOI [10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654)). TH10 uniqueness is axiom-structured (STAGED — `sorry` at `Lutar/Uniqueness.lean:120`).
 
 ---
 
@@ -104,12 +104,12 @@ Machine-checked proofs of uniqueness and bound-closure are in [szl-holdings/luta
 
 | Version | DOI |
 |---------|-----|
-| Concept (always-latest) | [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) |
-| v22.0 (latest, tag `paper-v22-1.0.0`) | minted by Zenodo on release under Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) — **founder to confirm version DOI** |
-| v21.0 (tag `paper-v21-1.0.0`) | minted by Zenodo on release under Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) |
+| Concept (always-latest) | [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) |
+| v22.0 (latest, tag `paper-v22-1.0.0`) | minted by Zenodo on release under Concept DOI [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) — **founder to confirm version DOI** |
+| v21.0 (tag `paper-v21-1.0.0`) | minted by Zenodo on release under Concept DOI [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) |
 | v20.0 | [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) |
 | v18.0 | [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) |
-| lutar-lean | [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308) |
+| lutar-lean | [10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654) |
 
 ---
 
