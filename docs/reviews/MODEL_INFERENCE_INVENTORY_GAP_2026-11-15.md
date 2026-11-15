@@ -128,3 +128,31 @@ D22-D28 as `RECORDED_RESTORED_NO_PROVIDER_MAPPING`, each with admission
 | SZLHOLDINGS/khipu-r3-estate-sft-v1 | restored | standalone_weight_bundle | 882ac37445b6cefa865992474737246758434b44 |
 | SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1 | restored | standalone_weight_bundle | ad7833f225c28771b52c34351cebb1b9a95689dc |
 | SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1 | restored | standalone_weight_bundle | 7ce8a2303b97b490f33c8b22da013868b4863ef0 |
+
+## Inventory-refresh preparation pass: 10 further measured rows, 1 prior discussion absorbed
+
+The manifest was regenerated again for the public-inventory refresh
+preparation and now inventories 131 public model repositories. This pass
+read the 10 ids that had no catalog row: an anonymous public file-listing
+read and an anonymous provider-mapping read at each measured revision. Every
+provider-mapping read returned HTTP 200 with an empty object, so no row
+gains admission, exclusion, routing, or deployment authority from this
+extension: decisions D29-D38 are recorded as `RECORDED_NO_PROVIDER_MAPPING`,
+each with admission `NOT_GRANTED`, blocked by the same two missing proofs as
+D01-D28. Because the regenerated manifest re-observed
+`SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged` as public, the prior
+discussion 12788 moved from the unmatched prior-discussion list into the
+model row itself with its evidence preserved verbatim.
+
+| Model id | Disposition | Artifact class | Observed revision |
+| --- | --- | --- | --- |
+| SZLHOLDINGS/KHIPU-R2-laptop-lora | added | adapter_bundle | ec55c4cbd36243371ecffaeb85e762f0ed2c7f3c |
+| SZLHOLDINGS/SZL-Khipu-1.5B-abstain-laptop-lora | added | adapter_bundle | d78c85e2ce1c91fa80d4c25b94c115a8cda31bbf |
+| SZLHOLDINGS/WILLAY-laptop-lora | added | adapter_bundle | 85b7dffeca94837eb93b88fb6ebc294b6254cd43 |
+| SZLHOLDINGS/forge-v3 | added | standalone_weight_bundle | 0c80e886f7787a59a4ca01a4fc56d74b4711d98a |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1 | added | standalone_weight_bundle | 51319f2213cb9dc1cc1a498967ccbd37117fe740 |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2 | added | standalone_weight_bundle | 119fb1c68ee5a83d0f09d5649e78d432ea4c7eab |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3 | added | standalone_weight_bundle | 376a55e6120673d5404a3c7d48a5540a4d7b97b5 |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged | added | standalone_weight_bundle | fe55644363dd1e794a14fe5438903dd626726b4f |
+| SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora | added | adapter_bundle | 94391aef62614a5ec48eb2adeaf1ac4dd24bbfed |
+| SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5-laptop-lora | added | adapter_bundle | 31b32c70a3f52a63c9446b8fd885f8e1023c01ec |
