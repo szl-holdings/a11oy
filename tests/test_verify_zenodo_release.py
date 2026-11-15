@@ -36,7 +36,7 @@ def test_validate_record_emits_verified_distinct_receipt():
 @pytest.mark.parametrize(
     ("mutation", "doi", "tag"),
     [
-        (lambda value: value, "10.5281/zenodo.19944926", "v1.1.0"),
+        (lambda value: value, "10.5281/zenodo.24239896", "v1.1.0"),
         (lambda value: value, DOI, "latest"),
         (lambda value: value["metadata"].__setitem__("version", "1.0.0"), DOI, "v1.1.0"),
         (lambda value: value["metadata"].__setitem__("title", "Unrelated software"), DOI, "v1.1.0"),
