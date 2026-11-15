@@ -47,10 +47,13 @@ jobs:
         run: |
           set +e
           mkdir -p evidence
+          # The tee'd log feeds only the issue body; STATE still comes from the
+          # collector's own exit status, which PIPESTATUS keeps through the pipe.
           python3 scripts/audit_huggingface_ecosystem.py \
             --check \
-            --output docs/huggingface-ecosystem-manifest.json
-          code=$?
+            --output docs/huggingface-ecosystem-manifest.json \
+            | tee "$RUNNER_TEMP/hf-ecosystem-check.log"
+          code=${PIPESTATUS[0]}
           if [ "$code" -eq 0 ]; then
             state='CURRENT'
           else
@@ -71,6 +74,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           STATE: ${{ steps.check.outputs.state }}
+          CHECK_EXIT_CODE: ${{ steps.check.outputs.exit_code }}
           TITLE: '[HF-ECOSYSTEM-DRIFT] Public manifest is stale'
         shell: bash
         run: |
@@ -92,6 +96,10 @@ jobs:
             fi
             exit 0
           fi
+          check_result=$(python3 -I -B scripts/format_hf_check_result.py \
+            --log "$RUNNER_TEMP/hf-ecosystem-check.log" \
+            --exit-code "${CHECK_EXIT_CODE:-}") \
+            || check_result='UNAVAILABLE (the check result could not be formatted)'
           cat > /tmp/hf-drift-issue.md <<EOF
           ## Public Hugging Face ecosystem drift
 
@@ -100,6 +108,7 @@ jobs:
           - Protected source: ${GITHUB_SHA}
           - Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           - State: ${STATE:-UNKNOWN}
+          - Check result: ${check_result}
           - Candidate artifact: huggingface-ecosystem-manifest-candidate-${GITHUB_RUN_ID} when generation succeeds
 
           No model, dataset, Space, collection, bucket, visibility, hardware, or secret state was changed by this controller.
@@ -158,6 +167,7 @@ jobs:
       - name: Verify offline admission controls
         run: python -B -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
       - name: Create or fast-forward the rolling source review branch from this collector run
+        id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ github.sha }}
@@ -169,6 +179,12 @@ jobs:
           --source "$SOURCE_SHA" --run-id "$COLLECTOR_RUN"
           --artifact-id "$ARTIFACT_ID" --artifact-digest "$ARTIFACT_DIGEST"
           --output "$RUNNER_TEMP/hf-inventory-source-review.json"
+      # A designed stop otherwise shows only "exit code 1". Report fields are
+      # printed from Python, never expanded by the shell; the failed prepare
+      # step still fails the job.
+      - name: Annotate a stopped review-branch preparation
+        if: failure() && steps.prepare.outcome == 'failure'
+        run: python -I -B scripts/format_inventory_stop_annotation.py "$RUNNER_TEMP/hf-inventory-source-review.json"
       - name: Retain source proposal or stopping evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

@@ -52,6 +52,7 @@ import hmac
 import http.client
 import ipaddress
 import json
+import math
 import os
 import re
 import socket
@@ -479,6 +480,49 @@ class _LedgerUnavailable(RuntimeError):
     """Managed provenance cannot read or retain evidence; never use memory instead."""
 
 
+def _envelope_payload_bytes(envelope: Any) -> bytes:
+    """Return the payload bytes stored in a DSSE envelope."""
+    if not isinstance(envelope, dict) or not isinstance(envelope.get("payload"), str):
+        raise ValueError("invalid retained provenance chain")
+    try:
+        return base64.b64decode(envelope["payload"], validate=True)
+    except (ValueError, TypeError) as error:
+        raise ValueError("invalid retained provenance chain") from error
+
+
+def _contains_nonfinite(value: Any) -> bool:
+    if type(value) is float:
+        return not math.isfinite(value)
+    if type(value) is list:
+        return any(_contains_nonfinite(item) for item in value)
+    if type(value) is dict:
+        return any(_contains_nonfinite(item) for item in (*value.keys(), *value.values()))
+    return False
+
+
+def _legacy_canonical_json(value: Any) -> bytes:
+    """Previous canonical form. Reload-only; new writes use canonical_json."""
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=True,
+    ).encode("utf-8")
+
+
+def _receipt_matches_stored_payload(receipt: Any, body: bytes) -> bool:
+    """Require the stored receipt to be the canonical form of the original bytes.
+
+    Finite receipts use canonical_json, which rejects NaN and Infinity. A legacy
+    receipt that already contains those values is compared with the historical
+    encoder so reload does not raise. Either way the digest stays on ``body``,
+    the envelope's original payload, rather than a fresh serialization.
+    """
+    encoder = _legacy_canonical_json if _contains_nonfinite(receipt) else szl_dsse.canonical_json
+    try:
+        return encoder(receipt) == body
+    except (TypeError, ValueError):
+        return False
+
+
 class _KhipuDAG:
     def __init__(self, space: str) -> None:
         self.space = space
@@ -503,17 +547,22 @@ class _KhipuDAG:
             raise _LedgerUnavailable("managed provenance read unavailable") from error
 
     def _validate(self, nodes):
-        """Restore structural integrity without signing or promoting old authority."""
+        """Restore structural integrity without signing or promoting old authority.
+
+        The digest binds to the envelope's original payload bytes. Finite receipts
+        must match canonical JSON. Legacy NaN and Infinity stay readable, and new
+        writes still reject them.
+        """
         previous = None
         for index, node in enumerate(nodes):
             parents = [previous] if previous is not None else []
-            body = szl_dsse.canonical_json(node["receipt"])
             envelope = node["dsse"]
-            if (type(node["index"]) is not int or node["index"] != index
+            body = _envelope_payload_bytes(envelope)
+            if (not _receipt_matches_stored_payload(node["receipt"], body)
+                    or type(node["index"]) is not int or node["index"] != index
                     or node["space"] != self.space or node["parents"] != parents
                     or node["digest"] != self._digest(body, parents)
                     or envelope["payloadType"] != szl_dsse.KHIPU_PAYLOAD_TYPE
-                    or base64.b64decode(envelope["payload"], validate=True) != body
                     or node["signed"] is not envelope.get("signed", False)):
                 raise ValueError("invalid retained provenance chain")
             signatures = envelope.get("signatures", [])
