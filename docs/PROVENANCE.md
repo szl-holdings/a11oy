@@ -11,8 +11,8 @@ current thesis/proof state before any external push.
 | A11oy source | <https://github.com/szl-holdings/a11oy> |
 | Ouroboros Thesis current version | v18.0 |
 | Ouroboros Thesis version DOI | <https://doi.org/10.5281/zenodo.20434276> |
-| Ouroboros Thesis concept DOI | <https://doi.org/10.5281/zenodo.19944926> |
-| Lean proof software DOI | <https://doi.org/10.5281/zenodo.20434308> |
+| Ouroboros Thesis concept DOI | <https://doi.org/10.5281/zenodo.24239896> |
+| Lean proof software DOI | <https://doi.org/10.5281/zenodo.24239654> |
 | Principal author ORCID | <https://orcid.org/0009-0001-0110-4173> |
 | Hugging Face target | `SZLHOLDINGS/a11oy-v19-substrate` |
 
