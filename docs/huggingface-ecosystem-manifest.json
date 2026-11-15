@@ -2919,7 +2919,7 @@
           "compliance",
           "annex-iv",
           "governance",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -2949,7 +2949,7 @@
           "proof-status",
           "lean4",
           "lambda-aggregate",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -3007,7 +3007,7 @@
           "dsse",
           "in-toto",
           "governance",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -3037,7 +3037,7 @@
           "provenance",
           "receipts",
           "ed25519",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -3185,7 +3185,7 @@
           "muyu",
           "ayllu-nawpa-yachay",
           "provenance",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -3215,7 +3215,7 @@
           "in-toto",
           "slsa",
           "governance",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -3918,7 +3918,7 @@
           "formal-verification",
           "lean4",
           "verify-it-yourself",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -4059,7 +4059,7 @@
           "governance",
           "k-verify",
           "verify-it-yourself",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -4163,7 +4163,7 @@
           "trust-aggregation",
           "ouroboros-invariant",
           "szl-holdings",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -4257,7 +4257,7 @@
           "doctrine",
           "szl-holdings",
           "ouroboros-invariant",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -4296,7 +4296,7 @@
           "inference-receipt",
           "verify-it-yourself",
           "mock-inference",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -4557,7 +4557,7 @@
           "cosign",
           "benchmark",
           "verify-it-yourself",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -4594,7 +4594,7 @@
           "agentic-ai",
           "provenance",
           "refusal",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -4785,7 +4785,7 @@
           "theorem-proving",
           "ouroboros-invariant",
           "szl-holdings",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -4830,7 +4830,7 @@
           "graph",
           "dependency",
           "dataset",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -5004,7 +5004,7 @@
           "preprint",
           "thesis",
           "dataset",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "doi:10.5281/zenodo.20424992"
         ],
         "claimStatus": "inventory",
@@ -5211,7 +5211,7 @@
           "bge-base",
           "ouroboros",
           "szl-holdings",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -5240,7 +5240,7 @@
           "readiness",
           "khipu-receipts",
           "doctrine-v11",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -5414,7 +5414,7 @@
           "registry",
           "slsa",
           "dataset",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -5622,7 +5622,7 @@
           "formal-verification",
           "lean4",
           "slsa",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -5931,7 +5931,7 @@
           "thesis",
           "ouroboros-invariant",
           "szl-holdings",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "doi:10.5281/zenodo.20434276"
         ],
         "claimStatus": "inventory",
@@ -5977,7 +5977,7 @@
           "nist-ai-rmf",
           "pac-bayes",
           "dataset",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "doi:10.5281/zenodo.20434276"
         ],
         "claimStatus": "inventory",
@@ -6011,7 +6011,7 @@
           "airgap",
           "agentic-ai",
           "governance",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -6057,7 +6057,7 @@
           "receipts",
           "audit-log",
           "slsa-provenance",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -6107,7 +6107,7 @@
           "observability",
           "sample",
           "synthetic",
-          "doi:10.5281/zenodo.19944926"
+          "doi:10.5281/zenodo.24239896"
         ],
         "claimStatus": "inventory",
         "evidenceUrls": [
@@ -6884,7 +6884,7 @@
           "governance",
           "eu-ai-act",
           "annex-iv",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -6914,7 +6914,7 @@
           "proof-status",
           "lean4",
           "lambda-aggregate",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -6968,7 +6968,7 @@
           "dsse",
           "in-toto",
           "governance",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -7050,7 +7050,7 @@
           "gate",
           "provenance",
           "szl-holdings",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
@@ -7109,7 +7109,7 @@
           "muyu",
           "ayllu-nawpa-yachay",
           "provenance",
-          "doi:10.5281/zenodo.19944926",
+          "doi:10.5281/zenodo.24239896",
           "license:apache-2.0",
           "region:us"
         ],
