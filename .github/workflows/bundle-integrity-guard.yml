@@ -12,6 +12,7 @@ on:
     - .github/scripts/check_bundle_integrity.py
     - .github/workflows/bundle-integrity-guard.yml
     - tests/test_bundle_integrity_guard.py
+    - tests/test_console_devplatform_honesty.py
   push:
     branches:
     - main
@@ -20,6 +21,7 @@ on:
     - .github/scripts/check_bundle_integrity.py
     - .github/workflows/bundle-integrity-guard.yml
     - tests/test_bundle_integrity_guard.py
+    - tests/test_console_devplatform_honesty.py
   workflow_dispatch: {}
   merge_group:
     types:
@@ -41,3 +43,5 @@ jobs:
           console/preview/platform-a11oy/assets
       - name: scanner regression tests
         run: python3 -m unittest tests.test_bundle_integrity_guard -v
+      - name: DevPlatform chunk labels its seeded figures
+        run: python3 -m unittest tests.test_console_devplatform_honesty -v
