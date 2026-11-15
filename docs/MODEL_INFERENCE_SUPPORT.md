@@ -5,12 +5,12 @@
 
 `docs/model-inference-support.json` is the source for the A11oy model catalog and
 downstream card presentation. It records public Hub provider observations and
-support discussions. The source lists **90 public model-namespace
-repositories**. The committed `docs/huggingface-ecosystem-manifest.json` held 74
+support discussions. The source lists **98 public model-namespace
+repositories** after the 2026-11-15 reconciliation recorded below. The committed `docs/huggingface-ecosystem-manifest.json` held 74
 at its 2026-11-06 observation. A local regeneration at 2026-11-10T11:13:26Z held
 87, a second one at 2026-11-10T17:55:29Z held 88, and the committed regeneration
 at 2026-11-11T15:08:20Z holds 90. All 16 additions are assessed here, and the
-catalog ids equal the 90 model ids of the committed regeneration, so
+catalog ids then equaled the 90 model ids of that committed regeneration, so
 `scripts/collect_model_inference_support.py --check` exits 0 against it. That
 check is the refresh workflow's model coverage step only, not the whole
 workflow. That namespace also contains kernels, software, adapters,

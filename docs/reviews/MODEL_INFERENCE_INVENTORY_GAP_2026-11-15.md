@@ -75,3 +75,14 @@ After this reconciliation the catalog ids equal the 98 measured model ids, the
 verified-submission discussions are 12781-12787, 12789, and 12790 (9), and the
 model rows carry 4 recorded prior discussions. A row is catalog coverage, not
 routing, qualification, promotion, or deployment authority.
+## Dossier record
+
+This review carries a JSON dossier,
+`docs/reviews/model-inference-inventory-gap-2026-11-15.json`. It records the 5
+measured additions with their provider-mapping evidence, the final catalog snapshots
+of the 45 removed rows (with their removal reasons and evidence destinations),
+and 48 rows that had entered the catalog after 2026-11-11 without a dated
+record. This reconciliation absorbs those 48 rows so the recorded catalog
+coverage is exact again: 5 additions plus 48 absorbed plus 45 preserved rows
+equal the 98 measured catalog ids. No row gains admission, exclusion, routing,
+or deployment authority from this record.

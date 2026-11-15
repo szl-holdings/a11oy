@@ -1,0 +1,2756 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "schema": "szl.model-inference-inventory-gap-dossier/v1",
+  "authority": {
+    "deployment": false,
+    "exclusion": false,
+    "inference_admission": false,
+    "promotion": false,
+    "qualification": false,
+    "routing": false
+  },
+  "counts": {
+    "rows": 5,
+    "absorbed_unrecorded_rows": 48,
+    "inventory_rows_removed": 45,
+    "prior_support_rows_preserved": 45,
+    "provider_observations_http_200": 5,
+    "provider_mappings_empty": 5,
+    "provider_mappings_present": 0,
+    "provider_lookups_failed": 0,
+    "provider_lookups_retried": 0,
+    "file_list_reads_retried": 0,
+    "readme_http_200": 5,
+    "readme_http_404": 0,
+    "revision_differs_from_inventory": 0,
+    "revision_matches_inventory": 5,
+    "inventory_models_outside_this_record": 0,
+    "verified_inference_admission_authority": 0,
+    "verified_exclusion_authority": 0,
+    "unmatched_prior_requests": 3,
+    "unresolved_owner_decisions": 0
+  },
+  "rows": [
+    {
+      "id": "SZLHOLDINGS/KILLINCHU-EYE",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/KILLINCHU-EYE?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "cfa50a3e80d0bd0a7b5f7c5584d71a52c6904f2d",
+        "inventory_sha": "cfa50a3e80d0bd0a7b5f7c5584d71a52c6904f2d",
+        "revision_matches_inventory": true,
+        "capture_sha256": "726d7a3d3e3878a5ae30ad6dc85797cf41def5b7012d57ab47b027e0690a3d74",
+        "observed_at": "2026-11-15T02:41:46.295961+00:00",
+        "artifact_class": "numpy_model_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/3",
+        "name": "KILLINCHU-EYE",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/chakana",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "3454b7153b6481e7b9738182a7a846e985376212",
+        "inventory_sha": "3454b7153b6481e7b9738182a7a846e985376212",
+        "revision_matches_inventory": true,
+        "capture_sha256": "216e684448b59c87f60b2f1bebd918d6f0564616cda3656fe4346c73294bca1c",
+        "observed_at": "2026-11-15T02:41:46.391043+00:00",
+        "artifact_class": "numpy_model_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/27",
+        "name": "chakana",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/qantu",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/qantu?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "cd3e7b1596967638c3138e3a96288d192b6aced0",
+        "inventory_sha": "cd3e7b1596967638c3138e3a96288d192b6aced0",
+        "revision_matches_inventory": true,
+        "capture_sha256": "1a0a9d637c0c05e8360e8c10a4822028f0ee6930d349699dbb5e45c3e2442626",
+        "observed_at": "2026-11-15T02:41:46.457078+00:00",
+        "artifact_class": "numpy_model_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/67",
+        "name": "qantu",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/tinku",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/tinku?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "fff3d37ed54fcb631f9fea6ecbecb6c228fa9b12",
+        "inventory_sha": "fff3d37ed54fcb631f9fea6ecbecb6c228fa9b12",
+        "revision_matches_inventory": true,
+        "capture_sha256": "acffb7e6017f4d814a228ac11515d14f64328713393d22361691c39446ad5f3d",
+        "observed_at": "2026-11-15T02:41:46.536545+00:00",
+        "artifact_class": "numpy_model_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/91",
+        "name": "tinku",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    },
+    {
+      "id": "SZLHOLDINGS/waman",
+      "inference_admission": "UNVERIFIED",
+      "exclusion_decision": "ABSENT",
+      "reconciliation": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission_activated": false,
+      "catalog_row_added": true,
+      "card_self_labels": {
+        "authority": "NONE",
+        "from_inventory_tags": [],
+        "note": "A card tag is not an exclusion record and not an inference observation."
+      },
+      "release_bindings": [],
+      "missing_proof": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ],
+      "provider_observation": {
+        "http_status": 200,
+        "redirected": false,
+        "mapping": "empty",
+        "state": "NO_PROVIDER_MAPPING",
+        "url": "https://huggingface.co/api/models/SZLHOLDINGS/waman?expand[]=inferenceProviderMapping&expand[]=sha",
+        "observed_sha": "54716cf3e06a4305eb193e93e7f496a3d70bde06",
+        "inventory_sha": "54716cf3e06a4305eb193e93e7f496a3d70bde06",
+        "revision_matches_inventory": true,
+        "capture_sha256": "cffdecfa44c117ea5d1e69d719fd794a70be9846da49fdd1e425aad2836b8a5d",
+        "observed_at": "2026-11-15T02:41:46.609538+00:00",
+        "artifact_class": "numpy_model_bundle",
+        "artifact_class_basis": "revision file names, not weight bytes",
+        "earlier_attempts": [],
+        "tree_http_status": 200,
+        "readme_http_status": 200,
+        "readme_evidence": "README.md presence verified from the public revision file list; bytes and sha256 were not captured by this reconciliation.",
+        "readme_sha256": null,
+        "readme_bytes": null
+      },
+      "identity": {
+        "json_pointer": "/inventory/models/94",
+        "name": "waman",
+        "org": "SZLHOLDINGS",
+        "repo_type": "model",
+        "source": "docs/huggingface-ecosystem-manifest.json"
+      },
+      "inventory_observation": "OBSERVED_IN_COMMITTED_MANIFEST"
+    }
+  ],
+  "absorbed_rows": [
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "181942b5a9e8dcb1e773cade8fad320b8d4f1c83c41a03216a8d9bd26f028fb7",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "2cbaf7bf943eb8caa5e2c4a2b0ef066cd4a2ecce",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/acoustic-r1-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "b7c0dd995de79dd7e98e9f05258d4639e0b77f89824c14eb233d87fcbdc440a0",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "8874c7ef3e1904d72d6961701f17f7e49f74856f",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/acoustic-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "6f4f79408d0804f774da84551999d8b9672312fa432ef0788bf8c363d3fd758b",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "218a0734060393ada51f03db53bee4f04ddde68d",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/ancient-math-r1-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "79c12f3e98972adc45a88b5abc9b1b116ac140e0cb195c052a234898e5a2159e",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "0c518292055253bf9441b7c5adf50b829b9537dc",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/ancient-math-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "72a58c89263c32edb204062c4b19bd76da49ee433c62e35d407f747c1e7e28e1",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "5130ee057695cff0345d675d9065909ac2cb8b13",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "65382ffb5ecd481544cce3d1d7f3b6bd3fe07945d61efc266871fc89ddbac367",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "0be03cef8c93faa1c29eef7e906f3d687813b8e6",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/chakana-r1-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "f4c9b81c9232a5565be5519e3aca248662864003e64cc00aaa62b4c5862e46fa",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "b932b7b53a6ffe9df0e998e64622f0c00ab15d11",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/chakana-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "e66615957ee0064bf291d6ad64acfb247fcc1cbfda20083abe4d97644c573c32",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "fc88cb73aa8a5d33f132bab31357a615c07532a5",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "943221a4d28fe59fe7702dd47203338afc2455c47b6b3f83b27b63b98471ae0d",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "1a8700f87d246faacc39f5f3c34efbf412419d87",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "9f472ff44ad0119af8da291bb31a15680fb9f52330885bda821e493dc28079ae",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "aefb81f3bc37329f0891a90bc3f6aa2391ec708f",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r4-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "99334c4e66a3d6f30b5560aee0509ea4af08312a436dd8988d2c0ebf61a3badc",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "85080dd8d8d2cf2f82d84ee2670d070d694cd31b",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "18c042305301689c1985e7e23260867eb243cc719024b514243821bf86b4066c",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "aff104346fdfcae30b9ec769d42daa08b9eb30b0",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/code-master-v3-fresh",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "065124a355703c47250d07b4b8abc51e00db47f40794795b2c218dd0a3f774c9",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "a660d7d7a90f4ed527c966650041a6fa28724cf4",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/creativity-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "5b7a00671cb75a829aba351ae1d903b381d4c855a59065b904a9d627c3337a57",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "c9d9cb9e7722d69922a44e3fe4f9393bdc66e544",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-master-v1-candidate",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "78fc683d29aa1797b1269a93c45d0127a70fdab11477f86aa319676de9217c68",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "83713903efb2ba5f5da541a6fbf767825aa7cd40",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-v2-r2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "a03712e05c54c14faced6bf5d0c853b371e5f4e7ade2949b3431a70cbf3ae51e",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "a3dc0ac564453d52216ce8bf6cf2758b2dca98aa",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "07b8849678d771df4631ac06ead243d91ab49c5b6d4da7ee80db9549c91c7e6c",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "37af7132eaae98ce714b60d16d176ac171d0841b",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine1-r1-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "22a7af5807b8fe66247461fe813c971c197d7be7f933e2ed501ab526f6824e22",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "971811b32ae48f2295bdf6e7c09b5802c6418a07",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/forge-1.5b-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "591b6bb5ece804b4068124608852b8989f9a664aa055b711b6a7768fd18c7e3a",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "1e37622c66d253775786de76cd5da684ec6d9a3d",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/freeenergy-r1-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "3cb87befab24fc47ad55f345f567068de8a048a65ba5b7959ff5af85d04f2e09",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "3d396856d939bef9061652973c736fec6c165d1a",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/freeenergy-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "131e3806cca54b2a717c817071c3592a802b2da824bb73fbace60e75b00a1172",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "3b097b6c23a2ac1f20ca698bfcf8a988b4a237f1",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/governed-norm-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "ac41063378158ddd96c711f8841d0e8f5313c7ce8f04b00f26a9128a46f71b02",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "4c90264bfa6fc2dc48641e9726b7c79a33135751",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/hatun-24-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "c01b4e01e39eec617c710ac4e7e3419871f96e4bd5d0a7218554b541d8732396",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "3ad159374c0fd4a9f5a1521dd86121b3b16eb81f",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-abstain-1.5b-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "0155fbd1e1e7735e080e016b1d63afa094b6ab028a0473079090dcefb29b9dff",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "90c82516a3436b7526de62f9a790874d96ff2802",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-abstain-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "aa2f6f38d2814fb0bbcc95cfabf98241b6dd72cfd375847e13938b3afe0b84d9",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "d81c31086e3869219cb6304366d3f973681dc3b0",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r2-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "994eaf2079ec2f43ec08958a7b54d678ea52d1bdf9ee38d56e2823cfc2ba8563",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "92f8a8cae4d1cde0e060268b39a71eca6a4c8b54",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "b7e0415daf3c69495a0400cc29e18fab8b902b15fca932ec39fb855fc91cfd71",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "6c440e2c7da4d564c05ddc9d49a3ff16a43b84de",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/lean-inv-r1-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "f7f56f9dca7511c1e7775179ffc5305d194fb1c170920f888f8cf27c851e14bc",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "929a7b94ff81c7fb66d62d9bc4275dd4e0a357b6",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/lean-invariants-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "cf1b721f6c01ee12598d022c21019f4da492bb405be161effa82769d89d3555d",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "dece8d8ca24c8a36091c25478ae4e766aea16d48",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/measurement-master-v1-candidate",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "47532ed7eda92998ef9350811758daf0fa0cccb27222c514f2fe65ccd15001c0",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "fae6b77cda8457361362d2457d60a886ee7561af",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/miniembed-nano-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "064f97d2d2727aa9fb7c567421fbded829b1632371789aefdfb115e7831333e6",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "5a708009947882d08be3bbcb795d49062a8d5a90",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/miniembed-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "f49a644ef1e24f50412f32c6121ad99aec835fad86d7b5b632ebf1623b6e6197",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "97244b9430b1f4ed0aae14948153d88421a61686",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/ouroboros-r2-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "86e9778a6368534556b77b8499c596f5b736c3db4546e7cd793bf2d7456a92a0",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "df1b7a0380f9e7a5d31e5bc17eb59c59638f905c",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/ouroboros-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "2ec8772f44d3acae6c9f18867df582618a9ccaa4ae5fd731aae16229da9ccfe1",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "ff81eed29c690db0a1fc1afa24ca43bc62760993",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/papers-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "a4cd5f712677c6873bd822b20983cf64a54acb562ad5d0657064f26cb34fc599",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "c1595d9ebd50577d877f0eeee9f07031819026e0",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/quant-master-1.7b-500step-candidate",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "376b0ecc2d30d332840be3c68bf8929ea45d95f603773873834aa0e4573eeff5",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "1b56b7505d6dadb04e9d4b25edb97651a9387058",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/quant-master-4b-500step-candidate",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "b20a844945bb0e6c495b7036ea4b555f1daab6c9f06ac874f96f2f487de54207",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "c23b1ba66faa2fad79860f06e8c794fc1431e530",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/quant-master-4b-v1-candidate",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "1996039faa5529c6e9ba4a5a45ad6ff0f923eb116656408c753310a846dc8e7b",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "fcc85dc0ea5df5dc46aca1574a1750fe70712a2d",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/quant-master-v1-candidate",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "5b7bd869b53f95ddfa44750662010f01961f9d69efc1ac227543e2bd3f45b19b",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "f5c1a56dee08267ae21057a43cc23eeeeb30973e",
+        "assessment_artifact_class": "non_provider_artifact",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/reasoning-master-v1-candidate",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "71d50b957d3bfb5d4395775bd3139287ad7d13c2958692ee700db626301fcff5",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "1a49b9e58c9d9b7dfb37110b06a2d3aa002df712",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/receiptagent-1.5b-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "cc1502d7161af9c4580b7723f3ac571151f42516c3346e441fde70d24e18ab15",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "66fdad3fcbd2fb2949fda93ab3e436d9b432bc52",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/receiptagent-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "e82a3652db9be9e9211e803a5b442f6efa89d58f1adb8b1534ed7be80bcb9cbf",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "e5ee23a3a6f0b474bb1acd3edc4ca26cf90c2345",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-0.8b-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "3b492ea28b4681528ce40703168bc00cc1d6a5f49aa61f036f1fc7424b3e9cde",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "27a3cedc675f5d4cc7498bd04c6a48b6e40d5775",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/triage-0.8b-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "17fe31734d132088e2d9998eb6572b2668876b8874c1d6c1e62d8e4e10006cc1",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "3519264cb800daed117de76d323a42ffc0445ad6",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/triage-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "f390f89466ba7e3bc0530e25d33f98e1cf30067d94b8e1a2dd2893fc025c7686",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "0f8f39a4a7dc894545dddfb8191c64e9bc12e4c6",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/willay-r1-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "66bdec688843b2d357c491a192e21ce32fffaa55b805346773679b0304afea7b",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "d20c1e70a357787a64bf421d58d9922e20115122",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/willay-r2-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "386c7ea432cd0fc4e0c8174c192f5ce9ef982defd91dac749139d2226aa96e61",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "431733451c8ddc5e90c14d814aa4578f92715cd3",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    },
+    {
+      "id": "SZLHOLDINGS/willay-v2-trained",
+      "entered_without_dated_record": true,
+      "fingerprints": {
+        "inference_capture_sha256": "809c8f7c10c1a4a26a0d6f775f816ffc3a18f133d11c7c64c37b1f0026e57de3",
+        "inference_observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "assessment_hub_revision": "bf80c8b7bddbe1efda54ba85885fc61a5f67745a",
+        "assessment_artifact_class": "adapter_bundle",
+        "support_state": "NO_RECORDED_REQUEST",
+        "support_requests": 0
+      },
+      "note": "Catalog row present in the measured inventory; it entered the catalog without a dated record before this reconciliation, which absorbs it. Observation evidence is carried by the catalog row itself."
+    }
+  ],
+  "removed_rows": [
+    {
+      "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+          "observed_at": "2026-11-07T10:52:22.848331+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 2939ccd8e30d19c8209086893b75379dbf3c27b4 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 23 bytes, sha256 5cd90383fd9b88cdd9481555d2576cfa76d216de0eb2530b680dd649bce822d6. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/blob/2939ccd8e30d19c8209086893b75379dbf3c27b4/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "a2f7144253caafbeeaa84638e3977d2a19fd850be2717389dd63cf62d466c3eb",
+          "error": null,
+          "hub_revision": "2939ccd8e30d19c8209086893b75379dbf3c27b4",
+          "observed_at": "2026-11-07T10:52:22.848331+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "bf12e89bb5049efcf48c58613c49bb41ee8cb81b",
+          "observed_at": "2026-11-10T11:14:39.081639+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision bf12e89bb5049efcf48c58613c49bb41ee8cb81b matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 4252 bytes, sha256 e01e0c2185efcf1bd2c6f4567f1f45d2005950e82291f91b6a3b59c71a56408f. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/blob/bf12e89bb5049efcf48c58613c49bb41ee8cb81b/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "3bfeb7dbe20776a7df6cf4a1e09e37b2ff318ac3ed835cf43e52e41a5dbcd04a",
+          "error": null,
+          "hub_revision": "bf12e89bb5049efcf48c58613c49bb41ee8cb81b",
+          "observed_at": "2026-11-10T11:14:39.081639+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "382e9c263b568b68967972d28803bf567746e1de",
+          "observed_at": "2026-11-07T10:52:22.848752+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 382e9c263b568b68967972d28803bf567746e1de differs from inventory revision 344fac66fa7c469b6c2779cbaffca38240a995c2. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 4144 bytes, sha256 64a2feb07739553577963f5c575df44279b5ea118bc92f17f2986f3dd1cb94d5. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/blob/382e9c263b568b68967972d28803bf567746e1de/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "ed81bdfaeddb39e720f136426a465aecbcb603e25957a95f22adc205876c3dee",
+          "error": null,
+          "hub_revision": "382e9c263b568b68967972d28803bf567746e1de",
+          "observed_at": "2026-11-07T10:52:22.848752+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "f3bd9aeca3596269d499761eaad43678b9c92182",
+          "observed_at": "2026-11-10T11:14:39.631931+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision f3bd9aeca3596269d499761eaad43678b9c92182 matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1111 bytes, sha256 da638962b87d4ca84a9fc8ef9e4e895e7ebcac66c551a0e13b8cf9081464a124. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/blob/f3bd9aeca3596269d499761eaad43678b9c92182/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "e8bd854d7c0656f27b4a8cdab30bdfa96d78d5a3331448dbcd34b90b651836d1",
+          "error": null,
+          "hub_revision": "f3bd9aeca3596269d499761eaad43678b9c92182",
+          "observed_at": "2026-11-10T11:14:39.631931+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0",
+          "observed_at": "2026-11-07T10:52:22.987019+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0 differs from inventory revision cba180bb76d8880b4098ff458dda4cddb859ce90. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 4246 bytes, sha256 c81d1f943f2727c6ef864ce84abd9a3da23a4f8175745306532d853bc96d99f4. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/blob/c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "9d88014d6adefb3d09c5d5088a4c0996fe18d21dc9e22167797f04a2aba93202",
+          "error": null,
+          "hub_revision": "c4c6ee13bf05aaaedf3c40a125b6ad317ac549e0",
+          "observed_at": "2026-11-07T10:52:22.987019+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "d454bd3238680f119920fd3a993a3573ca564e34",
+          "observed_at": "2026-11-10T11:14:40.033662+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision d454bd3238680f119920fd3a993a3573ca564e34 matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 3455 bytes, sha256 9d056e4264751e0c85b7c6d45ff94a68a8e2f3718723c5d8547451a7e72163da. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/blob/d454bd3238680f119920fd3a993a3573ca564e34/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "f31026ed1ec9764d43d832fb3f17f43772bc5bb25d34e72c27e241101c3021d6",
+          "error": null,
+          "hub_revision": "d454bd3238680f119920fd3a993a3573ca564e34",
+          "observed_at": "2026-11-10T11:14:40.033662+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "decebd8be9255239c1507ebc61159099d38ba6bc",
+          "observed_at": "2026-11-07T10:52:23.043846+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision decebd8be9255239c1507ebc61159099d38ba6bc matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2078 bytes, sha256 c80417decc13c5ab3b820a2f193a8b58718495bc272c87576a2b17cced43eb3a. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/blob/decebd8be9255239c1507ebc61159099d38ba6bc/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "63078222ff59418ecd6451ed455d0bd1caede4969b335eaabd852a10b5e0070a",
+          "error": null,
+          "hub_revision": "decebd8be9255239c1507ebc61159099d38ba6bc",
+          "observed_at": "2026-11-07T10:52:23.043846+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+          "observed_at": "2026-11-07T10:52:23.132039+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 3b330741a7ecee572a7a51c5a3dd023788da8973 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2912 bytes, sha256 29286fcf2901dcfa691d8b661c599bb7f9374ca969e70fa65ee955355ba04b50. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/blob/3b330741a7ecee572a7a51c5a3dd023788da8973/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "23e165d350708f4dcd375b2c1b29bd0e6484b3b45db1317c2b563bc9ecb46719",
+          "error": null,
+          "hub_revision": "3b330741a7ecee572a7a51c5a3dd023788da8973",
+          "observed_at": "2026-11-07T10:52:23.132039+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+          "observed_at": "2026-11-07T10:52:23.168826+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision edd649ffcfae89d0a5b5cc889b5cbe0848336e01 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1584 bytes, sha256 0204c45353944bd6d7f22c819879e6b35e572545a1dd982bd5033b2ff9b690d8. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/blob/edd649ffcfae89d0a5b5cc889b5cbe0848336e01/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "98ff181c277a61452055ad9c8c8d1fb5cb877e169ac6307a90b923f9907aaa0a",
+          "error": null,
+          "hub_revision": "edd649ffcfae89d0a5b5cc889b5cbe0848336e01",
+          "observed_at": "2026-11-07T10:52:23.168826+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+          "observed_at": "2026-11-07T10:52:23.191871+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 8dd86a98a71d52d24ee23b51ef75ed9b6213c69f matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 4608 bytes, sha256 728fd06333d747a210f565cce321db473c9b32e046cb93d7198b95a1449adbd3. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/blob/8dd86a98a71d52d24ee23b51ef75ed9b6213c69f/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "16ccf16aaa6162e0db51f5515bf5b64fd0f7cafe6b7f59b1a847226e93fd3bf0",
+          "error": null,
+          "hub_revision": "8dd86a98a71d52d24ee23b51ef75ed9b6213c69f",
+          "observed_at": "2026-11-07T10:52:23.191871+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "4caa36a0fdeb4d54fabe13079cceb031ecfa3471",
+          "observed_at": "2026-11-07T10:52:23.272031+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4caa36a0fdeb4d54fabe13079cceb031ecfa3471 differs from inventory revision 10fb28afe427a988af2e10cafa8dd1c2e555ea63. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 5748 bytes, sha256 04ae97c9ba10b178f060ccfb53d5b99640e9d282c24657fcb00da89c9e02f40a. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/blob/4caa36a0fdeb4d54fabe13079cceb031ecfa3471/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "5d400c9933c04ac01e99f23d5673f3dbd6434271c995d8424ac6120b076ba129",
+          "error": null,
+          "hub_revision": "4caa36a0fdeb4d54fabe13079cceb031ecfa3471",
+          "observed_at": "2026-11-07T10:52:23.272031+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+          "observed_at": "2026-11-07T10:52:23.285074+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 31d82d6133f20ad26403d21abfd16950d8e19b11 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1601 bytes, sha256 aa8e1dc855114949277e5e0bebe12771078098a69a09dec8f0d72fa9153d3a67. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1/blob/31d82d6133f20ad26403d21abfd16950d8e19b11/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "a685c5529a5f417a4bb0038c7f705a712665319df90cdb36c864e8632552769c",
+          "error": null,
+          "hub_revision": "31d82d6133f20ad26403d21abfd16950d8e19b11",
+          "observed_at": "2026-11-07T10:52:23.285074+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+          "observed_at": "2026-11-07T10:52:23.347036+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision f0293f28d7ec45a01c59e40daa93af38e20c308b matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1683 bytes, sha256 dbee40bc546be629ba4703e107c06480039179879ff4675d708c9913d3c5b64e. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1/blob/f0293f28d7ec45a01c59e40daa93af38e20c308b/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "5cace433718cd94dfebb735942454f4499c2570aaa7ba798dc030efa66e81c2f",
+          "error": null,
+          "hub_revision": "f0293f28d7ec45a01c59e40daa93af38e20c308b",
+          "observed_at": "2026-11-07T10:52:23.347036+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "non_provider_artifact",
+          "hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+          "observed_at": "2026-10-04T15:32:16.911597+00:00",
+          "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+          "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate/blob/41a9a71d782adb6effd4a0af69dc684d5acded08/README.md",
+          "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+        },
+        "id": "SZLHOLDINGS/a11oy-v19-substrate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "14776b3f4ec1f246c2bbb8f2729bb0532c36a91a8b675da163d7f02bacd8f076",
+          "error": null,
+          "hub_revision": "41a9a71d782adb6effd4a0af69dc684d5acded08",
+          "observed_at": "2026-10-04T16:22:38.833035+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-v19-substrate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [
+            {
+              "author": "betterwithage",
+              "body_sha256": null,
+              "discussion_number": 10649,
+              "evidence_kind": "PRIOR_DISCUSSION",
+              "model_id": "SZLHOLDINGS/a11oy-v19-substrate",
+              "model_revision": null,
+              "readback_at": null,
+              "readback_body_sha256": null,
+              "readback_normalization": null,
+              "recorded_status": "open",
+              "requested_at": null,
+              "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/10649"
+            }
+          ],
+          "state": "PRIOR_DISCUSSION_RECORDED"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "unmatched_prior_requests (discussion 10649)"
+    },
+    {
+      "id": "SZLHOLDINGS/abstain-doctrine-r1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "41cb72545e75b284ec62d271499e4487b75876d5",
+          "observed_at": "2026-11-10T11:14:36.319602+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 41cb72545e75b284ec62d271499e4487b75876d5 matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1842 bytes, sha256 c4cb77372695384e619948be0ed9584c244c0d76816faa3356012de778d21fe7. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/abstain-doctrine-r1/blob/41cb72545e75b284ec62d271499e4487b75876d5/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/abstain-doctrine-r1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "a3745e9f835793481be2a93f45d8fe6ba92c9ac8060a5f1a61eebc889d7c7d73",
+          "error": null,
+          "hub_revision": "41cb72545e75b284ec62d271499e4487b75876d5",
+          "observed_at": "2026-11-10T11:14:36.319602+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstain-doctrine-r1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+          "observed_at": "2026-11-07T10:52:23.427023+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision f774b4b0b7e3d2a0a640543c95527e932a4e8301 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1382 bytes, sha256 0764a75cb02614414c57fb8b8bd47f34bd710456c58564155cb91ea078a9e90a. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1/blob/f774b4b0b7e3d2a0a640543c95527e932a4e8301/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "8b5a2dac2ad0bc81e211aef244528cf8a1fe03fd8decbd9854e6e8f0f8a7c26e",
+          "error": null,
+          "hub_revision": "f774b4b0b7e3d2a0a640543c95527e932a4e8301",
+          "observed_at": "2026-11-07T10:52:23.427023+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+          "observed_at": "2026-11-07T10:52:23.499197+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 0278ef6fb06c622748a1043fa4c7efb9bccc716b matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1347 bytes, sha256 eb554f2b8e9b9d5fe83f0b3ae21557714d828400ec8f08a0b69b7667ff2bad80. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1/blob/0278ef6fb06c622748a1043fa4c7efb9bccc716b/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "fed455b0fcad4462d62aaded97de74d0f7ebaa51d7854f1c782a71906ee3b3e4",
+          "error": null,
+          "hub_revision": "0278ef6fb06c622748a1043fa4c7efb9bccc716b",
+          "observed_at": "2026-11-07T10:52:23.499197+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+          "observed_at": "2026-11-07T10:52:23.563603+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1608 bytes, sha256 1320738ba59e778db0de56ef75d9f26a8d695568655aaf25bb83dd3930aea9bb. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1/blob/4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "cbb7cc563ce64e38bf52d4ba371de516b0e045f570561f9f4197407305b099c1",
+          "error": null,
+          "hub_revision": "4ab0cd0b31fa1ec83e3f2ebc7adf4a532514e21d",
+          "observed_at": "2026-11-07T10:52:23.563603+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+          "observed_at": "2026-11-07T10:52:23.565231+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1337 bytes, sha256 36b0fdf5e644e05c1a04a9e1ef934df2f99ad2e9dac89abb93c09d9e642a53d8. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1/blob/6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "0364df47ae5ef381c3318398a1d1336780a993416d7500390ec711f762c97846",
+          "error": null,
+          "hub_revision": "6e1f8b6a4461b5a5c3563d207a8a79ea76e5e6c5",
+          "observed_at": "2026-11-07T10:52:23.565231+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-v2-r2-candidate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e",
+          "observed_at": "2026-11-10T11:14:36.719392+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1691 bytes, sha256 3c9079e4d1d30eb97648eb125c143e1d55ef6f3f03f3fb17a68f477594b44c81. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/doctrine-v2-r2-candidate/blob/0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/doctrine-v2-r2-candidate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "6e22cdd9135b8c40adba9760cf2fa1c5705e8d2373a45cf9727162e48c9cca71",
+          "error": null,
+          "hub_revision": "0806db1aa7b9c5cec89836c22b91bbe9e70a9c7e",
+          "observed_at": "2026-11-10T11:14:36.719392+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine1-r1-candidate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "0c26c6ba127f87863f1c3d98ab96120264aba91a",
+          "observed_at": "2026-11-10T11:14:37.143987+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 0c26c6ba127f87863f1c3d98ab96120264aba91a matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1685 bytes, sha256 8656aaa7d0336b17fee574c8f426e3826e6e9359c944b36c0a9f455c9d5fb225. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/doctrine1-r1-candidate/blob/0c26c6ba127f87863f1c3d98ab96120264aba91a/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/doctrine1-r1-candidate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "7b4b95aee1377f0986cedef8512d0112007b5727619e63331d1d0f74b0ec428c",
+          "error": null,
+          "hub_revision": "0c26c6ba127f87863f1c3d98ab96120264aba91a",
+          "observed_at": "2026-11-10T11:14:37.143987+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine1-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/forge-v3",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "19b57bbe5668fe39233e36ceebf489143d65f1bc",
+          "observed_at": "2026-11-10T11:14:37.552125+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 19b57bbe5668fe39233e36ceebf489143d65f1bc matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1651 bytes, sha256 a403839e80d9bdd9ff7146dcdb93bea909e9cf275ad6a6b1701cbf9e761306e4. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/forge-v3/blob/19b57bbe5668fe39233e36ceebf489143d65f1bc/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/forge-v3",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "cae6a0219b8fe7f9f7f04ea88f9c93e2d28e9012e49f6d58adf591a4bc77fb60",
+          "error": null,
+          "hub_revision": "19b57bbe5668fe39233e36ceebf489143d65f1bc",
+          "observed_at": "2026-11-10T11:14:37.552125+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-v3?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/freeenergy-r1-candidate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "d038e7ffb0ee9563be9e35513d2b33e3f76db32d",
+          "observed_at": "2026-11-10T11:14:38.000501+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision d038e7ffb0ee9563be9e35513d2b33e3f76db32d matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1724 bytes, sha256 6aff82cbcb66fdf653aa0cce531c321164706af7b72d21d0d5cef24bd66d3af1. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/freeenergy-r1-candidate/blob/d038e7ffb0ee9563be9e35513d2b33e3f76db32d/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/freeenergy-r1-candidate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "38660381359b8de559539a39001039764259fb5621dccaeff67f9ae24fe0cadf",
+          "error": null,
+          "hub_revision": "d038e7ffb0ee9563be9e35513d2b33e3f76db32d",
+          "observed_at": "2026-11-10T11:14:38.000501+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/governed-inference-meter",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "kernel_library",
+          "hub_revision": "5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74",
+          "observed_at": "2026-10-04T15:32:26.066134+00:00",
+          "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+          "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/governed-inference-meter/blob/5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74/README.md",
+          "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+        },
+        "id": "SZLHOLDINGS/governed-inference-meter",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "b2494204b9a4465df85b0076c983f2eafcd015ea7a995669ef1eb46f7c8f3464",
+          "error": null,
+          "hub_revision": "5049f8ec259a5356d5b8eeaf11b85d3e9c1fea74",
+          "observed_at": "2026-10-04T16:22:43.267678+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/governed-inference-meter?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "non_provider_artifact",
+          "hub_revision": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+          "observed_at": "2026-11-07T10:52:23.647265+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d matches the inventory revision. The file list at that revision shows no safetensors, GGUF, adapter, or numpy weight file. README.md returned HTTP 200 and 572 bytes, sha256 713ddc86b0c2dfae80d134b7cf0e338fd103cfc2d9697d7dd349d353044c7ac7. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-abstain-r3-candidate/blob/492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "7e2b179bf074bd3d99fdf89d670b574c230a7e90031eb93da1c46c73f06e0854",
+          "error": null,
+          "hub_revision": "492c4a177bf0b4b856aa4d656ff8c561ab1d5f4d",
+          "observed_at": "2026-11-07T10:52:23.647265+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-r3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+          "observed_at": "2026-11-07T10:52:23.703884+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision b3c240a8540254ef294d9fbc320ff442ef31f393 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1318 bytes, sha256 981a9910c4c139ac15d3b58d41e33346e3665ac47f38a39ca48ca38367ec6298. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1/blob/b3c240a8540254ef294d9fbc320ff442ef31f393/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "91f82405ead9cd283feff6b3579664503e196b2bc806d40fa749e39b92386e8f",
+          "error": null,
+          "hub_revision": "b3c240a8540254ef294d9fbc320ff442ef31f393",
+          "observed_at": "2026-11-07T10:52:23.703884+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/miniembed-nano-r1-candidate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "40e0c6ab9511586014457d354c00f05777b34fd1",
+          "observed_at": "2026-11-07T10:52:23.713052+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 40e0c6ab9511586014457d354c00f05777b34fd1 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2508 bytes, sha256 77895201c2723d1c33e99022ee9dab7d38a9d5f649a371d197eb1edfde5d0f9b. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/miniembed-nano-r1-candidate/blob/40e0c6ab9511586014457d354c00f05777b34fd1/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/miniembed-nano-r1-candidate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "7d6621cd5b5db00b8adbe08c7e8f87560c8d7919af3fb3aad9084770a2679bf5",
+          "error": null,
+          "hub_revision": "40e0c6ab9511586014457d354c00f05777b34fd1",
+          "observed_at": "2026-11-07T10:52:23.713052+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/ouroboros-r2-candidate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "07e422d37a3d0fb4a2517e95bafde7795ce6d0e9",
+          "observed_at": "2026-11-10T11:14:38.631173+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 07e422d37a3d0fb4a2517e95bafde7795ce6d0e9 matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1801 bytes, sha256 058072ac4b8d067eaeb1b4244e5cffee2617604d58f0137867c370939a9ec540. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/ouroboros-r2-candidate/blob/07e422d37a3d0fb4a2517e95bafde7795ce6d0e9/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/ouroboros-r2-candidate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "42b78224f2b879bcd31e1e90b9569b9465406fcbd6f41e57812633de472419d6",
+          "error": null,
+          "hub_revision": "07e422d37a3d0fb4a2517e95bafde7795ce6d0e9",
+          "observed_at": "2026-11-10T11:14:38.631173+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-block-kv",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "kernel_library",
+          "hub_revision": "b5e86e4038e630eda94e3bd83cee1c5729d6d826",
+          "observed_at": "2026-10-04T15:32:26.137476+00:00",
+          "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+          "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-block-kv/blob/b5e86e4038e630eda94e3bd83cee1c5729d6d826/README.md",
+          "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+        },
+        "id": "SZLHOLDINGS/szl-block-kv",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "45914bec2360244e4ae1386c6d8c51e6cc9b5bfcfb899b5ef3574e17d4fdbc58",
+          "error": null,
+          "hub_revision": "b5e86e4038e630eda94e3bd83cee1c5729d6d826",
+          "observed_at": "2026-10-04T16:22:47.073249+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-block-kv?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-brain",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "non_provider_artifact",
+          "hub_revision": "8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1",
+          "observed_at": "2026-11-10T11:16:42.667186+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1 matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows no safetensors, GGUF, adapter, or numpy weight file. README.md returned HTTP 404 at that revision, so no card text was read. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-brain/blob/8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/szl-brain",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "df79ffc05179e27fb416017586505a41bd445f985cd3976cffe662488bc908d7",
+          "error": null,
+          "hub_revision": "8ede51bbdb8fb382d1a6b3ff7eef47e3cda0c5e1",
+          "observed_at": "2026-11-10T11:16:42.667186+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-brain?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-energy-attest",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "non_provider_artifact",
+          "hub_revision": "9146d35730139f8b7797dc40b4d5be5547387f1b",
+          "observed_at": "2026-10-04T15:32:38.662091+00:00",
+          "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+          "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-energy-attest/blob/9146d35730139f8b7797dc40b4d5be5547387f1b/README.md",
+          "suggested_route": "Use the repository-specific software, diagnostic or development route; no standalone neural checkpoint is advertised."
+        },
+        "id": "SZLHOLDINGS/szl-energy-attest",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "262478d912c031893c6c1768711ba6c76deb164e8833c6e8789100b5ce7a9787",
+          "error": null,
+          "hub_revision": "9146d35730139f8b7797dc40b4d5be5547387f1b",
+          "observed_at": "2026-10-04T16:22:51.199825+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-energy-attest?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu-kernels",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "kernel_library",
+          "hub_revision": "594bc58eb0f691f53f8493fa032be9ee8aab9ff3",
+          "observed_at": "2026-10-04T15:32:49.689555+00:00",
+          "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+          "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-khipu-kernels/blob/594bc58eb0f691f53f8493fa032be9ee8aab9ff3/README.md",
+          "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+        },
+        "id": "SZLHOLDINGS/szl-khipu-kernels",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "7fe3366b6a97c1b7905b2de698626956cff6fa4f8b2068e57519f22c8efd0a74",
+          "error": null,
+          "hub_revision": "594bc58eb0f691f53f8493fa032be9ee8aab9ff3",
+          "observed_at": "2026-10-04T16:22:55.235956+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-khipu-kernels?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-maskmod",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "kernel_library",
+          "hub_revision": "654a01aaaf86d06471f019cf2f84305703ccc260",
+          "observed_at": "2026-10-04T15:32:49.709448+00:00",
+          "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+          "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-maskmod/blob/654a01aaaf86d06471f019cf2f84305703ccc260/README.md",
+          "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+        },
+        "id": "SZLHOLDINGS/szl-maskmod",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "a528c57239d6181b4ec3fca38fd38a312a24b235be0135d8b78fabfcee97f060",
+          "error": null,
+          "hub_revision": "654a01aaaf86d06471f019cf2f84305703ccc260",
+          "observed_at": "2026-10-04T16:22:58.875585+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-maskmod?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receipt-attn",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "kernel_library",
+          "hub_revision": "e1383537e2dd74316a07fcbb683352af62dd24b0",
+          "observed_at": "2026-10-04T15:33:00.109558+00:00",
+          "qualification_note": "No hosted neural-model qualification is inferred from this software/native/NumPy artifact.",
+          "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receipt-attn/blob/e1383537e2dd74316a07fcbb683352af62dd24b0/README.md",
+          "suggested_route": "Use documented native kernel/library API or an existing demonstration Space; not a standalone hosted generative model."
+        },
+        "id": "SZLHOLDINGS/szl-receipt-attn",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "9dd6bd1be557cae509c3e7ba71ffc08db317e6691e9466996732216d3618d19e",
+          "error": null,
+          "hub_revision": "e1383537e2dd74316a07fcbb683352af62dd24b0",
+          "observed_at": "2026-10-04T16:23:02.808677+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receipt-attn?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+          "observed_at": "2026-11-07T10:52:23.872619+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1799 bytes, sha256 25a2c8f0ed94152c79f663bacfff4af161d9c49df967f14d0bad410476fd2658. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1/blob/4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "703a94b4c25d966973d6cb07aa8781e1a68cc66ec3743d18bcd9ffdfe4cf21e2",
+          "error": null,
+          "hub_revision": "4c1a8691e8b6c54b1ab07f55bfd78f627d6a9295",
+          "observed_at": "2026-11-07T10:52:23.872619+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+          "observed_at": "2026-11-07T10:52:23.889389+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision af519f265ff552dd4c47ae3a61b5f62a6f3827d5 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2007 bytes, sha256 3ba2b478fadd71bf88ba9d7f1d4361991c96fd2e5a461d6cb0d575343aabf566. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2/blob/af519f265ff552dd4c47ae3a61b5f62a6f3827d5/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "9cb3e5f2c669948d9e8d8589af018b599b3466c40552d0a0e0c8e9f1364359cb",
+          "error": null,
+          "hub_revision": "af519f265ff552dd4c47ae3a61b5f62a6f3827d5",
+          "observed_at": "2026-11-07T10:52:23.889389+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "0340c300052e248367a3407aa493ef72a0da79fe",
+          "observed_at": "2026-11-07T10:52:23.925468+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 0340c300052e248367a3407aa493ef72a0da79fe matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 2015 bytes, sha256 2a39020e79a6e5f9764e957abc8f4461c72a63903544fa5a440feee87aa2709b. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3/blob/0340c300052e248367a3407aa493ef72a0da79fe/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "c3237b4cc9588365b19dd3011d72e6a7d4ac36c1823a6b2e02f8d3e97c7fc5b3",
+          "error": null,
+          "hub_revision": "0340c300052e248367a3407aa493ef72a0da79fe",
+          "observed_at": "2026-11-07T10:52:23.925468+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+          "observed_at": "2026-10-04T15:33:00.109807+00:00",
+          "qualification_note": "HOLD; publication_eligible=false and promotion effect NONE. Derived merged-runtime results must remain bound to their exact source and bytes.",
+          "request_disposition": "REQUEST_PROVIDER_REVIEW_RESEARCH_ONLY",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged/blob/0ef9ed208b66c258e1d11e9112f0721c3b5c7565/README.md",
+          "suggested_route": "Provider may review explicit merged Transformers checkpoint; qualify exact served bytes before any deployment integration."
+        },
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "357db72db551ad6c103ba9ea94ef35041408f4ffc631600ec92c391c855da32d",
+          "error": null,
+          "hub_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+          "observed_at": "2026-10-04T16:23:02.822332+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [
+            {
+              "author": "betterwithage",
+              "body_sha256": "23421f091ed4c5f57f3811b573f503b28e897a90fec82989a9ddaee946eaaa0a",
+              "discussion_number": 12788,
+              "evidence_kind": "VERIFIED_SUBMISSION",
+              "model_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
+              "model_revision": "0ef9ed208b66c258e1d11e9112f0721c3b5c7565",
+              "readback_at": "2026-10-04T15:56:34.986721+00:00",
+              "readback_body_sha256": "c6f87678f89baacea7d21a06765d7331ee0568178a48bbfd637259cd051f4567",
+              "readback_normalization": "HUB_REMOVED_ONE_TERMINAL_NEWLINE",
+              "recorded_status": "open",
+              "requested_at": "2026-10-04T15:56:34.858230+00:00",
+              "url": "https://huggingface.co/spaces/huggingface/InferenceSupport/discussions/12788"
+            }
+          ],
+          "state": "REQUESTED"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "unmatched_prior_requests (discussion 12788)"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
+          "observed_at": "2026-11-07T10:52:23.986516+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 8419537ecad5930f022eb89720e92ba18ed6605d matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1476 bytes, sha256 f6fa12051ffb5d6ff299a09a73f5bf4b0f818e1d4ea4af3afbb355ce82b9e8b1. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1/blob/8419537ecad5930f022eb89720e92ba18ed6605d/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "173a0d372a2e6dc723549632cba73e747e0d926180730760c6e3cd18b2bc97d3",
+          "error": null,
+          "hub_revision": "8419537ecad5930f022eb89720e92ba18ed6605d",
+          "observed_at": "2026-11-07T10:52:23.986516+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+          "observed_at": "2026-11-07T10:52:24.035685+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 9bde1943e8d60c461391bbcd86ffca340da321a8 matches the inventory revision. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1433 bytes, sha256 f3e7f7f171d1d58010ed003b7e478a06fdb0b130673fecc9465c735d639a2826. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1/blob/9bde1943e8d60c461391bbcd86ffca340da321a8/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "63acfa11d5dc26d8f16861dc270fff8a0462b520ebe73a4b24608969aba793b7",
+          "error": null,
+          "hub_revision": "9bde1943e8d60c461391bbcd86ffca340da321a8",
+          "observed_at": "2026-11-07T10:52:24.035685+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-specdecode",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "non_provider_artifact",
+          "hub_revision": "31e589422ceb33461fe0f8d57208ccedccbcf387",
+          "observed_at": "2026-11-07T10:52:24.037945+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision 31e589422ceb33461fe0f8d57208ccedccbcf387 differs from inventory revision eaf60eed9e7c385154be9cd63278c161ee1fe18c. The file list at that revision shows no safetensors, GGUF, adapter, or numpy weight file. README.md returned HTTP 200 and 1354 bytes, sha256 43dba1b0be840b1790763af2305f7bee6f87e25103c4f1f2467b1c96fdc43d6f. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-specdecode/blob/31e589422ceb33461fe0f8d57208ccedccbcf387/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/szl-specdecode",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "f34ccc054532d1da473b82883bf0f0fafdca08a3ff8e42b17af4a361132cee21",
+          "error": null,
+          "hub_revision": "31e589422ceb33461fe0f8d57208ccedccbcf387",
+          "observed_at": "2026-11-07T10:52:24.037945+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-specdecode?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "adapter_bundle",
+          "hub_revision": "d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5",
+          "observed_at": "2026-10-04T15:33:13.809182+00:00",
+          "qualification_note": "Clinical reference artifact; explicit do-not-deploy/not-promotable contamination/corpus-leakage blocker. Behavioral pass is not deployment clearance.",
+          "request_disposition": "HOLD_CLINICAL_RELEASE",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora/blob/d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5/README.md",
+          "suggested_route": "Requires provider-supported LoRA serving with exact base revision, adapter hash, tokenizer and runtime; alternatively a separately receipted merge."
+        },
+        "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "5b628462e687a93a9ed8afb29c969201982c64bf075658f30ec3c7ae94ee82dc",
+          "error": null,
+          "hub_revision": "d1b3d6e7b1cff8767b74371f5b9562e5c4a7c0d5",
+          "observed_at": "2026-10-04T16:23:10.355451+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "adapter_bundle",
+          "hub_revision": "96546ad212115e80012fb1ccb93cdab912d00538",
+          "observed_at": "2026-10-04T15:33:13.808979+00:00",
+          "qualification_note": "Clinical reference research; release BLOCKED 11/12, contamination/leakage finding retained, NOT_PROMOTABLE. Legacy single-run 66/66 does not clear the five-seed release gate.",
+          "request_disposition": "HOLD_CLINICAL_RELEASE",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5/blob/96546ad212115e80012fb1ccb93cdab912d00538/README.md",
+          "suggested_route": "Requires provider-supported LoRA serving with exact base revision, adapter hash, tokenizer and runtime; alternatively a separately receipted merge."
+        },
+        "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "520d714be5e3468f1d2d6e7f355c96bdc01a1cb5c37339deb4d70c074239708b",
+          "error": null,
+          "hub_revision": "96546ad212115e80012fb1ccb93cdab912d00538",
+          "observed_at": "2026-10-04T16:23:10.310795+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/willay-r1-candidate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "abdb04de040c71b491d7b39eb887fba72989c916",
+          "observed_at": "2026-11-10T11:14:40.489564+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision abdb04de040c71b491d7b39eb887fba72989c916 matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1662 bytes, sha256 44266d762005b87ce2a3465b25550c0f20cc087e4983837ccb7ffad34851bb40. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/willay-r1-candidate/blob/abdb04de040c71b491d7b39eb887fba72989c916/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/willay-r1-candidate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "3f1061aa27171d8779bbe5dd458c37b6417afc1dbca32748dfc559611ee0cbd9",
+          "error": null,
+          "hub_revision": "abdb04de040c71b491d7b39eb887fba72989c916",
+          "observed_at": "2026-11-10T11:14:40.489564+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    },
+    {
+      "id": "SZLHOLDINGS/willay-r2-candidate",
+      "final_row": {
+        "assessment": {
+          "artifact_class": "standalone_weight_bundle",
+          "hub_revision": "a165ea780c7b4972dba19ce70fbfd28a5bb8603c",
+          "observed_at": "2026-11-10T11:14:40.943726+00:00",
+          "qualification_note": "Provider mapping returned HTTP 200 with an empty inferenceProviderMapping. No provider is reported and this row grants none. Observed revision a165ea780c7b4972dba19ce70fbfd28a5bb8603c matches the inventory revision observed at 2026-11-10T11:13:26Z. The file list at that revision shows a safetensors weight and config.json. README.md returned HTTP 200 and 1662 bytes, sha256 b22be44ee6e7279e41ee48ca8ef557da98991fd75ca1c1004095e8068c9d86c1. Weights were not downloaded and the model was not run.",
+          "request_disposition": "No support discussion for this repository is recorded in this catalog.",
+          "source_url": "https://huggingface.co/SZLHOLDINGS/willay-r2-candidate/blob/a165ea780c7b4972dba19ce70fbfd28a5bb8603c/README.md",
+          "suggested_route": "No serving route is authorized. The observed provider mapping was empty."
+        },
+        "id": "SZLHOLDINGS/willay-r2-candidate",
+        "inference": {
+          "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+          "capture_sha256": "7d982e98a2e496a0faa4b2bf76fc52757b60cb24b368905bcddae30d31012734",
+          "error": null,
+          "hub_revision": "a165ea780c7b4972dba19ce70fbfd28a5bb8603c",
+          "observed_at": "2026-11-10T11:14:40.943726+00:00",
+          "providers": [],
+          "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+          "state": "NO_PROVIDER_MAPPING"
+        },
+        "repo_type": "model",
+        "support": {
+          "requests": [],
+          "state": "NO_RECORDED_REQUEST"
+        }
+      },
+      "removal_reason": "Absent from the measured model-namespace inventory (docs/huggingface-ecosystem-manifest.json); retired or out-of-scope repository.",
+      "evidence_destination": "No recorded request; no evidence carried forward."
+    }
+  ],
+  "preserved_prior_rows": [
+    {
+      "id": "SZLHOLDINGS/A11OY-MINI",
+      "inference_capture_sha256": "1347e0ca8162dc981c9f8bd921e5d2a6da0a28369515a51bd58f8bd03cd1e053",
+      "inference_observed_at": "2026-10-04T16:22:20.567960+00:00",
+      "assessment_hub_revision": "7ea56236ea7988b3915b5ef07548cb2c3930a3cf"
+    },
+    {
+      "id": "SZLHOLDINGS/KHIPU-R2",
+      "inference_capture_sha256": "ff3d20343ee85d1d35a8847c9d6cbf7bd23b57b6a79f9f554ca855b1750c97da",
+      "inference_observed_at": "2026-10-04T16:22:20.606778+00:00",
+      "assessment_hub_revision": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76"
+    },
+    {
+      "id": "SZLHOLDINGS/KHIPU-R2-estate-sft-v1",
+      "inference_capture_sha256": "bf0b4b06d71e240d85f3a3d60587376de179bbe98d8151fecc75e9ead73aa794",
+      "inference_observed_at": "2026-11-07T10:52:22.846520+00:00",
+      "assessment_hub_revision": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f"
+    },
+    {
+      "id": "SZLHOLDINGS/MiniEmbed-Nano",
+      "inference_capture_sha256": "1ff23f5fbcef46c95d80808ae0619c057c9576dc4274c04721d1e2ff29ac2198",
+      "inference_observed_at": "2026-10-04T16:22:20.621148+00:00",
+      "assessment_hub_revision": "70557d12b91ca556939e559e540b70fb3c2c9e5b"
+    },
+    {
+      "id": "SZLHOLDINGS/Moons-Nano",
+      "inference_capture_sha256": "46000a760070a5177b0d02dbf1e37591502546fdb9cb94175ab9c33611d25287",
+      "inference_observed_at": "2026-10-04T16:22:20.618502+00:00",
+      "assessment_hub_revision": "4631d0fb54ad90423c3ae76f812ff4d0e80fbfdf"
+    },
+    {
+      "id": "SZLHOLDINGS/ReceiptAgent-Nano",
+      "inference_capture_sha256": "db9652098cd08abcc986754da7a8ef0a80e61174c95580fd6e51a98ca4103f04",
+      "inference_observed_at": "2026-10-04T16:22:26.593758+00:00",
+      "assessment_hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "inference_capture_sha256": "0c85302243fdf75fc750960adfa864c50f77c1b4873118913f0d1b377c3537de",
+      "inference_observed_at": "2026-10-04T16:22:26.583433+00:00",
+      "assessment_hub_revision": "7fea926b22a99e0e9704d3500741467ae357eec2"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
+      "inference_capture_sha256": "13089cb5dcbc0694e459508b4100b1fdcf2b66861c06b479379c0c1fe7749722",
+      "inference_observed_at": "2026-11-07T10:52:22.849077+00:00",
+      "assessment_hub_revision": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "inference_capture_sha256": "807ded92057fae7b4f9c69fcfb98c2cf874cbe07b088863bda1fd9e51f23152e",
+      "inference_observed_at": "2026-10-04T16:22:26.588978+00:00",
+      "assessment_hub_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "inference_capture_sha256": "e18d2120f7161ab78db30dfa3040ab67f50adea8bd542b1da4d0da5a7f480c9b",
+      "inference_observed_at": "2026-10-04T16:22:26.596111+00:00",
+      "assessment_hub_revision": "0737ae93c009322e4deffbe89ff34d2155a1b6c1"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
+      "inference_capture_sha256": "4856c675954b28587d378d86561364667dfad73c371e314bd0f6cd8385601105",
+      "inference_observed_at": "2026-10-04T16:22:34.256206+00:00",
+      "assessment_hub_revision": "942c02dd4e94f2cb7cfb0432a051c2db2219ee79"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
+      "inference_capture_sha256": "aa9dcde3493d0333d595da731906e65818f1a101f8ed4c4c6da21c879160f220",
+      "inference_observed_at": "2026-11-07T10:52:22.991475+00:00",
+      "assessment_hub_revision": "b4ae083265f2f0a6749af4111162d3582dc4dace"
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
+      "inference_capture_sha256": "322b4b930dfff91be6bf5f63cff914eb74c0c0c771f3a23400c5f81a8f2fdecd",
+      "inference_observed_at": "2026-11-07T10:52:22.998301+00:00",
+      "assessment_hub_revision": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab"
+    },
+    {
+      "id": "SZLHOLDINGS/TinyKhipu-Nano",
+      "inference_capture_sha256": "a0a482c68b5fb48af51c2ec8ae01bed83c7b9f95c0fefe051a5d7889b1ca9e32",
+      "inference_observed_at": "2026-10-04T16:22:34.251690+00:00",
+      "assessment_hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67"
+    },
+    {
+      "id": "SZLHOLDINGS/WILLAY",
+      "inference_capture_sha256": "277bcb223f2cb91bde14a05c0fffac40a4eef66eea8982d07eed343a31fada67",
+      "inference_observed_at": "2026-10-04T16:22:34.283042+00:00",
+      "assessment_hub_revision": "96a0ac5c5c26e89f732b72d747b3577e1ea5236f"
+    },
+    {
+      "id": "SZLHOLDINGS/WILLAY-estate-sft-v1",
+      "inference_capture_sha256": "8e1c863132fbf3e7aa1ed878e57dbcf94beaccaa4d71812aabaf9f6230e9974b",
+      "inference_observed_at": "2026-11-07T10:52:23.352902+00:00",
+      "assessment_hub_revision": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8"
+    },
+    {
+      "id": "SZLHOLDINGS/YARQA-ATTN",
+      "inference_capture_sha256": "d9c3db68a7c4dffdc6a2153b3aa756f7d3a58114d449e60a3d37c1fb89e63a20",
+      "inference_observed_at": "2026-10-04T16:22:34.232168+00:00",
+      "assessment_hub_revision": "d6aeb4f24655c07acc155eed7acade5ad249724f"
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-code-r1-candidate",
+      "inference_capture_sha256": "e49e6b914568be4b3fc32bfd13e822eeba0a2043e8a731b8f566f8278d5fdda7",
+      "inference_observed_at": "2026-11-10T17:54:56.684236+00:00",
+      "assessment_hub_revision": "541951e09431269c32b7093141a64643eb51113a"
+    },
+    {
+      "id": "SZLHOLDINGS/abstention-v2-candidate",
+      "inference_capture_sha256": "47184a57c90cef409103f505e318f85104798e361bc9b3e507607c2a2f6827bd",
+      "inference_observed_at": "2026-11-11T15:15:10.279086+00:00",
+      "assessment_hub_revision": "2025383caf3a1d1341d51f0fd98634072262ae76"
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2",
+      "inference_capture_sha256": "73ea7881fc94a875c086cffab754d5d95110a88db7f93526fc69112523f5975e",
+      "inference_observed_at": "2026-10-04T16:22:38.883798+00:00",
+      "assessment_hub_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01"
+    },
+    {
+      "id": "SZLHOLDINGS/chakana-r1-candidate",
+      "inference_capture_sha256": "de4df4ee6481708a4f84816bfa7deceb1681930fa3cceeb4065081a76d4c3e6c",
+      "inference_observed_at": "2026-11-07T10:52:23.447254+00:00",
+      "assessment_hub_revision": "73219a8ada0e73ab4216d9e70d730e38455f2425"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski",
+      "inference_capture_sha256": "e139dbeeabd46066582da9989851166b5419c0545c1e714535f4747ee91635b3",
+      "inference_observed_at": "2026-10-04T16:22:38.881709+00:00",
+      "assessment_hub_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050",
+      "inference_capture_sha256": "e986a2dfdaeb01172c8c3c5a3c752588714e69e498f32a3f964d45dc02b3a44c",
+      "inference_observed_at": "2026-10-04T16:22:38.883290+00:00",
+      "assessment_hub_revision": "0e324a93761abb7069ce0e40597780e734bf342b"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2",
+      "inference_capture_sha256": "952d99aed91f9db3c9aa49d39f8626c2895a8de2159615b77219052a73d17e2f",
+      "inference_observed_at": "2026-10-04T16:22:43.219554+00:00",
+      "assessment_hub_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45"
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r4",
+      "inference_capture_sha256": "5f85ef6e6abd0a145a6f229077e48f135077c2e8c00116e62daf3fb67e66b542",
+      "inference_observed_at": "2026-10-04T16:22:43.221466+00:00",
+      "assessment_hub_revision": "6275945fab2515ee41019eb60703c6b5dbdf5640"
+    },
+    {
+      "id": "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
+      "inference_capture_sha256": "c6b6a7e6009bb635ab1508d6f85a35a7c440a59868d158985b9996ab6e7ea81f",
+      "inference_observed_at": "2026-11-10T17:54:57.117866+00:00",
+      "assessment_hub_revision": "470fff332953b352fede85419140b8d76c2122e2"
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3",
+      "inference_capture_sha256": "9044c24f66953ac1010843f146a6135c69836c2621a100077cd0fd63ded35e07",
+      "inference_observed_at": "2026-10-04T16:22:43.220181+00:00",
+      "assessment_hub_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64"
+    },
+    {
+      "id": "SZLHOLDINGS/oac-ops-health-v2",
+      "inference_capture_sha256": "36f3b7204d4181ff1f97cbbd24933ffec7c9d197e3c24d7fe5c85af60456aadd",
+      "inference_observed_at": "2026-11-07T10:52:23.758461+00:00",
+      "assessment_hub_revision": "90df75bf58d91ea723128a86d7ed9af57535dbd8"
+    },
+    {
+      "id": "SZLHOLDINGS/oac-system-health-v1",
+      "inference_capture_sha256": "60ad41be418747a40d38208b41fb3517d914b77aa058061d406c751a9ffc8a0c",
+      "inference_observed_at": "2026-11-07T10:52:23.762153+00:00",
+      "assessment_hub_revision": "a99c3ec1157af351fa24da64f3b413620cae07fe"
+    },
+    {
+      "id": "SZLHOLDINGS/physics-master-v1-candidate",
+      "inference_capture_sha256": "23ac3a6486ff5b3647e1d3cbbacb5c76f19d660e80ef5923e063f6e28572e6f8",
+      "inference_observed_at": "2026-11-11T15:15:10.416290+00:00",
+      "assessment_hub_revision": "b6aa4f01476421acce9beeec60fe42cd00e594a3"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-blocked",
+      "inference_capture_sha256": "8750dcd90614fa0297d65f2c98979f25a9e901b82c209eceb2e429bd4574d528",
+      "inference_observed_at": "2026-10-04T16:22:47.108354+00:00",
+      "assessment_hub_revision": "74caaabb4a001fb3d2e8a346c1114008ad9c4f5d"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-formulas",
+      "inference_capture_sha256": "0dad0210bb5f825364a083393fff700963d4af27f369238f7f202181110803db",
+      "inference_observed_at": "2026-10-04T16:22:51.201752+00:00",
+      "assessment_hub_revision": "d3f2dbbb7c59bef13cf1b755edf487bfb2960653"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-governed-norm",
+      "inference_capture_sha256": "5c9e0f21678cdcedba36cb045137a3e096008e06cda5d0d530c8b3a96c477cfa",
+      "inference_observed_at": "2026-10-04T16:22:51.245551+00:00",
+      "assessment_hub_revision": "5abbd073ff159385be1f4e51c9fee4613cf52513"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-govsign",
+      "inference_capture_sha256": "b766529af64ca89d881112c354af579c99ff0a2642d482ddf3f490ae25bad8bc",
+      "inference_observed_at": "2026-10-04T16:22:51.205405+00:00",
+      "assessment_hub_revision": "52576849d074aa7d251219241fe12888b02f1edd"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-invariants",
+      "inference_capture_sha256": "95c5eafcf7839ddd0e8ffc5c795aa73e3c4d171d7a848db1b1a3a85bca007b4a",
+      "inference_observed_at": "2026-10-04T16:22:55.220875+00:00",
+      "assessment_hub_revision": "acfc77fbd3da15bb2a7957f11b3a9c8d81bf4a2c"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-kernels",
+      "inference_capture_sha256": "91d8dc993c04780d0fdb13a78276e4ca37f60900cd5326473316dc9806191081",
+      "inference_observed_at": "2026-10-04T16:22:55.201332+00:00",
+      "assessment_hub_revision": "72df0342e34a1f198dd9c428cca072e9b1389ccd"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu",
+      "inference_capture_sha256": "d7919e72542a49ce35c3076c55ac337daacf169b3e0c8e84970fc68652f40e5b",
+      "inference_observed_at": "2026-10-04T16:22:55.224015+00:00",
+      "assessment_hub_revision": "ee635354cb0b3d71965b17a227a374e40071e110"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "inference_capture_sha256": "9d6d8f9c2ec0147aa8f32d302b8987bd868954cbad9ed9879d8dcf0bb75434d0",
+      "inference_observed_at": "2026-10-04T16:22:58.878108+00:00",
+      "assessment_hub_revision": "f0c518b22f488e9f008deed27765c9fced32001e"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-nemo",
+      "inference_capture_sha256": "1e02e7361a979f8c3e02cc677b9d14d5553151a8cd035de67ba1c20e507222fd",
+      "inference_observed_at": "2026-10-04T16:22:58.852850+00:00",
+      "assessment_hub_revision": "8ba68dcf72f0b9e40c8114e5dd4e341aa7fac7b7"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-ouroboros",
+      "inference_capture_sha256": "e07619c720012d2fce04e6ec121c7d08d9be04eabdb97770f54dacd80fc88ec7",
+      "inference_observed_at": "2026-10-04T16:22:58.889873+00:00",
+      "assessment_hub_revision": "ea49dcae37ea15e155b77f837f21a668871c6673"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provctl",
+      "inference_capture_sha256": "ab6a764bd405a753d4b2645a9ed152ae77639abe9802cb6f906cd250db7e299a",
+      "inference_observed_at": "2026-10-04T16:23:02.831254+00:00",
+      "assessment_hub_revision": "4e688726df8de19f2eafd1382d448fdf37e475d0"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
+      "inference_capture_sha256": "7f6b1d09d91e6c8d72ee98e856f20487ba9ce8521d03adea0206033e83b09ae6",
+      "inference_observed_at": "2026-11-07T10:52:23.837753+00:00",
+      "assessment_hub_revision": "b2ec04727f46314b680ee26366159243924c1f67"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "inference_capture_sha256": "f557c6ff36358cad50c2abc0351a5653b91534f4339235191b4e57a07c7d1e4c",
+      "inference_observed_at": "2026-10-04T16:23:02.788763+00:00",
+      "assessment_hub_revision": "fcb1f08c3925daeabcdca4c90c637a775a8ea7ca"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
+      "inference_capture_sha256": "ead0bd68d566ed3c793051d289ede53d6c2b89036088d0e9b309adef4dd5773f",
+      "inference_observed_at": "2026-10-04T16:23:06.687420+00:00",
+      "assessment_hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255"
+    },
+    {
+      "id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
+      "inference_capture_sha256": "6d2876379878a6d224a77f300b77facc54cd862463b656b59cc9918eb61413f5",
+      "inference_observed_at": "2026-11-07T10:52:24.056321+00:00",
+      "assessment_hub_revision": "e821e660b5940cd988307bba4b5c9a29a09605ec"
+    }
+  ],
+  "decisions": [
+    {
+      "decision_id": "D01",
+      "model_id": "SZLHOLDINGS/KILLINCHU-EYE",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D02",
+      "model_id": "SZLHOLDINGS/chakana",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D03",
+      "model_id": "SZLHOLDINGS/qantu",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D04",
+      "model_id": "SZLHOLDINGS/tinku",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    },
+    {
+      "decision_id": "D05",
+      "model_id": "SZLHOLDINGS/waman",
+      "proposal": "RECORDED_NO_PROVIDER_MAPPING",
+      "admission": "NOT_GRANTED",
+      "selected": null,
+      "choices": [
+        "ADMIT_AFTER_ASSESSMENT_AND_PROVIDER_OBSERVATION",
+        "EXCLUDE_BY_EXPLICIT_RECORD",
+        "KEEP_HOLD"
+      ],
+      "blocked_by": [
+        "No support discussion was submitted or read back for this repository.",
+        "An owner exclusion record still does not exist; the empty mapping is not one."
+      ]
+    }
+  ],
+  "runtime_change": {
+    "prior_support_rows_preserved": 45,
+    "support_rows_added": 5,
+    "absorbed_unrecorded_rows": 48,
+    "inventory_rows_removed": 45,
+    "validator_changed": false,
+    "authority_flags_changed": false
+  },
+  "sources": {
+    "canonical_rule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
+    "inventory": "docs/huggingface-ecosystem-manifest.json",
+    "inventory_binding": "COMMITTED_MANIFEST",
+    "inventory_model_count": 98,
+    "inventory_observed_at": "2026-11-15T02:13:32Z",
+    "inventory_regenerations": [
+      {
+        "binding": "COMMITTED_MANIFEST",
+        "catalog_ids_equal_inventory_ids": true,
+        "model_count": 98,
+        "observed_at": "2026-11-15T02:13:32Z",
+        "rows_read_against_it": 5
+      }
+    ],
+    "inventory_scope": {
+      "visibility": "public-only",
+      "authenticated": false,
+      "privateAssetsIncluded": false,
+      "countMeaning": "Anonymous author-filtered public API membership, supplemented by the reserved SZLHOLDINGS/README Space when publicly observable; each (namespace, repository ID) is counted once. Native kernels use the kernels API separately from model repositories, including legacy kernel mirrors. Cross-namespace IDs may overlap; the sum is not a unique-project or trained-model total. Not the authenticated organization total.",
+      "cardEvidenceBoundary": "Gated repositories are inventoried from public API metadata only. Their cardObservation is ACCESS_RESTRICTED and cardSemanticSha256 is null; metadataSha256 is not a README or weight digest. No access request, authentication, or protected download is attempted. Restricted revisions remain exact-pinned in --check.",
+      "revisionFields": "Every item has sha and lastModified snapshot evidence. Ungated cards have a cardSemanticSha256 claim digest at observedAt; gated cards have explicit restricted metadata evidence. --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
+    },
+    "support": "docs/model-inference-support.json",
+    "support_doc_sentence": "The support file lists 98 model ids after the 2026-11-15 reconciliation: 45 retired rows removed, 5 measured rows added, and 48 rows that had entered without a dated record absorbed by this record.",
+    "support_generated_at": "2026-11-15T02:42:30.811599+00:00",
+    "support_model_count": 98,
+    "support_model_ids_sha256": "8682a4ffb09aec2fca408b59b220bc158b87d1bd44e4ff9d4a96194bfc7e76ec",
+    "review_note": "docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-15.md"
+  },
+  "inventory_models_outside_this_record": []
+}
