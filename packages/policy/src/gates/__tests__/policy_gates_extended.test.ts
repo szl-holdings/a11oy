@@ -539,7 +539,7 @@ function assertGateBase(d: { leanCommitSha: string; rationale: string; leanFile:
 {
   const mappings = new Map([
     ["commit-abc", "https://doi.org/10.5281/zenodo.20119582"],
-    ["commit-def", "https://doi.org/10.5281/zenodo.19944926"],
+    ["commit-def", "https://doi.org/10.5281/zenodo.24239896"],
   ]);
   const gate = replayDoiDualityGate({ knownMappings: mappings });
 
