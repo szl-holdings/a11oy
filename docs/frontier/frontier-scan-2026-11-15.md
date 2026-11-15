@@ -49,6 +49,8 @@ No open-source leader trains provenance emission or measures abstention with pub
 
 **2026-11-15T02:45Z update (MEASURED):** the v4 pinned-pip battery rerun has landed 12 model receipts (all abstained_or_refused 0 of 6, including six models that errored in the v3 attempt — the qwen3_5 loader fix is confirmed working). All 12 model cards are bound to their receipts with sha256 + readback verification (battery_card_bind_log.jsonl, owner machine). Remaining v3-error models continue landing as v4 progresses.
 
+**2026-11-15T03:00Z addendum (MEASURED):** v4 receipts now carry measured energy per model run (joules_measured, avg_watts, gpu, wall_hours) — energy provenance is now receipt-bound at the per-run level. The provenance-pair corpus builder v1.1 is built and sha256-logged on the owner machine (provenance_sft_corpus_v1.jsonl; build log provenance_corpus_build_log.json): every pair carries its receipt pointer, receipt sha256, measured behavior label (text / echo_question / abstained), and the measured energy envelope. Responses are labeled as measured outputs, not verified content — usable for provenance-emission and abstention-calibration lanes only.
+
 - The 33 qwen3_5-errored battery models: fix = transformers >= 5.23.0 on the battery host (torch compat verify). bitsandbytes and LoraConfig alora_invocation_tokens errors need the pinned-pip pass already in flight (v4).
 - Receipt-to-card binding is automated (watch_batteries.py live on the owner machine; battery_card_bind_log.jsonl pattern).
 - GPU + 14 secrets remain the only blockers on 5 of 8 readiness tiles (owner-only).
