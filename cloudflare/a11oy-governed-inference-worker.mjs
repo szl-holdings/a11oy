@@ -29,12 +29,12 @@ const LOCKED_FORMULAS = Object.freeze([
 const OWNED_MODEL_ARTIFACT = "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF";
 const MODEL_CANDIDATES = Object.freeze({
   fast: Object.freeze([
-    "@cf/zai-org/glm-4.7-flash",
-    "@cf/google/gemma-4-26b-a4b-it",
+    "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
+    "@cf/zai-org/glm-5.3",
   ]),
   frontier: Object.freeze([
-    "@cf/google/gemma-4-26b-a4b-it",
-    "@cf/zai-org/glm-4.7-flash",
+    "@cf/zai-org/glm-5.3",
+    "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
   ]),
 });
 const MAX_BODY_BYTES = 65536;
