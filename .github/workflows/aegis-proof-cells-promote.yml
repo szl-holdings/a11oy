@@ -16,8 +16,6 @@ on:
       - "tests/test_aegis_proof_cells_live.py"
   pull_request_review:
     types: [submitted, edited, dismissed]
-  pull_request_review_thread:
-    types: [created, edited, deleted]
 
 permissions: read-all
 concurrency:
