@@ -16,7 +16,7 @@
 //   Lean status: proven (sorry_count: 0; proof via DPI)
 //
 // References:
-//   Zenodo: https://doi.org/10.5281/zenodo.19944926
+//   Zenodo: https://doi.org/10.5281/zenodo.24239896
 //   INNOVATIONS.md §4 TH6: DPI entropy bound proof
 
 export interface BekensteinEntropyDpiGateConfig {
