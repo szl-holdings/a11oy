@@ -73,5 +73,5 @@ lands (see [Compliance](/compliance)).
 - **Repo:** [`a11oy`](https://github.com/szl-holdings/a11oy)
 - **Spec:** Ouroboros Thesis ([10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276))
 - **Proofs:** [`lutar-lean`](https://github.com/szl-holdings/lutar-lean)
-- **DOI (versioned):** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) · **Concept DOI:** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+- **DOI (versioned):** [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276) · **Concept DOI:** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 - **License:** Apache-2.0
