@@ -84,10 +84,10 @@ footer{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;color:v
 
   <h1>Integrations <span class="gold">/</span> Connector Mesh</h1>
   <p class="sub">One honest abstraction meshes a11oy into any enterprise CRM / ERP / identity /
-    comms / ITSM / warehouse / storage / observability stack — and is live-connected now to
+    comms / ITSM / warehouse / storage / observability stack — and ships live clients for
     free, no-signup intelligence sources. Every tile shows its <b>real</b> state:
     <span style="color:var(--ok)">CONNECTED</span> (live data),
-    <span style="color:var(--ready)">READY</span> (provide the named secret to activate),
+    <span style="color:var(--ready)">READY</span> (credentials or reachability verification pending),
     <span style="color:var(--sample)">SAMPLE</span> (labelled — no free tier). Records are never fabricated.</p>
 
   <div class="scoreboard" id="scoreboard"></div>
@@ -96,9 +96,10 @@ footer{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;color:v
 
   <div class="honest">
     <b>Honesty &amp; doctrine.</b> States are computed by the framework's <code>resolve_state()</code>
-    core from live credential presence + provider reachability — not hand-set. READY tiles name the
-    exact <code>SZL_*</code> Space-secret(s) required; the instant a secret lands the tile flips to
-    CONNECTED and renders the customer's live data. Every <span class="chip write">write</span> is
+    core from credential presence + observed provider reachability — not hand-set. READY tiles name
+    any required <code>SZL_*</code> Space-secret(s); credentials alone do not establish connectivity.
+    CONNECTED is reported only after a successful probe or read returns live provider data.
+    Every <span class="chip write">write</span> is
     Λ-gated (Λ&nbsp;never&nbsp;1.0) and DSSE/Khipu-receipted; receipts carry credential
     <i>fingerprint hashes</i>, never the key. Verify any tile yourself with its
     <code>read</code> button (hits the live API) or its docs link.
@@ -147,7 +148,7 @@ footer{margin-top:30px;border-top:1px solid var(--line);padding-top:14px;color:v
     var defs = [
       ["total", "connectors", (m && m.count) || 0],
       ["connected", "live now", sc.connected || 0],
-      ["ready", "ready (creds)", sc.ready || 0],
+      ["ready", "ready / unverified", sc.ready || 0],
       ["sample", "sample", sc.sample || 0]
     ];
     defs.forEach(function(d){
