@@ -175,7 +175,7 @@
       "governedKeep": false,
       "disposition": "FOLD",
       "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldHeld": "killinchu /immune target route not live (404) - hold until migration lands"
+      "foldExecuted": "2026-11-15 batch-2: killinchu /immune route live (HTTP 200); Space flipped private, private=True readback"
     },
     {
       "id": "SZLHOLDINGS/llm-router-live",
@@ -349,6 +349,34 @@
       "keepers": 10,
       "executor": "owner-delegated audit pass (decisions.md 2026-11-14 recommendation, user instruction 'use dc handle it all')",
       "log": "pvf_flip_log.jsonl on owner machine C:\\SZL\\estate-audit"
+    },
+    "2026-11-15-batch2": {
+      "flippedPrivate": 13,
+      "folded": [
+        "SZLHOLDINGS/estate-gardener",
+        "SZLHOLDINGS/eternal-auditor",
+        "SZLHOLDINGS/immune",
+        "SZLHOLDINGS/oac-system-health-lab",
+        "SZLHOLDINGS/sentra",
+        "SZLHOLDINGS/szl-chief-engineer",
+        "SZLHOLDINGS/szl-cyber-shield",
+        "SZLHOLDINGS/szl-dream-architect",
+        "SZLHOLDINGS/szl-energy-ledger",
+        "SZLHOLDINGS/szl-infra-warden",
+        "SZLHOLDINGS/szl-marketing-1-1",
+        "SZLHOLDINGS/szl-provenance-pitch",
+        "SZLHOLDINGS/szl-research-council"
+      ],
+      "immuneHoldCleared": "killinchu /immune route live (HTTP 200 measured 2026-11-15)",
+      "held": [
+        "SZLHOLDINGS/szl-constellation"
+      ],
+      "heldReason": "owner-gated public-vs-private decision pending (production publish workflow requires public)",
+      "publicRemaining": 22,
+      "keepers": 10,
+      "executor": "owner-delegated CTO pass (user instruction 2026-11-15: handle it all use dc and edge)",
+      "log": "pvf_flip_log.jsonl on owner machine C:\\SZL\\estate-audit",
+      "verify": "private=True readback on all 13 (pvf2_batch2_summary.json)"
     }
   }
 }
