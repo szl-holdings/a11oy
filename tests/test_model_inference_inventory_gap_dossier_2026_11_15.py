@@ -26,19 +26,19 @@ def test_reconciliation_matches_the_measured_catalog_without_admission():
     live = {row["id"]: row for row in document["models"]}
     note = NOTE.read_text(encoding="utf-8")
     counts = dossier["counts"]
-    assert counts["rows"] == 5
+    assert counts["rows"] == 21
     assert counts["absorbed_unrecorded_rows"] == 48
-    assert counts["inventory_rows_removed"] == 45
+    assert counts["inventory_rows_removed"] == 38
     assert counts["prior_support_rows_preserved"] == 45
-    assert counts["provider_observations_http_200"] == 5
-    assert counts["provider_mappings_empty"] == 5
+    assert counts["provider_observations_http_200"] == 28
+    assert counts["provider_mappings_empty"] == 28
     assert counts["provider_mappings_present"] == 0
     assert counts["verified_inference_admission_authority"] == 0
     assert counts["verified_exclusion_authority"] == 0
     assert counts["inventory_models_outside_this_record"] == 0
     assert all(value is False for value in dossier["authority"].values())
-    assert dossier["runtime_change"]["inventory_rows_removed"] == 45
-    assert dossier["runtime_change"]["support_rows_added"] == 5
+    assert dossier["runtime_change"]["inventory_rows_removed"] == 38
+    assert dossier["runtime_change"]["support_rows_added"] == 21
     assert dossier["runtime_change"]["absorbed_unrecorded_rows"] == 48
     assert dossier["runtime_change"]["prior_support_rows_preserved"] == 45
     assert dossier["runtime_change"]["validator_changed"] is False
@@ -48,10 +48,11 @@ def test_reconciliation_matches_the_measured_catalog_without_admission():
     absorbed = {row["id"]: row for row in dossier["absorbed_rows"]}
     removed = {row["id"]: row for row in dossier["removed_rows"]}
     preserved = {row["id"]: row for row in dossier["preserved_prior_rows"]}
-    assert len(rows) == 5 and len(absorbed) == 48
-    assert len(removed) == 45 and len(preserved) == 45
+    restored = {row["id"]: row for row in dossier["restored_rows"]}
+    assert len(rows) == 21 and len(absorbed) == 48
+    assert len(removed) == 38 and len(preserved) == 45
     # The live catalog is exactly this record's rows plus absorbed plus preserved.
-    assert set(live) == set(rows) | set(absorbed) | set(preserved)
+    assert set(live) == set(rows) | set(absorbed) | set(preserved) | set(restored)
     assert set(removed).isdisjoint(live)
     assert set(removed).isdisjoint(_inventory_ids(inventory))
 
@@ -82,9 +83,9 @@ def test_reconciliation_matches_the_measured_catalog_without_admission():
     assert {10649, 12788} <= discussions
 
     decisions = {decision["model_id"]: decision for decision in dossier["decisions"]}
-    assert sorted(decisions) == sorted(rows)
+    assert sorted(decisions) == sorted(set(rows) | set(restored))
     assert sorted(decision["decision_id"] for decision in dossier["decisions"]) == [
-        f"D{n:02d}" for n in range(1, 6)]
+        f"D{n:02d}" for n in range(1, 29)]
     for model_id, row in rows.items():
         current = live[model_id]
         evidence = row["provider_observation"]
@@ -109,8 +110,33 @@ def test_reconciliation_matches_the_measured_catalog_without_admission():
         assert decision["blocked_by"] == row["missing_proof"]
         assert model_id in note
         assert evidence["observed_sha"] in note
+    assert counts["restored_rows"] == 7
+    assert set(restored).isdisjoint(set(rows) | set(absorbed) | set(preserved))
+    for model_id, row in restored.items():
+        current = live[model_id]
+        evidence = row["provider_observation"]
+        assert row["reconciliation"] == "RECORDED_RESTORED_NO_PROVIDER_MAPPING"
+        assert row["removal_reversed"] is True
+        assert row["prior_removal"]["removal_reason"]
+        assert evidence["http_status"] == 200
+        assert evidence["mapping"] == "empty"
+        assert evidence["state"] == "NO_PROVIDER_MAPPING"
+        assert evidence["url"] == support.mapping_url(model_id)
+        assert evidence["revision_matches_inventory"] is True
+        assert current["inference"]["state"] == "NO_PROVIDER_MAPPING"
+        assert current["inference"]["providers"] == []
+        assert current["inference"]["hub_revision"] == evidence["observed_sha"]
+        assert current["inference"]["capture_sha256"] == evidence["capture_sha256"]
+        assert current["assessment"]["artifact_class"] == evidence["artifact_class"]
+        assert current["support"] == {"state": "NO_RECORDED_REQUEST", "requests": []}
+        decision = decisions[model_id]
+        assert decision["admission"] == "NOT_GRANTED"
+        assert decision["selected"] is None
+        assert decision["blocked_by"] == row["missing_proof"]
+        assert model_id in note
+        assert evidence["observed_sha"] in note
 
-    assert dossier["sources"]["support_model_count"] == 98
+    assert dossier["sources"]["support_model_count"] == 121
     assert dossier["sources"]["support_model_ids_sha256"] == document["inventory_source"]["model_ids_sha256"]
     assert dossier["inventory_models_outside_this_record"] == []
     assert all(value is False for value in document["authority"].values())

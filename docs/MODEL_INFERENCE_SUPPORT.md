@@ -65,6 +65,20 @@ catalog ids again equal the measured model ids, so
 dated record is
 `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-15.md`.
 
+On 2026-11-15 a later same-day pass extended the measured catalog to the
+121 ids of the committed manifest. 16 further repositories were read
+anonymously at their public revisions (15 `adapter_bundle` and 1
+`non_provider_artifact`; two checkpoint trees publish no `README.md`), and
+7 rows that the first pass had removed as absent from the then-measured
+inventory were restored with fresh measured observations because the
+regenerated manifest re-included them at new revisions. Every read
+returned an empty inference-provider mapping at the revision recorded in
+the committed manifest, so no row gained inference admission, exclusion,
+routing, or deployment authority. The dated record for this extension is
+the same `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-15.md`,
+extended in place with rows D06-D21, restored rows D22-D28, and their
+decisions.
+
 ## Evidence boundaries
 
 Each exact, case-sensitive model ID has three independent records:
