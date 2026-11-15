@@ -47,7 +47,19 @@ estate bundles are signed by organ keys published in
 1. Obtain the bundle (`bundle.json`: `payloadType`, `genesis`, `beats[]`,
    `expected_root`) from the publishing surface.
 2. Obtain the signer's public key PEM from `cosign-keys/<organ>.pub` in the
-   `.github` repo — fetch it once, then work offline.
+   `.github` repo — fetch it once, then work offline. Pick the key whose
+   `fingerprint_sha256` in `cosign-keys/MANIFEST.json` equals the envelope's
+   `keyid` (the verifier accepts the fingerprint computed with or without the
+   PEM's trailing newline).
+   Receipts minted by the live a-11-oy.com runtime are signed by the runtime
+   key served at `https://a-11-oy.com/cosign.pub`. That is a different key from
+   `a11oy-cosign`, and at the time of writing it is **not yet listed** in
+   `cosign-keys/MANIFEST.json`. Until it is, a runtime receipt can pass the
+   integrity check, but `--manifest` reports `SIGNER UNKNOWN` (exit 3) and you
+   must confirm the runtime key's fingerprint out-of-band (step 3) before
+   treating the signer as identified. If no manifest entry matches the `keyid`
+   and you cannot confirm the key out-of-band, treat the receipt as
+   unauthenticated: an integrity pass alone does not identify the signer.
 3. Confirm the key out-of-band: its SHA-256 fingerprint should match the
    fingerprint the publisher advertises.
 4. Run the verifier as above. `CHAIN OK` plus the fingerprint you confirmed
