@@ -9,6 +9,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
+# The no-pipe rule covers EVERY Dockerfile in the tree, not only the root one
+# (SCPIN-CURL-1: runtime/ouroboros/.clusterfuzzlite/Dockerfile piped NodeSource
+# setup_20.x into bash and was never checked). No per-file exceptions; only VCS
+# metadata and installed dependency trees are not walked.
+DOCKERFILE_GLOBS = ("Dockerfile*", "*.Dockerfile", "*.dockerfile", "Containerfile*")
+NOT_WALKED = frozenset({".git", "node_modules", ".venv", "venv", "site-packages", "__pycache__"})
 
 # Same shape as the org file audit's remote-shell-pipe rule (szl-org-health
 # census/file_audit.py), applied to logical lines so continuations count.
@@ -20,8 +26,20 @@ def _logical_lines(text: str) -> list[str]:
     return text.replace("\\\n", " ").splitlines()
 
 
+def _all_dockerfiles() -> list[Path]:
+    found = set()
+    for pattern in DOCKERFILE_GLOBS:
+        for path in ROOT.rglob(pattern):
+            if path.is_file() and not NOT_WALKED.intersection(path.relative_to(ROOT).parts[:-1]):
+                found.add(path)
+    return sorted(found)
+
+
 def test_dockerfile_has_no_remote_script_pipe() -> None:
-    hits = [line.strip() for line in _logical_lines(DOCKERFILE.read_text(encoding="utf-8"))
+    dockerfiles = _all_dockerfiles()
+    assert DOCKERFILE in dockerfiles, "discovery must include the root Dockerfile"
+    hits = [f"{path.relative_to(ROOT)}: {line.strip()}" for path in dockerfiles
+            for line in _logical_lines(path.read_text(encoding="utf-8"))
             if not line.lstrip().startswith("#") and REMOTE_SHELL_PIPE.search(line)]
     assert hits == []
 
