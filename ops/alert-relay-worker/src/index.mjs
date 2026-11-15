@@ -1,5 +1,10 @@
 const RELAY_HOST = "ntfy.a11oy.net";
 const UPSTREAM_ORIGIN = "https://ntfy.sh";
+const WORKER_NAME = "szl-alert-relay";
+// Reserved, read-only, never relayed: lets the deploy job prove which commit
+// is live. Every other path is still an opaque topic.
+export const REVISION_PATH = "/.well-known/szl-worker-revision";
+const SOURCE_REVISION = /^[0-9a-f]{40}$/;
 const MAX_JSON_BYTES = 64 * 1024;
 const TOPIC_HASH_HEX_LENGTH = 60;
 const ALLOWED_METHODS = new Set(["GET", "HEAD", "POST", "PUT", "OPTIONS"]);
@@ -170,10 +175,31 @@ async function buildUpstreamRequest(request, upstream) {
   return forwarded;
 }
 
-export async function handleRequest(request, fetchImpl = fetch) {
+function revisionResponse(request, env) {
+  if (request.method !== "GET") {
+    return new Response(null, {
+      status: 405,
+      headers: { allow: "GET", "cache-control": "no-store" },
+    });
+  }
+  const value = env?.SOURCE_REVISION;
+  return Response.json(
+    {
+      worker: WORKER_NAME,
+      source_revision:
+        typeof value === "string" && SOURCE_REVISION.test(value) ? value : null,
+    },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
+export async function handleRequest(request, fetchImpl = fetch, env = {}) {
   const incoming = new URL(request.url);
   if (incoming.hostname.toLowerCase() !== RELAY_HOST) {
     return jsonError(421, "misdirected_request");
+  }
+  if (incoming.pathname === REVISION_PATH) {
+    return revisionResponse(request, env);
   }
   if (!ALLOWED_METHODS.has(request.method)) {
     return new Response(null, {
@@ -209,7 +235,7 @@ export async function handleRequest(request, fetchImpl = fetch) {
 }
 
 export default {
-  async fetch(request) {
-    return handleRequest(request);
+  async fetch(request, env) {
+    return handleRequest(request, fetch, env);
   },
 };
