@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-11-15T02:13:32Z",
+  "observedAt": "2026-11-15T03:48:57Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 98,
-      "datasets": 67,
-      "spaces": 21,
+      "models": 121,
+      "datasets": 69,
+      "spaces": 22,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -860,6 +860,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B",
       "repoType": "model",
       "stage": "inventory",
@@ -897,6 +907,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora"
       ]
     },
     {
@@ -1030,6 +1050,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/brain-navigator-r2-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/brain-navigator-r2-laptop-lora"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/brain-navigator-v2-trained",
       "repoType": "model",
       "stage": "inventory",
@@ -1100,6 +1140,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/chaski-5050-estate-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-5050-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/chaski-5050-laptop-lora"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/chaski-5050-v2-trained",
       "repoType": "model",
       "stage": "inventory",
@@ -1110,6 +1170,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/chaski-estate-sft-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/chaski-estate-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/chaski-laptop-lora"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/chaski-r2",
       "repoType": "model",
       "stage": "inventory",
@@ -1117,6 +1197,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/chaski-r2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/chaski-r2-estate-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r2-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/chaski-r2-laptop-lora"
       ]
     },
     {
@@ -1137,6 +1237,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/chaski-r4"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/chaski-r4-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/chaski-r4-laptop-lora"
       ]
     },
     {
@@ -1187,6 +1297,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/doctrine-master-v1-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-math-r1-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/doctrine-math-r1-candidate"
       ]
     },
     {
@@ -1317,6 +1437,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/khipu-r3"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/khipu-r3-estate-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-r3-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/khipu-r3-laptop-lora"
       ]
     },
     {
@@ -1490,6 +1630,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/qwen2.5-0.5b-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/qwen2.5-0.5b-laptop-lora"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/reasoning-master-v1-candidate",
       "repoType": "model",
       "stage": "inventory",
@@ -1517,6 +1667,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/receiptagent-v2-trained"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/receiptagent-v3-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/receiptagent-v3-laptop-lora"
       ]
     },
     {
@@ -1660,6 +1820,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
       "repoType": "model",
       "stage": "inventory",
@@ -1667,6 +1857,46 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora"
       ]
     },
     {
@@ -1852,6 +2082,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/clinical-abstention-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/clinical-abstention-corpus-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/creativity-sft-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2009,6 +2249,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/lean-invariants-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lean-proof-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/lean-proof-corpus-v1"
       ]
     },
     {
@@ -2509,6 +2759,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/immune"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-hologram",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/khipu-hologram"
       ]
     },
     {
