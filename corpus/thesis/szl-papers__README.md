@@ -30,7 +30,7 @@ DOI-pinned thesis. See the canonical timeline: **[`thesis/THESIS_LINEAGE.md`](th
 
 - **22 thesis versions** (v1 2026-04-28 → v22 2026-06-03; v19 intentionally skipped).
 - **Latest:** [v22 — Convergence](thesis/ouroboros/papers/v22/) — A5 axiom merge, Cauchy_ND partial closure, VCG truthfulness, supply-chain hardening (SLSA L1 honest; L2 verified-provenance on the roadmap), Innovation Rounds 10–11, Sim-to-Real benchmark (α=0.10).
-- **Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
+- **Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896).
 - **Λ uniqueness — honest taxonomy.** *Governance-safe* uniqueness is **Theorem U** (proven, conditional, axiom-free): Λ is unique *modulo* the audit-invariant equivalence `≈Λ` under the Identifiability Assumptions (IA), with strict `=` only under the `Anchored`/`Normalized` predicate — see [`Lutar/Uniqueness/TheoremU.lean`](https://github.com/szl-holdings/lutar-lean/blob/main/Lutar/Uniqueness/TheoremU.lean). *Unconditional* uniqueness under bare A1–A5 stays **Conjecture 1 — OPEN** (machine-checked false as stated; never a theorem).
 
 ---
@@ -68,7 +68,7 @@ Original repos archived with redirect notices. Git history preserved in each sou
 
 ---
 
-**[SZL Holdings](https://a-11-oy.com)** · Apache-2.0 code · CC-BY-4.0 papers · Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+**[SZL Holdings](https://a-11-oy.com)** · Apache-2.0 code · CC-BY-4.0 papers · Concept DOI [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 
 > **Non-affiliation.** SZL Holdings' use of "UDS" references Defense Unicorns' Unified Defense Stack (USPTO Serial 99831122); SZL Holdings is not affiliated with Defense Unicorns. No production ATO is claimed. Papers note SLSA L1 honest (corpus); product images (a11oy, killinchu) are L2 build-attested — see [szl-uds-deployment](https://github.com/szl-holdings/szl-uds-deployment).
 
