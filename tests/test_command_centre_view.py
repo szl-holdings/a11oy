@@ -186,11 +186,11 @@ def test_inline_script_cannot_be_constructed():
 def test_canonical_public_projection_is_narrow_and_unpromoted():
     result = centre.public_estate()
     assert result['state'] == 'SOURCE_CONTRACT'
-    assert result['ayllu'] == {
-        'id': 'SZLHOLDINGS/ayllu', 'classification': 'INVENTORY_ONLY',
-        'governedKeep': False, 'disposition': 'FOLD',
+    assert result['orgCard'] == {
+        'id': 'SZLHOLDINGS/README', 'classification': 'INVENTORY_ONLY',
+        'governedKeep': False, 'disposition': 'ORG_CARD',
         'policySource': 'docs/series-a/hf-space-keep-list.yaml',
-        'href': 'https://huggingface.co/spaces/SZLHOLDINGS/ayllu',
+        'href': 'https://huggingface.co/spaces/SZLHOLDINGS/README',
     }
     assert 'publicDomainBodies' not in result
     assert 'supportingSystems' not in result
@@ -214,9 +214,9 @@ def test_extra_unprojected_input_never_leaks(tmp_path, monkeypatch, contract, cl
     ('classification', 'LIVE'), ('disposition', 'KEEP'), ('governedKeep', True),
     ('governedKeep', 0), ('policySource', '../private.json'),
 ])
-def test_ayllu_cannot_be_promoted_by_binding(tmp_path, monkeypatch, contract, field, value):
+def test_org_card_cannot_be_promoted_by_binding(tmp_path, monkeypatch, contract, field, value):
     next(row for row in contract['inventoryOnlyHuggingFaceRepositories']
-         if row['id'] == 'SZLHOLDINGS/ayllu')[field] = value
+         if row['id'] == 'SZLHOLDINGS/README')[field] = value
     install_contract(tmp_path, monkeypatch, contract)
     assert centre.public_estate()['state'] == 'UNAVAILABLE'
 
@@ -236,12 +236,12 @@ def test_malformed_public_binding_fails_closed(tmp_path, monkeypatch, contract, 
     elif change == 'missing':
         contract['inventoryOnlyHuggingFaceRepositories'] = [
             row for row in contract['inventoryOnlyHuggingFaceRepositories']
-            if row['id'] != 'SZLHOLDINGS/ayllu'
+            if row['id'] != 'SZLHOLDINGS/README'
         ]
     elif change == 'overlap':
-        contract['laboratorySurfaces'].append('SZLHOLDINGS/ayllu')
+        contract['laboratorySurfaces'].append('SZLHOLDINGS/README')
     elif change == 'invalid-topology':
-        contract['publicDomainBodies'] = [{'huggingFaceRepositories': 'SZLHOLDINGS/ayllu'}]
+        contract['publicDomainBodies'] = [{'huggingFaceRepositories': 'SZLHOLDINGS/README'}]
     elif change == 'fabric':
         contract['fabric']['githubRepository'] = 'private/DO_NOT_EXPOSE'
     else:
@@ -249,12 +249,12 @@ def test_malformed_public_binding_fails_closed(tmp_path, monkeypatch, contract, 
     install_contract(tmp_path, monkeypatch, contract)
     result = centre.public_estate()
     assert result['state'] == 'UNAVAILABLE'
-    assert result['canonical'] is None and result['ayllu'] is None
+    assert result['canonical'] is None and result['orgCard'] is None
     page = client.get('/command-centre')
     assert page.status_code == 200
     assert 'Ownership binding unavailable' in page.text
     assert 'DO_NOT_EXPOSE' not in page.text
-    assert 'Ayllu · inventory only' not in page.text
+    assert 'Reserved org card \u00b7 inventory only' not in page.text
 
 
 @pytest.mark.parametrize('body', [b'{"schema":"szl.public-estate/v1","schema":"private"}',
