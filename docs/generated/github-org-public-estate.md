@@ -3,9 +3,9 @@
 
 [A11oy](https://a-11-oy.com) is the product and command fabric; [a11oy.net](https://a11oy.net) is the proof and diligence surface. GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.
 
-**Measured Hub inventory:** 22 public Spaces · 121 model repositories · 14 native kernels · 69 datasets as of `2026-11-15T03:48:57Z`.
+**Measured Hub inventory:** 34 public Spaces · 131 model repositories · 14 native kernels · 71 datasets as of `2026-11-15T06:12:34Z`.
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-marketing`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/estate-gardener`, `SZLHOLDINGS/eternal-auditor`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/oac-system-health-lab`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-chief-engineer`, `SZLHOLDINGS/szl-cyber-shield`, `SZLHOLDINGS/szl-dream-architect`, `SZLHOLDINGS/szl-energy-ledger`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-infra-warden`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-marketing-1-1`, `SZLHOLDINGS/szl-provenance-pitch`, `SZLHOLDINGS/szl-research-council`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
 ### Five public domain bodies
 
@@ -26,5 +26,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `64c02e5eb60af232d8238477ab02debd65cae9126b3ce30063b2f7705cba697d`.
+Alignment receipt: `bdaf47152f417884c7f87ccf231b96bd5b22929e2536b9cfeb60792b13cb1512`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
