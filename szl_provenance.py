@@ -666,7 +666,8 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         revision = observed.get("revision")
         source = observed.get("revision_source")
         valid = (isinstance(revision, str) and len(revision) == 40
-                 and all(char in "0123456789abcdef" for char in revision))
+                 and all(char in "0123456789abcdef" for char in revision)
+                 and isinstance(source, str) and 0 < len(source) <= 128)
         return {
             "source_repository": "szl-holdings/a11oy",
             "source_revision": revision if valid else None,

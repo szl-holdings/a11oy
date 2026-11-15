@@ -66,3 +66,25 @@ def test_provenance_board_exposes_source_identity_without_attestation():
     assert identity["image_digest"] is None
     assert identity["image_attestation"] is False
     assert identity["execution_authority"] is False
+
+
+
+def test_malformed_build_identity_is_unavailable_and_unattested():
+    import szl_provenance
+
+    app = FastAPI()
+    app.state.szl_build_identity_reader = lambda: {
+        "revision": "c" * 40,
+        "revision_source": {"untrusted": True},
+    }
+    szl_provenance.register_provenance(app, "a11oy")
+
+    body = TestClient(app).get("/api/a11oy/provenance").json()
+    identity = body["runtime_identity"]
+    assert identity["source_revision"] is None
+    assert identity["source_revision_source"] == "UNAVAILABLE"
+    assert identity["source_revision_state"] == "UNAVAILABLE"
+    assert identity["image_digest"] is None
+    assert identity["image_identity_state"] == "UNAVAILABLE"
+    assert identity["image_attestation"] is False
+    assert identity["execution_authority"] is False

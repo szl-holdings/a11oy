@@ -5630,6 +5630,8 @@ async def healthz() -> JSONResponse:
         isinstance(_runtime_source_revision, str)
         and len(_runtime_source_revision) == 40
         and all(char in "0123456789abcdef" for char in _runtime_source_revision)
+        and isinstance(_runtime_source_source, str)
+        and 0 < len(_runtime_source_source) <= 128
     )
     _runtime_identity = {
         "source_repository": "szl-holdings/a11oy",
