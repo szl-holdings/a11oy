@@ -383,7 +383,7 @@
     "tag": "evidence-backed",
     "lean_ref": "Definition formalized in lutar-lean Lutar/Invariant.lean::Λ (Q1-LAMBDA-01); runtime code is unproven. Λ-uniqueness = Conjecture 1.",
     "powers": "13-axis advisory trust scoring for a11oy / all organs",
-    "notes": "lambda_aggregate (L123), lambda_gate (L184), lambda_gate_batch (L213), yuyay_weights (L414). Canonical source platform/packages/puriq-os/puriq_os/lambda_aggregator.py (mirror tests/lambda_aggregator_source.py). DOI 10.5281/zenodo.20434308. Explicitly ADVISORY; docstring states Λ-uniqueness is Conjecture 1 (open).",
+    "notes": "lambda_aggregate (L123), lambda_gate (L184), lambda_gate_batch (L213), yuyay_weights (L414). Canonical source platform/packages/puriq-os/puriq_os/lambda_aggregator.py (mirror tests/lambda_aggregator_source.py). DOI 10.5281/zenodo.24239654. Explicitly ADVISORY; docstring states Λ-uniqueness is Conjecture 1 (open).",
     "_quadrant": "Q1"
   },
   {
@@ -3135,7 +3135,7 @@
     "id": "Q4-PAPERS-01",
     "name": "szl-papers — 8 canonical Zenodo DOIs (szl.lake.papers/v1 manifest)",
     "meaning": "The precise list of 8 Zenodo paper DOIs (5 minted + 3 pending) from the canonical papers manifest.",
-    "math": "1) lutar-lean Λ aggregator (concept) = 10.5281/zenodo.19944926; 2) lutar-lean kernel release (version) = 10.5281/zenodo.20434308; 3) SZL governance substrate (umbrella) = 10.5281/zenodo.20434276; 4) vsp-otel Λ-signed OTel exporter (version) = 10.5281/zenodo.20424995; 5) Ouroboros bounded-recursion thesis = 10.5281/zenodo.20434276; 6) PURIQ preprint = DOI pending; 7) Khipu Consensus BFT 3-of-4 = DOI pending; 8) Prior-art defensive disclosures = DOI pending",
+    "math": "1) lutar-lean Λ aggregator (concept) = 10.5281/zenodo.24239896; 2) lutar-lean kernel release (version) = 10.5281/zenodo.24239654; 3) SZL governance substrate (umbrella) = 10.5281/zenodo.20434276; 4) vsp-otel Λ-signed OTel exporter (version) = 10.5281/zenodo.20424995; 5) Ouroboros bounded-recursion thesis = 10.5281/zenodo.20434276; 6) PURIQ preprint = DOI pending; 7) Khipu Consensus BFT 3-of-4 = DOI pending; 8) Prior-art defensive disclosures = DOI pending",
     "inputs": "n/a (deposit manifest)",
     "outputs": "DOI register",
     "locations": [
@@ -3158,7 +3158,7 @@
     "tag": "evidence-backed",
     "lean_ref": null,
     "powers": "Persistent citable provenance for PHASE 3 papers/Λ artifacts",
-    "notes": "Concept DOI (always-latest) = 10.5281/zenodo.19944926. DRIFT/DUPLICATE: entries 3 (umbrella) and 5 (Ouroboros thesis) BOTH list 10.5281/zenodo.20434276 — a shared/duplicate DOI; flag. docs-site/proof.md additionally cites 10.5281/zenodo.20424992 (Lean companion) and 20431181 (supporting) NOT in the 8-entry papers manifest — register divergence. 3 DOIs are 'pending' (PURIQ, Khipu BFT, prior-art) = honest-N/A until minted.",
+    "notes": "Concept DOI (always-latest) = 10.5281/zenodo.24239896. DRIFT/DUPLICATE: entries 3 (umbrella) and 5 (Ouroboros thesis) BOTH list 10.5281/zenodo.20434276 — a shared/duplicate DOI; flag. docs-site/proof.md additionally cites 10.5281/zenodo.20424992 (Lean companion) and 20431181 (supporting) NOT in the 8-entry papers manifest — register divergence. 3 DOIs are 'pending' (PURIQ, Khipu BFT, prior-art) = honest-N/A until minted.",
     "_quadrant": "Q4"
   },
   {
