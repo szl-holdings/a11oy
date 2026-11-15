@@ -92,7 +92,7 @@ export const MATH_POD_THEOREMS: Theorem[] = [
     source_file: 'math_pod_v3/math1/findings.md',
     maturity: 'proven',
     sorry_count: 0, // proof is trivial from DPI; Lean pending
-    citation: 'https://doi.org/10.5281/zenodo.19944926',
+    citation: 'https://doi.org/10.5281/zenodo.24239896',
     proof_sketch: 'By DPI: Y = chain(X) implies H(Y) ≤ H(X) for any deterministic function. H(X) ≤ 8A bits for a uniform byte registry. Therefore H(chain) ≤ 8A. The 49.5% Bekenstein fire-rate (K13) is consistent with near-maximum entropy (50% for uniform registry). New Lean file: Lutar/EntropyBound.lean. Proof: 2 steps from standard Mathlib MeasureTheory.entropy.',
   },
   {
