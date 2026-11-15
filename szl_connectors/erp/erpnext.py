@@ -9,8 +9,8 @@ Auth: Authorization: token <api_key>:<api_secret>  (or basic).
 DocTypes: Contact, Customer, Opportunity, Sales Order, Item.
 Docs: https://docs.frappe.io/framework/user/en/api/rest
 
-Default state: CONNECTED vs an SZL self-hosted ERPNext or public demo.erpnext.com
-when SZL_ERPNEXT_URL + SZL_ERPNEXT_TOKEN are set; READY otherwise.
+Default state: READY when SZL_ERPNEXT_URL + SZL_ERPNEXT_TOKEN are absent or
+provider reachability has not been observed; CONNECTED after a successful probe.
 Open-source + public demo exist → free_tier=True.
 """
 from __future__ import annotations
@@ -84,7 +84,8 @@ class ErpNextConnector(Connector):
     def write(self, action: dict | None = None) -> WriteResult:
         action = action or {}
         url, tok = self._conf()
-        connected = bool(url and tok)
+        connection = self.health(probe=True)
+        connected = connection.state == State.CONNECTED
         doctype = action.get("doctype", "Contact")
         gate_action = {"method": "create", "doctype": doctype,
                        "values_keys": sorted((action.get("values") or {}).keys())}
@@ -94,7 +95,7 @@ class ErpNextConnector(Connector):
             cred_fingerprints=creds_fp, quorum_present=action.get("quorum_present"))
         if not allowed:
             return WriteResult(connector_id=self.id, ok=False,
-                               state=State.READY if not connected else State.CONNECTED,
+                               state=connection.state,
                                receipt_hash=receipt["receipt_hash"], lambda_value=lam,
                                quorum=quorum, detail=detail, dsse=receipt["dsse"])
         body = json.dumps(action.get("values", {})).encode()
