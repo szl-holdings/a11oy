@@ -103,11 +103,26 @@ jobs:
               echo "- manifest SHA-256: \`${PAYLOAD_SHA256}\`"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+      # actions/cache-poisoning/poisonable-step (#1183, #1184): peer-resolved
+      # refs are only produced for pull_request events; the resolver returns the
+      # literal "main" for every other event, so the untrusted-ref checkout is
+      # gated to the unprivileged pull_request context and privileged
+      # default-branch triggers (push, schedule, workflow_dispatch) use a
+      # literal trusted ref instead.
       - name: Checkout killinchu (verified sibling)
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ steps.peer.outputs.repository }}
           ref: ${{ steps.content_peer.outputs.ref || steps.peer.outputs.ref }}
+          path: sibling
+          persist-credentials: false
+      - name: Checkout killinchu main (trusted literal default-branch ref)
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/killinchu
+          ref: main
           path: sibling
           persist-credentials: false
       - name: Validate content-addressed shared payload
