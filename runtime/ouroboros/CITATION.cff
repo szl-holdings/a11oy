@@ -5,7 +5,7 @@ version: "6.3.0"
 date-released: "2026-05-29"
 abstract: >-
   Bounded-loop runtime implementing the Lutar Invariant. Reference implementation for the Ouroboros Thesis. Component of the SZL Holdings governed AI decision infrastructure,
-  built on the Ouroboros Thesis (DOI 10.5281/zenodo.19944926).
+  built on the Ouroboros Thesis (DOI 10.5281/zenodo.24239896).
 type: software
 authors:
   - family-names: Lutar
@@ -26,7 +26,7 @@ keywords:
 identifiers:
   - description: "Ouroboros Thesis concept DOI — always-latest"
     type: doi
-    value: "10.5281/zenodo.19944926"
+    value: "10.5281/zenodo.24239896"
   - description: "Ouroboros Thesis v17 — Wheeler · Shannon · QEC-Evolved Anatomy (Zenodo)"
     type: doi
     value: "10.5281/zenodo.20431181"
