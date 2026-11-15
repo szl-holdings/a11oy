@@ -61,6 +61,6 @@ You can verify any receipt against the organ's public key (`/khipu/pubkey`). Dep
 - **[szl-holdings/platform](https://github.com/szl-holdings/platform)** — substrate monorepo (`packages/`)
 - **[szl-holdings/hatun-mcp](https://github.com/szl-holdings/hatun-mcp)** — the 16-tool MCP server
 - **[szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)** — Lean 4 / Mathlib formalization (749/14/163)
-- **DOI** [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308) · **ORCID** [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
+- **DOI** [10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654) · **ORCID** [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
 
 *Signed Yachay `<yachay@szlholdings.dev>` · Co-Authored-By: Perplexity Computer Agent · Apache-2.0*
