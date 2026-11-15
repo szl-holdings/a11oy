@@ -2148,7 +2148,7 @@
       "disabled": false,
       "fork": false,
       "default_branch": "main",
-      "description": "Lean 4 + Mathlib formalization of the Λ aggregator — Λ uniqueness as Conjecture 1 (not a closed theorem). 749 declarations · 14 axioms · 163 tracked sorries. Backs the SZL governance gate. Doctrine v11 LOCKED · DOI 10.5281/zenodo.20434308",
+      "description": "Lean 4 + Mathlib formalization of the Λ aggregator — Λ uniqueness as Conjecture 1 (not a closed theorem). 749 declarations · 14 axioms · 163 tracked sorries. Backs the SZL governance gate. Doctrine v11 LOCKED · DOI 10.5281/zenodo.24239654",
       "language": "Lean",
       "license": "Apache-2.0",
       "pushed_at": "2026-10-01T17:39:05Z",
