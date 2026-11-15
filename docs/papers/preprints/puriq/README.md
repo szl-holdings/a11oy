@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Doctrine v11 LOCKED](https://img.shields.io/badge/Doctrine-v11_LOCKED-d4a444.svg)](https://github.com/szl-holdings/lutar-lean)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239896.svg)](https://doi.org/10.5281/zenodo.24239896)
 
 [![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg)](SECURITY.md)
 
@@ -10,14 +10,14 @@
 <!-- CII-BEST-PRACTICES-BADGE: PENDING — replace 'PENDING' with the project id once founder registers this repo at https://bestpractices.coreinfrastructure.org/ -->
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/PENDING/badge)](https://bestpractices.coreinfrastructure.org/)
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239896.svg)](https://doi.org/10.5281/zenodo.24239896)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
 > The DOI badge above shows a placeholder until the first GitHub release triggers
 > the **GitHub–Zenodo auto-mint** integration. After the first release, replace
 > `PLACEHOLDER` with the version DOI that Zenodo assigns (Zenodo also provides the
 > exact Markdown badge on the record page). The concept DOI for the Ouroboros line
-> is `10.5281/zenodo.19944926`. See [`ZENODO_AUTO_MINT_SETUP.md`](ZENODO_AUTO_MINT_SETUP.md).
+> is `10.5281/zenodo.24239896`. See [`ZENODO_AUTO_MINT_SETUP.md`](ZENODO_AUTO_MINT_SETUP.md).
 
 This repository is the **canonical, standalone citation** for the **PURIQ** formula —
 an additive agentic-action layer extending the formally verified *Doctrine v11* substrate (749/14/163) of the Ouroboros line of work.
@@ -90,7 +90,7 @@ to `{IEEEtran}[conference]` requires no body changes.
 See `CITATION.cff`, or:
 
 > Lutar, S. P., Jr. (2026). *PURIQ: A Master Formula for Agentic AI under Provable
-> Provenance.* SZL Holdings. Concept DOI: 10.5281/zenodo.19944926.
+> Provenance.* SZL Holdings. Concept DOI: 10.5281/zenodo.24239896.
 
 ## License
 
