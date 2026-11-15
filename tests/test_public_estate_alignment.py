@@ -59,7 +59,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 14)
+        self.assertEqual(len(topology), 15)
         self.assertEqual(
             self.contract["supportingSystems"][0]["huggingFaceRepositories"],
             [],
@@ -70,12 +70,24 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             inventory_only,
             [
                 "SZLHOLDINGS/ayllu",
+                "SZLHOLDINGS/estate-gardener",
+                "SZLHOLDINGS/eternal-auditor",
                 "SZLHOLDINGS/immune",
                 "SZLHOLDINGS/llm-router-live",
+                "SZLHOLDINGS/oac-system-health-lab",
                 "SZLHOLDINGS/README",
+                "SZLHOLDINGS/sentra",
                 "SZLHOLDINGS/szl-bench-suite",
+                "SZLHOLDINGS/szl-chief-engineer",
+                "SZLHOLDINGS/szl-cyber-shield",
+                "SZLHOLDINGS/szl-dream-architect",
+                "SZLHOLDINGS/szl-energy-ledger",
                 "SZLHOLDINGS/szl-forge-lab",
+                "SZLHOLDINGS/szl-infra-warden",
                 "SZLHOLDINGS/szl-marketing",
+                "SZLHOLDINGS/szl-marketing-1-1",
+                "SZLHOLDINGS/szl-provenance-pitch",
+                "SZLHOLDINGS/szl-research-council",
             ],
         )
         self.assertEqual(

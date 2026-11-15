@@ -29,8 +29,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # actions/cache-poisoning/poisonable-step (#1183, #1184) evidence: the
+  # poisonable-step query does not honor step-level event guards (the
+  # identical step-split on killinchu #480 left its alerts open on the
+  # 2026-11-06 analysis of post-fix main), while job-level guards are
+  # honored. The untrusted peer-ref path therefore lives in this
+  # pull_request-only job, and every default-branch trigger (push, schedule,
+  # workflow_dispatch) runs the separate literal-ref job below. The resolver
+  # itself returns the literal "main" for every non-pull_request event, so
+  # behavior is identical on every trigger.
   shared-drift:
     name: Shared source files in sync with killinchu
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout a11oy (this repo)
@@ -122,6 +132,35 @@ jobs:
         run: >-
           python3 self/.github/validate-shared-payload.py self sibling
           --expected-manifest-sha256="$PAYLOAD_SHA256"
+      - name: Compare shared source files
+        run: >-
+          python3 self/.github/shared-file-drift-check.py self sibling
+          --self-name=a11oy --sibling-name=killinchu
+
+  shared-drift-default-branch:
+    name: Shared source files in sync with killinchu (default branch)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout a11oy (this repo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: self
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Self-test shared peer resolver
+        run: python3 self/.github/test-resolve-shared-peer-ref.py
+      - name: Self-test shared payload validator
+        run: python3 self/.github/test-validate-shared-payload.py
+      - name: Checkout killinchu (trusted default-branch ref)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/killinchu
+          ref: main
+          path: sibling
+          persist-credentials: false
       - name: Compare shared source files
         run: >-
           python3 self/.github/shared-file-drift-check.py self sibling
