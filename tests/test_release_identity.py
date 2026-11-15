@@ -16,7 +16,7 @@ def test_release_identity_keeps_existing_and_version_dois_distinct(monkeypatch):
     payload = release.release_identity()
 
     assert payload["release_state"] == "CANDIDATE"
-    assert payload["doi"]["concept"]["value"] == "10.5281/zenodo.19944926"
+    assert payload["doi"]["concept"]["value"] == "10.5281/zenodo.24239896"
     assert payload["doi"]["formal_artifacts"]["value"] == "10.5281/zenodo.20434276"
     assert payload["doi"]["software_version"] == {
         "value": None,
