@@ -77,7 +77,7 @@ export const UNIFIED_EXTENSION: UnifiedExtension = {
       repo: 'lutar-lean',
       status: 'proven',
       description: 'H(chain) ≤ H(registry) ≤ 8A bits by DPI. Replaces physics analogy with elementary information theory. Discharges A7 (bekensteinBound). New Lean file: Lutar/EntropyBound.lean.',
-      citation: 'https://doi.org/10.5281/zenodo.19944926',
+      citation: 'https://doi.org/10.5281/zenodo.24239896',
     },
     {
       id: 'TH7',
