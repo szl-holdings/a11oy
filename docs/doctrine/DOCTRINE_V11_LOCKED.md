@@ -195,7 +195,7 @@ Carlota Jo. The roster correction is locked in doctrine; surfaces remain future 
 | Item | Value | Note |
 |------|-------|------|
 | **Ouroboros runtime** | v6.2.0 — **172/172 tests passing**, Apache-2.0 | newer release reports 218/218; both real per the ladder. |
-| **Lutar Invariant** | **11 peer-track papers (v1–v10)** + Concept DOI **10.5281/zenodo.19944926** + CC-BY-4.0 | |
+| **Lutar Invariant** | **11 peer-track papers (v1–v10)** + Concept DOI **10.5281/zenodo.24239896** + CC-BY-4.0 | |
 | **A11oy fabric** | **7-layer governed agentic execution fabric** | Sense → Structure → Correlate → Explain → Recommend → Approve → Execute |
 | **Libraries / packages** | **52 internal libraries, 100 packages** | |
 | **PR #108** | rate limiting · ReDoS · CORS · XSS · origin checks · **26 files** · **30+ code-scan alerts cleared** | |
