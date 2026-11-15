@@ -22,7 +22,7 @@ SOFTWARE_VERSION = "1.1.0"
 EXPECTED_TAG = f"v{SOFTWARE_VERSION}"
 REPOSITORY_URL = "https://github.com/szl-holdings/a11oy"
 RESERVED_DOIS = {
-    "10.5281/zenodo.19944926",
+    "10.5281/zenodo.24239896",
     "10.5281/zenodo.20434276",
 }
 DOI_RE = re.compile(r"^10\.5281/zenodo\.(\d+)$")
