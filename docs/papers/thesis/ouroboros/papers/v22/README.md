@@ -3,9 +3,9 @@
 **Ouroboros Thesis v22.0** — an honest, audit-ready convergence of the Λ-aggregator uniqueness
 chain, mechanism truthfulness, and sim-to-real doctrine transfer.
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239896.svg)](https://doi.org/10.5281/zenodo.24239896)
 
-> Concept DOI `10.5281/zenodo.19944926` always resolves to the latest version. The **v22 version
+> Concept DOI `10.5281/zenodo.24239896` always resolves to the latest version. The **v22 version
 > DOI is minted by Zenodo when the `paper-v22-1.0.0` GitHub release is published** (Zenodo↔GitHub
 > webhook). **FOUNDER ACTION.**
 
