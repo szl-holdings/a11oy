@@ -29,7 +29,7 @@
 //
 // References:
 //   Cover & Thomas, Elements of Information Theory (2006), §2.8 (DPI)
-//   Zenodo: https://doi.org/10.5281/zenodo.19944926
+//   Zenodo: https://doi.org/10.5281/zenodo.24239896
 
 export interface BekensteinEntropyMeasureGateConfig {
   /** Bits per byte bound multiplier. Default: 8. */
