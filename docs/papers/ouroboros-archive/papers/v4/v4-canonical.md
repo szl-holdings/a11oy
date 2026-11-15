@@ -3,7 +3,7 @@
 > **Version:** Ouroboros Thesis v4 · **DOI** [10.5281/zenodo.20020841](https://doi.org/10.5281/zenodo.20020841)
 > **Author:** Stephen P. Lutar · ORCID 0009-0001-0110-4173 · SZL Holdings
 > **License:** CC BY 4.0 · **Date released:** 2026-05-04
-> **Concept DOI** (always resolves to latest): [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+> **Concept DOI** (always resolves to latest): [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 
 This file is the canonical text of paper v4 in the Ouroboros chain. It is identical in content to the primary `ouroboros-thesis-v4.md` and serves as the durable citation target for downstream documents and tooling.
 
