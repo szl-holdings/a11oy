@@ -6,7 +6,7 @@
 
 **Author:** Stephen P. Lutar Jr. · SZL Holdings · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
 
-**Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+**Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 
 > This markdown file is a faithful rendering of `main.tex`. The typeset PDF (`main.pdf`) is the canonical presentation; `main.tex` is the authoritative LaTeX source. v24.1 refreshes v24 to the current proof state. Pinned commits: `main` @ `ba1050b7` (Waves 11–22 merged, CI-green); locked kernel @ `c7c0ba17`. Repository: [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
@@ -400,7 +400,7 @@ The honesty doctrine is unchanged and binding: Λ remains **Conjecture 1** uncon
 | Locked kernel | `c7c0ba17` | 749 / 14 / 163; locks {F1,F11,F12,F18,F19} |
 | CUT-2 axiom-free Λ | in `ba1050b7` | `Round13/LambdaSeparable.lean` |
 | CUT-1 representation (Waves 18–22) | in `ba1050b7` | `AczelRepresentation/`; closed on stated hypotheses |
-| Concept DOI (always-latest) | — | [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) |
+| Concept DOI (always-latest) | — | [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) |
 | Repository | — | [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean) |
 
 ### A.2 How to verify
@@ -472,6 +472,6 @@ The bottom turtles, stated once: (i) soundness of the Lean 4 kernel and its core
 18. P. Burai, G. Kiss, P. Szokol. *On the uniqueness of quasi-arithmetic means under a bisymmetry-type condition.* arXiv:2208.07083. https://arxiv.org/abs/2208.07083
 19. P. Burai, G. Kiss, P. Szokol. *n-ary regularity-free characterization of quasi-arithmetic means.* arXiv:2606.05221. https://arxiv.org/abs/2606.05221
 20. J. Aczél and J. Dhombres. *Functional Equations in Several Variables.* Cambridge University Press, 1989 (pp. 287–290).
-21. S. P. Lutar Jr. *The Ouroboros Thesis (Lean development).* SZL Holdings. Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926); repository [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean).
+21. S. P. Lutar Jr. *The Ouroboros Thesis (Lean development).* SZL Holdings. Concept DOI [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896); repository [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
 *Full bibliographic detail with all URLs is in `refs.bib` and the typeset PDF bibliography.*
