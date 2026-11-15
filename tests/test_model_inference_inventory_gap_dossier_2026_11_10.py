@@ -72,6 +72,14 @@ def _later_removed_rows():
             rows[row["id"]] = row["final_row"]
     return rows
 
+def _later_restored_ids():
+    """Rows a later dated record restored after its own earlier removal."""
+    ids = set()
+    for path in LATER_DOSSIERS:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        ids |= {row["id"] for row in record.get("restored_rows", [])}
+    return ids
+
 def test_recorded_observations_cover_the_fourteen_reviewed_ids_without_admission():
     dossier = json.loads(DOSSIER.read_text(encoding="utf-8"))
     document = support.read_json(support.STATUS_PATH)
@@ -80,6 +88,7 @@ def test_recorded_observations_cover_the_fourteen_reviewed_ids_without_admission
     by_id = {row["id"]: row for row in document["models"]}
     later = _later_recorded_ids() | _later_absorbed_ids()
     removed = _later_removed_rows()
+    restored = _later_restored_ids()
     assert len(by_id) == 88 + len(later) - len(removed)
     by_id.update(removed)  # final snapshots of rows the 2026-11-15 record removed
     counts = dossier["counts"]
@@ -111,6 +120,12 @@ def test_recorded_observations_cover_the_fourteen_reviewed_ids_without_admission
     assert set(preserved) == prior_ids
     for model_id, fingerprint in preserved.items():
         current = by_id[model_id]
+        if model_id in restored:
+            # A later record restored this repository against a newer measured
+            # revision; the fresh observation recorded there supersedes this
+            # record's fingerprint.
+            assert current["assessment"]["hub_revision"] != fingerprint["assessment_hub_revision"]
+            continue
         assert current["inference"]["capture_sha256"] == fingerprint["inference_capture_sha256"]
         assert current["inference"]["observed_at"] == fingerprint["inference_observed_at"]
         assert current["assessment"]["hub_revision"] == fingerprint["assessment_hub_revision"]

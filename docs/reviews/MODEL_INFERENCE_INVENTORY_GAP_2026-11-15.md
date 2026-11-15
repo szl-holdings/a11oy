@@ -86,3 +86,45 @@ record. This reconciliation absorbs those 48 rows so the recorded catalog
 coverage is exact again: 5 additions plus 48 absorbed plus 45 preserved rows
 equal the 98 measured catalog ids. No row gains admission, exclusion, routing,
 or deployment authority from this record.
+
+## Later same-day pass: 16 further measured rows and 7 restored rows
+
+The committed manifest regenerated again at 2026-11-15T03:48:57Z and now
+inventories 121 public model repositories. A later pass the same day read
+the 23 ids that had no support row. 16 of them are repositories no earlier
+record had covered; 7 of them are rows this record removed in its first
+pass as absent from the then-measured inventory, and the regenerated
+manifest now re-includes them at new revisions, so their removals are
+reversed and their rows are restored with fresh measured observations.
+Each anonymous public read returned an empty inference-provider mapping at
+the revision recorded in the committed manifest. No row gains admission,
+exclusion, routing, or deployment authority from this extension:
+decisions D06-D21 are recorded as `RECORDED_NO_PROVIDER_MAPPING` and
+D22-D28 as `RECORDED_RESTORED_NO_PROVIDER_MAPPING`, each with admission
+`NOT_GRANTED`, blocked by the same two missing proofs as D01-D05.
+
+| Model id | Disposition | Artifact class | Observed revision |
+| --- | --- | --- | --- |
+| SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora | added | adapter_bundle | d61c815f53be5c3a551fa90fec7b8a2e3a61045e |
+| SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora | added | adapter_bundle | e31d71ac3d5e09b0ebc8bdd6a22d4cdea31232f9 |
+| SZLHOLDINGS/brain-navigator-r2-laptop-lora | added | adapter_bundle | 60b6fdd72bb745bb8b195f3a1e9120f2e05a0562 |
+| SZLHOLDINGS/chaski-5050-laptop-lora | added | adapter_bundle | 7072215ed8bb74d9b9996748467d0d1cc79a56cf |
+| SZLHOLDINGS/chaski-laptop-lora | added | adapter_bundle | 824aa4610537b76e646b2ab14b1cff8812317e7d |
+| SZLHOLDINGS/chaski-r2-laptop-lora | added | adapter_bundle | cfff1cd2274af706028c5c6a1c08eeaf2a1d2695 |
+| SZLHOLDINGS/chaski-r4-laptop-lora | added | adapter_bundle | d3da618277263d012ac5fbfb50cecd6553380cd3 |
+| SZLHOLDINGS/doctrine-math-r1-candidate | added | non_provider_artifact | 640062012ff0d003c74239911272d58d752ac820 |
+| SZLHOLDINGS/khipu-r3-laptop-lora | added | adapter_bundle | 0cd399061064bdf30b2636b4815bc61214951b63 |
+| SZLHOLDINGS/qwen2.5-0.5b-laptop-lora | added | adapter_bundle | 29f815ba8069d1fc9060b5e906e83cc8a7a1c2eb |
+| SZLHOLDINGS/receiptagent-v3-laptop-lora | added | adapter_bundle | a009f6cc5195c834475a368fb52310284d04c43c |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora | added | adapter_bundle | 97809211c5470d1abb9dddb1d4ccba21fa94c0f0 |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora | added | adapter_bundle | f68bb5cf1e51cbdbaf7a929ed140af81421138fa |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate | added | adapter_bundle | 5d33565030f04ac1bf0b2fdb012b90f238cc5dc0 |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora | added | adapter_bundle | 033108dd8a6a0205995216d3849387fcc3ec36d1 |
+| SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora | added | adapter_bundle | 17592f5fff6ee1119986af297dc16b745ed2b4c5 |
+| SZLHOLDINGS/brain-navigator-r2-estate-sft-v1 | restored | standalone_weight_bundle | 1943a58d83a8fbe3aa974dd243233d0354defcc8 |
+| SZLHOLDINGS/chaski-5050-estate-sft-v1 | restored | standalone_weight_bundle | b8034b05d39f3aff2cf059918d1b020129d0de15 |
+| SZLHOLDINGS/chaski-estate-sft-v1 | restored | standalone_weight_bundle | bb457141f3ac910b41e1b951d5b3d735cbec2838 |
+| SZLHOLDINGS/chaski-r2-estate-sft-v1 | restored | standalone_weight_bundle | 532ef3fb751a828c6211af252c68025995b266c9 |
+| SZLHOLDINGS/khipu-r3-estate-sft-v1 | restored | standalone_weight_bundle | 882ac37445b6cefa865992474737246758434b44 |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1 | restored | standalone_weight_bundle | ad7833f225c28771b52c34351cebb1b9a95689dc |
+| SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1 | restored | standalone_weight_bundle | 7ce8a2303b97b490f33c8b22da013868b4863ef0 |
