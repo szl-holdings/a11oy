@@ -18,7 +18,7 @@ identifiers:
     value: "10.5281/zenodo.20020841"
   - description: "Concept DOI — always resolves to the latest version"
     type: doi
-    value: "10.5281/zenodo.19944926"
+    value: "10.5281/zenodo.24239896"
   - description: "Ouroboros Thesis v1 (Zenodo)"
     type: doi
     value: "10.5281/zenodo.19867281"
