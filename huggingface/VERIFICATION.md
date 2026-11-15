@@ -58,5 +58,5 @@ To demonstrate why the manifest matters:
 - A11oy release: <https://github.com/szl-holdings/a11oy/releases/tag/v1.0.1>
 - UDS payload release line: <https://github.com/szl-holdings/a11oy/releases/tag/uds-v0.2.0>
 - Thesis DOI: <https://doi.org/10.5281/zenodo.20434276>
-- Lean proof software DOI: <https://doi.org/10.5281/zenodo.20434308>
+- Lean proof software DOI: <https://doi.org/10.5281/zenodo.24239654>
 
