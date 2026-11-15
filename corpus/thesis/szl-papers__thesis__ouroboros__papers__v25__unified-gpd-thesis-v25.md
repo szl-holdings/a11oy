@@ -8,7 +8,7 @@
 
 *Authored by the SZL Holdings unified thesis collective (technical writing · mathematics · computer science · machine learning).*
 
-**Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+**Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 
 > This is **v25** of the Ouroboros thesis program — the *unification* version. It does not introduce a new headline proof; it ties the entire v1–v24 lineage into a single framework, **Governed Post-Determinism (GPD)**, and states with surgical precision what is *proven*, what is *conditional*, what is *open*, and what is *false*. Pinned commits: locked kernel @ `c7c0ba17`; experimental `main` advanced through Wave 22 (`43bcabb7`) and Wave 23 (`khipu_quorum_safety_conditional`). Repository: [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean). GPD is **SZL Holdings' own framework**; it is grounded *only* in the SZL Zenodo DOI lineage and cites no external "post-deterministic" prior art, because none exists for it.
 
@@ -42,7 +42,7 @@ GPD is the *unification layer* over a DOI-pinned thesis lineage. It is grounded 
 | **v6** — Sealed constitutional guardrails | [10.5281/zenodo.20020845](https://doi.org/10.5281/zenodo.20020845) | Policy-as-sealed-contract → **P2 Verifiable Intent-to-Execution** |
 | **v5** — Prisca-GraphRAG + Tawa SAE | [10.5281/zenodo.20020846](https://doi.org/10.5281/zenodo.20020846) | Lineage-aware retrieval; provenance-of-evidence → P2 / **P5 Epistemic State Replication** |
 | **v14-era** — Verifiable multi-agent anatomy | [10.5281/zenodo.20174600](https://doi.org/10.5281/zenodo.20174600) | Lutar Calculus / multi-agent anatomy; **Λ downgraded to Conjecture 1** → P3, P4 |
-| **Concept (always-latest)** | [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) | Umbrella DOI for the whole Ouroboros program |
+| **Concept (always-latest)** | [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) | Umbrella DOI for the whole Ouroboros program |
 
 ### Prior thesis versions (immutable; this v25 continues, never overwrites)
 
@@ -413,7 +413,7 @@ These are operational characteristics, explicitly outside the "proven" tier.
 20. The mathlib Community. *The Lean Mathematical Library.* CPP 2020. · L. de Moura, S. Ullrich. *The Lean 4 Theorem Prover and Programming Language.* CADE 2021.
 
 **SZL Holdings lineage (GPD's only grounding — see "Lineage and Prior Art").**
-21. S. P. Lutar Jr. *The Ouroboros Thesis (v1–v24)* and *the Lean development.* SZL Holdings. Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926); repository [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean). Component DOIs: [19867281](https://doi.org/10.5281/zenodo.19867281), [19934129](https://doi.org/10.5281/zenodo.19934129), [20020841](https://doi.org/10.5281/zenodo.20020841), [20020845](https://doi.org/10.5281/zenodo.20020845), [20020846](https://doi.org/10.5281/zenodo.20020846), [20174600](https://doi.org/10.5281/zenodo.20174600).
+21. S. P. Lutar Jr. *The Ouroboros Thesis (v1–v24)* and *the Lean development.* SZL Holdings. Concept DOI [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896); repository [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean). Component DOIs: [19867281](https://doi.org/10.5281/zenodo.19867281), [19934129](https://doi.org/10.5281/zenodo.19934129), [20020841](https://doi.org/10.5281/zenodo.20020841), [20020845](https://doi.org/10.5281/zenodo.20020845), [20020846](https://doi.org/10.5281/zenodo.20020846), [20174600](https://doi.org/10.5281/zenodo.20174600).
 
 ---
 
@@ -427,7 +427,7 @@ These are operational characteristics, explicitly outside the "proven" tier.
 | Experimental `main` (Waves 11–22) | `43bcabb7` | CUT-1 closed (Wave 22); CI-green |
 | Theorem U (axiom-free Λ) | in `main` | `Round13` `lambda_unique_of_separable` |
 | Khipu conditional safety | Wave 23 | `Lutar/Wave23/QuorumSafety.lean`, 5 decls axiom-clean |
-| Concept DOI (always-latest) | — | [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) |
+| Concept DOI (always-latest) | — | [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) |
 | Repository | — | [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean) |
 
 ### A.2 How to verify
