@@ -41,6 +41,6 @@
 
   ## DOIs (unchanged)
 
-  - Concept DOI (always latest): `10.5281/zenodo.19944926`
+  - Concept DOI (always latest): `10.5281/zenodo.24239896`
   - v13 release DOI: `10.5281/zenodo.20195368`
   
