@@ -38,7 +38,6 @@ szl_thesis_about              # [DEAD-STUB] /about/thesis page — never existed
 a11oy_v4_persistent_homology  # [DEAD-STUB] v4 persistent-homology (A15) tab — never existed; ABSENT. serve.py:3027.
 a11oy_v4_predict              # [DEAD-STUB] v4 predict surface — never existed; ABSENT. serve.py:3037.
 a11oy_v4_thesis_primitives    # [DEAD-STUB] v4 thesis primitives — never existed; ABSENT. serve.py:3047.
-szl_brain_v3                  # [DEAD-STUB] brain v3 register — never existed; ABSENT. serve.py:3075.
 szl_kernels_organ             # [DEAD-STUB] /api/a11oy/v3/kernels/* (9 living kernels) — never existed; ABSENT. serve.py:4026.
 a11oy_ontology                # [DEAD-STUB] Typed Ontology + Object Explorer — never existed; ABSENT. serve.py:4122.
 a11oy_derivation              # [DEAD-STUB] derivation surface — never existed; ABSENT. serve.py:4132/4166.
