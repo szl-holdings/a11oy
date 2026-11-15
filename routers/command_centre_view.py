@@ -130,12 +130,12 @@ def _ownership(model):
             _link_card("Product origin", canonical["product"], "One product entry point. Existing actions retain their own authentication and policy."),
             _link_card("Proof origin", canonical["proof"], "Source-bound evidence has its own date and verification boundary."),
         ]
-        ayllu = estate["ayllu"]
-        cards.append(_link_card("Ayllu · inventory only", ayllu["href"],
-            "INVENTORY_ONLY · FOLD · not a governed keeper. Council/legal integration remains unadmitted; this link grants no action or model authority."))
+        org_card = estate["orgCard"]
+        cards.append(_link_card("Reserved org card · inventory only", org_card["href"],
+            "INVENTORY_ONLY · ORG_CARD · not a governed keeper. The reserved organization card is not a capability surface; this link grants no action or model authority."))
     else:
         cards = [node("article", node("h3", "Ownership binding unavailable"),
-                      node("p", "The bundled public contract could not be admitted. No inventory, owner or Ayllu capability is inferred."), class_="link-card")]
+                      node("p", "The bundled public contract could not be admitted. No inventory, owner or org-card capability is inferred."), class_="link-card")]
     return node("section", _head("00 · Ownership", "One product. Explicit owners.", "Python-rendered core UI"),
         node("p", "Python owns this page's components. Existing browser interactions still use the retained JavaScript client. This migration does not authorize execution or establish full production readiness.", class_="muted"),
         node("div", *cards, class_="link-grid", id="ownership-links"),
