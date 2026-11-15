@@ -13,7 +13,7 @@ Mathlib v4.13.0. The central mathematical object is the Lambda-axis score, a
 nine-dimensional product-of-receipts governance scalar bounded by axiom system
 A1–A15. Axioms A1–A4 (monotonicity, positive homogeneity, Egyptian-fraction
 normalisation, max bound) characterise Lambda uniquely, proved in
-`Lutar/Axioms.lean` and `Lutar/Bound.lean` ([DOI 10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)).
+`Lutar/Axioms.lean` and `Lutar/Bound.lean` ([DOI 10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654)).
 Axiom A15 (SHA-256 collision resistance) is a cryptographic open problem under
 NIST FIPS 180-4, not derivable from Mathlib, and is labelled as such.
 
@@ -26,7 +26,7 @@ Of the 31 theorems in Chapter 2 and 16 in Chapter 6, the Lean Czar audit
 kernel soundness). The TH-V18 catalogue (16 stubs, TH-V18-01 through TH-V18-16)
 builds clean under `lake build Lutar.Thesis` with 13 axiom declarations and
 8 in-code `sorry` tactics, each enumerable by `grep` at the chapter-bind tag
-2026-05-28 ([DOI 10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)).
+2026-05-28 ([DOI 10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654)).
 
 The [32-module runtime](https://github.com/szl-holdings/ouroboros) executes
 934+ inline assertions (exit code 0) and emits SCITT-compatible, SHA-256-chained
@@ -39,7 +39,7 @@ self-attention (rasbt DSA), agentic IDE governance (Cursor + Claude Opus 4.8),
 and sovereign-AI provenance (IQT Labs). Governance is enforced by Doctrine v6:
 a machine-checked ban on marketing superlatives applied at CI time.
 
-All code, proofs, and data publicly archived via Zenodo DOIs [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926), [10.5281/zenodo.20424992](https://doi.org/10.5281/zenodo.20424992), [10.5281/zenodo.20424995](https://doi.org/10.5281/zenodo.20424995), [10.5281/zenodo.20424996](https://doi.org/10.5281/zenodo.20424996), [10.5281/zenodo.20431181](https://doi.org/10.5281/zenodo.20431181), [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276), [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308).
+All code, proofs, and data publicly archived via Zenodo DOIs [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896), [10.5281/zenodo.20424992](https://doi.org/10.5281/zenodo.20424992), [10.5281/zenodo.20424995](https://doi.org/10.5281/zenodo.20424995), [10.5281/zenodo.20424996](https://doi.org/10.5281/zenodo.20424996), [10.5281/zenodo.20431181](https://doi.org/10.5281/zenodo.20431181), [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276), [10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654).
 
 ---
 
