@@ -1142,7 +1142,7 @@ class AgentLoop:
                            "max_reflect_depth": self.max_reflect_depth,
                            "lambda_floor": self.lambda_floor},
                 "khipu_hash": rec.get("hash"),
-                "chain_verified": rec.get("chain_verified", True),
+                "chain_verified": rec.get("chain_verified", False),
                 "wallpa": wallpa,
                 "synthesis_admission": completion.get("synthesis_admission"),
             }
@@ -1158,7 +1158,7 @@ class AgentLoop:
             "ok": False, "run_id": self.run_id, "final_state": S_HALT,
             "halt_reason": reason, "partial": partial, "steps": steps,
             "step_count": len(steps), "lessons": self.lessons,
-            "khipu_hash": rec.get("hash"), "chain_verified": rec.get("chain_verified", True),
+            "khipu_hash": rec.get("hash"), "chain_verified": rec.get("chain_verified", False),
             "guards": {"max_steps": self.max_steps, "max_reflect_depth": self.max_reflect_depth,
                        "lambda_floor": self.lambda_floor},
         }

@@ -201,7 +201,24 @@ var INTENSITY = "full";
 function $(s){return document.querySelector(s);}
 function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;}
 function pill(key){ try{ if(window.SZLLabels&&window.SZLLabels.badgeHTML){return window.SZLLabels.badgeHTML(key);} }catch(e){} return '<span class="szl-pill pill">'+key+'</span>'; }
-async function getJSON(u,opt){try{var r=await fetch(u,opt);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+async function getJSON(u,opt){
+  try{
+    var r=await fetch(u,opt);
+    var body=null;
+    try{body=await r.json();}catch(e){}
+    if(!r.ok) return {__denied:true, http:r.status, body:body};
+    return body;
+  }catch(e){return null;}
+}
+function refusalText(d){
+  var b=d&&d.body;
+  if(d&&d.http===401&&b&&b.status==='BLOCKED'){
+    var flag=b.credential_configured===true?'present':'absent';
+    return b.error+' Runtime credential: '+flag+'. This page does not collect or send the operator secret.';
+  }
+  if(d&&d.__denied) return 'The runtime answered HTTP '+d.http+'.';
+  return '';
+}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});}
 
 // honest badges via window.SZLLabels
@@ -212,10 +229,10 @@ $('#energy-label').innerHTML = pill('MODELED');
 var CHIPS = ["add a cache for these API responses","validate an email address","add a date picker",
   "build a generic pluggable plugin framework for later","sort this list of names",
   "add rate limiting to my FastAPI endpoint","add debounce to a search input in vanilla JS"];
-(function(){var c=$('#chips');CHIPS.forEach(function(t){var b=el('span','chip',esc(t));b.onclick=function(){$('#task').value=t;run();};c.appendChild(b);});})();
+(function(){var c=$('#chips');CHIPS.forEach(function(t){var b=el('span','chip',esc(t));b.onclick=function(){$('#task').value=t;};c.appendChild(b);});})();
 
 document.querySelectorAll('#seg button').forEach(function(b){
-  b.onclick=function(){document.querySelectorAll('#seg button').forEach(function(x){x.classList.remove('on');});b.classList.add('on');INTENSITY=b.getAttribute('data-i');run();};
+  b.onclick=function(){document.querySelectorAll('#seg button').forEach(function(x){x.classList.remove('on');});b.classList.add('on');INTENSITY=b.getAttribute('data-i');};
 });
 
 function renderLadder(trail, stopped){
@@ -234,7 +251,7 @@ async function run(){
   $('#dec-summary').innerHTML='<span class="spin"></span> running ladder…';
   $('#dec-label').innerHTML='';
   var d=await getJSON('/api/a11oy/v1/restraint/evaluate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({task:task,intensity:INTENSITY,lang:'py'})});
-  if(!d){$('#dec-summary').textContent='endpoint unavailable (is the Space running?)';return;}
+  if(!d||d.__denied){$('#dec-summary').textContent=refusalText(d)||'The runtime did not return a ladder decision.';return;}
   $('#dec-label').innerHTML=pill(d.label||'HEURISTIC');
   $('#dec-summary').innerHTML='Stopped at rung <b style="color:var(--teal)">'+d.stopped_at_rung+' — '+esc(d.rung_key)+'</b>. '+esc(d.answer);
   renderLadder(d.ladder_trail,d.stopped_at_rung);
@@ -275,7 +292,7 @@ async function runbench(){
   var tb=$('#bench').querySelector('tbody');
   tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--dim)"><span class="spin"></span> running…</td></tr>';
   var b=await getJSON('/api/a11oy/v1/restraint/bench?intensity='+INTENSITY);
-  if(!b){tb.innerHTML='<tr><td colspan="8">endpoint unavailable</td></tr>';return;}
+  if(!b||b.__denied){tb.innerHTML='<tr><td colspan="8">'+esc(refusalText(b)||'The runtime did not return a benchmark.')+'</td></tr>';return;}
   $('#bench-label').innerHTML='GET /api/a11oy/v1/restraint/bench &nbsp;'+pill(b.overall_label||'ROADMAP');
   tb.innerHTML='';
   (b.rows||[]).forEach(function(r){
@@ -300,9 +317,8 @@ async function runbench(){
 
 $('#run').onclick=run;
 $('#runbench').onclick=runbench;
-// info → signer label
+// info is a public GET. The ladder POST runs only from the Run button.
 (async function(){var i=await getJSON('/api/a11oy/v1/restraint/info');if(i&&i.doctrine){$('#b-doctrine').textContent='Doctrine '+i.doctrine.version;$('#c-signer').textContent='in-image ECDSA-P256';}})();
-run();
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>

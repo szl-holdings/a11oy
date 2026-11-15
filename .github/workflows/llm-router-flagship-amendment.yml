@@ -14,18 +14,20 @@ jobs:
       contents: write
       pull-requests: write
     name: Validate flagship authority chain
-    if: github.event.pull_request.head.ref == 'fix/llm-router-flagship-amendment-20260908'
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/llm-router-flagship-amendment-20260908'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
       - name: Checkout exact PR head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Validate amendment invariants
         run: |
