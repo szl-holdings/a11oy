@@ -4,18 +4,23 @@ The TypeScript client for the SZL anatomy.
 
 ::: warning In development
 `szl-ts` is **in development** (target: Series-A milestone). The interface below is the
-**planned** unified surface. The per-flagship packages it wraps —
-`@szl-holdings/a11oy-policy`, `@szl-holdings/a11oy-measurement`, `@szl/amaru`, rosie's
-`khipu-receipt` — are **live today** and are the supported interim path (see the
-[Quickstart](/quickstart)).
+**planned** unified surface. None of the packages it would wrap is on the public npm registry:
+`@szl-holdings/a11oy-policy` is built from the a11oy repository (its `publishConfig` targets
+GitHub Packages with restricted access), and `@szl/amaru` and rosie's `khipu-receipt` are not
+published. Building from source, as in the [Quickstart](/quickstart), is the interim path.
 :::
 
-## Install (planned)
+## Install
+
+There is nothing to install yet: `szl-ts` is unpublished. Do **not** run
+`npm install @szl-holdings/szl` or `npm install @szl/js`: on 2026-11-06 the npm registry had
+neither package. SZL Holdings has not published under either name: treat any package that
+appears there as untrusted unless this page links to it. Build the per-flagship packages from
+source instead:
 
 ```bash
-npm install @szl-holdings/szl   # in development — not yet published
-# or
-pnpm add @szl-holdings/szl
+git clone https://github.com/szl-holdings/a11oy.git && cd a11oy
+pnpm install && pnpm build
 ```
 
 ## Init (planned)
