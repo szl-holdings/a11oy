@@ -515,7 +515,7 @@ except Exception as _demo_e:
 # /{path:path} catch-all so each wrapper resolves LOCALLY. Each route is guarded:
 # if another module already owns a path (e.g. anatomy's /doctrine|/formulas) we do
 # NOT shadow it. Collapsible + search + Cmd-K palette + recents + status dots +
-# concept-DOI 10.5281/zenodo.19944926 + Doctrine v11 LOCKED 749/14/163 badge,
+# concept-DOI 10.5281/zenodo.24239896 + Doctrine v11 LOCKED 749/14/163 badge,
 # mobile drawer. Three.js stays LOCAL on the 3D pages (no CDN here). Λ Conjecture 1.
 try:
     import szl_sidebar as _sidebar
