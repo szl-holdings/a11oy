@@ -5,8 +5,8 @@
 
 `docs/model-inference-support.json` is the source for the A11oy model catalog and
 downstream card presentation. It records public Hub provider observations and
-support discussions. The source lists **98 public model-namespace
-repositories** after the 2026-11-15 reconciliation recorded below. The committed `docs/huggingface-ecosystem-manifest.json` held 74
+support discussions. The source lists **131 public model-namespace
+repositories** after the 2026-11-15 reconciliation passes recorded below. The committed `docs/huggingface-ecosystem-manifest.json` held 74
 at its 2026-11-06 observation. A local regeneration at 2026-11-10T11:13:26Z held
 87, a second one at 2026-11-10T17:55:29Z held 88, and the committed regeneration
 at 2026-11-11T15:08:20Z holds 90. All 16 additions are assessed here, and the
@@ -185,3 +185,17 @@ Structural validation is specified by
 also checks cross-field identities, capture digests, ordering, exact inventory
 coverage, source URLs, and timestamp relationships. The module belongs to the
 `services` taxonomy and is explicitly included in the runtime Docker image.
+
+On 2026-11-15 an inventory-refresh preparation pass extended the measured
+catalog to the 131 ids of the regenerated manifest. 10 further repositories
+were read anonymously at their public revisions (5 `adapter_bundle` and 5
+`standalone_weight_bundle`); every provider-mapping read returned HTTP 200
+with an empty object, so each row is `NO_PROVIDER_MAPPING`. The regenerated
+manifest re-observed `SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged` as
+public, so its recorded prior discussion 12788 moved from the unmatched
+prior-discussion list into the model row itself with its evidence preserved
+verbatim; the model rows now carry 5 recorded prior discussions. No support
+discussion was submitted for the 10 additions. No row gains admission,
+exclusion, routing, or deployment authority from this extension. The dated
+record is the same `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-15.md`,
+extended in place.
