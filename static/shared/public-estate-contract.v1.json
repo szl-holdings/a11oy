@@ -140,7 +140,11 @@
   ],
   "laboratorySurfaces": [
     "SZLHOLDINGS/david-leads",
-    "SZLHOLDINGS/szl-foundation-confirmation"
+    "SZLHOLDINGS/szl-command-lab",
+    "SZLHOLDINGS/szl-foundation-confirmation",
+    "SZLHOLDINGS/szl-frontier",
+    "SZLHOLDINGS/szl-model-inference-lab",
+    "SZLHOLDINGS/vertical-services"
   ],
   "inventoryOnlyHuggingFaceRepositories": [
     {
@@ -148,72 +152,56 @@
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/ayllu",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/counsel-assurance",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/estate-gardener",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/eternal-auditor",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/frontier-showcase",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/gdw-frontier",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/holographic-unify",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/immune",
@@ -224,308 +212,207 @@
       "foldHeld": "killinchu /immune target route not live (404) - hold until migration lands"
     },
     {
+      "id": "SZLHOLDINGS/khipu-playground",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/living-anatomy",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/llm-router-live",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/measured-honesty-census",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/newton-trust-upgrade",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/nexus",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/puriq-markets",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/sentra",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-chief-engineer",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-constellation",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-cyber-shield",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-dream-architect",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-energy-hologram",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-forge-lab",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-frontier-deck",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-infra-warden",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-khipu",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-receipts-chain",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-research-council",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-router-control",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-second-brain",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szlholdings-si",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/terra-assurance",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/the-grid",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/truth-router",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/yarqa",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/khipu-playground",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-bench-suite",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-command-lab",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-frontier",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-marketing",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-model-inference-lab",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
-    },
-    {
-      "id": "SZLHOLDINGS/vertical-services",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (previously unclassified)",
-      "foldedEvidence": "visibility=private verified via huggingface_hub 2026-11-14"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
       "id": "SZLHOLDINGS/README",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "ORG_CARD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "addedAt": "2026-11-14",
-      "addedBy": "2026-11-14 estate audit (org card observed in the manifest inventory, previously undeclared)"
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/sentra",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-bench-suite",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-chief-engineer",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-constellation",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-cyber-shield",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-dream-architect",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-energy-hologram",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-forge-lab",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-frontier-deck",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-infra-warden",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-marketing",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receipts-chain",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-research-council",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-router-control",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-second-brain",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szlholdings-si",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/terra-assurance",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/the-grid",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/truth-router",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/yarqa",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     }
   ],
   "historicalBindings": [
