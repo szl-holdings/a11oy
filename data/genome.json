@@ -3152,7 +3152,7 @@
       {
         "repo": "docs-site",
         "file": "docs/proof.md",
-        "line": "(Zenodo DOI table: 20434276 thesis, 19944926 concept, 20424992 Lean companion, 20434308/20431181 supporting)"
+        "line": "(Zenodo DOI table: 20434276 thesis v18, 19944926 concept, 20424992 thesis v14, 20434308 lutar-lean v18, 20431181 thesis v17)"
       }
     ],
     "tag": "evidence-backed",
