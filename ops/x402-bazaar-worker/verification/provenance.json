@@ -1,0 +1,28 @@
+{
+  "schema": "szl.bazaar-source-verification/v1",
+  "base_commit": "d07b09c94102ab1f3d228b602e3216d7d71c86fd",
+  "sdk": {
+    "package": "@x402/extensions",
+    "version": "2.31.0",
+    "tarball": "https://registry.npmjs.org/@x402/extensions/-/extensions-2.31.0.tgz",
+    "integrity": "sha512-hFq11UtXNWPirZSZjZuWFHvjetYvFQmkQSZcNEMaQYxOz70ZLNFmIdXfG2J/B8YGE2nS2d223Hz9Lnkrxw+Sqw==",
+    "source": "https://github.com/x402-foundation/x402"
+  },
+  "model_registry_observation": {
+    "name": "inference_models",
+    "url": "https://inference.a-11-oy.com/v1/models",
+    "observed_at": "2026-11-15T22:21:59.360785+00:00",
+    "status": 200,
+    "content_type": "application/json; charset=utf-8",
+    "sha256": "955bc99ebc23578e403cbec6811ae5ab28f7faa5083400ea059add62792b1848",
+    "model_ids": [
+      "ternary-bonsai-2-27b-pq2_0"
+    ]
+  },
+  "examples_are_fixtures": true,
+  "payment_performed": false,
+  "settlement_verified": false,
+  "catalog_indexing_verified": false,
+  "deployment_performed": false,
+  "signature": "UNSIGNED"
+}

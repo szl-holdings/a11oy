@@ -1,0 +1,16 @@
+{
+  "name": "szl-bazaar-contract-verification",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "generate": "node generate-discovery.mjs",
+    "check": "node generate-discovery.mjs --check",
+    "test": "node --test --test-reporter=tap ../worker.test.mjs discovery.test.mjs"
+  },
+  "devDependencies": {
+    "@x402/extensions": "2.31.0",
+    "@x402/core": "2.31.0"
+  }
+}
