@@ -34,7 +34,7 @@ identifiers:
     value: "10.5281/zenodo.20434276"
   - description: "Ouroboros Thesis concept DOI — always-latest"
     type: doi
-    value: "10.5281/zenodo.19944926"
+    value: "10.5281/zenodo.24239896"
 preferred-citation:
   type: article
   title: "The Ouroboros Substrate (v18.0)"
