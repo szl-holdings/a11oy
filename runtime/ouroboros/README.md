@@ -88,7 +88,7 @@ In two sentences: this component is part of SZL's governed-AI mesh — it enforc
 > **Thesis cross-reference:** The mathematical foundations for this repository are developed
 > in the Ouroboros Thesis v18.0 (DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)).
 > The thesis is published via the Zenodo DOIs above; the `ouroboros-thesis` repository has been retired and the Lean kernel lives in [`lutar-lean`](https://github.com/szl-holdings/lutar-lean).
-> Concept DOI (always-latest): [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
+> Concept DOI (always-latest): [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896).
 
 ## On Hugging Face
 
@@ -105,7 +105,7 @@ The runtime enforces the Lutar Invariant: every agent decision loop terminates w
 Λ-score in \[0, 1\] satisfying the four-axiom characterisation (A1 monotone, A2 homogeneous,
 A3 Egyptian-exact, A4 bounded). Λ uniqueness (TH10, `lutar_is_geomean`) is formally stated in Lean in
 [szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)
-(DOI [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)).
+(DOI [10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654)).
 
 Every receipt payload is bounded by the GradeVec schema (9 axes × NNReal) and the
 COSE_Sign1 envelope structure. Payload size is contractually constrained by the
@@ -165,8 +165,8 @@ Receipts are anchored to SCITT transparency ledgers per
   title     = {{ouroboros --- Bounded-loop runtime implementing the Lutar Invariant}},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.19944926},
-  url       = {https://doi.org/10.5281/zenodo.19944926}
+  doi       = {10.5281/zenodo.24239896},
+  url       = {https://doi.org/10.5281/zenodo.24239896}
 }
 ```
 
