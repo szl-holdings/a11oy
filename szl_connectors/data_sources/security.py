@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 · Perplexity Computer Agent.
-"""a11oy security / governed-AI live data connectors (P0, keyless → CONNECTED now).
+"""a11oy security / governed-AI live data connectors (P0, keyless live clients).
+
+CONNECTED requires an observed successful provider probe/read.
 
   cisa_kev      CISA Known Exploited Vulnerabilities  (public domain, keyless)
   nvd_cve       NVD CVE 2.0                            (keyless; key optional → rate)
