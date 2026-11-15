@@ -171,7 +171,7 @@
       "source_file": "thesis.md",
       "source_section": "§4.5",
       "maturity": "conjectured",
-      "citation": "https://doi.org/10.5281/zenodo.19944926"
+      "citation": "https://doi.org/10.5281/zenodo.24239896"
     },
     {
       "id": "A8",
@@ -448,7 +448,7 @@
       "source_file": "thesis.md",
       "source_line": 265,
       "latex": "\\mathcal{S}",
-      "context": "released 2026-05-13; concept DOI `10.5281/zenodo.19944926`, v11 paper DOI `10.5281/zenodo.20119582`)  **Formal role in \\(\\mathcal{S}\\):** The Brain Stem is the runtime kernel that evaluates \\(\\Lambda\\",
+      "context": "released 2026-05-13; concept DOI `10.5281/zenodo.24239896`, v11 paper DOI `10.5281/zenodo.20119582`)  **Formal role in \\(\\mathcal{S}\\):** The Brain Stem is the runtime kernel that evaluates \\(\\Lambda\\",
       "source_id": "thesis_session",
       "maturity": "defined"
     },
@@ -1640,8 +1640,8 @@
   ],
   "dois": [
     {
-      "doi": "10.5281/zenodo.19944926",
-      "url": "https://doi.org/10.5281/zenodo.19944926",
+      "doi": "10.5281/zenodo.24239896",
+      "url": "https://doi.org/10.5281/zenodo.24239896",
       "source_file": "thesis.md",
       "source_line": 18,
       "source_id": "thesis_session"
@@ -1787,7 +1787,7 @@
   "zenodo_corpus": [
     "10.5281/zenodo.19867281",
     "10.5281/zenodo.19934129",
-    "10.5281/zenodo.19944926",
+    "10.5281/zenodo.24239896",
     "10.5281/zenodo.19983066",
     "10.5281/zenodo.20020841",
     "10.5281/zenodo.20020846",
