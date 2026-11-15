@@ -16,7 +16,12 @@ on:
   workflow_run:
     workflows: ["Sync and Relock Canonical Hugging Face Space"]
     types: [completed]
-  workflow_dispatch: {}
+  # No workflow_dispatch: actions/cache-poisoning/poisonable-step (#1308,
+  # #1309) flags the workflow_dispatch path because the contract job checks
+  # out env.SOURCE_SHA, an expression that is attacker-influenced on
+  # pull_request events, in the privileged default-branch context. Manual
+  # re-verification of main remains available via the paths-filtered push
+  # trigger.
 
 permissions:
   contents: read
@@ -37,6 +42,7 @@ jobs:
     timeout-minutes: 10
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PIP_NO_CACHE_DIR: "1"
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -60,10 +66,11 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
+          cache: ""
 
       - name: Install hash-locked core test dependencies
         run: >-
-          python -m pip install --disable-pip-version-check
+          python -m pip install --disable-pip-version-check --no-cache-dir
           --require-hashes -r .github/requirements/ci-core.txt
 
       - name: Run network-free live-verifier regressions
