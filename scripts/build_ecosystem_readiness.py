@@ -123,12 +123,12 @@ EVIDENCE = {
     "lutar-lean": [
         "https://github.com/szl-holdings/lutar-lean",
         "https://github.com/szl-holdings/lutar-lean/releases/tag/lutar-v18.0.0",
-        "https://doi.org/10.5281/zenodo.20434308",
+        "https://doi.org/10.5281/zenodo.24239654",
     ],
     "ouroboros-thesis": [
         "https://github.com/szl-holdings/ouroboros-thesis",
         "https://doi.org/10.5281/zenodo.20434276",
-        "https://doi.org/10.5281/zenodo.19944926",
+        "https://doi.org/10.5281/zenodo.24239896",
     ],
     "rosie": [
         "https://github.com/szl-holdings/rosie",
