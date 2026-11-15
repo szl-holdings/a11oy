@@ -175,7 +175,7 @@ export function Ouroboros() {
           <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#c9b787' }}>
             OUROBOROS_RUN_ALL.py
           </span>{' '}
-          · Author: Lutar, Stephen P. — ORCID 0009-0001-0110-4173 · DOI: 10.5281/zenodo.19944926
+          · Author: Lutar, Stephen P. — ORCID 0009-0001-0110-4173 · DOI: 10.5281/zenodo.24239896
         </p>
 
         {/* Module count chips */}
