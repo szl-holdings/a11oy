@@ -2,7 +2,7 @@ Cover Letter — arXiv submission of "The Ouroboros Thesis v23 (Conditional Uniq
 
 Author: Stephen P. Lutar Jr., SZL Holdings (ORCID 0009-0001-0110-4173)
 Date: 2026-06-04
-Concept DOI: 10.5281/zenodo.19944926 (always-latest); v23 version DOI to be minted on release.
+Concept DOI: 10.5281/zenodo.24239896 (always-latest); v23 version DOI to be minted on release.
 Lean source of record: szl-holdings/lutar-lean @ 1e095e6b9b20d0e0cf7fc96fb92342145f7a75e1 (PR #182).
 
 To the arXiv moderators,
