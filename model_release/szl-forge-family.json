@@ -42,6 +42,12 @@
       "profile_id": "Operator-v1",
       "model_id": "SZL-A11oy-1.5B-Operator-v1",
       "hf_target": "SZLHOLDINGS/SZL-A11oy-1.5B-Operator",
+      "hf_target_state": "DEAD_REFERENCE",
+      "dead_reference": {
+        "verified_at": "2026-11-04",
+        "evidence": "HF API GET /api/models/SZLHOLDINGS/SZL-A11oy-1.5B-Operator returned 404 with an organization token; /api/spaces and /api/datasets also 404.",
+        "replacement_note": "No replacement repository exists; the profile stays PLANNED and must not be linked as an existing artifact until it is created and independently read back."
+      },
       "weight_artifact_required": true,
       "state": "PLANNED_TOOL_CONTRACT_REQUIRED",
       "role": "Routes work through the a-11-oy.com and a11oy.net governed API and tool fabric.",
@@ -52,6 +58,12 @@
       "profile_id": "Sentinel-v1",
       "model_id": "SZL-Sentinel-1.5B-v1",
       "hf_target": "SZLHOLDINGS/SZL-Sentinel-1.5B",
+      "hf_target_state": "DEAD_REFERENCE",
+      "dead_reference": {
+        "verified_at": "2026-11-04",
+        "evidence": "HF API GET /api/models/SZLHOLDINGS/SZL-Sentinel-1.5B returned 404 with an organization token; /api/spaces and /api/datasets also 404.",
+        "replacement_note": "No replacement repository exists; the security profile stays PLANNED and must not be linked as an existing artifact until created and read back."
+      },
       "weight_artifact_required": true,
       "state": "PLANNED_SECURITY_ADMISSION_REQUIRED",
       "role": "Unified Killinchu and Immune profile for adversarial triage, policy defense, and proposal-only remediation.",
@@ -62,6 +74,12 @@
       "profile_id": "Anatomy-v1",
       "model_id": "SZL-Anatomy-1.5B-v1",
       "hf_target": "SZLHOLDINGS/SZL-Anatomy-1.5B",
+      "hf_target_state": "DEAD_REFERENCE",
+      "dead_reference": {
+        "verified_at": "2026-11-04",
+        "evidence": "HF API GET /api/models/SZLHOLDINGS/SZL-Anatomy-1.5B returned 404 with an organization token; /api/spaces and /api/datasets also 404.",
+        "replacement_note": "No replacement repository exists for this weight profile. The living Anatomy runtime is the creator-profile Space named in the flagship policy (owner_class: creator_profile), not an SZLHOLDINGS model repository."
+      },
       "weight_artifact_required": true,
       "state": "PLANNED_ONTOLOGY_ADMISSION_REQUIRED",
       "role": "Dependency reasoning, failure propagation, and digital-twin explanation over Body and Anatomy v5/v6.",

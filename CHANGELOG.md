@@ -9,6 +9,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - declare the four 2026-11-14 Spaces in the public-estate contract
+
+- Four public Spaces first observed in the committed 2026-11-14T04:09:48Z
+  manifest (52 Spaces) had no classification rows in
+  `static/shared/public-estate-contract.v1.json`, so the gated public-inventory
+  preflight failed closed (`SOURCE_REVIEW_REQUIRED`). They are now declared:
+  `SZLHOLDINGS/khipu-playground`, `SZLHOLDINGS/szl-bench-suite`, and
+  `SZLHOLDINGS/szl-marketing` follow the standard `INVENTORY_ONLY` / `FOLD`
+  row their peers use; the reserved organization card `SZLHOLDINGS/README` is
+  declared `INVENTORY_ONLY` / `ORG_CARD` exactly as the validator and the
+  `org_card:` keep-policy line already require. The keep-list file is
+  unchanged and no Space visibility was changed on the Hub.
+- The three public-estate Markdown projections in `docs/generated/` are
+  regenerated in lockstep (52 Spaces, 138 model repositories, 68 datasets,
+  14 kernels as of 2026-11-14T04:09:48Z), including the reserved
+  organization-card sentence and the new alignment receipt. The stage matrix
+  is already current and is unchanged.
+- The public-estate alignment test lists are extended to cover the four
+  Spaces, and the reserved org-card test now asserts the observed state
+  instead of a synthetic rehearsal. The contract version stays `1.0.2`:
+  additive classification rows do not change the contract schema.
+
+### Changed - classify szl-receipts-chain and refresh the public inventory
+
+- `SZLHOLDINGS/szl-receipts-chain`, a public docker demo Space first observed at
+  2026-11-11T15:49:44Z, is classified `INVENTORY_ONLY` / `FOLD` in
+  `static/shared/public-estate-contract.v1.json`, following the classification
+  pattern its 33 peer Spaces already use. The keep-list file is unchanged; the
+  policy already treats non-keepers as FOLD. No Space visibility was changed on
+  the Hub.
+- `docs/huggingface-ecosystem-manifest.json` is regenerated and committed at
+  2026-11-11T16:54:31Z with 90 models, 65 datasets, 48 Spaces, and 14 kernels,
+  with its lockstep generated consumers regenerated together: the stage matrix,
+  the three public-estate Markdown projections, and the model pretraining
+  snapshot. `SZLHOLDINGS/physics-master-v1-candidate` advanced to revision
+  `9118c9e2ea577bf5abd91b13ed3f8cf6235d653e` (checkpoint content, provider
+  mapping still empty); its catalog row keeps the revision it was observed at.
+  This closes the two drift items recorded in issue #1282.
+- The public-estate alignment test lists are extended to cover the new Space.
+  The contract version stays `1.0.2`: the 2026-11-10 classification batch added
+  20 rows under the same version, and additive classification rows do not
+  change the contract schema.
+
+### Changed - public inventory regeneration, 2026-11-11, and catalog coverage
+
+- `docs/huggingface-ecosystem-manifest.json` is regenerated and committed at
+  2026-11-11T15:08:20Z with 90 models, 65 datasets, 47 Spaces, and 14 kernels.
+  The lockstep generated consumers are regenerated together: the stage matrix,
+  the three public-estate Markdown projections, and the model pretraining
+  snapshot. `scripts/render_public_estate_alignment.py` passes against the
+  committed contract: the 20 Spaces it declares are present and every public
+  Space is classified. `SZLHOLDINGS/immune-lattice` and
+  `SZLHOLDINGS/salad-worker-smoke` are absent from the measured Hub inventory,
+  so the earlier blockers they caused are resolved at the Hub level.
+- `docs/model-inference-support.json` lists 90 model-namespace repositories.
+  The 2 added on 2026-11-11 come from the committed regeneration and are
+  HTTP 200 empty `inferenceProviderMapping` observations
+  (`NO_PROVIDER_MAPPING`). `SZLHOLDINGS/abstention-v2-candidate` is an
+  `adapter_bundle` row by its recursive revision file list, and
+  `SZLHOLDINGS/physics-master-v1-candidate` is a `non_provider_artifact` row.
+  Both returned HTTP 404 for `README.md` at their revision root. Routing,
+  qualification, promotion, and deployment authority stay false. All live
+  revisions match the committed regeneration. The 90 catalog ids equal its
+  model ids, so `scripts/collect_model_inference_support.py --check` exits 0.
+  The dated record is
+  `docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-11.md`.
+
+### Changed - model inference catalog coverage, 2026-11-10 gap
+
+- `docs/model-inference-support.json` lists 88 model-namespace repositories.
+  The 14 added on 2026-11-10 come from two local inventory regenerations
+  (2026-11-10T11:13:26Z for 12 rows, 2026-11-10T17:55:29Z for
+  `SZLHOLDINGS/a11oy-code-r1-candidate` and
+  `SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate`) and are HTTP 200 empty
+  `inferenceProviderMapping` observations (`NO_PROVIDER_MAPPING`). The last two
+  are `adapter_bundle` rows by revision file names. `SZLHOLDINGS/szl-brain`
+  returned HTTP 404 for `README.md` at its observed revision. Routing,
+  qualification, promotion, and deployment authority stay false. The inventory
+  file was not changed. All 14 live revisions match the regeneration each row
+  was read against. The 88 catalog ids equal the later regeneration's model ids,
+  so `scripts/collect_model_inference_support.py --check` exits 0 against it.
+  A local run of the reviewed public-inventory refresh still stops earlier, at
+  `scripts/render_public_estate_alignment.py`, because the Space
+  `SZLHOLDINGS/immune-lattice` is public and has no contract classification
+  (BLOCKED; owner decision).
+
+### Changed - model inference catalog coverage
+
+- `docs/model-inference-support.json` lists the 74 public model-namespace
+  repositories from the 2026-11-06 inventory. The 33 repositories added on
+  2026-11-07 are HTTP 200 empty `inferenceProviderMapping` observations
+  (`NO_PROVIDER_MAPPING`). Routing, qualification, promotion, and deployment
+  authority stay false. The inventory file was not changed. Four live revisions
+  differ from that inventory snapshot.
+
+### Fixed - model pretraining snapshot lockstep digest
+
+- The 2026-11-14 manifest refresh (#3394) committed
+  `docs/huggingface-ecosystem-manifest.json` without regenerating its lockstep
+  `routers/data/model-pretraining-snapshot.json` projection, so the projection
+  still embedded the previous manifest digest and only 90 of the observed
+  models, and the container feature contract check "model API and source
+  declarations" failed closed for every pull request. The projection is
+  regenerated with the sanctioned generator
+  `scripts/build_model_pretraining_projection.py --write` (the same step
+  `public-inventory-refresh.yml` runs) and now embeds the current manifest
+  digest with all 138 observed models. No provider, Hub, or Space state was
+  mutated.
+
 ### Fixed - development URI parser dependency
 
 - Resolve Ajv's development-only `fast-uri` dependency to 3.1.9 in both npm

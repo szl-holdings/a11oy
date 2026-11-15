@@ -7,12 +7,14 @@
 retrieval/__init__.py — retrieval-adjacent bridges for the inference package.
 
 Currently contains only ``second_brain_bridge``: a fail-closed bridge to the
-LIVE SZLHOLDINGS/second-brain HF Space. That Space's ``/api/v1/retrieve``
-endpoint is a LEXICAL-OVERLAP ranker over the PUBLIC in-repo projection of
-the corpus (``content_access: HANDLES_ONLY``). It returns citation HANDLES
-(nodeId + short note + sha256 pointer), NOT document text, NOT semantic
-retrieval, and NOT the private brain graph. Nothing in this package may
-describe it as anything more.
+second-brain retrieve endpoint. The former SZLHOLDINGS/second-brain HF Space is
+DELETED (verified 404 across the Hub APIs and the runtime URL on 2026-11-04),
+so the bridge can only report UNAVAILABLE until a successor endpoint ships.
+Its historical ``/api/v1/retrieve`` endpoint was a LEXICAL-OVERLAP ranker over
+the PUBLIC in-repo projection of the corpus (``content_access: HANDLES_ONLY``).
+It returned citation HANDLES (nodeId + short note + sha256 pointer), NOT
+document text, NOT semantic retrieval, and NOT the private brain graph.
+Nothing in this package may describe it as anything more.
 """
 from __future__ import annotations
 
