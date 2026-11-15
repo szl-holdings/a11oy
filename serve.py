@@ -7434,6 +7434,34 @@ except Exception as _lb_e:  # pragma: no cover — guarded; never take down the 
 # observed signing capability, independent custody or non-repudiation.
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 # ============================================================================
+def _signing_status_honesty(state):
+    """Public sentence for a passive read. Capability evidence is not authorization.
+
+    Lives on this entrypoint, not in szl_signing_state.py: that module stays
+    byte-identical with killinchu.
+    """
+    measured = (
+        isinstance(state, dict)
+        and state.get("evidence_class") == "MEASURED"
+        and state.get("signing_ready") is True
+        and state.get("execution_authorized") is False
+        and state.get("non_repudiation") == "UNKNOWN"
+        and state.get("sign_on_read") is False
+        and not state.get("blockers")
+    )
+    if measured:
+        return (
+            "MEASURED process-local sign-and-verify evidence. "
+            "signing_ready is not execution authorization. "
+            "non_repudiation stays UNKNOWN. No signing on this read."
+        )
+    return (
+        "DECLARED local signer metadata, not observed signing capability. "
+        "Key possession, persistence and HMAC configuration do not establish "
+        "permission, independent custody or non-repudiation. No signing on read."
+    )
+
+
 @app.api_route("/api/a11oy/v1/signing-status", methods=["GET", "HEAD"])
 async def _a11oy_signing_status():
     """Passive metadata read; configuration is not signing qualification."""
@@ -7453,9 +7481,7 @@ async def _a11oy_signing_status():
         "non_repudiation_state": "UNKNOWN",
         "signing_state": state,
         "doctrine": "v11",
-        "honesty": ("DECLARED local signer metadata, not observed signing capability. "
-                    "Key possession, persistence and HMAC configuration do not establish "
-                    "permission, independent custody or non-repudiation. No signing on read."),
+        "honesty": _signing_status_honesty(state),
     }, headers={"Cache-Control": "no-store"})
 
 
@@ -7698,7 +7724,7 @@ async def _v1_acoustic_index():
     return JSONResponse({
         "schema": "szl.acoustic.index/v1",
         "product": "acoustic-validation",
-        "label": "MEASURED",
+        "label": "DERIVED",
         "endpoints": {
             "burgers": "/v1/acoustic/burgers",
             "duffing": "/v1/acoustic/duffing",
@@ -7709,8 +7735,10 @@ async def _v1_acoustic_index():
         "source_repository": "szl-holdings/acoustic-validation",
         "peer_reviewed_foundations": "Liu et al., Nature Communications 16:2823 (2025)",
         "doctrine": "v11",
-        "note": "Each endpoint runs a real falsifiable check and returns measured values "
-                "with verbatim PROOF-STATUS labels; no result is fabricated.",
+        "note": "GET /v1/acoustic/burgers and GET /v1/acoustic/duffing each run a local "
+                "numerical check and are labeled MEASURED. GET /v1/acoustic/ns-pathway "
+                "returns declared operating values with the labels on those values; "
+                "that response is not a measurement. No result is fabricated.",
     })
 
 
@@ -7823,7 +7851,7 @@ async def _v1_acoustic_ns_pathway():
     rankine = {"rho_ratio": 1.0 / 6.0, "label": "HYPOTHESIS_UNVERIFIED"}
     return JSONResponse({
         "schema": "szl.acoustic.ns-pathway/v1",
-        "label": "MEASURED",
+        "label": "MODELED",
         "pathway": ["murnaghan_stress_kick", "poisson_transverse_seed",
                     "exceptional_point_gain", "chern_oam_protection",
                     "rankine_hugoniot_bound"],
@@ -14974,16 +15002,9 @@ async def marketing_landing_page() -> Response:
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
 
-# /verify — Tier-1 Demo: Buyer-Verifiable Receipt + Λ-Gated Refusal + Verifiable Thesis.
-# Served from pages/verify.html (COPYed wholesale by the Dockerfile COPY pages/ ./pages/).
-# Registered BEFORE the SPA catch-all so /verify returns the real page, not the SPA soft-404.
-# ADDITIVE — no existing route touched.
-@app.api_route("/verify", methods=["GET", "HEAD"])
-async def verify_demo_page() -> Response:
-    f = PAGES_DIR / "verify.html"
-    if f.is_file():
-        return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
+# /verify is registered once, earlier (web/verify-receipt.html via _ptg_serve).
+# A second /verify handler serving pages/verify.html used to live here; Starlette
+# matches in registration order, so it was unreachable. Removed 2026-11 (P3).
 
 
 # /pinn-console — Governed Inverse-PINN Console. Public front-end for the LIVE
