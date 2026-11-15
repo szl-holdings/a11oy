@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Doctrine v11 LOCKED](https://img.shields.io/badge/Doctrine-v11_LOCKED-d4a444.svg)](https://github.com/szl-holdings/lutar-lean)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239896.svg)](https://doi.org/10.5281/zenodo.24239896)
 [![CI](https://github.com/szl-holdings/lutar-lean/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/lutar-lean/actions)
 [![Security Policy](https://img.shields.io/badge/Security-Policy-red.svg)](SECURITY.md)
 
@@ -46,7 +46,7 @@
 Formal proofs live here. The runtime that emits DSSE-signed receipts proving the math is actually enforced lives in [`szl-lake`](https://github.com/szl-holdings/szl-lake) (GitHub front door) and [`SZLHOLDINGS/szl-lake`](https://huggingface.co/datasets/SZLHOLDINGS/szl-lake) (HF canonical dataset).
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-0B1F3A.svg?style=flat-square&logo=apache&logoColor=00D4FF)](https://www.apache.org/licenses/LICENSE-2.0)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434308.svg)](https://doi.org/10.5281/zenodo.20434308)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24239654.svg)](https://doi.org/10.5281/zenodo.24239654)
 [![CI](https://github.com/szl-holdings/lutar-lean/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/szl-holdings/lutar-lean/actions/workflows/ci.yml)
 [![Tests](https://github.com/szl-holdings/lutar-lean/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/szl-holdings/lutar-lean/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/szl-holdings/lutar-lean/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/szl-holdings/lutar-lean/actions/workflows/codeql.yml)
@@ -62,7 +62,7 @@ Formal proofs live here. The runtime that emits DSSE-signed receipts proving the
 > **NOTE:** SLSA Level 1 (source + build provenance documented). L2/L3 require Sigstore + isolated builders (roadmap).
 
 > Lean 4 + Mathlib v4.13.0 formal proofs underpinning the Ouroboros Thesis — 749 declarations, 15 axioms (14 unique), 163 sorries (112 baseline + 51 Putnam).  
-> Doctrine v11 · DOI [10.5281/zenodo.20434308](https://doi.org/10.5281/zenodo.20434308)
+> Doctrine v11 · DOI [10.5281/zenodo.24239654](https://doi.org/10.5281/zenodo.24239654)
 
 **lutar-lean** contains the machine-checked Lean 4 proofs for the Λ-gate theorems, audit-fiber invariants, and knot-calculus / Feynman-grafts of the Ouroboros Thesis. It provides the formal verification substrate for all SZL runtime governance claims.
 
@@ -162,10 +162,10 @@ lake test
 
 ## Cross-references
 
-- **ouroboros-thesis v21 — The PURIQ-OS Substrate** (release tag `paper-v21-1.0.0`) — documents 23 agentic formulas, **5 proved in Lean 4 with no `sorry` and no external axioms** (F1, F11, F12, F18, F19; see `PuriqFormulaLean.lean`), 18 tagged `SORRY_PURIQ_OPEN`. The Λ-aggregator is **Conjecture 1 — NOT a theorem**. Version DOI minted by Zenodo on release under Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
+- **ouroboros-thesis v21 — The PURIQ-OS Substrate** (release tag `paper-v21-1.0.0`) — documents 23 agentic formulas, **5 proved in Lean 4 with no `sorry` and no external axioms** (F1, F11, F12, F18, F19; see `PuriqFormulaLean.lean`), 18 tagged `SORRY_PURIQ_OPEN`. The Λ-aggregator is **Conjecture 1 — NOT a theorem**. Version DOI minted by Zenodo on release under Concept DOI [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896).
 - ouroboros-thesis — thesis source (DOI [10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276))
 - [ouroboros](https://github.com/szl-holdings/ouroboros) — runtime reference implementation
-- Concept DOI (always-latest): [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+- Concept DOI (always-latest): [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 
 ---
 
@@ -242,7 +242,7 @@ PhD-Math citations: `THESIS_LEAN_RECONCILIATION.md` (2026-06-02), `PHASE3_FINAL_
 
 ```
 S. P. Lutar Jr., "lutar-lean — Lean 4 Formal Proofs for the Ouroboros Thesis,"
-Zenodo, DOI 10.5281/zenodo.20434308, 2026.
+Zenodo, DOI 10.5281/zenodo.24239654, 2026.
 ```
 ORCID: [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
 
