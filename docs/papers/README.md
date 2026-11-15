@@ -29,7 +29,7 @@ DOI-pinned thesis. See the canonical timeline: **[`thesis/THESIS_LINEAGE.md`](th
 
 - **22 thesis versions** (v1 2026-04-28 → v22 2026-06-03; v19 intentionally skipped).
 - **Latest:** [v22 — Convergence](thesis/ouroboros/papers/v22/) — A5 axiom merge, Cauchy_ND partial closure, VCG truthfulness, SLSA L2 on organ images, Innovation Rounds 10–11, Sim-to-Real benchmark (α=0.10).
-- **Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926).
+- **Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896).
 - **Λ = Conjecture 1** — never a theorem; the uniqueness chain completes only when all Cauchy_ND sorries close on `main`.
 
 ---
