@@ -2,7 +2,7 @@ cff-version: 1.2.0
 title: "Ouroboros Thesis v22 — Convergence: Λ-Uniqueness Chain, Mechanism Truthfulness, and Sim-to-Real Doctrine Transfer"
 version: "22.0.0"
 date-released: "2026-06-03"
-doi: 10.5281/zenodo.19944926
+doi: 10.5281/zenodo.24239896
 authors:
   - family-names: Lutar Jr.
     given-names: Stephen P.
@@ -23,7 +23,7 @@ abstract: >
   foundation model measures a mean doctrine alpha-gap of 0.10 across five unseen compliance
   regimes. The Lambda-aggregator remains Conjecture 1 - NOT a theorem. Doctrine v11 LOCKED
   749/14/163 at kernel commit c7c0ba17 (v11.1 in flight post-A5: 794/14/191). Concept DOI:
-  10.5281/zenodo.19944926; the v22 version DOI is minted by Zenodo on the paper-v22-1.0.0 release.
+  10.5281/zenodo.24239896; the v22 version DOI is minted by Zenodo on the paper-v22-1.0.0 release.
 keywords:
   - AI governance
   - Ouroboros
