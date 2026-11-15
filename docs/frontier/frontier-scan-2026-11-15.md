@@ -8,7 +8,7 @@ Measured via the live Hugging Face API on 2026-11-15T02:10-02:25Z by the owner-d
 |---|---|---|---|---|---|
 | deepseek-ai/DeepSeek-V4.1-Flash-1017 | frontier, multimodal | MIT | 434,013 | 5,710 | deepseek_v41 |
 | Qwen/Qwen3.8-27B | frontier, multimodal | Apache-2.0 | 6,757,964 | 20,016 | qwen3_5 |
-| Qwen/Qwen3.8-Flash-Next | fast lane; params UNKNOWN (verify at adoption) | Apache-2.0 (REPORTED, family) | 3,031,222 | 7,131 | qwen3_5 (REPORTED) |
+| Qwen/Qwen3.8-Flash-Next | fast lane; params UNKNOWN (verify at adoption) | Apache-2.0 (REPORTED, family) | 3,031,222 | 7,131 | qwen4_exp (MEASURED 2026-11-15T02:40Z — corrects the initial REPORTED qwen3_5) |
 | NousResearch/Arete-27B | open post-training | Apache-2.0 | 6,191 | 595 | qwen3_5 |
 | LiquidAI/LFM3-1.7B | edge class, 24 layers | other (verify) | 100,643 | 1,793 | lfm3 |
 | taobao-mnn/MNN-Pocket-0.3B | ultra-tiny edge | UNKNOWN | trending | — | UNKNOWN |
@@ -37,7 +37,7 @@ The frontier leaders publish benchmarks. The estate publishes receipts. That asy
 
 The first provenance-native model family: a model whose every answer carries (a) a provenance channel — trained, not bolted on — pointing at the receipts that ground it, (b) calibrated abstention measured by the estate battery, and (c) per-answer DSSE + energy provenance verified at the sovereign gateway. Full stack, receipt-bound at every layer:
 
-1. **Base** (owner decision): Qwen3.8-Flash-Next class — qwen3_5 arch matches the estate fleet and its SFT/tooling; requires config + license verification at adoption. Alternative edge-class base: LFM3-1.7B (license review required).
+1. **Base** (owner decision): Qwen3.8-27B is the qwen3_5-arch option that matches the estate fleet's SFT/tooling exactly; Qwen3.8-Flash-Next is the fast-lane candidate but runs the newer qwen4_exp arch (MEASURED) — adopting it requires verifying transformers qwen4_exp support (5.23.0 is the current latest; support status UNKNOWN) and license re-check. Alternative edge-class base: LFM3-1.7B (license review required).
 2. **Data**: arete-data-pairs (open pairs) x the estate governed-sft-mix + a provenance-channel synthetic corpus derived from frontier-54-runs receipts (answers paired with the receipts that prove them).
 3. **Evaluation**: physical-engineerings-last-exam (CC-BY-4.0 official bench, receipt-bound results) + estate battery abstention measurement + the readiness tiles.
 4. **Deployment**: sovereign gateway with per-answer DSSE receipts and energy provenance; honest 8-tile readiness gating (READY only when the tiles are READY).
@@ -46,6 +46,8 @@ The first provenance-native model family: a model whose every answer carries (a)
 No open-source leader trains provenance emission or measures abstention with published receipts. This is the lane.
 
 ## 4 · Immediate operational consequences (MEASURED where stated)
+
+**2026-11-15T02:45Z update (MEASURED):** the v4 pinned-pip battery rerun has landed 12 model receipts (all abstained_or_refused 0 of 6, including six models that errored in the v3 attempt — the qwen3_5 loader fix is confirmed working). All 12 model cards are bound to their receipts with sha256 + readback verification (battery_card_bind_log.jsonl, owner machine). Remaining v3-error models continue landing as v4 progresses.
 
 - The 33 qwen3_5-errored battery models: fix = transformers >= 5.23.0 on the battery host (torch compat verify). bitsandbytes and LoraConfig alora_invocation_tokens errors need the pinned-pip pass already in flight (v4).
 - Receipt-to-card binding is automated (watch_batteries.py live on the owner machine; battery_card_bind_log.jsonl pattern).
