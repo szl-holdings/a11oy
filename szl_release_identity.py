@@ -22,7 +22,7 @@ CANONICAL_URL = "https://a-11-oy.com"
 REGISTRY_URL = "https://a11oy.net"
 LEGACY_ALIAS = REGISTRY_URL  # kept: .net is still a public surface, not a redirect
 REPOSITORY_URL = "https://github.com/szl-holdings/a11oy"
-CONCEPT_DOI = "10.5281/zenodo.19944926"
+CONCEPT_DOI = "10.5281/zenodo.24239896"
 FORMAL_ARTIFACT_DOI = "10.5281/zenodo.20434276"
 
 _ZENODO_DOI_RE = re.compile(r"^10\.5281/zenodo\.\d+$")
