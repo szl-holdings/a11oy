@@ -11,8 +11,8 @@ identically.
 
 HARD DOCTRINE (non-negotiable — woven throughout):
   • NO fabricated records. A connector returns REAL live provider data
-    (CONNECTED), an honest empty READY ("provide credentials to activate" +
-    the exact secret name), or a clearly-LABELED SAMPLE (`sample_reason` set,
+    (CONNECTED), an honest empty READY (credentials or provider verification
+    still pending), or a clearly-LABELED SAMPLE (`sample_reason` set,
     used ONLY where no free tier exists). ERROR is honest.
   • NO committed keys. Every credential is read from env/Space-secret ONLY.
     Receipts store credential FINGERPRINT HASHES, never the key value.
@@ -50,8 +50,8 @@ _TIMEOUT = 8.0
 
 class State(str, Enum):
     """The honest state of a connector RIGHT NOW."""
-    CONNECTED = "connected"   # creds present + health() passed → LIVE provider data
-    READY = "ready"           # implemented + tested vs API shape; awaiting customer creds
+    CONNECTED = "connected"   # successful provider probe/read → LIVE provider data
+    READY = "ready"           # implemented/configured; credentials or reachability pending
     SAMPLE = "sample"         # labeled fixture ONLY where no free tier exists
     ERROR = "error"           # creds present but provider unreachable/denied (honest)
 
@@ -190,6 +190,7 @@ def resolve_state(*, auth_kind: AuthKind, missing_env: list[str],
       auth_kind == "none" and provider reachable → CONNECTED (keyless live NOW)
       creds present and health() 200             → CONNECTED
       creds present and health() fails           → ERROR  (honest reason)
+      provider reachability not observed         → READY  (never claim CONNECTED)
       no free tier AND no creds AND fixture set  → SAMPLE (sample_reason mandatory)
     """
     # keyless: reachability decides
@@ -202,8 +203,11 @@ def resolve_state(*, auth_kind: AuthKind, missing_env: list[str],
                         probe_detail or "keyless provider unreachable; labelled sample",
                         "provider unreachable at request time")
             return State.ERROR, probe_detail or "keyless provider unreachable", None
-        # probe not run (manifest cheap path) → optimistic CONNECTED label, verified on read
-        return State.CONNECTED, "keyless public API — verified live on read", None
+        # A keyless API still needs an observed successful probe/read. Public
+        # availability is not evidence that this runtime can reach it now.
+        return (State.READY,
+                "keyless public API; provider reachability unknown — run a health probe or read",
+                None)
 
     # credentialed connectors
     if missing_env:
@@ -219,8 +223,10 @@ def resolve_state(*, auth_kind: AuthKind, missing_env: list[str],
         return State.CONNECTED, probe_detail or "credentials present + provider reachable — live data", None
     if probe_ok is False:
         return State.ERROR, probe_detail or "credentials present but provider unreachable/denied", None
-    # creds present, probe deferred
-    return State.CONNECTED, "credentials present — verified live on read", None
+    # Credentials establish configuration, not provider connectivity.
+    return (State.READY,
+            "credentials present; provider reachability unknown — run a health probe or read",
+            None)
 
 
 # ── the base Connector ─────────────────────────────────────────────────────

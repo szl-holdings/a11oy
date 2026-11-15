@@ -15,7 +15,10 @@ NOTE = ROOT / "docs/reviews/MODEL_INFERENCE_INVENTORY_GAP_2026-11-10.md"
 PRIOR_DOSSIER = ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-07.json"
 # Rows added by later dated records. Each later record names its own rows, so
 # exact catalog membership stays checked as this record's rows plus those.
-LATER_DOSSIERS = (ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-11.json",)
+LATER_DOSSIERS = (
+    ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-11.json",
+    ROOT / "docs/reviews/model-inference-inventory-gap-2026-11-15.json",
+)
 DISPOSITION = "No support discussion for this repository is recorded in this catalog."
 ROUTE = "No serving route is authorized. The observed provider mapping was empty."
 ASSIGNED = {
@@ -52,6 +55,22 @@ def _later_recorded_ids():
         ids |= {row["id"] for row in json.loads(path.read_text(encoding="utf-8"))["rows"]}
     return ids
 
+def _later_absorbed_ids():
+    ids = set()
+    for path in LATER_DOSSIERS:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        ids |= {row["id"] for row in record.get("absorbed_rows", [])}
+    return ids
+
+
+def _later_removed_rows():
+    """Final catalog snapshots of rows a later dated record removed."""
+    rows = {}
+    for path in LATER_DOSSIERS:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        for row in record.get("removed_rows", []):
+            rows[row["id"]] = row["final_row"]
+    return rows
 
 def test_recorded_observations_cover_the_fourteen_reviewed_ids_without_admission():
     dossier = json.loads(DOSSIER.read_text(encoding="utf-8"))
@@ -59,8 +78,10 @@ def test_recorded_observations_cover_the_fourteen_reviewed_ids_without_admission
     inventory = support.read_json(support.INVENTORY_PATH)
     support.validate_document(document, inventory)
     by_id = {row["id"]: row for row in document["models"]}
-    later = _later_recorded_ids()
-    assert len(by_id) == 88 + len(later)
+    later = _later_recorded_ids() | _later_absorbed_ids()
+    removed = _later_removed_rows()
+    assert len(by_id) == 88 + len(later) - len(removed)
+    by_id.update(removed)  # final snapshots of rows the 2026-11-15 record removed
     counts = dossier["counts"]
     assert counts["rows"] == 14
     assert counts["provider_observations_http_200"] == 14
@@ -164,7 +185,7 @@ def test_recorded_observations_cover_the_fourteen_reviewed_ids_without_admission
     assert len(added) == 14
     assert set(added).isdisjoint(preserved)
     assert later.isdisjoint(set(added) | set(preserved))
-    assert {row["id"] for row in document["models"]} == set(added) | set(preserved) | later
+    assert {row["id"] for row in document["models"]} == (set(added) | set(preserved) | later) - set(removed)
 
     assert dossier["inventory_models_outside_this_record"] == []
     regenerations = dossier["sources"]["inventory_regenerations"]
@@ -186,6 +207,7 @@ def test_earlier_failed_reads_are_kept_and_not_recorded_as_observations():
     dossier = json.loads(DOSSIER.read_text(encoding="utf-8"))
     document = support.read_json(support.STATUS_PATH)
     by_id = {row["id"]: row for row in document["models"]}
+    by_id.update(_later_removed_rows())  # final snapshots for rows later removed
     attempts = {row["id"]: row["provider_observation"]["earlier_attempts"] for row in dossier["rows"]}
     assert {model_id for model_id, rows in attempts.items() if rows} == {
         "SZLHOLDINGS/forge-v3", "SZLHOLDINGS/szl-brain",
