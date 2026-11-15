@@ -1,0 +1,28 @@
+{
+  "schema_version": "szl.hf-parity-manifest/v1",
+  "source_repo": "szl-holdings/a11oy",
+  "source_commit": "62e64f245861e635ac5b1b4d2220b54b5861a9a6",
+  "source_url": "https://github.com/szl-holdings/a11oy/tree/62e64f245861e635ac5b1b4d2220b54b5861a9a6",
+  "hf_repo": "SZLHOLDINGS/a11oy",
+  "hf_revision": "02a862ce9e49ce4a859674107b7da12f7788993f",
+  "role": "governed inference product Space mirror",
+  "runtime_stage": "source-bound parity observation; deployment not independently verified",
+  "hardware": "not independently verified from this manifest",
+  "evidence_datasets": [
+    {
+      "repo": "SZLHOLDINGS/frontier-54-runs",
+      "revision": "f31c58c..."
+    },
+    {
+      "repo": "SZLHOLDINGS/szl-science-forum-corpus",
+      "revision": "9a4c8e4..."
+    }
+  ],
+  "verified_at": "2026-11-15T15:44:12Z",
+  "limitations": [
+    "HF README returned HTTP 401 during the current readback; complete file-level parity is not established.",
+    "Cloudflare deployment is unverified from this manifest.",
+    "The source x402 Bazaar worker is staged and owner-gated; no deployment or route change is claimed.",
+    "This manifest records source and observed revision identifiers only; it does not certify model weights, runtime health, signatures, receipts, or production readiness."
+  ]
+}
