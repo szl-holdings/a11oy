@@ -1,7 +1,7 @@
 # The Lutar Omega Formalism (v4) — Ouroboros Thesis — One-Pager
 
 **Stephen P. Lutar — SZL Holdings — 2026-05-04 — ORCID 0009-0001-0110-4173**
-**DOI** [10.5281/zenodo.20020841](https://doi.org/10.5281/zenodo.20020841) · **Concept DOI** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+**DOI** [10.5281/zenodo.20020841](https://doi.org/10.5281/zenodo.20020841) · **Concept DOI** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 **License** CC BY 4.0 · **Reference impl.** github.com/szl-holdings/szl-holdings-platform
 
 ## What
