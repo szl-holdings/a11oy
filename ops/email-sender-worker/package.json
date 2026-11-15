@@ -15,6 +15,6 @@
     "check": "npm test && npm run build && npm run test:workerd"
   },
   "devDependencies": {
-    "wrangler": "4.150.0"
+    "wrangler": "4.162.0"
   }
 }
