@@ -159,16 +159,16 @@ def check_presentation(page, surfaces):
     expected = [{"href": href, "title": title, "boundary": boundary}
                 for _lane, title, href, boundary in surfaces]
     require(len(links) == 18 and links == expected, "18 source-owned navigation links changed")
-    ayllu = page.locator("#ownership-links a[href='https://huggingface.co/spaces/SZLHOLDINGS/ayllu']")
-    require(ayllu.count() == 1 and "INVENTORY_ONLY" in ayllu.inner_text()
-            and "FOLD" in ayllu.inner_text(), "Ayllu ownership boundary missing")
+    org_card = page.locator("#ownership-links a[href='https://huggingface.co/spaces/SZLHOLDINGS/README']")
+    require(org_card.count() == 1 and "INVENTORY_ONLY" in org_card.inner_text()
+            and "ORG_CARD" in org_card.inner_text(), "org-card ownership boundary missing")
     require(page.locator("form").count() == 3, "three retained forms missing")
     require(all(page.locator("#" + button).is_disabled() for button in BUTTONS),
             "an execution button became enabled in unavailable fixture")
     geometry = page.evaluate("""() => ({viewport:innerWidth,
         document:document.documentElement.scrollWidth, body:document.body.scrollWidth})""")
     require(max(geometry["document"], geometry["body"]) <= geometry["viewport"], "horizontal overflow")
-    return {"navigation_count": len(links), "ayllu_inventory_only": True,
+    return {"navigation_count": len(links), "org_card_inventory_only": True,
             "disabled_action_buttons": list(BUTTONS), "geometry": geometry}
 
 
