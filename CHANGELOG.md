@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - declare the four 2026-11-14 Spaces in the public-estate contract
+
+- Four public Spaces first observed in the committed 2026-11-14T04:09:48Z
+  manifest (52 Spaces) had no classification rows in
+  `static/shared/public-estate-contract.v1.json`, so the gated public-inventory
+  preflight failed closed (`SOURCE_REVIEW_REQUIRED`). They are now declared:
+  `SZLHOLDINGS/khipu-playground`, `SZLHOLDINGS/szl-bench-suite`, and
+  `SZLHOLDINGS/szl-marketing` follow the standard `INVENTORY_ONLY` / `FOLD`
+  row their peers use; the reserved organization card `SZLHOLDINGS/README` is
+  declared `INVENTORY_ONLY` / `ORG_CARD` exactly as the validator and the
+  `org_card:` keep-policy line already require. The keep-list file is
+  unchanged and no Space visibility was changed on the Hub.
+- The three public-estate Markdown projections in `docs/generated/` are
+  regenerated in lockstep (52 Spaces, 138 model repositories, 68 datasets,
+  14 kernels as of 2026-11-14T04:09:48Z), including the reserved
+  organization-card sentence and the new alignment receipt. The stage matrix
+  is already current and is unchanged.
+- The public-estate alignment test lists are extended to cover the four
+  Spaces, and the reserved org-card test now asserts the observed state
+  instead of a synthetic rehearsal. The contract version stays `1.0.2`:
+  additive classification rows do not change the contract schema.
+
 ### Changed - classify szl-receipts-chain and refresh the public inventory
 
 - `SZLHOLDINGS/szl-receipts-chain`, a public docker demo Space first observed at
