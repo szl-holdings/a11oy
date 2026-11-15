@@ -56,7 +56,7 @@ Peng, S.Y-C. Chen, Jiang, Liu, Kuo, Wang, Tiwari, Ceschini, C-S. Chen, Hsu, Lin,
 |---|---|
 | [10.5281/zenodo.19867281](https://doi.org/10.5281/zenodo.19867281) | The Loop Is the Product (v1) |
 | [10.5281/zenodo.19934129](https://doi.org/10.5281/zenodo.19934129) | The Loop Is the Product (v2) — Empirical Companion |
-| [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) | SZL Concept DOI — umbrella record |
+| [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) | SZL Concept DOI — umbrella record |
 | [10.5281/zenodo.19983066](https://doi.org/10.5281/zenodo.19983066) | The Lutar Invariant (v3) |
 | [10.5281/zenodo.20020841](https://doi.org/10.5281/zenodo.20020841) | The Lutar Omega Formalism (v4) |
 | [10.5281/zenodo.20020846](https://doi.org/10.5281/zenodo.20020846) | Lineage-Aware RAG (v5) — Prisca-GraphRAG |
@@ -747,7 +747,7 @@ The following chapter files are confirmed present in `/home/user/workspace/`. Ea
 |---|---|---|---|---|
 | 1 | [10.5281/zenodo.19867281](https://doi.org/10.5281/zenodo.19867281) | The Loop Is the Product (v1) — Bounded Recursion as a System Primitive | Part 1.8 (lutar-lean V02 metatron_fixed_point); Part 6 Step 9 | Ch 1 (Λ-receipt chain) |
 | 2 | [10.5281/zenodo.19934129](https://doi.org/10.5281/zenodo.19934129) | The Loop Is the Product (v2) — Empirical Companion | Part 1.8 (lutar-lean spine); Part 6 Step 9 | Ch 1 (empirical validation) |
-| 3 | [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) | SZL Concept DOI — umbrella record for all thesis versions | Part 0.4; Part 9.3 | All chapters (umbrella) |
+| 3 | [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) | SZL Concept DOI — umbrella record for all thesis versions | Part 0.4; Part 9.3 | All chapters (umbrella) |
 | 4 | [10.5281/zenodo.19983066](https://doi.org/10.5281/zenodo.19983066) | The Lutar Invariant (v3) — Axiomatic Trust Aggregator | Part 1.1 (a11oy Λ-gate); Part 2 (DARUAN+Λ composition) | Ch 5 (TrustScoreEngine, Λ-invariant) |
 | 5 | [10.5281/zenodo.20020841](https://doi.org/10.5281/zenodo.20020841) | The Lutar Omega Formalism (v4) — Energy-Mass-Information Coupling | Part 2 (QKAN-FWP boundedness); Part 1.8 V13 | Ch 4 (Egyptian math → information geometry) |
 | 6 | [10.5281/zenodo.20020846](https://doi.org/10.5281/zenodo.20020846) | Lineage-Aware RAG (v5) — Prisca-GraphRAG | Part 1.2 (amaru memory lineage); Part 2.8 (training provenance) | Ch 6 (amaru reverse-ETL lineage) |
@@ -3514,7 +3514,7 @@ Key claims verified: 12.5k params vs. 25.9k–167k baselines; NISQ-validated on 
 
 1. 10.5281/zenodo.19867281 — The Loop Is the Product (v1)
 2. 10.5281/zenodo.19934129 — The Loop Is the Product (v2)
-3. 10.5281/zenodo.19944926 — SZL Concept DOI
+3. 10.5281/zenodo.24239896 — SZL Concept DOI
 4. 10.5281/zenodo.19983066 — The Lutar Invariant (v3)
 5. 10.5281/zenodo.20020841 — The Lutar Omega Formalism (v4)
 6. 10.5281/zenodo.20020846 — Lineage-Aware RAG (v5)
