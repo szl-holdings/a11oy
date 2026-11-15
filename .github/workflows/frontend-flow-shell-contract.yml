@@ -91,7 +91,9 @@ jobs:
       - name: Install the existing pinned browser test runner
         run: |
           python -m pip install --disable-pip-version-check 'playwright==1.57.0'
-          python -m playwright install --with-deps chromium
+          # GitHub-hosted ubuntu-24.04 images ship the Chromium system libraries;
+          # apt-based --with-deps is currently broken on the runner image and is not needed here.
+          python -m playwright install chromium
       - name: Verify component and actual source-page behavior
         shell: bash
         env:
@@ -116,7 +118,8 @@ jobs:
 
   landing-browser:
     name: Homepage source reflow
-    runs-on: ubuntu-latest
+    # Playwright 1.57.0 has no Chromium host build for ubuntu-26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -140,8 +143,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install --prefix "$RUNNER_TEMP/landing-browser" --no-audit --no-fund playwright@1.63.0
-          "$RUNNER_TEMP/landing-browser/node_modules/.bin/playwright" install --with-deps chromium
+          npm install --prefix "$RUNNER_TEMP/landing-browser" --no-audit --no-fund playwright@1.57.0
+          # GitHub-hosted ubuntu-24.04 images ship the Chromium system libraries;
+          # apt-based --with-deps is currently broken on the runner image and is not needed here.
+          "$RUNNER_TEMP/landing-browser/node_modules/.bin/playwright" install chromium
       - name: Compare exact source reflow against its base
         shell: bash
         env:
