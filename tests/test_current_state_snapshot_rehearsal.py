@@ -233,7 +233,12 @@ def _assert_workflow(source: str) -> None:
         "${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' "
         "&& github.sha == inputs.expected_source_sha && github.run_attempt == 1 }}"
     )
-    assert "huggingface_hub==1.33.0" in source
+    assert (
+        "--require-hashes -r .github/requirements/hf-control-1-33-rehearse.txt" in source
+    )
+    assert "huggingface_hub==1.33.0" in (
+        ROOT / ".github" / "requirements" / "hf-control-1-33-rehearse.in"
+    ).read_text(encoding="utf-8")
     assert 'python -B scripts/rehearse_current_state_snapshots.py --fetch' in source
     assert "${{ runner.temp }}/public-current-snapshot-rehearsal.json" in source
     assert "${{ runner.temp }}/private-current-snapshot-rehearsal.json" not in source.split(
