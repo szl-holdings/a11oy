@@ -47,10 +47,15 @@ def test_committed_source_matches_schema_inventory_and_actual_request_evidence(d
     assert all(r["inference"]["state"] == "NO_PROVIDER_MAPPING" for r in document["models"])
     requests = [request for row in document["models"] for request in row["support"]["requests"]]
     submitted = [r for r in requests if r["evidence_kind"] == "VERIFIED_SUBMISSION"]
-    assert {r["discussion_number"] for r in submitted} == set(range(12781, 12791))
-    assert len([r for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION"]) == 5
-    assert document["unmatched_prior_requests"][0]["model_id"] == "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"
-    assert document["unmatched_prior_requests"][0]["discussion_number"] == 11072
+    # 12788 belongs to the retired szl-receiptagent-qwen35-0.8b-v2-merged model; it is recorded
+    # as an unmatched prior discussion since the 2026-11-15 namespace reconciliation.
+    assert {r["discussion_number"] for r in submitted} == set(range(12781, 12791)) - {12788}
+    assert len([r for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION"]) == 4
+    assert [(r["discussion_number"], r["model_id"]) for r in document["unmatched_prior_requests"]] == [
+        (10649, "SZLHOLDINGS/a11oy-v19-substrate"),
+        (11072, "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"),
+        (12788, "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged"),
+    ]
     assert all(r["model_revision"] is None for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION")
     assert collector.main(["--check"]) == 0
 
@@ -184,7 +189,7 @@ def test_provider_report_and_requests_never_grant_model_authority(document, tmp_
     assert observed["providers"] == []
     assert observed["last_observed_providers"][0]["status"] == status
     assert observed["freshness"] == "STALE_OBSERVATION"
-    assert stale["summary"]["verified_submissions"] == 10
+    assert stale["summary"]["verified_submissions"] == 9
 
 
 def test_new_document_generation_does_not_renew_older_provider_observations(document, tmp_path):
