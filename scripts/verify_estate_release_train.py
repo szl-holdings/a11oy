@@ -563,7 +563,7 @@ def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
 
 _BEACON_SRC = (
     "https://static.cloudflareinsights.com/"
-    "beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+    "beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092"
 )
 _WEBMCP_SRC = "https://a-11-oy.com/.webmcp/bridge.js"
 _WEBMCP_IDENTITY = {
@@ -606,7 +606,7 @@ def _provider_script_kind(
             parsed.scheme == "https"
             and parsed.netloc == "static.cloudflareinsights.com"
             and parsed.path
-            == "/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+            == "/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092"
             and not parsed.query
             and not parsed.fragment
             and len(attrs) == len(dict(attrs))
