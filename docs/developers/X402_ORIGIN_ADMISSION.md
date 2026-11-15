@@ -56,6 +56,21 @@ not-yet-valid, wrong audience, wrong scheme, and wrong amount contexts are
 HTTP 403 before the handler. Two `PAYMENT-CONTEXT` headers are
 `AMBIGUOUS_CONTEXT`. There is no JWT replay blacklist.
 
+## Cache isolation and malformed configuration
+
+Every response from a recognized monetized family, including UNCONFIGURED
+and rejected responses, is `Cache-Control: private, no-store`. The middleware
+removes handler-supplied CDN-Cache-Control, Cloudflare-CDN-Cache-Control and
+Surrogate-Control overrides so they cannot defeat that policy. This does not
+purge an existing cache or override provider-side cache rules; staging must
+verify the deployed edge behavior. Free health/proof routes outside these
+families retain their existing cache policy.
+
+Atomic-amount configuration is length-bounded before integer conversion.
+Oversized values return `CONFIGURATION_INCOMPLETE` before the handler instead
+of raising an uncaught conversion error. Prices, signature requirements,
+configured-family selection, and settlement behavior are unchanged.
+
 ## What a verified request returns
 
 The handler result, `x-a11oy-payment-enforcement: context-verified`, and
