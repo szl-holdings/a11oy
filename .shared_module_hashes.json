@@ -2,7 +2,7 @@
   "_comment": "SHA-256 lock of SHARED byte-identical modules (a11oy <-> killinchu). Regenerate intentionally with: python3 .github/shared-module-hash-check.py --update",
   "algorithm": "sha256",
   "modules": {
-    "a11oy_agent_loop.py": "73b7b4663eeecf45abde7ee1d26a57d476f450a56712e6a4b0b38ed41925e743",
+    "a11oy_agent_loop.py": "ea8063de6aa102d6befd86af27979156a30c4c8617534d096a665358c5322f42",
     "a11oy_mcp_client.py": "a2f5c2aad60fcdde01092bbbdd164b03cca0f4b871164878c2d9ae0ce17aabdd",
     "operator_shell_v4.py": "df333df963cdef5fd3279e9e474cbf2305a822fd2bbaf798f0c09cae08292372"
   }
