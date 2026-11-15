@@ -3,8 +3,8 @@
 """ERP connectors (credential-READY) — NetSuite, Dynamics F&O/BC, Sage, Acumatica, Infor.
 
 Each is a REAL client (documented endpoint + record shape + auth header). With NO
-creds → state=READY + exact secret name; NEVER fabricates a record. The moment
-credentials land in the Space secret → CONNECTED → live data.
+creds → state=READY + exact secret name; NEVER fabricates a record. Credentials
+configure the client; a successful provider response establishes CONNECTED.
 
 API refs (publicly documented shapes; SZL writes its own original client code):
   NetSuite SuiteTalk REST  https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/section_1540391670.html
