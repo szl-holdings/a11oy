@@ -3,21 +3,21 @@
 The SZL MCP tools run under PURIQ governance (Yuyay-13 gate, Khipu receipts, DSSE-signed).
 Doctrine v11 · Apache-2.0.
 
-> **⚠️ LIVE STATUS (honest).** The **Streamable-HTTP JSON-RPC transport at `/mcp/` is roadmap —
-> NOT yet live.** On the deployed a11oy Space, `POST /mcp/` (`initialize` / `tools/list`) returns
-> **HTTP 405 Method Not Allowed**, and `GET /mcp/` serves an HTML landing page. The `mcp-remote`
-> bridge configs below therefore will **not** connect yet — they are provided for when the JSON-RPC
-> transport ships.
+> **Request contract.** `GET /mcp/` returns the runtime JSON catalog and does not mint a receipt.
+> `POST /mcp/` is JSON-RPC (`initialize`, `tools/list`, `tools/call`). `policy_check` returns a
+> gate verdict and does not mint a receipt. `sign_receipt` requires the operator bearer.
 >
-> **What works today** is the REST MCP surface on a11oy:
+> `POST /api/a11oy/v1/mcp/call` is a different, operator-only REST surface. Without
+> `Authorization: Bearer <operator credential>` it returns HTTP 401 and does not run the tool.
+> The body fields are `name` and `arguments`. `lambda_score` also requires a non-empty `axes` list.
 > ```bash
-> curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/mcp/tools   # JSON tool catalog (4 tools)
+> curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/mcp/tools
 > curl -s -X POST https://szlholdings-a11oy.hf.space/api/a11oy/v1/mcp/call \
 >   -H 'content-type: application/json' \
->   -d '{"tool":"lambda_score","args":{}}'
+>   -H "authorization: Bearer $A11OY_CODE_ADMIN_KEY" \
+>   -d '{"name":"lambda_score","arguments":{"axes":[0.5,0.5]}}'
 > ```
-> The catalog currently exposes **4 governed tools** (e.g. `a11oy_gate`, `lambda_score`). The
-> "16-tool Hatun-MCP" is the planned JSON-RPC surface — do not demo a 16-tool MCP as live.
+> Tool counts are the counts in those responses. Do not advertise a fixed catalog size.
 
 ---
 
@@ -74,43 +74,38 @@ The REST surface below is live and verifiable right now:
 # list the governed tools (live — JSON catalog)
 curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/mcp/tools | python3 -m json.tool
 
-# call a tool (live — returns a governed result + doctrine block)
+# operator REST call. Anonymous requests are HTTP 401. tool/args is not the schema.
 curl -s -X POST https://szlholdings-a11oy.hf.space/api/a11oy/v1/mcp/call \
   -H 'content-type: application/json' \
-  -d '{"tool":"lambda_score","args":{}}' | python3 -m json.tool
+  -H "authorization: Bearer $A11OY_CODE_ADMIN_KEY" \
+  -d '{"name":"lambda_score","arguments":{"axes":[0.5,0.5]}}' | python3 -m json.tool
 ```
 
-Expect a catalog of **4 tools** today (`a11oy_gate`, `lambda_score`, …) — not 16.
+The REST catalog and the JSON-RPC catalog are different lists. Read each response for its count.
 
-### JSON-RPC `/mcp/` transport (roadmap — currently 405)
+### JSON-RPC `/mcp/` 
 
-The following commands describe the *planned* Streamable-HTTP JSON-RPC transport. **They return
-HTTP 405 on the deployed Space today** and are documented for when that transport ships:
+`GET /mcp/` is JSON. `POST /mcp/` runs the method below. A payment header is not read by this
+handler and is not a receipt.
 
 ```bash
-# (roadmap) initialize
 curl -s https://szlholdings-a11oy.hf.space/mcp/ \
   -H 'Content-Type: application/json' \
-  -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"cli","version":"0.1"}}}'
-# (roadmap) tools/list
-curl -s https://szlholdings-a11oy.hf.space/mcp/ \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+  -H 'Accept: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"policy_check","arguments":{"severity":"low","confidence":0.9,"reversible":true}}}'
 ```
 
 ## What the tools do
 
-The governed tools span: DSSE signing & verification, Khipu chain operations, PURIQ master-formula
-evaluation, Yuyay-13 gate scoring, Unay memory recall, doctrine-number lookup, and policy-gate
-checks. Every tool call is governed (deny-by-default) and emits a signed receipt — so an MCP client
-gets the same provenance guarantees as a direct HTTP caller.
+`policy_check` returns a deny-by-default gate verdict and does not mint a receipt. `sign_receipt`
+signs a caller-supplied payload only after the operator bearer check. A tool call is not itself
+a payment settlement.
 
 ## Security notes
 
-- The public demo endpoint is rate-limited. For production, request an API key via the customer
-  portal and pass it as a bearer header.
-- All tool invocations are recorded on the Khipu Merkle DAG (tamper-evident; EU AI Act Art. 12).
+- `POST /api/a11oy/v1/mcp/call` and JSON-RPC `sign_receipt` require the operator credential.
+  An invited tester does not receive that credential.
+- Origin handlers on `/mcp/` do not accept a payment header as authorization. Edge payment
+  challenges are a separate control.
 
 *Signed Yachay `<yachay@szlholdings.dev>` · Co-Authored-By: Perplexity Computer Agent · Apache-2.0*
