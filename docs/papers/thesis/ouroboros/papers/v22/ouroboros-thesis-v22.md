@@ -4,7 +4,7 @@
 
 **SZL Holdings** · Author: Stephen P. Lutar Jr. · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
 **Date:** 2026-06-03 · **License:** CC BY 4.0 · Code: Apache-2.0
-**Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+**Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 **v22 version DOI:** *minted by Zenodo on `paper-v22-1.0.0` release (founder action).*
 
 > **Doctrine v11 LOCKED — 749 declarations / 14 unique axioms / 163 sorries @ kernel commit `c7c0ba17`.**
@@ -167,9 +167,9 @@ downstream accuracy of physical foundation models. Full draft: `team/sim2real-co
   title       = {{The Ouroboros Thesis v22 — Convergence: Λ-Uniqueness Chain, Mechanism Truthfulness, and Sim-to-Real Doctrine Transfer}},
   institution = {SZL Holdings},
   year        = {2026},
-  doi         = {10.5281/zenodo.19944926},
+  doi         = {10.5281/zenodo.24239896},
   url         = {https://github.com/szl-holdings/szl-papers/tree/main/thesis/ouroboros/papers/v22},
-  note        = {Concept DOI (always-latest): 10.5281/zenodo.19944926; v22 version DOI minted on release paper-v22-1.0.0}
+  note        = {Concept DOI (always-latest): 10.5281/zenodo.24239896; v22 version DOI minted on release paper-v22-1.0.0}
 }
 ```
 
