@@ -6,7 +6,7 @@
 
 **Author:** Stephen P. Lutar Jr. · SZL Holdings · ORCID [0009-0001-0110-4173](https://orcid.org/0009-0001-0110-4173)
 
-**Concept DOI (always-latest):** [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+**Concept DOI (always-latest):** [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 
 > This markdown file is a faithful rendering of `main.tex`. The typeset 20-page PDF (`main.pdf`) is the canonical presentation; `main.tex` is the authoritative LaTeX source. Pinned commits: `main` @ `b910c276`; locked kernel @ `c7c0ba17`. Repository: [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
@@ -331,7 +331,7 @@ The honesty doctrine is unchanged and binding: Λ remains **Conjecture 1** uncon
 | `main` (Waves 11–14 merged) | `b910c276` | 1323 decl / 23 axioms (22 unique) / 307 sorries; CI-green |
 | Locked kernel | `c7c0ba17` | 749 / 14 / 163; locks {F1,F11,F12,F18,F19} |
 | CUT-2 axiom-free Λ | in `b910c276` | `Round13/LambdaSeparable.lean` |
-| Concept DOI (always-latest) | — | [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926) |
+| Concept DOI (always-latest) | — | [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896) |
 | Repository | — | [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean) |
 
 ### A.2 How to verify
@@ -397,6 +397,6 @@ The bottom turtles, stated once: (i) soundness of the Lean 4 kernel and its core
 14. I. S. Reed and G. Solomon. *Polynomial codes over certain finite fields.* J. SIAM, 8(2):300–304, 1960.
 15. R. C. Singleton. *Maximum distance q-nary codes.* IEEE Trans. Inf. Theory, 10(2):116–118, 1964.
 16. W. Vickrey. *Counterspeculation, auctions, and competitive sealed tenders.* J. Finance, 16(1):8–37, 1961.
-17. S. P. Lutar Jr. *The Ouroboros Thesis (Lean development).* SZL Holdings. Concept DOI [10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926); repository [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean).
+17. S. P. Lutar Jr. *The Ouroboros Thesis (Lean development).* SZL Holdings. Concept DOI [10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896); repository [github.com/szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean).
 
 *Full bibliographic detail with all URLs is in `refs.bib` and the typeset PDF bibliography.*
