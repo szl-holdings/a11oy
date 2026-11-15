@@ -40,7 +40,7 @@ export const DERIVATIONS: Derivation[] = [
     proof_sketch: 'Data processing inequality: chain entropy ≤ registry entropy ≤ 8A bits. Bekenstein analogy maps registry size to information radius. 49.5% fire-rate (K13) is near-maximum-entropy. Formal proof pending lutar-lean Paper R2. See INNOVATIONS.md §2 T4.',
     status: 'conjectured',
     measurability: 'Measure chain entropy via Shannon estimator on 10,000 receipt hashes. Compare to registry size. Expect H/A ≤ 8 bits/byte.',
-    citation: 'https://doi.org/10.5281/zenodo.19944926',
+    citation: 'https://doi.org/10.5281/zenodo.24239896',
   },
   {
     id: 'T5',
