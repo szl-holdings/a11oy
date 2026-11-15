@@ -21,6 +21,7 @@ Thin Hugging Face Space adapter for the A11oy Decision Integrity Kernel.
 - Λ: Conjecture 1 / `ADVISORY_CONJECTURAL`
 - Initial visibility: **private**
 - Status: **ROADMAP** until Hub runtime readback
+- Observed 2026-11-12 (read-only check, not a source-parity readback): the Space is **public**, runtime `RUNNING` on `cpu-basic`, and `https://szlholdings-puriq-markets.hf.space/` returns HTTP 200. The status above stays ROADMAP until the source-owned publisher records an exact-revision readback.
 
 Not a trading bot. No wallet, custody, or order authority.
 

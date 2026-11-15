@@ -5,9 +5,11 @@ SZL is shipping two first-party client SDKs that wrap the [flagships](/flagships
 **`szl-ts`** for TypeScript.
 
 ::: warning In development
-The unified `szl-python` and `szl-ts` packages are **in development**. Today, each flagship is
-consumed via its own package (`@szl-holdings/a11oy-policy`, `@szl/amaru`, etc.) or its live
-Space API (killinchu). The unified SDKs roll those into one client with shared receipt,
+The unified `szl-python` and `szl-ts` packages are **in development** and unpublished: no
+`szl` project exists on PyPI and no `@szl/js` or `@szl-holdings/szl` package exists on npm
+(checked 2026-11-06), so do not install packages by those names. Today, a11oy's per-flagship
+TypeScript packages are built from the a11oy repository and killinchu is called through its
+live Space API. The unified SDKs would roll those into one client with shared receipt,
 Λ-gate, and Khipu types.
 
 **Target:** first public `szl-python` + `szl-ts` release at the Series-A milestone. Until then,
