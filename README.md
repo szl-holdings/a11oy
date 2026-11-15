@@ -313,7 +313,7 @@ to its captured run.
 - [WILLAY API reference](https://github.com/szl-holdings/developers/blob/main/WILLAY_API.md)
 - [Governed run-loop recipe](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/02-willay-gated-turn.md)
 - [Proof library — lutar-lean](https://github.com/szl-holdings/lutar-lean)
-- [Associated research-program concept DOI — 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+- [Associated research-program concept DOI — 10.5281/zenodo.24239896](https://doi.org/10.5281/zenodo.24239896)
 - [Existing formal-artifact record — 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 - [A11oy software releases](https://github.com/szl-holdings/a11oy/releases) — the v1.1.0 software-version DOI stays `PENDING_ZENODO_READBACK` until Zenodo resolves the immutable release
 - [Canonical product surface](https://a-11-oy.com) · [runtime Space](https://szlholdings-a11oy.hf.space/) · [public proof registry `a11oy.net`](https://a11oy.net)
