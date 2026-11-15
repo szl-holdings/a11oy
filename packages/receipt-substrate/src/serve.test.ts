@@ -176,6 +176,26 @@ test("POST /v1/verify flags a tampered chain with broken_at index", async () => 
   assert.ok(body.broken_at >= 1);
 });
 
+test("POST /v1/verify flags a receipt whose payload gained a __proto__ key", async () => {
+  // A JSON "__proto__" key is data: adding one must break that receipt's hashes.
+  const text = JSON.stringify({ ledger: seeded });
+  const tampered = text.replace(
+    '"payload":{"test":true,"seq":1}',
+    '"payload":{"test":true,"seq":1,"__proto__":{"approved":true}}',
+  );
+  assert.notEqual(tampered, text);
+  const res = await fetch(`${base}/v1/verify`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: tampered,
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.valid, false);
+  assert.equal(body.broken_at, 1);
+  assert.match(body.errors.join("\n"), /position 1: payload_hash mismatch/);
+});
+
 test("POST /v1/policy/evaluate allows a well-attested action with a real receipt_hash", async () => {
   const res = await fetch(`${base}/v1/policy/evaluate`, {
     method: "POST",
