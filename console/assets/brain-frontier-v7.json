@@ -1302,10 +1302,10 @@
   ],
   "ouroboros_observation": {
     "artifact": {
-      "archive_sha256": "2a0e79743c812e5fd1e808b514c85defe3c2b4895065c68b0f5b4096a6a4657e",
-      "id": 14154273986,
-      "name": "ouroboros-frontier-43696217277-1",
-      "receipt_sha256": "410823b32ea59fd627f377193a45fdea227549ba1466d5d4611ef7678bb6a6bb"
+      "archive_sha256": "4ac2d799988f6175598bf2a085231c39e86c919c5da2a27e9e376cabc21efbfc",
+      "id": 14175352828,
+      "name": "ouroboros-frontier-43748797424-1",
+      "receipt_sha256": "6e0733210d4740a40e4d2eb2c18dcce95f6287b7c69e56e60c008e5c73c368e9"
     },
     "authority": {
       "execution": "NONE",
@@ -1322,9 +1322,9 @@
       "signature_verified": false
     },
     "freshness": {
-      "expires_at": "2026-11-15T14:50:30Z",
+      "expires_at": "2026-11-16T00:50:45Z",
       "max_age_seconds": 21600,
-      "observed_at": "2026-11-15T08:50:30Z"
+      "observed_at": "2026-11-15T18:50:45Z"
     },
     "observation": {
       "bounded": true,
@@ -1336,18 +1336,18 @@
       "review_state": "REVIEW_PROPOSED",
       "steps": 1,
       "terminated": true,
-      "wall_ms": 86227
+      "wall_ms": 110245
     },
-    "observation_sha256": "9c3115d3dc5c8a4e61c0a0af9b9090bc48d62ef63ab33265aefb0e25fc3132d7",
+    "observation_sha256": "5daaf274e2b0cc0c49e5fe8a8787b9305e2b53866434e82901674462e520e5d3",
     "reason": "CURRENT_REVIEW_RECEIPT_VALIDATED",
     "run": {
       "attempt": 1,
       "conclusion": "success",
       "head_sha": "90942b825e0d734f537450c357bc01f61ee863a7",
-      "id": 43696217277,
+      "id": 43748797424,
       "status": "completed",
-      "updated_at": "2026-11-15T08:50:30Z",
-      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/43696217277"
+      "updated_at": "2026-11-15T18:50:45Z",
+      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/43748797424"
     },
     "schema": "szl.ouroboros.frontier-observation/v1",
     "source": {
@@ -1365,7 +1365,7 @@
   },
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "cfd3ffdaacc3233c162a5b355a1692658c1deacaabf3723d438cd289e6be3b3a",
+  "snapshot_sha256": "3e4ff39431039fcaa2a1f5433ec9b2cb2538437d08d4f59f8878e9bf30c09684",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
