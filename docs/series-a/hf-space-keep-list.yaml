@@ -78,7 +78,7 @@ retire_into_killinchu:
     state: MIGRATION_REQUIRED
     target_route: https://szlholdings-killinchu.hf.space/defend
   - id: SZLHOLDINGS/immune
-    state: MIGRATION_REQUIRED
+    state: MIGRATION_COMPLETE_SPACE_FOLDED_PRIVATE_20261115
     target_route: https://szlholdings-killinchu.hf.space/immune
   - id: SZLHOLDINGS/immune-lattice
     state: PARITY_AUDIT_REQUIRED
@@ -115,3 +115,14 @@ note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience 
 # Contract inventoryOnlyHuggingFaceRepositories reduced to the measured public rows
 # (README ORG_CARD, ayllu, immune, llm-router-live, szl-bench-suite, szl-forge-lab,
 # szl-marketing); 31 folded ids removed. Measured public Spaces: 21.
+# Fold execution 2026-11-15 batch-2 (owner-delegated CTO pass, 'handle it all use dc and edge'):
+# 13 Spaces re-folded private against the declared topology (drift introduced by
+# publishing lanes): estate-gardener, eternal-auditor, immune, oac-system-health-lab,
+# sentra, szl-chief-engineer, szl-cyber-shield, szl-dream-architect, szl-energy-ledger,
+# szl-infra-warden, szl-marketing-1-1, szl-provenance-pitch, szl-research-council.
+# immune hold CLEARED: killinchu /immune route live (HTTP 200 measured).
+# Held public: szl-constellation (owner-gated visibility decision pending).
+# Public remaining: 22 (10 keepers + README org card + 5 laboratory surfaces + ayllu +
+# llm-router-live + szl-bench-suite + szl-forge-lab + szl-marketing + szl-constellation held).
+# All 13 verified private=True by readback. Log: pvf_flip_log.jsonl; summary:
+# pvf2_batch2_summary.json (owner machine C:\SZL\estate-audit).
