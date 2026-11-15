@@ -59,7 +59,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 14)
+        self.assertEqual(len(topology), 15)
         self.assertEqual(
             self.contract["supportingSystems"][0]["huggingFaceRepositories"],
             [],
