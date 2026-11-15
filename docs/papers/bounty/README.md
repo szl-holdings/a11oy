@@ -88,7 +88,7 @@ When a submission passes CI and is merged:
 
 - 🏆 **Lean co-author** credit on the SZL Holdings thesis for the discharged Conjecture 1.
 - 🪢 **Khipu-signed acceptance receipt** — a Wire-D / DSSE-signed record that your proof was verified and accepted (signed `Yachay <yachay@szlholdings.dev>`).
-- 📚 **Citation in the thesis** and in the platform's Concept DOI lineage (Zenodo Concept `10.5281/zenodo.19944926`) — co-authorship on the next versioned DOI.
+- 📚 **Citation in the thesis** and in the platform's Concept DOI lineage (Zenodo Concept `10.5281/zenodo.24239896`) — co-authorship on the next versioned DOI.
 - 💵 **Cash bounty — amount TBD** (announced with the public launch; see *Hall of Fame* below for live status).
 - 🥇 A permanent entry in the **Hall of Fame**.
 
