@@ -61,7 +61,7 @@ describe('Canonical Constants K01-K13', () => {
 
 describe('DOI Ledger', () => {
   it('concept DOI present', () => {
-    const d = getDOI('10.5281/zenodo.19944926');
+    const d = getDOI('10.5281/zenodo.24239896');
     expect(d).toBeDefined();
   });
 
@@ -72,7 +72,7 @@ describe('DOI Ledger', () => {
 
   it('all 13 DOIs present', () => {
     const EXPECTED = [
-      '10.5281/zenodo.19867281','10.5281/zenodo.19934129','10.5281/zenodo.19944926',
+      '10.5281/zenodo.19867281','10.5281/zenodo.19934129','10.5281/zenodo.24239896',
       '10.5281/zenodo.19983066','10.5281/zenodo.20020841','10.5281/zenodo.20020846',
       '10.5281/zenodo.20020845','10.5281/zenodo.20020848','10.5281/zenodo.20020849',
       '10.5281/zenodo.20053148','10.5281/zenodo.20053163','10.5281/zenodo.20119582',
