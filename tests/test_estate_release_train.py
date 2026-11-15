@@ -75,7 +75,7 @@ class EstateReleaseTrainTests(unittest.TestCase):
         )
         beacon = (
             "https://static.cloudflareinsights.com/"
-            "beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495"
+            "beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092"
         )
         apex = release.SemanticHTML()
         apex.feed(
