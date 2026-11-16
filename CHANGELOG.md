@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - bound alert publication acknowledgements
+
+- Alert-relay POST/PUT attempts now stop waiting after six seconds, including
+  acknowledgement-body reads. An HTTP 504 records `delivery_status: UNKNOWN`;
+  it does not assert that the provider rejected a message or retry it.
+- Publication acknowledgements are bounded to 64 KiB; oversized responses fail
+  with HTTP 502 and unknown delivery. Complete responses retain their status
+  and body bytes. Long-lived GET subscriptions retain their streaming behavior.
+- Controlled upstream tests cover stalled requests and bodies, cancellation,
+  cleanup, and subscription continuity. This source change does not establish
+  live provider recovery or successful alert delivery.
+
 ### Added - serve the estate-trained lora adapter as the `lora` effort
 
 - The governed inference edge (`cloudflare/a11oy-governed-inference-worker.mjs`)

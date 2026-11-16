@@ -6,16 +6,22 @@ const WORKER_NAME = "szl-alert-relay";
 export const REVISION_PATH = "/.well-known/szl-worker-revision";
 const SOURCE_REVISION = /^[0-9a-f]{40}$/;
 const MAX_JSON_BYTES = 64 * 1024;
+const MAX_PUBLICATION_RESPONSE_BYTES = 64 * 1024;
+// Leave time for the existing eight-second canary to receive an honest failure.
+const PUBLICATION_TIMEOUT_MS = 6000;
+const PUBLICATION_METHODS = new Set(["POST", "PUT"]);
 const TOPIC_HASH_HEX_LENGTH = 60;
 const ALLOWED_METHODS = new Set(["GET", "HEAD", "POST", "PUT", "OPTIONS"]);
 const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
 const SUBSCRIPTION_SUFFIXES = new Set(["json", "sse", "raw", "ws"]);
 
 class PayloadTooLargeError extends Error {}
+class PublicationTimeoutError extends Error {}
+class PublicationResponseTooLargeError extends Error {}
 
-function jsonError(status, error) {
+function jsonError(status, error, details = {}) {
   return Response.json(
-    { error },
+    { error, ...details },
     {
       status,
       headers: {
@@ -175,6 +181,92 @@ async function buildUpstreamRequest(request, upstream) {
   return forwarded;
 }
 
+async function fetchPublication(outgoing, fetchImpl) {
+  const controller = new AbortController();
+  let reader;
+  let timer;
+  const cancelBody = (reason) => {
+    if (reader) {
+      void reader.cancel(reason).catch(() => {});
+    }
+  };
+  const abortFromCaller = () => {
+    controller.abort(outgoing.signal.reason);
+    cancelBody(outgoing.signal.reason);
+  };
+  outgoing.signal.addEventListener("abort", abortFromCaller, { once: true });
+  if (outgoing.signal.aborted) {
+    abortFromCaller();
+  }
+
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new PublicationTimeoutError();
+      // Settle even if a transport does not promptly observe cancellation.
+      reject(error);
+      controller.abort(error);
+      cancelBody(error);
+    }, PUBLICATION_TIMEOUT_MS);
+  });
+  const publication = async () => {
+    if (controller.signal.aborted) {
+      throw controller.signal.reason;
+    }
+    const response = await fetchImpl(new Request(outgoing, { signal: controller.signal }));
+    if (controller.signal.aborted) {
+      void response.body?.cancel().catch(() => {});
+      throw controller.signal.reason;
+    }
+    if (!response.body) {
+      return new Response(null, response);
+    }
+    reader = response.body.getReader();
+    const chunks = [];
+    let received = 0;
+    try {
+      const declaredLength = Number(response.headers.get("content-length"));
+      if (Number.isFinite(declaredLength) && declaredLength > MAX_PUBLICATION_RESPONSE_BYTES) {
+        throw new PublicationResponseTooLargeError();
+      }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (controller.signal.aborted) {
+          throw controller.signal.reason;
+        }
+        if (done) {
+          break;
+        }
+        received += value.byteLength;
+        if (received > MAX_PUBLICATION_RESPONSE_BYTES) {
+          throw new PublicationResponseTooLargeError();
+        }
+        chunks.push(value);
+      }
+      const body = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return new Response(body, response);
+    } catch (error) {
+      cancelBody(error);
+      throw error;
+    } finally {
+      reader.releaseLock();
+      reader = undefined;
+    }
+  };
+
+  try {
+    // Buffer only bounded publish acknowledgements. Subscriptions keep streaming.
+    return await Promise.race([publication(), deadline]);
+  } finally {
+    clearTimeout(timer);
+    outgoing.signal.removeEventListener("abort", abortFromCaller);
+  }
+}
+
 function revisionResponse(request, env) {
   if (request.method !== "GET") {
     return new Response(null, {
@@ -221,9 +313,18 @@ export async function handleRequest(request, fetchImpl = fetch, env = {}) {
   }
 
   try {
+    if (PUBLICATION_METHODS.has(request.method)) {
+      return await fetchPublication(outgoing, fetchImpl);
+    }
     const response = await fetchImpl(outgoing);
     return new Response(response.body, response);
   } catch (error) {
+    if (error instanceof PublicationTimeoutError) {
+      return jsonError(504, "upstream_timeout", { delivery_status: "UNKNOWN" });
+    }
+    if (error instanceof PublicationResponseTooLargeError) {
+      return jsonError(502, "upstream_response_too_large", { delivery_status: "UNKNOWN" });
+    }
     console.error(
       JSON.stringify({
         event: "ntfy_relay_upstream_error",
