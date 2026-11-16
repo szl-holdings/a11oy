@@ -123,6 +123,14 @@ Source for this host service belongs to the
    verifies these copied bytes on each start. Its revision field is **DECLARED**;
    checking four files does not attest the entire checkout, Python environment,
    VM, or running image.
+
+   Existing installations may instead have a task that runs `bootstrap.py`,
+   whose explicit sibling target is `supervisor.py`. Preserve that launcher and
+   task action: install the reviewed `windows-supervisor.py` bytes under the
+   existing `supervisor.py` filename and record this mapping plus its SHA-256 in
+   the installation receipt. Keep the existing `bootstrap.py` unchanged. The
+   repository `windows-bootstrap.py` explicitly targets `windows-supervisor.py`
+   and belongs to the fresh-install layout described above.
 3. Place the reviewed host-specific OpenSSH configuration at `ssh-config`. It must
    define `szl-massed-qualification`, require host-key checking, identify only the
    authorized VM and protected SSH key, and permit the explicit loopback forward.
