@@ -74,6 +74,11 @@ DEMO_CRITICAL_ROUTES = [
     "/compare",                               # investor-WOW deep-link → /console#wowtoggle
     "/demo-cosign.pub",                        # GAP 1 — demo-signing-key public key for /verify (Option B)
     "/proof",                                  # in-browser Lean 4 proof replay PAGE (Tao-Blueprint graph + live type-check)
+    "/formulas",                               # canonical formal evidence and separate numerical demonstrations
+    "/api/a11oy/v1/puriq/formulas",             # numerical-demo list, no formal proof transfer
+    "/api/a11oy/v1/puriq/formulas/{fid}",       # separately scoped numerical-demo detail
+    "/api/a11oy/v1/puriq/formal-registry",       # validated canonical formal evidence
+    "/api/a11oy/v1/puriq/formal-registry/{fid}", # exact canonical formal detail
     "/api/a11oy/v1/attest/",                   # prove-our-whole-stack — 6-factor provenance chain for a decision receipt
     "/attest",                                 # KANCHAY prove-the-stack verifier PAGE
     "/api/a11oy/v1/genome",                    # formula-registry genome — console Genome panel reads it (4 honesty tiers)
@@ -414,3 +419,53 @@ def test_command_centre_and_turn_keep_owning_handlers_before_catchalls():
         index, route = next((i, r) for i, r in enumerate(routes) if getattr(r, 'path', None) == path)
         assert index < catchall
         assert route.endpoint.__module__ == owner
+
+
+def test_puriq_formula_routes_have_exact_owners_before_catchalls_and_return_owned_content():
+    """Exercise the real app's first matching routes and middleware for both namespaces."""
+    from starlette.routing import Match
+    from starlette.testclient import TestClient
+
+    routes = list(serve.app.router.routes)
+    spa_index = next(i for i, route in enumerate(routes)
+                     if getattr(route, "path", None) == "/{full_path:path}")
+    api_proxy_index = next(i for i, route in enumerate(routes)
+                           if getattr(route, "path", None) == "/api/a11oy/{path:path}")
+    intended = (
+        ("/formulas", "/formulas", "text/html"),
+        ("/api/a11oy/v1/puriq/formulas", "/api/a11oy/v1/puriq/formulas", "application/json"),
+        ("/api/a11oy/v1/puriq/formulas/{fid}", "/api/a11oy/v1/puriq/formulas/F1", "application/json"),
+        ("/api/a11oy/v1/puriq/formal-registry", "/api/a11oy/v1/puriq/formal-registry", "application/json"),
+        ("/api/a11oy/v1/puriq/formal-registry/{fid}", "/api/a11oy/v1/puriq/formal-registry/F1", "application/json"),
+    )
+    client = TestClient(serve.app, follow_redirects=False)
+    responses = {}
+    for declared, requested, content_type in intended:
+        owners = [(i, route) for i, route in enumerate(routes)
+                  if getattr(route, "path", None) == declared]
+        assert len(owners) == 1, f"expected one owning formula route for {declared}"
+        index, owner = owners[0]
+        assert owner.endpoint.__module__ == "szl_puriq_formulas"
+        assert "GET" in owner.methods and "POST" not in owner.methods
+        assert index < spa_index
+        if requested.startswith("/api/"):
+            assert index < api_proxy_index
+        scope = {"type": "http", "path": requested, "root_path": "", "method": "GET"}
+        first = next(route for route in routes if route.matches(scope)[0] == Match.FULL)
+        assert first is owner, f"an earlier route shadows {requested}"
+
+        response = client.get(requested)
+        assert response.status_code == 200, (requested, response.status_code)
+        assert response.headers["content-type"].startswith(content_type)
+        responses[requested] = response
+
+    numerical = responses["/api/a11oy/v1/puriq/formulas"].json()
+    formal = responses["/api/a11oy/v1/puriq/formal-registry"].json()
+    numerical_f1 = responses["/api/a11oy/v1/puriq/formulas/F1"].json()
+    formal_f1 = responses["/api/a11oy/v1/puriq/formal-registry/F1"].json()
+    assert formal["state"] == "AVAILABLE"
+    assert numerical["formal_registry"]["registry_digest"] == formal["registry_digest"]
+    assert numerical_f1 == numerical["numeric_demos"]["F1"]
+    assert formal_f1 == formal["formulas"]["F1"]
+    assert numerical_f1["record_id"] != formal_f1["record_id"]
+    assert 'data-registry-digest="' + formal["registry_digest"] + '"' in responses["/formulas"].text

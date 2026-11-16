@@ -1,53 +1,53 @@
 {
-  "schema": "szl.hf-model-candidate/v1",
-  "candidate_id": "a11oy-evidence-1.5b-sft-lora",
+  "adapter_reference": {
+    "bytes": 18516456,
+    "copied_into_candidate": false,
+    "sha256": "682e2f0ea480d47c284b9de12c2e3d2d5170934c065e82fc375e3f069b4730ac",
+    "source_path": "operator-configured:A11OY_M1_RUN_ROOT/adapter/adapter_model.safetensors"
+  },
   "artifact_class": "peft_adapter_candidate",
-  "evidence_label": "MEASURED",
-  "release_state": "NOT_PROMOTED",
-  "quality_claim": "NOT_ESTABLISHED",
-  "contains_weights": false,
-  "weight_reference_only": true,
   "base": {
-    "repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
-    "revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
     "architecture": "Qwen2ForCausalLM",
     "license": "Apache-2.0",
-    "license_evidence": "REPORTED_CACHED_AND_OFFICIAL_CARD"
+    "license_evidence": "REPORTED_CACHED_AND_OFFICIAL_CARD",
+    "repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+    "revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7"
   },
-  "adapter_reference": {
-    "source_path": "operator-configured:A11OY_M1_RUN_ROOT/adapter/adapter_model.safetensors",
-    "bytes": 18516456,
-    "sha256": "682e2f0ea480d47c284b9de12c2e3d2d5170934c065e82fc375e3f069b4730ac",
-    "copied_into_candidate": false
-  },
+  "candidate_id": "a11oy-evidence-1.5b-sft-lora",
+  "contains_weights": false,
   "dataset": {
-    "records": 167,
-    "train_records": 151,
     "evaluation_records": 16,
+    "license_privacy_contamination_review": "BLOCKED_NOT_COMPLETE",
+    "records": 167,
     "sha256": "5c6f6bc042813ce3881145cefc75c40012422cd5d5d4e8a3edee0bdd231c85af",
     "split_seed": 3407,
     "split_sha256": "d56d1d72b8d6ac1c267139e3e77523584d117998b8edebe7ea3eeac52dfe577f",
-    "license_privacy_contamination_review": "BLOCKED_NOT_COMPLETE"
+    "train_records": 151
+  },
+  "evidence_label": "MEASURED",
+  "external_mutations": {
+    "deploy": false,
+    "download": false,
+    "publish": false,
+    "train": false,
+    "upload": false
   },
   "full_corpus_proposal": {
-    "relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER",
-    "manifest_path": "corpus-ingestion-manifest.json",
-    "manifest_sha256": "7305f93e5592bd94f1681e23ddb0f819d258db23dfe5fbc1180da6180a3259f7",
-    "brain_raw_nodes": 9465,
-    "brain_distinct_artifacts": 4230,
+    "brain_distinct_artifacts": 4249,
+    "brain_raw_nodes": 9484,
     "formula_records": 123,
+    "manifest_path": "corpus-ingestion-manifest.json",
+    "manifest_sha256": "5cb19e9a22e3dc7109cd86ee7639a592bae7a59f61e5d42d9cef012a12fc3fd2",
+    "relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER",
     "training_state": "NOT_RUN"
   },
   "promotion": {
-    "state": "BLOCKED",
+    "human_approval_bound_to_candidate": false,
     "reason": "BROAD_UNSEEN_EVALUATION_AND_DATA_GOVERNANCE_NOT_COMPLETE",
-    "human_approval_bound_to_candidate": false
+    "state": "BLOCKED"
   },
-  "external_mutations": {
-    "download": false,
-    "upload": false,
-    "publish": false,
-    "deploy": false,
-    "train": false
-  }
+  "quality_claim": "NOT_ESTABLISHED",
+  "release_state": "NOT_PROMOTED",
+  "schema": "szl.hf-model-candidate/v1",
+  "weight_reference_only": true
 }

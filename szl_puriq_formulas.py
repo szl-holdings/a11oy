@@ -1,34 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+"""Read-only formula authority and separate numerical demonstrations.
+
+Formal identities, scopes and maturity come from the validated, pinned
+``szl_formula_registry`` record. Historical PURIQ F-labels identify different
+numerical examples; matching numbers do not bind them to formal theorems.
+``FORMULA_META`` and ``EXPERIMENTAL_WAVES`` are retained historical inputs for
+crosswalk/reconciliation tools, not public proof authorities. Consumers use
+``numeric_demo_metadata`` and ``formal_registry_snapshot`` instead.
+
+GET evaluates reproducible SAMPLE inputs. It never mints a receipt, signs,
+persists state, establishes applicability, or grants execution authority.
 """
-szl_puriq_formulas.py — a11oy /formulas tab (Doctrine v12 PURIQ).
-
-ADDITIVE ONLY. Self-contained FastAPI router-free module exposing:
-  GET /formulas                         -> live HTML dashboard of 23 FormulaAgents
-  GET /api/a11oy/v1/puriq/formulas       -> JSON: per-formula current value, last
-                                            evaluation, proof status, last 5 receipts
-  GET /api/a11oy/v1/puriq/formulas/{fid} -> single formula detail
-
-Each PURIQ formula F1..F23 is a deterministic input->output function (pure
-stdlib). The Space recomputes a live value + a fresh Khipu receipt chain on each
-request (so the tab shows live data, not a static snapshot). Proof status and the
-numeric-harness baseline are embedded from the verified offline run
-(szl_formula_os, pytest 54/54; Lean self-prove sprint F1/F11/F12/F18/F19 PROVED
-via local lean v4.13.0, axioms: F11/F12 use propext, others none). Locked-proven is
-now EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}: F4 (Khipu DAG acyclicity), F7 (Chaski
-FIFO ordering) and F22 (Khipu emit append-only monotonicity) joined via lutar-lean
-#219 + platform #321 (merged 2026-06-10; count = no-axiom theorem locked_count_eight).
-
-Doctrine v11 LOCKED numbers preserved (referenced, never mutated):
-  749 declarations / 14 unique axioms / 163 sorries.
-Lambda-uniqueness remains CONJECTURE 1 (NOT a theorem).
-
-Author: Yachay (CTO), SZL Holdings. 2026-06-01.
-"""
-from __future__ import annotations
+import copy
 import hashlib
 import json as _json
 import math
 import random
-import time
+from html import escape
 from fractions import Fraction
 from functools import reduce
 
@@ -334,7 +323,7 @@ FORMULA_META = {   'F1': {   'id': 'F1',
 # Each fN_value(rng) returns (current_value, identity_holds, args_repr).
 # ---------------------------------------------------------------------------
 Z_95, N_AXES = 1.645, 13
-F10_SQRT2_ERROR_BOUND = 2.2e-6
+F10_SQRT2_ERROR_BOUND = 1.5e-6
 
 
 def _R(rng, lo, hi):
@@ -435,7 +424,7 @@ def _f12(rng):
     m1, m2 = rng.choice([7, 5, 11]), rng.choice([12, 9, 4])
     t = rng.randint(0, 200)
     if math.gcd(m1, m2) != 1:
-        return reduce(lambda a, b: a * b // math.gcd(a, b), [m1, m2]), True, f"m=({m1},{m2})"
+        return reduce(lambda a, b: a * b // math.gcd(a, b), [m1, m2]), None, f"m=({m1},{m2}); coprime premise absent"
     period = m1 * m2
     r1, r2 = t % m1, t % m2
     tp = t + period
@@ -467,7 +456,7 @@ def _f14(rng):
         p[i] = tot
     pn = p[n]
     known = {0: 1, 1: 1, 2: 2, 5: 7, 10: 42, 20: 627, 50: 204226}
-    ok = (n not in known) or (pn == known[n])
+    ok = (pn == known[n]) if n in known else None
     return pn, ok, f"p({n})"
 
 
@@ -480,13 +469,28 @@ def _f15(rng):
 
 def _f16(rng):
     a, b, c, d = (_R(rng, -5, 5) for _ in range(4))
+    value, checked = _zero_sum_2x2_value(a, b, c, d)
+    return round(value, 4), checked, f"matrix={[[a, b], [c, d]]}"
+
+
+def _zero_sum_2x2_value(a, b, c, d):
+    lower = max(min(a, b), min(c, d))
+    upper = min(max(a, c), max(b, d))
+    if math.isclose(lower, upper, abs_tol=1e-12):
+        return lower, True
     denom = a + d - b - c
     if denom == 0:
-        rmin = [min(a, b), min(c, d)]; cmax = [max(a, c), max(b, d)]
-        lo, hi = max(rmin), min(cmax)
-    else:
-        lo = hi = (a * d - b * c) / denom
-    return round(lo, 4), math.isclose(lo, hi, abs_tol=1e-9), "2x2 game"
+        return lower, False
+    p, q = (d - c) / denom, (d - b) / denom
+    if not (0 <= p <= 1 and 0 <= q <= 1):
+        return lower, False
+    value = (a * d - b * c) / denom
+    outcomes = (p * a + (1 - p) * c, p * b + (1 - p) * d,
+                q * a + (1 - q) * b, q * c + (1 - q) * d)
+    checked = (lower <= value <= upper and
+               all(math.isclose(result, value, rel_tol=1e-9, abs_tol=1e-9)
+                   for result in outcomes))
+    return value, checked
 
 
 def _f17(rng):
@@ -507,12 +511,20 @@ def _f18(rng):
 
 def _f19(rng):
     start, fuel = rng.randint(0, 50), rng.randint(0, 60)
+    initial_fuel = fuel
     cur, steps = start, 0
     while fuel > 0:
         if cur <= 0:
             break
         cur -= 1; steps += 1; fuel -= 1
-    return steps, steps <= rng.randint(start, start + 60) or True, f"start={start},fuel={fuel}"
+    holds = _fuel_bound_holds(start, initial_fuel, steps, cur)
+    return steps, holds, f"start={start},initial_fuel={initial_fuel},remaining={cur}"
+
+
+def _fuel_bound_holds(start, fuel, steps, remaining):
+    return (all(type(value) is int and value >= 0
+                for value in (start, fuel, steps, remaining))
+            and steps == min(start, fuel) and remaining == start - steps)
 
 
 def _f20(rng):
@@ -540,7 +552,7 @@ def _f23(rng):
     R, E, Kmax = _R(rng, 0, 2), _R(rng, 0, 2), rng.randint(1, 10)
     holo = math.exp(min(2 * math.pi * R * E, 700))
     cap = min(holo, 2 ** (Kmax + 1) - 1)
-    return round(cap, 4), True, f"R={R:.2f},E={E:.2f},Kmax={Kmax}"
+    return round(cap, 4), None, f"R={R:.2f},E={E:.2f},Kmax={Kmax}; action-space cardinality unavailable"
 
 
 FORMULA_FUNCS = {f"F{i}": fn for i, fn in enumerate(
@@ -548,265 +560,259 @@ FORMULA_FUNCS = {f"F{i}": fn for i, fn in enumerate(
      _f14, _f15, _f16, _f17, _f18, _f19, _f20, _f21, _f22, _f23], start=1)}
 
 
-def _receipt_chain(fid, rng, n=5):
-    """Compute a fresh chain of n receipts (content-addressed, prev-linked)."""
-    chain, prev = [], ""
-    fn = FORMULA_FUNCS[fid]
-    for seq in range(n):
-        val, holds, args = fn(rng)
-        payload = {"value": val, "identity_holds": holds, "args": args, "tick": seq + 1}
-        body = _json.dumps({"seq": seq, "formula_id": fid, "kind": "evaluate",
-                            "payload": payload, "prev": prev},
-                           sort_keys=True, separators=(",", ":"), default=str)
-        h = hashlib.sha256(body.encode()).hexdigest()
-        chain.append({"seq": seq, "ts": round(time.time(), 3), "formula_id": fid,
-                      "kind": "evaluate", "payload": payload, "prev": prev, "self_hash": h})
-        prev = h
-    ok = True
-    p = ""
-    for r in chain:
-        if r["prev"] != p:
-            ok = False
-        p = r["self_hash"]
-    return chain, ok
+NUMERIC_DEMO_NAMESPACE = "puriq.numeric-demo.v1"
+FORMAL_NAMESPACE = "lutar-lean.formal-f-id.v2"
+FORMAL_BINDING = "UNKNOWN_NOT_ASSERTED"
+
+
+def numeric_demo_metadata():
+    """Project historical demonstrations without transferring proof authority."""
+    out = {}
+    for fid, legacy in FORMULA_META.items():
+        meta = {key: copy.deepcopy(legacy[key]) for key in
+                ("id", "name", "organ", "primitive", "identity_doc", "invoked_by")
+                if key in legacy}
+        meta.update({
+            "record_id": f"{NUMERIC_DEMO_NAMESPACE}:{fid}",
+            "formula_namespace": NUMERIC_DEMO_NAMESPACE,
+            "legacy_formula_id": fid,
+            "formal_formula_id": None,
+            "formal_binding": FORMAL_BINDING,
+            "proof_status": "UNVERIFIED",
+            "lean_status": "UNVERIFIED",
+            "lean_name": None,
+            "proved_tactic": None,
+            "locked": False,
+            "can_authorize_action": False,
+            "execution_authority": False,
+            "evidence_class": "SAMPLE",
+        })
+        out[fid] = meta
+    return out
+
+
+def formal_registry_snapshot():
+    """Read validated formal metadata; never fall back to historical claims."""
+    try:
+        import szl_formula_registry as authority
+        document = authority.load_registry(verify=True)
+    except (ImportError, OSError, ValueError, TypeError, KeyError, RecursionError):
+        return {
+            "state": "UNAVAILABLE", "reason": "FORMULA_AUTHORITY_UNAVAILABLE",
+            "formulas": {}, "registry_digest": None, "signature_status": "UNKNOWN",
+            "locked_proven_count": None, "locked_proven_ids": [],
+            "kernel_mapping": FORMAL_BINDING, "execution_authority": False,
+        }
+    payload = document["payload"]
+    assets = {asset["id"]: asset for asset in payload["source_assets"]}
+    records = {}
+    for item in payload["formulas"]:
+        row = copy.deepcopy(item)
+        source = assets[item["source_asset"]]
+        row.update({
+            "record_id": f"{FORMAL_NAMESPACE}:{item['id']}",
+            "formula_namespace": FORMAL_NAMESPACE,
+            "source": copy.deepcopy(source),
+            "source_url": (f"https://github.com/{source['repository']}/blob/"
+                           f"{source['commit']}/{source['path']}"),
+            "registry_digest": document["registry_digest"]["value"],
+            "signature_status": document["signature"]["status"],
+            "runtime_applicability": "NOT_ESTABLISHED",
+            "execution_authority": False,
+        })
+        records[item["id"]] = row
+    return {
+        "state": "AVAILABLE", "schema_version": document["schema_version"],
+        "registry_version": payload["registry_version"],
+        "registry_digest": document["registry_digest"]["value"],
+        "signature_status": document["signature"]["status"],
+        "formal_source": copy.deepcopy(payload["formal_source"]),
+        "coverage_scope": payload["coverage_scope"], "exhaustive": False,
+        "locked_proven_count": payload["locked_proven_count"],
+        "locked_proven_ids": list(payload["locked_proven_ids"]),
+        "kernel_mapping": payload["kernel_source"]["f_id_to_callable_mapping"],
+        "policy": copy.deepcopy(payload["policy"]),
+        "formulas": records, "execution_authority": False,
+    }
 
 
 def live_snapshot():
-    """Recompute live value + last-5 receipts per formula on each request."""
-    rng = random.Random(int(time.time()))
+    """Compatibility entry point for deterministic, explicitly SAMPLE values."""
     out = {}
-    for fid, meta in FORMULA_META.items():
-        receipts, chain_ok = _receipt_chain(fid, rng, 5)
-        last = receipts[-1]
+    for fid, meta in numeric_demo_metadata().items():
+        seed = int(hashlib.sha256(meta["record_id"].encode("utf-8")).hexdigest()[:16], 16)
+        value, holds, args = FORMULA_FUNCS[fid](random.Random(seed))
         out[fid] = {
-            **meta,
-            "current_value": last["payload"]["value"],
-            "identity_holds": last["payload"]["identity_holds"],
-            "last_eval_ts": last["ts"],
-            "chain_verified": chain_ok,
-            "last_receipts": receipts,
+            **meta, "sample_seed": seed, "current_value": value,
+            "identity_holds": holds, "sample_inputs": args,
+            "sample_check": "NOT_EVALUATED" if holds is None else ("PASS" if holds else "FAIL"),
+            "evaluation_scope": "DETERMINISTIC_NUMERICAL_SAMPLE_NOT_FORMAL_PROOF",
+            "last_eval_ts": None, "chain_verified": False, "last_receipts": [],
+            "receipt_minted": False, "signature_status": "NOT_APPLICABLE_SAMPLE",
         }
     return out
 
 
-def summary_stats():
+def summary_stats(formal=None):
+    if formal is None:
+        formal = formal_registry_snapshot()
     return {
         "n_agents": len(FORMULA_META),
-        "harness_baseline": "54/54 pytest (PURIQ numeric harness; >=50/50 target)",
-        "proved_count": sum(1 for m in FORMULA_META.values() if m["proof_status"] == "PROVED"),
-        "doctrine_v11_locked": DOCTRINE_V11_LOCKED,
-        "sprint_proved": [fid for fid, m in FORMULA_META.items()
-                          if m["proof_status"] == "PROVED" and m["proved_tactic"]],
-        "experimental_waves": EXPERIMENTAL_WAVES,
+        "numeric_demo_count": len(FORMULA_META),
+        "numeric_demo_namespace": NUMERIC_DEMO_NAMESPACE,
+        "numeric_demo_proved_count": 0,
+        "proved_count": formal["locked_proven_count"],
+        "proved_count_scope": "CANONICAL_FORMAL_REGISTRY_ONLY",
+        "authority_state": formal["state"],
+        "registry_digest": formal["registry_digest"],
+        "doctrine_v11_locked": copy.deepcopy(DOCTRINE_V11_LOCKED),
+        "formal_binding": FORMAL_BINDING,
+        "receipt_minted": False, "execution_authority": False,
     }
 
 
-# ---------------------------------------------------------------------------
-# HTML dashboard
-# ---------------------------------------------------------------------------
-def _render_html():
-    snap = live_snapshot()
-    stats = summary_stats()
-    rows = []
-    for fid in sorted(snap, key=lambda x: int(x[1:])):
-        m = snap[fid]
-        ps = m["proof_status"]
-        color = {"PROVED": "#39d98a", "SKELETON": "#f5c451",
-                 "CONJ": "#c9a0ff"}.get(m["lean_status"], "#9a9a9a")
-        sprint = (f' &nbsp;<span style="color:#39d98a">[lean: {m["proved_tactic"]}]</span>'
-                  if ps == "PROVED" and m.get("proved_tactic") else "")
-        h = m.get("harness") or {}
-        hay = f'{fid} {m["name"]} {m["organ"]} {m["lean_status"]} {ps}'.lower()
-        rows.append(
-            f'<tr id="{fid}" class="frow" data-fid="{fid}" data-hay="{hay}" tabindex="0" '
-            f'title="click to reveal the live proof-state / receipt chain">'
-            f'<td><b>{fid}</b> <a class="anchor" href="#{fid}" title="permalink to {fid}">&para;</a></td>'
-            f'<td>{m["name"]}</td><td>{m["organ"]}</td>'
-            f'<td><code>{m["current_value"]}</code></td>'
-            f'<td>{"OK" if m["identity_holds"] else "X"}</td>'
-            f'<td style="color:{color}">{m["lean_status"]}</td>'
-            f'<td>{ps}{sprint}</td>'
-            f'<td>{h.get("passed","-")}/{h.get("total","-")}</td>'
-            f'<td>{"yes" if m["chain_verified"] else "no"}</td>'
-            f'<td>{", ".join(m.get("invoked_by", []))}</td></tr>'
-            f'<tr class="drow" id="d-{fid}"><td colspan="10"><div class="dbox mono" id="db-{fid}">'
-            f'click loads the LIVE per-formula endpoint &mdash; raw output, fetched fresh on every open</div></td></tr>'
+def formula_surface_snapshot():
+    formal = formal_registry_snapshot()
+    demos = live_snapshot()
+    return {
+        "schema": "szl.puriq-formula-surface/v2",
+        "summary": summary_stats(formal),
+        "formal_registry": formal,
+        "numeric_demos": demos,
+        "formulas": demos,
+        "compatibility": "formulas and legacy F-ID detail routes contain numerical demos only",
+        "receipt_minted": False, "execution_authority": False,
+    }
+
+
+def _render_html(snapshot=None):
+    if snapshot is None:
+        snapshot = formula_surface_snapshot()
+    formal = snapshot["formal_registry"]
+    formal_rows = []
+    for fid, row in formal["formulas"].items():
+        refs = ", ".join(row["theorem_refs"])
+        formal_rows.append(
+            f'<article class="formal-card" id="formal-{escape(fid)}">'
+            f'<p class="eyebrow">{escape(fid)} · {escape(row["maturity"])}</p>'
+            f'<h3>{escape(row["name"])}</h3><p>{escape(row["scope"])}</p>'
+            f'<p class="limit"><strong>Proof limit:</strong> {escape(row["caveat"])}</p>'
+            f'<details><summary>Inspect the formal source</summary>'
+            f'<p><a href="{escape(row["source_url"], quote=True)}" rel="noopener">'
+            f'{escape(refs)}</a></p><p class="mono">Commit: {escape(row["source"]["commit"])}</p>'
+            '<p>Runtime applicability: NOT_ESTABLISHED · action authority: NONE</p>'
+            '</details></article>'
         )
-    table = "\n".join(rows)
-    proved = ", ".join(stats["sprint_proved"])
-    ew = stats["experimental_waves"]
-    ew_total = ew["total_new_experimental_theorems"]
-    ew_rows = "<br>".join(
-        f'&bull; <b>{w["id"]}</b> (+{w["new_theorems"]} thm, PR#{w["pr"]}) '
-        f'<span style="color:#39d98a">[{w["label"]}]</span>: {w["summary"]}'
-        for w in ew["waves"]
+    demo_rows = []
+    for fid, row in snapshot["numeric_demos"].items():
+        check = row["sample_check"].replace("_", " ")
+        demo_rows.append(
+            f'<tr id="{escape(fid)}"><th scope="row">'
+            f'<a href="#{escape(fid)}">{escape(fid)}</a></th>'
+            f'<td>{escape(row["name"])}</td><td><code>{escape(str(row["current_value"]))}</code></td>'
+            f'<td>{escape(check)} (sample only)</td>'
+            '<td>UNVERIFIED<br>Binding unknown</td>'
+            f'<td><details data-demo="{escape(fid)}"><summary>Inspect sample</summary>'
+            f'<pre>{escape(_json.dumps(row, indent=2, ensure_ascii=False))}</pre>'
+            f'<a href="/api/a11oy/v1/puriq/formulas/{escape(fid)}">Sample JSON</a>'
+            '</details></td></tr>'
+        )
+    digest = escape(str(formal["registry_digest"] or "UNAVAILABLE"))
+    count = formal["locked_proven_count"]
+    count_text = str(count) if count is not None else "UNAVAILABLE"
+    formal_body = "\n".join(formal_rows) or (
+        '<p role="alert">Formal authority is UNAVAILABLE. No historical proof claims '
+        'are substituted. The numerical samples below carry no proof authority.</p>'
     )
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>PURIQ /formulas — 23 FormulaAgents</title>
-<meta name="description" content="Named-theorem registry: 23 FormulaAgents, live recomputed values, Khipu receipt chains, honest Lean proof status. Every row is addressable; every check reveals its raw machine output."/>
-<!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted, served same-origin at /vendor/fonts/*.woff2. -->
+    return f'''<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A11oy · Formula evidence</title>
+<meta name="description" content="Canonical formal scopes and separately identified numerical demonstrations.">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
+<link rel="stylesheet" href="/assets/szl/szl-console.css">
 <style>
-@font-face{{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}}
-@font-face{{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}}
-:root{{--ground:#0a0a0a;--panel:#0c0c0c;--gold:#c9b787;--teal:#5fb3a3;--cream:#f5f5f5;
---paragraph:#9a9a9a;--muted:#888;--dim:#555;--gold-line:rgba(201,183,135,0.15);
---gold-soft:rgba(201,183,135,0.04);--teal-line:rgba(95,179,163,0.22);--teal-soft:rgba(95,179,163,0.10);
---mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;--display:'Space Grotesk',Georgia,serif;}}
-*{{box-sizing:border-box;}}
-html,body{{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}}
-.mono{{font-family:var(--mono);}}
-:focus-visible{{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px;}}
-.ribbon{{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;
-padding:0.5rem 1.25rem;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
-color:var(--gold);background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);}}
-.ribbon .sep{{color:var(--dim);}} .ribbon .teal{{color:var(--teal);}}
-.ribbon a{{margin-left:auto;color:var(--teal);text-decoration:none;}}
-header.hero{{padding:2.2rem 2rem 1.2rem;}}
-h1{{margin:0 0 6px;font-size:clamp(1.5rem,3.2vw,2.2rem);font-weight:300;letter-spacing:-.02em;}}
-h1 .accent{{background:linear-gradient(120deg,var(--cream) 20%,var(--gold) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}}
-.sub{{color:var(--paragraph);font-size:13px;font-family:var(--mono);}}
-.kpis{{display:flex;gap:14px;margin:14px 2rem;flex-wrap:wrap;}}
-.kpi{{background:var(--panel);border:1px solid var(--gold-line);border-radius:8px;padding:12px 16px;}}
-.kpi b{{font-size:20px;display:block;color:var(--gold);font-weight:500;}}
-.kpi span{{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}}
-.searchbar{{margin:6px 2rem 2px;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;}}
-.searchbar input{{flex:1 1 260px;max-width:30rem;background:var(--panel);border:1px solid var(--gold-line);
-border-radius:8px;color:var(--cream);font-family:var(--mono);font-size:13px;padding:.6rem .9rem;}}
-.searchbar input::placeholder{{color:var(--dim);}}
-.searchbar .cnt{{font-family:var(--mono);font-size:11px;color:var(--muted);}}
-table{{border-collapse:collapse;width:calc(100% - 4rem);margin:8px 2rem 24px;font-size:13px;}}
-th,td{{text-align:left;padding:7px 9px;border-bottom:1px solid rgba(201,183,135,0.08);}}
-th{{color:var(--muted);font-weight:600;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--gold-line);}}
-tr.frow{{cursor:pointer;}}
-tr.frow:hover{{background:var(--panel);}}
-tr.frow:target{{background:var(--teal-soft);}}
-td code{{color:var(--teal);font-family:var(--mono);}}
-a.anchor{{color:var(--dim);text-decoration:none;font-size:11px;visibility:hidden;}}
-tr.frow:hover a.anchor,tr.frow:target a.anchor{{visibility:visible;}}
-tr.drow{{display:none;}}
-tr.drow.open{{display:table-row;}}
-.dbox{{background:var(--panel);border:1px solid var(--teal-line);border-radius:8px;margin:.3rem 0 .6rem;
-padding:.8rem 1rem;font-size:11px;line-height:1.55;color:var(--paragraph);white-space:pre-wrap;
-word-break:break-word;max-height:22rem;overflow:auto;}}
-.note{{margin:0 2rem 24px;color:var(--paragraph);font-size:12px;line-height:1.7;border:1px solid var(--gold-line);
-border-radius:10px;background:var(--gold-soft);padding:1rem 1.2rem;}}
-.note b{{color:var(--gold);}}
-.footer{{padding:1.4rem 2rem 2.6rem;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
-text-transform:uppercase;color:var(--dim);line-height:2;}}
-.footer a{{color:var(--teal);text-decoration:none;text-transform:none;letter-spacing:0;}}
-@media (max-width:720px){{.kpis,.searchbar,.note{{margin-left:1rem;margin-right:1rem;}}table{{width:calc(100% - 2rem);margin-left:1rem;margin-right:1rem;display:block;overflow-x:auto;}}}}
+body{{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body)}}
+main,nav{{max-width:80rem;margin:auto;padding:1.5rem clamp(1rem,4vw,3rem)}}
+nav{{display:flex;gap:1.5rem;flex-wrap:wrap;border-bottom:1px solid var(--border)}}
+a{{color:var(--link)}} h1{{font-family:var(--font-display);font-size:clamp(2rem,4vw,3rem);margin:.4rem 0}}
+h2{{margin-top:2.5rem}} h3{{font-size:1.15rem;margin:.5rem 0}}
+p{{line-height:1.6}} .intro{{max-width:58rem;color:var(--text-sub)}}
+.eyebrow{{font-family:var(--font-mono);font-size:.8rem;color:var(--text-ghost)}}
+.authority{{padding:1.25rem;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface)}}
+.authority strong{{font-size:1.2rem}} .mono,code,pre{{font-family:var(--font-mono);overflow-wrap:anywhere}}
+.formal-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));gap:1rem}}
+.formal-card{{padding:1.25rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg)}}
+.limit{{color:var(--text-sub)}} details{{margin-top:.75rem}} summary{{cursor:pointer;min-height:2rem;line-height:2}}
+summary:focus-visible,a:focus-visible{{outline:2px solid var(--focus);outline-offset:3px}}
+.table-wrap{{overflow-x:auto}} table{{width:100%;border-collapse:collapse;text-align:left}}
+th,td{{padding:.9rem;border-bottom:1px solid var(--border);vertical-align:top}}
+th{{font-weight:600}} pre{{white-space:pre-wrap;max-height:24rem;overflow:auto;min-width:16rem;font-size:.8rem}}
+.boundary{{padding:1rem;border-inline-start:3px solid var(--accent);background:var(--surface)}}
+footer{{margin:3rem 0 1rem;color:var(--text-sub);font-size:.9rem}}
 </style></head><body>
-<div class="ribbon">
-  <span>SZL HOLDINGS</span><span class="sep">/</span>
-  <span class="teal">A11OY</span><span class="sep">/</span>
-  <span>FORMULAS &middot; PURIQ REGISTRY</span><span class="sep">/</span>
-  <span>DOCTRINE V11 &middot; LOCKED</span>
-  <a href="/wires">wires &middot; the constitution &rarr;</a>
-</div>
-<header class="hero">
-<h1>PURIQ &mdash; <span class="accent">named-formula registry</span> &middot; 23 FormulaAgents</h1>
-<div class="sub">live self-evaluation + Khipu receipts + honest Lean self-prove &middot; signed Yachay (CTO) &middot;
-every row is addressable (#F1&hellip;#F23) &middot; click a row to reveal the raw machine check</div>
-</header>
-<div class="kpis">
-<div class="kpi"><b>{stats['n_agents']}</b><span>FormulaAgents</span></div>
-<div class="kpi"><b>{stats['proved_count']}</b><span>Lean PROVED</span></div>
-<div class="kpi"><b>{stats['harness_baseline']}</b><span>numeric harness</span></div>
-<div class="kpi"><b>749 / 14 / 163</b><span>Doctrine v11 LOCKED (decl/axioms/sorries)</span></div>
-<div class="kpi"><b>+{ew_total}</b><span>experimental kernel-verified (separate from locked)</span></div>
-</div>
-<div class="searchbar">
-<input id="q" type="search" placeholder="premise search &mdash; filter by id / name / organ / status (e.g. khipu, PROVED, rfl)" aria-label="search formulas"/>
-<span class="cnt" id="cnt"></span>
-</div>
-<div class="note" style="margin-top:12px">
-<b>Experimental kernel-verified waves</b> (NOT in the locked count of 8; honest maturity labels):<br>
-{ew_rows}
-<br><b>Trust Score interval:</b> sourced from <b>CONFORMAL</b> (W5-3 + W7-4) \u2014 distribution-free, with an anti-overconfidence floor (we never report 100%). NOT Hoeffding/PAC-Bayes (those are NOT proven at the pinned Mathlib v4.13.0).<br>
-<b>Deferred (not proven at pin):</b> C3 Hoeffding, C4 Azuma, C5 KL\u22650, C15, C16, C18, C19.
-</div>
-<table>
-<thead><tr><th>ID</th><th>Formula</th><th>Organ</th><th>Live value</th><th>Identity</th>
-<th>Lean class</th><th>Proof status</th><th>Harness</th><th>Chain</th><th>Invoked by</th></tr></thead>
-<tbody id="tb">
-{table}
-</tbody>
-</table>
-<div class="note">
-Locked-proven (<b>{proved}</b>): F1/F11/F12/F18/F19 proved in the local self-prove sprint (real local Lean v4.13.0, Mathlib-free); F4/F7/F22 locked kernel theorems (lutar-lean #219 / platform #321).
-Axioms: F11/F12 use <code>propext</code> (Lean core); F1/F18/F19 use none. No <code>sorryAx</code>.
-Lambda-uniqueness is <b>Conjecture 1</b>, NOT a theorem. Values recompute live per request.
-ADDITIVE only; IP-HOLD a11oy#57 untouched.
-</div>
-<div class="footer">
-registry pattern after mathlib &mdash; every result named + addressable (<a href="https://arxiv.org/abs/1910.09336" rel="noopener">arXiv:1910.09336</a>, cited) &middot;
-proof-state reveal after Alectryon (MIT, pattern) &middot; premise-search after LeanDojo/ReProver (MIT, pattern) &middot;
-0 runtime CDN &middot; fonts self-hosted &middot; JSON: <a href="/api/a11oy/v1/puriq/formulas">/api/a11oy/v1/puriq/formulas</a>
-</div>
-<script>
-(function(){{
-  var tb=document.getElementById('tb'),q=document.getElementById('q'),cnt=document.getElementById('cnt');
-  var frows=[].slice.call(tb.querySelectorAll('tr.frow'));
-  function applyFilter(){{
-    var s=(q.value||'').trim().toLowerCase(),n=0;
-    frows.forEach(function(r){{
-      var hit=!s||r.getAttribute('data-hay').indexOf(s)>=0;
-      r.style.display=hit?'':'none';n+=hit?1:0;
-      var d=document.getElementById('d-'+r.getAttribute('data-fid'));
-      if(d&&!hit)d.classList.remove('open');
-    }});
-    cnt.textContent=s?(n+' / '+frows.length+' match'):(frows.length+' formulas');
-  }}
-  q.addEventListener('input',applyFilter);applyFilter();
-  var loaded={{}};
-  function reveal(fid){{
-    var d=document.getElementById('d-'+fid);if(!d)return;
-    d.classList.toggle('open');
-    if(!d.classList.contains('open'))return;
-    var box=document.getElementById('db-'+fid);
-    box.textContent='fetching LIVE /api/a11oy/v1/puriq/formulas/'+fid+' \\u2026';
-    fetch('/api/a11oy/v1/puriq/formulas/'+fid).then(function(r){{
-      if(!r.ok)throw new Error('HTTP '+r.status);return r.json();
-    }}).then(function(j){{
-      box.textContent='LIVE proof-state / receipt chain (raw endpoint output, recomputed per request):\\n\\n'+JSON.stringify(j,null,2);
-    }}).catch(function(e){{
-      box.textContent='endpoint unreachable: '+e.message+' \\u2014 shown honestly, nothing cached or invented.';
-    }});
-  }}
-  tb.addEventListener('click',function(ev){{
-    if(ev.target.closest('a'))return;
-    var r=ev.target.closest('tr.frow');if(r)reveal(r.getAttribute('data-fid'));
-  }});
-  tb.addEventListener('keydown',function(ev){{
-    if(ev.key!=='Enter'&&ev.key!==' ')return;
-    var r=ev.target.closest('tr.frow');if(r){{ev.preventDefault();reveal(r.getAttribute('data-fid'));}}
-  }});
-  if(location.hash){{
-    var t=document.getElementById(location.hash.slice(1));
-    if(t&&t.classList.contains('frow'))reveal(t.getAttribute('data-fid'));
-  }}
-}})();
-</script>
-</body></html>"""
+<nav aria-label="Product"><strong>A11oy / Formula evidence</strong><a href="/console">Console</a>
+<a href="/verify">Verify evidence</a><a href="/api/a11oy/v1/puriq/formulas">Complete JSON</a></nav>
+<main><header><p class="eyebrow">DOCTRINE V11 · FORMAL SOURCE AND NUMERICAL SAMPLES</p>
+<h1>Understand what the mathematics establishes.</h1>
+<p class="intro">Inspect the exact statement, its limits, and its source before applying it.
+The historical numerical demonstrations use a separate namespace. A matching F-number does not
+establish that a theorem proves a demonstration or a deployed implementation.</p></header>
+<section class="authority" aria-label="Formal authority status" data-registry-digest="{digest}">
+<strong>Formal authority: {escape(formal['state'])} · {count_text} locked formulas</strong>
+<p>Registry signature: {escape(formal['signature_status'])}. The digest establishes byte integrity;
+it does not establish signer identity, runtime applicability, or permission to act.</p>
+<p class="mono">Registry SHA-256: {digest}</p>
+<a href="/api/a11oy/v1/puriq/formal-registry">Inspect canonical registry JSON</a></section>
+<h2>Formal statements and proof limits</h2>
+<p>Eight locked records and the F23 Lambda boundary are covered. Lambda uniqueness remains
+Conjecture 1, advisory. This is not an exhaustive inventory of SZL mathematics.</p>
+<div class="formal-grid">{formal_body}</div>
+<h2>Numerical demonstrations · SAMPLE</h2>
+<p class="boundary">These 23 examples use fixed reproducible inputs. Their proof binding is
+UNKNOWN_NOT_ASSERTED. A sample check is not a formal proof, a production measurement, or an
+action authorization. No receipts are minted or signed by this page.</p>
+<p class="mono">Namespace: {NUMERIC_DEMO_NAMESPACE}. Legacy F1–F23 links remain sample links.</p>
+<div class="table-wrap"><table><caption>Historical numerical examples with no inherited formal authority</caption>
+<thead><tr><th scope="col">Legacy ID</th><th scope="col">Demonstration</th><th scope="col">Sample value</th>
+<th scope="col">Sample check</th><th scope="col">Proof binding</th><th scope="col">Evidence</th></tr></thead>
+<tbody>{''.join(demo_rows)}</tbody></table></div>
+<footer>Formal identities come from the validated, commit-pinned formula registry. Numerical
+demonstrations remain separately identified. Reads perform no signing, persistence, or model inference.</footer>
+</main></body></html>'''
 
 
-# ---------------------------------------------------------------------------
-# register(app) — additive FastAPI routes
-# ---------------------------------------------------------------------------
 def register(app) -> None:
     @app.get("/formulas", response_class=HTMLResponse)
     async def puriq_formulas_page():
-        return HTMLResponse(_render_html())
+        snapshot = formula_surface_snapshot()
+        status = 200 if snapshot["formal_registry"]["state"] == "AVAILABLE" else 503
+        return HTMLResponse(_render_html(snapshot), status_code=status)
+
+    @app.get("/api/a11oy/v1/puriq/formal-registry")
+    async def puriq_formal_registry():
+        formal = formal_registry_snapshot()
+        return JSONResponse(formal, status_code=200 if formal["state"] == "AVAILABLE" else 503)
+
+    @app.get("/api/a11oy/v1/puriq/formal-registry/{fid}")
+    async def puriq_formal_detail(fid: str):
+        formal = formal_registry_snapshot()
+        if formal["state"] != "AVAILABLE":
+            return JSONResponse(formal, status_code=503)
+        row = formal["formulas"].get(fid.upper())
+        if row is None:
+            return JSONResponse({"error": "formula outside canonical registry coverage"}, status_code=404)
+        return JSONResponse(row)
 
     @app.get("/api/a11oy/v1/puriq/formulas")
     async def puriq_formulas_api():
-        return JSONResponse({"summary": summary_stats(), "formulas": live_snapshot()})
+        snapshot = formula_surface_snapshot()
+        status = 200 if snapshot["formal_registry"]["state"] == "AVAILABLE" else 503
+        return JSONResponse(snapshot, status_code=status)
 
     @app.get("/api/a11oy/v1/puriq/formulas/{fid}")
     async def puriq_formula_detail(fid: str):
-        snap = live_snapshot()
         key = fid.upper()
-        if key not in snap:
-            return JSONResponse({"error": f"unknown formula {fid}"}, status_code=404)
-        return JSONResponse(snap[key])
+        if key not in FORMULA_FUNCS:
+            return JSONResponse({"error": "unknown numerical demonstration"}, status_code=404)
+        return JSONResponse(live_snapshot()[key])
