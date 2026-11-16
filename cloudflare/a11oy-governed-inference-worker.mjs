@@ -486,7 +486,7 @@ async function runModel(env, request, evidence) {
         stream: false,
         temperature: 0.2,
         top_p: 0.9,
-      });
+      }, { gateway: { id: "szl-router" } });
       if (hasToolCall(raw)) {
         throw new GovernedError("model_attempted_tool_call", 502);
       }
