@@ -27,3 +27,6 @@ lmdb==3.0.0
 slowapi==0.1.10
 defusedxml==0.7.1
 numpy==2.5.4
+# Native VSP exporter capability; endpoint policy still controls activation.
+opentelemetry-sdk==1.45.2
+opentelemetry-exporter-otlp==1.45.2
