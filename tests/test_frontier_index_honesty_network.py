@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 SZL Holdings
-"""Prove the contract check denies real network I/O without replacing backends."""
+"""Prove network denial and bounded real route probes without replacing backends."""
 
 import importlib.util
 import json
@@ -138,3 +138,212 @@ def test_network_policy_never_excuses_independently_observed_label_drift(claimed
 
 def test_all_existing_and_new_negative_controls_still_pass():
     assert _checker()._selftest() == 0
+
+
+def test_route_probe_timeout_returns_before_the_handler_finishes():
+    import threading
+    import time
+    from types import SimpleNamespace
+    import szl_frontier_index as frontier
+    __import__("starlette.requests")
+
+    release = threading.Event()
+    workers = []
+    def blocked():
+        workers.append(threading.current_thread())
+        release.wait(1)
+        return {"label": "SAMPLE"}
+    try:
+        started = time.monotonic()
+        result = frontier._invoke_route(object(), SimpleNamespace(endpoint=blocked), "/probe", 0.03)
+        elapsed = time.monotonic() - started
+        assert result is None
+        assert elapsed < 0.4, "caller waited for the abandoned handler to finish"
+        assert workers and workers[0].is_alive()
+    finally:
+        release.set()
+        for worker in workers:
+            worker.join(timeout=2)
+
+
+import asyncio
+import threading
+import time
+from types import SimpleNamespace
+
+import szl_frontier_index as frontier
+
+
+@pytest.fixture
+def route_probes(monkeypatch):
+    registry = frontier._RouteProbeRegistry()
+    monkeypatch.setattr(frontier, "_ROUTE_PROBES", registry)
+    __import__("starlette.requests")
+    return registry
+
+
+def _release_probes(release, workers):
+    release.set()
+    for worker in tuple(workers):
+        worker.join(timeout=2)
+        assert not worker.is_alive(), "released read-probe worker did not finish"
+
+
+def test_route_probe_capacity_covers_timed_out_work_and_recovers(route_probes):
+    release, workers = threading.Event(), []
+    def blocked():
+        workers.append(threading.current_thread())
+        release.wait(3)
+        return {"label": "SAMPLE"}
+    app, other_app = object(), object()
+    route = SimpleNamespace(endpoint=blocked)
+    other_route = SimpleNamespace(endpoint=blocked)
+    keys = [(app, route, "/one"), (other_app, route, "/one"),
+            (app, other_route, "/one"), (app, route, "/two")]
+    available_calls = []
+    def available():
+        available_calls.append(True)
+        return {"label": "MODELED"}
+    available_route = SimpleNamespace(endpoint=available)
+    try:
+        for owner, selected, path in keys:
+            assert frontier._invoke_route(owner, selected, path, 0.1) is None
+        assert len(workers) == 4
+        assert all(worker.daemon and worker.is_alive() for worker in workers)
+        started = time.monotonic()
+        assert frontier._invoke_route(app, available_route, "/available", 1) is None
+        assert time.monotonic() - started < 0.2
+        assert available_calls == []
+        assert len(workers) == 4
+    finally:
+        _release_probes(release, workers)
+    assert frontier._invoke_route(app, available_route, "/available", 1) == {"label": "MODELED"}
+    assert available_calls == [True]
+
+
+def test_route_probe_duplicate_after_timeout_refuses_late_result_and_retries_fresh(route_probes):
+    release, workers, calls = threading.Event(), [], []
+    def endpoint():
+        calls.append(True)
+        workers.append(threading.current_thread())
+        if len(calls) == 1:
+            release.wait(3)
+            return {"label": "SAMPLE"}
+        return {"label": "MODELED"}
+    app, route = object(), SimpleNamespace(endpoint=endpoint)
+    try:
+        assert frontier._invoke_route(app, route, "/probe", 0.1) is None
+        started = time.monotonic()
+        for _ in range(5):
+            assert frontier._invoke_route(app, route, "/probe", 1) is None
+        assert time.monotonic() - started < 0.2
+        assert calls == [True]
+    finally:
+        _release_probes(release, workers)
+    assert frontier._invoke_route(app, route, "/probe", 1) == {"label": "MODELED"}
+    assert len(calls) == 2
+
+
+def test_route_probe_changed_callable_cannot_reuse_an_old_invocation(route_probes):
+    release, workers, calls = threading.Event(), [], []
+    def old():
+        calls.append("old")
+        workers.append(threading.current_thread())
+        release.wait(3)
+        return {"label": "SAMPLE"}
+    def replacement():
+        calls.append("replacement")
+        return {"label": "MODELED"}
+    app, route = object(), SimpleNamespace(endpoint=old)
+    try:
+        assert frontier._invoke_route(app, route, "/probe", 0.1) is None
+        route.endpoint = replacement
+        assert frontier._invoke_route(app, route, "/probe", 1) == {"label": "MODELED"}
+        assert calls == ["old", "replacement"]
+    finally:
+        _release_probes(release, workers)
+
+
+def test_route_probe_decode_holds_capacity_until_completion(route_probes):
+    route_probes.capacity = 1
+    release, workers = threading.Event(), []
+    class SlowBody:
+        @property
+        def body(self):
+            workers.append(threading.current_thread())
+            release.wait(3)
+            return b'{"label":"SAMPLE"}'
+    app = object()
+    route = SimpleNamespace(endpoint=lambda: SlowBody())
+    other_calls = []
+    def other():
+        other_calls.append(True)
+        return {"label": "MODELED"}
+    other_route = SimpleNamespace(endpoint=other)
+    try:
+        started = time.monotonic()
+        assert frontier._invoke_route(app, route, "/decode", 0.1) is None
+        assert time.monotonic() - started < 0.4
+        assert workers and workers[0].is_alive()
+        assert frontier._invoke_route(app, route, "/decode", 1) is None
+        assert frontier._invoke_route(app, other_route, "/other", 1) is None
+        assert other_calls == []
+    finally:
+        _release_probes(release, workers)
+    assert frontier._invoke_route(app, other_route, "/other", 1) == {"label": "MODELED"}
+
+
+@pytest.mark.parametrize("failure", ["handler", "start"])
+def test_route_probe_failure_releases_capacity(route_probes, monkeypatch, failure):
+    route_probes.capacity = 1
+    app = object()
+    def broken():
+        raise RuntimeError("private provider exception")
+    if failure == "handler":
+        assert frontier._invoke_route(app, SimpleNamespace(endpoint=broken), "/broken", 1) is None
+    else:
+        class FailedThread:
+            def __init__(self, **kwargs):
+                pass
+            def start(self):
+                raise RuntimeError("thread cannot start")
+        with monkeypatch.context() as scoped:
+            scoped.setattr(frontier.threading, "Thread", FailedThread)
+            assert frontier._invoke_route(app, SimpleNamespace(endpoint=broken), "/broken", 1) is None
+    route = SimpleNamespace(endpoint=lambda: {"label": "SAMPLE"})
+    assert frontier._invoke_route(app, route, "/recovered", 1) == {"label": "SAMPLE"}
+
+
+def test_route_probe_reentrant_same_route_refuses_without_deadlock(route_probes):
+    app, calls = object(), []
+    def endpoint():
+        calls.append(True)
+        assert frontier._invoke_route(app, route, "/recursive", 1) is None
+        return {"label": "SAMPLE"}
+    route = SimpleNamespace(endpoint=endpoint)
+    assert frontier._invoke_route(app, route, "/recursive", 0.3) == {"label": "SAMPLE"}
+    assert calls == [True]
+
+
+def test_route_probe_async_handler_keeps_request_and_label_contract(route_probes):
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+    app = object()
+    async def endpoint(request: Request):
+        await asyncio.sleep(0)
+        assert request.app is app and request.url.path == "/async"
+        return JSONResponse({"evidence": {"data_label": "SAMPLE"}, "label": "LIVE"})
+    route = SimpleNamespace(endpoint=endpoint)
+    payload = frontier._invoke_route(app, route, "/async", 1)
+    assert payload == {"evidence": {"data_label": "SAMPLE"}, "label": "LIVE"}
+    assert frontier._extract_label(payload) == "SAMPLE"
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf"), 1e300, "invalid"])
+def test_route_probe_invalid_deadline_does_not_start_work(route_probes, timeout):
+    calls = []
+    def endpoint():
+        calls.append(True)
+        return {"label": "SAMPLE"}
+    assert frontier._invoke_route(object(), SimpleNamespace(endpoint=endpoint), "/probe", timeout) is None
+    assert calls == []

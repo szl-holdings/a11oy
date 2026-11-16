@@ -52,7 +52,10 @@ DOCTRINE v11:
 """
 
 import datetime
+import math
 import re
+import threading
+import time
 from typing import Any
 
 # Honesty-label vocabulary (doctrine v11). Tests grep these exact strings. This is the
@@ -234,9 +237,13 @@ def _pick_probe_endpoints(surface_id: str, routes: list[str], ns: str) -> list[s
 # HTTP client): starlette's BaseHTTPMiddleware is re-entrancy-hostile, so driving a
 # TestClient from inside a live request corrupts the outer request. Calling the route
 # function directly reads the surface's OWN honest label without touching the ASGI /
-# middleware stack — which is exactly the ground truth we want. Every call is bounded by
-# a worker-thread timeout so a proxy endpoint that reaches for the network cannot hang the
-# catalog; on timeout / error the surface degrades to the honest "no label" outcome.
+# middleware stack — which is exactly the ground truth we want. Each caller has a
+# monotonic deadline; timeout, duplicate work, or exhausted capacity returns no label.
+# At most four daemon probes own handler/decode work at once, with no waiting work queue.
+# A timed-out handler still owns its slot until it actually finishes. Python handlers
+# cannot be forcibly stopped here; permanently blocked probes can exhaust capacity.
+# These probes must remain read-only: daemon threads are abruptly stopped at process
+# exit. This is not cancellation of a handler or a deadline for the whole catalog.
 # ---------------------------------------------------------------------------
 
 def _get_route(app, path: str):
@@ -267,6 +274,60 @@ def _synthetic_request(app, path: str):
     return Request(scope, receive=_receive)
 
 
+class _RouteProbe:
+    def __init__(self, app, route, endpoint, deadline):
+        # Keep identities alive while their id-based reservation exists.
+        self.owners = (app, route, endpoint)
+        self.deadline = deadline
+        self.done = threading.Event()
+        self.result = None
+
+
+class _RouteProbeRegistry:
+    def __init__(self, capacity=4):
+        self.capacity = capacity
+        self._lock = threading.Lock()
+        self._active = {}
+
+    def _run(self, key, probe, work):
+        result = None
+        try:
+            result = work()
+        except BaseException:
+            # A read-probe failure must not publish exception text or a label.
+            pass
+        finally:
+            with self._lock:
+                if time.monotonic() < probe.deadline:
+                    probe.result = result
+                if self._active.get(key) is probe:
+                    del self._active[key]
+                probe.done.set()
+
+    def invoke(self, app, route, endpoint, path, work, deadline):
+        key = (id(app), id(route), id(endpoint), path)
+        with self._lock:
+            if (time.monotonic() >= deadline or key in self._active
+                    or len(self._active) >= self.capacity):
+                return None
+            probe = _RouteProbe(app, route, endpoint, deadline)
+            self._active[key] = probe
+            try:
+                threading.Thread(target=self._run, args=(key, probe, work),
+                    name="frontier-label-probe", daemon=True).start()
+            except Exception:
+                if self._active.get(key) is probe:
+                    del self._active[key]
+                return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or not probe.done.wait(remaining):
+            return None
+        return probe.result if time.monotonic() < deadline else None
+
+
+_ROUTE_PROBES = _RouteProbeRegistry()
+
+
 def _invoke_route(app, route, path: str, timeout: float):
     """Invoke a route's endpoint callable directly, bounded by `timeout` seconds, and return
     its decoded JSON payload (dict) or None. Supplies a synthetic Request for a `Request`
@@ -275,6 +336,13 @@ def _invoke_route(app, route, path: str, timeout: float):
     import inspect
     import json as _json
 
+    try:
+        timeout = float(timeout)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(timeout) or not 0 < timeout <= threading.TIMEOUT_MAX:
+        return None
+    deadline = time.monotonic() + timeout
     fn = getattr(route, "endpoint", None)
     if fn is None or not callable(fn):
         return None
@@ -298,29 +366,23 @@ def _invoke_route(app, route, path: str, timeout: float):
     def _work():
         import asyncio as _aio
         if inspect.iscoroutinefunction(fn):
-            return _aio.run(fn(**kwargs))
-        res = fn(**kwargs)
-        if inspect.isawaitable(res):
-            return _aio.run(res)
-        return res
+            res = _aio.run(fn(**kwargs))
+        else:
+            res = fn(**kwargs)
+            if inspect.isawaitable(res):
+                res = _aio.run(res)
+        if isinstance(res, dict):
+            return res
+        body = getattr(res, "body", None)
+        if body is None:
+            return None
+        try:
+            payload = _json.loads(body)
+        except Exception:
+            return None
+        return payload if isinstance(payload, dict) else None
 
-    import concurrent.futures as _cf
-    try:
-        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
-            res = ex.submit(_work).result(timeout=timeout)
-    except Exception:
-        return None
-
-    if isinstance(res, dict):
-        return res
-    body = getattr(res, "body", None)
-    if body is None:
-        return None
-    try:
-        payload = _json.loads(body)
-    except Exception:
-        return None
-    return payload if isinstance(payload, dict) else None
+    return _ROUTE_PROBES.invoke(app, route, fn, path, _work, deadline)
 
 
 def _probe_label(app, endpoints: list[str], timeout: float = 3.0
