@@ -245,6 +245,63 @@ test("frontier model falls back without changing proposal-only boundary", async 
   assert.equal(body.authority_state, "NO_ACTION_AUTHORITY");
 });
 
+test("lora effort serves the estate-trained finetune with honest labeling", async () => {
+  const runs = [];
+  const env = {
+    SZL_SOURCE_REVISION: REVISION,
+    AI: {
+      async run(model, options) {
+        runs.push({ model, options });
+        return { response: "Bounded lora proposal [E0]." };
+      },
+    },
+  };
+  const response = await handleRequest(
+    request("/api/v2/governed-infer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "Bounded request", effort: "lora" }),
+    }),
+    env,
+    evidenceFetch,
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].model, "@cf/mistral/mistral-7b-instruct-v0.2-lora");
+  assert.equal(runs[0].options.lora, "21892cd9-b4ca-4032-8058-280835c0402a");
+  assert.equal(runs[0].options.reasoning_effort, undefined);
+  assert.equal(runs[0].options.store, undefined);
+  assert.equal(
+    body.model.kind,
+    "SZL_TRAINED_LORA_ADAPTER_ON_CLOUDFLARE",
+  );
+  assert.equal(
+    body.model.finetune_id,
+    "21892cd9-b4ca-4032-8058-280835c0402a",
+  );
+  assert.equal(
+    body.model.finetune_adapter_repository,
+    "SZLHOLDINGS/salad-lora-mistral7b-quant-v1",
+  );
+  assert.equal(body.model.owned_model_served, false);
+  assert.equal(body.honesty.output_is_owned_khipu_inference, false);
+  assert.equal(body.authority_state, "NO_ACTION_AUTHORITY");
+  assert.equal(body.executed, false);
+  assert.equal(
+    body.receipt.payload.model_kind,
+    "SZL_TRAINED_LORA_ADAPTER_ON_CLOUDFLARE",
+  );
+  assert.equal(
+    body.receipt.payload.finetune_adapter_repository,
+    "SZLHOLDINGS/salad-lora-mistral7b-quant-v1",
+  );
+  assert.equal(
+    body.receipt.payload.owned_model_served,
+    false,
+  );
+});
+
 test("invalid calls and missing governance fail closed", async () => {
   const env = {
     SZL_SOURCE_REVISION: REVISION,
