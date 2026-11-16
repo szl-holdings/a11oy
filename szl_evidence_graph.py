@@ -271,8 +271,8 @@ def register(app: Any, *, ns: str = "a11oy") -> tuple[str, str]:
     @app.get(base + "/graph")
     async def evidence_graph(
         limit: int = Query(_MAX_EDGES, ge=1, le=_MAX_EDGES),
-    ) -> JSONResponse:
-        return JSONResponse(environment_snapshot(max_edges=limit))
+    ) -> Any:
+        return JSONResponse(environment_snapshot(max_edges=limit)
 
     @app.get(base + "/query")
     async def evidence_query(
@@ -281,7 +281,7 @@ def register(app: Any, *, ns: str = "a11oy") -> tuple[str, str]:
         verdict: str | None = None,
         invariant_id: str | None = None,
         limit: int = Query(_MAX_EDGES, ge=1, le=_MAX_EDGES),
-    ) -> JSONResponse:
+    ) -> Any:
         current = environment_snapshot(max_edges=limit)
         try:
             selected = query_snapshot(
