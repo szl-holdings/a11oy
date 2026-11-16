@@ -681,7 +681,7 @@ jobs:
         # so a future edit dropping the autostart hook or the readiness wiring becomes
         # a red CI gate instead of a silent stall. The operator unit suite also covers
         # the lung-reachability + autostart-gating + readiness logic at module level.
-        run: pytest test_szl_energy_operator.py tests/test_energy_autostart_readyz.py -q
+        run: pytest test_szl_energy_operator.py tests/test_energy_autostart_readyz.py tests/test_energy_operator_lifecycle_concurrency.py -q
 
   python-be-hardening:
     name: Backend hardening surface tests (pytest)
