@@ -6,14 +6,94 @@
   let ready = false, sending = false, uncertain = false;
   let localReady = false, localSending = false, localUncertain = false;
   let cpuReady = false, cpuSending = false, cpuUncertain = false;
+  let cpuAcknowledgedPrompt = null;
+  const laneEvidence = { grok: null, local: null, cpu: null };
+  const SHA40 = /^(?!0{40}$)[a-f0-9]{40}$/;
+  const SHA256 = /^(?!0{64}$)[a-f0-9]{64}$/;
+  const RECEIPT_SCHEMA = 'a11oy.atelier.single-turn.receipt/v1';
+
+  function observedContext(value) {
+    return typeof value.source_revision === 'string' && SHA40.test(value.source_revision)
+      && typeof value.model === 'string' && value.model.length > 0 && value.model.length <= 512
+      ? Object.freeze({ source: value.source_revision, model: value.model }) : null;
+  }
+
+  function resetPublicConsent() {
+    cpuAcknowledgedPrompt = null;
+    el('cpu-public-ack').checked = false;
+  }
+
+  async function textHash(value) {
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+    return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function canonicalValue(value, depth = 0) {
+    if (depth > 32) throw new Error('RECEIPT_DEPTH_BOUND');
+    if (value === null || typeof value === 'boolean' || typeof value === 'string') return JSON.stringify(value);
+    if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value);
+    if (Array.isArray(value) && value.length <= 256) return '[' + value.map(x => canonicalValue(x, depth + 1)).join(',') + ']';
+    if (value && typeof value === 'object' && Object.keys(value).length <= 256) {
+      return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonicalValue(value[k], depth + 1)).join(',') + '}';
+    }
+    throw new Error('INVALID_RECEIPT_VALUE');
+  }
+
+  async function requireBoundOutcome(value, request, context, provider, mode = null) {
+    // These are response/request consistency checks, NOT independent signature
+    // verification, signer admission, exactly-once execution, or model quality.
+    const receipt = value.receipt, payload = receipt?.payload, envelope = value.dsse;
+    const require = condition => { if (!condition) throw new Error('OUTCOME_BINDING_UNAVAILABLE'); };
+    require(context && value.state === 'COMPLETED' && typeof value.answer === 'string'
+      && value.answer.trim() && value.answer.length <= 32768 && value.retry_safe === false);
+    require(receipt?.persisted === true && receipt.signature_verified === true
+      && typeof receipt.digest === 'string' && SHA256.test(receipt.digest)
+      && receipt.chain_scope === 'SINGLE_PROCESS_RETAINED_METADATA_CHAIN');
+    require(payload?.schema === RECEIPT_SCHEMA && payload.phase === 'OUTCOME'
+      && payload.state === 'COMPLETED' && typeof value.request_id === 'string'
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value.request_id)
+      && payload.request_id === value.request_id && payload.client_request_id === request.client_request_id
+      && payload.provider === provider
+      && payload.model === value.model && payload.model === (request.model || context.model)
+      && payload.source_revision === context.source
+      && typeof payload.decision_receipt_hash === 'string' && SHA256.test(payload.decision_receipt_hash));
+    if (mode) require(payload.mode === mode && value.mode === mode && value.provider === provider);
+    if (provider === 'szl_cpu_lab') require(payload.classification === 'PUBLIC'
+      && payload.public_share_acknowledged === true
+      && payload.provider_output_signature_status === 'UNSIGNED'
+      && value.provider_output_signature_status === 'UNSIGNED');
+    require(payload.prompt_sha256 === await textHash(request.prompt));
+    require(payload.answer_sha256 === await textHash(value.answer));
+    require(envelope?.signed === true && envelope.payloadType === 'application/vnd.szl.atelier-turn+json'
+      && typeof envelope.payload === 'string' && envelope.payload.length <= 262144
+      && Array.isArray(envelope.signatures) && envelope.signatures.length > 0 && envelope.signatures.length <= 16
+      && envelope.signatures.every(x => typeof x.sig === 'string' && x.sig.length > 0 && x.sig.length <= 16384));
+    const embedded = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(
+      Uint8Array.from(atob(envelope.payload), c => c.charCodeAt(0))));
+    require(canonicalValue(embedded) === canonicalValue(payload));
+  }
 
   async function json(url, options = {}, timeout = 15000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const response = await fetch(url, { ...options, cache: 'no-store', credentials: 'same-origin', signal: controller.signal });
+      const response = await fetch(url, { ...options, cache: 'no-store', credentials: 'same-origin', redirect: 'error', signal: controller.signal });
       if (!(response.headers.get('content-type') || '').includes('application/json')) throw new Error('NON_JSON_RESPONSE');
-      const value = await response.json();
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('RESPONSE_BODY_UNAVAILABLE');
+      const chunks = []; let bytes = 0;
+      try {
+        while (true) {
+          const next = await reader.read();
+          if (next.done) break;
+          bytes += next.value.byteLength;
+          if (bytes > 1048576) { controller.abort(); throw new Error('RESPONSE_BYTE_BOUND'); }
+          chunks.push(next.value);
+        }
+      } finally { reader.releaseLock(); }
+      const body = new Uint8Array(bytes); let offset = 0;
+      for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+      const value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body));
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('INVALID_RESPONSE');
       return { value, status: response.status, ok: response.ok };
     } finally { clearTimeout(timer); }
@@ -49,6 +129,7 @@
 
   async function refresh() {
     el('refresh').disabled = true; ready = false; localReady = false; cpuReady = false;
+    laneEvidence.grok = laneEvidence.local = laneEvidence.cpu = null;
     el('send').disabled = true; el('local-send').disabled = true; el('cpu-send').disabled = true;
     const results = await Promise.allSettled([
       json('/api/a11oy/v1/command-centre/manifest'), json('/api/build-info'),
@@ -66,12 +147,14 @@
       const value = build.value.value;
       const revision = value.build?.revision || value.git_sha || value.source_revision || value.sourceRevision || value.source_commit || value.sha;
       const validRevision = typeof revision === 'string' && /^[a-f0-9]{40}$/.test(revision);
-      el('source-state').textContent = validRevision ? 'Runtime source observed' : 'Runtime identity incomplete';
+      el('source-state').textContent = validRevision ? 'Declared by this process · not independently verified' : 'Runtime identity incomplete';
       el('source-sha').textContent = validRevision ? revision : 'No valid 40-character source revision';
     } else { el('source-state').textContent = 'Build information unavailable'; el('source-sha').textContent = 'Not observed'; }
     const health = results[2];
     if (health.status === 'fulfilled') {
-      const value = health.value.value; ready = health.value.ok && value.ready === true;
+      const value = health.value.value;
+      laneEvidence.grok = observedContext(value);
+      ready = health.value.ok && value.ready === true && value.provider === 'xai' && laneEvidence.grok !== null;
       el('grok-state').textContent = ready ? 'Configured · inference not yet witnessed' : 'Unavailable · configuration gates remain';
       const blockers = Array.isArray(value.blockers) ? value.blockers.join(' · ') : 'No successful inference established';
       el('grok-detail').textContent = `${value.model || 'Grok 4.7'} · ${blockers || 'A successful turn still needs its own receipt.'}`;
@@ -89,7 +172,8 @@
     const localHealth = results[5];
     if (localHealth.status === 'fulfilled' && localHealth.value.ok) {
       const value = localHealth.value.value;
-      localReady = value.ready === true && value.mode === 'NO_KEY_LOCAL';
+      laneEvidence.local = observedContext(value);
+      localReady = value.ready === true && value.mode === 'NO_KEY_LOCAL' && value.provider === 'local_ollama' && laneEvidence.local !== null;
       el('local-state').textContent = localReady ? 'Configured · inference not yet witnessed' : 'Unavailable · local gates remain';
       const blockers = Array.isArray(value.blockers) ? value.blockers.join(' · ') : 'No completed local turn established';
       el('local-detail').textContent = `${value.model || 'No model selected'} · ${blockers || 'A signed completed turn is still required.'}`;
@@ -102,7 +186,8 @@
     const cpuHealth = results[6];
     if (cpuHealth.status === 'fulfilled' && cpuHealth.value.ok) {
       const value = cpuHealth.value.value;
-      cpuReady = value.ready === true && value.mode === 'NO_PROVIDER_KEY_PUBLIC_CPU_LAB';
+      laneEvidence.cpu = observedContext(value);
+      cpuReady = value.ready === true && value.mode === 'NO_PROVIDER_KEY_PUBLIC_CPU_LAB' && value.provider === 'szl_cpu_lab' && laneEvidence.cpu !== null;
       el('cpu-state').textContent = cpuReady ? 'Local gates configured · remote identity not yet checked' : 'Unavailable · CPU lab gates remain';
       const blockers = Array.isArray(value.blockers) ? value.blockers.join(' · ') : 'No completed CPU lab turn established';
       el('cpu-detail').textContent = `${value.model || 'No model selected'} · ${blockers || 'Remote identity is checked only during a signed turn; inference remains unverified.'}`;
@@ -119,28 +204,35 @@
   }
 
   el('refresh').addEventListener('click', refresh);
+  el('cpu-public-ack').addEventListener('change', () => {
+    cpuAcknowledgedPrompt = el('cpu-public-ack').checked ? el('cpu-prompt').value : null;
+  });
+  for (const event of ['input', 'change']) el('cpu-prompt').addEventListener(event, resetPublicConsent);
   el('forget-key').addEventListener('click', () => { el('operator-key').value = ''; });
   el('local-forget-key').addEventListener('click', () => { el('local-operator-key').value = ''; });
   el('cpu-forget-key').addEventListener('click', () => { el('cpu-operator-key').value = ''; });
-  window.addEventListener('pagehide', () => { el('operator-key').value = ''; el('local-operator-key').value = ''; el('cpu-operator-key').value = ''; el('cpu-public-ack').checked = false; });
+  window.addEventListener('pagehide', () => { el('operator-key').value = ''; el('local-operator-key').value = ''; el('cpu-operator-key').value = ''; resetPublicConsent(); });
   el('turn-form').addEventListener('submit', async (event) => {
     event.preventDefault(); if (sending || !ready) return;
     const credential = el('operator-key').value.trim();
     if (!credential || /\s/.test(credential) || credential.length > 4096) { el('turn-status').textContent = 'Enter a valid Atelier operator credential, not the xAI API key.'; return; }
     if (uncertain && !window.confirm('The previous request may have executed at the provider. Sending again can incur another charge. Send a new request?')) return;
+    const request = Object.freeze({ client_request_id: crypto.randomUUID(), prompt: el('prompt').value, model: el('model').value, reasoning_effort: el('effort').value, declared: el('classification').value });
+    const context = laneEvidence.grok;
     uncertain = false; sending = true; el('send').disabled = true;
     el('answer').hidden = true; el('answer').textContent = ''; el('receipt-panel').hidden = true; el('receipt').textContent = '';
     el('turn-status').textContent = 'Checking authorization and policy, then making at most one provider request…';
     try {
       const response = await json('/api/a11oy/v1/atelier/turn', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
-        body: JSON.stringify({ prompt: el('prompt').value, model: el('model').value, reasoning_effort: el('effort').value, declared: el('classification').value }),
+        body: JSON.stringify(request),
       }, 130000);
       const { answer, ...evidence } = response.value;
       el('receipt').textContent = JSON.stringify(evidence, null, 2); el('receipt-panel').hidden = false;
       if (response.ok && response.value.state === 'COMPLETED' && typeof answer === 'string' && answer.trim()) {
+        await requireBoundOutcome(response.value, request, context, 'xai');
         el('answer').textContent = answer; el('answer').hidden = false;
-        el('turn-status').textContent = 'Final text received. Inspect the server’s signed outcome receipt below.';
+        el('turn-status').textContent = 'Response matched the submitted request (not any later draft). The server reports a persisted, signature-verified outcome; it is not independently verified in this browser.';
       } else {
         uncertain = response.status >= 500 || response.value.code === 'PROVIDER_TIMEOUT';
         el('turn-status').textContent = `No completed answer · ${response.value.code || response.value.state || `HTTP ${response.status}`}. No automatic retry was made.`;
@@ -154,6 +246,8 @@
     const credential = el('local-operator-key').value.trim();
     if (!credential || /\s/.test(credential) || credential.length > 4096) { el('local-turn-status').textContent = 'Enter the local Atelier operator credential.'; return; }
     if (localUncertain && !window.confirm('The previous local request may have executed. Send a new request?')) return;
+    const request = Object.freeze({ client_request_id: crypto.randomUUID(), prompt: el('local-prompt').value, declared: el('local-classification').value, max_output_tokens: 768 });
+    const context = laneEvidence.local;
     localUncertain = false; localSending = true; el('local-send').disabled = true;
     el('local-answer').hidden = true; el('local-answer').textContent = '';
     el('local-receipt-panel').hidden = true; el('local-receipt').textContent = '';
@@ -161,14 +255,15 @@
     try {
       const response = await json('/api/a11oy/v1/atelier/local/turn', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
-        body: JSON.stringify({ prompt: el('local-prompt').value, declared: el('local-classification').value, max_output_tokens: 768 }),
+        body: JSON.stringify(request),
       }, 130000);
       const { answer, ...evidence } = response.value;
       el('local-receipt').textContent = JSON.stringify(evidence, null, 2);
       el('local-receipt-panel').hidden = false;
       if (response.ok && response.value.state === 'COMPLETED' && typeof answer === 'string' && answer.trim()) {
+        await requireBoundOutcome(response.value, request, context, 'local_ollama', 'NO_KEY_LOCAL');
         el('local-answer').textContent = answer; el('local-answer').hidden = false;
-        el('local-turn-status').textContent = 'Local model text received. Inspect the signed outcome receipt below.';
+        el('local-turn-status').textContent = 'Local response matched the submitted request (not any later draft). The server reports a persisted, signature-verified outcome; it is not independently verified in this browser.';
       } else {
         localUncertain = response.status >= 500;
         el('local-turn-status').textContent = `No completed local answer · ${response.value.code || response.value.state || `HTTP ${response.status}`}. No automatic retry was made.`;
@@ -184,24 +279,27 @@
     if (!credential || /\s/.test(credential) || credential.length > 4096) { el('cpu-turn-status').textContent = 'Enter an Atelier operator credential, not a provider key.'; return; }
     const prompt = el('cpu-prompt').value;
     if (!prompt || prompt !== prompt.trim() || prompt.length > 1200 || prompt.includes('\0')) { el('cpu-turn-status').textContent = 'Enter one public prompt of at most 1,200 characters with no surrounding whitespace.'; return; }
-    if (!el('cpu-public-ack').checked) { el('cpu-turn-status').textContent = 'Confirm this exact prompt is safe to disclose to the public CPU lab.'; return; }
+    if (!el('cpu-public-ack').checked || cpuAcknowledgedPrompt !== prompt) { resetPublicConsent(); el('cpu-turn-status').textContent = 'Confirm this exact prompt is safe to disclose to the public CPU lab.'; return; }
     if (cpuUncertain && !window.confirm('The previous CPU lab request may have executed. Send a new request?')) return;
+    const request = Object.freeze({ client_request_id: crypto.randomUUID(), prompt, declared: 'PUBLIC', public_share_acknowledged: true, max_output_tokens: 24 });
+    const context = laneEvidence.cpu;
     cpuUncertain = false; cpuSending = true; el('cpu-send').disabled = true;
-    el('cpu-public-ack').checked = false;
+    resetPublicConsent();
     el('cpu-answer').hidden = true; el('cpu-answer').textContent = '';
     el('cpu-receipt-panel').hidden = true; el('cpu-receipt').textContent = '';
     el('cpu-turn-status').textContent = 'Checking operator permission and policy, then sending at most one public CPU lab request…';
     try {
       const response = await json('/api/a11oy/v1/atelier/cpu-lab/turn', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
-        body: JSON.stringify({ prompt, declared: 'PUBLIC', public_share_acknowledged: true, max_output_tokens: 24 }),
+        body: JSON.stringify(request),
       }, 70000);
       const { answer, ...evidence } = response.value;
       el('cpu-receipt').textContent = JSON.stringify(evidence, null, 2);
       el('cpu-receipt-panel').hidden = false;
       if (response.ok && response.value.state === 'COMPLETED' && typeof answer === 'string' && answer.trim()) {
+        await requireBoundOutcome(response.value, request, context, 'szl_cpu_lab', 'NO_PROVIDER_KEY_PUBLIC_CPU_LAB');
         el('cpu-answer').textContent = answer; el('cpu-answer').hidden = false;
-        el('cpu-turn-status').textContent = 'CPU lab text received. Atelier outcome is signed; the lab execution record remains UNSIGNED.';
+        el('cpu-turn-status').textContent = 'CPU response matched the submitted request (not any later draft). The server-reported Atelier outcome is not independently verified in this browser; the lab execution record remains UNSIGNED.';
       } else {
         cpuUncertain = response.status >= 500 || response.value.code === 'LAB_TIMEOUT';
         el('cpu-turn-status').textContent = `No completed CPU lab answer · ${response.value.code || response.value.state || `HTTP ${response.status}`}. No automatic retry was made.`;

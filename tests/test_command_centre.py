@@ -241,3 +241,17 @@ def test_vendor_exception_is_byte_bound_not_application_exemption():
     assert allowlist.is_allowed('routers/command_centre_web/szl/szl-design-system.css')
     assert not allowlist.is_allowed('routers/command_centre_web/app.js')
     assert not allowlist.is_allowed('routers/command_centre_web/index.html')
+
+
+def test_browser_action_binding_contract():
+    """Execute the maintained client, not source substring claims, with fake I/O."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+    node = shutil.which("node")
+    assert node, "Node >=18 is required for the command-centre contract tests"
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run([node, "--test", "tests/command_centre_action_binding.test.mjs"],
+                            cwd=root, capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=60)
+    assert result.returncode == 0, result.stdout + result.stderr

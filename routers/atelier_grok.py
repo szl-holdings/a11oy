@@ -81,6 +81,8 @@ _SAFE_PROVIDER_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,200}$")
 
 class TurnRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
+    client_request_id: Optional[str] = Field(default=None, max_length=36,
+        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
     prompt: str = Field(min_length=1, max_length=32_768)
     reasoning_effort: Literal["low", "medium", "high", "xhigh"] = "high"
     model: Optional[str] = Field(default=None, max_length=80)
@@ -99,6 +101,8 @@ class LocalTurnRequest(BaseModel):
     """Local inference has no xAI model or reasoning-effort override."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
+    client_request_id: Optional[str] = Field(default=None, max_length=36,
+        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
     prompt: str = Field(min_length=1, max_length=32_768)
     declared: Literal["PUBLIC", "INTERNAL", "RESTRICTED", "SECRET"] = "PUBLIC"
     max_output_tokens: int = Field(default=4096, ge=1, le=4096)
@@ -115,6 +119,8 @@ class CpuLabTurnRequest(BaseModel):
     """Public-only, exact-text subset of the pinned CPU lab's chat contract."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
+    client_request_id: Optional[str] = Field(default=None, max_length=36,
+        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
     prompt: str = Field(min_length=1, max_length=CPU_LAB_MAX_INPUT_CHARS)
     declared: Literal["PUBLIC"] = "PUBLIC"
     max_output_tokens: int = Field(default=24, ge=1, le=CPU_LAB_MAX_OUTPUT_TOKENS)
@@ -735,7 +741,8 @@ def _execute(principal, turn):
         )
         allowed = (classification.get("class") in {"PUBLIC", "INTERNAL"}
                    and policy.get("decision") == "allow")
-        metadata = {"request_id": request_id, "provider": "xai", "model": model,
+        metadata = {**({"client_request_id": turn.client_request_id} if turn.client_request_id is not None else {}),
+                    "request_id": request_id, "provider": "xai", "model": model,
                     "prompt_sha256": hashlib.sha256(turn.prompt.encode()).hexdigest(),
                     "classification": classification.get("class"),
                     "reasoning_effort": turn.reasoning_effort,
@@ -806,7 +813,8 @@ def _execute_local(principal, turn):
         )
         allowed = (classification.get("class") in {"PUBLIC", "INTERNAL"}
                    and policy.get("decision") == "allow")
-        metadata = {"request_id": request_id, "provider": LOCAL_PROVIDER,
+        metadata = {**({"client_request_id": turn.client_request_id} if turn.client_request_id is not None else {}),
+                    "request_id": request_id, "provider": LOCAL_PROVIDER,
                     "mode": LOCAL_MODE, "model": model,
                     "model_digest_expected": expected_digest,
                     "prompt_sha256": hashlib.sha256(turn.prompt.encode()).hexdigest(),
@@ -898,7 +906,8 @@ def _execute_cpu_lab(principal, turn):
         )
         allowed = (classification.get("class") == "PUBLIC"
                    and policy.get("decision") == "allow")
-        metadata = {"request_id": request_id, "provider": CPU_LAB_PROVIDER,
+        metadata = {**({"client_request_id": turn.client_request_id} if turn.client_request_id is not None else {}),
+                    "request_id": request_id, "provider": CPU_LAB_PROVIDER,
                     "mode": CPU_LAB_MODE, "model": CPU_LAB_MODEL,
                     "model_digest_expected": CPU_LAB_MODEL_SHA256,
                     "release_id_expected": CPU_LAB_RELEASE_ID,
