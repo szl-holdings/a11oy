@@ -116,6 +116,228 @@ test("model response extraction supports chat and strips reasoning blocks", () =
   );
 });
 
+// Keep this corpus aligned with test_a11oy_governed_cortex.py.
+for (const [name, raw, expected] of [
+  [
+    "plain answer",
+    "Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "balanced think",
+    "<think>private-a</think>\nFinal [E0]",
+    "Final [E0]"
+  ],
+  [
+    "balanced analysis",
+    "<analysis>private-a</analysis>Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "balanced analysis fence",
+    "```analysis\nprivate-a\n```\nFinal [E0]",
+    "Final [E0]"
+  ],
+  [
+    "mixed case",
+    "<ThInK>private-a</ThInK><ANALYSIS>private-b</ANALYSIS>Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "nested same tags",
+    "<think>private-a<think>private-b</think>private-c</think>Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "nested mixed tags",
+    "<think>private-a<analysis>private-b</analysis>private-c</think>Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "multiple blocks",
+    "First <think>private-a</think> last [E0]<analysis>private-b</analysis>",
+    "First  last [E0]"
+  ],
+  [
+    "ordinary code fence",
+    "```python\nprint('ok')\n```",
+    "```python\nprint('ok')\n```"
+  ],
+  [
+    "unrelated tag names",
+    "<thinker>display</thinker> <analysis_result>result</analysis_result>",
+    "<thinker>display</thinker> <analysis_result>result</analysis_result>"
+  ],
+  [
+    "unrelated fence language",
+    "```analysis_json\n{}\n```",
+    "```analysis_json\n{}\n```"
+  ],
+  [
+    "XML text inside analysis fence",
+    "```analysis\n<think>private-a\n```\nFinal [E0]",
+    "Final [E0]"
+  ],
+  [
+    "analysis fence inside think",
+    "<think>private-a\n```analysis\nprivate-b\n```\nprivate-c</think>Final [E0]",
+    "Final [E0]"
+  ]
+]) {
+  test(`reasoning boundary preserves safe output: ${name}`, () => {
+    assert.equal(sanitizeModelOutput(raw), expected);
+  });
+}
+
+for (const [name, raw] of [
+  [
+    "orphan think close",
+    "private-a</think>Final [E0]"
+  ],
+  [
+    "orphan analysis close",
+    "private-a</analysis>Final [E0]"
+  ],
+  [
+    "unclosed think",
+    "<think>private-a"
+  ],
+  [
+    "unclosed analysis",
+    "Final [E0]<analysis>private-a"
+  ],
+  [
+    "truncated opening marker",
+    "Final [E0]<think"
+  ],
+  [
+    "truncated closing marker",
+    "private-a</think"
+  ],
+  [
+    "unsupported tag attributes",
+    "<think role=\"private\">private-a</think>Final [E0]"
+  ],
+  [
+    "unsupported tag whitespace",
+    "< think >private-a</think>Final [E0]"
+  ],
+  [
+    "unsupported fence whitespace",
+    "``` analysis\nprivate-a\n```Final [E0]"
+  ],
+  [
+    "unclosed analysis fence",
+    "```analysis\nprivate-a"
+  ],
+  [
+    "unclosed outer same tag",
+    "<think>private-a<think>private-b</think>private-c"
+  ],
+  [
+    "crossed tags",
+    "<think>private-a<analysis>private-b</think>private-c</analysis>Final [E0]"
+  ],
+  [
+    "reverse crossed tags",
+    "<analysis>private-a<think>private-b</analysis>private-c</think>Final [E0]"
+  ],
+  [
+    "nested analysis fences",
+    "```analysis\nprivate-a```analysis\nprivate-b```\nFinal [E0]"
+  ],
+  [
+    "extra closing tag",
+    "<think>private-a</think>private-b</think>Final [E0]"
+  ],
+  [
+    "code opener inside analysis fence",
+    "```analysis\nprivate-a\n```python\nprivate-b\n```"
+  ],
+  [
+    "inline backticks inside analysis fence",
+    "```analysis\nprivate-a ``` private-b\n```"
+  ],
+  [
+    "longer delimiter inside analysis fence",
+    "```analysis\nprivate-a\n````analysis\nprivate-b\n```"
+  ],
+  [
+    "inline closing analysis fence",
+    "```analysis\nprivate-a```Final [E0]"
+  ]
+]) {
+  test(`reasoning boundary rejects malformed output: ${name}`, () => {
+    assert.throws(
+      () => sanitizeModelOutput(raw),
+      /model_reasoning_boundary_invalid/,
+    );
+  });
+}
+
+test("reasoning boundary checks the entire output before truncation", () => {
+  assert.equal(sanitizeModelOutput("x".repeat(24_001)).length, 24_000);
+  const ordinaryText = "<" + " ".repeat(16_000) + "x";
+  assert.equal(sanitizeModelOutput(ordinaryText), ordinaryText);
+  assert.throws(
+    () => sanitizeModelOutput("x".repeat(24_001) + "</think>"),
+    /model_reasoning_boundary_invalid/,
+  );
+  for (const raw of [" ", "<think>private-a</think>", "```analysis\nprivate-a\n```"]) {
+    assert.throws(() => sanitizeModelOutput(raw), /empty_model_output/);
+  }
+});
+
+test("malformed candidate output fails closed without a receipt or response text", async () => {
+  const response = await handleRequest(
+    request("/api/v2/governed-infer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "Bounded request", effort: "fast" }),
+    }),
+    {
+      SZL_SOURCE_REVISION: REVISION,
+      AI: { run: async () => ({ response: "private-marker</think>Final [E0]" }) },
+    },
+    evidenceFetch,
+  );
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.equal(body.error, "all_model_candidates_failed");
+  assert.equal(body.authority_state, "NO_ACTION_AUTHORITY");
+  assert.equal(body.executed, false);
+  assert.equal(body.receipt, undefined);
+  assert.equal(JSON.stringify(body).includes("private-marker"), false);
+});
+
+test("malformed candidate output can fall back to a clean candidate", async () => {
+  let calls = 0;
+  const response = await handleRequest(
+    request("/api/v2/governed-infer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "Bounded request", effort: "fast" }),
+    }),
+    {
+      SZL_SOURCE_REVISION: REVISION,
+      AI: {
+        run: async () => ({
+          response: ++calls === 1
+            ? "private-marker</think>Final [E0]"
+            : "Clean final [E0]",
+        }),
+      },
+    },
+    evidenceFetch,
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(calls, 2);
+  assert.equal(body.model.fallback_count, 1);
+  assert.equal(body.output, "Clean final [E0]");
+  assert.equal(JSON.stringify(body).includes("private-marker"), false);
+});
+
 test("contract keeps external runtime, owned artifact, and action authority distinct", () => {
   const contract = buildContract(REVISION);
   assert.equal(contract.source_revision, REVISION);
