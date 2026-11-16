@@ -776,6 +776,16 @@ try:
 except Exception as _szl_ev_e:  # pragma: no cover
     print(f"[a11oy] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
 
+# Canonical Evidence Graph (CEG): deterministic, bounded, read-only edges
+# linking explicit runtime identity to later attestations. Empty identity is
+# reported UNAVAILABLE; this module never infers readiness or authority.
+try:
+    import szl_evidence_graph as _szl_evidence_graph
+    _szl_ceg_paths = _szl_evidence_graph.register(app, ns="a11oy")
+    print(f"[a11oy] Canonical Evidence Graph registered: {_szl_ceg_paths}", file=__import__("sys").stderr)
+except Exception as _szl_ceg_e:  # pragma: no cover
+    print(f"[a11oy] Canonical Evidence Graph NOT registered: {_szl_ceg_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
 # ── Org-wide Λ + ONE chain + insurance (David Leads) fold-in (dev C / unify-sovereign-org).
 # Adds GET /api/a11oy/v1/lambda/org (13-axis weighted-geomean org posture, advisory floor
 # 0.90; bounds SEMANTIC-VERIFIED Lutar/Bound.lean, uniqueness = Conjecture 1), the insurance
