@@ -59,13 +59,39 @@ A diagnostic construction error is isolated after inference and returns a
 fixed UNAVAILABLE reason. Existing inference/Nemo failures retain their
 existing error response and do not create a success observation.
 
-## Trace and hash profiles
+## Canonical server trace context
 
-The route reads the current `request.state.traceparent` from the existing
-middleware. The current server span is the parsed `parent_id`; the sidecar
-describes that same operation rather than inventing a child span. It does not
-derive a trace identifier from the deterministic cortex request identifier.
-Repeated requests therefore retain the middleware's per-request span behavior.
+In the canonical composed stack, VSP runs outside Wire D and backend hardening.
+For each request it owns one native, immutable server context, bound to the
+actual SDK server span or the in-process fallback context. The response,
+receipt context and cortex sidecar read this same server trace/span identity.
+Later changes to mutable compatibility fields on `request.state` do not select
+a different canonical server span. An incoming `x-trace-id` also cannot replace
+that established identity.
+
+If an SDK span returns an invalid or unreadable context, propagation uses a
+coherent in-process fallback and the completed inference remains available.
+The sidecar reports UNAVAILABLE because that fallback cannot establish the
+failed SDK span's identity; SDK exception text is not exposed.
+
+Wire D adopts that context before recording provenance or updating `tracestate`.
+Backend hardening adopts the established identifiers. The canonical `serve.py`
+imports the repository-local `szl_provenance` implementation deterministically,
+binding Wire D behavior to the reviewed source.
+
+VSP retains its strict trace-flags profile: incoming flags `00` and `01` are
+accepted. In the composed stack, unsupported flag bytes such as `03` and `ff`
+start a new root and discard incoming `tracestate`. This describes VSP's
+admission policy; the standalone Wire D flags policy is unchanged. If the SDK
+establishes a different trace from the admitted incoming trace, its actual IDs
+remain canonical, while the incoming parent and `tracestate` are discarded.
+
+The sidecar identifies the current server span. Outbound HTTP propagation
+creates a new child span from the canonical context. Trace identifiers are
+not derived from the deterministic cortex request identifier, and repeated
+requests retain per-request server spans.
+
+## Hash profiles
 
 `observation_sha256` hashes all other sidecar fields using sorted-key, compact
 UTF-8 Python JSON with `ensure_ascii=False` and `allow_nan=False`.
@@ -110,9 +136,13 @@ The owned-cortex workflow runs the existing pinned-Nemo suite together with:
 
 - `tests/test_trace_ir.py`: malformed policy/coverage, numeric boundaries,
   strict JSON, key impersonation, context/hash validation and content exclusion.
-- `tests/test_cortex_trace_observation.py`: actual ASGI middleware relationship,
-  receipt byte preservation, metadata inconsistencies, telemetry failure
-  isolation, unchanged denial behavior and read-only discovery behavior.
+- `tests/test_cortex_trace_observation.py`: ASGI sidecar behavior, receipt byte
+  preservation, metadata inconsistencies, telemetry failure isolation,
+  unchanged denial behavior and read-only discovery behavior.
+- `tests/test_canonical_server_trace_context.py`: composed VSP, Wire D and
+  backend-hardening context identity, SDK and fallback contexts, mutable-state
+  isolation, flags admission, receipt/response/sidecar agreement and outbound
+  child propagation.
 - `tests/test_vsp_otel_packaging.py`: imports from the deployed file closure.
 
 No scheduler policy, model evaluation, model promotion, action admission,
