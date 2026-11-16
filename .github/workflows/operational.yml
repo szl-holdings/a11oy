@@ -115,6 +115,7 @@ jobs:
         run: |
           bash scripts/validate-operational.sh
           python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 scripts/test_hf_endpoint_semantics.py
           python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
           python3 scripts/build_ecosystem_stage_matrix.py --check
           node scripts/test_validate_huggingface_ecosystem_schema.mjs

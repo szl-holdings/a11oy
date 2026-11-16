@@ -21,11 +21,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 try:
-    from scripts.hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme
+    from scripts.hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme, validate_url
     from scripts import hf_revision_classes as revision_classes
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme
+    from hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme, validate_url
     import hf_revision_classes as revision_classes
 
 
@@ -526,6 +526,40 @@ def display_path(path: Path) -> Path:
         return path
 
 
+def semantic_api_endpoints(endpoints: Any) -> list[dict[str, Any]]:
+    """Compare pagination scope, not opaque transport cursor bytes.
+
+    Raw consulted URLs stay unchanged in the retained manifest. Only this
+    in-memory projection ignores cursor VALUES after the existing public-only
+    URL validator approves the complete scope. Order, page count, cursor
+    presence, namespace and reserved-README observations remain comparable.
+    """
+    if not isinstance(endpoints, list) or not 0 < len(endpoints) <= len(KINDS) * MAX_PAGES + 1:
+        raise ValueError("publicApiEndpoints must be a bounded nonempty list")
+    projected = []
+    seen = set()
+    reserved = f"https://huggingface.co/api/spaces/{ORG}/README"
+    for url in endpoints:
+        if not isinstance(url, str) or len(url) > 16_384 or url in seen:
+            raise ValueError("invalid or duplicated public API endpoint evidence")
+        seen.add(url)
+        if url == reserved:
+            projected.append({"scopeUrl": reserved, "continuation": False})
+            continue
+        parsed = urllib.parse.urlsplit(url)
+        kind = parsed.path.removeprefix("/api/")
+        if kind not in KINDS:
+            raise ValueError("public API endpoint namespace changed")
+        validate_url(url, ORG, kind)
+        query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True, strict_parsing=True)
+        scope = urllib.parse.urlencode(sorted((key, value) for key, value in query if key != "cursor"))
+        projected.append({
+            "scopeUrl": f"https://huggingface.co/api/{kind}?{scope}",
+            "continuation": any(key == "cursor" for key, _ in query),
+        })
+    return projected
+
+
 def semantic_manifest(
     manifest: dict[str, Any],
     classes: revision_classes.RevisionClasses | None = None,
@@ -544,6 +578,8 @@ def semantic_manifest(
     if classes is None:
         classes = revision_classes.load_revision_classes()
     stable = json.loads(json.dumps(manifest))
+    if "publicApiEndpoints" in stable:
+        stable["publicApiEndpoints"] = semantic_api_endpoints(stable["publicApiEndpoints"])
     for repo_type in KINDS:
         for item in stable.get("inventory", {}).get(repo_type, []):
             # A restricted README is unobserved and a governed row is release
@@ -863,6 +899,7 @@ def check_manifest(output: Path, rename: list[str] | None, report: Path | None) 
         # Loaded before any network read; a broken policy is never a default.
         classes = revision_classes.load_revision_classes()
         revision_classes.validate_manifest_coverage(classes, existing, label="tracked manifest")
+        existing_semantic = semantic_manifest(existing, classes)
     except (TypeError, ValueError) as exc:
         return done("INVALID", f"Hugging Face revision classes or coverage are invalid: {exc}")
     done = partial(done, classes=classes)
@@ -876,6 +913,7 @@ def check_manifest(output: Path, rename: list[str] | None, report: Path | None) 
             observed_at=parsed_observed_at,
             classes=classes,
         )
+        live_semantic = semantic_manifest(live, classes)
     except Exception as exc:
         if hub_unavailable(exc):
             return done("UNAVAILABLE", f"Hugging Face ecosystem evidence is unavailable: {output}: {exc}")
@@ -884,7 +922,7 @@ def check_manifest(output: Path, rename: list[str] | None, report: Path | None) 
             traceback.print_exc()
             detail = f"{type(exc).__name__}: {exc}"
         return done("INVALID", f"Hugging Face ecosystem manifest is invalid: {output}: {detail}")
-    if semantic_manifest(existing, classes) != semantic_manifest(live, classes):
+    if existing_semantic != live_semantic:
         rows, top_level = changed_rows(existing, live, classes)
         return done("DRIFT", f"Hugging Face ecosystem manifest is stale: {output}", rows=rows, top_level=top_level)
     return done("CURRENT", f"Hugging Face ecosystem manifest is current: {display_path(output)}")
