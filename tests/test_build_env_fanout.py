@@ -260,3 +260,12 @@ def test_runtime_registration_and_container_copy_are_present():
     assert catchalls and registrations[0].lineno < min(catchalls)
     copies = [line for line in (root / "Dockerfile").read_text().splitlines() if line.startswith("COPY ")]
     assert any("a11oy_build_env_fanout.py" in line.split()[1:-1] for line in copies)
+
+
+def test_ci_creates_artifact_parent_before_pytest_temp_fixture():
+    workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/build-env-fanout.yml").read_text(encoding="utf-8")
+    prepare = workflow.index("mkdir -p fanout-test-evidence")
+    run = workflow.index("python -B -m pytest")
+    assert prepare < run
+    assert "--basetemp=fanout-test-evidence/fixtures" in workflow
+    assert "--junitxml=fanout-test-evidence/junit.xml" in workflow

@@ -54,6 +54,8 @@ jobs:
           python-version: '3.12'
       - name: Install hash-locked test dependency closure
         run: python -m pip install --require-hashes -r .github/requirements/ci-build-env-fanout.txt
+      - name: Prepare fixture evidence directory
+        run: mkdir -p fanout-test-evidence
       - name: Verify bounded reads and real local trace export
         run: >-
           python -B -m pytest -q -p no:cacheprovider
