@@ -72,8 +72,15 @@ held-out quality evaluation, and A11oy's own acceptance gates remain separate.
 
 ## Native Windows supervisor
 
-`windows-bootstrap.py` captures startup errors without opening a console and
-runs `windows-supervisor.py` from the same directory. The supervisor starts only
+`windows-bootstrap.py` captures startup failures without opening a console and
+runs `windows-supervisor.py` from the same directory. It records a fixed JSON
+failure code in its private stderr log before a failed exit. Known source-pin,
+SSH-config-pin, occupied-listener and credential refusals receive distinct codes;
+unknown exits and exceptions receive safe fallback codes without raw exception
+messages or tracebacks. Numeric exit statuses are preserved; nonnumeric failed
+exits use status 1. Successful exits leave the error log empty. These diagnostics
+are explicitly unsigned and do not replace the supervisor's signed lifecycle
+receipts or establish readiness. The supervisor starts only
 the pinned SSH forward and proposal gateway. It signs an intent before starting
 either process, signs the startup result or failure, and places both children in
 a Windows job with kill-on-close. An occupied local port refuses startup. A child
