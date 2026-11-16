@@ -217,6 +217,8 @@ jobs:
           corepack install -g pnpm@10.33.3
       - name: Install dependencies
         run: npm ci
+      - name: Lutar evidence publication contract
+        run: npm run test:lutar-evidence
       - name: Install policy package deps (published @szl-holdings/a11oy-receipt-substrate from GHCR)
         working-directory: packages/policy
         env:
