@@ -1,0 +1,46 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "after": {
+    "card_bytes_sha256": "c3b7fc1fab145d9e2ef85fe160e6aaf039c7fead4747fd24223ff3fe88c4eccb",
+    "card_semantic_sha256": "d50b268ee12071982a5fc687c9c7a75185444e758eb9b4217fbcd9fd2956f239",
+    "revision": "02aae1512c1abae355018df2939460b753973ea9"
+  },
+  "archive_sha256": "a0039ddbfcd721868b9af4daebfa55aee9f5a4b467b76f63e3c30ac3fc4d5c6f",
+  "artifact_id": 14281856187,
+  "before": {
+    "card_bytes_sha256": "7ec86096a66c9b485e5ae791718a12f610c1d1124ebecb5307ef3da1b32afe91",
+    "card_semantic_sha256": "d96cb5df381054a7771842012bc2d74fb450c3c96aabb43577409dc0ed756c40",
+    "revision": "ba9b5f70631cf28e1dc4a33ea64186dfd551f825"
+  },
+  "candidate_sha256": "775f252b55116f3b3684f12e913008f1a19c131e94a52d2c3cf900239ee6dd93",
+  "card_diff_sha256": "6fe37275ec1e1edb1b2bbe0e5b0a2abeb612d8681c7de3687f5c01262ae6d90e",
+  "changedRows": [
+    {
+      "change": "CHANGED",
+      "class": "SOURCE_TRACKED",
+      "fields": [
+        "cardSemanticSha256"
+      ],
+      "id": "SZLHOLDINGS/README",
+      "policySource": [
+        "default:SOURCE_TRACKED"
+      ],
+      "repoType": "space"
+    }
+  ],
+  "changedTopLevelFields": [],
+  "counts": {
+    "datasets": 88,
+    "kernels": 14,
+    "models": 147,
+    "spaces": 23
+  },
+  "observedAt": "2026-11-16T23:19:02Z",
+  "previous_reviewed_candidate_sha256": "f163c88b249f9c7b78951de1e4f940047e2852c403f6b46adf91c92e74236fdb",
+  "production_authorization": false,
+  "review_finding": "Only two broken URL line breaks were repaired in the public org card. Card equality after these exact replacements was asserted. No claims, counts, model artifacts, qualification or visibility decisions changed.",
+  "run_id": 43978161790,
+  "signature_status": "UNSIGNED",
+  "source": "ac68b78415eecd21cf47f09fa725ed8a6e72fc78",
+  "validated": true
+}
