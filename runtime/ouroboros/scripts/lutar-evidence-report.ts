@@ -102,8 +102,9 @@ function prepareEvidence(inputPath: string, readmePath: string, outputDir: strin
     ...groups.map(group =>
       `| ${group} | ${grouped.get(group)!.length} | Passed exercised cases |`),
     '', '## Evidence boundary', '',
-    'These are finite numerical checks from the Ouroboros Thesis v3 witness suite ' +
-      '(https://doi.org/10.5281/zenodo.19951520). Its weighted-geometric-mean helper ' +
+    'These are finite numerical checks from the legacy witness file ' +
+      '[packages/ouroboros/src/lutar-invariant-proof.test.ts]' +
+      '(packages/ouroboros/src/lutar-invariant-proof.test.ts). Its weighted-geometric-mean helper ' +
       'is defined inside the test file; this report does not establish that a deployed ' +
       'implementation is equivalent to that helper.',
     'The root Vitest configuration covers src/ and packages/; agentic/ and runtime/ ' +

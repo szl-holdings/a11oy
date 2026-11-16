@@ -33,7 +33,7 @@ STAGE_DIR="$(mktemp -d "$REPO_DIR/.lutar-evidence.XXXXXX")"
 trap 'rm -rf -- "$STAGE_DIR"' EXIT
 
 echo "==> Running the configured Ouroboros root suite once"
-pnpm --dir "$WORKSPACE_DIR" exec vitest run \
+pnpm --dir "$WORKSPACE_DIR/packages/a11oy-knowledge" exec vitest run \
   --root "$REPO_DIR" --config "$REPO_DIR/vitest.config.ts" \
   --reporter=json --outputFile="$STAGE_DIR/full-test-output.json" --no-coverage
 
