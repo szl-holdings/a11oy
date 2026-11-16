@@ -47,9 +47,9 @@ jobs:
           body="$(jq -r '.issue.body // ""' "$GITHUB_EVENT_PATH")"
           extract_exact() {
             local label="$1" pattern="$2" value count
-            count="$(grep -Ec "^${label}: \\`${pattern}\\`$" <<<"$body" || true)"
+            count="$(grep -Ec "^${label}: \`(${pattern})\`$" <<<"$body" || true)"
             test "$count" = "1"
-            value="$(sed -nE "s/^${label}: \\`(${pattern})\\`$/\\1/p" <<<"$body")"
+            value="$(sed -nE "s/^${label}: \`(${pattern})\`$/\1/p" <<<"$body")"
             test -n "$value"
             printf '%s' "$value"
           }
