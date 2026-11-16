@@ -15,6 +15,8 @@ MCP_ARCHIVE = ".github/shared-source-payloads/mcp-advertised-inventory-20261016-
 RETAINED = "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
 SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json"
 PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
+DSSE = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1.json"
+MESH_SHA256 = "b30b02886292d38b0d369d19314a24eec57bb499683ccfda57b62301cd6a6510"
 ACTIVE = ".github/shared-source-payload-manifest.json"
 
 
@@ -122,20 +124,38 @@ def _assert_current_shared_payload(root):
         if relative not in {"tests/test_replication_shared_payload.py",
                             "szl_signing_state.py"}:
             assert prior["files"][relative] == expected
-    manifest = json.loads((root / ACTIVE).read_bytes())
-    assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "dsse-finite-reload-20261112-v1"
-    assert set(manifest["files"]) == set(prior["files"]) | {
+    # Preserve the exact prior DSSE generation before advancing the active slot.
+    dsse_raw = (root / DSSE).read_bytes()
+    assert hashlib.sha256(dsse_raw).hexdigest() == (
+        "a5de3bf2d7a226b72717a5cf3e2d5a6f919bd2d6710e08dcce0a678ba84d1a57"
+    )
+    dsse = json.loads(dsse_raw)
+    assert dsse["schema"] == "szl-shared-source-payload/v1"
+    assert dsse["payload_id"] == "dsse-finite-reload-20261112-v1"
+    assert set(dsse["files"]) == set(prior["files"]) | {
         PROOF, "szl_dsse.py", "tests/test_dsse_real_signing.py",
     }
-    assert manifest["files"][PROOF] == hashlib.sha256(prior_raw).hexdigest()
+    assert dsse["files"][PROOF] == hashlib.sha256(prior_raw).hexdigest()
     # Finite emission adds the DSSE source and its tests. Provenance reload now
     # checks stored envelope bytes, so that file moves in this generation.
     # Every other predecessor entry stays pinned.
     for relative, expected in prior["files"].items():
         if relative not in {"tests/test_replication_shared_payload.py",
                             "szl_provenance.py"}:
-            assert manifest["files"][relative] == expected
+            assert dsse["files"][relative] == expected
+
+    # The mesh successor binds observed source bytes only. It does not extend
+    # any historical signature to this generation or claim deployment/model use.
+    manifest = json.loads((root / ACTIVE).read_bytes())
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "hatun-observed-backend-20261116-v1"
+    assert set(manifest["files"]) == set(dsse["files"]) | {DSSE, "szl_agentic_loop.py"}
+    assert manifest["files"][DSSE] == hashlib.sha256(dsse_raw).hexdigest()
+    assert manifest["files"]["szl_agentic_loop.py"] == MESH_SHA256
+    assert {
+        relative for relative, expected in dsse["files"].items()
+        if manifest["files"][relative] != expected
+    } == {"tests/test_replication_shared_payload.py"}
     # Verify all current bytes; predecessor receipts above stay immutable.
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected
@@ -150,6 +170,7 @@ def test_current_shared_payload_manifest_matches_current_peer():
 @pytest.mark.parametrize("change", [
     "source", "source_and_digest", "missing_entry", "schema", "generation",
     "security_digest", "retained_bytes", "security_bytes", "proof_bytes", "dsse_source",
+    "dsse_bytes", "mesh_source", "mesh_source_and_digest",
 ])
 def test_current_payload_rejects_tampering(tmp_path, change):
     manifest = json.loads((ROOT / ACTIVE).read_bytes())
@@ -162,6 +183,11 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         source.write_bytes(source.read_bytes() + b"\n")
         if change == "source_and_digest":
             manifest["files"]["szl_operator_auth.py"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    elif change in {"mesh_source", "mesh_source_and_digest"}:
+        source = tmp_path / "szl_agentic_loop.py"
+        source.write_bytes(source.read_bytes() + b"\n")
+        if change == "mesh_source_and_digest":
+            manifest["files"]["szl_agentic_loop.py"] = hashlib.sha256(source.read_bytes()).hexdigest()
     elif change == "missing_entry":
         del manifest["files"]["szl_signing_state.py"]
     elif change == "schema":
@@ -175,7 +201,7 @@ def test_current_payload_rejects_tampering(tmp_path, change):
     else:
         source = tmp_path / {
             "retained_bytes": RETAINED, "security_bytes": SNOWFLAKE,
-            "proof_bytes": PROOF, "dsse_source": "szl_dsse.py",
+            "proof_bytes": PROOF, "dsse_source": "szl_dsse.py", "dsse_bytes": DSSE,
         }[change]
         source.write_bytes(source.read_bytes() + b"\n")
     (tmp_path / ACTIVE).write_text(json.dumps(manifest), encoding="utf-8")
