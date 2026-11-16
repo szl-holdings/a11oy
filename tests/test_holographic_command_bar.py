@@ -229,3 +229,20 @@ def test_observability_primary_buttons_are_proof_teal_not_tan() -> None:
     assert "#c9b787" not in last
     assert ".r-btn-primary{background:var(--teal)" in OBS
     assert "UNAVAILABLE — DAG 0 / IDLE" in OBS
+
+
+def test_command_bar_bounded_observation_runtime() -> None:
+    """Execute the shipped JS transport/lifecycle, not a second implementation."""
+    import shutil
+    import subprocess
+
+    import pytest
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node is required to execute command-bar observation contracts")
+    result = subprocess.run(
+        [node, "--test", "scripts/test_command_bar_observation.cjs"],
+        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

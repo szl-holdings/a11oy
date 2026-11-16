@@ -80,16 +80,72 @@
   }
 
   function fetchJson(url, ms) {
-    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var t = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, ms || 8000) : null;
-    return fetch(url, { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined }).then(function (r) {
-      if (t) clearTimeout(t);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }).catch(function (e) {
-      if (t) clearTimeout(t);
-      throw e;
+    // One request budget covers headers, every body chunk and JSON decoding.
+    // A timeout is a refusal to observe, never an empty/successful observation.
+    if (typeof url !== 'string' || !/^\/(?!\/)/.test(url) || /[\\\u0000-\u0020]/.test(url)) {
+      return Promise.reject(new Error('same-origin observation path required'));
+    }
+    if (typeof AbortController !== 'function') {
+      return Promise.reject(new Error('bounded observation transport unavailable'));
+    }
+    var ctrl = new AbortController(), reader = null, timer, cancelled = false;
+    var budget = typeof ms === 'number' && isFinite(ms) && ms > 0 && ms <= 30000 ? ms : 8000;
+    var started = performance.now(), limit = 1024 * 1024;
+    function cancel() {
+      if (cancelled) return;
+      cancelled = true;
+      try { ctrl.abort(); } catch (e) {}
+      // Do not await cancellation: a broken transport must not extend the budget.
+      if (reader) { try { Promise.resolve(reader.cancel()).catch(function () {}); } catch (e) {} }
+    }
+    function checkDeadline() {
+      if (cancelled || performance.now() - started >= budget) throw new Error('observation deadline exceeded');
+    }
+    var deadline = new Promise(function (_, reject) {
+      timer = setTimeout(function () {
+        reject(new Error('observation deadline exceeded'));
+        cancel();
+      }, budget);
     });
+    var read = Promise.resolve().then(function () {
+      checkDeadline();
+      return fetch(url, { method: 'GET', mode: 'same-origin', redirect: 'error',
+        credentials: 'same-origin', headers: { Accept: 'application/json' },
+        cache: 'no-store', signal: ctrl.signal });
+    }).then(async function (response) {
+      checkDeadline();
+      if (!response.ok || response.redirected) throw new Error('observation unavailable');
+      var type = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (!/^application\/(?:[a-z0-9.+-]+\+)?json$/.test(type)) throw new Error('JSON observation required');
+      var length = response.headers.get('content-length');
+      if (length !== null && (!/^\d+$/.test(length) || Number(length) > limit)) throw new Error('observation exceeds byte budget');
+      if (!response.body || typeof response.body.getReader !== 'function') throw new Error('bounded observation body unavailable');
+      reader = response.body.getReader();
+      var chunks = [], size = 0;
+      try {
+        for (;;) {
+          var part = await reader.read();
+          checkDeadline();
+          if (part.done) break;
+          size += part.value.byteLength;
+          if (size > limit) throw new Error('observation exceeds byte budget');
+          chunks.push(part.value);
+        }
+        var bytes = new Uint8Array(size), offset = 0;
+        chunks.forEach(function (chunk) { bytes.set(chunk, offset); offset += chunk.byteLength; });
+        var result = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+        checkDeadline();
+        return result;
+      } finally {
+        // releaseLock may reject while a custom stream still has a pending read.
+        try { reader.releaseLock(); } catch (e) {}
+      }
+    });
+    return Promise.race([read, deadline]).catch(function () {
+      cancel();
+      // Provider response bodies and browser exception details are not UI data.
+      throw new Error('bounded observation unavailable');
+    }).finally(function () { clearTimeout(timer); });
   }
 
   function setChip(node, live, text) {
@@ -399,11 +455,55 @@
     }
 
     var lastHead = null;
+    var probePending = false, probeInterval, expiryTimer;
+    var lastObservationWall = null, lastObservationMonotonic = null;
+    var observationLifetimeMs = 30000;
+
+    function invalidateObservation(state) {
+      setChip(svc, false, state === 'OBSERVING' ? 'OBSERVING' : state === 'STALE' ? 'STALE' : 'UNAVAILABLE');
+      setChip(lam, false, 'CONJECTURE 1 · UNAVAILABLE');
+      setChip(kern, false, 'UNAVAILABLE');
+      setChip(chain, false, 'UNAVAILABLE');
+      setChip(age, false, 'UNAVAILABLE');
+      evidenceRevision.textContent = 'UNAVAILABLE';
+      evidenceRevision.title = 'No source-bound 40-hex runtime revision was observed.';
+      evidenceRuntime.textContent = 'UNAVAILABLE';
+      evidenceObserved.textContent = 'UNAVAILABLE';
+      evidenceObserved.removeAttribute('datetime');
+      evidencePanel.setAttribute('data-evidence-state', state);
+      evidencePanel.setAttribute('aria-busy', state === 'OBSERVING' ? 'true' : 'false');
+      svc.setAttribute('aria-busy', state === 'OBSERVING' ? 'true' : 'false');
+      svc.title = 'Read-only browser observation ' + state.toLowerCase() + '; not application qualification.';
+    }
+    function stopObservation() {
+      clearInterval(probeInterval);
+      clearTimeout(expiryTimer);
+      document.removeEventListener('visibilitychange', visibilityChanged);
+    }
+    function expireObservation() {
+      if (root.isConnected === false) { stopObservation(); return; }
+      if (lastObservationWall === null) return;
+      var wallAge = Date.now() - lastObservationWall;
+      var elapsed = performance.now() - lastObservationMonotonic;
+      if (wallAge < 0 || wallAge >= observationLifetimeMs || elapsed >= observationLifetimeMs) {
+        invalidateObservation('STALE');
+      }
+    }
+    function visibilityChanged() {
+      // Background timers can be throttled. Revalidate before a visible repaint.
+      expireObservation();
+      if (document.visibilityState !== 'hidden') probe();
+    }
     function probe() {
+      if (root.isConnected === false) { stopObservation(); return; }
+      if (probePending || document.visibilityState === 'hidden') return;
+      probePending = true;
+      clearTimeout(expiryTimer);
+      invalidateObservation('OBSERVING');
       var operator = document.documentElement.getAttribute('data-operator') === '1';
       svc.setAttribute('aria-busy', 'true');
       evidencePanel.setAttribute('aria-busy', 'true');
-      Promise.all([
+      return Promise.all([
         fetchJson('/healthz', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/readiness/tab-matrix?view=summary', 6000).catch(function () { return null; }),
         fetchJson('/api/a11oy/v1/observability/summary', 6000).catch(function () { return null; }),
@@ -412,8 +512,12 @@
         fetchJson('/api/a11oy/v1/honest', 6000).catch(function () { return null; }),
         fetchJson('/api/build-info', 6000).catch(function () { return null; })
       ]).then(function (vals) {
+        if (root.isConnected === false || document.visibilityState === 'hidden') return;
         var health = vals[0], matrix = vals[1], summary = vals[2], lambda = vals[3], ledger = vals[4], honest = vals[5], build = vals[6];
         var observedAt = new Date().toISOString();
+        lastObservationWall = Date.now();
+        lastObservationMonotonic = performance.now();
+        expiryTimer = setTimeout(expireObservation, observationLifetimeMs);
         var buildRecord = build && build.build;
         var revision = buildRecord && buildRecord.revision;
         var revisionObserved = build && build.status === 'OBSERVED' && typeof revision === 'string' && /^[0-9a-f]{40}$/.test(revision);
@@ -425,6 +529,7 @@
           : 'UNAVAILABLE';
         evidenceObserved.textContent = observedAt;
         evidenceObserved.setAttribute('datetime', observedAt);
+        evidenceObserved.title = 'Browser read completed at this time; not a backend update or receipt verification time.';
         evidencePanel.setAttribute('data-evidence-state', revisionObserved ? 'OBSERVED' : 'UNAVAILABLE');
         evidencePanel.setAttribute('aria-busy', 'false');
         svc.setAttribute('aria-busy', 'false');
@@ -506,25 +611,15 @@
         } catch (e) {}
         if (deny) svc.classList.add('szl-chip--deny');
       }).catch(function () {
-        var observedAt = new Date().toISOString();
-        setChip(svc, false, 'UNAVAILABLE');
-        setChip(lam, false, 'CONJECTURE 1 · UNAVAILABLE');
-        setChip(kern, false, 'UNAVAILABLE');
-        setChip(chain, false, 'UNAVAILABLE');
-        setChip(age, false, 'UNAVAILABLE');
-        evidenceRevision.textContent = 'UNAVAILABLE';
-        evidenceRevision.title = 'No source-bound 40-hex runtime revision was observed.';
-        evidenceRuntime.textContent = 'UNAVAILABLE';
-        evidenceObserved.textContent = observedAt;
-        evidenceObserved.setAttribute('datetime', observedAt);
-        evidencePanel.setAttribute('data-evidence-state', 'UNAVAILABLE');
-        evidencePanel.setAttribute('aria-busy', 'false');
-        svc.setAttribute('aria-busy', 'false');
-        svc.title = 'Runtime evidence probe failed at ' + observedAt + '.';
+        invalidateObservation('UNAVAILABLE');
+      }).finally(function () {
+        probePending = false;
+        if (root.isConnected === false) stopObservation();
       });
     }
+    probeInterval = setInterval(probe, 20000);
+    document.addEventListener('visibilitychange', visibilityChanged);
     probe();
-    setInterval(probe, 20000);
 
     cmdkBtn.addEventListener('click', openPalette);
     document.addEventListener('keydown', function (e) {
