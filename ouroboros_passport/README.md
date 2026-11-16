@@ -38,8 +38,9 @@ eligible = tenant_isolated and source_authorized and provenance_complete
 UNKNOWN, ABSTAIN, NOT_RUN, BLOCKED, or MISSING all block promotion.
 Absence of evidence can never promote a model. A measured `false`, a non-boolean
 value, duplicate required evidence, an invalid digest, or malformed evidence also
-blocks eligibility. The response includes structural verification and blocking
-reasons.
+blocks eligibility. The supported passport version and nonblank model, tenant,
+and revision identities are required. The response includes structural
+verification and blocking reasons.
 
 `PROMOTED` is the result of this predicate over the supplied passport. It does not
 authorize deployment or establish that a receipt issuer is trusted. The SHA-256

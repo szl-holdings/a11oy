@@ -1,4 +1,5 @@
 from .evidence import EvidenceClass, receipt_digest
+from .schema import PASSPORT_VERSION
 
 
 def verify(passport_dict):
@@ -28,6 +29,13 @@ def verify(passport_dict):
             digest_ok = claimed == recomputed
             if not digest_ok:
                 issues.append("digest mismatch: passport content was modified")
+
+    if d.get("passport_version") != PASSPORT_VERSION:
+        issues.append("unsupported or missing passport_version")
+    for field in ("model_id", "tenant", "revision"):
+        value = d.get(field)
+        if not isinstance(value, str) or not value.strip():
+            issues.append(field + " must be nonempty text")
 
     sections = d.get("sections", {})
     if not isinstance(sections, dict):

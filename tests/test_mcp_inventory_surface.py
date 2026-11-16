@@ -5,8 +5,10 @@ import ast
 import io
 import json
 import sys
+import threading
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -43,7 +45,7 @@ def client(monkeypatch):
     }
     source = Path(__file__).resolve().parents[1] / "serve.py"
     tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
-    nodes = [node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
+    nodes = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
              and node.name in {"healthz", "list_gates", "a11oy_mcp_tools_inline"}]
     assert len(nodes) == 3
     exec(compile(ast.Module(body=nodes, type_ignores=[]), str(source), "exec"), scope)
@@ -87,6 +89,39 @@ def test_manifest_growth_and_sibling_loss_update_every_count(client, monkeypatch
             assert body["mcp_tools"] == manifest["count"]
             assert body["mcp_inventory"]["label"] == "CACHED"
             assert body["mcp_inventory"]["source"] == "/api/a11oy/v1/mcp/tools"
+
+
+def test_blocked_sibling_discovery_does_not_block_health(client, monkeypatch):
+    entered = threading.Event()
+    release = threading.Event()
+
+    def blocked_sibling(*args, **kwargs):
+        entered.set()
+        release.wait(timeout=10)
+        return io.BytesIO(b'{"tools":[]}')
+
+    monkeypatch.setattr(urllib.request, "urlopen", blocked_sibling)
+    # A persistent portal makes both requests share one ASGI event loop.
+    with client as session, ThreadPoolExecutor(max_workers=2) as workers:
+        manifest_request = workers.submit(session.get, "/api/a11oy/v1/mcp/tools")
+        try:
+            assert entered.wait(timeout=5), "MCP request did not reach sibling discovery"
+            health_request = workers.submit(session.get, "/api/a11oy/healthz")
+            try:
+                health = health_request.result(timeout=2)
+            except TimeoutError:
+                pytest.fail("Blocking sibling discovery stalled the ASGI health handler")
+            assert health.status_code == 200
+            assert health.json()["mcp_tools"] is None
+            assert not manifest_request.done()
+        finally:
+            release.set()
+        manifest = manifest_request.result(timeout=5)
+
+    assert manifest.status_code == 200
+    assert manifest.json()["count"] == len(manifest.json()["tools"]) == 7
+    monkeypatch.setattr(urllib.request, "urlopen", forbid_network)
+    assert all(body["mcp_tools"] == 7 for body in advertisements(client))
 
 
 def test_unavailable_formula_module_is_not_counted(client, monkeypatch):

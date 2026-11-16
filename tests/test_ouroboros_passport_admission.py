@@ -237,3 +237,38 @@ def test_cli_measured_failure_is_nonzero(tmp_path, capsys):
     path.write_text(json.dumps(seal(passport)), encoding="utf-8")
     assert cli(["promote", str(path)]) == 1
     assert json.loads(capsys.readouterr().out)["eligible"] is False
+
+
+@pytest.mark.parametrize("field", ["model_id", "tenant", "revision"])
+@pytest.mark.parametrize("value", [None, "", "   ", True, {}])
+def test_passport_identity_requires_nonblank_text(field, value):
+    passport = fixture_passport()
+    passport[field] = value
+    seal(passport)
+    assert verify(passport)["valid"] is False
+    assert evaluate(passport)["eligible"] is False
+
+
+@pytest.mark.parametrize("field", ["model_id", "tenant", "revision", "passport_version"])
+def test_missing_passport_identity_blocks_promotion(field):
+    passport = fixture_passport()
+    passport.pop(field)
+    seal(passport)
+    assert verify(passport)["valid"] is False
+    assert evaluate(passport)["eligible"] is False
+
+
+@pytest.mark.parametrize("version", [None, "", {}, "ouroboros-passport/999"])
+def test_unsupported_passport_version_is_invalid(version):
+    passport = fixture_passport()
+    passport["passport_version"] = version
+    seal(passport)
+    assert verify(passport)["valid"] is False
+    assert evaluate(passport)["eligible"] is False
+
+
+def test_sealed_evidence_without_a_model_identity_is_not_a_passport():
+    passport = {"sections": fixture_passport()["sections"]}
+    seal(passport)
+    assert verify(passport)["valid"] is False
+    assert evaluate(passport)["eligible"] is False
