@@ -230,7 +230,7 @@ export function bootTrainingObservations({
     const tenant = $('tenant').value.trim(); let token = $('token').value.trim();
     $('token').value = '';
     if (!/^[\x21-\x7e]{1,256}$/.test(tenant) || !/^[\x21-\x7e]{1,8192}$/.test(token)) {
-      token = ''; $('status').textContent = 'Enter a tenant and operator token. No private observations are displayed.';
+      $('status').textContent = 'Enter a tenant and operator token. No private observations are displayed.';
       return;
     }
     const own = new AbortController(); active = own; let timedOut = false;
@@ -267,7 +267,7 @@ export function bootTrainingObservations({
         ? `Observation request ${timedOut ? 'timed out' : 'cancelled'}. No private observations are displayed.`
         : `${error instanceof Error ? error.message : 'Observation request failed.'} No private observations are displayed.`;
     } finally {
-      token = ''; clearTimer(requestTimer);
+      clearTimer(requestTimer);
       if (ticket === generation) { active = null; $('load').disabled = false; }
     }
   }
