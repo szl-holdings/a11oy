@@ -49,6 +49,8 @@
 <script defer src="/static/shared/szl_codename_sanitizer.js"></script>
 <link rel="stylesheet" href="/assets/szl/szl-design-system.css"/>
 <link rel="stylesheet" href="/assets/szl/szl-console.css"/>
+<link rel="stylesheet" href="/assets/szl-governed-proposal.css"/>
+<script defer src="/assets/szl-governed-proposal.js"></script>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
@@ -6041,8 +6043,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       refresh.addEventListener('click',readStatus);await readStatus();
     };
     V.ask={title:'Ask & Act',badge:'GDW UNAVAILABLE · EXECUTION ROADMAP',
-      sub:'Prepare and review a local draft. Approval here does not run an action; workspace readiness is shown separately.',
-      render:async function(c){await window._gdwDraftPlane(c,'ask');}};
+      sub:'Prepare a local draft or generate a bounded model proposal. Review is required; neither runs an action.',
+      render:async function(c){
+        if(!c.isConnected)return;
+        if(window.SZLGovernedProposal) window.SZLGovernedProposal.mount(c);
+        else {var unavailable=document.createElement('p');unavailable.textContent='Model proposals are unavailable in this session. Reload to check availability.';c.appendChild(unavailable);}
+        var draft=document.createElement('div');c.appendChild(draft);
+        await window._gdwDraftPlane(draft,'ask');
+      }};
 
     /* =============== demo — ECharts state-timeline (cascade steps) =============== */
     V.demo={title:'Run a Demo',badge:'STATE TIMELINE \u00b7 P1 LAUNCH CASCADE',sub:'The single launch point for the Warhacker problems, shown as a state timeline: each launch is a scripted step cascade (request \u2192 score \u2192 gate \u2192 seal \u2192 receipt) with real per-step state. Launch any problem and its real decision + signed receipt lands. Plot lib not vendored \u2014 implemented with ECharts custom-series to keep the NOTICE unchanged.',
