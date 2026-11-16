@@ -4,8 +4,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
+import subprocess
+import textwrap
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -126,7 +131,7 @@ def _seed_pre_repair(root: Path) -> None:
 
     expected = {
         validator.SOLO_WORKFLOW: "706fba1353d402d7bc6ae3c20485b6e5ad77e46003e96992aceaad9996ac0294",
-        validator.BUILDER_WORKFLOW: "b9a1635ed0e6fa3fc95c331f7681809dde6c894e660be306877c9b6d025b11f6",
+        validator.BUILDER_WORKFLOW: "5708302e7841c7de78cfafaf8bee369b6fe5891b0dc85895e32c9edfa15e4561",
         validator.CONTRACT: "bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae",
     }
     observed = {
@@ -501,3 +506,163 @@ def test_protection_handoff_is_explicit_and_truthful() -> None:
     assert "Protected Frontier source-pin authority" in source
     assert "cannot certify its own newly introduced workflow" in source
     assert "Require workflows to pass before merging" in source
+
+
+# Exercise the workflow's actual command substitutions: Bash clears errexit in
+# those subshells, so helper failures must propagate explicitly.
+_BUILDER_FIELDS = {
+    "Base-SHA": "a" * 40,
+    "Branch": "frontier/v16-7-solo-owner-20261116",
+    "Solo-Contract-SHA256": "b" * 64,
+}
+
+
+def _builder_field_line(label: str, value: str) -> str:
+    marker = chr(96)
+    return f"{label}: {marker}{value}{marker}"
+
+
+_BUILDER_ISSUE = "\n".join(
+    _builder_field_line(label, value) for label, value in _BUILDER_FIELDS.items()
+)
+
+
+def _builder_issue_run(
+    tmp_path: Path, issue_body: str
+) -> subprocess.CompletedProcess[str]:
+    source = (ROOT / validator.BUILDER_WORKFLOW).read_text(encoding="utf-8")
+    start = source.index("          extract_exact() {")
+    end = source.index("          current_main=", start)
+    preflight = textwrap.dedent(source[start:end])
+    command = (
+        'set -Eeuo pipefail\nbody="$FRONTIER_TEST_BODY"\n'
+        + preflight
+        + """printf '%s\\n' "$base_sha" "$branch" "$contract"\n"""
+    )
+    bash = shutil.which("bash")
+    if os.name == "nt":
+        git = shutil.which("git")
+        assert git, "Git Bash is required to validate workflow shell behavior"
+        git_bash = Path(git).resolve().parent.parent / "bin/bash.exe"
+        if git_bash.is_file():
+            bash = str(git_bash)
+    assert bash, "Bash is required to validate workflow shell behavior"
+    env = {
+        name: os.environ[name]
+        for name in ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP")
+        if name in os.environ
+    }
+    env.update(
+        LC_ALL="C",
+        FRONTIER_TEST_BODY=issue_body,
+        CONTRACT_SHA256=_BUILDER_FIELDS["Solo-Contract-SHA256"],
+    )
+    return subprocess.run(
+        [bash, "--noprofile", "--norc", "-s"],
+        input=command,
+        env=env,
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+
+
+@pytest.mark.parametrize(
+    "suffix", ["owner-20261116", "A_0-b.c", "x"]
+)
+def test_builder_issue_contract_accepts_valid_fields(
+    tmp_path: Path, suffix: str
+) -> None:
+    branch = "frontier/v16-7-solo-" + suffix
+    body = _BUILDER_ISSUE.replace(_BUILDER_FIELDS["Branch"], branch)
+    result = _builder_issue_run(tmp_path, body)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [
+        _BUILDER_FIELDS["Base-SHA"], branch,
+        _BUILDER_FIELDS["Solo-Contract-SHA256"],
+    ]
+    assert result.stderr == ""
+
+
+def test_builder_issue_contract_allows_prose_and_reordered_fields(
+    tmp_path: Path,
+) -> None:
+    body = (
+        "Owner-requested build.\n\n"
+        + "\n".join(reversed(_BUILDER_ISSUE.splitlines()))
+        + "\n\nAdditional context does not alter the contract.\n"
+    )
+    result = _builder_issue_run(tmp_path, body)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == list(_BUILDER_FIELDS.values())
+
+
+def _invalid_builder_issues() -> list[tuple[str, str]]:
+    cases = []
+    for label, value in _BUILDER_FIELDS.items():
+        line = _builder_field_line(label, value)
+        malformed = _builder_field_line(label, "not-valid")
+        cases.extend([
+            (f"{label}-missing", _BUILDER_ISSUE.replace(line, "")),
+            (f"{label}-duplicate", _BUILDER_ISSUE + "\n" + line),
+            (f"{label}-malformed", _BUILDER_ISSUE.replace(line, malformed)),
+            (f"{label}-mixed-duplicate", _BUILDER_ISSUE + "\n" + malformed),
+            (f"{label}-unquoted", _BUILDER_ISSUE.replace(line, f"{label}: {value}")),
+            (f"{label}-trailing-space", _BUILDER_ISSUE.replace(line, line + " ")),
+            (f"{label}-leading-space", _BUILDER_ISSUE.replace(line, " " + line)),
+            (f"{label}-double-cr", _BUILDER_ISSUE.replace(line, line + "\r\r")),
+        ])
+    for label, value in [
+        ("Base-SHA", "A" * 40),
+        ("Base-SHA", "a" * 39),
+        ("Base-SHA", "a" * 41),
+        ("Branch", "main"),
+        ("Branch", "frontier/v16-7-solo-owner/extra"),
+        ("Branch", "frontier/v16-7-solo-with space"),
+        ("Branch", "frontier/v16-7-solo-"),
+        ("Solo-Contract-SHA256", "b" * 63),
+        ("Solo-Contract-SHA256", "c" * 64),
+    ]:
+        original = _builder_field_line(label, _BUILDER_FIELDS[label])
+        cases.append((
+            f"{label}-{value}",
+            _BUILDER_ISSUE.replace(original, _builder_field_line(label, value)),
+        ))
+    return cases
+
+
+@pytest.mark.parametrize(
+    ("case", "body"),
+    _invalid_builder_issues(),
+    ids=[case for case, _ in _invalid_builder_issues()],
+)
+def test_builder_issue_contract_rejects_invalid_fields(
+    tmp_path: Path, case: str, body: str
+) -> None:
+    result = _builder_issue_run(tmp_path, body)
+    assert result.returncode != 0, (case, result.stdout, result.stderr)
+    assert result.stdout == "", (case, result.stdout)
+
+
+def test_builder_issue_contract_never_evaluates_issue_text(tmp_path: Path) -> None:
+    original = _builder_field_line("Branch", _BUILDER_FIELDS["Branch"])
+    payload = "frontier/v16-7-solo-$(touch parser-input-executed)"
+    body = _BUILDER_ISSUE.replace(
+        original, _builder_field_line("Branch", payload)
+    )
+    result = _builder_issue_run(tmp_path, body)
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert not (tmp_path / "parser-input-executed").exists()
+
+
+def test_builder_issue_contract_accepts_crlf_without_trimming_values(
+    tmp_path: Path,
+) -> None:
+    body = _BUILDER_ISSUE.replace("\n", "\r\n") + "\r\n"
+    result = _builder_issue_run(tmp_path, body)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == list(_BUILDER_FIELDS.values())
+    assert result.stderr == ""

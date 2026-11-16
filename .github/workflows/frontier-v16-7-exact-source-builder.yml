@@ -46,11 +46,24 @@ jobs:
 
           body="$(jq -r '.issue.body // ""' "$GITHUB_EVENT_PATH")"
           extract_exact() {
-            local label="$1" pattern="$2" value count
-            count="$(grep -Ec "^${label}: \\`${pattern}\\`$" <<<"$body" || true)"
-            test "$count" = "1"
-            value="$(sed -nE "s/^${label}: \\`(${pattern})\\`$/\\1/p" <<<"$body")"
-            test -n "$value"
+            local label="$1" pattern="$2" value='' count=0 line
+            local marker='`'
+            local expression="^${label}: ${marker}(${pattern})${marker}$"
+            while IFS= read -r line; do
+              line="${line%$'\r'}"
+              if [[ "$line" == "$label:"* ]]; then
+                count=$((count + 1))
+                if [[ ! "$line" =~ $expression ]]; then
+                  printf 'Invalid exact field: %s\n' "$label" >&2
+                  return 1
+                fi
+                value="${BASH_REMATCH[1]}"
+              fi
+            done <<<"$body"
+            if [[ "$count" -ne 1 ]]; then
+              printf 'Expected exactly one field: %s\n' "$label" >&2
+              return 1
+            fi
             printf '%s' "$value"
           }
 
