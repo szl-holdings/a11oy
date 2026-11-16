@@ -1,0 +1,46 @@
+{
+  "schema": "szl.lean_numbers/v1",
+  "repo": "szl-holdings/lutar-lean",
+  "ref": "main",
+  "sha": "c7c0ba17",
+  "measured_at_utc": "2026-05-31T11:00:00Z",
+  "method": "see .github/scripts/lean_numbers.py docstring (fixed grep-equivalent regexes)",
+  "numbers": {
+    "declarations": 749,
+    "axioms_raw": 15,
+    "axioms_unique": 14,
+    "axiom_names": [
+      "MomentSubGaussian",
+      "audit_reidemeister_invariance",
+      "canonicalReceipt",
+      "chromotopology_code_bijection",
+      "gleason_length_mod_8",
+      "klDivergence_nonneg",
+      "lambda_schur_concave_n_axis",
+      "lambda_stationary_unique",
+      "liu_hui_pi_converges",
+      "pinsker",
+      "r1_invariance",
+      "r2_invariance",
+      "sha256",
+      "sha256_collision_resistant"
+    ],
+    "sorries_raw": 163,
+    "sorries_noncomment": 149,
+    "sorries_putnam": 51,
+    "sorries_baseline": 112,
+    "locked_formula_count": 8,
+    "locked_formula_ids": [
+      "F1",
+      "F4",
+      "F7",
+      "F11",
+      "F12",
+      "F18",
+      "F19",
+      "F22"
+    ],
+    "locked_formula_theorem": "Lutar.Wave8.AxiomDisclosure.locked_count_eight"
+  },
+  "locked_formulas_note": "locked_formula_count is the single canonical source for the locked-proven formula count across all SZL surfaces. Enforced in lutar-lean by locked_count_eight (no axioms). Grew 5->8 on 2026-06-10 (F4/F7 upgraded to genuine non-vacuous proofs, joining F22). Lambda uniqueness stays Conjecture 1."
+}
