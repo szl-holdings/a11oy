@@ -31,3 +31,12 @@ The first production integration point is the existing receipt/agent loop:
 
 This module is intentionally authority-neutral. Existing deny-by-default,
 signature, and Lambda-cone gates remain the authority boundary.
+
+## Task-shape routing
+
+The advisory router in vsp_otel/task_shape.py implements a measured topology
+rule. It chooses PARALLEL_EVIDENCE only for independent work with shallow
+dependencies and a bounded tool count. Proof, receipt, release, and human
+approval work is always CENTRAL_SEQUENTIAL. The result carries an explicit
+authorization effect of NONE and must be followed by the normal policy and
+receipt gates.
