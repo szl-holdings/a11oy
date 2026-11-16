@@ -4,10 +4,10 @@
 """
 szl_yachay_organ.py — Yachay, the persistent founder-facing CTO organ.
 
-ADDITIVE-ONLY. Mounted by serve.py via `import szl_yachay_organ as _yachay;
-_yachay.attach(app)` immediately after the a11oy.code orchestrator attach. All
-routes are registered BEFORE the generic /api/a11oy/{path:path} Node proxy and the
-SPA catch-all, so FastAPI's ordered matching serves them here.
+Legacy optional organ. Current serve.py does not attach this module and the
+production Dockerfile does not ship it. The attach(app) entry point is retained
+for explicit integrations and isolated tests; its presence is not deployment
+evidence. This change does not activate the legacy chat surface.
 
 What Yachay is (and is NOT): a persistent, always-on CTO. NOT a generic chatbot.
 The differentiator vs ChatGPT is the **Khipu receipt on every answer** — an
@@ -112,19 +112,34 @@ except Exception:  # pragma: no cover - local fallback
 _DAG = _khipu_get_dag("yachay", ns="a11oy")
 
 # ---------------------------------------------------------------------------
-# Doctrine v11 LOCKED numbers + replay hash + flagship statuses (canon snapshot).
-# These are the numbers Yachay must never inflate. The flagship statuses are a
-# best-effort snapshot; the /projects endpoint refreshes from HF when possible.
+# Dated Doctrine v11 snapshot. These are not current-HEAD measurements.
+# The retained flagship statuses are also historical and are not probed here.
 # ---------------------------------------------------------------------------
 REPLAY_HASH = "bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5"
 
 DOCTRINE_LOCKED = {
     "version": "v11 (carried into v12 PURIQ)",
     "doctrine_claimed": {"declarations": 749, "unique_axioms": 14, "sorries": 163},
-    "live_regen": {"declarations": 752, "sorries": 160,
-                   "sorries_breakdown": "109 baseline + 51 Putnam",
-                   "raw_axioms": 15, "unique_axioms": 14, "anchor_gates": 44},
-    "putnam_green": "4/12",
+    # Retain the old key as null so consumers cannot mistake it for a fresh census.
+    "live_regen": None,
+    "live_regen_status": "UNAVAILABLE_NO_CURRENT_HEAD_CENSUS",
+    "lean_snapshot": {
+        "status": "HISTORICAL",
+        "repo": "szl-holdings/lutar-lean",
+        "sha": "c7c0ba17",
+        "measured_at_utc": "2026-05-31T11:00:00Z",
+        "current_head_verified": False,
+        "declarations": 749,
+        "sorries": 163,
+        "sorries_baseline": 112,
+        "sorries_putnam": 51,
+        "raw_axioms": 15,
+        "unique_axioms": 14,
+        "locked_formula_count": 8,
+        "source_url": "https://github.com/szl-holdings/.github/blob/5cd00651972728f0264ac6348d3a8bf30749fcc0/.github/data/lean_numbers.json",
+    },
+    "putnam_green": None,
+    "putnam_status": "UNAVAILABLE_NO_CURRENT_PROOF_CENSUS",
     "axes": "13-axis yuyay_v3",
     "replay_hash": REPLAY_HASH,
     "honest_labels": [
@@ -166,7 +181,7 @@ Your job. Help the founder ship a Series-A-ready defensible AI-governance compan
 
 How you talk. Math-grounded, story-aware, never marketing-fluff, never mystical. Short sentences. Lead with the answer, then the receipt. Direct, candid about risk, allergic to hand-waving. When you cite a number it is a LOCKED number or you flag it as an estimate. You never inflate. Honesty is the product.
 
-Doctrine v11 LOCKED numbers (NEVER inflate): Doctrine-claimed 749 declarations / 14 unique axioms / 163 sorries. Live regen: 752 declarations / 160 sorries (109 baseline + 51 Putnam) / 15 raw axioms (14 unique) / 44 anchor gates. Putnam 4/12 GREEN. 13-axis yuyay_v3. Replay hash bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5.
+Doctrine v11: use the source-pinned HISTORICAL Lean snapshot injected below. The snapshot is c7c0ba17, measured 2026-05-31T11:00:00Z: 749 declarations / 14 unique axioms / 163 sorries. It does not establish current HEAD counts or current Putnam proof status. The former 752/160 regen claim is retired. Locked formulas remain exactly 8; Lambda uniqueness remains Conjecture 1. 13-axis yuyay_v3. Replay hash bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5.
 
 Honest labels: Khipu/λ-receipt signature is a DSSE PLACEHOLDER (Sigstore not wired into CI) — the chain is hash-verified (SHA3-256), not signature-verified. Λ-uniqueness is Conjecture 1, not a theorem. SLSA L1. traceparent in-process only. Router organ/tier/Λ math is real; the model response needs HF_TOKEN else an honest 503 — never a fake completion.
 
@@ -204,19 +219,24 @@ SYSTEM_PROMPT = _load_system_prompt()
 
 
 def _live_canon_block(chain_depth: int) -> str:
-    """Machine-generated live block prepended before the canonical prompt."""
+    """Render request context without relabeling a historical snapshot as live."""
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     fl = ", ".join(f"{k}={v}" for k, v in FLAGSHIP_SNAPSHOT.items())
-    lr = DOCTRINE_LOCKED["live_regen"]
+    snapshot = DOCTRINE_LOCKED["lean_snapshot"]
     return (
-        f"[YACHAY LIVE CANON — generated {ts}]\n"
-        f"Flagship Spaces: {fl} (+ {', '.join(FLAGSHIP_ALSO)})\n"
-        f"Doctrine: v11 LOCKED ({lr['declarations']} decl / {lr['sorries']} sorries / "
-        f"{lr['unique_axioms']} unique axioms / {lr['anchor_gates']} gates; "
-        f"Putnam {DOCTRINE_LOCKED['putnam_green']} GREEN)\n"
-        f"Replay hash: {REPLAY_HASH}\n"
-        f"Warhacker: {WARHACKER['city']} {WARHACKER['dates']} — dress rehearsal "
-        f"{WARHACKER['dress_rehearsal']}.\n"
+        f"[YACHAY CONTEXT — generated {ts}]\n"
+        f"Historical flagship snapshot (not probed): {fl} "
+        f"(+ {', '.join(FLAGSHIP_ALSO)})\n"
+        f"Lean snapshot: {snapshot['status']} at {snapshot['sha']}, "
+        f"measured {snapshot['measured_at_utc']}: "
+        f"{snapshot['declarations']} declarations / {snapshot['unique_axioms']} "
+        f"unique axioms / {snapshot['sorries']} sorries. "
+        "Current HEAD and current Putnam proof status are not verified.\n"
+        f"Snapshot source: {snapshot['source_url']}\n"
+        f"Locked formulas: {snapshot['locked_formula_count']}; "
+        "Lambda uniqueness remains Conjecture 1.\n"
+        f"Replay hash (historical): {REPLAY_HASH}\n"
+        f"Historical event: {WARHACKER['city']} {WARHACKER['dates']}.\n"
         f"Khipu chain depth at this turn: {chain_depth}\n"
     )
 
@@ -368,8 +388,12 @@ function add(cls,html){const d=document.createElement('div');d.className='msg '+
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 fetch('/api/a11oy/yachay/projects').then(r=>r.json()).then(d=>{
   const c=document.getElementById('canon');c.innerHTML='';
-  c.insertAdjacentHTML('beforeend','<span class="chip"><b>Doctrine v11</b> 752 decl · 160 sorries · 44 gates</span>');
-  c.insertAdjacentHTML('beforeend','<span class="chip"><b>Putnam</b> 4/12 GREEN</span>');
+  const snapshot=(d.doctrine_locked||{}).lean_snapshot;
+  const chip=document.createElement('span');chip.className='chip';
+  chip.textContent=snapshot && snapshot.status==='HISTORICAL' ?
+    'Historical Lean '+snapshot.sha+' · '+snapshot.declarations+' decl · '+snapshot.sorries+' sorries · current HEAD unverified' :
+    'Lean snapshot unavailable';
+  c.appendChild(chip);
   c.insertAdjacentHTML('beforeend','<span class="chip"><b>Warhacker</b> 16–19 Jun · San Diego</span>');
   (d.flagships||[]).forEach(fp=>{const ok=fp.status==='RUNNING';c.insertAdjacentHTML('beforeend',
     '<span class="chip '+(ok?'run':'warn')+'">'+esc(fp.name)+': '+esc(fp.status)+'</span>');});
@@ -465,6 +489,7 @@ def attach(app) -> None:
         return JSONResponse({
             "organ": "yachay", "flagships": flagships,
             "doctrine_locked": DOCTRINE_LOCKED, "warhacker": WARHACKER,
+            "flagship_snapshot_status": "HISTORICAL_NOT_PROBED",
             "khipu_source": _KHIPU_SOURCE, "unay_memory": _UNAY_PRESENT,
             "khipu_receipt": rec, "signed_by": "Yachay",
         })
@@ -478,7 +503,7 @@ def attach(app) -> None:
             {"axis": "Warhacker demo", "today":
              "Lock the P1 Cannonico drone-oversight flow + P6 ATO Body-of-Evidence script for the Mon 15 Jun dress rehearsal."},
             {"axis": "Flagship honesty", "today":
-             "Get a11oy / amaru / rosie from APP_STARTING to RUNNING; keep LOCKED numbers exact (752/160/14/44)."},
+             "Get a11oy / amaru / rosie from APP_STARTING to RUNNING; cite the dated Lean snapshot and verify current HEAD before claiming fresh counts."},
             {"axis": "Receipts / trust", "today":
              "Keep the Khipu chain green; remember the DSSE signature is an honest PLACEHOLDER — do not claim Sigstore."},
             {"axis": "Founder bandwidth", "today":
