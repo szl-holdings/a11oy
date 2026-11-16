@@ -169,6 +169,7 @@ async function buildUpstreamRequest(request, upstream) {
       method: request.method,
       headers,
       body,
+      signal: request.signal,
       redirect: "manual",
     });
   }

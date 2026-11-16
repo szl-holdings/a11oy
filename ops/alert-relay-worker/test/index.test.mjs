@@ -379,3 +379,61 @@ test("a transport ignoring cancellation still times out and its late body is can
   assert.equal(lateBodyCancelled, true);
   assert.equal(attempts, 1);
 });
+
+for (const [label, contentType, body] of [
+  ["JSON", "application/json", JSON.stringify({ text: "fixture" })],
+  ["plain text", "text/plain", "fixture"],
+]) {
+  test(`caller abort reaches an in-flight ${label} publication`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const caller = new AbortController();
+    const started = deferred();
+    let attempts = 0;
+    let forwarded;
+    const pending = handleRequest(
+      relayRequest("/opaque-topic", {
+        method: "POST",
+        headers: { "content-type": contentType },
+        body,
+        signal: caller.signal,
+      }),
+      (request) => {
+        attempts += 1;
+        forwarded = request;
+        started.resolve();
+        return new Promise((resolve, reject) => {
+          request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+        });
+      },
+    );
+    await started.promise;
+    caller.abort();
+    const response = await flushAfterDeadline(pending);
+    assert.ok(response instanceof Response, "caller cancellation must not wait for the publication deadline");
+    assert.equal(forwarded.signal.aborted, true);
+    assert.equal(response.status, 502);
+    assert.equal(attempts, 1);
+  });
+
+  test(`an already-aborted ${label} caller never starts publication`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const caller = new AbortController();
+    caller.abort();
+    let attempts = 0;
+    const response = await handleRequest(
+      relayRequest("/opaque-topic", {
+        method: "POST",
+        headers: { "content-type": contentType },
+        body,
+        signal: caller.signal,
+      }),
+      async () => {
+        attempts += 1;
+        return new Response(null, { status: 204 });
+      },
+    );
+    assert.equal(attempts, 0);
+    assert.equal(response.status, 502);
+    assert.deepEqual(await response.json(), { error: "upstream_unavailable" });
+  });
+}
