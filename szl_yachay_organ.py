@@ -128,6 +128,7 @@ DOCTRINE_LOCKED = {
         "repo": "szl-holdings/lutar-lean",
         "sha": "c7c0ba17",
         "measured_at_utc": "2026-05-31T11:00:00Z",
+        "method": "see .github/scripts/lean_numbers.py docstring (fixed grep-equivalent regexes)",
         "current_head_verified": False,
         "declarations": 749,
         "sorries": 163,
@@ -233,6 +234,7 @@ def _live_canon_block(chain_depth: int) -> str:
         f"unique axioms / {snapshot['sorries']} sorries. "
         "Current HEAD and current Putnam proof status are not verified.\n"
         f"Snapshot source: {snapshot['source_url']}\n"
+        f"Measurement method: {snapshot['method']}\n"
         f"Locked formulas: {snapshot['locked_formula_count']}; "
         "Lambda uniqueness remains Conjecture 1.\n"
         f"Replay hash (historical): {REPLAY_HASH}\n"

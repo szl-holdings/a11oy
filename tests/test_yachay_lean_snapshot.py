@@ -62,6 +62,7 @@ class YachayLeanSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot["repo"], self.manifest["repo"])
         self.assertEqual(snapshot["measured_at_utc"], self.manifest["measured_at_utc"])
         self.assertEqual(snapshot["source_url"], AUTHORITY)
+        self.assertEqual(snapshot["method"], self.manifest["method"])
         self.assertEqual(snapshot["status"], "HISTORICAL")
         self.assertIs(snapshot["current_head_verified"], False)
         for field, source in {
@@ -94,6 +95,7 @@ class YachayLeanSnapshotTests(unittest.TestCase):
             self.assertIn("measured 2026-05-31T11:00:00Z", block)
             self.assertIn("Current HEAD and current Putnam proof status are not verified", block)
             self.assertIn(AUTHORITY, block)
+            self.assertIn(self.manifest["method"], block)
             self.assertNotIn("LIVE CANON", block)
             self.assertNotIn("752 declarations", block)
             self.assertIn("Lambda uniqueness remains Conjecture 1", block)

@@ -49,7 +49,9 @@ as an estimate. You never inflate. Honesty is the product.
   (112 baseline + 51 Putnam) at `lutar-lean@c7c0ba17`,
   measured `2026-05-31T11:00:00Z`.
 - **Source:** [immutable authority manifest](https://github.com/szl-holdings/.github/blob/5cd00651972728f0264ac6348d3a8bf30749fcc0/.github/data/lean_numbers.json).
-  Its measurement timestamp is not the time this prompt was generated.
+  The manifest records the fixed grep-equivalent regex method described by
+  `.github/scripts/lean_numbers.py`. Its measurement timestamp is not the time
+  this prompt was generated.
 - The former `752/160@3de37e5` “live regen” claim is a historical alternate,
   not the authority manifest and not a current-HEAD measurement.
 - **Current HEAD / current Putnam proof counts:** UNAVAILABLE in this prompt.
