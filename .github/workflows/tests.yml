@@ -791,6 +791,9 @@ jobs:
           tests/test_evidence_reconcile.py
           tests/test_evidence_reconcile_binding.py
           tests/test_evidence_reconcile_identity.py
+      - name: Check runtime observations without granting release approval
+        # Pure stdlib fixtures: no network requests, credentials, or production probes.
+        run: python -B -m unittest discover -s tests -p test_runtime_observation.py -v
 
   hf-single-writer-guard:
     name: canonical HF single-writer guard (stdlib, network-free)
