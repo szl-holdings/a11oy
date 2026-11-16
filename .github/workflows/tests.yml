@@ -1208,7 +1208,9 @@ jobs:
         # and unknown-id / malformed input degrades to an honest 4xx, never a 500. A
         # future edit that regresses a frontier endpoint into the 422 / silent-degrade
         # class becomes a red gate here instead of a silent live failure.
-        run: pytest tests/test_frontier_endpoints.py -q
+        run: |
+          python3 -m pytest tests/test_offline_pytest_runner.py -q
+          python3 .github/scripts/offline_pytest.py tests/test_frontier_endpoints.py -q
 
   python-status-aggregate:
     name: Operational STATUS aggregate contract (Wave R Dev 2 — pytest, offline)
