@@ -72,9 +72,12 @@ X402_MANIFEST_COPY_ADDITIONS = {".well-known/x402-pricing.json"}
 # One opt-in health-read registrar, batched into the existing origin-admission
 # COPY. Every historical source count/digest and layer ceiling stays unchanged.
 BUILD_ENV_FANOUT_COPY_ADDITIONS = {"a11oy_build_env_fanout.py"}
-# The CEG registrar is a single root module batched into the existing COPY.
-# Historical source digests remain pinned by excluding this named addition.
-EVIDENCE_GRAPH_COPY_ADDITIONS = {"szl_evidence_graph.py"}
+# The CEG registrar, offline receipt reader, and reviewed receipt catalog are
+# batched into the existing root COPY. Historical source digests and the layer
+# ceiling remain unchanged; only these exact additions are excluded below.
+EVIDENCE_GRAPH_COPY_ADDITIONS = {
+    "szl_evidence_graph.py", "szl_evidence_receipts.py", "evidence_graph_receipts.json",
+}
 # One explicit telemetry module; prior source digests and layer budget stay fixed.
 TRACE_OBSERVATION_COPY_ADDITIONS = {"vsp_otel/trace_ir.py"}
 
