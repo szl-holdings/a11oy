@@ -4,7 +4,7 @@
 # Frontier design: evidence that connects operations, mathematics and the interface
 
 Research date: 2026-11-16. This note distinguishes the implemented Evidence
-Inspector slice from proposals. It makes no claim of unprecedented invention,
+Inspector slice from proposals. It makes no claim of novelty,
 production completeness, or independent verification of observer assertions.
 
 ## Decision
