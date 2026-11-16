@@ -33,6 +33,17 @@ CONTEXT_FAILURE_CODES = frozenset((
     "P256_KEY_REQUIRED", "PUBLIC_KEY_PIN_MISMATCH",
 ))
 
+# Fixed collector diagnostics only: never expose provider text or context values.
+RUNTIME_FAILURE_CODES = frozenset((
+    "HF_IDENTITY_MISMATCH", "SOURCE_IDENTITY_MISMATCH", "PROCESS_IDENTITY_MISMATCH",
+    "FENCED_STORAGE_UNAVAILABLE", "SERIES_A_PERSISTENCE_UNAVAILABLE",
+    "SERIES_A_STORE_IDENTITY_REQUIRED", "READ_RESPONSE_UNAVAILABLE",
+    "READ_JSON_REQUIRED", "READ_ENCODING_INVALID", "READ_SIZE_INVALID",
+    "READ_DEADLINE_EXCEEDED", "READ_SIZE_MISMATCH", "READ_BODY_REQUIRED",
+    "READ_OBJECT_REQUIRED", "READ_TRANSPORT_OR_BODY_UNAVAILABLE",
+))
+
+
 
 class HandoffBlocked(ValueError):
     def __init__(self, code, *, missing_variables=()):
@@ -99,8 +110,13 @@ def independent_context(source, env):
 def admit(client, context, pins):
     read = collector()
     read.gate._context(context, context.source_revision)
-    before = read.bracket(client, context)
-    after = read.bracket(client, context)
+    try:
+        before = read.bracket(client, context)
+        after = read.bracket(client, context)
+    except read.CollectionBlocked as exc:
+        code = str(exc)
+        raise HandoffBlocked(code if code in RUNTIME_FAILURE_CODES
+                             else "EXECUTION_HANDOFF_UNAVAILABLE") from exc
     require(before == after, "SOURCE_RUNTIME_OR_STORAGE_CHANGED")
     return {
         "schema": "szl.execution-handoff-readback/v1", "evidence_class": "MEASURED",
@@ -211,6 +227,12 @@ def summary(report):
         return ("Execution handoff stopped with `SUPERSEDED_BY_NEWER_MAIN`. A newer protected "
                 "main owns the next deployment and verification. No execution-context action is "
                 "requested for this superseded source.\n")
+    if code in {"HF_IDENTITY_MISMATCH", "SOURCE_IDENTITY_MISMATCH", "PROCESS_IDENTITY_MISMATCH"}:
+        return (f"Execution handoff blocked during `{report['stage']}` with `{code}`. "
+                "Reconcile the independently admitted source, runtime revision and boot with "
+                "the retained deployment evidence. Do not copy live response values into "
+                "approval configuration to manufacture agreement. This GET-only handoff "
+                "changed no provider state and grants no execution authority.\n")
     return (f"Execution handoff blocked during `{report['stage']}` with sanitized code `{code}`. "
             "Inspect the retained failure and ownership receipts before retrying. This GET-only "
             "handoff changed no provider state and grants no execution authority.\n")
