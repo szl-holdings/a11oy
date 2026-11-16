@@ -72,7 +72,7 @@ tests/test_verify_worker_revision.py tests/test_workers_compute_observability.py
 ## Deploy (GitOps)
 
 `.github/workflows/alert-relay-worker.yml` deploys only from `main`, after the
-test job, inside the `cloudflare-production` environment:
+test job, inside the `production` environment:
 
 1. checks out exactly `github.sha` and installs Wrangler 4.150.0 from
    `package-lock.json` (Wrangler 4.128.0 dropped the declared
@@ -92,9 +92,9 @@ bounded POST returning 2xx may record `HEALTHY` and close issue 541.
 ## Owner actions (the agent that wrote this has no Cloudflare credentials)
 
 1. GitHub → `szl-holdings/a11oy` → Settings → Environments → create
-   `cloudflare-production` with required reviewers and deployment branches
-   limited to `main`. (The previous job used the `production` environment; its
-   `CLOUDFLARE_API_TOKEN` lacked zone read access and is no longer used here.)
+   `production` with required reviewers and deployment branches
+   limited to `main`. Its `CLOUDFLARE_API_TOKEN` is the production-authority
+   credential used by the Cloudflare edge controller.
 2. Environment secrets:
    - `CLOUDFLARE_ACCOUNT_ID`: the 32-hex account ID.
    - `CLOUDFLARE_API_TOKEN`: custom token with **Account → Workers Scripts →

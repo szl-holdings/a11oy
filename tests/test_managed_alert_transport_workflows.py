@@ -109,7 +109,7 @@ def test_relay_deploy_binds_the_exact_sha_and_reads_it_back_before_the_canary() 
     assert "\npermissions:\n  contents: read\n" in value
     assert "if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" in deploy
     assert "    needs: test\n" in deploy
-    assert "    environment: cloudflare-production\n" in deploy
+    assert "    environment: production\n" in deploy
     assert "cancel-in-progress: false" in deploy
     assert "ref: ${{ github.sha }}" in deploy
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in deploy
