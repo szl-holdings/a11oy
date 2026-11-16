@@ -17,6 +17,15 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
 
+# Keep the response class in module globals: route annotations are deferred by
+# ``from __future__ import annotations`` and FastAPI resolves them against the
+# handler module, not the local ``register`` scope.  The guarded import keeps
+# the graph primitives importable in bare, non-serving test environments.
+try:
+    from fastapi.responses import JSONResponse
+except Exception:  # pragma: no cover - FastAPI is optional for pure primitives
+    JSONResponse = None  # type: ignore[assignment,misc]
+
 SCHEMA = "szl.evidence-edge/v1"
 GRAPH_SCHEMA = "szl.evidence-graph/v1"
 VERDICTS = frozenset({"VERIFIED", "OBSERVED", "DEGRADED", "UNAVAILABLE"})
@@ -264,8 +273,6 @@ def environment_snapshot(*, max_edges: int = _MAX_EDGES) -> dict[str, Any]:
 def register(app: Any, *, ns: str = "a11oy") -> tuple[str, str]:
     """Register read-only graph and query routes on a FastAPI application."""
     from fastapi import Query
-    from fastapi.responses import JSONResponse
-
     base = f"/api/{ns}/v1/evidence"
 
     @app.get(base + "/graph")
