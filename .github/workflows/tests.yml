@@ -12,6 +12,20 @@ permissions:
   packages: read
 
 jobs:
+  yachay-lean-snapshot:
+    name: Historical Lean snapshot identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Check source identity and historical labels offline
+        run: python -B tests/test_yachay_lean_snapshot.py -v
+
   execution-observer:
     name: Fixed execution observations and readiness evidence
     runs-on: ubuntu-latest
@@ -39,8 +53,11 @@ jobs:
           tests/test_publish_readiness_verdict.py tests/test_canonical_a11oy_relock.py
           tests/test_execution_acceptance.py tests/test_hf_execution_handoff.py
           tests/test_living_anatomy_guardian_receipts.py tests/test_dockerfile_layer_budget.py
+          tests/test_evidence_graph.py tests/test_evidence_receipts.py
+          tests/test_evidence_receipt_routes.py
           tests/test_model_endpoint_credentials.py
           tests/test_collector_reason_codes.py
+          tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
         run: python -B -m unittest discover -s ops/vm-model-gateway -p 'test_*.py' -v
 
