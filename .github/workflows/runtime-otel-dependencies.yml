@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Runtime OTLP dependency contracts
+
+on:
+  pull_request:
+    paths:
+      - 'requirements-runtime.txt'
+      - 'requirements-audit.txt'
+      - 'Dockerfile'
+      - 'vsp_otel/**'
+      - 'tests/test_runtime_otel_dependency_contract.py'
+      - '.github/workflows/runtime-otel-dependencies.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'requirements-runtime.txt'
+      - 'requirements-audit.txt'
+      - 'Dockerfile'
+      - 'vsp_otel/**'
+      - 'tests/test_runtime_otel_dependency_contract.py'
+      - '.github/workflows/runtime-otel-dependencies.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-otel-dependencies-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-export:
+    name: Native OTLP capability (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.14']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a
+        with:
+          egress-policy: audit
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install the two telemetry pins from the actual runtime manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import sys
+          names = {'opentelemetry-sdk', 'opentelemetry-exporter-otlp'}
+          selected = []
+          for line in Path('requirements-runtime.txt').read_text().splitlines():
+              match = re.fullmatch(r'([A-Za-z0-9_.-]+)==([^\s]+)', line.strip())
+              if match and match.group(1) in names:
+                  selected.append(line.strip())
+          assert len(selected) == len(names)
+          assert {line.split('==', 1)[0] for line in selected} == names
+          subprocess.run([sys.executable, '-m', 'pip', 'install', '--only-binary=:all:',
+                          '--disable-pip-version-check', *selected], check=True)
+          PY
+      - name: Verify source closure and native loopback delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -I -B tests/test_runtime_otel_dependency_contract.py 2>&1 | tee runtime-otel-fixture.log
+      - name: Retain fixture-only test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: runtime-otel-fixture-${{ matrix.python }}-${{ github.sha }}
+          path: runtime-otel-fixture.log
+          if-no-files-found: warn
+          retention-days: 30
