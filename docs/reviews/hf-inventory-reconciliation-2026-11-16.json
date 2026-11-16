@@ -38,8 +38,10 @@
     "merged": false,
     "provider_write_performed": false,
     "pull_request_created": false,
-    "pushed": false
+    "pushed": false,
+    "recorded_phase": "LOCAL_PREPARATION_BEFORE_PUBLICATION"
   },
+  "copyright": "(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
   "dossier_integrity_validation": {
     "checked_at": "2026-11-16T23:12:44.385069+00:00",
     "checks": [
@@ -5039,7 +5041,7 @@
     }
   ],
   "profile_follow_on": {
-    "command": "python scripts/render_profile_inventory.py --manifest <exact-manifest> --source-revision <merged-a11oy-sha> --source-git-blob <manifest-git-blob>",
+    "command": "python .github/scripts/render_profile_inventory.py --manifest <exact-manifest> --source-revision <merged-a11oy-sha> --source-git-blob <manifest-git-blob>",
     "executed": false,
     "repository": "szl-holdings/.github",
     "required_inputs": [
@@ -5047,8 +5049,8 @@
       "immutable merged A11oy source revision",
       "git blob for that exact manifest"
     ],
-    "script": "scripts/render_profile_inventory.py",
-    "verification": "Repeat with --check and run estate parity/source-binding verification. Bound bytes must agree with current A11oy main; a pre-merge candidate is not current-source parity."
+    "script": ".github/scripts/render_profile_inventory.py",
+    "verification": "Run python .github/scripts/render_profile_inventory.py --check, then estate parity/source-binding verification. Bound bytes must agree with current A11oy main; a pre-merge candidate is not current-source parity."
   },
   "public_inventory": {
     "counts": {
@@ -6956,6 +6958,7 @@
       "SZLHOLDINGS/szl-constellation"
     ]
   },
+  "spdx_license_identifier": "Apache-2.0",
   "state": "SOURCE_REVIEW_REQUIRED",
   "validation": [
     {

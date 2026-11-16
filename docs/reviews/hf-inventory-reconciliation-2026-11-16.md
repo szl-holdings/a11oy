@@ -1,10 +1,13 @@
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+
 # Hugging Face inventory reconciliation source review
 
 **State: SOURCE_REVIEW_REQUIRED.** This dossier is a reviewable evidence package. It does not refresh governed pins, change visibility or keep policy, regenerate public source projections, or authorize inference.
 
 Source: [`szl-holdings/a11oy@f6e30e83343674e544af0ad83a03c058d9c9d53b`](https://github.com/szl-holdings/a11oy/commit/f6e30e83343674e544af0ad83a03c058d9c9d53b). Branch: `review/hf-inventory-reconciliation-20261116`.
 
-Machine-readable evidence: [hf-inventory-reconciliation-2026-11-16.json](hf-inventory-reconciliation-2026-11-16.json). Exact SHA-256: `01414af229f7973c937195ab5e52ecfd37623a8d47bb3eabb8734b64fb651e2e`. It contains every observed ID, immutable revision, file metadata, card byte hash, preserved prior row, proposed catalog row and validation result.
+Machine-readable evidence: [hf-inventory-reconciliation-2026-11-16.json](hf-inventory-reconciliation-2026-11-16.json). Exact SHA-256: `093817340533b712e866ea44b889d22c99e4aa4ac3afde4ade6a78fb6ca73efa`. It contains every observed ID, immutable revision, file metadata, card byte hash, preserved prior row, proposed catalog row and validation result.
 
 ## Measured public membership
 
@@ -113,8 +116,8 @@ The rejected coverage and hold probes are source-review gates, not a passed full
 4. After source decisions, regenerate via native collection and the canonical projection workflow, inspect fresh drift and run complete source coverage/parity gates. These observed counts are evidence, not constants to hand-edit into outputs.
 5. After the A11oy source change is reviewed and merged, bind the organization profile to exact merged manifest bytes, immutable source commit and Git blob. Run its check and estate parity/source-binding verification. A pre-merge candidate is not current-source parity.
 
-Canonical generation/check commands are in the JSON and bound [workflow](https://github.com/szl-holdings/a11oy/blob/f6e30e83343674e544af0ad83a03c058d9c9d53b/.github/workflows/public-inventory-refresh.yml). They were not used to write projections. The profile follow-on is `scripts/render_profile_inventory.py --manifest <exact-manifest> --source-revision <merged-a11oy-sha> --source-git-blob <manifest-git-blob>`, followed by the same invocation with `--check`.
+Canonical generation/check commands are in the JSON and bound [workflow](https://github.com/szl-holdings/a11oy/blob/f6e30e83343674e544af0ad83a03c058d9c9d53b/.github/workflows/public-inventory-refresh.yml). They were not used to write projections. The profile follow-on is `python .github/scripts/render_profile_inventory.py --manifest <exact-manifest> --source-revision <merged-a11oy-sha> --source-git-blob <manifest-git-blob>`, followed by `python .github/scripts/render_profile_inventory.py --check`.
 
 ## Change boundary
 
-Only this Markdown and companion JSON are added. Canonical manifests, matrices, support source, revision policy, public contract, generated projections and provider state remain unchanged. This worktree performs no push, pull request creation, merge or external publication.
+Only this Markdown and companion JSON are added. Canonical manifests, matrices, support source, revision policy, public contract, generated projections and provider state remain unchanged. The JSON completion boundary records local preparation before publication of this review branch. Publishing the dossier for review does not apply the proposed catalog or topology changes.
