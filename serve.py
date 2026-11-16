@@ -4171,6 +4171,10 @@ except Exception as _vsp_e:
     print(f"[a11oy] vsp-otel VSP skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
 # --- end vsp-otel VSP ---
 
+# Isolated build-environment health fan-out; exact targets, opt-in, no execution.
+import a11oy_build_env_fanout as _a11oy_build_env_fanout
+_a11oy_build_env_fanout.register(app)
+
 # -- Runtime contracts: process liveness, fail-closed readiness, build identity,
 # explicit OTEL exporter/collector evidence, and soft-404 protection for unknown
 # file-like discovery paths. Read-only GETs; no receipt minting or external calls.

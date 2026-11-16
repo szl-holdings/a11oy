@@ -69,6 +69,10 @@ RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS = {"a11oy_rag_synthesis_controller.py"}
 # allowlist counts and digests exclude it.
 X402_MANIFEST_COPY_ADDITIONS = {".well-known/x402-pricing.json"}
 
+# One opt-in health-read registrar, batched into the existing origin-admission
+# COPY. Every historical source count/digest and layer ceiling stays unchanged.
+BUILD_ENV_FANOUT_COPY_ADDITIONS = {"a11oy_build_env_fanout.py"}
+
 COPY_SOURCE_ALLOWLIST_COUNT = 589
 COPY_SOURCE_ALLOWLIST_SHA256 = (
     "4f4d797eac48f0cd845f4fce9869aa9a25aabc6ab321cf3dd48934be07d2c8b1"
@@ -201,6 +205,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert MASTER_WORKCELL_COPY_ADDITIONS <= copy_sources
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= copy_sources
     assert X402_MANIFEST_COPY_ADDITIONS <= copy_sources
+    assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | X402_ORIGIN_COPY_ADDITIONS
@@ -222,6 +227,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         | PUBLIC_ESTATE_COPY_ADDITIONS
         | X402_MANIFEST_COPY_ADDITIONS
+        | BUILD_ENV_FANOUT_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -257,6 +263,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert MASTER_WORKCELL_COPY_ADDITIONS <= sources
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= sources
     assert X402_MANIFEST_COPY_ADDITIONS <= sources
+    assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -275,6 +282,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - X402_MANIFEST_COPY_ADDITIONS
+        - BUILD_ENV_FANOUT_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -308,6 +316,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert MASTER_WORKCELL_COPY_ADDITIONS <= sources
     assert RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS <= sources
     assert X402_MANIFEST_COPY_ADDITIONS <= sources
+    assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -326,6 +335,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - RAG_SYNTHESIS_CONTROLLER_COPY_ADDITIONS
         - PUBLIC_ESTATE_COPY_ADDITIONS
         - X402_MANIFEST_COPY_ADDITIONS
+        - BUILD_ENV_FANOUT_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
@@ -374,3 +384,12 @@ def test_master_workcell_is_batched_into_existing_layers() -> None:
                     if "data/master_workcell_dag_20261027.json" in _copy_sources(row))
     assert "data/genome.json" in _copy_sources(data_row)
     assert shlex.split(data_row)[-1] == "./data/"
+
+
+def test_build_env_fanout_is_batched_once_with_the_existing_origin_module() -> None:
+    rows = [instruction for _line, instruction in _logical_instructions()
+            if instruction.upper().startswith("COPY ")
+            and "a11oy_build_env_fanout.py" in _copy_sources(instruction)]
+    assert len(rows) == 1
+    assert "a11oy_x402_admission.py" in _copy_sources(rows[0])
+    assert shlex.split(rows[0])[-1] == "./"
