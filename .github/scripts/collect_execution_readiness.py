@@ -77,32 +77,40 @@ def fetch_json(client, url, *, authorization=None, tenant=None):
                 and not any(character in authorization + tenant for character in "\r\n"),
                 "EXPORT_CREDENTIALS_REQUIRED")
         headers.update(Authorization="Bearer " + authorization, **{"x-a11oy-tenant": tenant})
-    deadline = time.monotonic() + 60
-    try:
-        with client.stream("GET", url, headers=headers, follow_redirects=False) as response:
-            require(response.status_code == 200 and str(response.url) == url, "READ_RESPONSE_UNAVAILABLE")
-            require(response.headers.get("content-type", "").split(";", 1)[0].strip().lower() == "application/json",
-                    "READ_JSON_REQUIRED")
-            require(response.headers.get("content-encoding", "identity").lower() == "identity", "READ_ENCODING_INVALID")
-            declared = response.headers.get("content-length")
-            require(declared is None or (declared.isdigit() and 0 < int(declared) <= MAX_BYTES), "READ_SIZE_INVALID")
-            raw = bytearray()
-            for chunk in response.iter_bytes():
-                require(time.monotonic() <= deadline, "READ_DEADLINE_EXCEEDED")
-                raw.extend(chunk)
-                require(len(raw) <= MAX_BYTES, "READ_SIZE_INVALID")
-        require(time.monotonic() <= deadline, "READ_DEADLINE_EXCEEDED")
-        require(declared is None or len(raw) == int(declared), "READ_SIZE_MISMATCH")
-        require(bool(raw), "READ_BODY_REQUIRED")
-        result = gate.acceptance.strict_json(bytes(raw))
-        require(type(result) is dict, "READ_OBJECT_REQUIRED")
-        return result
-    except CollectionBlocked:
-        raise
-    except Exception:
-        # Never copy URLs containing signed material, bodies, tokens or provider
-        # exception text into logs or a shared artifact.
-        raise CollectionBlocked("READ_TRANSPORT_OR_BODY_UNAVAILABLE") from None
+    # Hosted control-plane reads can transiently fail at the transport layer
+    # while the runtime remains unchanged. Retry only that sanitized condition;
+    # response, identity, size, encoding, and JSON failures remain fail-closed.
+    for attempt in range(3):
+        deadline = time.monotonic() + 60
+        try:
+            with client.stream("GET", url, headers=headers, follow_redirects=False) as response:
+                require(response.status_code == 200 and str(response.url) == url, "READ_RESPONSE_UNAVAILABLE")
+                require(response.headers.get("content-type", "").split(";", 1)[0].strip().lower() == "application/json",
+                        "READ_JSON_REQUIRED")
+                require(response.headers.get("content-encoding", "identity").lower() == "identity", "READ_ENCODING_INVALID")
+                declared = response.headers.get("content-length")
+                require(declared is None or (declared.isdigit() and 0 < int(declared) <= MAX_BYTES), "READ_SIZE_INVALID")
+                raw = bytearray()
+                for chunk in response.iter_bytes():
+                    require(time.monotonic() <= deadline, "READ_DEADLINE_EXCEEDED")
+                    raw.extend(chunk)
+                    require(len(raw) <= MAX_BYTES, "READ_SIZE_INVALID")
+            require(time.monotonic() <= deadline, "READ_DEADLINE_EXCEEDED")
+            require(declared is None or len(raw) == int(declared), "READ_SIZE_MISMATCH")
+            require(bool(raw), "READ_BODY_REQUIRED")
+            result = gate.acceptance.strict_json(bytes(raw))
+            require(type(result) is dict, "READ_OBJECT_REQUIRED")
+            return result
+        except CollectionBlocked as exc:
+            if str(exc) != "READ_TRANSPORT_OR_BODY_UNAVAILABLE" or attempt == 2:
+                raise
+        except Exception:
+            if attempt == 2:
+                # Never copy URLs containing signed material, bodies, tokens or
+                # provider exception text into logs or a shared artifact.
+                raise CollectionBlocked("READ_TRANSPORT_OR_BODY_UNAVAILABLE") from None
+        time.sleep(0.5 * (2 ** attempt))
+    raise CollectionBlocked("READ_TRANSPORT_OR_BODY_UNAVAILABLE")
 
 
 def bracket(client, context):
