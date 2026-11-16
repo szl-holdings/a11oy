@@ -575,7 +575,11 @@ def telemetry_summary() -> Dict[str, Any]:
                       "max_age_s": max_age},
         "counts": {"trace_count": len(completed),
                    "span_count": sum(len(tr.spans) for tr in completed),
-                   "server_error_count": sum(tr.status() == "ERROR" for tr in completed)},
+                   "error_trace_count": sum(tr.status() in {"ERROR", "TIMEOUT"} for tr in completed),
+                   "server_error_count": sum(
+                       isinstance(tr.root.attributes.get("http.response.status_code"), int)
+                       and 500 <= tr.root.attributes["http.response.status_code"] < 600
+                       for tr in completed)},
         "ring": {"size": len(TRACES), "capacity": TRACES.capacity},
         "coverage": {"state": "UNAVAILABLE", "dataset_count": None,
                      "expected_dataset_count": None,

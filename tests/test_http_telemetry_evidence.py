@@ -191,3 +191,22 @@ def test_root_request_uses_installed_w3c_trace_id(tmp_path, monkeypatch):
     outgoing = parse_traceparent(response.headers["traceparent"])
     trace = obs.TRACES.all()[-1]
     assert outgoing["trace_id"] == trace.trace_id == response.headers["x-trace-id"]
+
+
+def test_summary_distinguishes_server_failures_from_handled_child_errors():
+    handled = obs.Trace("GET /handled")
+    handled.root.set_attribute("http.response.status_code", 200)
+    child = handled.start_span("upstream", parent_id=handled.root.span_id)
+    child.set_status("ERROR")
+    child.end()
+    handled.end()
+    obs.TRACES.add(handled)
+    server = obs.Trace("GET /server-error")
+    server.root.set_attribute("http.response.status_code", 503)
+    server.root.set_status("ERROR")
+    server.end()
+    obs.TRACES.add(server)
+    counts = obs.telemetry_summary()["counts"]
+    assert counts["trace_count"] == 2
+    assert counts["error_trace_count"] == 2
+    assert counts["server_error_count"] == 1
