@@ -232,6 +232,8 @@ def environment_snapshot(*, max_edges: int = _MAX_EDGES) -> dict[str, Any]:
         os.environ.get("A11OY_SOURCE_REVISION")
         or os.environ.get("GIT_COMMIT")
         or os.environ.get("SOURCE_REVISION")
+        # The canonical Space exposes this explicit build identity in build-info.
+        or os.environ.get("SZL_GIT_SHA")
     )
     runtime_revision = os.environ.get("A11OY_RUNTIME_REVISION") or os.environ.get("HF_REVISION")
     if not source_revision and not runtime_revision:

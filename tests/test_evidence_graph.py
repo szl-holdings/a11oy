@@ -64,8 +64,18 @@ def test_unknown_verdict_and_bad_digest_fail_closed():
 
 
 def test_empty_environment_is_unavailable(monkeypatch):
-    for key in ("A11OY_SOURCE_REVISION", "GIT_COMMIT", "SOURCE_REVISION", "A11OY_RUNTIME_REVISION", "HF_REVISION"):
+    for key in ("A11OY_SOURCE_REVISION", "GIT_COMMIT", "SOURCE_REVISION", "SZL_GIT_SHA", "A11OY_RUNTIME_REVISION", "HF_REVISION"):
         monkeypatch.delenv(key, raising=False)
     result = environment_snapshot()
     assert result["state"] == "UNAVAILABLE"
     assert result["graph"]["edge_count"] == 0
+
+
+def test_space_build_identity_is_observed(monkeypatch):
+    for key in ("A11OY_SOURCE_REVISION", "GIT_COMMIT", "SOURCE_REVISION"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("SZL_GIT_SHA", "1472e26b7015964789d3a9c4591ea3d10f0ce20b")
+    result = environment_snapshot()
+    assert result["state"] == "OBSERVED"
+    assert result["graph"]["edge_count"] == 1
+    assert result["graph"]["edges"][0]["source_revision"].startswith("1472e26")

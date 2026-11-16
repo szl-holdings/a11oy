@@ -40,7 +40,8 @@ but preserves the digest of the unfiltered snapshot.
 
 The runtime adapter reads only explicit identity variables:
 
-- `A11OY_SOURCE_REVISION`, `GIT_COMMIT`, or `SOURCE_REVISION`
+- `A11OY_SOURCE_REVISION`, `GIT_COMMIT`, `SOURCE_REVISION`, or the
+  explicit Space build identity `SZL_GIT_SHA`
 - `A11OY_RUNTIME_REVISION` or `HF_REVISION`
 
 If these variables are absent, the API returns
