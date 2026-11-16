@@ -16,6 +16,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
+from fastapi.responses import JSONResponse
 
 # Keep the response class in module globals: route annotations are deferred by
 # ``from __future__ import annotations`` and FastAPI resolves them against the
