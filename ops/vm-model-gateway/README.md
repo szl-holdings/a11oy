@@ -5,7 +5,7 @@
 
 This is an isolated A11oy **proposal** adapter for the already running Massed Compute
 `llama-server`. It binds `127.0.0.1:4000` and reaches only the verified SSH
-loopback tunnel at `127.0.0.1:19483`. It is not a production route, an A11oy
+loopback tunnel (default `127.0.0.1:19483`). It is not a production route, an A11oy
 execution authority, a held-out evaluation, or a claim of model quality.
 
 ## Contract
@@ -52,6 +52,12 @@ $env:SZL_VM_GATEWAY_RECEIPTS_DIR = <existing protected directory outside this re
 python -B ops/vm-model-gateway/gateway.py
 ```
 
+For direct local startup, `SZL_VM_GATEWAY_TUNNEL_PORT` can select a different
+existing private loopback tunnel. It accepts an ASCII decimal port from 1024 to
+65535, excluding the gateway port 4000. The default remains 19483. Both the
+upstream host and gateway bind stay `127.0.0.1`; no host or remote-target override
+is accepted. This direct mode does not supervise or adopt the tunnel.
+
 The signer and receipts directory are mandatory. The gateway uses the repo's
 `szl_dsse.sign_payload` and `verify_envelope` implementation. Its local audit
 signer has `REPO_DECLARED` trust; these receipts are **not** native A11oy
@@ -80,6 +86,23 @@ a Windows job with kill-on-close. An occupied local port refuses startup. A chil
 exit ends the supervisor; any scheduler retry restarts transport only and never
 replays an inference request. Job assignment follows child creation; abrupt
 supervisor termination in that startup interval is not qualified here.
+The supervisor reads `transport-config.json` from its private runtime directory
+before opening either credential file. A missing file retains port 19483. To
+select a separate owned local listener, the complete nonsecret file is:
+
+```json
+{"schema":"szl.vm-model-transport/v1","local_tunnel_port":19484}
+```
+
+Only those two fields are accepted. Duplicate or unknown fields, malformed or
+oversize input, a symlink, a noninteger port, privileged ports, and port 4000
+refuse startup. The selected port is used for the owned SSH forward, its health
+probe, the child gateway environment, and supervisor evidence. It persists
+across scheduled restarts because the same file is read on every start.
+The supervisor does not inherit a tunnel-port choice from the task's environment.
+The remote target remains `127.0.0.1:8080` and the gateway remains
+`127.0.0.1:4000`.
+
 Source for this host service belongs to the
 `services` and `provenance` layers; these scripts are not copied into the HF image.
 
@@ -93,12 +116,21 @@ Source for this host service belongs to the
    credentials. Keep `logs`, `operations`, and `receipts` as private subdirectories.
 2. Copy `windows-bootstrap.py` and `windows-supervisor.py` there. Populate `source/`
    with exactly the following source files from A11oy commit
-   `548ae61181d55ca72d9d7151c16e97b382277dae`, preserving their relative paths:
-   `ops/vm-model-gateway/gateway.py`, `szl_dsse.py`, and `szl_content_address.py`.
-   Check their bytes against all three SHA-256 pins in `EXPECTED`. The supervisor
+   `c66bbeaf69e2e961a8df0d3c27e324268116b585`, preserving their relative paths:
+   `ops/vm-model-gateway/gateway.py`, `ops/vm-model-gateway/runtime_config.py`,
+   `szl_dsse.py`, and `szl_content_address.py`.
+   Check their bytes against all four SHA-256 pins in `EXPECTED`. The supervisor
    verifies these copied bytes on each start. Its revision field is **DECLARED**;
-   checking three files does not attest the entire checkout, Python environment,
+   checking four files does not attest the entire checkout, Python environment,
    VM, or running image.
+
+   Existing installations may instead have a task that runs `bootstrap.py`,
+   whose explicit sibling target is `supervisor.py`. Preserve that launcher and
+   task action: install the reviewed `windows-supervisor.py` bytes under the
+   existing `supervisor.py` filename and record this mapping plus its SHA-256 in
+   the installation receipt. Keep the existing `bootstrap.py` unchanged. The
+   repository `windows-bootstrap.py` explicitly targets `windows-supervisor.py`
+   and belongs to the fresh-install layout described above.
 3. Place the reviewed host-specific OpenSSH configuration at `ssh-config`. It must
    define `szl-massed-qualification`, require host-key checking, identify only the
    authorized VM and protected SSH key, and permit the explicit loopback forward.
@@ -120,6 +152,42 @@ Source for this host service belongs to the
    XML and read back its principal, trigger, action, and retry settings. This
    logon task does not establish operation before user sign-in. The existing
    Cloudflare tunnel remains a separately owned service.
+
+### Selecting a separate owned tunnel
+
+This source package does not change the installed service. Deploy only the
+reviewed source and retain an installation receipt for the exact release used.
+
+1. Read back current listener ownership, the scheduled task action, and the
+   approved SSH target. A successful raw `/health` is transport evidence only.
+   Preserve unrelated listeners and the current public route.
+2. Stage the reviewed bootstrap and supervisor plus the four copied source
+   files described above. Compare the source bytes with the hard-coded
+   `EXPECTED` manifest and keep the reviewed SSH configuration pin unchanged.
+   Never calculate new trust pins from arbitrary installed files.
+3. Confirm the proposed local port and 4000 are free, then place the complete
+   `transport-config.json` in the private runtime directory. For the separate
+   port example use 19484 only if it is free. Retain the existing directory ACLs,
+   credential files, receipt chain, and task trigger/action.
+4. Start the existing task. Freshly inspect its owned child PIDs, loopback binds,
+   `current-processes.json`, and chained supervisor intent/outcome. The selected
+   `upstream` in the state and receipt must agree. The old external tunnel
+   must retain its own PID and listener. A conflict must stop startup without
+   reading credentials or taking over the existing listener.
+5. Check local `GET /health` and unauthenticated `GET /v1/models` (401).
+   Use an already credentialed operator client for the bounded authenticated
+   model-identity check and any separately authorized inference smoke test;
+   record only statuses, model identity, instance ID, and receipt references.
+   Do not print credential or signer material. If no such client is available,
+   authenticated acceptance remains unverified.
+6. Qualify the existing owned-child cleanup and scheduler retry using the
+   acceptance procedure below. Compare local/public instance IDs only after a
+   separately reviewed edge route points at this gateway. An unchanged public
+   raw-engine route cannot establish gateway acceptance.
+
+No inference is replayed by a supervisor retry. A nondefault local port does not
+validate the remote engine's model bytes, add execution authority, or lift the
+existing `production_acceptance: BLOCKED` status.
 
 ### Installation acceptance evidence
 
