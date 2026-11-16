@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Audit Massed Cloudflare Ingress
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/audit-massed-cloudflare-ingress.yml"
+      - "scripts/audit_cloudflare_massed_ingress.py"
+      - "tests/test_cloudflare_massed_ingress_audit.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-massed-cloudflare-ingress.yml"
+      - "scripts/audit_cloudflare_massed_ingress.py"
+      - "tests/test_cloudflare_massed_ingress_audit.py"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: massed-cloudflare-ingress-readonly
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Prove fixed read scope and sanitized evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - name: Check out candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Run network-free boundary regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_cloudflare_massed_ingress_audit -v
+          python -m py_compile scripts/audit_cloudflare_massed_ingress.py
+          git diff --check
+
+  audit:
+    name: Read fixed Massed ingress configuration
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    environment: production
+    env:
+      AUDIT_REPORT: ${{ runner.temp }}/massed-cloudflare-ingress-audit.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - name: Check out protected event source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Verify source against protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          git fetch --no-tags --depth=256 origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main
+          git diff --exit-code "$GITHUB_SHA" refs/remotes/origin/main -- \
+            .github/workflows/audit-massed-cloudflare-ingress.yml \
+            scripts/audit_cloudflare_massed_ingress.py \
+            tests/test_cloudflare_massed_ingress_audit.py
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Audit provider configuration using GET only
+        id: audit
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +e
+          python scripts/audit_cloudflare_massed_ingress.py --report "$AUDIT_REPORT"
+          code=$?
+          if [ -f "$AUDIT_REPORT" ]; then
+            echo "report_written=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$code"
+      - name: Upload sanitized configuration observations
+        if: ${{ always() && steps.audit.outputs.report_written == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: massed-cloudflare-ingress-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.AUDIT_REPORT }}
+          if-no-files-found: error
+          retention-days: 7
