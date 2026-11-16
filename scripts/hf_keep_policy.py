@@ -86,3 +86,36 @@ def load_keep_ids(path: Path) -> list[str]:
     if len(identifiers) != len(set(identifiers)):
         raise KeepPolicyError("canonical governed keep-set contains duplicates")
     return sorted(identifiers, key=str.casefold)
+
+def load_inventory_pending_public_holds(path: Path) -> list[str]:
+    """Read the single existing pending decision, without extending the keep-set.
+
+    This bounded representation deliberately admits only the recorded Constellation
+    hold. Another ID, state or historical source requires a separate source review.
+    """
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise KeepPolicyError("canonical pending-public-hold policy unavailable") from exc
+    headers = [
+        i for i, line in enumerate(lines)
+        if re.match(r"^\s*(?:\?\s*)?['\"]?inventory_pending_public_holds['\"]?\s*(?::|$)", line)
+    ]
+    if len(headers) != 1 or lines[headers[0]] != "inventory_pending_public_holds:":
+        raise KeepPolicyError("canonical pending-public-hold section missing or malformed")
+    body = []
+    for line in lines[headers[0] + 1:]:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if not line.startswith(" "):
+            if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*:.*", line):
+                break
+            raise KeepPolicyError("unsupported pending-public-hold continuation")
+        body.append(line)
+    if body != [
+        "  - id: SZLHOLDINGS/szl-constellation",
+        "    state: OWNER_VISIBILITY_DECISION_PENDING",
+        "    source: static/shared/public-estate-contract.v1.json#/foldExecution/2026-11-15-batch2/held",
+    ]:
+        raise KeepPolicyError("unsupported pending-public-hold identity, state or source")
+    return ["SZLHOLDINGS/szl-constellation"]

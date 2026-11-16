@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-11-15T06:19:57.597674+00:00",
+  "generated_at": "2026-11-16T23:23:54.335555+00:00",
   "inventory_source": {
-    "model_ids_sha256": "b5229fa862f9d7f248c2a8801144b505c7166bdeb7ebe87d29ae9dac1913a95b",
+    "model_ids_sha256": "8ffc9e43a19fa4c9eab2eed765f72a26e9e7f4039f6e3ab7b9855351a56826e8",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -219,6 +219,33 @@
     },
     {
       "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "89432644e5ff1e64e35e8fe809587319b81e7e02",
+        "observed_at": "2026-11-16T23:07:14.728514+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 4431 bytes with SHA-256 b878e8263d275fbbe7cdd2bc1754539b3beddbc299e54a901d009bb2aafbab22. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/blob/89432644e5ff1e64e35e8fe809587319b81e7e02/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "bfe1f8291656258503f07bbb9520edff529ecdde1452393f08c1d277287030ef",
+        "error": null,
+        "hub_revision": "89432644e5ff1e64e35e8fe809587319b81e7e02",
+        "observed_at": "2026-11-16T23:07:14.275370+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "numpy_model_bundle",
         "hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c",
         "observed_at": "2026-10-04T15:31:57.874465+00:00",
@@ -236,6 +263,60 @@
         "observed_at": "2026-10-04T16:22:26.593758+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ReceiptAgent-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "e3606c990ced50c3f4ed1264d19a70512cf06040",
+        "observed_at": "2026-11-16T23:07:14.751538+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 9959 bytes with SHA-256 5ec01dcc0162806cdfd8a6a28f6a7ee9f32f38c400617e303838fac8f711e5ec. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/blob/e3606c990ced50c3f4ed1264d19a70512cf06040/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0f30ab427df38f0ddbc23df6360459bf51bc7390029f117a767ff0e55c776889",
+        "error": null,
+        "hub_revision": "e3606c990ced50c3f4ed1264d19a70512cf06040",
+        "observed_at": "2026-11-16T23:07:14.279135+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "9f432894f63d6cff18db291643537907972b4250",
+        "observed_at": "2026-11-16T23:07:14.681622+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 9854 bytes with SHA-256 cc078f47cb96cec9dd3e1167c605187f876922fced8cc4531e31881f45c204d8. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/blob/9f432894f63d6cff18db291643537907972b4250/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "99941ce32344b199b34760ee0972f76bd61385d4beacb17f391fef24442718f7",
+        "error": null,
+        "hub_revision": "9f432894f63d6cff18db291643537907972b4250",
+        "observed_at": "2026-11-16T23:07:14.279135+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -332,6 +413,87 @@
         "observed_at": "2026-11-15T05:17:53.008174+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "b7d6790d12f0d42e4aa00fdc23460c04ff20c94f",
+        "observed_at": "2026-11-16T23:07:14.681622+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 6776 bytes with SHA-256 2745f0a02c83dc60cfd9c68d858f6c7857c1f9df600f9b844b5d8ddb3804bb8e. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/blob/b7d6790d12f0d42e4aa00fdc23460c04ff20c94f/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e76322033f579db8fe9bdc77bc25e62cb50b4d3b2db9eba6e0e4f754f3f1bdf3",
+        "error": null,
+        "hub_revision": "b7d6790d12f0d42e4aa00fdc23460c04ff20c94f",
+        "observed_at": "2026-11-16T23:07:14.279135+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "c3a6ccf6b243aa0c84d85f49931268f313c4ec83",
+        "observed_at": "2026-11-16T23:07:14.876708+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 9953 bytes with SHA-256 4b231b09f782dc2755e2b5c57f3e166d7c839c4ab388038f7d568a5803c9395f. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/blob/c3a6ccf6b243aa0c84d85f49931268f313c4ec83/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "7f346d5fafa9cc2260c404805d49b3c4543a78032dd7463b416c28937408984b",
+        "error": null,
+        "hub_revision": "c3a6ccf6b243aa0c84d85f49931268f313c4ec83",
+        "observed_at": "2026-11-16T23:07:14.797557+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "94a70d088dc632af9e14134dd2e09bdf673e17a8",
+        "observed_at": "2026-11-16T23:07:14.899236+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 5400 bytes with SHA-256 167aa2d16aedd54efd403d4e7b129c72795c05626e9e3f041e04cab75b88e283. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/blob/94a70d088dc632af9e14134dd2e09bdf673e17a8/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9d0e4f5aaf53303e3e64e476697fab523722e625a28edba5c0d367f4493625cb",
+        "error": null,
+        "hub_revision": "94a70d088dc632af9e14134dd2e09bdf673e17a8",
+        "observed_at": "2026-11-16T23:07:14.800609+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -573,6 +735,195 @@
     },
     {
       "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "a302b62e7ee73990170229e0264559f3e51a2f00",
+        "observed_at": "2026-11-16T23:07:14.899236+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 5471 bytes with SHA-256 ae603634c2f0549b96b397db8bfe40e142e0cc1f303b3415a1814b6dbb4e43fb. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/blob/a302b62e7ee73990170229e0264559f3e51a2f00/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "41e7f718fab043013e1f0dbcbb93e5e291f837f7b3ecf00d7295dec26651ea14",
+        "error": null,
+        "hub_revision": "a302b62e7ee73990170229e0264559f3e51a2f00",
+        "observed_at": "2026-11-16T23:07:14.810568+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "05657f8fe5b63ebb58b4931baac445013e55776e",
+        "observed_at": "2026-11-16T23:07:14.954684+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 7323 bytes with SHA-256 15d1d16b58add4f30d99d08b3682781b3aec04bbe7f30048c9d6273fc0673a48. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/blob/05657f8fe5b63ebb58b4931baac445013e55776e/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9d3891ca77b9f5620fef7778d9b5380603d39adb8cf81ac54d8c55e2e7635b49",
+        "error": null,
+        "hub_revision": "05657f8fe5b63ebb58b4931baac445013e55776e",
+        "observed_at": "2026-11-16T23:07:14.827606+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "9cbd5527d7f3ca4d41883fddbd814377d53b3c75",
+        "observed_at": "2026-11-16T23:07:15.089351+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 8100 bytes with SHA-256 5a5ed941f6585418c90ecfd2e64fe86cc370dfc2f16889ed310930950582ef94. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/blob/9cbd5527d7f3ca4d41883fddbd814377d53b3c75/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "d06cfc009bd905e7ca4ab37ece34e3271ed20b7d4ddfb2219e186decc975dd34",
+        "error": null,
+        "hub_revision": "9cbd5527d7f3ca4d41883fddbd814377d53b3c75",
+        "observed_at": "2026-11-16T23:07:14.981060+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "272514fd62729db94dc4fb66052753c7ab6397d7",
+        "observed_at": "2026-11-16T23:07:15.064132+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 11064 bytes with SHA-256 887adba3001e5820e1b37f9c514e06946b1ad283fc5aebfbcb7cd97d7edda1c1. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/blob/272514fd62729db94dc4fb66052753c7ab6397d7/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "937ccf3f4f695d821952cb0ba27c3d20e212b53962bf01e875e3fac83ae84fcf",
+        "error": null,
+        "hub_revision": "272514fd62729db94dc4fb66052753c7ab6397d7",
+        "observed_at": "2026-11-16T23:07:15.004843+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "5ec45d7976f836f1fd04a02b6a742f61e0bb3d40",
+        "observed_at": "2026-11-16T23:07:15.113167+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 5252 bytes with SHA-256 3cd97b386722ffdb3e9c647e0c202a8be47e709b62b617938dde07762c3dcf1f. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/blob/5ec45d7976f836f1fd04a02b6a742f61e0bb3d40/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "02c5567ca74beb39ff76e90e4b693fbf6cf15b89a613b75dedb915351eaeabac",
+        "error": null,
+        "hub_revision": "5ec45d7976f836f1fd04a02b6a742f61e0bb3d40",
+        "observed_at": "2026-11-16T23:07:15.001844+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "d20544d382156f8f1afb6208448648e9e481a6e6",
+        "observed_at": "2026-11-16T23:07:15.143520+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 4478 bytes with SHA-256 a3f4817a449007576c92a38886d5266788332920539fb3ee29bafd3ca7474dda. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1/blob/d20544d382156f8f1afb6208448648e9e481a6e6/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "6b0a7afe0b6d02be5c4f6f3b4111a27096f513ea0743420c1dadf9c0a86358c8",
+        "error": null,
+        "hub_revision": "d20544d382156f8f1afb6208448648e9e481a6e6",
+        "observed_at": "2026-11-16T23:07:15.027530+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "058a617209921299f9934a4863f88553a0eb029d",
+        "observed_at": "2026-11-16T23:07:15.208183+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists config.json and safetensors weight entries. Weight bytes were not downloaded or loaded. README.md was read and hashed as 4566 bytes with SHA-256 5af9b4f1ff774c6c361031a343f8b0076bc8d460a2994b936cdca66407a532c9. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1/blob/058a617209921299f9934a4863f88553a0eb029d/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0e2bb64ae0c9f5c6c103426013fe92c28ae798fa5ce2e1ab0a3641fe8461b68c",
+        "error": null,
+        "hub_revision": "058a617209921299f9934a4863f88553a0eb029d",
+        "observed_at": "2026-11-16T23:07:15.164375+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
         "artifact_class": "numpy_model_bundle",
         "hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67",
         "observed_at": "2026-10-04T15:32:07.513623+00:00",
@@ -740,6 +1091,87 @@
         "observed_at": "2026-11-10T17:54:56.684236+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-code-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "4f117f77cb410c55785f9ebb3956eae73b938e61",
+        "observed_at": "2026-11-16T23:07:15.334927+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists final/adapter_config.json and final/adapter_model.safetensors. Adapter bytes and base model were not downloaded or loaded. README.md was read and hashed as 879 bytes with SHA-256 c198771b43d233e2e269ec38df582b41c091453163d10dc4157e05ddd8842260. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r1-candidate/blob/4f117f77cb410c55785f9ebb3956eae73b938e61/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/absrl-grpo-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "79acff0a8b890df3755037cd5e0044142ba494d8f48fd134280560012782dbda",
+        "error": null,
+        "hub_revision": "4f117f77cb410c55785f9ebb3956eae73b938e61",
+        "observed_at": "2026-11-16T23:07:15.164375+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "48241a20b45565512dceeaa22a998bead2d5372c",
+        "observed_at": "2026-11-16T23:07:15.344827+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists final/adapter_config.json and final/adapter_model.safetensors. Adapter bytes and base model were not downloaded or loaded. README.md was read and hashed as 879 bytes with SHA-256 53d9e8a42fcfcd1c16a5c166a42b021ce1c96898b838fe3dc63eaf8b2f00012a. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r2-candidate/blob/48241a20b45565512dceeaa22a998bead2d5372c/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/absrl-grpo-r2-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b425bcd5ee866e34134aa2d3f682f05458fc6695cea299f3852eb34a8df924e4",
+        "error": null,
+        "hub_revision": "48241a20b45565512dceeaa22a998bead2d5372c",
+        "observed_at": "2026-11-16T23:07:15.191351+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "8934164c409963c34378d1222f756a0e8915d624",
+        "observed_at": "2026-11-16T23:07:15.369121+00:00",
+        "qualification_note": "Metadata-only artifact classification. The exact-revision metadata lists final/adapter_config.json and final/adapter_model.safetensors. Adapter bytes and base model were not downloaded or loaded. README.md was read and hashed as 846 bytes with SHA-256 5ae08a009f9550d4c5fd824e67907b718e8f9fae7498ca44714642a3641519cd. The fresh public provider mapping is NO_PROVIDER_MAPPING; no provider, inference result, quality, safety or production qualification is established.",
+        "request_disposition": "Prior reviewed request state is preserved separately where present; this review sends no support requests.",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/abstention-doctrine-r1-candidate/blob/8934164c409963c34378d1222f756a0e8915d624/README.md",
+        "suggested_route": "No serving route is authorized by this observation."
+      },
+      "id": "SZLHOLDINGS/abstention-doctrine-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "906c5d425d3def5c43622ab3f52237d42d9ccdfba67bfae479a8597ad640e3bf",
+        "error": null,
+        "hub_revision": "8934164c409963c34378d1222f756a0e8915d624",
+        "observed_at": "2026-11-16T23:07:15.206001+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-doctrine-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",

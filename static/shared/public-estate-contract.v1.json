@@ -156,36 +156,7 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
-      "id": "SZLHOLDINGS/estate-gardener",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/eternal-auditor",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/immune",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-      "foldExecuted": "2026-11-15 batch-2: killinchu /immune route live (HTTP 200); Space flipped private, private=True readback"
-    },
-    {
       "id": "SZLHOLDINGS/llm-router-live",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/oac-system-health-lab",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
@@ -213,31 +184,10 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
-      "id": "SZLHOLDINGS/szl-chief-engineer",
+      "id": "SZLHOLDINGS/szl-constellation",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-cyber-shield",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-dream-architect",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-energy-ledger",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
+      "disposition": "HELD_PUBLIC_PENDING_OWNER_DECISION",
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
@@ -248,35 +198,7 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
-      "id": "SZLHOLDINGS/szl-infra-warden",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
       "id": "SZLHOLDINGS/szl-marketing",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-marketing-1-1",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-provenance-pitch",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-research-council",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",

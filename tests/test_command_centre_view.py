@@ -292,3 +292,100 @@ def test_render_reproducible_from_model_and_input_digest_changes():
 def test_bad_or_oversized_page_model_rejected(model):
     with pytest.raises(ValueError):
         view.render_page(model)
+
+def test_pending_hold_remains_unprojected_without_authority(tmp_path, monkeypatch, contract, client):
+    held = next(row for row in contract["inventoryOnlyHuggingFaceRepositories"]
+                if row["id"] == "SZLHOLDINGS/szl-constellation")
+    assert held["disposition"] == "HELD_PUBLIC_PENDING_OWNER_DECISION"
+    held["private_metadata"] = "DO_NOT_EXPOSE_HELD_METADATA"
+    contract["foldExecution"]["2026-11-15-batch2"]["private_metadata"] = "DO_NOT_EXPOSE_FOLD_METADATA"
+    install_contract(tmp_path, monkeypatch, contract)
+    result = centre.public_estate()
+    assert result["state"] == "SOURCE_CONTRACT"
+    assert "szl-constellation" not in json.dumps(result)
+    assert "foldExecution" not in result
+    assert "inventoryOnlyHuggingFaceRepositories" not in result
+    assert result["orgCard"]["id"] == "SZLHOLDINGS/README"
+    for route in ("/command-centre", "/api/a11oy/v1/command-centre/manifest"):
+        response = client.get(route)
+        assert response.status_code == 200
+        assert "DO_NOT_EXPOSE" not in response.text
+        assert "HELD_PUBLIC_PENDING_OWNER_DECISION" not in response.text
+
+
+@pytest.mark.parametrize("change", [
+    "unknown-held-id", "ordinary-held", "org-card-held", "held-fold", "held-generic",
+    "held-keeper", "held-zero-keeper", "held-classification", "held-policy",
+    "missing-held-row", "held-topology", "moved-held-topology",
+    "missing-history", "wrong-history", "cleared-hold", "duplicate-historical-hold",
+    "wrong-pending-state", "duplicate-held-row",
+])
+def test_pending_hold_consumer_rejects_broadening_and_promotion(
+    tmp_path, monkeypatch, contract, change, client
+):
+    held_id = "SZLHOLDINGS/szl-constellation"
+    rows = contract["inventoryOnlyHuggingFaceRepositories"]
+    held = next(row for row in rows if row["id"] == held_id)
+    pending = contract["foldExecution"]["2026-11-15-batch2"]
+    if change == "unknown-held-id":
+        held["id"] = "SZLHOLDINGS/unreviewed-hold"
+    elif change == "ordinary-held":
+        next(row for row in rows if row["id"] == "SZLHOLDINGS/ayllu")["disposition"] = held["disposition"]
+    elif change == "org-card-held":
+        next(row for row in rows if row["id"] == "SZLHOLDINGS/README")["disposition"] = held["disposition"]
+    elif change == "held-fold":
+        held["disposition"] = "FOLD"
+    elif change == "held-generic":
+        held["disposition"] = "HOLD"
+    elif change == "held-keeper":
+        held["governedKeep"] = True
+    elif change == "held-zero-keeper":
+        held["governedKeep"] = 0
+    elif change == "held-classification":
+        held["classification"] = "LABORATORY"
+    elif change == "held-policy":
+        held["policySource"] = "../private.json"
+    elif change == "missing-held-row":
+        rows.remove(held)
+    elif change in ("held-topology", "moved-held-topology"):
+        contract["laboratorySurfaces"].append(held_id)
+        if change == "moved-held-topology":
+            rows.remove(held)
+    elif change == "missing-history":
+        contract.pop("foldExecution")
+    elif change == "wrong-history":
+        contract["foldExecution"] = {"2026-11-14": {"held": [held_id]}}
+    elif change == "cleared-hold":
+        pending["held"] = []
+    elif change == "duplicate-historical-hold":
+        pending["held"] = [held_id, held_id]
+    elif change == "wrong-pending-state":
+        pending["heldReason"] = "APPROVED"
+    elif change == "duplicate-held-row":
+        rows.append(copy.deepcopy(held))
+    install_contract(tmp_path, monkeypatch, contract)
+    result = centre.public_estate()
+    assert result["state"] == "UNAVAILABLE"
+    assert result["canonical"] is None and result["orgCard"] is None
+    response = client.get("/api/a11oy/v1/command-centre/manifest")
+    assert response.status_code == 200
+    assert "unreviewed-hold" not in response.text
+
+@pytest.mark.parametrize("identity", ["SZLHOLDINGS/szl-constellation", "SZLHOLDINGS/README"])
+def test_inventory_only_identity_cannot_be_promoted_through_internal_engine(
+    tmp_path, monkeypatch, contract, identity
+):
+    contract["internalEngines"][0]["huggingFaceRepositories"] = [identity]
+    install_contract(tmp_path, monkeypatch, contract)
+    result = centre.public_estate()
+    assert result["state"] == "UNAVAILABLE"
+    assert result["canonical"] is None and result["orgCard"] is None
+
+
+@pytest.mark.parametrize("bindings", [None, "SZLHOLDINGS/szl-constellation", {}, [None], ["x"] * 129])
+def test_malformed_optional_internal_engine_bindings_are_not_trusted(
+    tmp_path, monkeypatch, contract, bindings
+):
+    contract["internalEngines"][0]["huggingFaceRepositories"] = bindings
+    install_contract(tmp_path, monkeypatch, contract)
+    assert centre.public_estate()["state"] == "UNAVAILABLE"

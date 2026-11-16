@@ -108,6 +108,15 @@ def public_estate():
         inventory = value.get("inventoryOnlyHuggingFaceRepositories")
         if not isinstance(inventory, list) or not 1 <= len(inventory) <= 128:
             raise ValueError("invalid public classifications")
+        held_id = "SZLHOLDINGS/szl-constellation"
+        executions = value.get("foldExecution")
+        if not isinstance(executions, dict):
+            raise ValueError("pending public hold source unavailable")
+        pending = executions.get("2026-11-15-batch2")
+        if not isinstance(pending, dict) or pending.get("held") != [held_id] or pending.get("heldReason") != (
+            "owner-gated public-vs-private decision pending (production publish workflow requires public)"
+        ):
+            raise ValueError("pending public hold source drifted")
         seen = set()
         org_card = None
         for row in inventory:
@@ -116,12 +125,17 @@ def public_estate():
             if row["id"] in seen:
                 raise ValueError("duplicate inventory identity")
             seen.add(row["id"])
-            if row.get("classification") != "INVENTORY_ONLY" or row.get("governedKeep") is not False or row.get("disposition") != ("ORG_CARD" if row["id"] == "SZLHOLDINGS/README" else "FOLD") or row.get("policySource") != "docs/series-a/hf-space-keep-list.yaml":
+            disposition = "ORG_CARD" if row["id"] == "SZLHOLDINGS/README" else (
+                "HELD_PUBLIC_PENDING_OWNER_DECISION" if row["id"] == held_id else "FOLD"
+            )
+            if row.get("classification") != "INVENTORY_ONLY" or row.get("governedKeep") is not False or row.get("disposition") != disposition or row.get("policySource") != "docs/series-a/hf-space-keep-list.yaml":
                 raise ValueError("inventory disposition drifted")
             if row["id"] == "SZLHOLDINGS/README":
                 org_card = {key: row[key] for key in ("id", "classification", "governedKeep", "disposition", "policySource")}
         if org_card is None:
             raise ValueError("reserved org-card classification unavailable")
+        if held_id not in seen:
+            raise ValueError("pending public hold classification unavailable")
         topology = [fabric["huggingFaceRepository"]]
         for group in ("publicDomainBodies", "supportingSystems"):
             rows = value.get(group)
@@ -131,12 +145,22 @@ def public_estate():
                 if not isinstance(row, dict) or not isinstance(row.get("huggingFaceRepositories"), list):
                     raise ValueError("invalid public topology row")
                 topology.extend(row["huggingFaceRepositories"])
+        engines = value.get("internalEngines")
+        if not isinstance(engines, list) or len(engines) > 128:
+            raise ValueError("invalid internal engine list")
+        for engine in engines:
+            if not isinstance(engine, dict):
+                raise ValueError("invalid internal engine row")
+            bindings = engine.get("huggingFaceRepositories", [])
+            if not isinstance(bindings, list) or len(bindings) > 128:
+                raise ValueError("invalid internal engine bindings")
+            topology.extend(bindings)
         laboratories = value.get("laboratorySurfaces")
         if not isinstance(laboratories, list) or len(laboratories) > 128:
             raise ValueError("invalid public laboratory list")
         topology.extend(laboratories)
-        if any(not isinstance(item, str) for item in topology) or "SZLHOLDINGS/README" in topology:
-            raise ValueError("inventory-only org card cannot be promoted")
+        if any(not isinstance(item, str) for item in topology) or "SZLHOLDINGS/README" in topology or held_id in topology:
+            raise ValueError("inventory-only org card or pending hold cannot be promoted")
         org_card["href"] = "https://huggingface.co/spaces/" + org_card["id"]
         return {"state": "SOURCE_CONTRACT", "source": unavailable["source"],
                 "sha256": hashlib.sha256(raw).hexdigest(), "version": value["version"],

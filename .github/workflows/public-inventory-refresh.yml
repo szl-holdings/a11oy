@@ -64,7 +64,7 @@ jobs:
           python scripts/render_public_estate_alignment.py --check
           python scripts/build_model_pretraining_projection.py --check
           python -B scripts/collect_model_inference_support.py --check
-          python -m unittest tests.test_public_estate_alignment -v
+          python -m unittest tests.test_public_estate_alignment tests.test_public_estate_pending_hold -v
           python -B -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
           python tests/test_hf_public_inventory.py
           sha256sum --check /tmp/public-inventory-refresh/policy.sha256

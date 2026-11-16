@@ -84,6 +84,11 @@ retire_into_killinchu:
     state: PARITY_AUDIT_REQUIRED
     target_route: https://szlholdings-killinchu.hf.space/immune
 org_card: SZLHOLDINGS/README
+# Observational inventory hold only; no keeper promotion or visibility-write authority.
+inventory_pending_public_holds:
+  - id: SZLHOLDINGS/szl-constellation
+    state: OWNER_VISIBILITY_DECISION_PENDING
+    source: static/shared/public-estate-contract.v1.json#/foldExecution/2026-11-15-batch2/held
 previous_execution:
   workflow_run: 33687884541
   attempt: 2

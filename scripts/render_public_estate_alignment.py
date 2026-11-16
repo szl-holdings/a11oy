@@ -21,9 +21,9 @@ from pathlib import Path
 from typing import Any, Iterable
 
 try:
-    from scripts.hf_keep_policy import KeepPolicyError, load_keep_ids
+    from scripts.hf_keep_policy import KeepPolicyError, load_keep_ids, load_inventory_pending_public_holds
 except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
-    from hf_keep_policy import KeepPolicyError, load_keep_ids
+    from hf_keep_policy import KeepPolicyError, load_keep_ids, load_inventory_pending_public_holds
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "static/shared/public-estate-contract.v1.json"
@@ -83,11 +83,30 @@ def topology_spaces(contract: dict[str, Any]) -> list[str]:
     return sorted(_unique(spaces, "Hugging Face topology bindings"), key=str.casefold)
 
 
+def pending_public_hold_spaces(contract: dict[str, Any]) -> list[str]:
+    try:
+        holds = load_inventory_pending_public_holds(KEEP_POLICY)
+    except KeepPolicyError as exc:
+        raise ContractError(str(exc)) from exc
+    executions = contract.get("foldExecution")
+    if not isinstance(executions, dict):
+        raise ContractError("pending public hold historical source is missing")
+    execution = executions.get("2026-11-15-batch2", {})
+    if not isinstance(execution, dict) or execution.get("held") != holds:
+        raise ContractError("pending public hold must match its recorded historical source")
+    if execution.get("heldReason") != (
+        "owner-gated public-vs-private decision pending (production publish workflow requires public)"
+    ):
+        raise ContractError("pending public hold decision state drifted")
+    return holds
+
+
 def inventory_only_spaces(contract: dict[str, Any]) -> list[str]:
     rows = contract.get("inventoryOnlyHuggingFaceRepositories")
     if not isinstance(rows, list):
         raise ContractError("inventory-only Hub classifications are missing")
     ids: list[str] = []
+    held_public = pending_public_hold_spaces(contract)
     for row in rows:
         if not isinstance(row, dict):
             raise ContractError("inventory-only Hub classification must be an object")
@@ -104,12 +123,18 @@ def inventory_only_spaces(contract: dict[str, Any]) -> list[str]:
                 raise ContractError('canonical org-card policy unavailable') from exc
             if org_cards != [' SZLHOLDINGS/README']:
                 raise ContractError('canonical org-card policy must identify only SZLHOLDINGS/README')
+        elif row.get("id") in held_public:
+            if row.get("disposition") != "HELD_PUBLIC_PENDING_OWNER_DECISION":
+                raise ContractError("pending public hold must retain its held disposition")
         elif row.get("disposition") != "FOLD":
             raise ContractError("inventory-only Space must retain its FOLD disposition")
         if row.get("policySource") != KEEP_POLICY.relative_to(ROOT).as_posix():
             raise ContractError("inventory-only Space must cite the canonical keep policy")
         ids.append(row.get("id"))
-    return sorted(_unique(ids, "inventory-only Hub Spaces"), key=str.casefold)
+    ids = _unique(ids, "inventory-only Hub Spaces")
+    if not set(held_public).issubset(ids):
+        raise ContractError("canonical pending public hold requires its inventory-only row")
+    return sorted(ids, key=str.casefold)
 
 
 def governed_keep_spaces(path: Path = KEEP_POLICY) -> list[str]:
@@ -182,6 +207,9 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
     topology = topology_spaces(contract)
     inventory_only = inventory_only_spaces(contract)
     governed_keep = governed_keep_spaces()
+    held_public = pending_public_hold_spaces(contract)
+    if set(held_public) & (set(topology) | set(governed_keep)):
+        raise ContractError("pending public hold cannot become topology or a governed keeper")
     observed = measured_spaces(manifest)
     overlap = sorted(set(topology) & set(inventory_only), key=str.casefold)
     if overlap:
@@ -226,6 +254,8 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         "internalEngines": len(engines),
         "huggingFaceTopologyBindings": topology,
         "huggingFaceInventoryOnly": inventory_only,
+        "huggingFaceInventoryHeldPublic": held_public,
+        "pendingPublicHoldPolicySource": KEEP_POLICY.relative_to(ROOT).as_posix() + "#inventory_pending_public_holds",
         "huggingFaceOrgCard": 'SZLHOLDINGS/README' if 'SZLHOLDINGS/README' in inventory_only else None,
         "governedKeepSet": governed_keep,
         "governedKeepPolicySource": KEEP_POLICY.relative_to(ROOT).as_posix(),
@@ -253,7 +283,15 @@ def _body_lines(contract: dict[str, Any]) -> list[str]:
 def _inventory_policy_line(evidence: dict[str, Any]) -> str:
     inventory_only = ", ".join(
         f"`{space}`" for space in evidence["huggingFaceInventoryOnly"]
-        if space != evidence['huggingFaceOrgCard']
+        if space != evidence['huggingFaceOrgCard'] and space not in evidence['huggingFaceInventoryHeldPublic']
+    )
+    held_public = ", ".join(
+        f"`{space}`" for space in evidence["huggingFaceInventoryHeldPublic"]
+    )
+    hold_text = (
+        " Inventory-only / HELD_PUBLIC_PENDING_OWNER_DECISION "
+        f"(not governed keepers; visibility decision pending): {held_public}."
+        " This inventory hold grants no runtime qualification or visibility-write authority."
     )
     org_card = (f" Reserved organization card (not a governed keeper): `{evidence['huggingFaceOrgCard']}`."
                 if evidence['huggingFaceOrgCard'] else '')
@@ -261,7 +299,7 @@ def _inventory_policy_line(evidence: dict[str, Any]) -> str:
         "Measured Hub inventory is observational and is not the governed keep-list. "
         f"Inventory-only / FOLD (not governed keepers): {inventory_only}. "
         "Canonical keep policy: "
-        f"`{evidence['governedKeepPolicySource']}`." + org_card
+        f"`{evidence['governedKeepPolicySource']}`." + hold_text + org_card
     )
 
 

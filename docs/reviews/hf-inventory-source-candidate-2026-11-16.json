@@ -1,0 +1,477 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "authority": {
+    "merged": false,
+    "production_authorization": false,
+    "provider_write_performed": false,
+    "qualification_granted": false,
+    "source_review_accepted": false,
+    "support_request_sent": false,
+    "visibility_changed": false
+  },
+  "branch": "review/hf-inventory-source-reconciliation-20261116",
+  "candidate_file_bindings": [
+    {
+      "bytes": 4896,
+      "path": ".github/workflows/public-estate-contract.yml",
+      "sha256": "09a41c8b9e1acf4ed38e1138761e6a75607ddc9d50902a1e4de98938c142c9cd"
+    },
+    {
+      "bytes": 7923,
+      "path": ".github/workflows/public-inventory-refresh.yml",
+      "sha256": "9b42b7bb33a80b158a356191d295fb07012a5da0db3088ac1709ecd43fca3702"
+    },
+    {
+      "bytes": 119324,
+      "path": "docs/ecosystem-stage-matrix.json",
+      "sha256": "5146767a2bda2571fe4f4da4d496c91db3e6c7314cbf8021f062c0a5772d5403"
+    },
+    {
+      "bytes": 1718,
+      "path": "docs/generated/a11oy-net-public-estate.md",
+      "sha256": "098310d666c098f5fbd965d13817bb422076c6e78b696bcf862bf7dfe070bb4d"
+    },
+    {
+      "bytes": 2633,
+      "path": "docs/generated/github-org-public-estate.md",
+      "sha256": "60ca89c4dcabb2af70df755bee8bbfa3e3edacadc06c6878ab311c813be8a60f"
+    },
+    {
+      "bytes": 2381,
+      "path": "docs/generated/huggingface-org-card.md",
+      "sha256": "aef7104a803f5b029fe893e31196dbb0cf92b8666795d6e90f5708af0f611688"
+    },
+    {
+      "bytes": 277633,
+      "path": "docs/huggingface-ecosystem-manifest.json",
+      "sha256": "817ce8bac3aa38ecc0de5e85d9d22f36afc7b45d1d93f8a5618b2f0368b52ed2"
+    },
+    {
+      "bytes": 237262,
+      "path": "docs/model-inference-support.json",
+      "sha256": "64bc9dd0ae03410cc2f55c7fa65dd14b5bf09f45e2179ac893ec5329c41b9a7f"
+    },
+    {
+      "bytes": 7564,
+      "path": "docs/series-a/hf-space-keep-list.yaml",
+      "sha256": "3e86f555305efe7d5ce79e3740d63ebc6092b7334bd2a750a43f9bf12ae22faf"
+    },
+    {
+      "bytes": 17672,
+      "path": "routers/command_centre.py",
+      "sha256": "7fea4ce9a529b8b2650630f2e651396e8e3c97dadd1860fa8ae3303331cddab7"
+    },
+    {
+      "bytes": 64223,
+      "path": "routers/data/model-pretraining-snapshot.json",
+      "sha256": "2cbecf800e33c95c9f8445b0887d77059529bed0484f4a57e29a6f92b7af1429"
+    },
+    {
+      "bytes": 4925,
+      "path": "scripts/hf_keep_policy.py",
+      "sha256": "b482aa75d2038afac8dd821b2ded8487d129151ef85e9af0f0033ceeb5fee620"
+    },
+    {
+      "bytes": 19754,
+      "path": "scripts/render_public_estate_alignment.py",
+      "sha256": "47be45324e401d63e1a2e5cf50b3cba0da9d20330150209e4053dad114831ee6"
+    },
+    {
+      "bytes": 9201,
+      "path": "static/shared/public-estate-contract.v1.json",
+      "sha256": "0357ab35e02f645f0548df8f82a10fca06d8a161433518ec8404bd08382da32e"
+    },
+    {
+      "bytes": 17450,
+      "path": "tests/test_command_centre_view.py",
+      "sha256": "77db9f51110365baa694ea9c06837adfeb4a9d793612131d919d826b786e7701"
+    },
+    {
+      "bytes": 23322,
+      "path": "tests/test_public_estate_alignment.py",
+      "sha256": "b2d513658ceb0e634d8d7b2f4c15d6ac22aa305e32e9dd309b7849e78359b31f"
+    },
+    {
+      "bytes": 11397,
+      "path": "tests/test_public_estate_pending_hold.py",
+      "sha256": "eeea06b14dfe158a4a778379e414e0356414ed578049c00404f2bbe62db05222"
+    }
+  ],
+  "candidate_inventory": {
+    "counts": {
+      "datasets": 88,
+      "kernels": 14,
+      "models": 147,
+      "spaces": 23
+    },
+    "generated_by": "scripts/audit_huggingface_ecosystem.py",
+    "native_check": {
+      "changedRows": [],
+      "changedTopLevelFields": [],
+      "exitCode": 0,
+      "manifest": "docs\\huggingface-ecosystem-manifest.json",
+      "meaning": "tracked manifest matches current public Hub evidence",
+      "reason": "Hugging Face ecosystem manifest is current: docs\\huggingface-ecosystem-manifest.json",
+      "result": "CURRENT",
+      "revisionClasses": {
+        "governedExact": 14,
+        "path": "docs/huggingface-revision-classes.v1.json",
+        "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9"
+      },
+      "schema": "szl.hf-ecosystem-check/v1"
+    },
+    "observed_at": "2026-11-16T23:22:14Z",
+    "path": "docs/huggingface-ecosystem-manifest.json",
+    "sha256": "817ce8bac3aa38ecc0de5e85d9d22f36afc7b45d1d93f8a5618b2f0368b52ed2"
+  },
+  "native_collection_preflight": {
+    "candidate_sha256": "817ce8bac3aa38ecc0de5e85d9d22f36afc7b45d1d93f8a5618b2f0368b52ed2",
+    "canonical_source_written": false,
+    "collection_completed_at": "2026-11-16T23:22:15.170746+00:00",
+    "collection_started_at": "2026-11-16T23:21:49.859997+00:00",
+    "counts": {
+      "datasets": 88,
+      "kernels": 14,
+      "models": 147,
+      "spaces": 23
+    },
+    "evidence_revision": "014d436ce7e0e3cd7b03fa6ac5a13dbafb95ab15",
+    "evidence_sha256": "093817340533b712e866ea44b889d22c99e4aa4ac3afde4ade6a78fb6ca73efa",
+    "expected_governed_set_matches": true,
+    "governed_changes": [
+      {
+        "change": "REVISION_CHANGED",
+        "class": "GOVERNED_EXACT",
+        "fields": [
+          "sha",
+          "lastModified"
+        ],
+        "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+        "policySource": [
+          "gated:docs/huggingface-ecosystem-manifest.json (gated=true; restricted rows were already exact-pinned)",
+          "model_release/hf-promotion/promotion-manifest.json#/candidates/2/canonical_target",
+          "model_release/receipt-agent/qualification/fa73dc1-cpu-qualification-receipt.json#/candidate/repository",
+          "model_release/receipt-agent/qualification/heldout-contract-v1.json#/candidate/repository",
+          "model_release/receipt-agent/reconciliation/observed-hf-tree-fixture.v1.json#/repository",
+          "model_release/receipt-agent/reconciliation/receipt-agent-artifact-reconciliation.v1.json#/repository",
+          "model_release/receipt-agent/release-manifest.json#/hf_artifact_family/0/target_id",
+          "model_release/szl-forge-compound-product.json#/components/0/hf_target",
+          "model_release/szl-forge-compound-product.json#/hub_topology/weight_artifacts/0/target_id",
+          "model_release/szl-forge-family.json#/profiles/0/hf_target"
+        ],
+        "repoType": "model"
+      },
+      {
+        "change": "REVISION_CHANGED",
+        "class": "GOVERNED_EXACT",
+        "fields": [
+          "sha",
+          "lastModified"
+        ],
+        "id": "SZLHOLDINGS/szl-lambda-gate",
+        "policySource": [
+          "gated:docs/huggingface-ecosystem-manifest.json (gated=true; restricted rows were already exact-pinned)"
+        ],
+        "repoType": "model"
+      },
+      {
+        "change": "REVISION_CHANGED",
+        "class": "GOVERNED_EXACT",
+        "fields": [
+          "sha",
+          "lastModified"
+        ],
+        "id": "SZLHOLDINGS/szl-nemo",
+        "policySource": [
+          "model_release/hf-promotion/promotion-manifest.json#/candidates/0/canonical_target",
+          "model_release/szl-nemo/release-manifest.json#/hub/repository"
+        ],
+        "repoType": "model"
+      }
+    ],
+    "production_authorization": false,
+    "protected_main_base": "ac68b78415eecd21cf47f09fa725ed8a6e72fc78",
+    "schema": "szl.hf-source-candidate-preflight/v1",
+    "source_review_required": true,
+    "state": "EXACT_REVIEW_MATCH",
+    "unreviewed_governed_changes": []
+  },
+  "preparation_phase": {
+    "canonical_source_changes": "isolated candidate worktree only",
+    "draft_source_changes_require_review": true,
+    "external_publication_performed_during_preparation": false,
+    "source_pins_advanced_only_in_unaccepted_candidate": true
+  },
+  "prepared_at": "2026-11-16T23:39:03.754372+00:00",
+  "protected_main_base": "ac68b78415eecd21cf47f09fa725ed8a6e72fc78",
+  "record_kind": "UNSIGNED_LOCAL_SOURCE_REVIEW_RECORD",
+  "residual_gates": [
+    "Source review and required repository reviews/CI remain outstanding; passing local tests is not approval or merge.",
+    "Constellation owner visibility decision remains pending; the candidate represents its current hold without deciding that policy question.",
+    "hf_consolidate_fleet.py remains unchanged and does not enforce inventory-only holds. It would still treat Constellation as a non-keeper if separately dispatched; this preparation does not dispatch it or claim an operational hold guarantee.",
+    "Organization-profile and external proof/source bindings must be regenerated from exact merged A11oy manifest bytes only after source acceptance and merge.",
+    "Public membership is time-sensitive. Future unreviewed governed movement remains a SOURCE_REVIEW_REQUIRED stop under the unchanged routine preparer.",
+    "Protected-main publication lag reported separately by root is outside this local source parity result."
+  ],
+  "review_state": "SOURCE_REVIEW_REQUIRED",
+  "reviewed_dossier": {
+    "mutated": false,
+    "path": "docs/reviews/hf-inventory-reconciliation-2026-11-16.json",
+    "pull_request": 3575,
+    "repository": "szl-holdings/a11oy",
+    "revision": "014d436ce7e0e3cd7b03fa6ac5a13dbafb95ab15",
+    "sha256": "093817340533b712e866ea44b889d22c99e4aa4ac3afde4ade6a78fb6ca73efa"
+  },
+  "schema": "szl.hf-inventory-source-candidate/v1",
+  "source_invariants": {
+    "added_rows_exactly_equal_published_proposals": 16,
+    "all_existing_contract_fields_except_inventory_preserved": true,
+    "checked_at": "2026-11-16T23:32:29.693649+00:00",
+    "exact_keep_set_count": 10,
+    "existing_catalog_rows_preserved": 131,
+    "future_unreviewed_moves": [
+      {
+        "changed_count": 1,
+        "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+        "state": "SOURCE_REVIEW_REQUIRED"
+      },
+      {
+        "changed_count": 1,
+        "id": "SZLHOLDINGS/szl-lambda-gate",
+        "state": "SOURCE_REVIEW_REQUIRED"
+      },
+      {
+        "changed_count": 1,
+        "id": "SZLHOLDINGS/szl-nemo",
+        "state": "SOURCE_REVIEW_REQUIRED"
+      }
+    ],
+    "governed_class_policy_and_routine_gate_bytes_unchanged": true,
+    "governed_transitions": [
+      {
+        "gated": true,
+        "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+        "new_lastModified": "2026-11-16T19:07:52.000Z",
+        "new_sha": "aa357f2a7849bc5f42991d7382f3ae2cffadca53",
+        "old_lastModified": "2026-11-14T21:35:11.000Z",
+        "old_sha": "d3c0b7e7a3a7242e6cd279bcd8e0bc67c16d7ce2",
+        "repoType": "model",
+        "revision_class": "GOVERNED_EXACT"
+      },
+      {
+        "gated": true,
+        "id": "SZLHOLDINGS/szl-lambda-gate",
+        "new_lastModified": "2026-11-16T07:23:19.000Z",
+        "new_sha": "613c4a3e28c72c182399b888ffca6693fab3dc8e",
+        "old_lastModified": "2026-11-14T20:51:57.000Z",
+        "old_sha": "083d760878a3bd2e77cff5ab5c3c348327b0de47",
+        "repoType": "model",
+        "revision_class": "GOVERNED_EXACT"
+      },
+      {
+        "gated": false,
+        "id": "SZLHOLDINGS/szl-nemo",
+        "new_lastModified": "2026-11-15T23:04:05.000Z",
+        "new_sha": "130cce3ae8c7a047b065749c2604aa37e751c041",
+        "old_lastModified": "2026-11-15T02:44:20.000Z",
+        "old_sha": "37890b4504cdb11590f7a9fb9ee5054261206e30",
+        "repoType": "model",
+        "revision_class": "GOVERNED_EXACT"
+      }
+    ],
+    "keep_policy_change_only_explicit_inventory_hold_section": true,
+    "protected_main_base": "ac68b78415eecd21cf47f09fa725ed8a6e72fc78",
+    "reviewed_evidence_revision": "014d436ce7e0e3cd7b03fa6ac5a13dbafb95ab15",
+    "reviewed_evidence_sha256": "093817340533b712e866ea44b889d22c99e4aa4ac3afde4ade6a78fb6ca73efa",
+    "routine_preparer_before_source_acceptance": "SOURCE_REVIEW_REQUIRED",
+    "source_release_records_changed": [],
+    "source_review_state": "SOURCE_REVIEW_REQUIRED",
+    "state": "PASS",
+    "unchanged_unicode_lines_preserved": true,
+    "unmatched_prior_requests_preserved": true
+  },
+  "space_classification": {
+    "contract_version_unchanged": "1.0.2",
+    "disposition": "HELD_PUBLIC_PENDING_OWNER_DECISION",
+    "held_id": "SZLHOLDINGS/szl-constellation",
+    "historical_fold_records_unchanged": true,
+    "historical_source": "static/shared/public-estate-contract.v1.json#/foldExecution/2026-11-15-batch2/held",
+    "keeper_count_unchanged": 10,
+    "operational_hold_enforcement_added": false,
+    "policy_section": "docs/series-a/hf-space-keep-list.yaml#inventory_pending_public_holds",
+    "removed_from_measured_public_classification": [
+      "SZLHOLDINGS/estate-gardener",
+      "SZLHOLDINGS/eternal-auditor",
+      "SZLHOLDINGS/immune",
+      "SZLHOLDINGS/oac-system-health-lab",
+      "SZLHOLDINGS/szl-chief-engineer",
+      "SZLHOLDINGS/szl-cyber-shield",
+      "SZLHOLDINGS/szl-dream-architect",
+      "SZLHOLDINGS/szl-energy-ledger",
+      "SZLHOLDINGS/szl-infra-warden",
+      "SZLHOLDINGS/szl-marketing-1-1",
+      "SZLHOLDINGS/szl-provenance-pitch",
+      "SZLHOLDINGS/szl-research-council"
+    ],
+    "sentra_retained_observed_public": true,
+    "topology_unchanged": true
+  },
+  "validation": [
+    {
+      "command": "python -X utf8 -m unittest tests.test_public_estate_alignment tests.test_public_estate_pending_hold tests.test_hf_keep_policy_continuations tests.test_confirmation_retention_policy -q",
+      "completed_at": null,
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "public_estate_workflow_exact_suite",
+      "output_sha256": "d0e07071028b8bd7cf33b0c5b8b7b1518cc8761860d6e8d5095a5fb269437b07",
+      "started_at": null,
+      "state": "PASS",
+      "summary": "----------------------------------------------------------------------\nRan 49 tests in 0.984s\n\nOK",
+      "test_count": 49
+    },
+    {
+      "command": "python -X utf8 -S scripts/test_audit_huggingface_ecosystem.py",
+      "completed_at": "2026-11-16T23:29:30.478279+00:00",
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "native_collector_offline",
+      "output_sha256": "d0621eefc52557d4f7dfab3c298eb4eb07588dc50f56e49aa793f64ec542a383",
+      "started_at": "2026-11-16T23:29:28.504903+00:00",
+      "state": "PASS",
+      "summary": "----------------------------------------------------------------------\nRan 36 tests in 1.680s\n\nOK",
+      "test_count": 36
+    },
+    {
+      "command": "python -X utf8 -S scripts/test_hf_gated_public_inventory.py",
+      "completed_at": "2026-11-16T23:29:29.887845+00:00",
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "gated_inventory_boundaries",
+      "output_sha256": "1be49df7d23e08894ef801a5b2b8c294d90dcc872233344d3d2baf7e1ab88921",
+      "started_at": "2026-11-16T23:29:29.295980+00:00",
+      "state": "PASS",
+      "summary": "----------------------------------------------------------------------\nRan 14 tests in 0.329s\n\nOK",
+      "test_count": 14
+    },
+    {
+      "command": "python -X utf8 -m unittest tests.test_hf_public_inventory -q",
+      "completed_at": "2026-11-16T23:29:30.507035+00:00",
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "public_membership",
+      "output_sha256": "68e57a5704e22328a70c4b21148023bda402dc0f6173d1dc0fba860eda57c99b",
+      "started_at": "2026-11-16T23:29:29.887845+00:00",
+      "state": "PASS",
+      "summary": "----------------------------------------------------------------------\nRan 52 tests in 0.253s\n\nOK",
+      "test_count": 52
+    },
+    {
+      "command": "python -S scripts/test_hf_revision_classes.py",
+      "completed_at": "2026-11-16T23:36:11.944923+00:00",
+      "environment": "WSL Ubuntu isolated persistent venv; pytest9.2.0/fastapi0.162.5/starlette1.10.0/httpx0.28.1",
+      "exit_code": 0,
+      "name": "wsl_revision_classes",
+      "output_sha256": "635b14d7d7a844e51f341cd94df750a5968ac265d1ba924a0f7052969081bede",
+      "started_at": "2026-11-16T23:34:37.418484+00:00",
+      "state": "PASS",
+      "summary": "----------------------------------------------------------------------\nRan 26 tests in 93.385s\n\nOK",
+      "test_count": 26
+    },
+    {
+      "command": "python -m unittest discover -s tests -p test_hf_inventory_refresh*.py -q",
+      "completed_at": "2026-11-16T23:36:46.604126+00:00",
+      "environment": "WSL Ubuntu isolated persistent venv; pytest9.2.0/fastapi0.162.5/starlette1.10.0/httpx0.28.1",
+      "exit_code": 0,
+      "name": "wsl_routine_refresh_gates",
+      "output_sha256": "4758c46c7a4244504d5756c7d16e5ae8aaf096ef6098ce4d5a87650675b413b4",
+      "started_at": "2026-11-16T23:36:11.952854+00:00",
+      "state": "PASS",
+      "summary": "----------------------------------------------------------------------\nRan 101 tests in 28.376s\n\nOK",
+      "test_count": 101
+    },
+    {
+      "command": "python -m pytest -q tests/test_command_centre_view.py tests/test_model_inference_support.py tests/test_model_pretraining_projection.py",
+      "completed_at": "2026-11-16T23:36:33.164245+00:00",
+      "environment": "WSL Ubuntu isolated venv; pytest9.2.0/fastapi0.162.5/starlette1.10.0/httpx0.28.1/jsonschema4.26.0",
+      "exit_code": 0,
+      "name": "wsl_command_centre_and_model_sources",
+      "output_sha256": "8f57f44b7e3b28e195c5bbb3a181c7dcf682ba9217c25f7a09fa2de33a7a6a3d",
+      "started_at": "2026-11-16T23:35:14.090024+00:00",
+      "state": "PASS",
+      "summary": "152 passed; one upstream Starlette TestClient/httpx deprecation warning",
+      "test_count": 152
+    },
+    {
+      "command": "python -X utf8 scripts/build_ecosystem_stage_matrix.py --check",
+      "completed_at": "2026-11-16T23:29:33.937559+00:00",
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "stage_check",
+      "output_sha256": "f0cf379230eb95b4a91a99903fdf4785225022d5d6fec84014e6ce3c9b20b62c",
+      "started_at": "2026-11-16T23:29:33.805853+00:00",
+      "state": "PASS",
+      "summary": "Ecosystem stage matrix is current: docs\\ecosystem-stage-matrix.json",
+      "test_count": null
+    },
+    {
+      "command": "python -X utf8 scripts/render_public_estate_alignment.py --check",
+      "completed_at": "2026-11-16T23:29:34.059682+00:00",
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "alignment_check",
+      "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "started_at": "2026-11-16T23:29:33.937559+00:00",
+      "state": "PASS",
+      "summary": "",
+      "test_count": null
+    },
+    {
+      "command": "python -X utf8 scripts/build_model_pretraining_projection.py --check",
+      "completed_at": "2026-11-16T23:29:34.837884+00:00",
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "model_projection_check",
+      "output_sha256": "82f420dc3afc49905177600c631691c2a4a6adad2070e019f84dd677cc0a210a",
+      "started_at": "2026-11-16T23:29:34.059682+00:00",
+      "state": "PASS",
+      "summary": "MODEL_PROJECTION_MATCHES_SOURCE_NOT_MODEL_QUALIFICATION",
+      "test_count": null
+    },
+    {
+      "command": "python -X utf8 scripts/collect_model_inference_support.py --check",
+      "completed_at": "2026-11-16T23:29:35.042774+00:00",
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "catalog_check",
+      "output_sha256": "e0b931b39f4cd576e2a68f2e3997273a4e76897a8e8796ae43d537a7d34abba3",
+      "started_at": "2026-11-16T23:29:34.837884+00:00",
+      "state": "PASS",
+      "summary": "{\"schema\": \"szl.model-inference-support/v1\", \"models\": 147, \"mode\": \"CHECK\", \"authority\": {\"routing\": false, \"qualification\": false, \"promotion\": false, \"deployment\": false}}",
+      "test_count": null
+    },
+    {
+      "command": "python -X utf8 scripts/audit_huggingface_ecosystem.py --check --report <temporary-report>",
+      "completed_at": "2026-11-16T23:30:00.227265+00:00",
+      "environment": "Windows Python 3.12; explicit UTF-8",
+      "exit_code": 0,
+      "name": "native_live_inventory_check",
+      "output_sha256": "d74e6f37413b43d8ec07ebc800951a12c9c12051d24b63f33c5f7422e3976e37",
+      "started_at": "2026-11-16T23:29:35.042774+00:00",
+      "state": "PASS",
+      "summary": "Hugging Face ecosystem manifest is current: docs\\huggingface-ecosystem-manifest.json\nHugging Face ecosystem check result: CURRENT (tracked manifest matches current public Hub evidence)",
+      "test_count": null
+    }
+  ],
+  "validation_history": [
+    {
+      "detail": "Initial symlink-dependent revision/refresh and command-centre tests encountered Windows WinError1314 or pytest temporary-directory permission errors. They were rerun unchanged in WSL Ubuntu without skips.",
+      "environment": "Windows",
+      "state": "HOST_LIMITATION"
+    },
+    {
+      "detail": "The initial temporary virtualenv was not retained across invocations. A persistent isolated venv was created; the model schema test dependency jsonschema4.26.0 was installed from repository-pinned requirements before the final complete pytest run.",
+      "environment": "WSL Ubuntu isolated venv",
+      "state": "SETUP_CORRECTED"
+    }
+  ]
+}
