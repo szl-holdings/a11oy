@@ -9,10 +9,10 @@ test -f package.json
 grep -q '@szl-holdings/ouroboros' package.json || true
 
 echo "==> 2. Installing dependencies"
-pnpm install --frozen-lockfile || pnpm install
+pnpm install --frozen-lockfile
 
 echo "==> 3. Running the existing 150-test suite (unchanged surface)"
-npx vitest run --reporter=default --no-coverage || EXISTING_FAILED=1
+npx vitest run --reporter=default --no-coverage
 
 echo "==> 4. Running the new Lutar Invariant proof tests in JSON mode"
 npx vitest run packages/ouroboros/src/lutar-invariant-proof.test.ts \
