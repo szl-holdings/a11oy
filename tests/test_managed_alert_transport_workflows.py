@@ -114,14 +114,22 @@ def test_relay_deploy_binds_the_exact_sha_and_reads_it_back_before_the_canary() 
     assert "ref: ${{ github.sha }}" in deploy
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in deploy
     assert "apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}" in deploy
-    assert "accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" in deploy
+    assert "accountId: ${{ steps.cloudflare-account.outputs.account_id }}" in deploy
     assert "SOURCE_REVISION: ${{ github.sha }}" in deploy
     assert "vars: |\n            SOURCE_REVISION\n" in deploy
+    assert "id: cloudflare-account" in deploy
+    assert "https://api.cloudflare.com/client/v4/accounts" in deploy
+    assert "exactly one account" in deploy
+    assert "re.fullmatch(r\"[0-9a-fA-F]{32}\", account_id)" in deploy
+    assert 'echo "::add-mask::$account_id"' in deploy
+    assert "printf 'account_id=%s\\n' \"$account_id\" >> \"$GITHUB_OUTPUT\"" in deploy
+    assert "CLOUDFLARE_ACCOUNT_ID must be exactly 32 hexadecimal characters." in deploy
+    assert "Cloudflare account discovery request failed." in deploy
     # Account binding is explicit now; nothing reads zones (no Zone:Read scope).
     assert "resolve_cloudflare_relay_account" not in value
     assert "/zones" not in value
     order = [
-        "Require Cloudflare deployment credentials",
+        "Resolve Cloudflare deployment account",
         WRANGLER_ACTION,
         "python scripts/verify_worker_revision.py",
         "--url https://ntfy.a11oy.net/.well-known/szl-worker-revision",
