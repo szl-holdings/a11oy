@@ -41,6 +41,7 @@ jobs:
           tests/test_living_anatomy_guardian_receipts.py tests/test_dockerfile_layer_budget.py
           tests/test_model_endpoint_credentials.py
           tests/test_collector_reason_codes.py
+          tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
         run: python -B -m unittest discover -s ops/vm-model-gateway -p 'test_*.py' -v
 

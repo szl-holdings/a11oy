@@ -19,10 +19,15 @@ def verify(passport_dict):
         digest_ok = False
         issues.append("missing digest")
     else:
-        recomputed = receipt_digest(d)
-        digest_ok = claimed == recomputed
-        if not digest_ok:
-            issues.append("digest mismatch: passport was modified after signing")
+        try:
+            recomputed = receipt_digest(d)
+        except (TypeError, ValueError, RecursionError):
+            digest_ok = False
+            issues.append("passport cannot be serialized for digest verification")
+        else:
+            digest_ok = claimed == recomputed
+            if not digest_ok:
+                issues.append("digest mismatch: passport content was modified")
 
     sections = d.get("sections", {})
     if not isinstance(sections, dict):
@@ -41,11 +46,16 @@ def verify(passport_dict):
             if not isinstance(ev, dict):
                 issues.append("evidence is not an object: " + str(sec_name))
                 continue
-            name = str(ev.get("name", ""))
+            name = ev.get("name")
+            if not isinstance(name, str) or not name.strip():
+                issues.append("evidence name must be nonempty text: " + str(sec_name))
+                name = ""
             cls = ev.get("class")
             if cls not in EvidenceClass.ALL:
                 issues.append("unknown evidence class for " + name + ": " + str(cls))
-            if cls == EvidenceClass.MEASURED and not ev.get("source"):
-                issues.append("MEASURED evidence without source: " + name)
+            if cls == EvidenceClass.MEASURED:
+                source = ev.get("source")
+                if not isinstance(source, str) or not source.strip():
+                    issues.append("MEASURED evidence without source: " + name)
 
     return {"valid": not issues, "digest_ok": digest_ok, "issues": issues}

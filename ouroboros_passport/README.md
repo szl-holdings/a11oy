@@ -28,14 +28,23 @@ A passport never claims more than its receipts prove.
 
 ## Promotion predicate
 
-A model may promote only if every required term is MEASURED:
+The local eligibility predicate requires a valid content digest and exactly one
+MEASURED observation with the boolean value `true` for every required term:
 
 eligible = tenant_isolated and source_authorized and provenance_complete
   and transform_chain_verified and license_policy_clear and split_disjoint
   and evaluation_passed and runtime_witnessed and rollback_available
 
 UNKNOWN, ABSTAIN, NOT_RUN, BLOCKED, or MISSING all block promotion.
-Absence of evidence can never promote a model.
+Absence of evidence can never promote a model. A measured `false`, a non-boolean
+value, duplicate required evidence, an invalid digest, or malformed evidence also
+blocks eligibility. The response includes structural verification and blocking
+reasons.
+
+`PROMOTED` is the result of this predicate over the supplied passport. It does not
+authorize deployment or establish that a receipt issuer is trusted. The SHA-256
+content digest is not a signature: issuer authentication, receipt freshness, and
+independent runtime admission remain separate requirements.
 
 ## CLI
 
@@ -44,12 +53,18 @@ Absence of evidence can never promote a model.
     python -m ouroboros_passport promote p.passport.json
     python -m ouroboros_passport selftest
 
+`verify` exits 0 only for a structurally valid passport; `promote` exits 0 only
+for an eligible passport. Both return 1 for a blocked result and still emit JSON.
+The selftest and regression fixtures are offline tests, not model qualification.
+
 ## Anatomy server (front end + back end)
 
     python -m ouroboros_passport.serve --dir passports/ --port 8787
 
 Routes: /healthz, /v1/models, /v1/models/{id}/anatomy,
 /v1/models/{id}/promotion, /v1/passports/{digest}.
+Model IDs may contain a namespace (for example `SZLHOLDINGS/model`), with either
+a literal slash or `%2F`. Query strings do not alter route lookup.
 Read-only and stateless; the server only projects passports.
 
 ## Hugging Face alignment
