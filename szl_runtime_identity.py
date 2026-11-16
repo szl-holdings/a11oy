@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -35,6 +36,10 @@ REQUIRED = {"observer_runtime.py", "szl_runtime_identity.py", "serve.py", "gdw_r
             ".github/scripts/hf-sync.yml"}
 MAX_FILE = 32 * 1024 * 1024
 MAX_TOTAL = 256 * 1024 * 1024
+STARTUP_WINDOW = 300
+RATE_LIMIT_WINDOW = 3900
+RATE_LIMIT_MAX_ATTEMPTS = 16
+RATE_LIMIT_CODES = frozenset({"GITHUB_READ_RATE_LIMITED", "ARTIFACT_DOWNLOAD_RATE_LIMITED"})
 
 
 def regular(root, relative, limit):
@@ -288,16 +293,34 @@ class ProcessIdentity:
             self.error = "RUNTIME_GITHUB_READ_CREDENTIAL_REQUIRED"
             return
         def worker():
-            # A bounded startup window permits the artifact upload to race boot.
-            # No HTTP read can start this worker or extend the window.
-            deadline = time.monotonic() + 300
+            # One startup-owned budget: GETs cannot restart it or change inputs.
+            started = time.monotonic()
+            deadline = started + STARTUP_WINDOW
+            rate_attempts, backoff = 0, 60
             while not self._stop.is_set() and time.monotonic() < deadline:
+                delay = 10
                 try:
                     self.verify_once()
                     return
                 except Exception as exc:
                     self.error = safe_error(exc)
-                self._stop.wait(10)
+                    if isinstance(exc, EvidenceBlocked) and self.error in RATE_LIMIT_CODES:
+                        rate_attempts += 1
+                        if rate_attempts >= RATE_LIMIT_MAX_ATTEMPTS:
+                            return
+                        deadline = started + RATE_LIMIT_WINDOW
+                        hint = getattr(exc, "retry_after_seconds", None)
+                        delay = backoff
+                        if type(hint) in (int, float) and math.isfinite(hint) and hint >= 0:
+                            delay = max(delay, hint)
+                        backoff = min(backoff * 2, 300)
+                    else:
+                        # Invalid evidence and credentials never inherit the
+                        # quota-recovery window from an earlier transient error.
+                        deadline = started + STARTUP_WINDOW
+                if self._poisoned or delay >= deadline - time.monotonic():
+                    return
+                self._stop.wait(delay)
         self._thread = threading.Thread(target=worker, name="runtime-source-identity", daemon=True)
         self._thread.start()
 

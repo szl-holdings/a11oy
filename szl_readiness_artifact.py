@@ -12,6 +12,7 @@ from __future__ import annotations
 import copy
 from datetime import datetime, timezone
 from functools import lru_cache
+from email.utils import parsedate_to_datetime
 import hashlib
 import importlib.util
 import io
@@ -36,6 +37,40 @@ MAX_MEMBER = 1024 * 1024
 
 class EvidenceBlocked(RuntimeError):
     """A fixed refusal code; response bodies, tokens and signed URLs stay private."""
+
+
+class RateLimited(EvidenceBlocked):
+    """A refusal code plus a numeric delay; no provider headers are retained."""
+
+    def __init__(self, code, retry_after_seconds=None):
+        super().__init__(code)
+        self.retry_after_seconds = retry_after_seconds
+
+
+def rate_limit_delay(headers, *, now):
+    """Keep only valid server timing; a caller must still bound its own budget."""
+    delays = []
+    for name in ("retry-after", "x-ratelimit-reset"):
+        value = str(headers.get(name, "")).strip()
+        if not value or len(value) > 128:
+            continue
+        try:
+            if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", value):
+                delay = float(value)
+                if name == "x-ratelimit-reset":
+                    delay -= now
+            elif name == "retry-after":
+                date = parsedate_to_datetime(value)
+                if date.tzinfo is None:
+                    date = date.replace(tzinfo=timezone.utc)
+                delay = date.timestamp() - now
+            else:
+                continue
+        except (ValueError, TypeError, OverflowError):
+            continue
+        if math.isfinite(delay) and delay >= 0:
+            delays.append(delay)
+    return max(delays) if delays else None
 
 
 def require(value, code):
@@ -199,8 +234,11 @@ class Transport:
                         reason = "UPSTREAM_UNAVAILABLE"
                     else:
                         reason = "UNEXPECTED_RESPONSE"
-                    # Fixed codes only: never expose response bodies, credentials,
-                    # headers, signed object URLs or provider exception messages.
+                    # Retain only numeric timing for a bounded startup retry.
+                    # Bodies, raw headers, URLs and credentials remain private.
+                    if reason == "RATE_LIMITED":
+                        raise RateLimited(stage + "_" + reason,
+                            rate_limit_delay(response.headers, now=time.time()))
                     raise EvidenceBlocked(stage + "_" + reason)
                 if redirect:
                     return response.headers.get("location", "")
