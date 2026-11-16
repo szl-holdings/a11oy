@@ -15,8 +15,9 @@
 //       https://microsoft.github.io/autogen/
 //     · Anthropic MCP — host composes servers; sensitive actions host-gated
 //       https://modelcontextprotocol.io/
-//   SZL's differentiator no leader ships: EVERY step's plan+act+eval+gate is folded
-//   into ONE ECDSA-P256 DSSE-signed composite receipt (hash-chained), forum-ingested.
+//   This implementation folds each step's plan+act+eval+gate
+//   into a composite record. The backend may emit a signed envelope;
+//   this view does not verify its signature or prove execution.
 //   This surface COMPOSES three existing siloed pieces — the /code run-loop (act),
 //   the model-harness (behavior profile), and the eval-arena (self-eval) — plus the
 //   durable HumanApprovalGate, into ONE governed autonomous loop.
@@ -32,7 +33,7 @@
 // Degrades gracefully; no crash, no fake data. 0 runtime CDN (three via importmap).
 
 const ID = "governedagent";
-const TITLE = "Governed Agent Loop · plan→act→self-eval→gate→retry";
+const TITLE = "Governed Agent Loop · request → outcome → evidence";
 const EP_HEALTH = "/api/a11oy/v1/agentloop/health";
 const EP_RUN = "/api/a11oy/v1/agentloop/run";
 
@@ -57,12 +58,14 @@ let _group = null, _overlay = null, _frameReg = false;
 let _stageNodes = [];       // { mesh, label, key }
 let _beam = null, _billboard = null, _badge = null, _poll = null;
 let _stepSats = [];         // per-step satellites
+let _runController = null, _lifecycle = 0;
 
 const S = {
   state: "init", degraded: false, label: null,
   composes: null, signerMode: null,
-  task: "write a python function that returns the first 5 primes",
-  mode: "code", model: "claude_opus_4_8", profile: "", suite: "",
+  task: "Explain the deny-by-default policy for a governed action.",
+  mode: "chat", model: "", profile: "", suite: "core_honest_v1",
+  outcomeUncertain: false,
   running: false, lastResult: null, lastReceipt: null, runState: "idle",
 };
 
@@ -71,6 +74,9 @@ const S = {
 // =========================================================================================
 function mount(ctx) {
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
+  _lifecycle += 1;
+  window.addEventListener("pagehide", _leavePage);
+  window.addEventListener("pageshow", _resumePage);
   const THREE = _THREE;
   _group = new THREE.Group();
   _stage.scene.add(_group);
@@ -80,7 +86,7 @@ function mount(ctx) {
   _buildPipeline();
   _buildBeam();
   try {
-    _billboard = ctx.label.billboard(THREE, "MODELED", { text: "plan modeled · act+eval+gate+receipt live", scale: 0.6, position: [0, 6.4, 0] });
+    _billboard = ctx.label.billboard(THREE, "MODELED", { text: "plan modeled · execution evidence required", scale: 0.6, position: [0, 6.4, 0] });
     _group.add(_billboard);
   } catch (_) {}
 
@@ -88,10 +94,7 @@ function mount(ctx) {
   if (!_frameReg) { _stage.onFrame(_onFrame); _frameReg = true; }
 
   // ---- LIVE WIRING (doctrine: every value traces to a real endpoint) ----
-  _poll = ctx.live.poll(EP_HEALTH, 9000, _onHealth, {
-    badge: _badge,
-    onState: (m) => { S.state = m.state; S.label = m.label || S.label; if (m.state !== "live") _paintOverlay(); },
-  });
+  _startHealthPoll(ctx);
 
   return { id: ID, started: true };
 }
@@ -191,39 +194,157 @@ function _onHealth(json, meta) {
       const tot = Object.keys(S.composes).length;
       _group.remove(_billboard);
       _billboard = _ctx.label.billboard(_THREE, "COMPOSES", {
-        text: `${avail}/${tot} pieces wired · ${S.signerMode || ""}`, scale: 0.56, position: [0, 6.4, 0],
+        text: `${avail}/${tot} modules available; execution unverified`, scale: 0.56, position: [0, 6.4, 0],
       });
       _group.add(_billboard);
     } catch (_) {}
   }
 }
 
+function _completionState(value) {
+  const completion = value && value.completion;
+  if (!completion || typeof completion !== "object" || Array.isArray(completion)) {
+    return "UNKNOWN - completion evidence absent";
+  }
+  if (completion.evidence_basis !== "UPSTREAM_REPORTED_UNVERIFIED"
+      || completion.receipt_verification_asserted !== false || completion.model_qualified !== false) {
+    return "UNKNOWN - completion evidence does not match the current server contract";
+  }
+  if (completion.state === "OBSERVED_COMPLETE" && completion.complete === true && value.ok === true) {
+    return "OBSERVED_COMPLETE - upstream reported, unverified; model unqualified";
+  }
+  if (["BLOCKED", "INCOMPLETE", "UNKNOWN"].includes(completion.state) && completion.complete === false && value.ok === false) {
+    return completion.state + " - upstream reported, unverified; no completion established";
+  }
+  return "UNKNOWN - inconsistent completion evidence";
+}
+
+function _startHealthPoll(ctx) {
+  const lifecycle = _lifecycle;
+  _poll = ctx.live.poll(EP_HEALTH, 9000, (value, meta) => {
+    if (lifecycle === _lifecycle) _onHealth(value, meta);
+  }, {
+    badge: _badge,
+    onState: (meta) => {
+      if (lifecycle !== _lifecycle) return;
+      S.state = meta.state; S.label = meta.label || S.label;
+      if (meta.state !== "live") _paintOverlay();
+    },
+  });
+}
+
+function _resumePage() {
+  if (_ctx && !_poll) _startHealthPoll(_ctx);
+}
+
+function _clearCredentials() {
+  if (_el.operatorToken) _el.operatorToken.value = "";
+}
+
+function _leavePage() {
+  _clearCredentials();
+  if (_el.tenant) _el.tenant.value = "";
+  _lifecycle += 1;
+  if (_poll) { try { _poll.stop(); } catch (_) {} _poll = null; }
+  S.composes = null; S.signerMode = null; S.state = "init"; S.label = null;
+  if (_runController) {
+    S.outcomeUncertain = true;
+    S.runState = "UNKNOWN - request interrupted; execution may have occurred";
+    _runController.abort();
+    _runController = null;
+  }
+  S.running = false;
+  _paintOverlay();
+}
+
+function _requestInputsChanged() {
+  if (S.running) return;
+  S.lastResult = null; S.lastReceipt = null;
+  S.runState = S.outcomeUncertain
+    ? "UNKNOWN - previous execution may have occurred; a new request still needs acknowledgement"
+    : "INPUT_CHANGED - no result established for these inputs";
+  _renderStepSats([]); _paintOverlay(); _paintReceipt();
+}
+
 async function _fireRun() {
   if (S.running) return;
-  S.running = true; S.runState = "running"; _paintOverlay(); _animateBeam();
+  let token = String((_el.operatorToken && _el.operatorToken.value) || "").trim();
+  const tenant = String((_el.tenant && _el.tenant.value) || "").trim();
+  const task = String((_el.task && _el.task.value) || "").trim();
+  const model = String((_el.modelSel && _el.modelSel.value) || "").trim();
+  const mode = String((_el.modeSel && _el.modeSel.value) || "");
+  const suite = String((_el.suiteSel && _el.suiteSel.value) || "").trim();
+  const reject = (message) => { _clearCredentials(); S.runState = message; _paintOverlay(); };
+  if (!token || token.length > 4096 || /[^\x21-\x7e]/.test(token)) {
+    reject("BLOCKED - enter an operator credential for this one request"); return;
+  }
+  if (!tenant || tenant.length > 256 || /[^\x21-\x7e]/.test(tenant)) {
+    reject("BLOCKED - enter the configured tenant; it is checked by the server"); return;
+  }
+  if (!task || task.length > 32000 || !model || model.length > 240
+      || !["chat", "code", "research"].includes(mode) || !suite || suite.length > 160) {
+    reject("BLOCKED - supply a task, explicit model and evaluation suite"); return;
+  }
+  if (S.outcomeUncertain && !window.confirm(
+    "The previous request may have executed. This starts new work and may incur additional cost. Send a new request?")) {
+    _clearCredentials(); return;
+  }
+  const body = { task, mode, model_id: model, eval_suite: suite, max_retries: 0,
+    sandbox: false, consult_brain: false, allocate_energy: false };
+  if (_el.profile && _el.profile.value.trim()) body.harness_profile_id = _el.profile.value.trim();
+  const serialized = JSON.stringify(body);
+  if (new TextEncoder().encode(serialized).length > 65536) {
+    reject("BLOCKED - request exceeds the 64 KiB client boundary"); return;
+  }
+  const lifecycle = _lifecycle;
+  const controller = new AbortController();
+  _runController = controller;
+  S.running = true; S.outcomeUncertain = false;
+  S.lastResult = null; S.lastReceipt = null;
+  S.runState = "RUNNING - one browser request; server authorization and policy still apply";
+  _clearCredentials(); _paintOverlay(); _paintReceipt(); _animateBeam();
+  const timer = setTimeout(() => controller.abort(), 120000);
   try {
-    const body = {
-      task: (_el.task && _el.task.value) || S.task,
-      mode: (_el.modeSel && _el.modeSel.value) || S.mode,
-      model_id: (_el.modelSel && _el.modelSel.value) || S.model,
-      max_retries: 1,
-    };
-    if (_el.profile && _el.profile.value.trim()) body.harness_profile_id = _el.profile.value.trim();
-    if (_el.suiteSel && _el.suiteSel.value) body.eval_suite = _el.suiteSel.value;
-    const res = await fetch(EP_RUN, {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    const response = await fetch(EP_RUN, {
+      method: "POST", redirect: "error", credentials: "same-origin", cache: "no-store",
+      headers: { "content-type": "application/json", accept: "application/json",
+        authorization: "Bearer " + token, "x-a11oy-tenant": tenant },
+      body: serialized, signal: controller.signal,
     });
-    if (!res.ok) { S.runState = "error(" + res.status + ")"; S.running = false; _paintOverlay(); return; }
-    const json = await res.json();
-    S.lastResult = json;
-    S.lastReceipt = (json.composite_receipt && json.composite_receipt.body) || null;
-    S.runState = json.ok ? "done" : "blocked";
-    _renderStepSats(json.steps || []);
+    token = "";
+    if (lifecycle !== _lifecycle) return;
+    if (!(response.headers.get("content-type") || "").toLowerCase().includes("application/json")) {
+      throw new Error("NON_JSON_RESPONSE");
+    }
+    const raw = await response.text();
+    if (lifecycle !== _lifecycle) return;
+    if (raw.length > 1048576) throw new Error("RESPONSE_TOO_LARGE");
+    const value = JSON.parse(raw);
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_RESPONSE");
+    S.lastResult = value;
+    S.lastReceipt = value.composite_receipt && value.composite_receipt.body || null;
+    if (response.status === 401) S.runState = "BLOCKED - operator credential refused or unavailable";
+    else if (response.status === 403) S.runState = "BLOCKED - tenant or policy admission refused";
+    else if (!response.ok) {
+      S.outcomeUncertain = response.status >= 500;
+      S.runState = S.outcomeUncertain
+        ? "UNKNOWN - server unavailable; execution may have occurred; no automatic retry"
+        : "BLOCKED - request refused (HTTP " + response.status + ")";
+    } else {
+      S.runState = _completionState(value);
+      S.outcomeUncertain = S.runState.startsWith("UNKNOWN");
+    }
+    _renderStepSats(Array.isArray(value.steps) ? value.steps : []);
     _paintOverlay(); _paintReceipt();
-  } catch (e) {
-    S.runState = "error";
+  } catch (_) {
+    if (lifecycle !== _lifecycle) return;
+    S.outcomeUncertain = true;
+    S.runState = "UNKNOWN - response unavailable or invalid; execution may have occurred; no automatic retry";
   } finally {
-    S.running = false; _paintOverlay();
+    token = ""; clearTimeout(timer);
+    if (lifecycle === _lifecycle) {
+      _runController = null; S.running = false; _clearCredentials(); _paintOverlay();
+    }
   }
 }
 
@@ -262,6 +383,7 @@ function _buildOverlay() {
   Object.assign(_overlay.style, {
     position: "absolute", left: "14px", top: "14px", zIndex: "6",
     display: "flex", flexDirection: "column", gap: "8px",
+    maxHeight: "calc(100% - 28px)", overflowY: "auto", boxSizing: "border-box",
     maxWidth: "min(94%,480px)", font: "12px ui-sans-serif,system-ui,Segoe UI,Roboto,Arial", color: "#eef3f6",
   });
 
@@ -272,12 +394,7 @@ function _buildOverlay() {
 
   const sub = document.createElement("div");
   sub.style.cssText = "color:#9fb1bf;font-size:11px;line-height:1.5";
-  sub.innerHTML = 'COMPOSES three siloed pieces into ONE governed loop: ' +
-    '<span style="color:#e8c074">/code run-loop</span> (act, Λ-gate, sandbox) · ' +
-    '<span style="color:#39d3c4">eval-arena</span> (self-eval) · ' +
-    '<span style="color:#6fb1ff">model-harness</span> (behavior profile) · ' +
-    'HumanApprovalGate → <b>ONE composite signed receipt</b> chaining profile+step+eval, forum-ingested. ' +
-    'Plan MODELED; act+eval+gate+receipt LIVE. Λ = Conjecture 1 (advisory, never green).';
+  sub.textContent = "The governed loop combines task planning, model output, evaluation and policy gates. A composite receipt may be returned; verification is reported separately. Plan MODELED. Lambda remains Conjecture 1 and cannot authorize work.";
   _overlay.appendChild(sub);
 
   _badge = ctx.live.createBadge();
@@ -302,7 +419,25 @@ function _buildOverlay() {
   _el.task = document.createElement("input");
   _el.task.type = "text"; _el.task.value = S.task;
   _el.task.style.cssText = "background:#06090d;color:#eef3f6;border:1px solid #1d2a36;border-radius:6px;padding:5px;font:11px ui-sans-serif";
+  _el.task.setAttribute("aria-label", "Governed task");
   ctl.appendChild(_el.task);
+
+  const credentialField = (label, type, maximum, placeholder) => {
+    const wrapper = document.createElement("label");
+    wrapper.textContent = label;
+    wrapper.style.cssText = "display:grid;gap:4px;min-width:0";
+    const input = document.createElement("input");
+    input.type = type; input.maxLength = maximum; input.autocomplete = "off";
+    input.spellcheck = false; input.placeholder = placeholder;
+    input.style.cssText = _el.task.style.cssText + ";width:100%;min-width:0;box-sizing:border-box";
+    wrapper.appendChild(input); ctl.appendChild(wrapper);
+    return input;
+  };
+  _el.operatorToken = credentialField("Operator credential (one request)", "password", 4096, "Existing operator credential");
+  _el.tenant = credentialField("Configured tenant", "text", 256, "Existing tenant ID");
+  const boundary = document.createElement("p");
+  boundary.textContent = "Uses the existing operator and tenant gates. No sandbox execution or second-approver credential is enabled here. One browser request, zero orchestration retries; provider-internal retries and total cost are not established.";
+  ctl.appendChild(boundary);
 
   const row = document.createElement("div");
   row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
@@ -313,9 +448,15 @@ function _buildOverlay() {
     if (val) s.value = val;
     return s;
   };
-  _el.modeSel = mkSel(["code", "chat", "research"], S.mode);
-  _el.modelSel = mkSel(["claude_opus_4_8", "claude_sonnet_4_6", "gpt_5_4", "sovereign_local"], S.model);
+  _el.modeSel = mkSel(["chat", "code", "research"], S.mode);
+  _el.modeSel.setAttribute("aria-label", "Task mode; sandbox execution is disabled here");
+  _el.modelSel = document.createElement("input");
+  _el.modelSel.type = "text"; _el.modelSel.maxLength = 240;
+  _el.modelSel.placeholder = "Explicit configured model ID";
+  _el.modelSel.setAttribute("aria-label", "Explicit configured model ID");
+  _el.modelSel.style.cssText = _el.task.style.cssText;
   _el.suiteSel = mkSel(["", "core_honest_v1", "redteam_v1", "honesty_v1"], S.suite);
+  _el.suiteSel.setAttribute("aria-label", "Evaluation suite");
   row.appendChild(_el.modeSel); row.appendChild(_el.modelSel); row.appendChild(_el.suiteSel);
   ctl.appendChild(row);
 
@@ -325,10 +466,14 @@ function _buildOverlay() {
   ctl.appendChild(_el.profile);
 
   _el.runBtn = document.createElement("button");
-  _el.runBtn.textContent = "▶ run loop (Λ-gate + self-eval + gate + sign + forum)";
   _el.runBtn.style.cssText = "background:#12202b;color:#eef3f6;border:1px solid #39d3c4;border-radius:7px;padding:7px 10px;cursor:pointer;font:600 11px ui-monospace,monospace";
+  _el.runBtn.textContent = "Send one governed request";
   _el.runBtn.addEventListener("click", _fireRun);
   ctl.appendChild(_el.runBtn);
+  for (const control of [_el.task, _el.operatorToken, _el.tenant, _el.modelSel, _el.modeSel, _el.suiteSel, _el.profile]) {
+    control.addEventListener("input", _requestInputsChanged);
+    control.addEventListener("change", _requestInputsChanged);
+  }
 
   _el.runState = document.createElement("div");
   _el.runState.style.cssText = "font:10.5px ui-monospace,monospace;color:#9fb1bf";
@@ -341,10 +486,10 @@ function _buildOverlay() {
   det.open = true;
   const sum = document.createElement("summary");
   sum.style.cssText = "cursor:pointer;color:#39d3c4;font:11px ui-monospace,monospace";
-  sum.textContent = "composite signed receipt (szl.agentloop.receipt/v1)";
+  sum.textContent = "composite receipt · verification not established";
   _el.receipt = document.createElement("div");
   _el.receipt.style.cssText = "white-space:pre-wrap;font:10px ui-monospace,monospace;color:#bfe;background:#06090d;border:1px solid #1d2a36;border-radius:7px;padding:8px;max-height:230px;overflow:auto;margin-top:6px";
-  _el.receipt.textContent = "— run the loop to see the live composite signed receipt —";
+  _el.receipt.textContent = "— no run receipt observed —";
   det.appendChild(sum); det.appendChild(_el.receipt);
   _overlay.appendChild(det);
 
@@ -354,13 +499,16 @@ function _buildOverlay() {
   // sources (text only — NOT fetch-shaped, doctrine 0-CDN safe)
   const src = document.createElement("div");
   src.style.cssText = "font-size:9.5px;color:#5b6c78;line-height:1.6;margin-top:2px";
-  src.textContent = "Studied leaders (ingested & re-expressed as ours): LangGraph · OpenAI Agents SDK (guardrails+approvals) · CrewAI · AutoGen · Anthropic MCP. Composes the existing a11oy /code run-loop + eval-arena + model-harness; the composite receipt only CHAINS + SIGNS their REAL output. Plan is MODELED; act+eval+gate+receipt are LIVE; behavior transfer is disposition-only (MODELED). NOT in the locked-8; Λ = Conjecture 1; trust < 100%.";
+  src.textContent = "Read the completion state and its evidence basis together. An observed result is upstream-reported and unverified. Receipt verification, model qualification and real-world effects need separate evidence. Lambda is advisory; the locked-eight set is unchanged.";
   _overlay.appendChild(src);
 
   (ctx.container || document.body).appendChild(_overlay);
 }
 
 function _paintOverlay() {
+  for (const name of ["task", "operatorToken", "tenant", "modelSel", "modeSel", "suiteSel", "profile", "runBtn"]) {
+    if (_el[name]) _el[name].disabled = S.running;
+  }
   if (_el.composes) {
     if (!S.composes) { _el.composes.textContent = "composition: awaiting live health (" + S.state + ")"; }
     else {
@@ -389,12 +537,16 @@ function _paintOverlay() {
 
 function _paintReceipt() {
   if (!_el.receipt) return;
-  if (!S.lastReceipt) { _el.receipt.textContent = "— run the loop to see the live composite signed receipt —"; return; }
+  if (!S.lastReceipt) { _el.receipt.textContent = "— no run receipt observed —"; return; }
   const r = S.lastReceipt;
   const res = S.lastResult || {};
   const sig = (res.composite_receipt && res.composite_receipt.signing) || {};
   const agg = r.aggregate || {};
   const lines = [
+    "completion       : " + ((res.completion && res.completion.state) || "UNKNOWN"),
+    "evidence_basis   : " + ((res.completion && res.completion.evidence_basis) || "UNAVAILABLE"),
+    "verification     : not established by this browser",
+    "qualification    : not established by this response",
     "schema           : " + (r.schema || "?"),
     "run_id           : " + (r.run_id || "?"),
     "task             : " + (r.task || ""),
@@ -425,6 +577,9 @@ function _paintReceipt() {
 // unmount
 // =========================================================================================
 function unmount() {
+  _leavePage();
+  window.removeEventListener("pagehide", _leavePage);
+  window.removeEventListener("pageshow", _resumePage);
   try { if (_poll) _poll.stop(); } catch (_) {}
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try {
