@@ -3,7 +3,7 @@
 
 # Hugging Face inventory source reconciliation candidate
 
-**SOURCE_REVIEW_REQUIRED ? unaccepted draft source.** This patch makes the previously documented reconciliation reviewable and testable. It grants no qualification or production authority and performs no provider, visibility or support-discussion write.
+**SOURCE_REVIEW_REQUIRED - unaccepted draft source.** This patch makes the previously documented reconciliation reviewable and testable. It grants no qualification or production authority and performs no provider, visibility or support-discussion write.
 
 Protected-main base: `ac68b78415eecd21cf47f09fa725ed8a6e72fc78`. Branch: `review/hf-inventory-source-reconciliation-20261116`.
 
@@ -51,18 +51,18 @@ The twelve private rows are removed only from the measured public classification
 
 | Suite/check | Result |
 | --- | --- |
-| `public_estate_workflow_exact_suite` | PASS ? 49 tests, exit 0 |
-| `native_collector_offline` | PASS ? 36 tests, exit 0 |
-| `gated_inventory_boundaries` | PASS ? 14 tests, exit 0 |
-| `public_membership` | PASS ? 52 tests, exit 0 |
-| `wsl_revision_classes` | PASS ? 26 tests, exit 0 |
-| `wsl_routine_refresh_gates` | PASS ? 101 tests, exit 0 |
-| `wsl_command_centre_and_model_sources` | PASS ? 152 tests, exit 0 |
-| `stage_check` | PASS ? check, exit 0 |
-| `alignment_check` | PASS ? check, exit 0 |
-| `model_projection_check` | PASS ? check, exit 0 |
-| `catalog_check` | PASS ? check, exit 0 |
-| `native_live_inventory_check` | PASS ? check, exit 0 |
+| `public_estate_workflow_exact_suite` | PASS - 49 tests, exit 0 |
+| `native_collector_offline` | PASS - 36 tests, exit 0 |
+| `gated_inventory_boundaries` | PASS - 14 tests, exit 0 |
+| `public_membership` | PASS - 52 tests, exit 0 |
+| `wsl_revision_classes` | PASS - 26 tests, exit 0 |
+| `wsl_routine_refresh_gates` | PASS - 101 tests, exit 0 |
+| `wsl_command_centre_and_model_sources` | PASS - 152 tests, exit 0 |
+| `stage_check` | PASS - check, exit 0 |
+| `alignment_check` | PASS - check, exit 0 |
+| `model_projection_check` | PASS - check, exit 0 |
+| `catalog_check` | PASS - check, exit 0 |
+| `native_live_inventory_check` | PASS - check, exit 0 |
 
 The Linux suites ran without skips in an isolated WSL Ubuntu environment using repository-pinned pytest/FastAPI/Starlette/httpx/jsonschema dependencies. This resolved host limitations in the initial Windows symlink tests. The final 152-test pytest run emitted one upstream Starlette TestClient/httpx deprecation warning. No test or guard was disabled to obtain a passing result.
 
