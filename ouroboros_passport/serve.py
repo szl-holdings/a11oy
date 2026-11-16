@@ -1,5 +1,6 @@
 import argparse, json, os
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import unquote, urlsplit
 
 """Read-only anatomy projection server (front end + back end, stdlib only).
 
@@ -26,19 +27,19 @@ def load_passports(directory):
 class Handler(BaseHTTPRequestHandler):
     passports = {}
     def do_GET(self):
-        parts = [p for p in self.path.split("/") if p]
+        parts = [p for p in urlsplit(self.path).path.split("/") if p]
         try:
             if parts == ["healthz"]:
                 body = {"status": "ok", "service": "ouroboros-passport/0.1", "doctrine": "MEASURED/UNKNOWN/ABSTAIN"}
             elif parts == ["v1", "models"]:
                 body = {"models": sorted(self.passports)}
-            elif len(parts) == 4 and parts[:2] == ["v1", "models"] and parts[3] == "anatomy":
-                p = self.passports.get(parts[2])
+            elif len(parts) >= 4 and parts[:2] == ["v1", "models"] and parts[-1] == "anatomy":
+                p = self.passports.get(unquote("/".join(parts[2:-1])))
                 if not p:
                     return self._json(404, {"error": "not found"})
                 body = {"passport": p, "verification": verify(p)}
-            elif len(parts) == 4 and parts[:2] == ["v1", "models"] and parts[3] == "promotion":
-                p = self.passports.get(parts[2])
+            elif len(parts) >= 4 and parts[:2] == ["v1", "models"] and parts[-1] == "promotion":
+                p = self.passports.get(unquote("/".join(parts[2:-1])))
                 if not p:
                     return self._json(404, {"error": "not found"})
                 body = evaluate(p)
