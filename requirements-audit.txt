@@ -22,8 +22,7 @@
 # with NO upstream fix available. Scoped-accepted; see docs/DEPENDENCY_RISK_REGISTER.md
 llama-cpp-python==0.3.36
 
-# --- requirements.txt declared deps ---
-opentelemetry-sdk==1.45.2
-opentelemetry-exporter-otlp==1.45.2
+# --- Additional requirements.txt declared deps ---
+# OpenTelemetry is now included through the canonical runtime pins above.
 py_ecc==8.0.0
 sigstore==4.5.1
