@@ -113,6 +113,32 @@ def _sha256(name: str, value: Any) -> str:
     return text.lower()
 
 
+def barrier_content_hash(orbit_id: str, participants: Sequence[Mapping[str, Any]]) -> str:
+    """Hash content identity, not delivery chronology or barrier generation.
+
+    Payload-owned observation times remain inside arrival_digest. The transport
+    received_at remains available to TTL/invariant checks and durable arrivals.
+    """
+    orbit_id = _nonempty("orbit_id", orbit_id)
+    if not isinstance(participants, (list, tuple)) or not participants:
+        raise OROContractError("barrier content requires participant pointers")
+    pointers = []
+    for item in participants:
+        if not isinstance(item, Mapping) or set(item) != {"participant_id", "arrival_digest"}:
+            raise OROContractError("barrier content pointer is malformed")
+        pointers.append({
+            "participant_id": _nonempty("participant_id", item["participant_id"]),
+            "arrival_digest": _sha256("arrival_digest", item["arrival_digest"]),
+        })
+    if len({item["participant_id"] for item in pointers}) != len(pointers):
+        raise OROContractError("barrier content participant IDs must be unique")
+    return semantic_hash({
+        "schema": "szl.oro-barrier-content/v1",
+        "orbit_id": orbit_id,
+        "participants": sorted(pointers, key=lambda item: item["participant_id"]),
+    })
+
+
 @dataclass(frozen=True)
 class Rank:
     obligations: int
@@ -566,7 +592,10 @@ class BarrierEngine:
                 for arrival in unique
             ],
         }
-        digest = semantic_hash(merged_payload)
+        digest = barrier_content_hash(orbit_id, [
+            {"participant_id": arrival.participant_id, "arrival_digest": arrival.digest}
+            for arrival in unique
+        ])
         if seen_semantic_hash(digest):
             invariant_results: tuple[Mapping[str, Any], ...] = ()
             decision = "REFUSE"
