@@ -1301,12 +1301,7 @@
     "HOLD"
   ],
   "ouroboros_observation": {
-    "artifact": {
-      "archive_sha256": "2a0e79743c812e5fd1e808b514c85defe3c2b4895065c68b0f5b4096a6a4657e",
-      "id": 14154273986,
-      "name": "ouroboros-frontier-43696217277-1",
-      "receipt_sha256": "410823b32ea59fd627f377193a45fdea227549ba1466d5d4611ef7678bb6a6bb"
-    },
+    "artifact": null,
     "authority": {
       "execution": "NONE",
       "merge": "NONE",
@@ -1322,32 +1317,32 @@
       "signature_verified": false
     },
     "freshness": {
-      "expires_at": "2026-11-15T14:50:30Z",
+      "expires_at": "2026-11-16T04:50:50Z",
       "max_age_seconds": 21600,
-      "observed_at": "2026-11-15T08:50:30Z"
+      "observed_at": "2026-11-15T22:50:50Z"
     },
     "observation": {
-      "bounded": true,
-      "exit": "converged",
-      "max_budget": 1,
-      "receipt_closed": true,
-      "recommendation_count": 1,
-      "review_sha256": "64323ae833586a3130f100eed67ed62c3b3d49158169664e536b9eace0d1530d",
-      "review_state": "REVIEW_PROPOSED",
-      "steps": 1,
-      "terminated": true,
-      "wall_ms": 86227
+      "bounded": null,
+      "exit": null,
+      "max_budget": null,
+      "receipt_closed": null,
+      "recommendation_count": null,
+      "review_sha256": null,
+      "review_state": null,
+      "steps": null,
+      "terminated": null,
+      "wall_ms": null
     },
-    "observation_sha256": "9c3115d3dc5c8a4e61c0a0af9b9090bc48d62ef63ab33265aefb0e25fc3132d7",
-    "reason": "CURRENT_REVIEW_RECEIPT_VALIDATED",
+    "observation_sha256": "d54e08427144deb84e6128c2ce8ce8a16ed2bf35020f9b8f2b0e89c110758b5c",
+    "reason": "SECOND_BRAIN_PACKET_CHANGED",
     "run": {
       "attempt": 1,
       "conclusion": "success",
       "head_sha": "90942b825e0d734f537450c357bc01f61ee863a7",
-      "id": 43696217277,
+      "id": 43771332359,
       "status": "completed",
-      "updated_at": "2026-11-15T08:50:30Z",
-      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/43696217277"
+      "updated_at": "2026-11-15T22:50:50Z",
+      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/43771332359"
     },
     "schema": "szl.ouroboros.frontier-observation/v1",
     "source": {
@@ -1357,15 +1352,15 @@
       "controller_repository": "szl-holdings/szl-ouroboros",
       "controller_revision": "90942b825e0d734f537450c357bc01f61ee863a7",
       "second_brain_repository": "szl-holdings/szl-second-brain",
-      "second_brain_revision": "6824384b2fd5ddefb7ee75bf36fd588562fd0f59",
+      "second_brain_revision": "22446affb88b8609ca48bb98073c84ea1c4df9d7",
       "state_file_sha256": "5123f626bde1306b04c0d3b908597ba8285c52253e225fe7928f0a071f616ded",
       "workflow": ".github/workflows/codex-continuous-frontier.yml"
     },
-    "state": "OBSERVED"
+    "state": "STALE"
   },
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "cfd3ffdaacc3233c162a5b355a1692658c1deacaabf3723d438cd289e6be3b3a",
+  "snapshot_sha256": "aba8f465d4754af1944987f9488fc8da1e425c329ad286f39ba22902991b7ed3",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
@@ -1387,7 +1382,7 @@
       "candidate_file_sha256": "3fb2cf2b7e55ecf179cf76e6afe97bcbbbd8fa645d1595bc0abb7440cf64e54a",
       "candidate_set_sha256": "3fb2cf2b7e55ecf179cf76e6afe97bcbbbd8fa645d1595bc0abb7440cf64e54a",
       "repository": "szl-holdings/szl-second-brain",
-      "revision": "6824384b2fd5ddefb7ee75bf36fd588562fd0f59",
+      "revision": "22446affb88b8609ca48bb98073c84ea1c4df9d7",
       "state_sha256": "5123f626bde1306b04c0d3b908597ba8285c52253e225fe7928f0a071f616ded"
     }
   },
