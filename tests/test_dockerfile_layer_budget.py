@@ -72,9 +72,14 @@ X402_MANIFEST_COPY_ADDITIONS = {".well-known/x402-pricing.json"}
 # One opt-in health-read registrar, batched into the existing origin-admission
 # COPY. Every historical source count/digest and layer ceiling stays unchanged.
 BUILD_ENV_FANOUT_COPY_ADDITIONS = {"a11oy_build_env_fanout.py"}
-# The CEG registrar is a single root module batched into the existing COPY.
-# Historical source digests remain pinned by excluding this named addition.
-EVIDENCE_GRAPH_COPY_ADDITIONS = {"szl_evidence_graph.py"}
+# The CEG registrar, offline receipt reader, and reviewed receipt catalog are
+# batched into the existing root COPY. Historical source digests and the layer
+# ceiling remain unchanged; only these exact additions are excluded below.
+EVIDENCE_GRAPH_COPY_ADDITIONS = {
+    "szl_evidence_graph.py", "szl_evidence_receipts.py", "evidence_graph_receipts.json",
+}
+# One explicit telemetry module; prior source digests and layer budget stay fixed.
+TRACE_OBSERVATION_COPY_ADDITIONS = {"vsp_otel/trace_ir.py"}
 
 COPY_SOURCE_ALLOWLIST_COUNT = 589
 COPY_SOURCE_ALLOWLIST_SHA256 = (
@@ -210,6 +215,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert X402_MANIFEST_COPY_ADDITIONS <= copy_sources
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= copy_sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= copy_sources
+    assert TRACE_OBSERVATION_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | X402_ORIGIN_COPY_ADDITIONS
@@ -233,6 +239,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | X402_MANIFEST_COPY_ADDITIONS
         | BUILD_ENV_FANOUT_COPY_ADDITIONS
         | EVIDENCE_GRAPH_COPY_ADDITIONS
+        | TRACE_OBSERVATION_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -270,6 +277,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert X402_MANIFEST_COPY_ADDITIONS <= sources
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= sources
+    assert TRACE_OBSERVATION_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -290,6 +298,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - X402_MANIFEST_COPY_ADDITIONS
         - BUILD_ENV_FANOUT_COPY_ADDITIONS
         - EVIDENCE_GRAPH_COPY_ADDITIONS
+        - TRACE_OBSERVATION_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -325,6 +334,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert X402_MANIFEST_COPY_ADDITIONS <= sources
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= sources
+    assert TRACE_OBSERVATION_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -345,6 +355,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - X402_MANIFEST_COPY_ADDITIONS
         - BUILD_ENV_FANOUT_COPY_ADDITIONS
         - EVIDENCE_GRAPH_COPY_ADDITIONS
+        - TRACE_OBSERVATION_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
