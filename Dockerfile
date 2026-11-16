@@ -292,6 +292,8 @@ COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.ht
 # Quant-claim provenance gate: strict schemas plus a bounded, digest-addressed,
 # read-only DSSE receipt loader. It performs no benchmark, signing, GPU, or network work.
 COPY szl_quant_claims.py szl_formula_registry.py ./
+# Canonical Evidence Graph v1: read-only, hash-addressed runtime evidence edges.
+COPY szl_evidence_graph.py ./
 # Ship the formula-registry asset so szl_formula_registry imports cleanly in-image.
 # Without it, importing the module raises FileNotFoundError (module loads the JSON at
 # import time), which degrades the attest dispute-crosswalk strand to UNAVAILABLE.
