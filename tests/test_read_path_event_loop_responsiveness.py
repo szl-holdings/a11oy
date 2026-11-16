@@ -83,7 +83,8 @@ def test_blocked_probe_does_not_stall_unrelated_async_request(monkeypatch, lane)
 
         monkeypatch.setattr(urllib.request, "build_opener", lambda *args: Opener())
         op = SimpleNamespace(nodes=[SimpleNamespace(base_url="http://127.0.0.1:9/v1")],
-                             is_running=lambda: False)
+                             is_running=lambda: False,
+                             status=lambda: {"running": False, "lifecycle_state": "STOPPED"})
         op.any_lung_reachable = MethodType(operator.OperatorDaemon.any_lung_reachable, op)
         monkeypatch.setattr(operator, "get_operator", lambda: op)
         monkeypatch.setattr(operator, "operator_required", lambda: False)
