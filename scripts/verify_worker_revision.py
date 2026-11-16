@@ -9,21 +9,24 @@ at ``/.well-known/szl-worker-revision``. This check passes only when that live
 endpoint answers ``{"worker": <name>, "source_revision": <sha>}`` for the exact
 SHA (and ``"ready": true`` when ``--require-ready`` is set).
 
-Edge refusals are reported as what they are, never retried into a pass:
-HTTP 402 is the x402 paywall (Monetization Gateway) and a 403 carrying
-``cf-mitigated: challenge`` is a Super Bot Fight Mode managed challenge.
-Both are Cloudflare configuration owned outside this repository.
+Refusals are reported as observed, never retried into a pass. HTTP 402 does
+not establish a payment provider, protocol, or charge. A 403 carrying
+``cf-mitigated: challenge`` identifies a Cloudflare Challenge Page, not the
+product or rule that generated it. Correlate request context with provider
+logs before changing policy; this readback does not authorize an exemption.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from http.client import HTTPException
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
@@ -33,6 +36,8 @@ MAX_RESPONSE_BYTES = 64 * 1024
 REVISION = re.compile(r"[0-9a-f]{40}\Z")
 WORKER_NAME = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\Z")
 USER_AGENT = "szl-worker-revision-readback/1"
+CF_RAY = re.compile(r"[0-9a-fA-F]{16}(?:-[A-Za-z]{3})?\Z")
+REVISION_PATH = "/.well-known/szl-worker-revision"
 
 
 class NoRedirectHandler(HTTPRedirectHandler):
@@ -64,16 +69,17 @@ def edge_refusal(status: int, headers) -> Observation | None:
         return Observation(
             False,
             "EDGE_PAYWALL",
-            "edge returned 402 (x402 paywall): the Cloudflare Monetization Gateway "
-            "charged this machine-only path; exempt it (owner action)",
+            "HTTP 402 Payment Required: provider and payment protocol are not established "
+            "by this readback; no charge or settlement is verified",
             False,
         )
     if status == 403 and (headers.get("cf-mitigated") or "").lower() == "challenge":
         return Observation(
             False,
             "EDGE_CHALLENGE",
-            "edge returned 403 managed challenge (Super Bot Fight Mode): add the "
-            "documented WAF skip rule for this host (owner action)",
+            "HTTP 403 with cf-mitigated: challenge identifies a Cloudflare Challenge Page; "
+            "the generating product and rule are not established; correlate the request "
+            "with Security Events before changing policy",
             False,
         )
     return None
@@ -123,7 +129,26 @@ def assess(
     return Observation(True, "LIVE_REVISION_MATCH", f"live={observed}", False)
 
 
+def with_request_context(observation: Observation, url: str, headers, observed_at: str) -> Observation:
+    if observation.ok:
+        return observation
+    parts = urlsplit(url)
+    path = parts.path or "/"
+    ray = (headers.get("cf-ray") or "") if headers is not None else ""
+    context = {
+        "observed_at_utc": observed_at,
+        "method": "GET",
+        "hostname": (parts.hostname or "")[:253],
+        "path": path if path == REVISION_PATH else "[REDACTED]",
+        "path_sha256": hashlib.sha256(path.encode("utf-8")).hexdigest(),
+        "cf_ray": ray if CF_RAY.fullmatch(ray) else None,
+    }
+    # Other paths can be opaque credentials; omit queries, userinfo, bodies and other headers.
+    return replace(observation, detail=f"{observation.detail}; request={json.dumps(context, sort_keys=True)}")
+
+
 def observe(url: str, *, worker: str, revision: str, require_ready: bool, timeout: float) -> Observation:
+    observed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     request = Request(
         url,
         headers={
@@ -143,17 +168,13 @@ def observe(url: str, *, worker: str, revision: str, require_ready: bool, timeou
             body = error.read(MAX_RESPONSE_BYTES + 1)
         except (HTTPException, OSError, ValueError):
             body = b""
-        return assess(
-            error.code,
-            error.headers,
-            body,
-            worker=worker,
-            revision=revision,
-            require_ready=require_ready,
-        )
+        status = error.code
+        headers = error.headers
     except (HTTPException, OSError, ValueError) as error:
-        return Observation(False, "TRANSPORT_ERROR", type(error).__name__, True)
-    return assess(status, headers, body, worker=worker, revision=revision, require_ready=require_ready)
+        result = Observation(False, "TRANSPORT_ERROR", type(error).__name__, True)
+        return with_request_context(result, url, None, observed_at)
+    result = assess(status, headers, body, worker=worker, revision=revision, require_ready=require_ready)
+    return with_request_context(result, url, headers, observed_at)
 
 
 def verify(
@@ -224,9 +245,11 @@ def main(argv: list[str] | None = None) -> int:
     if result.ok:
         print(f"{args.worker} on {host} serves {args.expect_revision} ({result.category}).")
         return 0
+    # GitHub annotations decode percent escapes; do not interpret URL data as controls.
+    detail = result.detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
     print(
         f"::error::{args.worker} on {host} did not prove the deployed revision: "
-        f"{result.category}: {result.detail}.",
+        f"{result.category}: {detail}.",
         file=sys.stderr,
     )
     return 1
