@@ -126,7 +126,7 @@ def _seed_pre_repair(root: Path) -> None:
 
     expected = {
         validator.SOLO_WORKFLOW: "706fba1353d402d7bc6ae3c20485b6e5ad77e46003e96992aceaad9996ac0294",
-        validator.BUILDER_WORKFLOW: "b9a1635ed0e6fa3fc95c331f7681809dde6c894e660be306877c9b6d025b11f6",
+        validator.BUILDER_WORKFLOW: "736f9542982a6d8fa2cb8623854caf47682e1ad9b7a02940066bbeb4dc037cac",
         validator.CONTRACT: "bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae",
     }
     observed = {
