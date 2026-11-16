@@ -48,7 +48,9 @@ These observations are dated diagnostics, not permanent health guarantees.
 
 ### Console and backend
 
-The Ask page mounts a small client using the existing KANCHAY assets. It reads
+The Ask page mounts a small client first using the existing KANCHAY assets.
+The local draft editor has a separate container, so its GDW health response cannot
+delay inference availability. The proposal client reads
 the governed contract and health first, verifies their schemas and source
 revision agreement, and offers the efforts that both surfaces advertise.
 Input limits come from the contract. A page view never initiates inference.
@@ -173,13 +175,22 @@ The Palantir YouTube source was examined through its official title, description
 and related written material. No unavailable transcript or unobserved video
 content is used as evidence.
 
-## ROADMAP: evidence dependencies for operational capabilities
+## ROADMAP: capability decisions on the existing evidence graph
 
-A useful next design is an explicit graph linking a capability to the evidence
-required to use it. This is a proposed synthesis of existing ideas, not a claim
-of global novelty or a deployed theorem.
+Extend the existing Canonical Evidence Graph v1 with capability-specific
+evidence profiles and consumption-time verification. CEG already provides
+immutable content-addressed edges, parent references, bounded snapshots,
+explicit runtime observations, and reviewed training/evaluation receipt
+observations; see [Canonical Evidence Graph v1](../evidence-graph-v1.md) and
+[offline receipt import](../evidence-receipt-import.md). The remaining design
+work is to define which evidence each capability requires, verify its identity
+and validity independently, expire or invalidate dependent capabilities, and
+connect those decisions to the existing execution controller.
 
-A capability record would contain:
+This extends existing SZL infrastructure and cited prior art. It is not a new
+graph implementation or a claim of global novelty.
+
+A capability profile built on existing CEG edges would require:
 
 - Exact source, model, adapter, dataset, and policy identities.
 - Evidence handles, access scope, observation time, expiration, and independent
@@ -189,6 +200,16 @@ A capability record would contain:
   result, when applicable.
 - Signer identity and signature verification result, separately from hashes.
 - Permitted effect types, target scope, budget, and required approvals.
+
+Historical imported observations must retain their existing honest profile:
+`OBSERVED`, `claims_verified=false`, no source/runtime binding, no parent
+linkage, and no execution authority. New independently verified bindings should
+be separate appropriately sourced edges, not a relabeling of old observations.
+
+The worker receipt verifier in this change does not verify arbitrary CEG edges.
+CEG documents a Python sorted-key encoding rather than RFC 8785. Any future
+browser verifier needs an explicit cross-language canonicalization contract and
+test vectors, especially for numeric values.
 
 Changing a dependency would invalidate only dependent capabilities. A model
 upgrade could invalidate qualification evidence without claiming the storage
@@ -243,6 +264,29 @@ python -m unittest tests.test_cloudflare_governed_inference_deploy -v
 python scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
 git diff --check
 ```
+
+### Recorded candidate verification
+
+On 2026-11-16, the final source checks passed: 21 worker Node tests, 13 client
+Node tests, 10 deployment/rollback Python tests, two Python wiring/behavior
+wrappers, and five existing Khipu console tests. The behavior wrapper runs the
+same 13 Node tests; those results must not be counted twice as independent
+coverage. The full repository doctrine scan returned zero violations, and the
+final changed-file scan and whitespace check passed.
+
+A fresh Playwright browser run on the actual served page and assets passed
+17 targeted assertions across desktop (1440 px) and mobile (390 px). It used
+controlled responses generated through the real worker; it made zero production
+inference requests. Cases covered explicit single submission, literal rendering,
+actual WebCrypto, tampered output/receipt rejection, receipt download, stopped
+and late replies, ancestor removal during hashing, and availability while GDW
+health was deliberately held. Visual review corrected the initial contrast
+mismatch and verified the final semantic colors.
+
+The candidate was rebased onto main
+`2204f596d17a854fba12cd204ab86019bc2e0712`. None of its implementation files
+overlapped those upstream edits, and the served-asset/wrapper check passed after
+rebase. These are candidate verification results, not evidence of deployment.
 
 After a permitted merge, observe the exact deployed GitHub source, canonical HF
 build, Cloudflare contract/health agreement, and the actual Ask page. Exercise one
