@@ -62,3 +62,9 @@ Publish through the existing protected-main hf-sync.yml path. Verify
 read the summary and trace detail. Confirm a registered route template and a
 measured duration, and separately verify collector delivery. No DNS or Space
 allocation changes are part of this patch.
+
+HTTP duration ends when the hardening middleware has a response ready. Each HTTP
+root span records this boundary; subsequent streamed-body delivery is not timed.
+Trace-level errors and HTTP 5xx counts are distinct, so a handled child failure
+does not become a reported HTTP server failure. The holographic refresh deadline
+is bounded by telemetry freshness as well as the readiness verdict expiry.

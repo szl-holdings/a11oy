@@ -210,3 +210,86 @@ def test_summary_distinguishes_server_failures_from_handled_child_errors():
     assert counts["trace_count"] == 2
     assert counts["error_trace_count"] == 2
     assert counts["server_error_count"] == 1
+
+
+def test_entire_holographic_inline_javascript_parses():
+    from html.parser import HTMLParser
+
+    class InlineScripts(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=False)
+            self.scripts = []
+            self.parts = None
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == "script" and not attrs.get("src") and attrs.get("type", "") in {
+                "", "module", "text/javascript", "application/javascript"
+            }:
+                self.parts = []
+
+        def handle_data(self, data):
+            if self.parts is not None:
+                self.parts.append(data)
+
+        def handle_endtag(self, tag):
+            if tag == "script" and self.parts is not None:
+                self.scripts.append("".join(self.parts))
+                self.parts = None
+
+    parser = InlineScripts()
+    parser.feed((ROOT / "static/3d/holographic.html").read_text(encoding="utf-8"))
+    assert parser.scripts
+    for index, javascript in enumerate(parser.scripts):
+        result = subprocess.run(["node", "--check", "--input-type=module"],
+                                input=javascript, capture_output=True, text=True, encoding="utf-8")
+        assert result.returncode == 0, f"inline script {index}: {result.stderr}"
+
+
+def test_holographic_refresh_is_bounded_by_trace_expiry():
+    html = (ROOT / "static/3d/holographic.html").read_text(encoding="utf-8")
+    start = html.index("function _nextEvidenceRefreshDelay(")
+    end = html.index("function _telemetryEvidenceText(", start)
+    javascript = """
+const assert = require("node:assert/strict");
+const EVIDENCE_REFRESH_INTERVAL_MS = 300000;
+const EVIDENCE_MAX_AGE_MS = 86400000;
+let evidenceRefreshTimer = null;
+let capturedDelay = null;
+function clearTimeout() {}
+function setTimeout(fn, delay) { capturedDelay = delay; return 1; }
+function _updateEvidenceRail() {}
+""" + html[start:end] + """
+const near = {state: "OBSERVED", freshness: {age_s: 299, max_age_s: 300}};
+assert.equal(_nextTelemetryRefreshDelay(near), 1050);
+_scheduleEvidenceRefresh({}, null, near);
+assert.equal(capturedDelay, 1050);
+assert.equal(_nextTelemetryRefreshDelay({state: "OBSERVED", freshness: {age_s: 301, max_age_s: 300}}), 50);
+assert.equal(_nextTelemetryRefreshDelay({state: "STALE", freshness: {age_s: 301, max_age_s: 300}}), 300000);
+for (const bad of [null, "", "299", -1, Infinity, NaN]) {
+  assert.equal(_nextTelemetryRefreshDelay({state: "OBSERVED", freshness: {age_s: bad, max_age_s: 300}}), 300000);
+}
+"""
+    result = subprocess.run(["node", "-e", javascript], capture_output=True, text=True, encoding="utf-8")
+    assert result.returncode == 0, result.stderr
+
+
+def test_streaming_response_reports_middleware_timing_boundary(tmp_path, monkeypatch):
+    import asyncio
+    from fastapi.responses import StreamingResponse
+    app = make_app("be", tmp_path, monkeypatch)
+
+    @app.get("/stream")
+    async def stream():
+        async def chunks():
+            yield b"first"
+            await asyncio.sleep(0.02)
+            yield b"last"
+        return StreamingResponse(chunks())
+
+    with TestClient(app) as client:
+        response = client.get("/stream")
+    assert response.content == b"firstlast"
+    trace = obs.TRACES.all()[-1]
+    assert trace.root.attributes["szl.timing_boundary"] == "middleware_response_ready"
+    assert "streamed-body delivery is not measured" in obs.telemetry_summary()["http_duration_scope"]

@@ -540,6 +540,7 @@ def finish_http_trace(trace: Optional[Trace], request: Any, status_code: int) ->
             if template:
                 trace.root.set_attribute("http.route", template)
             trace.root.set_attribute("http.response.status_code", int(status_code))
+            trace.root.set_attribute("szl.timing_boundary", "middleware_response_ready")
             if int(status_code) >= 500:
                 trace.root.set_status("ERROR")
         trace._http_recorded = True
@@ -567,6 +568,7 @@ def telemetry_summary() -> Dict[str, Any]:
     return {
         "state": state,
         "scope": "process-local completed trace window; resets on restart",
+        "http_duration_scope": "middleware response readiness; subsequent streamed-body delivery is not measured",
         "observed_at": latest.started_at if latest else None,
         "observed_at_basis": "latest completed trace start",
         "generated_at": _now_iso(),

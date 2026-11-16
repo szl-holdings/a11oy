@@ -782,11 +782,19 @@ function _nextEvidenceRefreshDelay(readiness, nowMs = Date.now()) {
     Math.min(EVIDENCE_REFRESH_INTERVAL_MS, untilExpiry + 50),
   );
 }
-function _scheduleEvidenceRefresh(def, readiness) {
+function _nextTelemetryRefreshDelay(telemetry) {
+  const age = telemetry?.freshness?.age_s;
+  const maxAge = telemetry?.freshness?.max_age_s;
+  if (telemetry?.state !== "OBSERVED" || typeof age !== "number" || !Number.isFinite(age) || age < 0 || typeof maxAge !== "number" || !Number.isFinite(maxAge) || maxAge <= 0) {
+    return EVIDENCE_REFRESH_INTERVAL_MS;
+  }
+  return Math.max(50, Math.min(EVIDENCE_REFRESH_INTERVAL_MS, (maxAge - age) * 1000 + 50));
+}
+function _scheduleEvidenceRefresh(def, readiness, telemetry) {
   if (evidenceRefreshTimer) clearTimeout(evidenceRefreshTimer);
   evidenceRefreshTimer = setTimeout(
     () => _updateEvidenceRail(def, true),
-    _nextEvidenceRefreshDelay(readiness),
+    Math.min(_nextEvidenceRefreshDelay(readiness), _nextTelemetryRefreshDelay(telemetry)),
   );
 }
 function _telemetryEvidenceText(telemetry, otel) {
@@ -843,7 +851,7 @@ function _updateEvidenceRail(def, forceRefresh = false) {
         ? "The estate, observed—not assumed."
         : "Evidence status: UNVERIFIED";
     }
-    _scheduleEvidenceRefresh(def, readiness);
+    _scheduleEvidenceRefresh(def, readiness, telemetry);
   });
 }
 function _resumeEvidenceRefresh() {
@@ -908,7 +916,7 @@ function _makeTab(s, feat) {
     _setBrowser(false);
     openCategory(catOf(s), false);
     // On the mobile horizontal strips, keep the tapped tab in view.
-    try { b.scrollIntoView({ behavior: window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches · "auto" : "smooth", inline: "center", block: "nearest" }); } catch (_) {}
+    try { b.scrollIntoView({ behavior: window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", inline: "center", block: "nearest" }); } catch (_) {}
     if (returnFocus) {
       if (rendererUnavailable) fallbackEl.focus({ preventScroll: true });
       else (fromSearch ? searchInput : navMode)?.focus();
