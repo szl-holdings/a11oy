@@ -41,3 +41,11 @@ jobs:
           check-latest: false
       - name: Run network-free regression tests
         run: node --test --test-reporter=tap ops/x402-bazaar-worker/worker.test.mjs
+      - name: Install pinned discovery verification dependencies
+        run: npm --prefix ops/x402-bazaar-worker/verification ci --ignore-scripts --no-audit --no-fund
+      - name: Verify generated declaration and SDK contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ops/x402-bazaar-worker/verification/generate-discovery.mjs --check
+          node --test --test-reporter=tap ops/x402-bazaar-worker/verification/discovery.test.mjs

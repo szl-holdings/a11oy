@@ -37,7 +37,14 @@ From the repository root, with Node.js 22 or later:
 
 ```sh
 node --test ops/x402-bazaar-worker/worker.test.mjs
+npm --prefix ops/x402-bazaar-worker/verification ci --ignore-scripts --no-audit --no-fund
+node ops/x402-bazaar-worker/verification/generate-discovery.mjs --check
+node --test ops/x402-bazaar-worker/verification/discovery.test.mjs
 ```
+
+The lockfile pins the test-only SDK dependency graph. No SDK package is imported
+by the deployed Worker; the Worker remains one self-contained JavaScript file.
+The `--check` command verifies the generated declaration without editing source.
 
 Tests replace all global network calls and use an explicit in-memory gateway.
 They cover header spoofing, unpaid requests, exact challenge/header parity,
@@ -45,7 +52,44 @@ payment-term preservation, CORS preflight, method/path boundaries, missing
 binding, gateway errors/redirects, and settlement-response shape checks.
 Fixtures are not paid transactions, model outputs, or deployment evidence.
 
-## Deployment gates — all remain required
+## Generated discovery declaration
+
+`discovery-config.json` is the editable input to the official
+`declareDiscoveryExtension` helper. To regenerate the marked block in
+`worker.js` after editing that configuration:
+
+```sh
+npm --prefix ops/x402-bazaar-worker/verification run generate
+```
+
+The generated extension supplies `info.input.type`, POST method, JSON body,
+input/output examples, and the matching JSON Schema. Resource description
+and media type belong to `resource`, not a custom extension envelope.
+The advertised example describes a non-streaming text response; it does not
+claim to enumerate every upstream parameter or modality. Its model ID is
+bound to a timestamped public registry observation in `verification/provenance.json`.
+That observation is not a guarantee of future availability or model quality.
+All output examples are fixtures, not measured inference results or receipts.
+
+The SDK tests validate the complete V2 challenge, protocol-level metadata,
+example/schema consistency, exact generation parity, echoed metadata extraction,
+and negative cases including external schema references. They perform no
+network requests, wallet operations, payment verification, or settlement.
+Local validation is a source-contract result, not a marketplace listing.
+
+## Managed Cloudflare integration boundary
+
+Cloudflare documents a separate origin contract: its managed gateway forwards
+an Ed25519-signed `PAYMENT-CONTEXT` JWT, which the origin must validate against
+the pinned Cloudflare JWKS. For fixed pricing, the gateway owns settlement and
+the payment receipt. A parsed payment response is not a substitute for that
+signature check. This discovery shim does not implement or qualify that
+origin integration, and documented service bindings alone do not establish
+that the managed gateway can be used as `PAYMENT_GATEWAY`. Keep the current
+managed-gateway production route unchanged until the supported architecture,
+origin verification, and staging evidence are established.
+
+## Deployment gates â€” all remain required
 
 1. Independent source review and protected CI must pass. No bypass or automatic
    deployment is introduced here.
@@ -59,9 +103,10 @@ Fixtures are not paid transactions, model outputs, or deployment evidence.
    The source terms are the recorded 2026-11-15 baseline, not a live-price oracle.
 4. Test routing, invalid/expired/replayed payments, settlement, failure handling,
    streaming completion, and receipt binding in the approved staging environment.
-5. Validate Bazaar metadata against the current SDK/schema. The pre-existing
-   custom discovery block is retained by this security-focused repair and is
-   **not independently schema-validated or proven indexable**.
+5. The local metadata shape is generated and validated against
+   `@x402/extensions@2.31.0` and `@x402/core@2.31.0`. This does not prove
+   acceptance by the live CDP validator, client echo, or catalog inclusion.
+   Reconcile SDK versions and staging behavior before a release.
 6. After an approved public staging deployment, call the documented validation
    endpoint with `resource` and `method` (not the raw challenge):
 
@@ -79,6 +124,8 @@ performs none of those operations and handles no keys.
 ## References
 
 - x402 V2 transport headers: https://docs.x402.org/core-concepts/http-402
+- Bazaar protocol/schema: https://docs.x402.org/extensions/bazaar
+- Managed gateway origin validation: https://developers.cloudflare.com/monetization-gateway/configuration/payment-validation/
 - Bazaar discovery/validation: https://docs.cdp.coinbase.com/x402/seller/get-discovered
 - HTTP service bindings: https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/http/
 
