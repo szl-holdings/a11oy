@@ -622,6 +622,12 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         report["error"] = "fastapi/pydantic unavailable"
         return report
 
+    try:
+        from szl_observability import finish_http_trace as _finish_obs_trace, start_http_trace as _start_obs_trace
+    except Exception:  # the tracer is optional and always fails open
+        _finish_obs_trace = None
+        _start_obs_trace = None
+
     # ---- durable store (item 7) -------------------------------------------
     store = DurableKhipu(organ, ns=ns, path=khipu_path)
     report["khipu_backend"] = store.backend
@@ -640,10 +646,27 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.middleware("http")
     async def _trace_log_mw(request: "Request", call_next):
         # Inbound trace context (W3C-ish) or generate.
-        trace_id = request.headers.get("x-trace-id") or uuid.uuid4().hex
+        trace_id = getattr(request.state, "trace_id", None) or request.headers.get("x-trace-id") or uuid.uuid4().hex
         span_id = uuid.uuid4().hex[:16]
         request.state.trace_id = trace_id
         request.state.span_id = span_id
+        obs_trace = None
+        if _start_obs_trace is not None:
+            try:
+                obs_trace = _start_obs_trace(request)
+                if obs_trace is not None:
+                    trace_id = obs_trace.trace_id
+                    span_id = obs_trace.root.span_id
+                    request.state.trace_id = trace_id
+                    request.state.span_id = span_id
+            except Exception:
+                obs_trace = None
+        def _finish_obs(status_code: int) -> None:
+            if obs_trace is not None and _finish_obs_trace is not None:
+                try:
+                    _finish_obs_trace(obs_trace, request, status_code)
+                except Exception:
+                    pass
         t0 = time.time()
         try:
             resp = await call_next(request)
@@ -655,6 +678,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             r = _envelope("http_error", str(he.detail), trace_id, he.status_code)
             r.headers["X-Trace-Id"] = trace_id
             r.headers["X-Span-Id"] = span_id
+            _finish_obs(r.status_code)
             return _apply_security_headers(r)
         except Exception as exc:  # unhandled -> uniform 500 envelope
             dt = round((time.time() - t0) * 1000, 2)
@@ -664,6 +688,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             r = _envelope("internal_error", "internal server error", trace_id, 500)
             r.headers["X-Trace-Id"] = trace_id
             r.headers["X-Span-Id"] = span_id
+            _finish_obs(r.status_code)
             return _apply_security_headers(r)
         dt = round((time.time() - t0) * 1000, 2)
         resp.headers["X-Trace-Id"] = trace_id
@@ -673,6 +698,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         logger.info("request", extra={"trace_id": trace_id, "span_id": span_id,
             "method": request.method, "path": request.url.path,
             "status": resp.status_code, "latency_ms": dt})
+        _finish_obs(resp.status_code)
         return resp
 
     # Exception handlers so HTTPException/validation errors get the envelope
