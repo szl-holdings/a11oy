@@ -61,7 +61,7 @@ map to the same derived topic) or to the derived `ntfy.sh/szl_...` topic.
 cd ops/alert-relay-worker
 npm ci --ignore-scripts
 npm test         # node --test, 8 tests
-npm run build    # wrangler deploy --dry-run with the locked Wrangler 4.150.0
+npm run build    # wrangler deploy --dry-run with Wrangler from package-lock.json
 ```
 
 The workflow also runs the Python contracts from the repository root:
@@ -74,9 +74,9 @@ tests/test_verify_worker_revision.py tests/test_workers_compute_observability.py
 `.github/workflows/alert-relay-worker.yml` deploys only from `main`, after the
 test job, inside the `production` environment:
 
-1. checks out exactly `github.sha` and installs Wrangler 4.150.0 from
-   `package-lock.json` (Wrangler 4.128.0 dropped the declared
-   `observability.issues` setting with a warning; 4.150.0 accepts it);
+1. checks out exactly `github.sha`, installs Wrangler from `package-lock.json`
+   with `npm ci`, verifies the installed package version against that lockfile,
+   and passes the verified version to the deployment action;
 2. deploys with `cloudflare/wrangler-action` pinned to commit
    `9acf94ace14e7dc412b076f2c5c20b8ce93c79cd` (v3.15.0), injecting the full
    40-character SHA as `SOURCE_REVISION` and as the version message;

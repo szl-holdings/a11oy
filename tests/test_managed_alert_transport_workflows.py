@@ -89,7 +89,6 @@ def _relay_deploy_job() -> str:
 def test_relay_workflow_deploys_and_requires_a_real_post_deploy_canary() -> None:
     value = _relay_workflow()
     assert WRANGLER_ACTION in value
-    assert "wranglerVersion: '4.150.0'" in value
     assert "npm ci --ignore-scripts" in value
     assert "npx --yes" not in value
     assert "CLOUDFLARE_API_TOKEN" in value
@@ -100,6 +99,39 @@ def test_relay_workflow_deploys_and_requires_a_real_post_deploy_canary() -> None
     assert "continue-on-error" not in value
     assert "set +e" not in value
     assert "exit 0" not in value
+
+
+def test_relay_action_uses_the_verified_lockfile_version() -> None:
+    lines = _relay_deploy_job().splitlines()
+    install_index = next(
+        index for index, line in enumerate(lines) if line.strip() == "id: wrangler"
+    )
+    start, install_end = _step_bounds(lines, install_index)
+    install = "\n".join(lines[start:install_end])
+    assert "working-directory: ops/alert-relay-worker" in install
+    order = [
+        "npm ci --ignore-scripts --no-audit --no-fund",
+        "locked_version=",
+        "require('./package-lock.json').packages['node_modules/wrangler'].version",
+        "require('./node_modules/wrangler/package.json').version",
+        '= "$locked_version"',
+        "printf 'version=%s\\n' \"$locked_version\" >> \"$GITHUB_OUTPUT\"",
+    ]
+    positions = [install.index(marker) for marker in order]
+    assert positions == sorted(positions)
+
+    # A separate action pin would replace the npm-ci installation on mismatch.
+    version_inputs = [
+        (index, line.strip())
+        for index, line in enumerate(lines)
+        if line.lstrip().startswith("wranglerVersion:")
+    ]
+    assert len(version_inputs) == 1
+    action_index, version_input = version_inputs[0]
+    assert version_input == "wranglerVersion: ${{ steps.wrangler.outputs.version }}"
+    action_start, action_end = _step_bounds(lines, action_index)
+    assert install_end <= action_start
+    assert WRANGLER_ACTION in "\n".join(lines[action_start:action_end])
 
 
 def test_relay_deploy_binds_the_exact_sha_and_reads_it_back_before_the_canary() -> None:
