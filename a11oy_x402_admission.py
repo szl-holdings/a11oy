@@ -155,7 +155,7 @@ def policy_for(family: str) -> tuple[str, _Policy | None]:
         return "CONFIGURATION_INCOMPLETE", None
     if _BASE.fullmatch(base) is None or scheme != "exact":
         return "CONFIGURATION_INCOMPLETE", None
-    if _AMOUNT.fullmatch(amount_text) is None:
+    if len(amount_text) > len(str(MAX_ATOMIC)) or _AMOUNT.fullmatch(amount_text) is None:
         return "CONFIGURATION_INCOMPLETE", None
     amount = int(amount_text)
     if not MIN_ATOMIC <= amount <= MAX_ATOMIC:
@@ -277,6 +277,11 @@ def _stamp(response, kind: str):
     }.get(kind, "rejected")
     response.headers["x-a11oy-payment-enforcement"] = label
     response.headers["x-a11oy-settlement-evidence"] = "false"
+    # A cached handler response must not bypass a later payment-context check.
+    response.headers["cache-control"] = "private, no-store"
+    for name in ("cdn-cache-control", "cloudflare-cdn-cache-control", "surrogate-control"):
+        if name in response.headers:
+            del response.headers[name]
     for name in ("payment-settlement", "payment-response"):
         if name in response.headers:
             del response.headers[name]
