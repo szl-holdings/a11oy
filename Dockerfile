@@ -119,7 +119,7 @@ COPY packages/policy/src/gates /app/a11oy-src/packages/policy/src/gates
 
 # serve.py installs this package at boot; root-module COPY guards do not cover it.
 # Propagation works without an exporter; collector delivery remains a separate gate.
-COPY vsp_otel/__init__.py vsp_otel/middleware.py ./vsp_otel/
+COPY vsp_otel/__init__.py vsp_otel/middleware.py vsp_otel/trace_ir.py ./vsp_otel/
 
 # Copy the pre-built SPA (Brand Orchestration Layer) to the static root.
 # index.html + assets/* are served directly at / and /assets/*; unknown GET -> index.html.
