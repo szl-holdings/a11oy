@@ -23,11 +23,14 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 import szl_dsse  # noqa: E402 - canonical A11oy P-256 DSSE implementation
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from runtime_config import DEFAULT_TUNNEL_PORT, GATEWAY_PORT, LOOPBACK_HOST, LocalTransport
+
 ALIAS = "prism-ml/Ternary-Bonsai-2-27B-PQ2_0"
 RAW_MODEL = "./models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf"
 MODEL_SHA256 = "3907dc1658db1f78a9826bf8d5bcb8dc65db0d466388937af57f2294fae62ec1"
-UPSTREAM_HOST = "127.0.0.1"
-UPSTREAM_PORT = 19483
+UPSTREAM_HOST = LOOPBACK_HOST
+UPSTREAM_PORT = DEFAULT_TUNNEL_PORT
 PAYLOAD_TYPE = "application/vnd.szl.vm-model-gateway+json"
 MAX_REQUEST = 65536
 MAX_RESPONSE = 2097152
@@ -137,7 +140,7 @@ class Gateway:
             raise ValueError("persistent_p256_signer_unavailable")
         self.key = key
         self.signer = signer
-        self.upstream_port = upstream_port
+        self.upstream_port = LocalTransport(upstream_port).tunnel_port
         self.instance_id = uuid.uuid4().hex
         self.lock = threading.Lock()
         supplied_dir = pathlib.Path(receipts_dir)
@@ -498,13 +501,14 @@ class BoundedServer(ThreadingHTTPServer):
 
 
 def main():
+    transport = LocalTransport.from_environment(os.environ)
     key = os.environ.get("SZL_LITELLM_KEY", "")
     receipt_path = os.environ.get("SZL_VM_GATEWAY_RECEIPTS_DIR", "")
     if not os.environ.get("SZL_COSIGN_PRIVATE_PEM") or not receipt_path:
         raise SystemExit("persistent signer and receipts directory required")
-    gateway = Gateway(key, receipt_path)
+    gateway = Gateway(key, receipt_path, upstream_port=transport.tunnel_port)
     Handler.gateway = gateway
-    with BoundedServer(("127.0.0.1", 4000), Handler) as server:
+    with BoundedServer((LOOPBACK_HOST, GATEWAY_PORT), Handler) as server:
         server.serve_forever(poll_interval=0.2)
 
 
