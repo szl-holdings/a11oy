@@ -1,0 +1,153 @@
+name: Deploy alert relay worker (production authority, one-shot)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact protected source ref to deploy
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alert-relay-worker-production-once
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy exact relay and prove the live revision
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_ref || 'main' }}
+          persist-credentials: false
+
+      - name: Prove clean source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain)"
+          echo "SOURCE_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          check-latest: false
+          cache: npm
+          cache-dependency-path: ops/alert-relay-worker/package-lock.json
+
+      - name: Test and bundle the exact relay
+        working-directory: ops/alert-relay-worker
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          npm run build
+
+      - name: Resolve the exact Cloudflare account from the protected zone
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN || secrets.CF_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_DNS_API_TOKEN || secrets.CLOUDFLARE_ZONE_API_TOKEN || secrets.CLOUDFLARE_WORKER_API_TOKEN || secrets.CF_WORKERS_API_TOKEN || secrets.CF_ZONE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()
+          if not token:
+              raise SystemExit("Cloudflare production token is unavailable")
+          query = urllib.parse.urlencode({
+              "name": "a11oy.net",
+              "status": "active",
+              "per_page": "50",
+          })
+          request = urllib.request.Request(
+              "https://api.cloudflare.com/client/v4/zones?" + query,
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/json",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=45) as response:
+              payload = json.loads(response.read().decode("utf-8"))
+          zones = payload.get("result") or []
+          if len(zones) != 1:
+              raise SystemExit(f"expected one active a11oy.net zone, found {len(zones)}")
+          account_id = str((zones[0].get("account") or {}).get("id") or "")
+          if len(account_id) != 32 or any(c not in "0123456789abcdef" for c in account_id.lower()):
+              raise SystemExit("zone did not expose a valid 32-hex account id")
+          print(f"::add-mask::{account_id}")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write(f"CLOUDFLARE_ACCOUNT_ID={account_id}\n")
+          PY
+
+      - name: Deploy the exact source-controlled Worker
+        working-directory: ops/alert-relay-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN || secrets.CF_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_DNS_API_TOKEN || secrets.CLOUDFLARE_ZONE_API_TOKEN || secrets.CLOUDFLARE_WORKER_API_TOKEN || secrets.CF_WORKERS_API_TOKEN || secrets.CF_ZONE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${SOURCE_REVISION:-}"
+          CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
+            npx --no-install wrangler deploy \
+            --config wrangler.jsonc \
+            --message "$SOURCE_REVISION" \
+            --var "SOURCE_REVISION:$SOURCE_REVISION"
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Read back the exact live Worker revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/verify_worker_revision.py \
+            --url https://ntfy.a11oy.net/.well-known/szl-worker-revision \
+            --worker szl-alert-relay \
+            --expect-revision "$SOURCE_REVISION"
+
+      - name: Prove one bounded real delivery
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ALERT_CHANNEL_MODE: ntfy
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/managed_alert_env.sh
+          mkdir -p evidence
+          python scripts/alert_channel_canary.py \
+            --output evidence/alert-channel-post-deploy.json \
+            --mode ntfy \
+            --send
+
+      - name: Upload secret-free delivery evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: alert-relay-production-once-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/alert-channel-post-deploy.json
+          if-no-files-found: warn
+          retention-days: 90
