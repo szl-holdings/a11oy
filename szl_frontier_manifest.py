@@ -45,6 +45,7 @@ verified bundle or successful model inference.
 from __future__ import annotations
 
 import datetime
+import threading
 from typing import Any, Callable
 
 # Honesty-label vocabulary (doctrine v11). Tests grep these exact strings.
@@ -747,6 +748,7 @@ _TILE_SPECS: list[tuple[Callable[[], dict], str, str, dict]] = [
 # instead of re-walking every tile; the cache only ever holds real producer output and
 # injects a `cached_at` ISO stamp so a reader sees exactly how fresh it is.
 _MANIFEST_TTL = 20.0  # seconds
+_MANIFEST_CACHE_LOCK = threading.Lock()
 
 
 def _manifest_cache(app=None):
@@ -755,16 +757,18 @@ def _manifest_cache(app=None):
     Reuses szl_backend_hardening.TTLCache. Lazy so importing this module never hard-
     depends on the helper at import time (the manifest still works if it is absent —
     see build_manifest's fallback)."""
-    cache = (getattr(app.state, "szl_frontier_manifest_cache", None)
-             if app is not None else getattr(_manifest_cache, "_cache", None))
-    if cache is None:
-        import szl_backend_hardening as bh
-        cache = bh.TTLCache(ttl=_MANIFEST_TTL)
-        if app is not None:
-            app.state.szl_frontier_manifest_cache = cache
-        else:
-            _manifest_cache._cache = cache  # type: ignore[attr-defined]
-    return cache
+    # Concurrent first readers must share the same per-app single-flight cache.
+    with _MANIFEST_CACHE_LOCK:
+        cache = (getattr(app.state, "szl_frontier_manifest_cache", None)
+                 if app is not None else getattr(_manifest_cache, "_cache", None))
+        if cache is None:
+            import szl_backend_hardening as bh
+            cache = bh.TTLCache(ttl=_MANIFEST_TTL)
+            if app is not None:
+                app.state.szl_frontier_manifest_cache = cache
+            else:
+                _manifest_cache._cache = cache  # type: ignore[attr-defined]
+        return cache
 
 
 def _build_manifest(app=None) -> dict:
@@ -921,7 +925,7 @@ def register(app, ns: str = "a11oy") -> str:
     base = f"/api/{ns}/v1/frontier"
 
     @app.get(f"{base}/manifest")
-    async def _frontier_manifest():
+    def _frontier_manifest():
         """One honest roll-up of every live capability with its label + provenance pointer."""
         return JSONResponse(handle_manifest(app))
 

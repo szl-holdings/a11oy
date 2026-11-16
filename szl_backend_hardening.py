@@ -1012,7 +1012,7 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
     existing = {getattr(r, "path", None) for r in getattr(getattr(app, "router", None), "routes", [])}
     if route not in existing and JSONResponse is not None:
         @app.get(route)
-        async def _compute_pool_hardened():  # noqa: ANN202
+        def _compute_pool_hardened():  # noqa: ANN202
             return JSONResponse(probe_fabric_pool())
         paths.append(route)
         _stderr(f"[a11oy:hardening] compute-pool hardened prober registered: {route}")
@@ -1031,7 +1031,7 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
     plain_route = f"/api/{ns}/v1/compute-pool"
     if plain_route not in existing and JSONResponse is not None:
         @app.get(plain_route)
-        async def _compute_pool_plain():  # noqa: ANN202
+        def _compute_pool_plain():  # noqa: ANN202
             return JSONResponse(probe_fabric_pool())
         paths.append(plain_route)
         _stderr(f"[a11oy:hardening] compute-pool PLAIN prober registered (scrubbed alias): {plain_route}")
@@ -1044,7 +1044,7 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
     anchor_route = f"/api/{ns}/v1/compute-anchor"
     if anchor_route not in existing and JSONResponse is not None:
         @app.get(anchor_route)
-        async def _compute_anchor():  # noqa: ANN202
+        def _compute_anchor():  # noqa: ANN202
             return JSONResponse(select_anchor_worker())
         paths.append(anchor_route)
         _stderr(f"[a11oy:hardening] OMEN-anchor selector registered: {anchor_route}")
