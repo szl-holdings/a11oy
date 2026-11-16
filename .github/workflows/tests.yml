@@ -1365,6 +1365,10 @@ jobs:
         run: python3 .github/scripts/frontier_index_honesty_check.py --selftest
       - name: Prove offline transport denial and independent label comparison
         run: python3 -m pytest -q tests/test_frontier_index_honesty_network.py
+      - name: Bound catalogue caller deadlines and probe worker admission
+        run: >-
+          python3 -m pytest -q tests/test_frontier_probe_deadline.py
+          tests/test_frontier_index_cache.py tests/test_frontier_index_label_resolution.py
       - name: Offline app contract — catalog labels re-derived independently against backends
         # WAVE Q DEV 5: the Frontier Index (GET /api/a11oy/v1/frontier-index/catalog) claims,
         # per surface, the honest label its OWN backend emits — its promise is "honest by
