@@ -11,7 +11,7 @@
 #     build FAILS (this blocks NEW drift).
 #   * Files listed here are reported but do not fail the build.
 #   * When a listed file becomes identical again, the guard WARNS so this entry
-#     can be removed â€” tightening the ratchet over time.
+#     can be removed Ã¢â‚¬â€ tightening the ratchet over time.
 #
 # To accept a deliberate divergence: add the path with a short reason.
 # To reconcile a divergence: sync the file in both repos, then delete its line.
@@ -68,7 +68,7 @@ szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sove
 #     safety-first divergence: killinchu will NOT ship the unsafe True default
 #     back. Reconcile by adopting the safe False default on a11oy, then delete
 #     this entry (the guard will also warn stale-allow when identical again).
-a11oy_agent_loop.py        # KI#581 fail-closed chain_verified=False default on killinchu; a11oy main still True â€” reconcile by fixing a11oy
+a11oy_agent_loop.py        # KI#581 fail-closed chain_verified=False default on killinchu; a11oy main still True Ã¢â‚¬â€ reconcile by fixing a11oy
 
 # --- A11oy-first ports landed while the upstream KI PRs never merged (2026-11-15).
 #     Both changes were reviewed and merged on a11oy main with full checks;
@@ -78,9 +78,3 @@ a11oy_agent_loop.py        # KI#581 fail-closed chain_verified=False default on 
 #     byte-identical again (the guard warns stale-allow when they do).
 szl_readiness.py           # a11oy#3423 honours the warm-up delay (port of KI#601); killinchu main lacks it - reconcile when killinchu adopts
 vsp_otel/middleware.py     # a11oy#3389 binds spans to the admitted local provider; killinchu main lacks it - reconcile when killinchu adopts
-
-# --- a11oy#3496 bounded source and image identity (2026-11-16). Landed a11oy-first
-#     under the owner get-it-all-done order; killinchu adoption sync follows
-#     immediately. Reconcile by adopting on killinchu, then delete this line
-#     (the guard warns stale-allow once byte-identical again).
-szl_provenance.py         # a11oy#3496 bounded source/image identity; killinchu sync pending - delete when identical again
