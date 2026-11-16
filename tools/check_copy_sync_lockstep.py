@@ -848,7 +848,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     "scripts/configure_hf_series_a_runtime.py": "1495ac166237c48e84eadf6b4200ccbcf03dd7d545cc7758ef70db5175c03687",
-    "scripts/configure_hf_gdw_runtime.py": "289c0a3d0896c3b10321e2aa3f4543188e238cf22b1b79d632c98cbf23ba0462",
+    "scripts/configure_hf_gdw_runtime.py": "37823be668c4a1c4c1ffd40d7d303b5a66ec0a45a02ea8a3f2aecf70a7aeed9f",
     # Installed-authority verifier imported by both configure helpers, with
     # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",

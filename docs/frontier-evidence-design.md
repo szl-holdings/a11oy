@@ -146,3 +146,15 @@ are separate observations. The canonical deployment workflow remains the only
 publisher. Storage handover and object preservation must satisfy the existing
 operational procedure before an old writer is replaced. The inspector neither
 opens a maintenance window nor converts a release receipt into deploy authority.
+
+## Storage configuration correction found during integration
+
+The canonical configuration helper now explicitly converges the state-store
+snapshot cadence to the [ADR-0001](adr/ADR-0001-a11oy-state-store.md) policy: a
+30-second debounce, 300-second periodic capture under continuous writes, and a
+900-second alert threshold. An external 1,800-second periodic override had been
+preserved because the helper did not manage these variables. That mismatch
+extended the recovery interval and caused recurring alerts even while the
+snapshot worker progressed. The source change corrects the interval instead
+of raising the alert threshold. Provider readback must confirm convergence;
+source tests alone do not establish the running process configuration.
