@@ -62,7 +62,7 @@ import socket
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutTimeout
+from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as _FutTimeout
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -269,6 +269,8 @@ class TTLCache:
         self.ttl = float(ttl)
         self._lock = threading.Lock()
         self._store: Dict[Any, Tuple[Any, float]] = {}
+        self._inflight: Dict[Any, Future] = {}
+        self._generations: Dict[Any, int] = {}
 
     def _fresh(self, stored_at: float) -> bool:
         return (time.monotonic() - stored_at) < self.ttl
@@ -281,22 +283,49 @@ class TTLCache:
             return None
 
     def get_or_compute(self, producer: Callable[[], Any], key: Any = "_") -> Any:
-        # Fast path: a fresh value -> return it WITHOUT calling producer (no re-probe).
-        with self._lock:
-            ent = self._store.get(key)
-            if ent and self._fresh(ent[1]):
-                return ent[0]
-        # Stale or missing: compute outside the lock so a slow probe can't block readers.
-        value = producer()
-        if isinstance(value, dict) and "cached_at" not in value:
-            value = {**value, "cached_at": _now_iso()}
-        with self._lock:
-            self._store[key] = (value, time.monotonic())
-        return value
+        # One producer per key. Waiters share its outcome without holding the
+        # cache lock, so unrelated keys and passive readers remain independent.
+        while True:
+            with self._lock:
+                ent = self._store.get(key)
+                if ent and self._fresh(ent[1]):
+                    return ent[0]
+                flight = self._inflight.get(key)
+                owner = flight is None
+                if owner:
+                    flight = Future()
+                    self._inflight[key] = flight
+                generation = self._generations.get(key, 0)
+            if not owner:
+                flight.result()
+                # A waiter may resume after expiry or invalidation. Recheck the
+                # current cache instead of returning an older flight's value.
+                continue
+            try:
+                value = producer()
+                if isinstance(value, dict) and "cached_at" not in value:
+                    value = {**value, "cached_at": _now_iso()}
+                with self._lock:
+                    valid = generation == self._generations.get(key, 0)
+                    if valid:
+                        self._store[key] = (value, time.monotonic())
+                    del self._inflight[key]
+                flight.set_result((valid, value))
+                if valid:
+                    return value
+                # Invalidation during a refresh cannot republish old evidence.
+                # Retry only after the previous producer has completed.
+            except BaseException as exc:
+                with self._lock:
+                    if self._inflight.get(key) is flight:
+                        del self._inflight[key]
+                flight.set_exception(exc)
+                raise
 
     def invalidate(self, key: Any = "_") -> None:
         with self._lock:
             self._store.pop(key, None)
+            self._generations[key] = self._generations.get(key, 0) + 1
 
 
 def ttl_cache(ttl: float = DEFAULT_CACHE_TTL) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
