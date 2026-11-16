@@ -206,6 +206,7 @@ _MANIFEST_EP = "/api/{ns}/v1/frontier/manifest"
 # The 3D-surface manifest this page renders its surface list from (one source of truth).
 _SURFACES_EP = "/api/{ns}/v1/frontier/surfaces"
 _FASHION_EP = "/api/{ns}/v1/fashion"
+_EVIDENCE_EP = "/api/{ns}/v1/evidence/graph"
 
 # 0-CDN vendored three.js r160 — the proven, allowlisted, runtime-served hero path
 # (serve.py GET /hero/vendor3d/{fname}; identical to the /orbital page importmap).
@@ -216,10 +217,13 @@ _THREE_ADDONS = "/hero/vendor3d/"
 def _page_html(ns: str) -> str:
     manifest_ep = _MANIFEST_EP.format(ns=ns)
     surfaces_ep = _SURFACES_EP.format(ns=ns)
+    evidence_ep = _EVIDENCE_EP.format(ns=ns)
     return f"""<!doctype html>
 <html lang="en"><head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>A11oy — SZL Frontier (Unified Ecosystem Showcase)</title>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css"/>
+<link rel="stylesheet" href="/assets/szl/szl-console.css"/>
 <!-- Sovereign importmap: ONLY vendored local files. 0 runtime CDN. Doctrine v11. -->
 <script type="importmap">
 {{
@@ -434,7 +438,9 @@ def _page_html(ns: str) -> str:
     *, *::before, *::after {{ animation-duration:.01ms !important; animation-iteration-count:1 !important;
       transition-duration:.01ms !important; }}
   }}
-</style></head>
+</style>
+<link rel="stylesheet" href="/frontier/evidence-explorer.css"/>
+</head>
 <body>
   <div id="honest-banner">
     <span class="dot"></span>
@@ -457,6 +463,66 @@ def _page_html(ns: str) -> str:
       <span class="lg sample">SAMPLE — illustrative only</span>
     </div>
     <div id="rollup"></div>
+
+    <section id="evidence-inspector" data-surface="dark" data-endpoint="{evidence_ep}"
+      aria-labelledby="ceg-heading" aria-busy="false">
+      <p class="ceg-kicker">Evidence observations / read only</p>
+      <h2 id="ceg-heading">Evidence Inspector</h2>
+      <p>Inspect returned receipt edges, their source and runtime fields, and their declared
+        parent links. Historical artifacts and runtime observations keep separate scopes.</p>
+      <p class="ceg-caption">Content identifiers, signature checks, source agreement, freshness,
+        and execution authority are separate facts. This inspector grants no execution authority.
+        The 3D showcase retains its own labels.</p>
+      <div class="ceg-toolbar">
+        <label for="ceg-filter">Find an edge
+          <input id="ceg-filter" type="search" autocomplete="off"
+            placeholder="Receipt, subject, source revision, or digest"/>
+        </label>
+        <label for="ceg-scope">Observation scope
+          <select id="ceg-scope">
+            <option value="all">All returned observations</option>
+            <option value="runtime">Runtime observations</option>
+            <option value="historical">Historical artifacts</option>
+            <option value="other">Other observations</option>
+          </select>
+        </label>
+        <button id="ceg-refresh" type="button">Refresh evidence</button>
+      </div>
+      <p id="ceg-status" class="ceg-status" role="status" aria-live="polite">
+        UNAVAILABLE — waiting for the evidence endpoint.</p>
+      <div class="ceg-snapshot">
+        <section aria-labelledby="ceg-snapshot-heading">
+          <h3 id="ceg-snapshot-heading">Returned snapshot</h3>
+          <div id="ceg-summary"></div>
+        </section>
+        <section aria-labelledby="ceg-blockers-heading">
+          <h3 id="ceg-blockers-heading">Reported blockers</h3>
+          <ul id="ceg-blockers" class="ceg-blockers"><li>No current assessment is available.</li></ul>
+          <details class="ceg-disclosure">
+            <summary>Runtime source witness</summary>
+            <div id="ceg-witness">Runtime source witness unavailable.</div>
+          </details>
+        </section>
+      </div>
+      <div class="ceg-workspace">
+        <section aria-label="Returned evidence edges">
+          <p id="ceg-count" class="ceg-caption" aria-live="polite">0 returned edges</p>
+          <ul id="ceg-list" class="ceg-list">
+            <li class="ceg-empty">No evidence snapshot is available.</li>
+          </ul>
+        </section>
+        <section id="ceg-details" class="ceg-details" tabindex="-1"
+          aria-label="Selected evidence edge">
+          <p class="ceg-empty">Select a returned edge to inspect its content and declared parents.</p>
+        </section>
+      </div>
+      <div class="ceg-footer">
+        <a href="{evidence_ep}">Open raw evidence JSON</a>
+        <span class="ceg-caption">Read-only snapshot. No signing or status promotion occurs here.</span>
+      </div>
+      <noscript>JavaScript is required for filtering and selection. Open the raw evidence JSON
+        above to inspect the same observation endpoint.</noscript>
+    </section>
 
     <section id="confirmation-research" aria-labelledby="confirmation-h">
       <div class="plaque">Synthetic research / RECORD</div>
@@ -560,6 +626,7 @@ def _page_html(ns: str) -> str:
     JavaScript. Nothing is fabricated; the raw honest data is at
     <code>{manifest_ep}</code>.</noscript>
 
+<script defer src="/frontier/evidence-explorer.js"></script>
 <script type="module">
 import * as THREE from 'three';
 import {{ OrbitControls }} from 'three/addons/OrbitControls.js';
@@ -1050,7 +1117,7 @@ def register(app, ns: str = "a11oy") -> str:
 
     # Keep the pure manifest builders importable in bounded/offline evidence
     # jobs where the web-serving dependency is intentionally absent.
-    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
     @app.get("/research/confirmation", include_in_schema=False)
     async def confirmation_research():  # noqa: ANN202
@@ -1063,6 +1130,22 @@ def register(app, ns: str = "a11oy") -> str:
     @app.get("/frontier", include_in_schema=False)
     async def frontier_page():  # noqa: ANN202
         return HTMLResponse(_page_html(ns))
+
+    def evidence_asset(filename: str, media_type: str):
+        path = _REPO_ROOT / "static" / "shared" / filename
+        if not path.is_file():
+            return JSONResponse({"error": "evidence inspector asset unavailable"}, status_code=404)
+        return Response(path.read_bytes(), media_type=media_type, headers={
+            "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff",
+        })
+
+    @app.get("/frontier/evidence-explorer.js", include_in_schema=False)
+    async def frontier_evidence_script():  # noqa: ANN202
+        return evidence_asset("ceg-explorer.js", "application/javascript")
+
+    @app.get("/frontier/evidence-explorer.css", include_in_schema=False)
+    async def frontier_evidence_styles():  # noqa: ANN202
+        return evidence_asset("ceg-explorer.css", "text/css")
 
     @app.get(f"/api/{ns}/v1/frontier/surfaces")
     async def frontier_surfaces():  # noqa: ANN202
@@ -1086,9 +1169,15 @@ def register(app, ns: str = "a11oy") -> str:
             "kind": "unified-ecosystem-showcase",
             "banner": HONEST_BANNER,
             "doctrine": DOCTRINE,
-            "renders_endpoints": [_MANIFEST_EP.format(ns=ns), _SURFACES_EP.format(ns=ns)],
+            "renders_endpoints": [_MANIFEST_EP.format(ns=ns), _SURFACES_EP.format(ns=ns),
+                                  _EVIDENCE_EP.format(ns=ns)],
             "links": {"orbital_page": "/orbital", "manifest": _MANIFEST_EP.format(ns=ns),
-                      "surfaces": _SURFACES_EP.format(ns=ns)},
+                      "surfaces": _SURFACES_EP.format(ns=ns),
+                      "evidence_graph": _EVIDENCE_EP.format(ns=ns)},
+            "evidence_inspector": {"scope": "READ_ONLY_OBSERVATIONS",
+                                   "execution_authority": False,
+                                   "assets": ["/frontier/evidence-explorer.js",
+                                              "/frontier/evidence-explorer.css"]},
             "vendored_3d": {"three": _THREE_MAIN, "addons": _THREE_ADDONS,
                             "revision": "r160", "runtime_cdn": 0},
             "note": ("Unified frontier showcase — renders the live /frontier/manifest "

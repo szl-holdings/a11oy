@@ -28,6 +28,8 @@
   "static/a11oy_cathedral.js",
   "static/a11oy_landing.js",
   "static/cathedral_app.js",
+  "static/shared/ceg-explorer.css",
+  "static/shared/ceg-explorer.js",
   "static/shared/puriq_receipt_v1.js",
   "static/shared/szl_codename_sanitizer.js",
   "static/shared/szl_command_bar.css",

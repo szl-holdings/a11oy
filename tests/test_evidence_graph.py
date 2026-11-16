@@ -51,12 +51,13 @@ def test_graph_is_bounded_deterministic_and_explicit_about_truncation():
     assert len(left["digest_sha256"]) == 64
 
 
-def test_query_does_not_rewrite_original_graph_digest():
+def test_full_query_preserves_content_identity_and_reports_source_digest():
     edge = make_edge("readyz", verdict="DEGRADED")
     snapshot = graph_snapshot([edge], observed_at="2026-11-16T00:00:00Z")
     selected = query_snapshot(snapshot, verdict="DEGRADED", invariant_id="freshness")
     assert selected["selected_edge_count"] == 1
     assert selected["digest_sha256"] == snapshot["digest_sha256"]
+    assert selected["source_digest_sha256"] == snapshot["digest_sha256"]
     assert selected["query"]["verdict"] == "DEGRADED"
 
 

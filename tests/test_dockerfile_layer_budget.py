@@ -72,11 +72,12 @@ X402_MANIFEST_COPY_ADDITIONS = {".well-known/x402-pricing.json"}
 # One opt-in health-read registrar, batched into the existing origin-admission
 # COPY. Every historical source count/digest and layer ceiling stays unchanged.
 BUILD_ENV_FANOUT_COPY_ADDITIONS = {"a11oy_build_env_fanout.py"}
-# The CEG registrar, offline receipt reader, and reviewed receipt catalog are
-# batched into the existing root COPY. Historical source digests and the layer
-# ceiling remain unchanged; only these exact additions are excluded below.
+# The CEG registrar, offline reader/catalog and inspector assets are batched
+# into existing root/shared COPY instructions. Historical source digests and
+# the layer ceiling remain unchanged; only these exact additions are excluded.
 EVIDENCE_GRAPH_COPY_ADDITIONS = {
     "szl_evidence_graph.py", "szl_evidence_receipts.py", "evidence_graph_receipts.json",
+    "static/shared/ceg-explorer.js", "static/shared/ceg-explorer.css",
 }
 
 COPY_SOURCE_ALLOWLIST_COUNT = 589

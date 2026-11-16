@@ -519,7 +519,7 @@ COPY szl_connectors/ ./szl_connectors/
 
 # --- ESTATE ECOSYSTEM FOUNDATION (Dev5, 2026-06): byte-identical shared modules ---
 # … (full rationale: docs/DOCKERFILE_NOTES.md §66)
-COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js static/shared/szl_command_bar.js static/shared/szl_command_bar.css static/shared/puriq_receipt_v1.js ./static/shared/
+COPY static/shared/szl_label_engine.js static/shared/szl_receipt_cosign.js static/shared/szl_codename_sanitizer.js static/shared/szl_holo3d.js static/shared/szl_command_bar.js static/shared/szl_command_bar.css static/shared/puriq_receipt_v1.js static/shared/ceg-explorer.js static/shared/ceg-explorer.css ./static/shared/
 COPY static/shared/public-estate-contract.v1.json ./static/shared/public-estate-contract.v1.json
 COPY schemas/puriq-receipt-v1.json ./schemas/puriq-receipt-v1.json
 

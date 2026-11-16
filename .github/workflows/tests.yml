@@ -54,7 +54,7 @@ jobs:
           tests/test_execution_acceptance.py tests/test_hf_execution_handoff.py
           tests/test_living_anatomy_guardian_receipts.py tests/test_dockerfile_layer_budget.py
           tests/test_evidence_graph.py tests/test_evidence_receipts.py
-          tests/test_evidence_receipt_routes.py
+          tests/test_evidence_receipt_routes.py tests/test_evidence_snapshot_contract.py
           tests/test_model_endpoint_credentials.py
           tests/test_collector_reason_codes.py
           tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
@@ -432,6 +432,10 @@ jobs:
           -r .github/requirements/platform-candidate-browser.txt
       - name: Install pinned Playwright Chromium
         run: python -m playwright install --with-deps chromium
+      - name: Verify evidence inspector and runtime API browser contract
+        env:
+          SZL_REQUIRE_EVIDENCE_BROWSER: "1"
+        run: python -m pytest -q tests/test_frontier_evidence_explorer.py
       - name: Verify witness refusal and fixture contracts
         run: python -m pytest -q tests/test_python_command_centre_witness.py
       - name: Verify source-bound local presentation, not operational readiness
