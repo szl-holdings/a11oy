@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - source-pinned Lean snapshot labels
+
+- Retained Yachay source and evidence docs now cite the historical authority
+  snapshot at `c7c0ba17` with its measurement timestamp, rather than calling
+  752/160 a live census.
+- The legacy `doctrine_locked.live_regen` and `putnam_green` fields are now null.
+  Explicit integrations should read `lean_snapshot`, including its historical
+  status and `current_head_verified: false`.
+- Yachay remains unmounted and absent from the production image; no chat route
+  is activated by this correction. Current HEAD proof counts remain unverified.
+
 ### Added - serve the estate-trained lora adapter as the `lora` effort
 
 - The governed inference edge (`cloudflare/a11oy-governed-inference-worker.mjs`)
