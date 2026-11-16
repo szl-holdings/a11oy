@@ -611,7 +611,7 @@ def _invalid_builder_issues() -> list[tuple[str, str]]:
             (f"{label}-mixed-duplicate", _BUILDER_ISSUE + "\n" + malformed),
             (f"{label}-unquoted", _BUILDER_ISSUE.replace(line, f"{label}: {value}")),
             (f"{label}-trailing-space", _BUILDER_ISSUE.replace(line, line + " ")),
-            (f"{label}-leading-space", _BUILDER_ISSUE.replace(line, " " + line)),
+            (f"{label}-prefix-space", _BUILDER_ISSUE.replace(line, " " + line)),
             (f"{label}-double-cr", _BUILDER_ISSUE.replace(line, line + "\r\r")),
         ])
     for label, value in [
