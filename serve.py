@@ -776,6 +776,16 @@ try:
 except Exception as _szl_ev_e:  # pragma: no cover
     print(f"[a11oy] Evidence & Research NOT registered: {_szl_ev_e!r}", file=__import__("sys").stderr)
 
+# Canonical Evidence Graph (CEG): deterministic, bounded, read-only edges
+# linking explicit runtime identity to later attestations. Empty identity is
+# reported UNAVAILABLE; this module never infers readiness or authority.
+try:
+    import szl_evidence_graph as _szl_evidence_graph
+    _szl_ceg_paths = _szl_evidence_graph.register(app, ns="a11oy")
+    print(f"[a11oy] Canonical Evidence Graph registered: {_szl_ceg_paths}", file=__import__("sys").stderr)
+except Exception as _szl_ceg_e:  # pragma: no cover
+    print(f"[a11oy] Canonical Evidence Graph NOT registered: {_szl_ceg_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
 # ── Org-wide Λ + ONE chain + insurance (David Leads) fold-in (dev C / unify-sovereign-org).
 # Adds GET /api/a11oy/v1/lambda/org (13-axis weighted-geomean org posture, advisory floor
 # 0.90; bounds SEMANTIC-VERIFIED Lutar/Bound.lean, uniqueness = Conjecture 1), the insurance
@@ -8614,7 +8624,7 @@ def api_a11oy_v4_fleet_early() -> JSONResponse:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
 @app.get("/api/a11oy/v1/mcp/tools")
-async def a11oy_mcp_tools_inline():
+def a11oy_mcp_tools_inline():
     """MCP tools manifest — a11oy-native tools PLUS the live MCP surface of any
     sibling flagship Space that genuinely exposes one (Ken agent pattern,
     bypasses Node proxy).
@@ -8628,6 +8638,9 @@ async def a11oy_mcp_tools_inline():
         (the former sibling organs are now served in-process by a11oy) have no
         standalone MCP endpoint and therefore contribute no separate cluster.
       * Counts reflect exactly what was reachable at request time — no padding.
+
+    Keep this route synchronous: FastAPI's worker threadpool isolates the
+    blocking sibling discovery below from the ASGI event loop.
     """
     tools = [
         {"name": "a11oy_gate", "description": "Run a11oy policy gate on an action plan", "flagship": "a11oy"},
