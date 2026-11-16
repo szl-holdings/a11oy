@@ -108,6 +108,20 @@ def inventory_only_spaces(contract: dict[str, Any]) -> list[str]:
             raise ContractError("inventory-only Space must retain its FOLD disposition")
         if row.get("policySource") != KEEP_POLICY.relative_to(ROOT).as_posix():
             raise ContractError("inventory-only Space must cite the canonical keep policy")
+        hold = row.get("executionHold")
+        held_ids = contract.get("foldExecution", {}).get("2026-11-15-batch2", {}).get("held", [])
+        if row.get("id") in held_ids and hold is None:
+            raise ContractError("inventory execution HOLD cannot be omitted")
+        if hold is not None:
+            expected_hold = {
+                "state": "VISIBILITY_DECISION_PENDING",
+                "externalWritesAuthorized": False,
+                "policySource": "static/shared/public-estate-contract.v1.json#/foldExecution/2026-11-15-batch2/held",
+            }
+            if (hold != expected_hold or not isinstance(hold, dict)
+                    or hold.get("externalWritesAuthorized") is not False
+                    or row.get("id") not in held_ids):
+                raise ContractError("inventory execution HOLD must retain its declared decision boundary")
         ids.append(row.get("id"))
     return sorted(_unique(ids, "inventory-only Hub Spaces"), key=str.casefold)
 
@@ -226,6 +240,9 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         "internalEngines": len(engines),
         "huggingFaceTopologyBindings": topology,
         "huggingFaceInventoryOnly": inventory_only,
+        "huggingFaceExecutionHolds": sorted(
+            [row["id"] for row in contract["inventoryOnlyHuggingFaceRepositories"]
+             if row.get("executionHold") is not None], key=str.casefold),
         "huggingFaceOrgCard": 'SZLHOLDINGS/README' if 'SZLHOLDINGS/README' in inventory_only else None,
         "governedKeepSet": governed_keep,
         "governedKeepPolicySource": KEEP_POLICY.relative_to(ROOT).as_posix(),
@@ -253,15 +270,17 @@ def _body_lines(contract: dict[str, Any]) -> list[str]:
 def _inventory_policy_line(evidence: dict[str, Any]) -> str:
     inventory_only = ", ".join(
         f"`{space}`" for space in evidence["huggingFaceInventoryOnly"]
-        if space != evidence['huggingFaceOrgCard']
+        if space != evidence['huggingFaceOrgCard'] and space not in evidence['huggingFaceExecutionHolds']
     )
+    held = ", ".join(f"`{space}`" for space in evidence['huggingFaceExecutionHolds'])
+    hold_note = (f" Inventory-only execution HOLD (not keepers; no visibility change authorized): {held}." if held else "")
     org_card = (f" Reserved organization card (not a governed keeper): `{evidence['huggingFaceOrgCard']}`."
                 if evidence['huggingFaceOrgCard'] else '')
     return (
         "Measured Hub inventory is observational and is not the governed keep-list. "
         f"Inventory-only / FOLD (not governed keepers): {inventory_only}. "
         "Canonical keep policy: "
-        f"`{evidence['governedKeepPolicySource']}`." + org_card
+        f"`{evidence['governedKeepPolicySource']}`." + hold_note + org_card
     )
 
 

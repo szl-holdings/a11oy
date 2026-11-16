@@ -66,30 +66,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         )
         self.assertNotIn("SZLHOLDINGS/sentra", topology)
         self.assertNotIn("SZLHOLDINGS/szl-constellation", topology)
-        self.assertEqual(
-            inventory_only,
-            [
-                "SZLHOLDINGS/ayllu",
-                "SZLHOLDINGS/estate-gardener",
-                "SZLHOLDINGS/eternal-auditor",
-                "SZLHOLDINGS/immune",
-                "SZLHOLDINGS/llm-router-live",
-                "SZLHOLDINGS/oac-system-health-lab",
-                "SZLHOLDINGS/README",
-                "SZLHOLDINGS/sentra",
-                "SZLHOLDINGS/szl-bench-suite",
-                "SZLHOLDINGS/szl-chief-engineer",
-                "SZLHOLDINGS/szl-cyber-shield",
-                "SZLHOLDINGS/szl-dream-architect",
-                "SZLHOLDINGS/szl-energy-ledger",
-                "SZLHOLDINGS/szl-forge-lab",
-                "SZLHOLDINGS/szl-infra-warden",
-                "SZLHOLDINGS/szl-marketing",
-                "SZLHOLDINGS/szl-marketing-1-1",
-                "SZLHOLDINGS/szl-provenance-pitch",
-                "SZLHOLDINGS/szl-research-council",
-            ],
-        )
+        self.assertEqual(inventory_only, ['SZLHOLDINGS/ayllu', 'SZLHOLDINGS/llm-router-live', 'SZLHOLDINGS/README', 'SZLHOLDINGS/sentra', 'SZLHOLDINGS/szl-bench-suite', 'SZLHOLDINGS/szl-constellation', 'SZLHOLDINGS/szl-forge-lab', 'SZLHOLDINGS/szl-marketing'])
         self.assertEqual(
             sorted(topology + inventory_only, key=str.casefold),
             observed,
@@ -156,13 +133,13 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             for row in self.contract["inventoryOnlyHuggingFaceRepositories"]
         }
         space = "SZLHOLDINGS/immune"
-        self.assertEqual(rows[space]["classification"], "INVENTORY_ONLY")
-        self.assertFalse(rows[space]["governedKeep"])
-        self.assertEqual(rows[space]["disposition"], "FOLD")
-        self.assertEqual(
-            rows[space]["policySource"],
-            "docs/series-a/hf-space-keep-list.yaml",
-        )
+        self.assertNotIn(space, rows)
+        history = {row["id"]: row for row in self.contract["historicalInventoryOnlyHuggingFaceRepositories"]}
+        self.assertEqual(history[space]["classification"], "INVENTORY_ONLY")
+        self.assertIs(history[space]["governedKeep"], False)
+        self.assertEqual(history[space]["disposition"], "FOLD")
+        self.assertIs(history[space]["publicInventory"], False)
+        self.assertEqual(history[space]["visibilityAtObservation"], "PRIVATE")
         self.assertNotIn(space, alignment.topology_spaces(self.contract))
         self.assertNotIn(space, alignment.governed_keep_spaces())
         self.assertNotIn("SZLHOLDINGS/immune-lattice", rows)
@@ -178,6 +155,54 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             row["id"]: row["state"] for row in self.contract["historicalBindings"]
         }
         self.assertEqual(historical["immune"], "FOLDING_INTO_KILLINCHU")
+
+    def test_constellation_visibility_hold_is_not_keeper_or_fold_authorization(self) -> None:
+        row = next(x for x in self.contract["inventoryOnlyHuggingFaceRepositories"] if x["id"] == "SZLHOLDINGS/szl-constellation")
+        self.assertIs(row["governedKeep"], False)
+        self.assertIs(row["executionHold"]["externalWritesAuthorized"], False)
+        self.assertNotIn(row["id"], alignment.governed_keep_spaces())
+        self.assertNotIn(row["id"], alignment.topology_spaces(self.contract))
+        self.assertEqual(self.evidence["huggingFaceExecutionHolds"], [row["id"]])
+        for render in (alignment.render_github, alignment.render_huggingface, alignment.render_proof):
+            text = render(self.contract, self.evidence)
+            self.assertIn("execution HOLD", text)
+            self.assertIn("no visibility change authorized", text)
+
+    def test_forged_hold_authority_or_history_is_rejected(self) -> None:
+        for field, value in (("state", "APPROVED"), ("externalWritesAuthorized", True), ("policySource", "other")):
+            changed = copy.deepcopy(self.contract)
+            row = next(x for x in changed["inventoryOnlyHuggingFaceRepositories"] if x["id"] == "SZLHOLDINGS/szl-constellation")
+            row["executionHold"][field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(alignment.ContractError, "execution HOLD"):
+                alignment.validate(changed, self.manifest)
+        changed = copy.deepcopy(self.contract)
+        changed["foldExecution"]["2026-11-15-batch2"]["held"] = []
+        with self.assertRaisesRegex(alignment.ContractError, "execution HOLD"):
+            alignment.validate(changed, self.manifest)
+
+    def test_omitting_or_boolean_coercing_execution_hold_fails_closed(self) -> None:
+        for value in (None, 0):
+            changed = copy.deepcopy(self.contract)
+            row = next(x for x in changed["inventoryOnlyHuggingFaceRepositories"] if x["id"] == "SZLHOLDINGS/szl-constellation")
+            if value is None:
+                del row["executionHold"]
+            else:
+                row["executionHold"]["externalWritesAuthorized"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(alignment.ContractError, "execution HOLD"):
+                alignment.validate(changed, self.manifest)
+
+    def test_private_fold_history_is_retained_but_not_counted_as_public(self) -> None:
+        rows = self.contract["historicalInventoryOnlyHuggingFaceRepositories"]
+        self.assertEqual(len(rows), 12)
+        observed = set(alignment.measured_spaces(self.manifest))
+        for row in rows:
+            self.assertNotIn(row["id"], observed)
+            self.assertIs(row["publicInventory"], False)
+            self.assertIs(row["governedKeep"], False)
+        changed = copy.deepcopy(self.contract)
+        changed["inventoryOnlyHuggingFaceRepositories"].append(rows[0])
+        with self.assertRaisesRegex(alignment.ContractError, "missing="):
+            alignment.validate(changed, self.manifest)
 
     def test_ayllu_is_inventory_only_fold_not_a_governed_keeper(self) -> None:
         ayllu = [row for row in self.contract["inventoryOnlyHuggingFaceRepositories"] if row["id"] == "SZLHOLDINGS/ayllu"]
@@ -419,7 +444,9 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertIn("inventory is observational", content)
             self.assertIn("Inventory-only / FOLD", content)
             self.assertIn("`SZLHOLDINGS/ayllu`", content)
-            self.assertIn("`SZLHOLDINGS/immune`", content)
+            self.assertNotIn("`SZLHOLDINGS/immune`", content)
+            self.assertIn("`SZLHOLDINGS/szl-constellation`", content)
+            self.assertIn("execution HOLD", content)
             # anatomy is a governed org keeper (owner decision 2026-11-07), so it must
             # NOT appear in the inventory-only list; it appears as a keeper instead.
             self.assertNotIn("`SZLHOLDINGS/anatomy`", content.split("Inventory-only")[1].split("Canonical keep")[0]) if "Inventory-only" in content else None
