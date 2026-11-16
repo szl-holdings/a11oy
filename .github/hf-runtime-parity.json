@@ -1,0 +1,55 @@
+{
+  "schema": "szl.hf-runtime-parity/v1",
+  "source": {
+    "repository": "szl-holdings/a11oy",
+    "branch": "main",
+    "commit": "62e64f245861e635ac5b1b4d2220b54b5861a9a6",
+    "commit_url": "https://github.com/szl-holdings/a11oy/commit/62e64f245861e635ac5b1b4d2220b54b5861a9a6",
+    "status": "staged-owner-gated"
+  },
+  "hf_assets": [
+    {
+      "repo_id": "SZLHOLDINGS/a11oy",
+      "repo_type": "space",
+      "expected_sha": null,
+      "observed_sha_prefix": "02a862ce",
+      "observed_last_modified": "2026-11-15T12:46:36Z",
+      "runtime_stage": "RUNNING",
+      "hardware": "cpu-basic",
+      "parity": "UNVERIFIED",
+      "limitation": "Only an 8-character metadata prefix was available in this audit; raw README returned HTTP 401, so source/runtime equivalence is not established."
+    }
+  ],
+  "evidence_datasets": [
+    {
+      "repo_id": "SZLHOLDINGS/readiness-runs",
+      "repo_type": "dataset",
+      "observed_sha_prefix": "f31c58c",
+      "role": "evidence-index"
+    },
+    {
+      "repo_id": "SZLHOLDINGS/energy-attested-runs",
+      "repo_type": "dataset",
+      "observed_sha_prefix": "9a4c8e4",
+      "role": "energy-receipts"
+    }
+  ],
+  "verification": {
+    "verified_at": "2026-11-15T15:11:00Z",
+    "method": "bounded authenticated metadata read plus public endpoint readback",
+    "cloudflare": {
+      "origin": "https://a-11-oy.com",
+      "observed_source_commit": "62e64f245861e635ac5b1b4d2220b54b5861a9a6",
+      "health": "NOT_READY",
+      "deployment_parity": "UNVERIFIED"
+    }
+  },
+  "limitations": [
+    "HF Space raw README access returned HTTP 401.",
+    "Only abbreviated HF metadata prefixes were captured; exact immutable revision mapping remains pending.",
+    "RUNNING is transport metadata, not end-to-end capability evidence.",
+    "Cloudflare attestation is MODELED and unsigned with no Rekor entry.",
+    "No automatic HF publication, Cloudflare deployment, DNS change, or monetization change is authorized by this manifest.",
+    "The current source x402 Bazaar shim remains staged and owner-gated."
+  ]
+}
