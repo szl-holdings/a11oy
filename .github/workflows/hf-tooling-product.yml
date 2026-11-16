@@ -7,14 +7,19 @@ on:
     paths:
       - 'routers/hf_tooling_evidence.py'
       - 'routers/model_pretraining.py'
+      - 'routers/training_observations.py'
       - 'routers/data/model-pretraining-snapshot.json'
       - 'docs/huggingface-ecosystem-manifest.json'
       - 'a11oy_model_intel.py'
       - 'pages/model-pretraining.*'
+      - 'pages/training-observations.*'
       - 'console/assets/szl-flow.*'
       - 'console/assets/szl-spectral-v2.css'
       - 'tests/test_model_pretraining*.py'
       - 'tests/model-pretraining.test.mjs'
+      - 'tests/test_training_observations.py'
+      - 'tests/training-observations.test.mjs'
+      - 'scripts/test_training_observations_browser.py'
       - 'scripts/build_model_pretraining_projection.py'
       - 'scripts/test_model_pretraining_browser.py'
       - 'scripts/verify_model_pretraining_live.py'
@@ -38,14 +43,19 @@ on:
     paths:
       - 'routers/hf_tooling_evidence.py'
       - 'routers/model_pretraining.py'
+      - 'routers/training_observations.py'
       - 'routers/data/model-pretraining-snapshot.json'
       - 'docs/huggingface-ecosystem-manifest.json'
       - 'a11oy_model_intel.py'
       - 'pages/model-pretraining.*'
+      - 'pages/training-observations.*'
       - 'console/assets/szl-flow.*'
       - 'console/assets/szl-spectral-v2.css'
       - 'tests/test_model_pretraining*.py'
       - 'tests/model-pretraining.test.mjs'
+      - 'tests/test_training_observations.py'
+      - 'tests/training-observations.test.mjs'
+      - 'scripts/test_training_observations_browser.py'
       - 'scripts/build_model_pretraining_projection.py'
       - 'scripts/test_model_pretraining_browser.py'
       - 'scripts/verify_model_pretraining_live.py'
@@ -111,6 +121,8 @@ jobs:
           python -m unittest discover -s tests -p 'test_model_pretraining*.py' -v
           python -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
           node --test tests/model-pretraining.test.mjs
+          python -m unittest discover -s tests -p 'test_training_observations.py' -v
+          node --test tests/training-observations.test.mjs
       - name: Verify the canonical image already includes all new runtime files
         run: |
           python - <<'PY'
@@ -140,6 +152,7 @@ jobs:
         run: |
           python scripts/test_hf_tooling_browser.py
           python scripts/test_model_pretraining_browser.py
+          python scripts/test_training_observations_browser.py
       - name: Retain browser evidence and viewport captures
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -148,6 +161,7 @@ jobs:
           path: |
             artifacts/hf-tooling-product/
             artifacts/model-pretraining/
+            artifacts/training-observations/
           if-no-files-found: warn
           retention-days: 30
 
