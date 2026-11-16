@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - serve the estate-trained lora adapter as the `lora` effort
+
+- The governed inference edge (`cloudflare/a11oy-governed-inference-worker.mjs`)
+  now accepts `effort: "lora"`, serving the Salad-trained
+  `szl-lora-mistral7b-quant-v1` adapter (Workers AI finetune
+  `21892cd9-b4ca-4032-8058-280835c0402a`) through the existing `szl-router`
+  AI Gateway binding. Proposal-only authority is unchanged: no tools, no
+  execution; receipts label `SZL_TRAINED_LORA_ADAPTER_ON_CLOUDFLARE` and
+  record the finetune id + adapter repository; `owned_model_served` stays
+  `false` (the adapter is not the Khipu GGUF). Lora requests omit
+  `reasoning_effort`/`store` (unsupported by the mistral LoRA base). The
+  public contract and health surfaces list the new effort.
+
 ### Changed - declare the four 2026-11-14 Spaces in the public-estate contract
 
 - Four public Spaces first observed in the committed 2026-11-14T04:09:48Z

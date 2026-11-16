@@ -3,7 +3,10 @@
  *
  * Public authority: proposal-only inference on /api/v2/*.
  * Model authority: Cloudflare-hosted external candidate; never mislabeled as the
- * owned SZL Khipu GGUF. Tools and consequential action authority are absent.
+ * owned SZL Khipu GGUF. The "lora" effort serves the estate-trained
+ * szl-lora-mistral7b-quant-v1 adapter (Workers AI finetune) through the same
+ * szl-router gateway; it is also not the owned Khipu GGUF. Tools and
+ * consequential action authority are absent.
  * Persistence: none. Receipts are deterministic, unsigned edge evidence.
  */
 
@@ -27,6 +30,10 @@ const LOCKED_FORMULAS = Object.freeze([
   "F22",
 ]);
 const OWNED_MODEL_ARTIFACT = "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF";
+const FINETUNED_LORA_MODEL = "@cf/mistral/mistral-7b-instruct-v0.2-lora";
+const FINETUNE_ID = "21892cd9-b4ca-4032-8058-280835c0402a";
+const FINETUNE_ADAPTER_REPOSITORY =
+  "SZLHOLDINGS/salad-lora-mistral7b-quant-v1";
 const MODEL_CANDIDATES = Object.freeze({
   fast: Object.freeze([
     "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
@@ -36,6 +43,7 @@ const MODEL_CANDIDATES = Object.freeze({
     "@cf/zai-org/glm-5.3",
     "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
   ]),
+  lora: Object.freeze([FINETUNED_LORA_MODEL]),
 });
 const MAX_BODY_BYTES = 65536;
 const MAX_PROMPT_CHARS = 12000;
@@ -191,7 +199,7 @@ export function normalizeInferenceRequest(value) {
     throw new GovernedError("invalid_prompt");
   }
   const effort = value.effort === undefined ? "fast" : value.effort;
-  if (!["fast", "frontier"].includes(effort)) {
+  if (!["fast", "frontier", "lora"].includes(effort)) {
     throw new GovernedError("invalid_effort");
   }
   return {
@@ -342,6 +350,13 @@ export function buildContract(revision) {
       candidates: {
         fast: [...MODEL_CANDIDATES.fast],
         frontier: [...MODEL_CANDIDATES.frontier],
+        lora: [...MODEL_CANDIDATES.lora],
+      },
+      finetune: {
+        id: FINETUNE_ID,
+        adapter_repository: FINETUNE_ADAPTER_REPOSITORY,
+        model_kind: "SZL_TRAINED_LORA_ADAPTER_ON_CLOUDFLARE",
+        eval_status: "NOT_RUN",
       },
       tools: false,
       autonomous_execution: false,
@@ -477,22 +492,36 @@ async function runModel(env, request, evidence) {
   const failures = [];
   for (const model of MODEL_CANDIDATES[request.effort]) {
     try {
-      const raw = await env.AI.run(model, {
+      const options = {
         messages,
         max_completion_tokens: request.max_new_tokens,
-        reasoning_effort: request.effort === "frontier" ? "high" : "low",
         seed: 17,
-        store: false,
         stream: false,
         temperature: 0.2,
         top_p: 0.9,
-      }, { gateway: { id: "szl-router" } });
+      };
+      if (request.effort === "lora") {
+        options.lora = FINETUNE_ID;
+      } else {
+        options.reasoning_effort =
+          request.effort === "frontier" ? "high" : "low";
+        options.store = false;
+      }
+      const raw = await env.AI.run(
+        model,
+        options,
+        { gateway: { id: "szl-router" } },
+      );
       if (hasToolCall(raw)) {
         throw new GovernedError("model_attempted_tool_call", 502);
       }
       const output = sanitizeModelOutput(extractModelText(raw));
       return {
         model,
+        model_kind:
+          request.effort === "lora"
+            ? "SZL_TRAINED_LORA_ADAPTER_ON_CLOUDFLARE"
+            : "CLOUDFLARE_HOSTED_EXTERNAL_CANDIDATE",
         output,
         fallback_count: failures.length,
       };
@@ -599,7 +628,10 @@ async function governedInference(request, env, fetchImpl) {
     evidence_set_sha256: evidenceSetSha256,
     output_sha256: outputSha256,
     model: generated.model,
-    model_kind: "CLOUDFLARE_HOSTED_EXTERNAL_CANDIDATE",
+    model_kind: generated.model_kind,
+    finetune_id: request.effort === "lora" ? FINETUNE_ID : null,
+    finetune_adapter_repository:
+      request.effort === "lora" ? FINETUNE_ADAPTER_REPOSITORY : null,
     owned_model_artifact: OWNED_MODEL_ARTIFACT,
     owned_model_served: false,
     decision: "REVIEW_PROPOSAL_ONLY",
@@ -631,7 +663,10 @@ async function governedInference(request, env, fetchImpl) {
     model: {
       provider: "Cloudflare Workers AI",
       candidate: generated.model,
-      kind: "CLOUDFLARE_HOSTED_EXTERNAL_CANDIDATE",
+      kind: generated.model_kind,
+      finetune_id: request.effort === "lora" ? FINETUNE_ID : null,
+      finetune_adapter_repository:
+        request.effort === "lora" ? FINETUNE_ADAPTER_REPOSITORY : null,
       fallback_count: generated.fallback_count,
       owned_model_artifact: OWNED_MODEL_ARTIFACT,
       owned_model_served: false,
@@ -742,6 +777,7 @@ async function health(env, fetchImpl) {
     second_brain:
       governance?.secondBrain ?? observeSecondBrain(null, false),
     model_kind: "CLOUDFLARE_HOSTED_EXTERNAL_CANDIDATE",
+    efforts: ["fast", "frontier", "lora"],
     owned_model_artifact: OWNED_MODEL_ARTIFACT,
     owned_model_served: false,
     tools: false,
