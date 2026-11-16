@@ -482,11 +482,11 @@ jobs:
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
           pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run operator & reason endpoint tests
-        # Scoped to this module only: it boots serve.py in-process with no network
+        # Scoped to these modules: they exercise serve.py in-process with no network
         # and guards the Task #516 governed operator/reason surface against 404
         # regressions and envelope-stripping. Other tests/ modules may need extra
         # deps and are out of scope for this guard.
-        run: pytest tests/test_operator_reason_envelope.py -q
+        run: pytest tests/test_operator_reason_envelope.py tests/test_operator_recommendation_health.py -q
 
   python-formula-registry-guard:
     name: Proof-carrying formula registry — no overclaims (pytest, offline)
