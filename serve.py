@@ -5611,6 +5611,45 @@ async def healthz() -> JSONResponse:
     _sovereign = _sovereign_health_signal()
     _brain = _brain_health_signal()
     _preflight = _preflight_signal()
+    # Source/image identity is diagnostic evidence, never an attestation.  The
+    # build-info reader is captured by szl_runtime_contracts at process startup;
+    # when it is absent or malformed, expose UNKNOWN rather than inferring identity
+    # from a route, a provider response, or a mutable request field.
+    _runtime_identity_reader = getattr(getattr(app, "state", None),
+                                       "szl_build_identity_reader", None)
+    try:
+        _runtime_identity_observed = (_runtime_identity_reader()
+                                      if callable(_runtime_identity_reader) else {})
+    except Exception:
+        _runtime_identity_observed = {}
+    if not isinstance(_runtime_identity_observed, dict):
+        _runtime_identity_observed = {}
+    _runtime_source_revision = _runtime_identity_observed.get("revision")
+    _runtime_source_source = _runtime_identity_observed.get("revision_source")
+    _runtime_source_valid = (
+        isinstance(_runtime_source_revision, str)
+        and len(_runtime_source_revision) == 40
+        and all(char in "0123456789abcdef" for char in _runtime_source_revision)
+        and isinstance(_runtime_source_source, str)
+        and 0 < len(_runtime_source_source) <= 128
+    )
+    _runtime_identity = {
+        "source_repository": "szl-holdings/a11oy",
+        "source_revision": _runtime_source_revision if _runtime_source_valid else None,
+        "source_revision_source": (_runtime_source_source if _runtime_source_valid
+                                    else "UNAVAILABLE"),
+        "source_revision_state": "OBSERVED" if _runtime_source_valid else "UNAVAILABLE",
+        # An OCI digest is not available from this process contract.  Do not
+        # reuse a source SHA as an image digest or imply an image attestation.
+        "image_digest": None,
+        "image_digest_source": "UNAVAILABLE",
+        "image_identity_state": "UNAVAILABLE",
+        "image_attestation": False,
+        "hardware_attestation": False,
+        "execution_authority": False,
+        "evidence_scope": ("process build metadata only; image and hardware "
+                            "attestation are not observed"),
+    }
     # Honest overall status. PRESSURE is advisory (still "ok" overall but
     # surfaced). Never fake green.
     # Overall degrades on a hard storage failure (disk full / read-only). The
@@ -5673,6 +5712,7 @@ async def healthz() -> JSONResponse:
         "version": "2.0.0",
         "surface": "Brand Orchestration Layer",
         "base_path": "/",
+        "runtime_identity": _runtime_identity,
         "doctrine": "v11",
         "uptime_s": round(_hz_time.time() - _A11OY_START_TIME, 1),
         "rollup": {
@@ -5682,6 +5722,7 @@ async def healthz() -> JSONResponse:
             "sovereign": _sovereign,
             "brain": _brain,
             "preflight": _preflight,
+            "runtime_identity": _runtime_identity,
             **_rollup_extra,
         },
         "storage": _storage,

@@ -654,6 +654,36 @@ def register_provenance(app, space: str) -> dict[str, Any]:
     wire_d_targets, wire_d_rejections = _wire_d_targets_from_env()
     base = f"/api/{space}"
 
+    def runtime_identity() -> dict[str, Any]:
+        """Expose bounded source identity without implying image attestation."""
+        reader = getattr(getattr(app, "state", None), "szl_build_identity_reader", None)
+        try:
+            observed = reader() if callable(reader) else {}
+        except Exception:
+            observed = {}
+        if not isinstance(observed, dict):
+            observed = {}
+        revision = observed.get("revision")
+        source = observed.get("revision_source")
+        valid = (isinstance(revision, str) and len(revision) == 40
+                 and all(char in "0123456789abcdef" for char in revision)
+                 and isinstance(source, str) and 0 < len(source) <= 128)
+        return {
+            "source_repository": "szl-holdings/a11oy",
+            "source_revision": revision if valid else None,
+            "source_revision_source": source if valid else "UNAVAILABLE",
+            "source_revision_state": "OBSERVED" if valid else "UNAVAILABLE",
+            # No OCI digest or image attestation is available in this process.
+            "image_digest": None,
+            "image_digest_source": "UNAVAILABLE",
+            "image_identity_state": "UNAVAILABLE",
+            "image_attestation": False,
+            "hardware_attestation": False,
+            "execution_authority": False,
+            "evidence_scope": ("process build metadata only; image and hardware "
+                                "attestation are not observed"),
+        }
+
     @app.exception_handler(_LedgerUnavailable)
     async def provenance_unavailable(_request, _error):
         return JSONResponse({"status": "BLOCKED", "error": "PROVENANCE_RETENTION_UNAVAILABLE",
@@ -956,6 +986,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         signing_state = read_state(app)
         return JSONResponse({
             "space": space, "khipu_root": nodes[-1]["digest"] if nodes else None, "count": len(nodes),
+            "runtime_identity": runtime_identity(),
             # DSSE refuses the shared signer's ephemeral fallback key.
             "signing_available": (signing_state["key_material_available"]
                                   and signing_state["key_source"].startswith("persistent:")),
@@ -981,6 +1012,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         cross_mesh = wire_d_status_payload()
         return JSONResponse({
             "space": space, "doctrine": DOCTRINE, "slsa": SLSA_LEVEL,
+            "runtime_identity": runtime_identity(),
             "wire_D": {"status": cross_mesh["state"], "name": "W3C traceparent trace continuity",
                        "endpoint": f"{base}/wires/D",
                        "cross_mesh_evidence": f"{base}/v1/wire-d/status"},
