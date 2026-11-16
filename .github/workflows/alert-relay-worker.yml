@@ -131,7 +131,7 @@ jobs:
         working-directory: ops/alert-relay-worker
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          test "$(npx --no-install wrangler --version | tail -n 1)" = "4.150.0"
+          test "$(node -p "require('./node_modules/wrangler/package.json').version")" = "$(node -p "require('./package-lock.json').packages['node_modules/wrangler'].version")"
       - name: Resolve Cloudflare deployment account
         id: cloudflare-account
         env:
