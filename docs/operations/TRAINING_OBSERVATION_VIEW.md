@@ -90,14 +90,16 @@ records can be projected; the current producer admits at most six.
 Completion, final-artifact integrity, evaluation, proof verification, process
 liveness and promotion remain false in this observation view. Artifact
 qualification, held-out evaluation and promotion policy remain distinct existing
-workstreams. No status is manufactured from `checkpointStep == targetSteps`.
+workstreams. Step equality alone never grants a completion or verification claim.
 
 ## Browser behavior
 
 Private reads are explicit. The operator enters credentials for the fixed
 same-origin request; the token field is cleared immediately and neither browser
-storage nor URL parameters retain it. Credentials are omitted from screenshots,
-test reports, logs and source fixtures. The panel renders returned fields as text.
+storage nor URL parameters retain it. Production credentials are omitted from
+screenshots, test reports, logs and source fixtures. The unit and browser suites
+create fresh process-local test values.
+The panel renders returned fields as text.
 
 Cancellation and request generations prevent old requests from repopulating the
 panel after a newer request, changed credential, disconnect, or navigation. The

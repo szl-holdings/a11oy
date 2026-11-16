@@ -12,6 +12,7 @@ import copy
 import importlib.util
 import json
 import os
+import secrets
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -356,7 +357,7 @@ class RouteTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.path = Path(self.directory.name) / "synthetic-observation.json"
         self.path.write_bytes(raw(sample(datetime.now(timezone.utc))))
-        self.token = "synthetic-observation-test-key-402fc991"
+        self.token = secrets.token_urlsafe(32)
         self.tenant = "synthetic-observation-tenant"
         environment = patch.dict(os.environ, {
             view.FILE_ENV: str(self.path), "A11OY_CODE_ADMIN_KEY": self.token,
