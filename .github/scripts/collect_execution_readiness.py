@@ -19,6 +19,8 @@ import sys
 import time
 from functools import lru_cache
 
+import httpx
+
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -101,14 +103,17 @@ def fetch_json(client, url, *, authorization=None, tenant=None):
             result = gate.acceptance.strict_json(bytes(raw))
             require(type(result) is dict, "READ_OBJECT_REQUIRED")
             return result
-        except CollectionBlocked as exc:
-            if str(exc) != "READ_TRANSPORT_OR_BODY_UNAVAILABLE" or attempt == 2:
-                raise
-        except Exception:
+        except CollectionBlocked:
+            raise
+        except httpx.RequestError:
             if attempt == 2:
                 # Never copy URLs containing signed material, bodies, tokens or
                 # provider exception text into logs or a shared artifact.
                 raise CollectionBlocked("READ_TRANSPORT_OR_BODY_UNAVAILABLE") from None
+        except Exception:
+            # Non-transport failures are semantic or fixture failures. Preserve
+            # the original single-shot fail-closed behavior for those paths.
+            raise CollectionBlocked("READ_TRANSPORT_OR_BODY_UNAVAILABLE") from None
         time.sleep(0.5 * (2 ** attempt))
     raise CollectionBlocked("READ_TRANSPORT_OR_BODY_UNAVAILABLE")
 
