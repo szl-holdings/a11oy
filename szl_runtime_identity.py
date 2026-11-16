@@ -35,6 +35,18 @@ REQUIRED = {"observer_runtime.py", "szl_runtime_identity.py", "serve.py", "gdw_r
             ".github/scripts/hf-sync.yml"}
 MAX_FILE = 32 * 1024 * 1024
 MAX_TOTAL = 256 * 1024 * 1024
+STARTUP_WINDOW = 300
+RECOVERY_WINDOW = 2 * 60 * 60
+MAX_RECOVERY_ATTEMPTS = 40
+TRANSIENT_READ_ERRORS = frozenset(
+    stage + "_" + reason
+    for stage in ("GITHUB_READ", "ARTIFACT_DOWNLOAD")
+    for reason in ("RATE_LIMITED", "TIMEOUT", "TRANSPORT_UNAVAILABLE", "UPSTREAM_UNAVAILABLE")
+) | {"READINESS_FETCH_DEADLINE"}
+PUBLICATION_PENDING_ERRORS = frozenset({
+    "RUNTIME_BINDING_ARTIFACT_UNAVAILABLE", "GITHUB_READ_RESOURCE_UNAVAILABLE",
+    "RUNTIME_ATTESTATION_REJECTED", "RUNTIME_ATTESTATION_VERIFIER_UNAVAILABLE",
+})
 
 
 def regular(root, relative, limit):
@@ -281,25 +293,50 @@ class ProcessIdentity:
                 raise EvidenceBlocked(self.error) from None
             return self._verified
 
-    def start(self):
-        if self._thread is not None or self._raw is None:
-            return
-        if not self._token:
-            self.error = "RUNTIME_GITHUB_READ_CREDENTIAL_REQUIRED"
-            return
-        def worker():
-            # A bounded startup window permits the artifact upload to race boot.
-            # No HTTP read can start this worker or extend the window.
-            deadline = time.monotonic() + 300
-            while not self._stop.is_set() and time.monotonic() < deadline:
-                try:
-                    self.verify_once()
-                    return
-                except Exception as exc:
+    def _recover(self):
+        started = time.monotonic()
+        deadline = started + RECOVERY_WINDOW
+        backoff = 60
+        for attempt in range(MAX_RECOVERY_ATTEMPTS):
+            if self._stop.is_set() or time.monotonic() >= deadline:
+                return
+            try:
+                self.verify_once()
+                return
+            except Exception as exc:
+                with self._lock:
+                    if self._verified is not None or self._poisoned:
+                        return
                     self.error = safe_error(exc)
-                self._stop.wait(10)
-        self._thread = threading.Thread(target=worker, name="runtime-source-identity", daemon=True)
-        self._thread.start()
+                now = time.monotonic()
+                if self.error in TRANSIENT_READ_ERRORS:
+                    delay = backoff
+                    retry_after = getattr(exc, "retry_after", None)
+                    if type(retry_after) in (int, float) and retry_after >= 0:
+                        delay = max(delay, retry_after)
+                    backoff = min(backoff * 2, 900)
+                    retry_deadline = deadline
+                elif self.error in PUBLICATION_PENDING_ERRORS:
+                    delay = 10
+                    retry_deadline = started + STARTUP_WINDOW
+                else:
+                    return
+                # Never shorten a provider's wait to fit our finite budget.
+                if attempt + 1 == MAX_RECOVERY_ATTEMPTS or now + delay >= retry_deadline:
+                    return
+                if self._stop.wait(delay):
+                    return
+
+    def start(self):
+        with self._lock:
+            if self._thread is not None or self._raw is None or self._stop.is_set():
+                return
+            if not self._token:
+                self.error = "RUNTIME_GITHUB_READ_CREDENTIAL_REQUIRED"
+                return
+            self._thread = threading.Thread(target=self._recover,
+                name="runtime-source-identity", daemon=True)
+            self._thread.start()
 
     def stop(self):
         self._stop.set()

@@ -219,25 +219,111 @@ def test_duplicate_json_selector_and_oversized_file_are_refused(world):
         identity.measure_catalog(world.root, world.marker)
 
 
-def test_lifecycle_retries_only_in_bounded_startup_window(world, monkeypatch):
-    threads = []
+@pytest.fixture
+def lifecycle(world, monkeypatch):
+    threads, waits, clock = [], [], [0]
     def thread(**kwargs):
         threads.append(kwargs["target"])
         return Mock()
+    def wait(delay):
+        waits.append(delay)
+        clock[0] += delay
+        return world.subject._stop.is_set()
     monkeypatch.setattr(identity.threading, "Thread", thread)
-    times = iter([0, 1, 301])
-    monkeypatch.setattr(identity.time, "monotonic", lambda: next(times))
-    world.subject.verify_once = Mock(side_effect=identity.EvidenceBlocked("RUNTIME_BINDING_ARTIFACT_UNAVAILABLE"))
-    world.subject._stop.wait = Mock()
+    monkeypatch.setattr(identity.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(world.subject._stop, "wait", wait)
     world.subject.start()
     world.subject.start()
     assert len(threads) == 1
-    threads[0]()
-    assert world.subject.verify_once.call_count == 1
     world.subject.snapshot()
-    assert world.subject.verify_once.call_count == 1
-    world.subject.stop()
+    world.fetch.assert_not_called()
+    return SimpleNamespace(run=threads[0], waits=waits, clock=clock)
+
+
+def test_publication_race_still_has_only_a_startup_window(world, lifecycle):
+    world.fetch.side_effect = identity.EvidenceBlocked("RUNTIME_BINDING_ARTIFACT_UNAVAILABLE")
+    lifecycle.run()
+    assert world.fetch.call_count == 30
+    assert lifecycle.waits == [10] * 29
+    assert lifecycle.clock[0] < identity.STARTUP_WINDOW
+    before = world.fetch.call_count
+    world.subject.snapshot()
+    world.subject.start()
+    assert world.fetch.call_count == before
+    assert world.subject.snapshot()["status"] == "BLOCKED"
+
+
+def test_rate_limit_reset_can_recover_after_old_startup_deadline(world, lifecycle):
+    world.fetch.side_effect = [
+        identity.EvidenceBlocked("GITHUB_READ_RATE_LIMITED", retry_after=3601),
+        canonical(world.body),
+    ]
+    lifecycle.run()
+    assert lifecycle.waits == [3601]
+    assert world.fetch.call_count == 2 and world.verifier.call_count == 1
+    observed = world.subject.admitted()
+    assert world.subject.snapshot()["status"] == "REPORTED"
+    assert world.subject.snapshot()["execution_authority"] is False
+    assert world.subject.verify_once() is observed
+    world.subject.start()
+    world.subject.snapshot()
+    assert world.fetch.call_count == 2
+
+
+@pytest.mark.parametrize("code", ["GITHUB_READ_RATE_LIMITED", "ARTIFACT_DOWNLOAD_TIMEOUT",
+    "GITHUB_READ_TRANSPORT_UNAVAILABLE", "GITHUB_READ_UPSTREAM_UNAVAILABLE",
+    "READINESS_FETCH_DEADLINE"])
+def test_transient_failures_back_off_and_stop_at_recovery_budget(world, lifecycle, code):
+    world.fetch.side_effect = identity.EvidenceBlocked(code)
+    lifecycle.run()
+    assert lifecycle.waits[:4] == [60, 120, 240, 480]
+    assert all(delay == 900 for delay in lifecycle.waits[4:])
+    assert sum(lifecycle.waits) < identity.RECOVERY_WINDOW
+    assert sum(lifecycle.waits) + 900 >= identity.RECOVERY_WINDOW
+    assert world.fetch.call_count <= identity.MAX_RECOVERY_ATTEMPTS
+    assert world.subject.snapshot()["status"] == "BLOCKED"
+
+
+def test_attempt_limit_does_not_wait_after_last_attempt(world, lifecycle, monkeypatch):
+    monkeypatch.setattr(identity, "MAX_RECOVERY_ATTEMPTS", 3)
+    world.fetch.side_effect = identity.EvidenceBlocked("GITHUB_READ_RATE_LIMITED")
+    lifecycle.run()
+    assert world.fetch.call_count == 3
+    assert lifecycle.waits == [60, 120]
+
+
+@pytest.mark.parametrize("delay", [identity.RECOVERY_WINDOW, 1e20, float("inf")])
+def test_provider_wait_is_never_shortened_to_fit_budget(world, lifecycle, delay):
+    world.fetch.side_effect = identity.EvidenceBlocked("GITHUB_READ_RATE_LIMITED", retry_after=delay)
+    lifecycle.run()
+    assert world.fetch.call_count == 1
+    assert lifecycle.waits == []
+    assert world.subject.snapshot()["error"] == "GITHUB_READ_RATE_LIMITED"
+
+
+@pytest.mark.parametrize("code", ["GITHUB_READ_AUTHENTICATION_FAILED", "GITHUB_READ_ACCESS_DENIED",
+    "RUNTIME_PUBLISHER_RUN_MISMATCH", "RUNTIME_PUBLICATION_BINDING_MISMATCH",
+    "RUNTIME_ATTESTATION_INVOCATION_MISMATCH", "ARTIFACT_ARCHIVE_MISMATCH",
+    "RUNTIME_IDENTITY_DRIFT_LATCHED"])
+def test_integrity_and_authorization_refusals_never_retry(world, lifecycle, code):
+    world.fetch.side_effect = identity.EvidenceBlocked(code)
+    lifecycle.run()
+    assert world.fetch.call_count == 1
+    assert lifecycle.waits == []
+    assert world.subject.snapshot()["status"] == "BLOCKED"
+
+
+def test_shutdown_interrupts_backoff_without_another_fetch(world, lifecycle, monkeypatch):
+    world.fetch.side_effect = identity.EvidenceBlocked("GITHUB_READ_RATE_LIMITED", retry_after=3600)
+    def stop(delay):
+        assert delay == 3600
+        world.subject.stop()
+        return True
+    monkeypatch.setattr(world.subject._stop, "wait", stop)
+    lifecycle.run()
+    assert world.fetch.call_count == 1
     assert world.subject._stop.is_set()
+
 
 
 def test_opened_file_is_bounded_even_if_it_grows_after_path_check(world, monkeypatch):
@@ -250,3 +336,28 @@ def test_opened_file_is_bounded_even_if_it_grows_after_path_check(world, monkeyp
     monkeypatch.setattr(identity.os, "open", racing_open)
     with pytest.raises(identity.EvidenceBlocked, match="TOO_LARGE"):
         identity.regular(world.root, "serve.py", 10)
+
+
+def test_observed_drift_remains_terminal_for_background_recovery(world, lifecycle):
+    world.subject.verify_once()
+    path = world.root / "serve.py"
+    original = path.read_bytes()
+    path.write_bytes(b"# drift\n")
+    with pytest.raises(identity.EvidenceBlocked, match="BYTES_MISMATCH"):
+        world.subject.admitted()
+    path.write_bytes(original)
+    lifecycle.run()
+    assert world.fetch.call_count == 1 and world.verifier.call_count == 1
+    assert lifecycle.waits == []
+    assert world.subject.snapshot()["status"] == "BLOCKED"
+
+
+def test_missing_dedicated_token_never_starts_worker(world, monkeypatch):
+    env = {**world.env, "SZL_READINESS_GH_TOKEN": "", "GH_TOKEN": "not-a-fallback"}
+    process = identity.ProcessIdentity("boot-two", root=world.root, marker_root=world.root, environ=env)
+    thread = Mock()
+    monkeypatch.setattr(identity.threading, "Thread", thread)
+    process.start()
+    assert process.snapshot()["error"] == "RUNTIME_GITHUB_READ_CREDENTIAL_REQUIRED"
+    thread.assert_not_called()
+    world.fetch.assert_not_called()

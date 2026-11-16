@@ -32,13 +32,27 @@ effective rules is a publication error, not an admissible partial identity.
 
 At process construction the verifier captures the selector bytes, source SHA,
 boot ID, copied workflow pin, and actual source-file hashes. The application
-lifespan starts one background verification window of five minutes. It reads
+lifespan starts one bounded background verification worker. It reads
 the exact run attempt, validates the artifact metadata and bounded ZIP, and
 uses the installed GitHub CLI to verify the artifact attestation. Verification
 requires the canonical reusable workflow, exact pinned publisher SHA, source
 SHA, main ref, GitHub OIDC issuer, hosted runner, and certificate invocation
 URI for the same run and attempt. Artifact metadata or a predicate alone is
 insufficient.
+
+Publication/attestation visibility races retain a five-minute startup window.
+Recognized provider rate limits, timeouts, network failures, and server failures
+have a two-hour recovery window from worker start, with at most 40 attempts in
+total. No new attempt starts after that window; an in-flight attempt retains
+its existing transport and verifier time bounds. Transport retries back off
+from 60 seconds to a 15-minute maximum.
+Retry-After (seconds or HTTP date) and an exhausted quota's x-ratelimit-reset
+are lower bounds on the next attempt; the longer wait wins. A provider wait
+beyond the remaining recovery budget ends recovery rather than retrying early.
+An unclassified CLI rejection is retried only within the startup window.
+Other validation/authentication/access failures stop immediately. Shutdown
+interrupts a pending wait. None of these retries admits an unverified identity,
+restarts after a successful latch, or can be started/extended by a GET.
 
 Only one successful identity can be latched per process. Each execution
 admission rechecks the selector and all cataloged source bytes without network
@@ -86,7 +100,10 @@ a later boot without that artifact requires a fresh canonical publication.
 Offline tests use explicit synthetic attestations and cannot establish a live
 deployment. Linux checks cover exact-run artifact selection, certificate
 invocation replay, bounded filesystem/ZIP/JSON reads, source drift before and
-after first verification, startup retries, and GET side-effect boundaries.
+after first verification, bounded provider recovery, and GET side-effect boundaries.
+
+Retry policy follows [GitHub REST API best practices](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api).
+The response headers supply the wait; recovery makes no extra rate-limit queries.
 
 Prior art: [GitHub artifact attestation verification](https://cli.github.com/manual/gh_attestation_verify)
 and [Sigstore certificate verification output](https://github.com/sigstore/sigstore-go/blob/main/docs/verification.md).
