@@ -632,7 +632,7 @@ jobs:
         # Request-time writes, including writes from another thread, still fail it.
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"
-        run: python -B -m pytest -q -p no:cacheprovider tests/test_signing_state_routes.py
+        run: python -B -m pytest -q -p no:cacheprovider tests/test_signing_state_routes.py tests/test_khipu_fleet_signing.py
       - name: Verify lean health signing diagnostics in isolation
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"
