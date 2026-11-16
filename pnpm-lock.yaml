@@ -49,6 +49,9 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@types/node@26.6.6)(vite@6.4.5(@types/node@26.6.6)(tsx@4.23.15))
 
   artifacts/a11oy-uds: {}
 
