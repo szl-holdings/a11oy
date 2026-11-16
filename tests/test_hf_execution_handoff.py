@@ -351,5 +351,77 @@ class ExecutionHandoffTests(unittest.TestCase):
             collector.assert_not_called()
 
 
+    def _run_runtime_failure(self, error, *, second=False):
+        read = HANDOFF.collector()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output, failure, github = (root / name for name in
+                                       ("handoff.json", "failure.json", "outputs.txt"))
+            stderr = io.StringIO()
+            failures = [{"fixture": "first-bracket"}, error] if second else error
+            with mock.patch.dict(os.environ, self.env, clear=True), \
+                    mock.patch("httpx.Client"), \
+                    mock.patch.object(read, "bracket", side_effect=failures) as bracket, \
+                    redirect_stderr(stderr):
+                result = HANDOFF.main([
+                    "--source-sha", "a" * 40, "--output", str(output),
+                    "--failure-output", str(failure), "--github-output", str(github),
+                ])
+            self.assertEqual(result, 2)
+            self.assertFalse(output.exists())
+            self.assertFalse(github.exists())
+            report = json.loads(failure.read_bytes())
+            self.assertEqual(json.loads(stderr.getvalue()), report)
+            self.assertEqual(report["stage"], "RUNTIME_READBACK")
+            self.assertFalse(report["context_frozen"])
+            self.assertFalse(report["execution_authorized"])
+            self.assertFalse(report["export_collected"])
+            self.assertFalse(report["provider_state_changed"])
+            self.assertEqual(bracket.call_count, 2 if second else 1)
+            return report
+
+    def test_typed_runtime_failures_retain_only_fixed_diagnostic_codes(self):
+        read = HANDOFF.collector()
+        codes = (
+            "HF_IDENTITY_MISMATCH", "SOURCE_IDENTITY_MISMATCH", "PROCESS_IDENTITY_MISMATCH",
+            "FENCED_STORAGE_UNAVAILABLE", "SERIES_A_PERSISTENCE_UNAVAILABLE",
+            "SERIES_A_STORE_IDENTITY_REQUIRED", "READ_RESPONSE_UNAVAILABLE",
+            "READ_JSON_REQUIRED", "READ_ENCODING_INVALID", "READ_SIZE_INVALID",
+            "READ_DEADLINE_EXCEEDED", "READ_SIZE_MISMATCH", "READ_BODY_REQUIRED",
+            "READ_OBJECT_REQUIRED", "READ_TRANSPORT_OR_BODY_UNAVAILABLE",
+        )
+        for code in codes:
+            for second in (False, True):
+                with self.subTest(code=code, second=second):
+                    report = self._run_runtime_failure(read.CollectionBlocked(code), second=second)
+                    self.assertEqual(report["error"], code)
+
+    def test_unknown_or_untyped_runtime_errors_never_become_diagnostics(self):
+        read = HANDOFF.collector()
+        errors = (
+            read.CollectionBlocked("UNKNOWN_PROVIDER_CODE"),
+            read.CollectionBlocked("HF_IDENTITY_MISMATCH private-input-value"),
+            read.CollectionBlocked("HF_IDENTITY_MISMATCH\nprivate-input-value"),
+            read.CollectionBlocked("private-input-value"),
+            ValueError("HF_IDENTITY_MISMATCH"),
+            RuntimeError("READ_RESPONSE_UNAVAILABLE"),
+        )
+        for error in errors:
+            with self.subTest(kind=type(error).__name__):
+                report = self._run_runtime_failure(error)
+                self.assertEqual(report["error"], "EXECUTION_HANDOFF_UNAVAILABLE")
+                self.assertNotIn("private-input-value", json.dumps(report))
+                self.assertNotIn("UNKNOWN_PROVIDER_CODE", json.dumps(report))
+
+    def test_identity_mismatch_summary_preserves_independent_context_boundary(self):
+        report = HANDOFF.failure_report("a" * 40, "HF_IDENTITY_MISMATCH", "RUNTIME_READBACK")
+        text = HANDOFF.summary(report)
+        self.assertIn("HF_IDENTITY_MISMATCH", text)
+        self.assertIn("independently admitted", text)
+        self.assertIn("Do not copy", text)
+        self.assertIn("no execution authority", text)
+
+
+
 if __name__ == "__main__":
     unittest.main()

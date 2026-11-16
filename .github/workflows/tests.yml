@@ -622,6 +622,7 @@ jobs:
           tests/test_platform_candidate_browser_witness_cli.py
           test_canonical_domain.py
           tests/test_x402_origin_admission.py
+          tests/test_x402_admission_cache_contract.py
           tests/test_spend_cap.py
           -q
       - name: Verify signing state route no-write guard in isolation
