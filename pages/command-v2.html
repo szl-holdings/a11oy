@@ -61,12 +61,13 @@ dialog input{width:100%;min-height:56px;padding:0 16px;border:0;border-bottom:1p
 @media(max-width:980px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){body{overflow:auto}.shell{display:block;height:auto;min-height:100dvh}header{position:sticky;top:0;height:var(--top)}aside{display:none}main{min-height:calc(100dvh - var(--top));padding:20px 14px calc(92px + var(--safe-area-bottom))}.dock{display:flex}.chips .chip:nth-child(n+3){display:none}}
 @media(max-width:520px){.grid{grid-template-columns:1fr}.brand span{display:none}h1{font-size:26px}.value{font-size:24px}.toolbar{display:grid;grid-template-columns:minmax(0,1fr) 44px}.toolbar .chip{grid-column:1/-1;justify-self:start}.source-row{grid-template-columns:minmax(0,1fr) minmax(100px,1fr)}.source-row .detail{grid-column:1/-1}#source-inspector dl{grid-template-columns:1fr;gap:4px}#source-inspector dd{margin-bottom:10px}}
+@media(max-width:520px){section[aria-label="Evidence relationships"] .row,section[aria-label="Store observations"] .row{flex-direction:column;align-items:flex-start;gap:6px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(forced-colors:active){.chip,.room,.card,.action,.row,.rows a,dialog{border-color:CanvasText}}
 </style></head><body><div class="shell"><header><div class="brand"><img src="/assets/szl/logos/szl_favicon_square.svg" alt="SZL" width="28" height="28"><b>A11oy</b><span>Command v2</span></div><button class="key" id="open" type="button" aria-haspopup="dialog" aria-controls="palette" aria-label="Open command palette">⌘K</button><div class="chips" aria-label="Source status"><span class="chip" id="release">Release · checking</span><span class="chip" id="lambda">Λ · checking</span><span class="chip" id="signer">Signer · checking</span><span class="chip" id="receipts">Receipts · checking</span></div></header><aside id="rail" aria-label="Command rooms"></aside><main id="canvas" tabindex="-1"><div class="inner" id="content"></div></main></div><nav class="dock" id="dock" aria-label="Mobile command rooms"></nav><dialog id="palette" aria-modal="true" aria-labelledby="palette-title"><h2 class="sr" id="palette-title">Open a command room</h2><label class="sr" for="query">Search rooms</label><input id="query" type="search" placeholder="Open a room…" autocomplete="off"><div class="hits" id="hits" role="listbox"></div></dialog><script>
 "use strict";
 const rooms=[{id:"command",label:"Command",brief:"readiness · health",dock:1},{id:"kernel",label:"Kernel",brief:"probe empty JSON",dock:1},{id:"evidence",label:"Evidence",brief:"receipts · verify",dock:1},{id:"governance",label:"Governance",brief:"Hatun · gates"},{id:"telemetry",label:"Telemetry",brief:"mesh · signals"},{id:"defense",label:"Defense",brief:"Killinchu · boundary",dock:1},{id:"markets",label:"Markets",brief:"Finance · Terra · Counsel",dock:1},{id:"models",label:"Models",brief:"registry · kernels"},{id:"diligence",label:"Diligence",brief:"release · proof"}];
-const endpoints={honest:"/api/a11oy/v1/honest",lambda:"/api/a11oy/v1/lambda",version:"/api/a11oy/v1/version",ledger:"/api/a11oy/v1/ledger",signing:"/api/a11oy/v1/signing-status",mesh:"/api/a11oy/v1/mesh/state",series:"/api/a11oy/v1/series-a/status",hatun:"/api/hatun/evidence",health:"/healthz",readiness:"/api/a11oy/v1/readiness/tab-matrix?view=summary",build:"/api/build-info",kernelProbe:"/api/a11oy/v1/kernel/probe"};
+const endpoints={honest:"/api/a11oy/v1/honest",lambda:"/api/a11oy/v1/lambda",version:"/api/a11oy/v1/version",ledger:"/api/a11oy/v1/ledger",signing:"/api/a11oy/v1/signing-status",mesh:"/api/a11oy/v1/mesh/state",series:"/api/a11oy/v1/series-a/status",hatun:"/api/hatun/evidence",health:"/healthz",readiness:"/api/a11oy/v1/readiness/tab-matrix?view=summary",build:"/api/build-info",evidenceGraph:"/api/a11oy/v1/evidence/graph",storage:"/api/a11oy/v1/storage/status",kernelProbe:"/api/a11oy/v1/kernel/probe"};
 const state={room:"command",data:{},returnFocus:null,refreshing:false,selectedSource:null},$=id=>document.getElementById(id),txt=(v,f="UNAVAILABLE")=>v===null||v===undefined||v===""?f:String(v),num=v=>typeof v==="number"&&Number.isFinite(v)?v:null;
 const OBSERVATION_MAX_AGE_MS=60000;
 const isRecord=value=>value!==null&&typeof value==="object"&&!Array.isArray(value);
@@ -90,8 +91,10 @@ function observationState(record,now=Date.now()){
 }
 const get=name=>observationState(state.data[name])==="OBSERVED"?state.data[name]:{ok:false,status:state.data[name]?.status||0,json:null};
 const count=v=>Number.isSafeInteger(v)&&v>=0?v:null;
+const textField=value=>typeof value==="string"&&value.trim()?value:null;
+const ledgerScope=r=>typeof r.count_scope==="string"&&r.count_scope.trim()?r.count_scope:"Returned receipts; total ledger size is not reported";
 function chip(id,label,value,ok){const n=$(id);n.textContent=`${label} · ${txt(value)}`;n.dataset.state=ok?"reachable":"unavailable"}
-function updateChips(){const v=get("version"),l=get("lambda"),r=get("ledger"),h=get("health"),lv=num(l.json?.lambda),desk=h.json?.signer?.status,release=v.json?.release_state||v.json?.version;chip("release","Release",release,v.ok&&typeof release==="string"&&release.trim()!=="");chip("lambda","Λ",lv===null?null:`${lv.toFixed(3)} · conjecture`,l.ok&&lv!==null);chip("signer","Signer",desk,false);chip("receipts","Receipts",count(r.json?.count),r.ok&&count(r.json?.count)!==null)}
+function updateChips(){const v=get("version"),l=get("lambda"),r=get("ledger"),h=get("health"),lv=num(l.json?.lambda),desk=h.json?.signer?.status,release=v.json?.release_state||v.json?.version;chip("release","Release",release,v.ok&&typeof release==="string"&&release.trim()!=="");chip("lambda","Λ",lv===null?null:`${lv.toFixed(3)} · conjecture`,l.ok&&lv!==null);chip("signer","Signer",desk,false);chip("receipts","Recent receipts",count(r.json?.count),r.ok&&count(r.json?.count)!==null)}
 function button(room,compact=false){const b=node("button",{id:`${compact?"dock":"room"}-${room.id}`,type:"button",class:compact?"":"room","aria-current":state.room===room.id?"page":"false"});if(compact)b.textContent=room.label;else b.append(document.createTextNode(room.label),node("small",{text:room.brief}));b.addEventListener("click",()=>openRoom(room.id));return b}
 function navigation(){const rail=$("rail");rail.replaceChildren(node("div",{class:"rail-title",text:"Operate"}),...rooms.map(r=>button(r)));$("dock").replaceChildren(...rooms.filter(r=>r.dock).map(r=>button(r,true)))}
 function title(eye,heading,lede){return[node("div",{class:"eyebrow",text:eye}),node("h1",{text:heading}),node("p",{class:"lede",text:lede})]}
@@ -102,9 +105,91 @@ function card(label,value,detail="",source=null){
 }
 function link(href,label,primary=false){const allowed=href.startsWith("/")||href==="https://a11oy.net",a=node("a",{class:`action${primary?" primary":""}`,href:allowed?href:"#",text:label});if(href.startsWith("https://")){a.target="_blank";a.rel="noopener noreferrer"}return a}
 function grid(cards){return node("div",{class:"grid"},cards)}function actions(items){return node("div",{class:"actions"},items)}function section(text){return node("div",{class:"section",text})}function empty(text){return node("div",{class:"empty",text})}
-function command(){const l=get("lambda").json||{},v=get("version").json||{},r=get("ledger").json||{},m=get("readiness").json?.matrix_summary||{},q=get("readiness").json?.verdict_summary||{},health=get("health"),desk=health.json?.signer?.status,transport=health.ok&&health.json?"REACHABLE":"UNAVAILABLE";return[...title("Command · source-derived","A11oy Command","Λ remains Conjecture 1. DSSE mint is not the product signer."),observationToolbar(),grid([card("Λ trust",num(l.lambda)===null?null:l.lambda.toFixed(3),`floor ${txt(num(l.lambda_floor))} · Conjecture 1`,"lambda"),card("Receipts",count(r.count),txt(r.signature_state),"ledger"),card("Signer",desk,"Product signer status reported by health","health"),card("Release",v.release_state||v.version,"Reported release, not deployment certification","version")]),grid([card("Readiness",count(m.tabs)===null?null:`${m.tabs} tabs`,`${txt(count(m.staticTabs))} static · ${txt(count(q.ok))} OK · ${txt(count(q.lies))} lies`,"readiness"),card("Health",health.json?.status||health.json?.state,`${transport} · ${health.status?`HTTP ${health.status}`:"No response"}`,"health")]),actions([link("/verify","Verify receipt",1),link("/console","Open console"),link("https://a11oy.net","Proof registry")]),sourceList()]}
+function command(){const l=get("lambda").json||{},v=get("version").json||{},r=get("ledger").json||{},m=get("readiness").json?.matrix_summary||{},q=get("readiness").json?.verdict_summary||{},health=get("health"),desk=health.json?.signer?.status,transport=health.ok&&health.json?"REACHABLE":"UNAVAILABLE";return[...title("Command · source-derived","A11oy Command","Λ remains Conjecture 1. DSSE mint is not the product signer."),observationToolbar(),grid([card("Λ trust",num(l.lambda)===null?null:l.lambda.toFixed(3),`floor ${txt(num(l.lambda_floor))} · Conjecture 1`,"lambda"),card("Recent receipts",count(r.count),ledgerScope(r),"ledger"),card("Signer",desk,"Product signer status reported by health","health"),card("Release",v.release_state||v.version,"Reported release, not deployment certification","version")]),grid([card("Readiness",count(m.tabs)===null?null:`${m.tabs} tabs`,`${txt(count(m.staticTabs))} static · ${txt(count(q.ok))} OK · ${txt(count(q.lies))} lies`,"readiness"),card("Health",health.json?.status||health.json?.state,`${transport} · ${health.status?`HTTP ${health.status}`:"No response"}`,"health")]),actions([link("/verify","Verify receipt",1),link("/console","Open console"),link("https://a11oy.net","Proof registry")]),sourceList()]}
 function kernel(){const k=get("kernelProbe").json||{},decision=txt(k.decision||k.honesty,"UNKNOWN"),pre=node("pre",{class:"empty",text:JSON.stringify(k,null,2)});pre.style.whiteSpace="pre-wrap";const b=node("button",{type:"button",class:"action primary",text:"Probe empty JSON"});b.addEventListener("click",async()=>{const r=await postJson(endpoints.kernelProbe,"{}");state.data.kernelProbe=r;render()});return[...title("Kernel","Empty bind stays UNKNOWN.","POST {} must not paint locked-8, LIVE, or ADMIT. halt_drone BLOCKED. DSSE mint is not the product signer."),grid([card("Decision",k.decision||"UNKNOWN","empty JSON bind"),card("Honesty",k.honesty||"UNKNOWN","not locked-8"),card("Signer",k.signer||"UNSIGNED-honest","certified false"),card("halt_drone",k.halt_drone||"BLOCKED","effectors never commanded")]),actions([b,link(endpoints.kernelProbe,"Probe JSON"),link("/command/ops","Ops pane")]),pre]}
-function evidence(){const r=get("ledger").json||{};return[...title("Evidence","Receipt evidence","Source-reported signatures and chain status require independent verification."),observationToolbar(),grid([card("Minted",count(r.count),"Current operator ledger","ledger"),card("Signature",r.signature_state,"Source-reported","ledger"),card("Chain",r.chain_verified===true?"REPORTED VERIFIED":r.chain_verified===false?"REPORTED UNVERIFIED":null,"Not browser-verified","ledger")]),actions([link("/verify","Open verifier",1),link(endpoints.ledger,"Ledger JSON")]),sourceList()]}
+function evidenceGraphView(){
+  const payload=get("evidenceGraph").json,g=payload?.graph;
+  const fail=reason=>({ok:false,reason,graph:null,edges:[]});
+  if(!payload)return fail("No current graph observation");
+  if(payload.schema!=="szl.evidence-graph/v1"||!["OBSERVED","VERIFIED","DEGRADED","UNAVAILABLE"].includes(payload.state)||!isRecord(g)||g.schema!=="szl.evidence-graph/v1")return fail("Unsupported graph contract");
+  if(!Array.isArray(g.edges)||g.edges.length>256||count(g.edge_count)===null||g.edge_count!==g.edges.length||count(g.total_input_edges)===null||g.total_input_edges<g.edge_count||typeof g.bounded!=="boolean"||g.bounded!==(g.total_input_edges>g.edge_count)||!isRecord(g.verdict_counts)||typeof g.digest_sha256!=="string"||!/^[a-f0-9]{64}$/.test(g.digest_sha256))return fail("Incomplete graph contract");
+  const verdicts=["OBSERVED","VERIFIED","DEGRADED","UNAVAILABLE"];
+  if(g.edges.some(e=>!isRecord(e)||e.schema!=="szl.evidence-edge/v1"||!isRecord(e.subject)||typeof e.subject.kind!=="string"||typeof e.subject.id!=="string"||!e.subject.id.trim()||!e.subject.kind.trim()||!verdicts.includes(e.verdict)))return fail("Invalid relationship record");
+  if(verdicts.some(v=>count(g.verdict_counts[v])===null||g.verdict_counts[v]!==g.edges.filter(e=>e.verdict===v).length))return fail("Inconsistent graph counts");
+  return{ok:true,reason:txt(textField(payload.reason)),state:txt(payload.state),graph:g,edges:g.edges};
+}
+function runtimeBinding(view){
+  const payload=get("build").json,build=payload?.build;
+  const source=payload?.status==="OBSERVED"&&build?.state==="OBSERVED"&&["env:SZL_GIT_SHA","env:A11OY_GIT_SHA"].includes(build.revision_source)&&typeof build.revision==="string"&&/^[a-f0-9]{40}$/.test(build.revision)?build.revision:null;
+  if(!view.ok||view.state==="UNAVAILABLE"||!source)return{state:"UNAVAILABLE",detail:"Current build and graph observations are required"};
+  const edges=view.edges.filter(e=>e.subject.kind==="runtime");
+  if(!edges.length||edges.some(e=>typeof e.source_revision!=="string"||!/^[a-f0-9]{40}$/.test(e.source_revision)||!["OBSERVED","VERIFIED"].includes(e.verdict)))return{state:"UNAVAILABLE",detail:"Graph runtime revision is missing or invalid"};
+  const revisions=[...new Set(edges.map(e=>e.source_revision))];
+  if(revisions.length!==1)return{state:"CONFLICTING OBSERVATIONS",detail:"Graph reports more than one runtime revision"};
+  return{state:revisions[0]===source?"SOURCE-REPORTED MATCH":"DIFFERENT OBSERVATIONS",detail:`Build ${source} · graph ${revisions[0]}. Separate reads; no deployment verification.`};
+}
+function storageView(){
+  const s=get("storage").json;
+  return s?.schema==="szl.a11oy-storage-status/v2"?s:null;
+}
+function storageStores(s){
+  if(!isRecord(s?.stores))return empty("Per-store observations unavailable.");
+  const entries=Object.entries(s.stores),age=value=>num(value)!==null&&value>=0?`${Math.round(value)}s`:"UNAVAILABLE";
+  const rows=entries.slice(0,12).map(([name,value])=>{
+    const store=isRecord(value)?value:{};
+    return node("div",{class:"row"},[
+      node("span",{text:`${name} · ${txt(textField(store.health))}`}),
+      node("span",{text:`Snapshot age ${age(store.last_snapshot_age_s)} · unsnapshotted changes ${age(store.unsnapshotted_change_age_s)}`})
+    ]);
+  });
+  return node("section",{"aria-label":"Store observations"},[
+    node("p",{class:"detail",text:`Showing ${rows.length} of ${entries.length} reported stores. Missing ages are unavailable.`}),
+    rows.length?node("div",{class:"rows"},rows):empty("No per-store observations were returned.")
+  ]);
+}
+function graphRelationships(view){
+  if(!view.ok)return empty(view.reason);
+  const limit=12,rows=view.edges.slice(0,limit).map(e=>node("div",{class:"row"},[
+    node("span",{text:`${e.subject.kind} · ${e.subject.id}`}),
+    node("span",{text:`Source-reported ${e.verdict}`})
+  ]));
+  return node("section",{"aria-label":"Evidence relationships"},[
+    node("p",{class:"detail",text:`Showing ${rows.length} of ${view.graph.edge_count} returned relationships; ${view.graph.total_input_edges} input relationships. ${view.graph.bounded?"Backend limit applied.":"Backend reports no truncation."} These are reported verdicts; the browser does not verify proofs or signatures.`}),
+    rows.length?node("div",{class:"rows"},rows):empty("The source returned no relationships.")
+  ]);
+}
+function evidence(){
+  const r=get("ledger").json||{},view=evidenceGraphView(),binding=runtimeBinding(view),s=storageView();
+  const pending=Array.isArray(s?.pending_publish)?s.pending_publish.length:null,errors=isRecord(s?.active_errors)?Object.keys(s.active_errors).length:null;
+  return[
+    ...title("Evidence","Receipt evidence","Inspect the sources behind runtime identity, receipts, and storage. Each observation retains its own scope."),
+    observationToolbar(),
+    grid([
+      card("Recent receipts",count(r.count),ledgerScope(r),"ledger"),
+      card("Signature",textField(r.signature_state),"Source-reported; SIGNED does not verify every receipt","ledger"),
+      card("Chain",r.chain_verified===true?"REPORTED VERIFIED":r.chain_verified===false?"REPORTED UNVERIFIED":null,txt(textField(r.chain_verification),"Chain verification not reported"),"ledger")
+    ]),
+    section("Runtime and evidence"),
+    grid([
+      card("Evidence graph",view.ok?view.state:null,view.reason,"evidenceGraph"),
+      card("Runtime binding",binding.state,binding.detail,"build"),
+      card("Relationships",view.ok?view.graph.edge_count:null,"Returned graph relationships; inspect their source","evidenceGraph")
+    ]),
+    graphRelationships(view),
+    section("Storage observations"),
+    grid([
+      card("Storage mode",textField(s?.mode),"FENCED mode describes lease enforcement; it is distinct from the writer role","storage"),
+      card("Storage role",textField(s?.role),s?.writable===true?"Source reports writes enabled":s?.writable===false?"Source reports writes disabled":"Write access unavailable","storage"),
+      card("Pending publication",pending,"Source-reported pending snapshots","storage"),
+      card("Active storage errors",errors,"Source-reported errors; zero does not prove durability","storage")
+    ]),
+    node("p",{class:"detail",text:`Source-reported storage alert: ${s?.alert===true?"YES":s?.alert===false?"NO":"UNAVAILABLE"}`}),
+    storageStores(s),
+    node("p",{class:"detail",text:"Storage access is not proof of durable persistence. Inspect per-store integrity, snapshots, alerts, and retained errors in the source payload."}),
+    actions([link("/verify","Open verifier",1),link(endpoints.ledger,"Recent ledger JSON"),link(endpoints.evidenceGraph,"Evidence graph JSON"),link(endpoints.storage,"Storage JSON")]),
+    sourceList()
+  ];
+}
 function governance(){const h=get("hatun").json||{};return[...title("Governance","Admission before action.",txt(h.honesty,"Hatun evidence unavailable.")),observationToolbar(),grid([card("Runtime",h.runtime?.status,"Source-reported","hatun"),card("Tools",count(h.tool_catalog?.count),h.tool_catalog?.status||"","hatun"),card("Invocations",count(h.invocations?.count),h.invocations?.status||"UNKNOWN","hatun")]),actions([link("/mcp/","Open MCP",1),link(endpoints.hatun,"Evidence JSON")])]}
 function telemetry(){const wires=get("mesh").json?.wires,entries=isRecord(wires)?Object.entries(wires):[],rows=node("div",{class:"rows"},entries.map(([name,value])=>node("div",{class:"row"},[node("span",{text:name}),node("span",{text:`${txt(value?.status)} · ${txt(value?.edge)}`})])));return[...title("Telemetry","Mesh observations","Source-reported signals. Transport reachability does not establish measurement quality."),observationToolbar(),entries.length?rows:empty("Mesh evidence unavailable."),actions([link("/energy-ops","Energy operator"),link(endpoints.mesh,"Mesh JSON")]),sourceList()]}
 function defense(){return[...title("Defense","Eyes and decision. Not the trigger.","Killinchu stays inside the legal and human-authorization boundary."),node("div",{class:"rows"},[link("/killinchu","Open Killinchu",1),link("/elite","Legal boundary"),link("/console#cuas_fusion","Fusion view")])]}
@@ -113,7 +198,7 @@ function models(){const items=Array.isArray(get("version").json?.capabilities)?g
 function diligence(){const s=get("series").json||{},v=get("version").json||{},r=get("readiness").json||{},fail=Array.isArray(s.critical_failures)?s.critical_failures.join(", "):"";return[...title("Diligence","Proved. Blocked. Unknown.","Reachability is not release readiness."),grid([card("Series-A",s.state,fail||"source contract"),card("Tab matrix",r.available===true?"AVAILABLE":null,"current runtime"),card("Release",v.release_state,"current version contract")]),actions([link(endpoints.honest,"Honesty JSON",1),link(endpoints.build,"Build identity")])]}
 async function postJson(path,raw="{}"){const c=new AbortController(),t=setTimeout(()=>c.abort(),9000);try{const r=await fetch(path,{method:"POST",cache:"no-store",credentials:"omit",redirect:"error",headers:{Accept:"application/json","Content-Type":"application/json"},body:raw,signal:c.signal}),text=await r.text();let json=null;try{json=JSON.parse(text)}catch{}return{ok:r.ok&&isRecord(json),status:r.status,json:isRecord(json)?json:null,observedAt:Date.now()}}catch(error){return{ok:false,status:0,json:null,observedAt:Date.now(),error:error?.name||"Error"}}finally{clearTimeout(t)}}
 const painters={command,kernel,evidence,governance,telemetry,defense,markets,models,diligence};
-const sourceNames={honest:"Honesty",lambda:"Lambda advisory",version:"Release",ledger:"Receipt ledger",signing:"DSSE signing",mesh:"Mesh",series:"Diligence",hatun:"Hatun",health:"Runtime health",readiness:"Readiness",build:"Build identity"};
+const sourceNames={honest:"Honesty",lambda:"Lambda advisory",version:"Release",ledger:"Receipt ledger",signing:"DSSE signing",mesh:"Mesh",series:"Diligence",hatun:"Hatun",health:"Runtime health",readiness:"Readiness",build:"Build identity",evidenceGraph:"Evidence graph",storage:"Storage"};
 function observationToolbar(){
   const b=node("button",{id:"refresh-observations",type:"button",class:"icon-button",text:"↻",title:"Refresh observations","aria-label":"Refresh observations"});
   b.disabled=state.refreshing;b.addEventListener("click",()=>refreshObservations());
