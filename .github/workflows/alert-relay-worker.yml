@@ -128,10 +128,13 @@ jobs:
           node-version: '22'
           check-latest: false
       - name: Install the locked Wrangler
+        id: wrangler
         working-directory: ops/alert-relay-worker
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          test "$(node -p "require('./node_modules/wrangler/package.json').version")" = "$(node -p "require('./package-lock.json').packages['node_modules/wrangler'].version")"
+          locked_version="$(node -p "require('./package-lock.json').packages['node_modules/wrangler'].version")"
+          test "$(node -p "require('./node_modules/wrangler/package.json').version")" = "$locked_version"
+          printf 'version=%s\n' "$locked_version" >> "$GITHUB_OUTPUT"
       - name: Resolve Cloudflare deployment account
         id: cloudflare-account
         env:
@@ -205,7 +208,7 @@ jobs:
           accountId: ${{ steps.cloudflare-account.outputs.account_id }}
           workingDirectory: ops/alert-relay-worker
           packageManager: npm
-          wranglerVersion: '4.150.0'
+          wranglerVersion: ${{ steps.wrangler.outputs.version }}
           command: deploy --config wrangler.jsonc --message ${{ github.sha }}
           vars: |
             SOURCE_REVISION
