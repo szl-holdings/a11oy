@@ -8624,7 +8624,7 @@ def api_a11oy_v4_fleet_early() -> JSONResponse:
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
 @app.get("/api/a11oy/v1/mcp/tools")
-async def a11oy_mcp_tools_inline():
+def a11oy_mcp_tools_inline():
     """MCP tools manifest — a11oy-native tools PLUS the live MCP surface of any
     sibling flagship Space that genuinely exposes one (Ken agent pattern,
     bypasses Node proxy).
@@ -8638,6 +8638,9 @@ async def a11oy_mcp_tools_inline():
         (the former sibling organs are now served in-process by a11oy) have no
         standalone MCP endpoint and therefore contribute no separate cluster.
       * Counts reflect exactly what was reachable at request time — no padding.
+
+    Keep this route synchronous: FastAPI's worker threadpool isolates the
+    blocking sibling discovery below from the ASGI event loop.
     """
     tools = [
         {"name": "a11oy_gate", "description": "Run a11oy policy gate on an action plan", "flagship": "a11oy"},
