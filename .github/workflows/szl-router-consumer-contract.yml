@@ -50,7 +50,7 @@ jobs:
           node-version: '22'
       - name: Verify actual one-shot client request admission without network effects
         if: matrix.peer == 'fixture'
-        run: node --test tests/test_eval_arena_client_admission.cjs
+        run: node --test tests/test_eval_arena_client_admission.cjs tests/test_governed_agent_client.cjs
       - name: Exercise standalone contract
         if: matrix.peer == 'fixture'
         run: python -m pytest -q tests/test_szl_router_client.py tests/test_eval_request_admission.py
