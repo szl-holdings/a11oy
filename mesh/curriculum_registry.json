@@ -1,0 +1,561 @@
+{
+ "registry": "szl-ouroboros-mesh-curriculum-registry",
+ "version": "0.2",
+ "generated_utc": "2026-11-17T02:50:47Z",
+ "amended_utc": "2026-11-17 (v0.2: lap_1 honest TRAINED status; lap_2 doctrine-baked assignment per spec v0.2 §4.6)",
+ "classification_method": "keyword-heuristic-v1 (honest: heuristic, human/owner review pending)",
+ "dataset_count": 128,
+ "entries": [
+  {
+   "repo": "SZLHOLDINGS/killinchu-osint-corpus",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/thesis-v18-formal-verification",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/uds-spans-receipts",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/uds-governance-receipts",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-org-infra",
+   "role": "govern-state"
+  },
+  {
+   "repo": "SZLHOLDINGS/SZLHOLDINGS",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/why-we-lead",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/ouroboros-arxiv-preprint",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-artifacts",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/anatomy-alive-harness",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/thesis-formula-index",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/lean-theorem-tree",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/rag-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/lean-proofs-v1",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/canonical-formulas-v1",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/thesis-corpus-v18",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/doctrine-v10-v11",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/k-verify-benchmark-v1",
+   "role": "eval-bench"
+  },
+  {
+   "repo": "SZLHOLDINGS/yuyay-v3-axis-labels-v1",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/uds-bundles-v1",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/readiness-runs",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-lake",
+   "role": "govern-state"
+  },
+  {
+   "repo": "SZLHOLDINGS/a11oy-verifiable-corpus",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/legacy-archive",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-evidence",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/governed-receipts-bench",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/energy-attested-runs",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/alloy-sovereign-eval-runs",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-1-doctrine-sft",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-second-brain-inrepo",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-quant-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/test-results",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/governed-agent-bench",
+   "role": "eval-bench"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-training-receipts",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/vault-artifacts",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/receipted-unsloth",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/model-bom",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-frontier-covenant",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/release-assets",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-estate-graph",
+   "role": "govern-state"
+  },
+  {
+   "repo": "SZLHOLDINGS/david-leads-data",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/oac-clinical-transport-observability-synthetic",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-frontier-evaluation-receipts",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-marketing-factbase",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-science-forum-corpus",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-second-brain-frontier-candidates",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/a11oy-state",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-seismic-review-state",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-skills-ci-evidence",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/kernel-receipt-regression-attn-maskmod-blockkv-v1",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/governed-sft-mix-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-frontier-sft-mix-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/wave-logs",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/doctrine-abstention-dpo-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/doctrine-corpus-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/model-eval-receipts",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/doctrine-abstention-dpo-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/estate-knowledge-corpus-v1",
+   "role": "govern-state"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-quant-abstention-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/specialized-domains-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/anatomy-brain-datasets-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/high-value-systems-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/reasoning-puzzles-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/free-energy-reasoning-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/ancient-math-reasoning-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/acoustic-governance-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/governed-distill-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-frontier-sft-mix-v3",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/governed-distill-4b-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/governed-distill-4b-sft-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/governed-distill-4b-sft-v3",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/governed-distill-4b-sft-v3-topup",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-papers-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/cookie-dpo-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/abstention-doctrine-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/frontier-54-runs",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/a11oy-code-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/estate-graph",
+   "role": "govern-state"
+  },
+  {
+   "repo": "SZLHOLDINGS/verticals-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/lean-invariants-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/formula-proving-ground",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/papers-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/world-science-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/kamachikuna",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/creativity-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/prime-principle",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/brain-synthesized-corpus",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/puriq-market-data",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/physics-bench-micro",
+   "role": "eval-bench"
+  },
+  {
+   "repo": "SZLHOLDINGS/abstention-curriculum-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/physics-curriculum-train",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/mesh-liveness",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/quant-curriculum-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/measurement-honesty-v1",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-frontier-sft-mix-v4",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/lean-proof-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/sorry-discharge-challenges-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/clinical-abstention-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/receipt-of-doubt-math-unanswerables-v1",
+   "role": "evidence-telemetry"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-x402-seller-card",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/lean-math-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/absrl-reward-squad2-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/frontier-mix-v5-all-estates",
+   "role": "govern-state"
+  },
+  {
+   "repo": "SZLHOLDINGS/provenance-native-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/x402-protocol-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/clinical-abstention-sft-api-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/clinical-abstention-sft-api-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/physics-tutor-sft-api-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/axiom-invariant-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/creativity-sft-api-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/killinchu-osint-sft-api-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/absrl-reward-pool-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/estate-release-cards",
+   "role": "govern-state"
+  },
+  {
+   "repo": "SZLHOLDINGS/axiom-invariants-sft-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/acoustic-governance-sft-api-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/world-science-sft-api-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/absrl-doubt-claude-v1",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/absrl-reward-pool-v2-1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/unified-corpus-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/vgl-repro-ga-20261116",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/vgl-sweep-ga-20261116",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/vgl-repro-cd-20261116",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/vgl-sweep-cd-20261116",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/lean-math-sft-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-distill-abstention-v1",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/vgl-triang-20261116",
+   "role": "unmapped-quarantine"
+  },
+  {
+   "repo": "SZLHOLDINGS/unified-corpus-v2",
+   "role": "curriculum"
+  },
+  {
+   "repo": "SZLHOLDINGS/szl-distill-abstention-v1-sft",
+   "role": "curriculum"
+  }
+ ],
+ "role_counts": {
+  "curriculum": 64,
+  "unmapped-quarantine": 33,
+  "evidence-telemetry": 21,
+  "govern-state": 7,
+  "eval-bench": 3
+ },
+ "lap_assignments": {
+  "lap_1": {
+   "curriculum": "SZLHOLDINGS/ring-curriculum-v1",
+   "sources": [
+    "SZLHOLDINGS/anatomy-brain-datasets-corpus-v1 (89 rows, measured)",
+    "SZLHOLDINGS/brain-synthesized-corpus (67 rows, measured)"
+   ],
+   "fusion": "concatenation only, MEASURED manifest in dataset repo",
+   "base_model": "Qwen/Qwen3-1.7B",
+   "max_steps": 200,
+   "save_steps": 25,
+   "adapter_out": "SZLHOLDINGS/salad-ring-v1b (private, worker-created; salad-ring-v1 broken attempt stopped 202)",
+   "salad_group": "szl-ring-v1b (retry; original szl-ring-v1 crashed fail-closed at CUDA precheck)",
+   "status": "TRAINED (szl-ring-v1 crashed fail-closed at CUDA precheck - v2c sed bug root-caused, fleet-flagged; retry szl-ring-v1b TRAINED 200/200 in 422.6s, train_loss 1.6121, final-epoch loss 0.5342, mean_token_accuracy 0.8934, RTX 5090, energy MEASURED; ring receipt chain_tip 3538d48af4efcd23bfe43ab25c43a6c20d5db0c49abaf828b5871880454f9cbc, closed=false, doctrine_presence FAIL honest pre-amendment lap)"
+  },
+  "lap_2": {
+   "curriculum": "SZLHOLDINGS/ring-curriculum-v2",
+   "sources": [
+    "SZLHOLDINGS/ring-curriculum-v1 (156 rows, measured - ouroboros tail)",
+    "SZLHOLDINGS/doctrine-corpus-v2 (236 rows, measured - doctrine slice, satisfies spec v0.2 §4.6)",
+    "SZLHOLDINGS/lean-invariants-sft-v1 (304 rows, measured - invariants slice, satisfies spec v0.2 §4.6)",
+    "SZLHOLDINGS/szl-1-doctrine-sft (41 rows, measured - doctrine slice)"
+   ],
+   "fusion": "concatenation only, MEASURED manifest in dataset repo; measurement-honesty-v1 HONESTLY DEFERRED (datasets-lib load stall >6min, killed, noted in manifest)",
+   "base_model": "Qwen/Qwen3-1.7B",
+   "max_steps": 200,
+   "save_steps": 25,
+   "adapter_out": "SZLHOLDINGS/salad-ring-v2 (private, worker-created)",
+   "salad_group": "szl-ring-v2",
+   "status": "IN_FLIGHT (booted 2026-11-17T03:26:45Z; stop-on-receipt watcher armed; no completion claimed)"
+  }
+ }
+}

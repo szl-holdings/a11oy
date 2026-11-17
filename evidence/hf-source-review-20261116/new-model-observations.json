@@ -1,0 +1,2296 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "authority": {
+    "deployment": false,
+    "promotion": false,
+    "qualification": false,
+    "routing": false
+  },
+  "candidate_sha256": "f163c88b249f9c7b78951de1e4f940047e2852c403f6b46adf91c92e74236fdb",
+  "models": [
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "89432644e5ff1e64e35e8fe809587319b81e7e02",
+      "config": {
+        "bytes": 764,
+        "sha256": "4073aa9d3c741d16dcece8147d87839ac4bc98573477e7680519515b5332f09d",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/raw/89432644e5ff1e64e35e8fe809587319b81e7e02/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "NemotronForCausalLM"
+        ],
+        "model_type": "nemotron"
+      },
+      "current_revision": "89432644e5ff1e64e35e8fe809587319b81e7e02",
+      "file_count": 10,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "251fd803fc88cc971afe68dd2bc8cbf5146ff9e1",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 9475
+        },
+        {
+          "blob_id": "6f5d9aaf8a353d6ab5e7073abaae15f17f403fe4",
+          "lfs": null,
+          "path": "NOTICE",
+          "size": 266
+        },
+        {
+          "blob_id": "11c3dd38f918dd86936d1b40fdb95d369595d4aa",
+          "lfs": null,
+          "path": "README.md",
+          "size": 4431
+        },
+        {
+          "blob_id": "a38343a13572257a7acf8ebe740e9dc5f2016f0f",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 876
+        },
+        {
+          "blob_id": "feff16c438712d951ddd734b952b390da58e5a12",
+          "lfs": null,
+          "path": "config.json",
+          "size": 764
+        },
+        {
+          "blob_id": "1a41296679b172e90d98d446fa1490e213b3a3b4",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 132
+        },
+        {
+          "blob_id": "019e00976796bd11212485d4bab9aff6a240f85d",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "327f6b97fb8e3da2bd9851969bf3b67bb870a0c454351388b3802bc58bad4096",
+            "size": 8381055608
+          },
+          "path": "model.safetensors",
+          "size": 8381055608
+        },
+        {
+          "blob_id": "26e42d161ef8c64cb8a5640ea1466aa0016a7389",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "b6ad04b2b0671068c30ca001b365f036dda0cad9915366b5a6f1c5afe33a0d71",
+            "size": 34810091
+          },
+          "path": "tokenizer.json",
+          "size": 34810091
+        },
+        {
+          "blob_id": "ef19e42f51ec55cce887a94cc2815f72356cef2f",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 330
+        }
+      ],
+      "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "observed_at": "2026-11-16T23:01:57.917804+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "bfe1f8291656258503f07bbb9520edff529ecdde1452393f08c1d277287030ef",
+        "error": null,
+        "hub_revision": "89432644e5ff1e64e35e8fe809587319b81e7e02",
+        "observed_at": "2026-11-16T23:01:57.873186+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 4431,
+        "sha256": "b878e8263d275fbbe7cdd2bc1754539b3beddbc299e54a901d009bb2aafbab22",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/raw/89432644e5ff1e64e35e8fe809587319b81e7e02/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/revision/89432644e5ff1e64e35e8fe809587319b81e7e02?blobs=true",
+      "tree_sha256": "530a9e50d796210dc95d1d08f065c211163b773aa7b890ad967030f769b7fbd4"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "e3606c990ced50c3f4ed1264d19a70512cf06040",
+      "config": {
+        "bytes": 2728,
+        "sha256": "f1a691fe85677c8558e9a66b2e32ecd9e5e80855cad3500a7fe6fd60bd18aa3f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/raw/e3606c990ced50c3f4ed1264d19a70512cf06040/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "model_type": "qwen3_5"
+      },
+      "current_revision": "e3606c990ced50c3f4ed1264d19a70512cf06040",
+      "file_count": 12,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "083d5523d7c9a014cacd81ae5765e76a68bd7e86",
+          "lfs": null,
+          "path": "README.md",
+          "size": 9959
+        },
+        {
+          "blob_id": "81b670e15d77c61b447f4348dbafdce071407689",
+          "lfs": null,
+          "path": "assets/measurement-card.svg",
+          "size": 1763
+        },
+        {
+          "blob_id": "c7c8f996ef89234e681044289ef389a6694fc635",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 7991
+        },
+        {
+          "blob_id": "0ee4f4dc416c2b9273660469577b187cff128264",
+          "lfs": null,
+          "path": "config.json",
+          "size": 2728
+        },
+        {
+          "blob_id": "4c9dbe8421f16335a39f128dc08e7f124402d75a",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 176
+        },
+        {
+          "blob_id": "4a22938028b0ec4dcd16c6a1d6545e9840d057c5",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "556a345b4576786dd3aab0eb3c9593ec82060efda4f8e57e3cc613b71dc6d7c8",
+            "size": 1746942600
+          },
+          "path": "model.safetensors-00001-of-00001.safetensors",
+          "size": 1746942600
+        },
+        {
+          "blob_id": "f691cefdb79d73270895ebd6d9594ddcecfc1838",
+          "lfs": null,
+          "path": "model.safetensors.index.json",
+          "size": 50900
+        },
+        {
+          "blob_id": "a9804dd9789683a33fe72bd98bc0ccb71663afd1",
+          "lfs": null,
+          "path": "processor_config.json",
+          "size": 1325
+        },
+        {
+          "blob_id": "bdfbf8e4bd7ebaeb71119d425f20b7cee8b6b2fa",
+          "lfs": null,
+          "path": "receipts/eval/fleet-confabulation-sweep-20261108.json",
+          "size": 1641
+        },
+        {
+          "blob_id": "5520bfd2dd834ce386c1312c410fa71af56db5ad",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+            "size": 19989325
+          },
+          "path": "tokenizer.json",
+          "size": 19989325
+        },
+        {
+          "blob_id": "44294c462446ffac2325c43892c8b136733e5b76",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 15453
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+      "observed_at": "2026-11-16T23:01:57.918850+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0f30ab427df38f0ddbc23df6360459bf51bc7390029f117a767ff0e55c776889",
+        "error": null,
+        "hub_revision": "e3606c990ced50c3f4ed1264d19a70512cf06040",
+        "observed_at": "2026-11-16T23:01:57.875205+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 9959,
+        "sha256": "5ec01dcc0162806cdfd8a6a28f6a7ee9f32f38c400617e303838fac8f711e5ec",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/raw/e3606c990ced50c3f4ed1264d19a70512cf06040/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/revision/e3606c990ced50c3f4ed1264d19a70512cf06040?blobs=true",
+      "tree_sha256": "6be4c8262608b6788a89276da20fb7633c62595aa633a5e65e59e16e7df646d3"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "9f432894f63d6cff18db291643537907972b4250",
+      "config": {
+        "bytes": 2728,
+        "sha256": "f1a691fe85677c8558e9a66b2e32ecd9e5e80855cad3500a7fe6fd60bd18aa3f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/raw/9f432894f63d6cff18db291643537907972b4250/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "model_type": "qwen3_5"
+      },
+      "current_revision": "9f432894f63d6cff18db291643537907972b4250",
+      "file_count": 12,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "e8d9c182922c31cc08232c2faa4b6a2417e66fc7",
+          "lfs": null,
+          "path": "README.md",
+          "size": 9854
+        },
+        {
+          "blob_id": "b0f8cc7c5c01440a788869c229196175306bb861",
+          "lfs": null,
+          "path": "assets/measurement-card.svg",
+          "size": 1757
+        },
+        {
+          "blob_id": "c7c8f996ef89234e681044289ef389a6694fc635",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 7991
+        },
+        {
+          "blob_id": "0ee4f4dc416c2b9273660469577b187cff128264",
+          "lfs": null,
+          "path": "config.json",
+          "size": 2728
+        },
+        {
+          "blob_id": "4c9dbe8421f16335a39f128dc08e7f124402d75a",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 176
+        },
+        {
+          "blob_id": "b0dbf1ea90999df96eb53639b2e561522a64f923",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "79293602f49fcbf92555febb331ff30e307b1204c61dd47382802f63dfd13b16",
+            "size": 1746942600
+          },
+          "path": "model.safetensors-00001-of-00001.safetensors",
+          "size": 1746942600
+        },
+        {
+          "blob_id": "f691cefdb79d73270895ebd6d9594ddcecfc1838",
+          "lfs": null,
+          "path": "model.safetensors.index.json",
+          "size": 50900
+        },
+        {
+          "blob_id": "a9804dd9789683a33fe72bd98bc0ccb71663afd1",
+          "lfs": null,
+          "path": "processor_config.json",
+          "size": 1325
+        },
+        {
+          "blob_id": "bdfbf8e4bd7ebaeb71119d425f20b7cee8b6b2fa",
+          "lfs": null,
+          "path": "receipts/eval/fleet-confabulation-sweep-20261108.json",
+          "size": 1641
+        },
+        {
+          "blob_id": "5520bfd2dd834ce386c1312c410fa71af56db5ad",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+            "size": 19989325
+          },
+          "path": "tokenizer.json",
+          "size": 19989325
+        },
+        {
+          "blob_id": "44294c462446ffac2325c43892c8b136733e5b76",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 15453
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "observed_at": "2026-11-16T23:01:57.841324+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "99941ce32344b199b34760ee0972f76bd61385d4beacb17f391fef24442718f7",
+        "error": null,
+        "hub_revision": "9f432894f63d6cff18db291643537907972b4250",
+        "observed_at": "2026-11-16T23:01:57.818916+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 9854,
+        "sha256": "cc078f47cb96cec9dd3e1167c605187f876922fced8cc4531e31881f45c204d8",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/raw/9f432894f63d6cff18db291643537907972b4250/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/revision/9f432894f63d6cff18db291643537907972b4250?blobs=true",
+      "tree_sha256": "5819db10633d6ecc940625080335932600f59c791016a85a7567f99242a997b4"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "b7d6790d12f0d42e4aa00fdc23460c04ff20c94f",
+      "config": {
+        "bytes": 2728,
+        "sha256": "f1a691fe85677c8558e9a66b2e32ecd9e5e80855cad3500a7fe6fd60bd18aa3f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/raw/b7d6790d12f0d42e4aa00fdc23460c04ff20c94f/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "model_type": "qwen3_5"
+      },
+      "current_revision": "b7d6790d12f0d42e4aa00fdc23460c04ff20c94f",
+      "file_count": 12,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "85e49f5b7767a91ab6ade6c3fa0821f40151d79d",
+          "lfs": null,
+          "path": "README.md",
+          "size": 6776
+        },
+        {
+          "blob_id": "2c2aee39a33b422e0d1369fae54ad4bff0ebf3a7",
+          "lfs": null,
+          "path": "assets/measurement-card.svg",
+          "size": 1219
+        },
+        {
+          "blob_id": "c7c8f996ef89234e681044289ef389a6694fc635",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 7991
+        },
+        {
+          "blob_id": "0ee4f4dc416c2b9273660469577b187cff128264",
+          "lfs": null,
+          "path": "config.json",
+          "size": 2728
+        },
+        {
+          "blob_id": "bd09cc8f131627a04fb411f3ee99361bb1548179",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 188
+        },
+        {
+          "blob_id": "1618f398eda23140ac0ce9e0bf3300f84d006945",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "41d4818faa6450e7210595032ae0e4a2c8c73f1791059ea969ac901c90c32e19",
+            "size": 1746942600
+          },
+          "path": "model.safetensors-00001-of-00001.safetensors",
+          "size": 1746942600
+        },
+        {
+          "blob_id": "f691cefdb79d73270895ebd6d9594ddcecfc1838",
+          "lfs": null,
+          "path": "model.safetensors.index.json",
+          "size": 50900
+        },
+        {
+          "blob_id": "a9804dd9789683a33fe72bd98bc0ccb71663afd1",
+          "lfs": null,
+          "path": "processor_config.json",
+          "size": 1325
+        },
+        {
+          "blob_id": "f1e754a5c4a077a4e34b681323111abcdfdaea08",
+          "lfs": null,
+          "path": "receipts/eval/freeenergy-dpo-reeval-2026-11-06.json",
+          "size": 2406
+        },
+        {
+          "blob_id": "5520bfd2dd834ce386c1312c410fa71af56db5ad",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+            "size": 19989325
+          },
+          "path": "tokenizer.json",
+          "size": 19989325
+        },
+        {
+          "blob_id": "44294c462446ffac2325c43892c8b136733e5b76",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 15453
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+      "observed_at": "2026-11-16T23:02:12.857549+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e76322033f579db8fe9bdc77bc25e62cb50b4d3b2db9eba6e0e4f754f3f1bdf3",
+        "error": null,
+        "hub_revision": "b7d6790d12f0d42e4aa00fdc23460c04ff20c94f",
+        "observed_at": "2026-11-16T23:02:12.810047+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 6776,
+        "sha256": "2745f0a02c83dc60cfd9c68d858f6c7857c1f9df600f9b844b5d8ddb3804bb8e",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/raw/b7d6790d12f0d42e4aa00fdc23460c04ff20c94f/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/revision/b7d6790d12f0d42e4aa00fdc23460c04ff20c94f?blobs=true",
+      "tree_sha256": "9e341221499d4aeb34fd6f301467a05a65dd4d527609f5b17257e18371a85922"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "c3a6ccf6b243aa0c84d85f49931268f313c4ec83",
+      "config": {
+        "bytes": 2728,
+        "sha256": "f1a691fe85677c8558e9a66b2e32ecd9e5e80855cad3500a7fe6fd60bd18aa3f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/raw/c3a6ccf6b243aa0c84d85f49931268f313c4ec83/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "model_type": "qwen3_5"
+      },
+      "current_revision": "c3a6ccf6b243aa0c84d85f49931268f313c4ec83",
+      "file_count": 12,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "b852e44227c20b89054ab60da5d53fa0e1238700",
+          "lfs": null,
+          "path": "README.md",
+          "size": 9953
+        },
+        {
+          "blob_id": "ea36d7dad3323be96039ace1b5c49c690352122f",
+          "lfs": null,
+          "path": "assets/measurement-card.svg",
+          "size": 1755
+        },
+        {
+          "blob_id": "c7c8f996ef89234e681044289ef389a6694fc635",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 7991
+        },
+        {
+          "blob_id": "0ee4f4dc416c2b9273660469577b187cff128264",
+          "lfs": null,
+          "path": "config.json",
+          "size": 2728
+        },
+        {
+          "blob_id": "4c9dbe8421f16335a39f128dc08e7f124402d75a",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 176
+        },
+        {
+          "blob_id": "91702c464cd87571b10df905b6d820c9cb21cef8",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "648f55ec6f07bf172b19b4daac1e672568d802ab34a47cfe43c6bd56f83f0145",
+            "size": 1746942600
+          },
+          "path": "model.safetensors-00001-of-00001.safetensors",
+          "size": 1746942600
+        },
+        {
+          "blob_id": "f691cefdb79d73270895ebd6d9594ddcecfc1838",
+          "lfs": null,
+          "path": "model.safetensors.index.json",
+          "size": 50900
+        },
+        {
+          "blob_id": "a9804dd9789683a33fe72bd98bc0ccb71663afd1",
+          "lfs": null,
+          "path": "processor_config.json",
+          "size": 1325
+        },
+        {
+          "blob_id": "bdfbf8e4bd7ebaeb71119d425f20b7cee8b6b2fa",
+          "lfs": null,
+          "path": "receipts/eval/fleet-confabulation-sweep-20261108.json",
+          "size": 1641
+        },
+        {
+          "blob_id": "5520bfd2dd834ce386c1312c410fa71af56db5ad",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+            "size": 19989325
+          },
+          "path": "tokenizer.json",
+          "size": 19989325
+        },
+        {
+          "blob_id": "44294c462446ffac2325c43892c8b136733e5b76",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 15453
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "observed_at": "2026-11-16T23:01:58.228585+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "7f346d5fafa9cc2260c404805d49b3c4543a78032dd7463b416c28937408984b",
+        "error": null,
+        "hub_revision": "c3a6ccf6b243aa0c84d85f49931268f313c4ec83",
+        "observed_at": "2026-11-16T23:01:58.200901+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 9953,
+        "sha256": "4b231b09f782dc2755e2b5c57f3e166d7c839c4ab388038f7d568a5803c9395f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/raw/c3a6ccf6b243aa0c84d85f49931268f313c4ec83/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/revision/c3a6ccf6b243aa0c84d85f49931268f313c4ec83?blobs=true",
+      "tree_sha256": "5ac1beaac8a04dcc67f4a1e3d0da6615a714998e59391044879a0a20d3d04929"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "94a70d088dc632af9e14134dd2e09bdf673e17a8",
+      "config": {
+        "bytes": 2669,
+        "sha256": "d96ec988c88a7aa99e95aa60955e5a8e7cee3bf17f79868586d12b91fc270227",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/raw/94a70d088dc632af9e14134dd2e09bdf673e17a8/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "model_type": "qwen3_5"
+      },
+      "current_revision": "94a70d088dc632af9e14134dd2e09bdf673e17a8",
+      "file_count": 13,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "6ed157d8e4bd81727eaa1372fb8a25e3a3319d5f",
+          "lfs": null,
+          "path": "README.md",
+          "size": 5400
+        },
+        {
+          "blob_id": "9906303c08567b3a24cf09252169b61a41201538",
+          "lfs": null,
+          "path": "assets/measurement-card.svg",
+          "size": 1393
+        },
+        {
+          "blob_id": "0ef09f214eaa6d9bca297988afc1454b5827b2c7",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 7755
+        },
+        {
+          "blob_id": "a7a93933dae97f3e465d7d4e2ee8085eae1fe64a",
+          "lfs": null,
+          "path": "config.json",
+          "size": 2669
+        },
+        {
+          "blob_id": "d2bafbc66cd5eefb7895539a0ab9914170f1b12d",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 142
+        },
+        {
+          "blob_id": "209a74b34ea273a736b4350ee290ede89a104607",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "11d1ae79e6022749cc89049766f7f6c71e550dcafc92e58903af1ddf14824302",
+            "size": 1746942600
+          },
+          "path": "model.safetensors-00001-of-00001.safetensors",
+          "size": 1746942600
+        },
+        {
+          "blob_id": "f691cefdb79d73270895ebd6d9594ddcecfc1838",
+          "lfs": null,
+          "path": "model.safetensors.index.json",
+          "size": 50900
+        },
+        {
+          "blob_id": "43c4343ec493f200e452f87a7c6649ecdfcce1ac",
+          "lfs": null,
+          "path": "processor_config.json",
+          "size": 1220
+        },
+        {
+          "blob_id": "bdfbf8e4bd7ebaeb71119d425f20b7cee8b6b2fa",
+          "lfs": null,
+          "path": "receipts/eval/fleet-confabulation-sweep-20261108.json",
+          "size": 1641
+        },
+        {
+          "blob_id": "080cb3ff5ff6531b0512612b14f1caad26dd045b",
+          "lfs": null,
+          "path": "receipts/eval/governed-distill-w30-student-eval-20261107.json",
+          "size": 2854
+        },
+        {
+          "blob_id": "5520bfd2dd834ce386c1312c410fa71af56db5ad",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+            "size": 19989325
+          },
+          "path": "tokenizer.json",
+          "size": 19989325
+        },
+        {
+          "blob_id": "f69a8381156b8987909021b2cca1e8651efad503",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 15206
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+      "observed_at": "2026-11-16T23:01:58.262289+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9d0e4f5aaf53303e3e64e476697fab523722e625a28edba5c0d367f4493625cb",
+        "error": null,
+        "hub_revision": "94a70d088dc632af9e14134dd2e09bdf673e17a8",
+        "observed_at": "2026-11-16T23:01:58.233410+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 5400,
+        "sha256": "167aa2d16aedd54efd403d4e7b129c72795c05626e9e3f041e04cab75b88e283",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/raw/94a70d088dc632af9e14134dd2e09bdf673e17a8/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/revision/94a70d088dc632af9e14134dd2e09bdf673e17a8?blobs=true",
+      "tree_sha256": "3a21795c34ba880090e4780b83fa81c07fe5ea56cf2b7166a79433f18d5c3eda"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "a302b62e7ee73990170229e0264559f3e51a2f00",
+      "config": {
+        "bytes": 802,
+        "sha256": "117a1964d1434d0bdc2fd319d851164564d4d14625359369aa7b077e2bfac17a",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/raw/a302b62e7ee73990170229e0264559f3e51a2f00/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "NemotronForCausalLM"
+        ],
+        "model_type": "nemotron"
+      },
+      "current_revision": "a302b62e7ee73990170229e0264559f3e51a2f00",
+      "file_count": 10,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "251fd803fc88cc971afe68dd2bc8cbf5146ff9e1",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 9475
+        },
+        {
+          "blob_id": "6f5d9aaf8a353d6ab5e7073abaae15f17f403fe4",
+          "lfs": null,
+          "path": "NOTICE",
+          "size": 266
+        },
+        {
+          "blob_id": "bd946f4d22231c19c0d785976ead37cfd496cb79",
+          "lfs": null,
+          "path": "README.md",
+          "size": 5471
+        },
+        {
+          "blob_id": "a38343a13572257a7acf8ebe740e9dc5f2016f0f",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 876
+        },
+        {
+          "blob_id": "91d67c81c66174e203da0d9f8b6abcbc4d82a6f0",
+          "lfs": null,
+          "path": "config.json",
+          "size": 802
+        },
+        {
+          "blob_id": "f71a2888dd68bb0fd72778a75812057a001e3075",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 185
+        },
+        {
+          "blob_id": "7d00001556a2e3b873c82e4dc118086ecabbf6b0",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "5e7b55cdea302e9fc6a2abebe930f7ce470f8205ee91fd16de3b4f1e73bf2e31",
+            "size": 8381055608
+          },
+          "path": "model.safetensors",
+          "size": 8381055608
+        },
+        {
+          "blob_id": "26e42d161ef8c64cb8a5640ea1466aa0016a7389",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "b6ad04b2b0671068c30ca001b365f036dda0cad9915366b5a6f1c5afe33a0d71",
+            "size": 34810091
+          },
+          "path": "tokenizer.json",
+          "size": 34810091
+        },
+        {
+          "blob_id": "d5ced40af9e24446ee9d4f36620772c5863afb61",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 180620
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "observed_at": "2026-11-16T23:01:58.305674+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "41e7f718fab043013e1f0dbcbb93e5e291f837f7b3ecf00d7295dec26651ea14",
+        "error": null,
+        "hub_revision": "a302b62e7ee73990170229e0264559f3e51a2f00",
+        "observed_at": "2026-11-16T23:01:58.266026+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 5471,
+        "sha256": "ae603634c2f0549b96b397db8bfe40e142e0cc1f303b3415a1814b6dbb4e43fb",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/raw/a302b62e7ee73990170229e0264559f3e51a2f00/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/revision/a302b62e7ee73990170229e0264559f3e51a2f00?blobs=true",
+      "tree_sha256": "62877194b865153d3b5d795e5394b038f8687638472764b229f7f217f2686d72"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "05657f8fe5b63ebb58b4931baac445013e55776e",
+      "config": {
+        "bytes": 802,
+        "sha256": "117a1964d1434d0bdc2fd319d851164564d4d14625359369aa7b077e2bfac17a",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/raw/05657f8fe5b63ebb58b4931baac445013e55776e/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "NemotronForCausalLM"
+        ],
+        "model_type": "nemotron"
+      },
+      "current_revision": "05657f8fe5b63ebb58b4931baac445013e55776e",
+      "file_count": 11,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "251fd803fc88cc971afe68dd2bc8cbf5146ff9e1",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 9475
+        },
+        {
+          "blob_id": "6f5d9aaf8a353d6ab5e7073abaae15f17f403fe4",
+          "lfs": null,
+          "path": "NOTICE",
+          "size": 266
+        },
+        {
+          "blob_id": "f268b68577db23962c8725e7dddbcb330565eb81",
+          "lfs": null,
+          "path": "README.md",
+          "size": 7323
+        },
+        {
+          "blob_id": "a38343a13572257a7acf8ebe740e9dc5f2016f0f",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 876
+        },
+        {
+          "blob_id": "91d67c81c66174e203da0d9f8b6abcbc4d82a6f0",
+          "lfs": null,
+          "path": "config.json",
+          "size": 802
+        },
+        {
+          "blob_id": "f71a2888dd68bb0fd72778a75812057a001e3075",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 185
+        },
+        {
+          "blob_id": "f70148ddd7e23df525ade402668344f79520e223",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "59db9a9b0f7de041d81451fb9053d17094c2780bcffaf683343157d763a6e368",
+            "size": 8381055608
+          },
+          "path": "model.safetensors",
+          "size": 8381055608
+        },
+        {
+          "blob_id": "c4c578dca0b5be33ccad5bb42233bb559485ef80",
+          "lfs": null,
+          "path": "receipt-proof.svg",
+          "size": 2076
+        },
+        {
+          "blob_id": "26e42d161ef8c64cb8a5640ea1466aa0016a7389",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "b6ad04b2b0671068c30ca001b365f036dda0cad9915366b5a6f1c5afe33a0d71",
+            "size": 34810091
+          },
+          "path": "tokenizer.json",
+          "size": 34810091
+        },
+        {
+          "blob_id": "d5ced40af9e24446ee9d4f36620772c5863afb61",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 180620
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "observed_at": "2026-11-16T23:01:58.583736+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9d3891ca77b9f5620fef7778d9b5380603d39adb8cf81ac54d8c55e2e7635b49",
+        "error": null,
+        "hub_revision": "05657f8fe5b63ebb58b4931baac445013e55776e",
+        "observed_at": "2026-11-16T23:01:58.556128+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 7323,
+        "sha256": "15d1d16b58add4f30d99d08b3682781b3aec04bbe7f30048c9d6273fc0673a48",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/raw/05657f8fe5b63ebb58b4931baac445013e55776e/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/revision/05657f8fe5b63ebb58b4931baac445013e55776e?blobs=true",
+      "tree_sha256": "6d84d55a7762a621803960ded009f2e3c7bb4dcc2237ce5e8ba031677c70e983"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "9cbd5527d7f3ca4d41883fddbd814377d53b3c75",
+      "config": {
+        "bytes": 802,
+        "sha256": "117a1964d1434d0bdc2fd319d851164564d4d14625359369aa7b077e2bfac17a",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/raw/9cbd5527d7f3ca4d41883fddbd814377d53b3c75/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "NemotronForCausalLM"
+        ],
+        "model_type": "nemotron"
+      },
+      "current_revision": "9cbd5527d7f3ca4d41883fddbd814377d53b3c75",
+      "file_count": 12,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "251fd803fc88cc971afe68dd2bc8cbf5146ff9e1",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 9475
+        },
+        {
+          "blob_id": "6f5d9aaf8a353d6ab5e7073abaae15f17f403fe4",
+          "lfs": null,
+          "path": "NOTICE",
+          "size": 266
+        },
+        {
+          "blob_id": "29de8f8955adfcb00b8918638eeabc82316eee44",
+          "lfs": null,
+          "path": "README.md",
+          "size": 8100
+        },
+        {
+          "blob_id": "a38343a13572257a7acf8ebe740e9dc5f2016f0f",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 876
+        },
+        {
+          "blob_id": "91d67c81c66174e203da0d9f8b6abcbc4d82a6f0",
+          "lfs": null,
+          "path": "config.json",
+          "size": 802
+        },
+        {
+          "blob_id": "f71a2888dd68bb0fd72778a75812057a001e3075",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 185
+        },
+        {
+          "blob_id": "95fa7e0ae3091fbce5bdad18498d518c655b31fa",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "107f7ff98f041b820d388a6db7a2c827f42fee8e8ecc3bb126f3ad2f75d7ea8e",
+            "size": 8381055608
+          },
+          "path": "model.safetensors",
+          "size": 8381055608
+        },
+        {
+          "blob_id": "1c188750296686c293bfa893a7527c7d7a8d6d5d",
+          "lfs": null,
+          "path": "receipts/eval/governed-validation-v2-2026-11-06.json",
+          "size": 2199
+        },
+        {
+          "blob_id": "461310469e7f4acb44627a61c956be0d9546f2aa",
+          "lfs": null,
+          "path": "receipts/eval/remediation-reeval-2026-11-06.json",
+          "size": 11455
+        },
+        {
+          "blob_id": "26e42d161ef8c64cb8a5640ea1466aa0016a7389",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "b6ad04b2b0671068c30ca001b365f036dda0cad9915366b5a6f1c5afe33a0d71",
+            "size": 34810091
+          },
+          "path": "tokenizer.json",
+          "size": 34810091
+        },
+        {
+          "blob_id": "d5ced40af9e24446ee9d4f36620772c5863afb61",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 180620
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "observed_at": "2026-11-16T23:01:58.675761+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "d06cfc009bd905e7ca4ab37ece34e3271ed20b7d4ddfb2219e186decc975dd34",
+        "error": null,
+        "hub_revision": "9cbd5527d7f3ca4d41883fddbd814377d53b3c75",
+        "observed_at": "2026-11-16T23:01:58.648593+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 8100,
+        "sha256": "5a5ed941f6585418c90ecfd2e64fe86cc370dfc2f16889ed310930950582ef94",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/raw/9cbd5527d7f3ca4d41883fddbd814377d53b3c75/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/revision/9cbd5527d7f3ca4d41883fddbd814377d53b3c75?blobs=true",
+      "tree_sha256": "65ecc98374db07af267bff5a5935fae266a68b006ed33e7363132e8293d38f2e"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "272514fd62729db94dc4fb66052753c7ab6397d7",
+      "config": {
+        "bytes": 802,
+        "sha256": "117a1964d1434d0bdc2fd319d851164564d4d14625359369aa7b077e2bfac17a",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/raw/272514fd62729db94dc4fb66052753c7ab6397d7/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "NemotronForCausalLM"
+        ],
+        "model_type": "nemotron"
+      },
+      "current_revision": "272514fd62729db94dc4fb66052753c7ab6397d7",
+      "file_count": 14,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "251fd803fc88cc971afe68dd2bc8cbf5146ff9e1",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 9475
+        },
+        {
+          "blob_id": "6f5d9aaf8a353d6ab5e7073abaae15f17f403fe4",
+          "lfs": null,
+          "path": "NOTICE",
+          "size": 266
+        },
+        {
+          "blob_id": "688bb72cabeae343d792deaf76afb6b82f0b6bbe",
+          "lfs": null,
+          "path": "README.md",
+          "size": 11064
+        },
+        {
+          "blob_id": "11c65ff73d80d50cf0d395da3501bcfc227dc2ae",
+          "lfs": null,
+          "path": "assets/measurement-card.svg",
+          "size": 2171
+        },
+        {
+          "blob_id": "a38343a13572257a7acf8ebe740e9dc5f2016f0f",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 876
+        },
+        {
+          "blob_id": "91d67c81c66174e203da0d9f8b6abcbc4d82a6f0",
+          "lfs": null,
+          "path": "config.json",
+          "size": 802
+        },
+        {
+          "blob_id": "f71a2888dd68bb0fd72778a75812057a001e3075",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 185
+        },
+        {
+          "blob_id": "17d5693b75305b0a2dcb00c42b425b324953f052",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "d8838b4ad93633e5830068b0418b434fb9b92ca27808d08e1d2da31abd9aece7",
+            "size": 8381055608
+          },
+          "path": "model.safetensors",
+          "size": 8381055608
+        },
+        {
+          "blob_id": "3b16b02dbe11eac48a7142359abf0d69330bbdf0",
+          "lfs": null,
+          "path": "receipt-proof.svg",
+          "size": 2048
+        },
+        {
+          "blob_id": "bdfbf8e4bd7ebaeb71119d425f20b7cee8b6b2fa",
+          "lfs": null,
+          "path": "receipts/eval/fleet-confabulation-sweep-20261108.json",
+          "size": 1641
+        },
+        {
+          "blob_id": "58df9e041eb90031d7380a3e9631e24f1f2e39f0",
+          "lfs": null,
+          "path": "receipts/eval/reasoning-eval-2026-11-06.json",
+          "size": 6247
+        },
+        {
+          "blob_id": "26e42d161ef8c64cb8a5640ea1466aa0016a7389",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "b6ad04b2b0671068c30ca001b365f036dda0cad9915366b5a6f1c5afe33a0d71",
+            "size": 34810091
+          },
+          "path": "tokenizer.json",
+          "size": 34810091
+        },
+        {
+          "blob_id": "d5ced40af9e24446ee9d4f36620772c5863afb61",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 180620
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "observed_at": "2026-11-16T23:01:58.729982+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "937ccf3f4f695d821952cb0ba27c3d20e212b53962bf01e875e3fac83ae84fcf",
+        "error": null,
+        "hub_revision": "272514fd62729db94dc4fb66052753c7ab6397d7",
+        "observed_at": "2026-11-16T23:01:58.685490+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 11064,
+        "sha256": "887adba3001e5820e1b37f9c514e06946b1ad283fc5aebfbcb7cd97d7edda1c1",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/raw/272514fd62729db94dc4fb66052753c7ab6397d7/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/revision/272514fd62729db94dc4fb66052753c7ab6397d7?blobs=true",
+      "tree_sha256": "1852fa3c87cedabf626b8e9c5c7652b40d7fa7de1f3258a2817b1a655665a2dc"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "5ec45d7976f836f1fd04a02b6a742f61e0bb3d40",
+      "config": {
+        "bytes": 2728,
+        "sha256": "f1a691fe85677c8558e9a66b2e32ecd9e5e80855cad3500a7fe6fd60bd18aa3f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/raw/5ec45d7976f836f1fd04a02b6a742f61e0bb3d40/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "model_type": "qwen3_5"
+      },
+      "current_revision": "5ec45d7976f836f1fd04a02b6a742f61e0bb3d40",
+      "file_count": 12,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "b885c8128bfa5ad9c52380b82aeee116db8ae717",
+          "lfs": null,
+          "path": "README.md",
+          "size": 5252
+        },
+        {
+          "blob_id": "f02a2c7580f9a7d05fd4fa8a134598969ff20154",
+          "lfs": null,
+          "path": "assets/measurement-card.svg",
+          "size": 1584
+        },
+        {
+          "blob_id": "c7c8f996ef89234e681044289ef389a6694fc635",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 7991
+        },
+        {
+          "blob_id": "0ee4f4dc416c2b9273660469577b187cff128264",
+          "lfs": null,
+          "path": "config.json",
+          "size": 2728
+        },
+        {
+          "blob_id": "4c9dbe8421f16335a39f128dc08e7f124402d75a",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 176
+        },
+        {
+          "blob_id": "57056d024fbe93760b77f2fd80db278e07ba34ba",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "d741e095415495722691076c0a7e892c7f4ab4dd883a85d084d7e29c0859d446",
+            "size": 1746942600
+          },
+          "path": "model.safetensors-00001-of-00001.safetensors",
+          "size": 1746942600
+        },
+        {
+          "blob_id": "f691cefdb79d73270895ebd6d9594ddcecfc1838",
+          "lfs": null,
+          "path": "model.safetensors.index.json",
+          "size": 50900
+        },
+        {
+          "blob_id": "a9804dd9789683a33fe72bd98bc0ccb71663afd1",
+          "lfs": null,
+          "path": "processor_config.json",
+          "size": 1325
+        },
+        {
+          "blob_id": "bdfbf8e4bd7ebaeb71119d425f20b7cee8b6b2fa",
+          "lfs": null,
+          "path": "receipts/eval/fleet-confabulation-sweep-20261108.json",
+          "size": 1641
+        },
+        {
+          "blob_id": "5520bfd2dd834ce386c1312c410fa71af56db5ad",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+            "size": 19989325
+          },
+          "path": "tokenizer.json",
+          "size": 19989325
+        },
+        {
+          "blob_id": "44294c462446ffac2325c43892c8b136733e5b76",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 15453
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "observed_at": "2026-11-16T23:01:58.906384+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "02c5567ca74beb39ff76e90e4b693fbf6cf15b89a613b75dedb915351eaeabac",
+        "error": null,
+        "hub_revision": "5ec45d7976f836f1fd04a02b6a742f61e0bb3d40",
+        "observed_at": "2026-11-16T23:01:58.867790+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 5252,
+        "sha256": "3cd97b386722ffdb3e9c647e0c202a8be47e709b62b617938dde07762c3dcf1f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/raw/5ec45d7976f836f1fd04a02b6a742f61e0bb3d40/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/revision/5ec45d7976f836f1fd04a02b6a742f61e0bb3d40?blobs=true",
+      "tree_sha256": "a22bceca7a0c297263ad4e5de2d0c03944d8ff15f7fd7531cc4af05d5a3bc5b1"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "d20544d382156f8f1afb6208448648e9e481a6e6",
+      "config": {
+        "bytes": 2728,
+        "sha256": "f1a691fe85677c8558e9a66b2e32ecd9e5e80855cad3500a7fe6fd60bd18aa3f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1/raw/d20544d382156f8f1afb6208448648e9e481a6e6/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "model_type": "qwen3_5"
+      },
+      "current_revision": "d20544d382156f8f1afb6208448648e9e481a6e6",
+      "file_count": 10,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "fa7a93f9495ec7f7888ecc2c68d23d98c77a34f0",
+          "lfs": null,
+          "path": "README.md",
+          "size": 4478
+        },
+        {
+          "blob_id": "c7c8f996ef89234e681044289ef389a6694fc635",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 7991
+        },
+        {
+          "blob_id": "0ee4f4dc416c2b9273660469577b187cff128264",
+          "lfs": null,
+          "path": "config.json",
+          "size": 2728
+        },
+        {
+          "blob_id": "4c9dbe8421f16335a39f128dc08e7f124402d75a",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 176
+        },
+        {
+          "blob_id": "a7f794513e890cccbcc24bd6c3874fc31ebcf744",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "2f89a693e22beb2b3f58f6a5c565deefaba1688b4093302a4ceda5724960b5e2",
+            "size": 1746942600
+          },
+          "path": "model.safetensors-00001-of-00001.safetensors",
+          "size": 1746942600
+        },
+        {
+          "blob_id": "f691cefdb79d73270895ebd6d9594ddcecfc1838",
+          "lfs": null,
+          "path": "model.safetensors.index.json",
+          "size": 50900
+        },
+        {
+          "blob_id": "a9804dd9789683a33fe72bd98bc0ccb71663afd1",
+          "lfs": null,
+          "path": "processor_config.json",
+          "size": 1325
+        },
+        {
+          "blob_id": "5520bfd2dd834ce386c1312c410fa71af56db5ad",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+            "size": 19989325
+          },
+          "path": "tokenizer.json",
+          "size": 19989325
+        },
+        {
+          "blob_id": "44294c462446ffac2325c43892c8b136733e5b76",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 15453
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "observed_at": "2026-11-16T23:01:59.074079+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "6b0a7afe0b6d02be5c4f6f3b4111a27096f513ea0743420c1dadf9c0a86358c8",
+        "error": null,
+        "hub_revision": "d20544d382156f8f1afb6208448648e9e481a6e6",
+        "observed_at": "2026-11-16T23:01:59.040706+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 4478,
+        "sha256": "a3f4817a449007576c92a38886d5266788332920539fb3ee29bafd3ca7474dda",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1/raw/d20544d382156f8f1afb6208448648e9e481a6e6/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1/revision/d20544d382156f8f1afb6208448648e9e481a6e6?blobs=true",
+      "tree_sha256": "9a54a67e1cd96c14161daa15bbadef611b43e67bbc56bad911507137f9f1b7d8"
+    },
+    {
+      "artifact_class": "standalone_weight_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "058a617209921299f9934a4863f88553a0eb029d",
+      "config": {
+        "bytes": 2728,
+        "sha256": "f1a691fe85677c8558e9a66b2e32ecd9e5e80855cad3500a7fe6fd60bd18aa3f",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1/raw/058a617209921299f9934a4863f88553a0eb029d/config.json"
+      },
+      "configuration_fields": {
+        "architectures": [
+          "Qwen3_5ForConditionalGeneration"
+        ],
+        "model_type": "qwen3_5"
+      },
+      "current_revision": "058a617209921299f9934a4863f88553a0eb029d",
+      "file_count": 10,
+      "file_metadata": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "8c6a01565316e48d811a0ec302a178bd4fd5e9b8",
+          "lfs": null,
+          "path": "README.md",
+          "size": 4566
+        },
+        {
+          "blob_id": "c7c8f996ef89234e681044289ef389a6694fc635",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 7991
+        },
+        {
+          "blob_id": "0ee4f4dc416c2b9273660469577b187cff128264",
+          "lfs": null,
+          "path": "config.json",
+          "size": 2728
+        },
+        {
+          "blob_id": "4c9dbe8421f16335a39f128dc08e7f124402d75a",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 176
+        },
+        {
+          "blob_id": "0de84a9bb69e2d8fd9ec64808af0d9d0a28cb8fa",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "229c9fc97551fbec705cb5421718d6fc99695578f533e8f7aebae0e4c0673265",
+            "size": 1746942600
+          },
+          "path": "model.safetensors-00001-of-00001.safetensors",
+          "size": 1746942600
+        },
+        {
+          "blob_id": "f691cefdb79d73270895ebd6d9594ddcecfc1838",
+          "lfs": null,
+          "path": "model.safetensors.index.json",
+          "size": 50900
+        },
+        {
+          "blob_id": "a9804dd9789683a33fe72bd98bc0ccb71663afd1",
+          "lfs": null,
+          "path": "processor_config.json",
+          "size": 1325
+        },
+        {
+          "blob_id": "5520bfd2dd834ce386c1312c410fa71af56db5ad",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+            "size": 19989325
+          },
+          "path": "tokenizer.json",
+          "size": 19989325
+        },
+        {
+          "blob_id": "44294c462446ffac2325c43892c8b136733e5b76",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 15453
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "observed_at": "2026-11-16T23:01:59.077843+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0e2bb64ae0c9f5c6c103426013fe92c28ae798fa5ce2e1ab0a3641fe8461b68c",
+        "error": null,
+        "hub_revision": "058a617209921299f9934a4863f88553a0eb029d",
+        "observed_at": "2026-11-16T23:01:59.047687+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 4566,
+        "sha256": "5af9b4f1ff774c6c361031a343f8b0076bc8d460a2994b936cdca66407a532c9",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1/raw/058a617209921299f9934a4863f88553a0eb029d/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1/revision/058a617209921299f9934a4863f88553a0eb029d?blobs=true",
+      "tree_sha256": "a4c3bf21cab4b90a98ac70b721db11fe6e36c0773fba7d9e9659254efce701ba"
+    },
+    {
+      "artifact_class": "adapter_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "4f117f77cb410c55785f9ebb3956eae73b938e61",
+      "config": {
+        "bytes": 1122,
+        "sha256": "921552956e9a2e106aa8ebbded8bb82ee7214a6a8ca51dcece4c869cb9a5ac0c",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r1-candidate/raw/4f117f77cb410c55785f9ebb3956eae73b938e61/final/adapter_config.json"
+      },
+      "configuration_fields": {
+        "base_model_name_or_path": "Qwen/Qwen3-1.7B",
+        "peft_type": "LORA",
+        "task_type": "CAUSAL_LM"
+      },
+      "current_revision": "4f117f77cb410c55785f9ebb3956eae73b938e61",
+      "file_count": 8,
+      "file_metadata": [
+        {
+          "blob_id": "f5293f58a1b10f2625281587d8961aee94d290a9",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1576
+        },
+        {
+          "blob_id": "45db8abb1566739105a7403ddcfcaa86773aa796",
+          "lfs": null,
+          "path": "README.md",
+          "size": 879
+        },
+        {
+          "blob_id": "948912ccc13924a19930448ab4830b8434efe74e",
+          "lfs": null,
+          "path": "final/README.md",
+          "size": 5197
+        },
+        {
+          "blob_id": "14bd087834f9a3c6c0acaed5758d6ab81f85107d",
+          "lfs": null,
+          "path": "final/adapter_config.json",
+          "size": 1122
+        },
+        {
+          "blob_id": "8913d1617d4730021092195fcb50b83f4a9d6cba",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "f97e8d288b906493fc7a15e8b73f9e3cd004c38229945b3d9891780359b3d331",
+            "size": 25720120
+          },
+          "path": "final/adapter_model.safetensors",
+          "size": 25720120
+        },
+        {
+          "blob_id": "01be9b307daa2d425f7c168c9fb145a286e0afb4",
+          "lfs": null,
+          "path": "final/chat_template.jinja",
+          "size": 4168
+        },
+        {
+          "blob_id": "c7afbed2efcdf019f88ab0572ec29d3bf595dfe2",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+            "size": 11422650
+          },
+          "path": "final/tokenizer.json",
+          "size": 11422650
+        },
+        {
+          "blob_id": "4d8760d91bde2ac751d25844835c33847a68cdf9",
+          "lfs": null,
+          "path": "final/tokenizer_config.json",
+          "size": 749
+        }
+      ],
+      "id": "SZLHOLDINGS/absrl-grpo-r1-candidate",
+      "observed_at": "2026-11-16T23:02:53.437831+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "79acff0a8b890df3755037cd5e0044142ba494d8f48fd134280560012782dbda",
+        "error": null,
+        "hub_revision": "4f117f77cb410c55785f9ebb3956eae73b938e61",
+        "observed_at": "2026-11-16T23:01:59.172209+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 879,
+        "sha256": "c198771b43d233e2e269ec38df582b41c091453163d10dc4157e05ddd8842260",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r1-candidate/raw/4f117f77cb410c55785f9ebb3956eae73b938e61/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r1-candidate/revision/4f117f77cb410c55785f9ebb3956eae73b938e61?blobs=true",
+      "tree_sha256": "00ed21a7bbe0bc0932658669c4d17d9aa291f3cb8844894595098c510ec1c7ff"
+    },
+    {
+      "artifact_class": "adapter_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "48241a20b45565512dceeaa22a998bead2d5372c",
+      "config": {
+        "bytes": 1122,
+        "sha256": "1ca207f645c2b14f1a6a34413297f3118a433d823dce8867db994d8be8467b09",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r2-candidate/raw/48241a20b45565512dceeaa22a998bead2d5372c/final/adapter_config.json"
+      },
+      "configuration_fields": {
+        "base_model_name_or_path": "Qwen/Qwen3-1.7B",
+        "peft_type": "LORA",
+        "task_type": "CAUSAL_LM"
+      },
+      "current_revision": "48241a20b45565512dceeaa22a998bead2d5372c",
+      "file_count": 8,
+      "file_metadata": [
+        {
+          "blob_id": "f5293f58a1b10f2625281587d8961aee94d290a9",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1576
+        },
+        {
+          "blob_id": "c003b82d2ff30ada23e2f7b07f4e89f1ef29e496",
+          "lfs": null,
+          "path": "README.md",
+          "size": 879
+        },
+        {
+          "blob_id": "948912ccc13924a19930448ab4830b8434efe74e",
+          "lfs": null,
+          "path": "final/README.md",
+          "size": 5197
+        },
+        {
+          "blob_id": "94827f6e62c7b1da45bdcc55c34b676703c2e6dd",
+          "lfs": null,
+          "path": "final/adapter_config.json",
+          "size": 1122
+        },
+        {
+          "blob_id": "7031f047f53cc18be43fb4589dcd43b33c93d95f",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "1bddb433bac0654d122b733c1735cf53f980f2b2ed46c02d735671a2cafb70f7",
+            "size": 25720120
+          },
+          "path": "final/adapter_model.safetensors",
+          "size": 25720120
+        },
+        {
+          "blob_id": "01be9b307daa2d425f7c168c9fb145a286e0afb4",
+          "lfs": null,
+          "path": "final/chat_template.jinja",
+          "size": 4168
+        },
+        {
+          "blob_id": "c7afbed2efcdf019f88ab0572ec29d3bf595dfe2",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+            "size": 11422650
+          },
+          "path": "final/tokenizer.json",
+          "size": 11422650
+        },
+        {
+          "blob_id": "4d8760d91bde2ac751d25844835c33847a68cdf9",
+          "lfs": null,
+          "path": "final/tokenizer_config.json",
+          "size": 749
+        }
+      ],
+      "id": "SZLHOLDINGS/absrl-grpo-r2-candidate",
+      "observed_at": "2026-11-16T23:02:53.528367+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b425bcd5ee866e34134aa2d3f682f05458fc6695cea299f3852eb34a8df924e4",
+        "error": null,
+        "hub_revision": "48241a20b45565512dceeaa22a998bead2d5372c",
+        "observed_at": "2026-11-16T23:01:59.335110+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 879,
+        "sha256": "53d9e8a42fcfcd1c16a5c166a42b021ce1c96898b838fe3dc63eaf8b2f00012a",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r2-candidate/raw/48241a20b45565512dceeaa22a998bead2d5372c/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r2-candidate/revision/48241a20b45565512dceeaa22a998bead2d5372c?blobs=true",
+      "tree_sha256": "2a4c887ad98ee380d9ab80e9ee146663cb04deb055402193eab661e6f99baf7b"
+    },
+    {
+      "artifact_class": "adapter_bundle",
+      "authority": {
+        "deployment": false,
+        "promotion": false,
+        "qualification": false,
+        "routing": false
+      },
+      "candidate_revision": "8934164c409963c34378d1222f756a0e8915d624",
+      "config": {
+        "bytes": 1122,
+        "sha256": "1af4c0963cf79f860bb4a28e61d1d3ef5cd61ad722d463ad52520a95e3460dac",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/abstention-doctrine-r1-candidate/raw/8934164c409963c34378d1222f756a0e8915d624/final/adapter_config.json"
+      },
+      "configuration_fields": {
+        "base_model_name_or_path": "Qwen/Qwen3-1.7B",
+        "peft_type": "LORA",
+        "task_type": "CAUSAL_LM"
+      },
+      "current_revision": "8934164c409963c34378d1222f756a0e8915d624",
+      "file_count": 52,
+      "file_metadata": [
+        {
+          "blob_id": "f4a5e826afb7eac88ef6abe6a306a6cebb1a3e83",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1839
+        },
+        {
+          "blob_id": "e6864fc24825774f7b801222e8a0cf131f66b8e4",
+          "lfs": null,
+          "path": "README.md",
+          "size": 846
+        },
+        {
+          "blob_id": "abe47f5922af3c3e89b70d17a0804fae24a3a82d",
+          "lfs": null,
+          "path": "checkpoint-100/README.md",
+          "size": 5196
+        },
+        {
+          "blob_id": "70bba4aa359e034c616e528b0aaab2c8d4080bf4",
+          "lfs": null,
+          "path": "checkpoint-100/adapter_config.json",
+          "size": 1122
+        },
+        {
+          "blob_id": "3c61ab1925f6e8fc56bfbdcda3260102cea81912",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "134b29520a0fe3d0891074831df79c91b53a0b0128c74f55718d5a10d03b225e",
+            "size": 51410328
+          },
+          "path": "checkpoint-100/adapter_model.safetensors",
+          "size": 51410328
+        },
+        {
+          "blob_id": "01be9b307daa2d425f7c168c9fb145a286e0afb4",
+          "lfs": null,
+          "path": "checkpoint-100/chat_template.jinja",
+          "size": 4168
+        },
+        {
+          "blob_id": "5a10414c8d6db35a0a7dbba19beab8e11d073d62",
+          "lfs": {
+            "pointer_size": 134,
+            "sha256": "1350c22c6e70f5205f5bf9113dad760296bf3c1c65baa58d1cfd445d6dfba16e",
+            "size": 102949579
+          },
+          "path": "checkpoint-100/optimizer.pt",
+          "size": 102949579
+        },
+        {
+          "blob_id": "5167a2191ea332d0ba53b71ce92a7f129e2bb768",
+          "lfs": {
+            "pointer_size": 130,
+            "sha256": "c8f76a94626df62b7ae3d857630a8eb4a4b6a108805e9ca88e267c966b7e02e9",
+            "size": 14645
+          },
+          "path": "checkpoint-100/rng_state.pth",
+          "size": 14645
+        },
+        {
+          "blob_id": "faeb6bb785a367ab15eccc583119a0d32f308acc",
+          "lfs": {
+            "pointer_size": 129,
+            "sha256": "4ac31e4f2d907b91e81e00ea39d6d51e185993d0d872839203b4e0dac91f2209",
+            "size": 1465
+          },
+          "path": "checkpoint-100/scheduler.pt",
+          "size": 1465
+        },
+        {
+          "blob_id": "c7afbed2efcdf019f88ab0572ec29d3bf595dfe2",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+            "size": 11422650
+          },
+          "path": "checkpoint-100/tokenizer.json",
+          "size": 11422650
+        },
+        {
+          "blob_id": "770e41d6c92519d525eede4cbcf3ba27f6425311",
+          "lfs": null,
+          "path": "checkpoint-100/tokenizer_config.json",
+          "size": 694
+        },
+        {
+          "blob_id": "4b1fb13e502222dd0cc85ae66a3bbeb24f39c480",
+          "lfs": null,
+          "path": "checkpoint-100/trainer_state.json",
+          "size": 3698
+        },
+        {
+          "blob_id": "c949fdfbf23643774a3acb270bfd470e0fc07513",
+          "lfs": {
+            "pointer_size": 129,
+            "sha256": "0270c10605177f5bc91acda6ac2f5b111d9fdb2d935ee571dd2462c7130ceea7",
+            "size": 5713
+          },
+          "path": "checkpoint-100/training_args.bin",
+          "size": 5713
+        },
+        {
+          "blob_id": "abe47f5922af3c3e89b70d17a0804fae24a3a82d",
+          "lfs": null,
+          "path": "checkpoint-150/README.md",
+          "size": 5196
+        },
+        {
+          "blob_id": "70bba4aa359e034c616e528b0aaab2c8d4080bf4",
+          "lfs": null,
+          "path": "checkpoint-150/adapter_config.json",
+          "size": 1122
+        },
+        {
+          "blob_id": "2d9bcda8f557e1880eb839fdf3579b95b075391d",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "ba473db8f0396d6242747e0e31ee10274a3fdc7f86ac9cf50a885557db6d6862",
+            "size": 51410328
+          },
+          "path": "checkpoint-150/adapter_model.safetensors",
+          "size": 51410328
+        },
+        {
+          "blob_id": "01be9b307daa2d425f7c168c9fb145a286e0afb4",
+          "lfs": null,
+          "path": "checkpoint-150/chat_template.jinja",
+          "size": 4168
+        },
+        {
+          "blob_id": "3ed645aba5314e41cb603cd4dd56bd4e3ac51e7c",
+          "lfs": {
+            "pointer_size": 134,
+            "sha256": "7f45ba4c6a711f45ce252acb22a0d0e4edb25041af68b905ab65d54debc7e169",
+            "size": 102949579
+          },
+          "path": "checkpoint-150/optimizer.pt",
+          "size": 102949579
+        },
+        {
+          "blob_id": "43fa57460070cf135c7089970ee10747448c493b",
+          "lfs": {
+            "pointer_size": 130,
+            "sha256": "73970c6d3a0a7116c7071dbb44c516c6a8c73423c256d3a4cf236de6c38585a8",
+            "size": 14645
+          },
+          "path": "checkpoint-150/rng_state.pth",
+          "size": 14645
+        },
+        {
+          "blob_id": "b8b1c290ea68e31466f336259efd41c82ca5e13a",
+          "lfs": {
+            "pointer_size": 129,
+            "sha256": "8687bf4dc059c53bcf8ca78690b54240cc0b772265f0dfa87df61b4f78e9d292",
+            "size": 1465
+          },
+          "path": "checkpoint-150/scheduler.pt",
+          "size": 1465
+        },
+        {
+          "blob_id": "c7afbed2efcdf019f88ab0572ec29d3bf595dfe2",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+            "size": 11422650
+          },
+          "path": "checkpoint-150/tokenizer.json",
+          "size": 11422650
+        },
+        {
+          "blob_id": "770e41d6c92519d525eede4cbcf3ba27f6425311",
+          "lfs": null,
+          "path": "checkpoint-150/tokenizer_config.json",
+          "size": 694
+        },
+        {
+          "blob_id": "89995f13f57c64fe5e12676c050ee4f24015df11",
+          "lfs": null,
+          "path": "checkpoint-150/trainer_state.json",
+          "size": 5168
+        },
+        {
+          "blob_id": "c949fdfbf23643774a3acb270bfd470e0fc07513",
+          "lfs": {
+            "pointer_size": 129,
+            "sha256": "0270c10605177f5bc91acda6ac2f5b111d9fdb2d935ee571dd2462c7130ceea7",
+            "size": 5713
+          },
+          "path": "checkpoint-150/training_args.bin",
+          "size": 5713
+        },
+        {
+          "blob_id": "abe47f5922af3c3e89b70d17a0804fae24a3a82d",
+          "lfs": null,
+          "path": "checkpoint-200/README.md",
+          "size": 5196
+        },
+        {
+          "blob_id": "70bba4aa359e034c616e528b0aaab2c8d4080bf4",
+          "lfs": null,
+          "path": "checkpoint-200/adapter_config.json",
+          "size": 1122
+        },
+        {
+          "blob_id": "44aa719cb606ee6bd2ef65df7b12ea677e1d000a",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "f08f2c64037e9ff2736209bcc54082d4d4724407f6213466323337f5fccc4788",
+            "size": 51410328
+          },
+          "path": "checkpoint-200/adapter_model.safetensors",
+          "size": 51410328
+        },
+        {
+          "blob_id": "01be9b307daa2d425f7c168c9fb145a286e0afb4",
+          "lfs": null,
+          "path": "checkpoint-200/chat_template.jinja",
+          "size": 4168
+        },
+        {
+          "blob_id": "648b80e9943d2d9902781fd06b5ee15b73ac85dd",
+          "lfs": {
+            "pointer_size": 134,
+            "sha256": "b1c7091d5cb24ef22be97ea20e0f28f9d34d53842c9af321e4888975c2b16c71",
+            "size": 102949579
+          },
+          "path": "checkpoint-200/optimizer.pt",
+          "size": 102949579
+        },
+        {
+          "blob_id": "1772088282241fe9de7bbfa8199585e79656e38c",
+          "lfs": {
+            "pointer_size": 130,
+            "sha256": "0d1bfbcabf91f2867ea69880c4e8eb89f5f48cb4c177df077b7c4530aeff761d",
+            "size": 14645
+          },
+          "path": "checkpoint-200/rng_state.pth",
+          "size": 14645
+        },
+        {
+          "blob_id": "385b7adfc371cb871954f3a0c63c647d7759192a",
+          "lfs": {
+            "pointer_size": 129,
+            "sha256": "5d155562d5c2ce2bbfbed0fc73895212e2c338cccc438b27e8570142f314925e",
+            "size": 1465
+          },
+          "path": "checkpoint-200/scheduler.pt",
+          "size": 1465
+        },
+        {
+          "blob_id": "c7afbed2efcdf019f88ab0572ec29d3bf595dfe2",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+            "size": 11422650
+          },
+          "path": "checkpoint-200/tokenizer.json",
+          "size": 11422650
+        },
+        {
+          "blob_id": "770e41d6c92519d525eede4cbcf3ba27f6425311",
+          "lfs": null,
+          "path": "checkpoint-200/tokenizer_config.json",
+          "size": 694
+        },
+        {
+          "blob_id": "d3e2537c1c57312207c623d775746e9ad9765f40",
+          "lfs": null,
+          "path": "checkpoint-200/trainer_state.json",
+          "size": 6686
+        },
+        {
+          "blob_id": "c949fdfbf23643774a3acb270bfd470e0fc07513",
+          "lfs": {
+            "pointer_size": 129,
+            "sha256": "0270c10605177f5bc91acda6ac2f5b111d9fdb2d935ee571dd2462c7130ceea7",
+            "size": 5713
+          },
+          "path": "checkpoint-200/training_args.bin",
+          "size": 5713
+        },
+        {
+          "blob_id": "abe47f5922af3c3e89b70d17a0804fae24a3a82d",
+          "lfs": null,
+          "path": "checkpoint-50/README.md",
+          "size": 5196
+        },
+        {
+          "blob_id": "70bba4aa359e034c616e528b0aaab2c8d4080bf4",
+          "lfs": null,
+          "path": "checkpoint-50/adapter_config.json",
+          "size": 1122
+        },
+        {
+          "blob_id": "4c083f11c408b6a949a38e52d2b51d10d8ce22b3",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "596437b5a1358c45614e91ca695ac54195bc3fa99d765352fbbfe659cd7f7bd2",
+            "size": 51410328
+          },
+          "path": "checkpoint-50/adapter_model.safetensors",
+          "size": 51410328
+        },
+        {
+          "blob_id": "01be9b307daa2d425f7c168c9fb145a286e0afb4",
+          "lfs": null,
+          "path": "checkpoint-50/chat_template.jinja",
+          "size": 4168
+        },
+        {
+          "blob_id": "bdd3aa6015e872472cd72b639e15fda18a88d2ff",
+          "lfs": {
+            "pointer_size": 134,
+            "sha256": "efead11c63ad378476bc251ccea3e491d3dfd13e94ab31c02c92358b74e35bff",
+            "size": 102949579
+          },
+          "path": "checkpoint-50/optimizer.pt",
+          "size": 102949579
+        },
+        {
+          "blob_id": "181dd4070657d1567b2a475d0ad8a68ca99dc50b",
+          "lfs": {
+            "pointer_size": 130,
+            "sha256": "ff7d6378b2154807b49ba271653af39e20905e0083dbafc25f209b874e758800",
+            "size": 14645
+          },
+          "path": "checkpoint-50/rng_state.pth",
+          "size": 14645
+        },
+        {
+          "blob_id": "a9008ac3e197b2c01c9a15f1e6ae58c5830328d7",
+          "lfs": {
+            "pointer_size": 129,
+            "sha256": "103f48442c46172aa72965a6fa450502ab3136566ae7bb88ba108ea05eab43ec",
+            "size": 1465
+          },
+          "path": "checkpoint-50/scheduler.pt",
+          "size": 1465
+        },
+        {
+          "blob_id": "c7afbed2efcdf019f88ab0572ec29d3bf595dfe2",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+            "size": 11422650
+          },
+          "path": "checkpoint-50/tokenizer.json",
+          "size": 11422650
+        },
+        {
+          "blob_id": "770e41d6c92519d525eede4cbcf3ba27f6425311",
+          "lfs": null,
+          "path": "checkpoint-50/tokenizer_config.json",
+          "size": 694
+        },
+        {
+          "blob_id": "12731f742e3dd843359aae5cb74b2d18f9ebddf6",
+          "lfs": null,
+          "path": "checkpoint-50/trainer_state.json",
+          "size": 2223
+        },
+        {
+          "blob_id": "c949fdfbf23643774a3acb270bfd470e0fc07513",
+          "lfs": {
+            "pointer_size": 129,
+            "sha256": "0270c10605177f5bc91acda6ac2f5b111d9fdb2d935ee571dd2462c7130ceea7",
+            "size": 5713
+          },
+          "path": "checkpoint-50/training_args.bin",
+          "size": 5713
+        },
+        {
+          "blob_id": "abe47f5922af3c3e89b70d17a0804fae24a3a82d",
+          "lfs": null,
+          "path": "final/README.md",
+          "size": 5196
+        },
+        {
+          "blob_id": "70bba4aa359e034c616e528b0aaab2c8d4080bf4",
+          "lfs": null,
+          "path": "final/adapter_config.json",
+          "size": 1122
+        },
+        {
+          "blob_id": "44aa719cb606ee6bd2ef65df7b12ea677e1d000a",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "f08f2c64037e9ff2736209bcc54082d4d4724407f6213466323337f5fccc4788",
+            "size": 51410328
+          },
+          "path": "final/adapter_model.safetensors",
+          "size": 51410328
+        },
+        {
+          "blob_id": "01be9b307daa2d425f7c168c9fb145a286e0afb4",
+          "lfs": null,
+          "path": "final/chat_template.jinja",
+          "size": 4168
+        },
+        {
+          "blob_id": "c7afbed2efcdf019f88ab0572ec29d3bf595dfe2",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+            "size": 11422650
+          },
+          "path": "final/tokenizer.json",
+          "size": 11422650
+        },
+        {
+          "blob_id": "770e41d6c92519d525eede4cbcf3ba27f6425311",
+          "lfs": null,
+          "path": "final/tokenizer_config.json",
+          "size": 694
+        }
+      ],
+      "id": "SZLHOLDINGS/abstention-doctrine-r1-candidate",
+      "observed_at": "2026-11-16T23:02:53.614825+00:00",
+      "provider_observation": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "906c5d425d3def5c43622ab3f52237d42d9ccdfba67bfae479a8597ad640e3bf",
+        "error": null,
+        "hub_revision": "8934164c409963c34378d1222f756a0e8915d624",
+        "observed_at": "2026-11-16T23:01:59.287851+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-doctrine-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "readme": {
+        "bytes": 846,
+        "sha256": "5ae08a009f9550d4c5fd824e67907b718e8f9fae7498ca44714642a3641519cd",
+        "state": "OBSERVED",
+        "url": "https://huggingface.co/SZLHOLDINGS/abstention-doctrine-r1-candidate/raw/8934164c409963c34378d1222f756a0e8915d624/README.md"
+      },
+      "state": "REVIEWED_PUBLIC_METADATA_ONLY",
+      "tree_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-doctrine-r1-candidate/revision/8934164c409963c34378d1222f756a0e8915d624?blobs=true",
+      "tree_sha256": "2edaaa049a1ea8a2723734eb8e2c656aec42163f08afc3f8e105423020969c76"
+    }
+  ],
+  "observed_at": "2026-11-16T23:02:53.614825+00:00",
+  "schema": "szl.public-model-support-source-review/v1",
+  "source_revision": "628b3f10de1ea9837ce5c535c4c20b722c45b320"
+}

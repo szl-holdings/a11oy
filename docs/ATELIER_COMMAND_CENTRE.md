@@ -41,7 +41,8 @@ new runtime dependency was added.
 `routers/command_centre_web/index.html` is a retained, **non-serving migration
 reference**. It is not loaded by the page route or counted as the rendered page
 owner. The existing `app.js`, stylesheet and byte-bound SZL design assets remain
-served at their existing paths.
+available at their existing paths with `Cache-Control: no-store`. Newly rendered
+pages use the digest URLs described below.
 
 The Ownership section consumes only the local canonical
 `static/shared/public-estate-contract.v1.json`. It projects the fixed public
@@ -78,6 +79,55 @@ only. This UI slice creates no new credential, session/BFF, action route,
 provider adapter, scheduler or state store; production admission remains
 separate.
 
+### Exact asset delivery and browser integrity
+
+The Python renderer derives each asset URL and `integrity` attribute from the
+existing `manifest.presentation.sources` map. It emits exactly four same-origin
+references, with no query-based version selection:
+
+| Fixed filename | Existing source key |
+|---|---|
+| `app.js` | `routers/command_centre_web/app.js` |
+| `style.css` | `routers/command_centre_web/style.css` |
+| `szl-design-system.css` | `routers/command_centre_web/szl/szl-design-system.css` |
+| `szl-console.css` | `routers/command_centre_web/szl/szl-console.css` |
+
+The URL is `/command-centre/assets/<64-lowercase-sha256>/<fixedfilename>`.
+Its SRI value is `sha256-` followed by the base64 encoding of those 32 digest
+bytes. This uses the W3C [Subresource Integrity](https://www.w3.org/TR/2016/REC-SRI-20160623/)
+mechanism: a supporting browser checks fetched script and stylesheet bytes
+against the document's integrity value before using them. These references
+stay on the page origin; the stylesheet order and all four asset files are
+unchanged. The three stylesheets have no `url(...)` or `@import` references
+whose resolution would change at the new path.
+
+The route maps only those four names to fixed bundled files. A request never
+selects a filesystem path. It reads at most 1 MiB plus one size-check byte,
+requires a regular file, hashes that exact body and returns the same body only
+when its digest matches the URL. Successful responses carry
+`Cache-Control: public, max-age=31536000, immutable, no-transform`. Errors carry
+`no-store`: malformed names or digests return 404 `ASSET_NOT_FOUND`, changed
+bytes return 404 `ASSET_DIGEST_MISMATCH`, and missing or oversized files return
+503 `ASSET_UNAVAILABLE`. A stale digest never redirects to or serves current
+bytes. Previous deployment bytes are not retained by this route; an older page
+may require a reload if its asset is no longer available from the origin or
+cache.
+
+All four source digests are mandatory for page rendering. Missing or malformed
+metadata returns the existing 503 `PAGE_SOURCE_UNAVAILABLE`; the renderer does
+not emit an unbound fallback script. Its component validator admits only the
+fixed digest paths with matching SRI. All three form send buttons remain
+disabled in the initial HTML. If the browser refuses the action client for an
+integrity mismatch, that client cannot enable the buttons or initiate its
+read-only status refresh.
+
+This binds the delivered assets to the delivered document. It does not prove
+that the document itself is the newest protected source, defeat a coherently
+stale document and asset pair, or establish authenticated inference. Release
+verification must still compare the actual product source, manifest, HTML
+references, SRI and loaded asset bytes. No cache purge, Worker/route mutation,
+DNS change, credential path or execution authority is added.
+
 ### Local source presentation verification
 
 Install the hash-locked `.github/requirements/ci-rag.txt` and
@@ -96,7 +146,11 @@ call a model. Inventory and health dependencies are explicit unavailable fixture
 It checks both routes at 320, 390 and 1280 pixels with JavaScript enabled and
 disabled, exact owner bytes/security headers, retained navigation/forms,
 horizontal overflow and keyboard skip-link behavior. Foreign requests, non-GET
-requests and WebSockets are refused; service workers are blocked.
+requests and WebSockets are refused; service workers are blocked. The local
+GET allowlist includes only the four digest paths derived from that fixture's
+exact source map. A separate browser regression returns altered JavaScript with
+HTTP 200 and proves that SRI prevents its execution and leaves all send buttons
+disabled; it contacts no model or operational runtime.
 
 The report binds the checkout, renderer inputs, public contract, source files,
 browser and screenshot hashes. CI retains it with screenshots as local
@@ -399,3 +453,46 @@ verification and persistent outcome receipt. Close deployment only after the
 publisher attests the exact merged source and HF bytes, followed by live probes of
 the product and proof surfaces. Neither navigation, HTTP 200, a model ranking nor
 a RUNNING Space closes those gates.
+
+
+## Request-bound browser outcomes
+
+The three existing turn request models accept an optional lowercase UUID-v4
+`client_request_id`. The command centre generates a fresh ID for each submitted
+snapshot; old API callers may omit it. The backend retains a supplied ID in both
+signed DECISION and OUTCOME metadata, without forwarding it to the model provider.
+This is a correlation binding, not an authorization grant, idempotency key, or
+exactly-once guarantee. Reusing the ID can still cause another request; ambiguous
+outcomes must not be automatically retried.
+
+CPU-lab consent is held only in page memory and binds the exact acknowledged
+prompt. Editing the prompt revokes it, and a submit-time equality check catches
+programmatic draft changes that do not emit input events. Submission and pagehide
+clear this consent. It is an additional UI safety measure, not comprehensive DLP
+or a security boundary against malicious same-origin code.
+
+A successful HTTP response is no longer enough to display an answer. The browser
+requires a completed outcome whose correlation ID, request ID, prompt/answer
+hashes, provider, model, declared source, decision reference, receipt flags and
+DSSE payload agree with the submitted snapshot. Inconsistent or missing evidence
+withholds the answer and leaves the outcome uncertain. Browser response bodies
+are bounded to 1 MiB, and redirects are refused. CPU execution records retain the
+UNSIGNED disclosure.
+
+The page explicitly distinguishes server-reported signature verification from
+independent verification in the browser. It does not verify a DSSE signature with
+an independently admitted key, prove source bytes, re-prove ledger durability,
+or establish model quality. Process source labels remain declarations. Hash
+comparisons and correlation IDs must not be promoted into ORO semantic progress.
+
+The client and API change must be published together through the existing sole
+publisher. A new browser talking to an old API is expected to fail closed on the
+unknown request field rather than silently drop the correlation requirement.
+The local JavaScript contract tests run from `tests/test_command_centre.py` using
+Node >=18 and synthetic transport/DOM fixtures. Real backend signing tests use
+fresh ephemeral test keys and temporary ledgers. Neither category is a live
+provider or production release receipt.
+
+See [Evidence-bound action architecture](EVIDENCE_BOUND_ACTION_ARCHITECTURE.md)
+for the researched design basis, implemented scope, and separately labeled
+counterfactual-evidence roadmap.

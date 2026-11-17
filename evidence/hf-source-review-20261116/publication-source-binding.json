@@ -1,0 +1,70 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "promotion_authority": false,
+  "release_receipt_status": "UNSIGNED_EXACT_REVISION_READBACK",
+  "source_files": [
+    {
+      "bytes": 4904,
+      "matches_publication": true,
+      "path": "receiptagent/adversarial.jsonl",
+      "sha256": "81d2a494ee41256c7909a54435c4e7971fea65de81fffbf3f2b8a008aab5a572"
+    },
+    {
+      "bytes": 7908,
+      "matches_publication": true,
+      "path": "receiptagent/eval.jsonl",
+      "sha256": "1a92bea9b163882ae7c7aa00be6c1fda3e9c98683f0214af985bfb184e27ff65"
+    },
+    {
+      "bytes": 2788,
+      "matches_publication": true,
+      "path": "receiptagent/eval_receipt.signed.json",
+      "sha256": "9c190a1b2ded20bdd22b663cb139cbf008ca045a9e361acc265faa60c5053ac2"
+    },
+    {
+      "bytes": 1722,
+      "matches_publication": true,
+      "path": "receiptagent/manifest.json",
+      "sha256": "c1ece24e71fd4db5d05903d8d990d4e6aabe9ea96e1b5de5530ab5c5cc136bd8"
+    },
+    {
+      "bytes": 144,
+      "matches_publication": true,
+      "path": "receiptagent/owner_pubkey.json",
+      "sha256": "c5b47506f7ccffaf526030274c9f8766c07e6f183255972e9b95ad84f13b75be"
+    },
+    {
+      "bytes": 3977,
+      "matches_publication": true,
+      "path": "receiptagent/receiptagent.schema.json",
+      "sha256": "1db07ef9e1581cc8cc471dd42e79a21b728c4e3bf1222fd0f06f2b7257bb288e"
+    },
+    {
+      "bytes": 23935,
+      "matches_publication": true,
+      "path": "receiptagent/train.jsonl",
+      "sha256": "775e25b526a96d1486e80aae048f731bdad02a0d94ea76144593e115802fa24f"
+    },
+    {
+      "bytes": 6720,
+      "matches_publication": true,
+      "path": "receiptagent/train.refusals.jsonl",
+      "sha256": "c5136b612951c209d1041839d1ac19a8fa378c31015d61dd7565994b4f3e2b47"
+    },
+    {
+      "bytes": 10005,
+      "matches_publication": true,
+      "path": "receiptagent/train_receiptagent.py",
+      "sha256": "e603694420991c80d490b39c447493eb0fbc10b302dc5a76499beee64b959635"
+    },
+    {
+      "bytes": 2646,
+      "matches_publication": true,
+      "path": "receiptagent/training_receipt.signed.json",
+      "sha256": "2e9a364a91550a77d4e0a6e20d6c8ff5a9da69defe94f12cd3b62b10a113b323"
+    }
+  ],
+  "source_repository": "szl-holdings/szl-forge",
+  "source_revision": "c94e9218093e0815745cbd5dccaddea1797379a3",
+  "state": "ALL_BOUND_SOURCE_FILES_VERIFIED"
+}

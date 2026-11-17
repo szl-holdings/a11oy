@@ -11,7 +11,6 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 _REPO = Path(__file__).parent.parent.resolve()
 if str(_REPO) not in sys.path:
@@ -36,53 +35,6 @@ from packages.inference.src.voters.khipu_gguf import (
     khipu_lab_v1,
     khipu_pin,
 )
-
-
-class _FakeResp:
-    def __init__(self, status_code, payload):
-        self.status_code = status_code
-        self._payload = payload
-        self.headers = {"content-type": "application/json"}
-
-    def json(self):
-        return self._payload
-
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            import httpx
-
-            request = httpx.Request("POST", "http://lab.test/v1/chat/completions")
-            raise httpx.HTTPStatusError(
-                "lab error",
-                request=request,
-                response=httpx.Response(self.status_code, request=request),
-            )
-
-
-class _FakeAsyncClient:
-    last_post = None
-
-    def __init__(self, *args, **kwargs):
-        pass
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *args):
-        return None
-
-    async def post(self, url, json=None, headers=None):
-        _FakeAsyncClient.last_post = {"url": url, "json": json, "headers": headers}
-        return _FakeResp(
-            200,
-            {
-                "choices": [{"message": {"content": "Khipu is a signed receipt DAG."}}],
-                "usage": {"prompt_tokens": 51, "completion_tokens": 21, "total_tokens": 72},
-                "elapsed_ms": 2053,
-                "signature": "UNSIGNED",
-                "record_sha256": KHIPU_MEASURED_PROBE_2026_08_28["record_sha256"],
-            },
-        )
 
 
 def test_pin_matches_measured_2026_08_28():
@@ -191,37 +143,44 @@ def test_dummy_bearer_is_not_a_secret_literal():
     assert SOVEREIGN_VOTER_ID == "khipu-gguf"
 
 
-def test_vote_clamps_and_uses_dummy_bearer_not_hf_token(monkeypatch):
+def test_voter_metadata_discloses_retirement():
+    voter = KhipuGGUFVoter()
+    assert voter.is_available() is False
+    metadata = voter.metadata()
+    assert metadata["status"] == "unavailable"
+    assert metadata["state"] == "RETIRED"
+    assert "RETIRED" in metadata["reason"]
+    assert metadata["successor"]["operator_authentication_required"] is True
+    assert metadata["successor"]["public_share_acknowledged"] is True
+    assert khipu_pin()["generation_state"] == "RETIRED"
+
+
+def test_vote_is_unavailable_without_egress_or_fallback(monkeypatch):
+    import socket
+    import urllib.request
+    import httpx
+    def forbidden(*args, **kwargs):
+        raise AssertionError("retired voter attempted transport or inference")
+    monkeypatch.setattr(httpx, "AsyncClient", forbidden)
+    monkeypatch.setattr(urllib.request, "urlopen", forbidden)
+    monkeypatch.setattr(socket, "create_connection", forbidden)
     monkeypatch.setenv("A11OY_KHIPU_LAB_BASE", "http://lab.test")
-    monkeypatch.setenv("HF_TOKEN", "this-must-never-be-sent")
-    _FakeAsyncClient.last_post = None
-    with patch("packages.inference.src.voters.khipu_gguf.httpx.AsyncClient", _FakeAsyncClient):
-        result = asyncio.run(KhipuGGUFVoter().vote(prompt="hello", max_tokens=999, temperature=0.9))
-
-    assert result["status"] == "ok"
-    assert result["text"] == "Khipu is a signed receipt DAG."
-    posted = _FakeAsyncClient.last_post
-    assert posted is not None
-    assert posted["url"] == "http://lab.test/v1/chat/completions"
-    assert posted["json"]["max_tokens"] == 32
-    assert posted["json"]["temperature"] == KHIPU_TEMPERATURE
-    assert posted["json"]["stream"] is False
-    assert posted["headers"]["Authorization"] == "Bearer not-a-secret"
-    assert "this-must-never-be-sent" not in str(posted["headers"])
-    assert "HF_TOKEN" not in str(posted["headers"])
-    assert "tokens_per_second" not in result
-    assert "tok/s" not in str(result)
+    monkeypatch.setenv("HF_TOKEN", "test-only-unused")
+    voter = KhipuGGUFVoter()
+    monkeypatch.setattr(voter, "_call", forbidden)
+    result = asyncio.run(voter.vote(
+        prompt="private prompt", max_tokens=999, temperature=0.9,
+        public_share_acknowledged=True, declared="PUBLIC",
+    ))
+    assert result["status"] == "unavailable" and result["text"] is None
+    assert result["latency_ms"] is None
+    assert "RETIRED" in result["reason"]
+    assert "token_not_present" not in result["reason"]
+    assert "private prompt" not in str(result)
+    assert "test-only-unused" not in str(result)
 
 
-def test_vote_lab_error_is_error_not_stub(monkeypatch):
-    class _FailClient(_FakeAsyncClient):
-        async def post(self, url, json=None, headers=None):
-            return _FakeResp(503, {"error": "lab down"})
-
-    monkeypatch.setenv("A11OY_KHIPU_LAB_BASE", "http://lab.test")
-    with patch("packages.inference.src.voters.khipu_gguf.httpx.AsyncClient", _FailClient):
-        result = asyncio.run(KhipuGGUFVoter().vote(prompt="hello"))
-
-    assert result["status"] == "error"
-    assert result["text"] is None
-    assert "STUB" not in (result.get("reason") or "")
+def test_direct_legacy_call_is_also_retired():
+    import pytest
+    with pytest.raises(RuntimeError, match="RETIRED"):
+        asyncio.run(KhipuGGUFVoter()._call(prompt="must never be forwarded"))

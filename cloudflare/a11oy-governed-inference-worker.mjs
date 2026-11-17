@@ -525,11 +525,54 @@ export function extractModelText(value) {
 }
 
 export function sanitizeModelOutput(value) {
-  let text = String(value || "")
-    .replace(/<think>[\s\S]*?<\/think>/giu, "")
-    .replace(/<analysis>[\s\S]*?<\/analysis>/giu, "")
-    .replace(/```analysis[\s\S]*?```/giu, "")
-    .trim();
+  const raw = String(value || "");
+  const parts = [];
+  const stack = [];
+  let cursor = 0;
+  // A stack prevents an inner closing tag from exposing an outer reasoning block.
+  const markers = /<(\/?)(think|analysis)>|```(analysis\b)?/giu;
+  for (const match of raw.matchAll(markers)) {
+    if (!stack.length) parts.push(raw.slice(cursor, match.index));
+    const tag = match[2]?.toLowerCase();
+    if (tag) {
+      if (stack.at(-1) !== "analysis_fence") {
+        if (match[1] === "/") {
+          if (stack.pop() !== tag) {
+            throw new GovernedError("model_reasoning_boundary_invalid", 502);
+          }
+        } else {
+          stack.push(tag);
+        }
+      }
+    } else if (match[3]) {
+      if (stack.at(-1) === "analysis_fence") {
+        throw new GovernedError("model_reasoning_boundary_invalid", 502);
+      }
+      stack.push("analysis_fence");
+    } else if (stack.at(-1) === "analysis_fence") {
+      const lineStart = raw.lastIndexOf("\n", match.index - 1) + 1;
+      const lineEnd = raw.indexOf("\n", match.index + match[0].length);
+      const surrounding = raw.slice(lineStart, match.index)
+        + raw.slice(match.index + match[0].length, lineEnd < 0 ? raw.length : lineEnd);
+      if (!/^[ \t\r]*$/u.test(surrounding)) {
+        throw new GovernedError("model_reasoning_boundary_invalid", 502);
+      }
+      stack.pop();
+    } else if (!stack.length) {
+      parts.push(match[0]);
+    }
+    cursor = match.index + match[0].length;
+  }
+  if (stack.length) {
+    throw new GovernedError("model_reasoning_boundary_invalid", 502);
+  }
+  parts.push(raw.slice(cursor));
+  let text = parts.join("");
+  // Unsupported or truncated reserved markers cannot establish a safe final boundary.
+  if (/<\s*(?:\/\s*)?(?:think|analysis)\b|```[ \t]*analysis\b/iu.test(text)) {
+    throw new GovernedError("model_reasoning_boundary_invalid", 502);
+  }
+  text = text.trim();
   if (!text) throw new GovernedError("empty_model_output", 502);
   if (text.length > MAX_OUTPUT_CHARS) {
     text = text.slice(0, MAX_OUTPUT_CHARS).trimEnd();

@@ -604,6 +604,22 @@ except Exception as _gdw_frontier_error:  # pragma: no cover - fail one surface 
     }
 
 
+# Provenance layer: ORO inspects existing canonical owners at request time.
+# Importing the standalone oro.api would construct a separate store and signer;
+# this registrar exposes only bounded public evidence and no mutation routes.
+try:
+    from oro.evidence_api import register as _register_oro_evidence
+
+    _ORO_EVIDENCE_STATUS = _register_oro_evidence(app)
+except Exception as _oro_evidence_error:  # pragma: no cover - isolated surface failure
+    _ORO_EVIDENCE_STATUS = {
+        "ok": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_oro_evidence_error).__name__,
+        "routes": [],
+    }
+
+
 # Services layer: the public Steward namespace is reserved before either
 # catch-all. Its pinned package may be unavailable or stale, but its reader
 # still rejects non-GET requests rather than forwarding them to the proxy.
@@ -5242,12 +5258,19 @@ async def shutdown() -> None:
         if _http_client:
             await _http_client.aclose()
     finally:
-        # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
-        # gdw_runtime finally may never run, so await the final snapshot and
-        # lease release here, while the process is still alive.
-        import a11oy_state_store
+        try:
+            # This hook is registered before the Series-A shutdown handler.
+            # Stop its producers before the final snapshot and lease release.
+            service = getattr(app.state, "szl_series_a_service", None)
+            if service is not None:
+                await service.stop()
+        finally:
+            # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
+            # gdw_runtime finally may never run, so await storage finalization
+            # even when a producer's cleanup reports an error.
+            import a11oy_state_store
 
-        await asyncio.to_thread(a11oy_state_store.shutdown)
+            await asyncio.to_thread(a11oy_state_store.shutdown)
 
 
 # ---------------------------------------------------------------------------
@@ -5428,6 +5451,7 @@ def _preflight_signal() -> dict:
 # ---------------------------------------------------------------------------
 
 import time as _hz_time
+import threading as _hz_threading
 _A11OY_START_TIME = _hz_time.time()
 # Last-known dependency (Node :8081) ping, cached so /healthz stays dependency-light
 # and NEVER 5xx; any failure degrades honestly instead of faking green (Doctrine v11).
@@ -5531,14 +5555,22 @@ def _frontier_liveness_signal() -> dict:
         readiness = summary["operational_readiness"]
         live = readiness["ready_tiles"]
         blocked = readiness["blocked_tiles"]
+        # By-design-never-satisfiable capabilities are reported separately by the
+        # manifest (#3654). They are neither live nor blocked, so the partition check
+        # below must count them too; a malformed report fails closed.
+        nrv = readiness.get("not_runtime_verifiable") or []
+        nrv_valid = isinstance(nrv, list) and all(
+            isinstance(row, dict) and isinstance(row.get("name"), str)
+            and bool(row["name"].strip()) for row in nrv)
         degraded = [row["name"] for row in blocked]
         # The manifest distinguishes readable sources from operating capabilities.
         # A stopped operator or MODELED tile can be reachable without being live.
         # Missing/inconsistent readiness evidence must never become an ok rollup.
         if (type(total) is not int or total < 0
                 or not isinstance(live, list) or not isinstance(blocked, list)
+                or not nrv_valid
                 or type(readiness["ready"]) is not bool
-                or total != len(live) + len(blocked)
+                or total != len(live) + len(blocked) + len(nrv)
                 or readiness["ready"] != (bool(total) and not blocked)):
             raise ValueError("frontier operational readiness evidence is inconsistent")
         degraded_n = len(blocked)
@@ -5567,21 +5599,24 @@ def _frontier_liveness_signal() -> dict:
 # NEVER fakes a reachable node. A tunnel may answer from cloud, but reachability
 # does not verify an owned GPU, weights, or the doctrine wrapper.
 _SOVEREIGN_HZ_CACHE: dict = {}
+_SOVEREIGN_HZ_LOCK = _hz_threading.Lock()
 
 
 def _sovereign_health_signal(ttl: float = 30.0) -> dict:
-    now = _hz_time.time()
-    ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
-    if ca is not None and (now - ca) < ttl:
-        return _SOVEREIGN_HZ_CACHE.get("value", {})
-    try:
-        import szl_sovereign_panel as _szl_sov_hz
-        val = _szl_sov_hz.rollup_signal()
-    except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
-        val = {"reachable": False, "model": "szl-sovereign-local",
-               "label": "UNAVAILABLE", "error": type(exc).__name__}
-    _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
-    return val
+    # One refresh for this cache key, including the fail-closed error result.
+    with _SOVEREIGN_HZ_LOCK:
+        now = _hz_time.time()
+        ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
+        if ca is not None and (now - ca) < ttl:
+            return _SOVEREIGN_HZ_CACHE.get("value", {})
+        try:
+            import szl_sovereign_panel as _szl_sov_hz
+            val = _szl_sov_hz.rollup_signal()
+        except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
+            val = {"reachable": False, "model": "szl-sovereign-local",
+                   "label": "UNAVAILABLE", "error": type(exc).__name__}
+        _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
+        return val
 
 
 # Wave O / Dev 5: compact Brain rollup for /healthz. Reads the Brain command layer
@@ -5609,6 +5644,7 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
 
 @app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
+    from starlette.concurrency import run_in_threadpool
     from szl_brain import mcp_inventory_snapshot
     _mcp_inventory = mcp_inventory_snapshot("a11oy")
     # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
@@ -5618,8 +5654,9 @@ async def healthz() -> JSONResponse:
     _ca = dep.get("checked_at")
     _storage = _ledger_storage_signal()
     _signer = _signer_availability_signal()
-    _frontier = _frontier_liveness_signal()
-    _sovereign = _sovereign_health_signal()
+    # These cached rollups may perform bounded synchronous probes on a miss.
+    _frontier = await run_in_threadpool(_frontier_liveness_signal)
+    _sovereign = await run_in_threadpool(_sovereign_health_signal)
     _brain = _brain_health_signal()
     _preflight = _preflight_signal()
     # Source/image identity is diagnostic evidence, never an attestation.  The
@@ -5798,7 +5835,8 @@ async def preflight_status() -> JSONResponse:
 
 
 @app.api_route("/api/a11oy/readyz", methods=["GET", "HEAD"])
-async def readyz() -> JSONResponse:
+def readyz() -> JSONResponse:
+    # Synchronous lung probes run in FastAPI's worker pool, not the ASGI loop.
     # Keep service readiness separate from optional capability readiness. A public
     # CPU-only surface may serve in a truthful degraded state, while a deployment
     # that declares the operator required must fail closed. A reachable lung with

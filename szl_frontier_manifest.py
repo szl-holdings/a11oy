@@ -40,6 +40,15 @@ DOCTRINE v11 (this surface is a roll-up — be ruthless about honesty):
   - The composite inference-provenance capability is UNAVAILABLE until a real governed
     action has minted an artifact. A read never creates one and an unminted capability is
     never presented as operational merely because its source module is reachable.
+  - Runtime readiness gates only on tiles whose bounded predicate a live runtime can
+    actually satisfy. A capability that is by design never runtime-satisfiable on
+    this surface (the MODELED orbital tier; UDS attestation verification that lives
+    in the uds-sign-release workflow rather than in this feed) reports
+    operational_evidence.runtime_satisfiable=False plus an expectation, is listed in
+    summary.operational_readiness.not_runtime_verifiable, and never blocks readiness.
+    A capability whose predicate IS runtime-satisfiable still blocks until its own
+    evidence verifies. Ownership that a transport probe cannot verify stays a
+    documented field, never a permanent blocker.
 
 The manifest keeps source availability, transport observations, and verified runtime
 artifacts distinct. A signing workflow or a reachable socket does not establish a
@@ -50,6 +59,7 @@ from __future__ import annotations
 import datetime
 import json
 import sys
+import threading
 from typing import Any, Callable
 
 # Honesty-label vocabulary (doctrine v11). Tests grep these exact strings.
@@ -428,6 +438,11 @@ def _tile_uds_bundle() -> dict:
             "predicate": "a concrete UDS attestation is independently verified at runtime",
             "satisfied": False,
             "reasons": ["runtime_attestation_receipt_not_observed"],
+            "runtime_satisfiable": False,
+            "expectation": ("this feed observes source metadata only; bundle attestation "
+                            "verification lives in the uds-sign-release workflow and is "
+                            "recorded out-of-band, so the tile is reported in "
+                            "not_runtime_verifiable rather than runtime-blocked"),
         },
     )
 
@@ -457,6 +472,11 @@ def _tile_orbital() -> dict:
             "predicate": "at least one on-orbit hardware node is positively reachable",
             "satisfied": False,
             "reasons": ["hardware_not_present"],
+            "runtime_satisfiable": False,
+            "expectation": ("no on-orbit hardware exists or is planned for runtime "
+                            "probing; this tile is MODELED by design (doctrine v11), "
+                            "reported in not_runtime_verifiable, and never counted as "
+                            "a runtime blocker"),
         },
     )
 
@@ -560,21 +580,26 @@ def _tile_compute_fabric() -> dict:
         inference_evidence=inference_evidence,
         ownership_verified=False,
         operational_evidence={
-            "predicate": "owned sovereign GPU and deployed-model inference independently verified",
-            "satisfied": False,
+            # Ownership is configured metadata a transport probe cannot verify, so it
+            # stays documented (ownership_verified=False + sovereignty_scope) instead
+            # of permanently blocking a predicate the runtime CAN satisfy (#3654).
+            "predicate": ("at least one configured sovereign GPU is transport-reachable, "
+                          "probe counts are consistent, and deployed-model inference "
+                          "is verified from a bound compute-pool/v1 receipt"),
+            "satisfied": bool(sovereign_gpu_reachable >= 1 and counts_consistent
+                              and inference_verified),
             "reasons": [
                 reason for failed, reason in (
                     (sovereign_gpu_reachable < 1, "no_sovereign_gpu_reachable"),
                     (not counts_consistent, "fabric_probe_counts_missing_or_inconsistent"),
-                    (True, "sovereign_ownership_not_verified"),
                     (not inference_verified,
                      "model_inference_not_verified_by_transport_probe"),
                 ) if failed
             ],
             "verification_required": [
-                "confirm the configured node is an owned sovereign GPU worker",
                 "execute a governed request against the exact deployed model",
                 "verify the resulting execution receipt and model identity",
+                "keep ownership documented; never infer it from a transport probe",
             ],
         },
     )
@@ -783,6 +808,7 @@ _TILE_SPECS: list[tuple[Callable[[], dict], str, str, dict]] = [
 # instead of re-walking every tile; the cache only ever holds real producer output and
 # injects a `cached_at` ISO stamp so a reader sees exactly how fresh it is.
 _MANIFEST_TTL = 20.0  # seconds
+_MANIFEST_CACHE_LOCK = threading.Lock()
 
 
 def _manifest_cache(app=None):
@@ -791,16 +817,18 @@ def _manifest_cache(app=None):
     Reuses szl_backend_hardening.TTLCache. Lazy so importing this module never hard-
     depends on the helper at import time (the manifest still works if it is absent —
     see build_manifest's fallback)."""
-    cache = (getattr(app.state, "szl_frontier_manifest_cache", None)
-             if app is not None else getattr(_manifest_cache, "_cache", None))
-    if cache is None:
-        import szl_backend_hardening as bh
-        cache = bh.TTLCache(ttl=_MANIFEST_TTL)
-        if app is not None:
-            app.state.szl_frontier_manifest_cache = cache
-        else:
-            _manifest_cache._cache = cache  # type: ignore[attr-defined]
-    return cache
+    # Concurrent first readers must share the same per-app single-flight cache.
+    with _MANIFEST_CACHE_LOCK:
+        cache = (getattr(app.state, "szl_frontier_manifest_cache", None)
+                 if app is not None else getattr(_manifest_cache, "_cache", None))
+        if cache is None:
+            import szl_backend_hardening as bh
+            cache = bh.TTLCache(ttl=_MANIFEST_TTL)
+            if app is not None:
+                app.state.szl_frontier_manifest_cache = cache
+            else:
+                _manifest_cache._cache = cache  # type: ignore[attr-defined]
+        return cache
 
 
 def _build_manifest(app=None) -> dict:
@@ -832,6 +860,17 @@ def _build_manifest(app=None) -> dict:
         predicate = evidence.get("predicate") if isinstance(evidence, dict) else None
         if not isinstance(predicate, str) or not predicate.strip():
             predicate = None
+        # A by-design-never-satisfiable tile is REPORTED (not_runtime_verifiable)
+        # and never blocks runtime readiness. Absence of the marker keeps the
+        # historical fail-closed meaning for every other tile (#3654).
+        runtime_satisfiable = not (isinstance(evidence, dict)
+                                   and evidence.get("runtime_satisfiable") is False)
+        expectation = None
+        if not runtime_satisfiable:
+            raw_expectation = evidence.get("expectation")
+            expectation = (str(raw_expectation).strip()
+                           if isinstance(raw_expectation, str) and raw_expectation.strip()
+                           else None)
         # The card and the roll-up consume the same decision from this composition.
         # Do not re-probe, infer a dependency, or turn a source link into proof.
         # Copy the producer envelope so annotating it cannot mutate its source.
@@ -846,8 +885,21 @@ def _build_manifest(app=None) -> dict:
                 "source_reachable": bool(tile.get("ok", True)),
             },
         }
-        readiness_rows.append({"name": tile["name"], "ready": ready, "reasons": reasons})
-    blocked = [row for row in readiness_rows if not row["ready"]]
+        readiness_rows.append({
+            "name": tile["name"], "ready": ready, "reasons": reasons,
+            "runtime_satisfiable": runtime_satisfiable,
+            "expectation": expectation,
+        })
+    # Readiness gates only on tiles whose predicate a live runtime can satisfy.
+    # By-design-never-satisfiable tiles are reported below, never hidden, and
+    # never blocking (#3654). The blocked row shape is unchanged for consumers.
+    blocked = [{"name": row["name"], "ready": row["ready"], "reasons": row["reasons"]}
+               for row in readiness_rows
+               if row["runtime_satisfiable"] and not row["ready"]]
+    not_runtime_verifiable = [
+        {"name": row["name"], "expectation": row["expectation"]}
+        for row in readiness_rows if not row["runtime_satisfiable"]
+    ]
     all_sources_reachable = len(degraded) == 0
     operationally_ready = not blocked and bool(tiles)
 
@@ -864,6 +916,8 @@ def _build_manifest(app=None) -> dict:
             "and read straight from the live surfaces. A down sub-source yields an honest "
             "UNAVAILABLE tile, never a fabricated OK. The composite receipt remains "
             "UNAVAILABLE until a real governed write has minted an artifact. "
+            "Runtime readiness gates only on runtime-satisfiable tiles; "
+            "by-design-reported capabilities are listed in not_runtime_verifiable. "
             "Λ = Conjecture 1."
         ),
         "universal_verifier": {
@@ -905,6 +959,10 @@ def _build_manifest(app=None) -> dict:
                 "ready": operationally_ready,
                 "ready_tiles": [row["name"] for row in readiness_rows if row["ready"]],
                 "blocked_tiles": blocked,
+                # By-design-never-satisfiable capabilities with the expectation text
+                # that explains each. Neither ready nor blocked: readiness gates only
+                # on tiles a live runtime can actually satisfy (#3654).
+                "not_runtime_verifiable": not_runtime_verifiable,
             },
             # Deprecated for old clients. This value is intentionally stricter than source
             # reachability and cannot be true while a required tile is stopped, unminted,
@@ -975,7 +1033,7 @@ def register(app, ns: str = "a11oy") -> str:
     base = f"/api/{ns}/v1/frontier"
 
     @app.get(f"{base}/manifest")
-    async def _frontier_manifest():
+    def _frontier_manifest():
         """One honest roll-up of every live capability with its label + provenance pointer."""
         return JSONResponse(handle_manifest(app))
 
@@ -1050,8 +1108,20 @@ if __name__ == "__main__":
     assert "operational_readiness" in m["summary"]
     print(f"[5] summary: {_json.dumps(m['summary'])}")
 
+    # 6) by-design-never-satisfiable tiles are REPORTED (not_runtime_verifiable),
+    #    never silently blocking and never silently hidden (#3654).
+    op = m["summary"]["operational_readiness"]
+    nrv = {row["name"]: row for row in op.get("not_runtime_verifiable", [])}
+    blocked_names = {row["name"] for row in op["blocked_tiles"]}
+    assert "Orbital compute tier" in nrv and "Orbital compute tier" not in blocked_names
+    assert "Signed UDS bundle" in nrv and "Signed UDS bundle" not in blocked_names
+    assert nrv["Orbital compute tier"]["expectation"], "expectation must be reported"
+    assert (len(op["ready_tiles"]) + len(op["blocked_tiles"]) + len(nrv)
+            == len(tiles)), "ready + blocked + by-design must partition the tiles"
+    print(f"[6] by-design tiles reported, not blocking: {sorted(nrv)}  OK")
+
     print("\n--- tiles (name / label / status) ---")
     for t in tiles:
         print(f"  - {t['name']:38s} {t['label']:11s} {t['status']}")
-    print("\nok:true checks:5")
+    print("\nok:true checks:6")
     _sys.exit(0)
