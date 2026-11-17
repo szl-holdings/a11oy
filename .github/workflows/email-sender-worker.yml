@@ -72,8 +72,8 @@ jobs:
           python-version: '3.12'
       - name: Install exact core test dependencies
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
-      - name: Test the post-deploy readback contract
-        run: python -m pytest tests/test_verify_worker_revision.py -q
+      - name: Test readback and deployment toolchain contracts
+        run: python -m pytest tests/test_verify_worker_revision.py tests/test_managed_alert_transport_workflows.py -q
 
   deploy:
     name: Deploy szl-email-sender and read back the live revision
@@ -110,10 +110,13 @@ jobs:
           node-version: '22'
           check-latest: false
       - name: Install the locked Wrangler
+        id: wrangler
         working-directory: ops/email-sender-worker
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          test "$(npx --no-install wrangler --version | tail -n 1)" = "4.150.0"
+          locked_version="$(node -p "require('./package-lock.json').packages['node_modules/wrangler'].version")"
+          test "$(node -p "require('./node_modules/wrangler/package.json').version")" = "$locked_version"
+          printf 'version=%s\n' "$locked_version" >> "$GITHUB_OUTPUT"
       - name: Require Cloudflare deployment credentials
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -135,7 +138,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: ops/email-sender-worker
           packageManager: npm
-          wranglerVersion: '4.150.0'
+          wranglerVersion: ${{ steps.wrangler.outputs.version }}
           command: deploy --message ${{ github.sha }}
           vars: |
             SOURCE_REVISION
