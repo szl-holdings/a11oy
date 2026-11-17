@@ -1,4 +1,4 @@
-"""Offline contract tests for Atelier's public, unsigned CPU-lab provider lane.
+"""Offline contract tests for Atelier's governed public CPU-lab provider lane.
 
 The fake transport proves route behavior, not live model quality or availability.
 """
@@ -14,6 +14,9 @@ from fastapi.testclient import TestClient
 import pytest
 
 from routers import atelier_grok as atelier
+from tests.cpu_lab_contract_fixtures import (
+    identity_document, contract_document, health_document, response_document,
+)
 
 
 TOKEN = "cpu-lab-test-operator-token"
@@ -27,38 +30,24 @@ def json_hash(value):
     return hashlib.sha256(encoded).hexdigest()
 
 
-def identity_document(**changes):
-    identity = {
-        "status": "READY",
-        "space": {"id": atelier.CPU_LAB_SPACE,
-                  "release_id": atelier.CPU_LAB_RELEASE_ID,
-                  "release_manifest_sha256": atelier.CPU_LAB_RELEASE_MANIFEST_SHA256,
-                  "source_integrity": True},
-        "model": {"repo": atelier.CPU_LAB_MODEL_REPO,
-                  "revision": atelier.CPU_LAB_MODEL_REVISION,
-                  "file": atelier.CPU_LAB_MODEL_FILE,
-                  "sha256_expected": atelier.CPU_LAB_MODEL_SHA256,
-                  "sha256_loaded": atelier.CPU_LAB_MODEL_SHA256},
-        "runtime": {"max_input_chars": atelier.CPU_LAB_MAX_INPUT_CHARS,
-                    "max_formatted_prompt_tokens": 800,
-                    "max_new_tokens": atelier.CPU_LAB_MAX_OUTPUT_TOKENS,
-                    "max_request_body_bytes": atelier.CPU_LAB_MAX_BODY_BYTES,
-                    "openai_compatible_subset": {
-                        "chat_completions": "POST /v1/chat/completions",
-                        "model_id": atelier.CPU_LAB_MODEL, "streaming": False}},
+def preflight_document(url):
+    factories = {
+        atelier.CPU_LAB_IDENTITY_URL: identity_document,
+        atelier.CPU_LAB_CONTRACT_URL: contract_document,
+        atelier.CPU_LAB_HEALTH_URL: health_document,
     }
-    identity.update(changes)
-    return identity
+    return factories[url]()
+
 
 
 @pytest.fixture
 def protected_release_identity():
-    # Forge 8e1e87e release.json matches HF commit 01ec2eb byte-for-byte.
+    # Observed governed-v3 Space source at immutable HF revision 675d3fb8.
     identity = identity_document()
     identity["space"]["release_id"] = (
         "brain13-1d3960c-controller-9f227f6-atlas-d7b08cde")
     identity["space"]["release_manifest_sha256"] = (
-        "d431e003041020ff38c9de38d048b1495b037efbefcfc209a69504086c0d384b")
+        "557e4c1463e46d02ef15fd92366b3106e274a7dc5edd3785288ef416f82e25ac")
     identity["runtime"]["prompt_cache"] = {
         "status": "DISABLED", "advisory": "CVE-2025-69872"}
     return identity
@@ -73,7 +62,7 @@ def test_protected_cpu_release_binding_stays_exact(
     if changed_field:
         identity["space"][changed_field] = "unapproved-release"
     monkeypatch.setattr(
-        atelier.szl_provider_http, "http_json", lambda *args, **kwargs: (identity, None))
+        atelier.szl_provider_http, "http_json", lambda url, **kwargs: (identity if url == atelier.CPU_LAB_IDENTITY_URL else preflight_document(url), None))
     if changed_field:
         with pytest.raises(atelier.AtelierFailure) as failure:
             atelier._cpu_lab_identity()
@@ -96,61 +85,15 @@ def test_previous_or_unknown_lab_manifest_is_rejected(
     identity = protected_release_identity
     identity["space"]["release_manifest_sha256"] = manifest
     monkeypatch.setattr(
-        atelier.szl_provider_http, "http_json", lambda *args, **kwargs: (identity, None))
+        atelier.szl_provider_http, "http_json", lambda url, **kwargs: (identity if url == atelier.CPU_LAB_IDENTITY_URL else preflight_document(url), None))
     with pytest.raises(atelier.AtelierFailure) as failure:
         atelier._cpu_lab_identity()
     assert failure.value.code == "CPU_LAB_IDENTITY_MISMATCH"
 
 
 def completion_document(request_body, answer=ANSWER):
-    messages = request_body["messages"]
-    max_tokens = request_body["max_completion_tokens"]
-    canonical_request = {
-        "schema": "szl.openai-chat-request/v1", "model": atelier.CPU_LAB_MODEL,
-        "messages": messages, "max_completion_tokens": max_tokens,
-        "temperature": 0.0, "top_p": 1.0, "n": 1,
-        "stream": False, "tools": None,
-    }
-    usage = {"prompt_tokens": 18, "completion_tokens": 7, "total_tokens": 25}
-    model = {"repo": atelier.CPU_LAB_MODEL_REPO,
-             "revision": atelier.CPU_LAB_MODEL_REVISION,
-             "file": atelier.CPU_LAB_MODEL_FILE,
-             "sha256": atelier.CPU_LAB_MODEL_SHA256}
-    record = {
-        "schema": "szl.unsigned-execution-record/v1",
-        "request_id": "chatcmpl-szl-test1", "created_unix": 1790992800,
-        "canonical_request_sha256": json_hash(canonical_request),
-        "output_sha256": hashlib.sha256(answer.encode()).hexdigest(),
-        "model": {"id": atelier.CPU_LAB_MODEL, **model},
-        "source": {"space_id": atelier.CPU_LAB_SPACE,
-                   "release_id": atelier.CPU_LAB_RELEASE_ID,
-                   "release_manifest_sha256": atelier.CPU_LAB_RELEASE_MANIFEST_SHA256},
-        "usage": usage,
-        "elapsed_ms": 200,
-        "termination": {"reason": "stop", "time_budget_reached": False},
-        "signature_status": "UNSIGNED", "signature": None,
-        "authenticity_not_established": True,
-        "persistence": {"application_record_storage": "NOT_PERSISTED"},
-    }
-    record["record_sha256"] = json_hash(record)
-    return {
-        "id": record["request_id"], "object": "chat.completion",
-        "created": record["created_unix"], "model": atelier.CPU_LAB_MODEL,
-        "choices": [{"index": 0, "message": {"role": "assistant", "content": answer,
-                                              "private_reasoning": "never forward this"},
-                     "finish_reason": "stop"}],
-        "usage": usage,
-        "szl_provenance": {
-            "schema": "szl.openai-compat-provenance/v1", "model": model,
-            "runtime": {"space": atelier.CPU_LAB_SPACE,
-                        "release_id": atelier.CPU_LAB_RELEASE_ID,
-                        "service_level": "BEST_EFFORT_NO_SLA"},
-            "receipts": {"covers_this_output": False},
-            "output": {"signature_status": "UNSIGNED", "signature": None,
-                       "termination_reason": "stop"},
-            "execution_record": record,
-        },
-    }
+    return response_document(request_body, answer=answer)
+
 
 
 @pytest.fixture
@@ -182,7 +125,7 @@ def configured(monkeypatch, tmp_path):
     def fake_transport(url, **kwargs):
         calls.append((url, kwargs))
         if kwargs["method"] == "GET":
-            return identity_document(), None
+            return preflight_document(url), None
         return completion_document(json.loads(kwargs["body"])), None
 
     monkeypatch.setattr(atelier.szl_provider_http, "http_json", fake_transport)
@@ -224,7 +167,7 @@ def assert_signed(response, env, count=2):
     return [row["payload"] for row in saved]
 
 
-def test_success_is_exactly_one_identity_get_one_post_and_signed_public_metadata(configured):
+def test_success_is_three_read_only_preflights_one_post_and_signed_public_metadata(configured):
     response = post(configured, max_output_tokens=24)
     assert response.status_code == 200, response.text
     body = response.json()
@@ -232,7 +175,7 @@ def test_success_is_exactly_one_identity_get_one_post_and_signed_public_metadata
     assert body["model"] == atelier.CPU_LAB_MODEL
     assert body["provider"] == "szl_cpu_lab"
     assert body["mode"] == "NO_PROVIDER_KEY_PUBLIC_CPU_LAB"
-    assert body["provider_output_signature_status"] == "UNSIGNED"
+    assert body["provider_output_signature_status"] == "UNSIGNED_LOCAL"
     assert body["energy"] == {"label": "UNAVAILABLE", "joules": None}
     assert body["retry_safe"] is False and response.headers["cache-control"] == "no-store"
     decision, outcome = assert_signed(response, configured)
@@ -246,29 +189,44 @@ def test_success_is_exactly_one_identity_get_one_post_and_signed_public_metadata
     assert decision["public_share_acknowledged"] is True
     assert decision["prompt_sha256"] == hashlib.sha256(PROMPT.encode()).hexdigest()
     assert outcome["answer_sha256"] == hashlib.sha256(ANSWER.encode()).hexdigest()
-    assert outcome["provider_output_signature_status"] == "UNSIGNED"
-    assert outcome["provider_unsigned_execution_record_sha256"]
+    assert outcome["provider_output_signature_status"] == "UNSIGNED_LOCAL"
+    assert outcome["provider_inference_receipt_sha256"]
     assert outcome["usage"] == {"prompt_tokens": 18, "completion_tokens": 7,
                                 "total_tokens": 25}
     assert PROMPT not in configured["ledger"].read_text()
     assert ANSWER not in configured["ledger"].read_text()
     assert "never forward this" not in response.text
-    assert len(configured["calls"]) == 2
-    identity_url, identity_options = configured["calls"][0]
-    chat_url, chat_options = configured["calls"][1]
-    assert identity_url == atelier.CPU_LAB_IDENTITY_URL
-    assert identity_options == {"method": "GET", "timeout": 4.0,
-                                "max_response_bytes": 16_384,
-                                "max_redirects": 0, "allow_private": False}
+    assert len(configured["calls"]) == 4
+    assert [url for url, _ in configured["calls"][:3]] == [
+        atelier.CPU_LAB_IDENTITY_URL, atelier.CPU_LAB_CONTRACT_URL, atelier.CPU_LAB_HEALTH_URL,
+    ]
+    for _, options in configured["calls"][:3]:
+        assert options == {"method": "GET", "timeout": 4.0, "max_response_bytes": 16_384,
+                           "max_redirects": 0, "allow_private": False, "success_status": 200}
+    chat_url, chat_options = configured["calls"][3]
     assert chat_url == atelier.CPU_LAB_CHAT_URL
+    assert chat_url.endswith("/api/v3/governed-infer")
     assert chat_options["method"] == "POST" and chat_options["timeout"] == 60.0
     assert chat_options["max_redirects"] == 0 and chat_options["allow_private"] is False
+    assert chat_options["error_body_statuses"] == (409, 422, 503)
+    assert chat_options["success_status"] == 200
     assert "Authorization" not in chat_options["headers"]
+    assert "Cookie" not in chat_options["headers"]
     sent = json.loads(chat_options["body"])
-    assert sent == {"model": atelier.CPU_LAB_MODEL,
-                    "messages": [{"role": "user", "content": PROMPT}],
-                    "max_completion_tokens": 24, "temperature": 0.0,
-                    "top_p": 1.0, "n": 1, "stream": False}
+    assert sent == {"prompt": PROMPT, "max_new_tokens": 24, "k": 3}
+    assert body["provider_decision"] == "PROPOSAL"
+    assert body["grounding_required"] is True
+    assert body["authority"] == "NO_ACTION_AUTHORITY" and body["executed"] is False
+    assert body["provider_response_consistency_verified"] is True
+    assert body["provider_output_authenticity_verified"] is False
+    assert outcome["provider_public_export_sha256"]
+    assert body["evidence_handles"] and all(
+        set(handle) == {"nodeId", "nodeKind", "label", "note"}
+        for handle in body["evidence_handles"])
+    assert set(body["citations"]).issubset({handle["nodeId"] for handle in body["evidence_handles"]})
+    assert outcome["evidence_handles_sha256"] == json_hash(body["evidence_handles"])
+    assert outcome["citations_sha256"] == json_hash(body["citations"])
+    assert body["evidence_handles"][0]["nodeId"] not in configured["ledger"].read_text()
     assert decision["outbound_request_sha256"] == hashlib.sha256(
         chat_options["body"]).hexdigest()
 
@@ -397,23 +355,23 @@ def test_preflight_failure_is_signed_and_never_posts(configured, identity, code)
 
 
 @pytest.mark.parametrize("change", [
-    lambda d: d.update(model="other-model"),
-    lambda d: d["choices"][0].update(finish_reason="length"),
-    lambda d: d.update(choices=[]),
-    lambda d: d["szl_provenance"]["model"].update(sha256="b" * 64),
-    lambda d: d["szl_provenance"]["output"].update(signature_status="SIGNED"),
-    lambda d: d["szl_provenance"]["execution_record"].update(record_sha256="b" * 64),
-    lambda d: d["szl_provenance"]["execution_record"].update(
-        canonical_request_sha256="b" * 64),
-    lambda d: d["szl_provenance"]["execution_record"].update(
-        output_sha256="b" * 64),
-    lambda d: d["usage"].update(completion_tokens=33),
+    lambda d: d["model"].update(id="other-model"),
+    lambda d: d["metrics"].update(finish_reason="length"),
+    lambda d: d.update(output=""),
+    lambda d: d["model"].update(quantization_revision="sha256:" + "b" * 64),
+    lambda d: d["receipt"]["signature"].update(status="SIGNED"),
+    lambda d: d["receipt"].update(receipt_sha256="b" * 64),
+    lambda d: d.update(prompt_sha256="b" * 64),
+    lambda d: d.update(output_sha256="b" * 64),
+    lambda d: d["metrics"].update(completion_tokens=33),
+    lambda d: d.update(continuation={"private": "must never escape"}),
 ])
+
 def test_bad_or_partial_lab_response_is_signed_unavailable(configured, change):
     def fake(url, **kwargs):
         configured["calls"].append((url, kwargs))
         if kwargs["method"] == "GET":
-            return identity_document(), None
+            return preflight_document(url), None
         document = completion_document(json.loads(kwargs["body"]))
         change(document)
         return document, None
@@ -426,18 +384,20 @@ def test_bad_or_partial_lab_response_is_signed_unavailable(configured, change):
     decision, outcome = assert_signed(response, configured)
     assert decision["phase"] == "DECISION"
     assert outcome["state"] == "UNAVAILABLE" and outcome["provider_outcome_uncertain"] is True
-    assert len(configured["calls"]) == 2
+    assert len(configured["calls"]) == 4
 
 
 @pytest.mark.parametrize("transport_code,expected,status", [
     ("TIMEOUT", "CPU_LAB_TIMEOUT", 504),
     ("HTTP_STATUS:429", "CPU_LAB_UNAVAILABLE", 502),
-    ("HTTP_STATUS:422", "CPU_LAB_UNAVAILABLE", 502),
+    ("HTTP_STATUS:202", "CPU_LAB_UNAVAILABLE", 502),
+    ("HTTP_STATUS:206", "CPU_LAB_UNAVAILABLE", 502),
+    ("HTTP_STATUS:422", "CPU_LAB_INVALID_RESPONSE", 502),
 ])
 def test_single_post_failure_is_signed_uncertain(configured, transport_code, expected, status):
     def fake(url, **kwargs):
         configured["calls"].append((url, kwargs))
-        return (identity_document(), None) if kwargs["method"] == "GET" else (
+        return (preflight_document(url), None) if kwargs["method"] == "GET" else (
             None, transport_code)
 
     configured["monkeypatch"].setattr(atelier.szl_provider_http, "http_json", fake)
@@ -446,7 +406,7 @@ def test_single_post_failure_is_signed_uncertain(configured, transport_code, exp
     assert response.json()["code"] == expected and "answer" not in response.json()
     _, outcome = assert_signed(response, configured)
     assert outcome["provider_outcome_uncertain"] is True
-    assert len(configured["calls"]) == 2
+    assert len(configured["calls"]) == 4
 
 
 def test_outcome_write_failure_withholds_answer(configured):
@@ -463,7 +423,7 @@ def test_outcome_write_failure_withholds_answer(configured):
     assert response.json()["code"] == "LEDGER_WRITE_FAILED"
     assert "answer" not in response.json() and ANSWER not in response.text
     assert len(records(configured)) == 1
-    assert len(configured["calls"]) == 2
+    assert len(configured["calls"]) == 4
 
 
 def test_retained_chain_tamper_blocks_later_provider_call(configured):
@@ -497,7 +457,7 @@ def test_health_is_read_only_and_does_not_claim_inference(configured):
         assert body["inference_verified"] is False
         assert body["configured"]["ledger_path_configured"] is True
         assert body["ledger_durability_verified"] is False
-        assert body["output_signature_status"] == "UNSIGNED"
+        assert body["output_signature_status"] == "UNSIGNED_LOCAL"
         head = configured["client"].head(f"{atelier.PREFIX}/cpu-lab/health")
         assert head.status_code == 200 and head.text == ""
     assert not configured["calls"]
@@ -524,3 +484,81 @@ def test_cpu_lab_routes_precede_catchall_and_register_once(configured):
     assert paths.index(f"{atelier.PREFIX}/cpu-lab/health") < paths.index("/{path:path}")
     assert paths.index(f"{atelier.PREFIX}/cpu-lab/turn") < paths.index("/{path:path}")
     assert atelier.register(configured["app"])["state"] == "ALREADY_REGISTERED"
+
+
+@pytest.mark.parametrize("state,status", [("ABSTAIN", 422), ("REVIEW", 409), ("BLOCKED", 503)])
+def test_governed_terminal_state_is_retained_without_answer_or_retry(configured, state, status):
+    def fake(url, **kwargs):
+        configured["calls"].append((url, kwargs))
+        if kwargs["method"] == "GET":
+            return preflight_document(url), None
+        return response_document(json.loads(kwargs["body"]), state=state), f"HTTP_STATUS:{status}"
+
+    configured["monkeypatch"].setattr(atelier.szl_provider_http, "http_json", fake)
+    response = post(configured)
+    assert response.status_code == status, response.text
+    body = response.json()
+    assert body["state"] == state and body["provider_decision"] == state
+    assert body["code"] == "CPU_LAB_" + state and "answer" not in body
+    assert body["authority"] == "NO_ACTION_AUTHORITY" and body["executed"] is False
+    assert body["retry_safe"] is False
+    _, outcome = assert_signed(response, configured)
+    assert outcome["state"] == state and outcome["provider_outcome_uncertain"] is False
+    assert outcome["answer_sha256"] is None
+    assert len(configured["calls"]) == 4
+
+
+def test_retired_or_changed_contract_stops_before_inference(configured):
+    def fake(url, **kwargs):
+        configured["calls"].append((url, kwargs))
+        assert kwargs["method"] == "GET"
+        document = preflight_document(url)
+        if url == atelier.CPU_LAB_CONTRACT_URL:
+            document["endpoint"]["path"] = "/v1/chat/completions"
+        return document, None
+
+    configured["monkeypatch"].setattr(atelier.szl_provider_http, "http_json", fake)
+    response = post(configured)
+    assert response.status_code == 503
+    assert response.json()["code"] == "CPU_LAB_CONTRACT_MISMATCH"
+    _, outcome = assert_signed(response, configured)
+    assert outcome["provider_outcome_uncertain"] is False
+    assert len(configured["calls"]) == 2
+
+
+def test_unready_governed_dependencies_stop_before_inference(configured):
+    def fake(url, **kwargs):
+        configured["calls"].append((url, kwargs))
+        assert kwargs["method"] == "GET"
+        document = preflight_document(url)
+        if url == atelier.CPU_LAB_HEALTH_URL:
+            document["status"] = "UNAVAILABLE"
+        return document, None
+
+    configured["monkeypatch"].setattr(atelier.szl_provider_http, "http_json", fake)
+    response = post(configured)
+    assert response.status_code == 503
+    assert response.json()["code"] == "CPU_LAB_HEALTH_MISMATCH"
+    _, outcome = assert_signed(response, configured)
+    assert outcome["provider_outcome_uncertain"] is False
+    assert len(configured["calls"]) == 3
+
+
+def test_truncated_completion_exposes_bounded_reason_without_answer(configured):
+    def fake(url, **kwargs):
+        configured["calls"].append((url, kwargs))
+        if kwargs["method"] == "GET":
+            return preflight_document(url), None
+        document = completion_document(json.loads(kwargs["body"]))
+        document["metrics"]["finish_reason"] = "length"
+        return document, None
+
+    configured["monkeypatch"].setattr(atelier.szl_provider_http, "http_json", fake)
+    response = post(configured)
+    assert response.status_code == 502
+    assert response.json()["code"] == "CPU_LAB_INVALID_RESPONSE"
+    assert response.json()["reason_code"] == "INCOMPLETE_OUTPUT"
+    assert "answer" not in response.json()
+    _, outcome = assert_signed(response, configured)
+    assert outcome["contract_reason_code"] == "INCOMPLETE_OUTPUT"
+    assert len(configured["calls"]) == 4

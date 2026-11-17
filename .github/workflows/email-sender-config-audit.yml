@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Email sender configuration audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_deployed_revision:
+        description: Exact 40-character revision already deployed to szl-email-sender
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: email-sender-configuration-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Read email Worker binding metadata without deploying or sending mail
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: cloudflare-production
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Test the bounded metadata audit without provider access
+        run: python -m unittest discover -s tests -p test_audit_email_worker_config.py -v
+      - name: Read required binding metadata
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EXPECTED_REVISION: ${{ inputs.expected_deployed_revision }}
+        run: >-
+          python scripts/audit_email_worker_config.py
+          --expect-revision "$EXPECTED_REVISION"
+          --output email-worker-config-audit.json
+      - name: Preserve the value-free audit result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: email-worker-config-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: email-worker-config-audit.json
+          if-no-files-found: error
+          retention-days: 7

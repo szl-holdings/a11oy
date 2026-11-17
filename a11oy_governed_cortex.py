@@ -7,7 +7,6 @@ GGUF into one proposal-only CPU inference path. It never grants tool or action
 authority and never persists prompt, evidence text, model output, or private
 reasoning.
 """
-from __future__ import annotations
 
 import hashlib
 import importlib.metadata
@@ -21,9 +20,12 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from vsp_otel import trace_ir
+from vsp_otel.middleware import server_trace_context
 
 SCHEMA_VERSION = "szl.a11oy.owned-khipu-cortex/v1"
 HEALTH_SCHEMA = "szl.a11oy.owned-khipu-cortex-health/v1"
@@ -873,6 +875,14 @@ def contract_payload() -> dict[str, Any]:
             "autonomous_execution": False,
             "action_authority": "NONE",
         },
+        "trace_observation": {
+            "schema": trace_ir.SCHEMA,
+            "delivery": "RESPONSE_SIDECAR_ONLY",
+            "signature_status": "UNSIGNED_DERIVED_OBSERVATION",
+            "authority": "NONE",
+            "collector_delivery": "UNVERIFIED",
+            "requires_server_trace_context": True,
+        },
         "receipts": {
             "schema": RECEIPT_SCHEMA,
             "signature_status": "UNSIGNED_RUNTIME",
@@ -1078,6 +1088,66 @@ def infer_payload(request: GovernedInferenceRequest) -> dict[str, Any]:
     }
 
 
+def _receipt_trace_observation(payload: Mapping[str, Any], traceparent: Any) -> dict[str, Any]:
+    """Derive a content-free diagnostic after the existing inference gates.
+
+    This does not mutate the receipt payload/digest, mint a signature or alter
+    the canonical admission contract. Diagnostic errors cannot veto a completed
+    proposal. The fixed reason contains no caller content or exception text.
+    """
+    try:
+        receipt = payload["receipt"]
+        body = receipt["payload"]
+        witnesses = payload["nemo"]
+        checks = {
+            "receipt_digest_match": int(
+                receipt["receipt_sha256"] == canonical_sha256(body)
+            ),
+            "model_digest_match": int(
+                payload["model"]["sha256"] == body["model"]["sha256"] == MODEL_SHA256
+            ),
+            "source_revision_match": int(
+                payload["source_revision"] == body["source_revision"] == source_revision()
+            ),
+            "unsigned_receipt_declared": int(
+                receipt["signature"]["status"] == "UNSIGNED_RUNTIME"
+            ),
+            "proposal_only": int(
+                payload["state"] == "PROPOSAL"
+                and payload["executed"] is False
+                and payload["tool_execution"] is False
+                and payload["authority_state"] == "NO_ACTION_AUTHORITY"
+                and body["decision"] == "REVIEW_PROPOSAL_ONLY"
+                and body["authority_state"] == "NO_ACTION_AUTHORITY"
+                and body["executed"] is False
+                and body["tool_execution"] is False
+            ),
+        }
+        for key, stage in (
+            ("nemo_pre_allow", "PRE_GENERATION"),
+            ("nemo_text_allow", "TEXT_R1_R5"),
+            ("nemo_post_allow", "POST_GENERATION"),
+        ):
+            matches = [
+                row for row in witnesses
+                if isinstance(row, Mapping) and row.get("stage") == stage
+            ]
+            checks[key] = int(
+                len(witnesses) == 3
+                and len(matches) == 1
+                and matches[0].get("decision") == "ALLOW"
+            )
+        return trace_ir.receipt_observation(
+            traceparent=traceparent,
+            receipt_sha256=receipt["receipt_sha256"],
+            model_sha256=body["model"]["sha256"],
+            source_revision=body["source_revision"],
+            checks=checks,
+        )
+    except Exception:
+        return trace_ir.unavailable_observation()
+
+
 def register(app: FastAPI, ns: str = "a11oy") -> str:
     del ns
     existing = {getattr(route, "path", None) for route in app.routes}
@@ -1095,12 +1165,19 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
         return JSONResponse(contract_payload(), headers=_headers())
 
     @app.post("/api/v2/governed-infer")
-    def governed_infer(request: GovernedInferenceRequest) -> JSONResponse:
+    def governed_infer(request: GovernedInferenceRequest, http_request: Request) -> JSONResponse:
         try:
             payload = infer_payload(request)
-            return JSONResponse(payload, headers=_headers())
         except CortexBoundaryError as exc:
             return _error(exc.code, exc.status, nemo_witness=exc.nemo_witness)
+        context = server_trace_context(http_request)
+        payload["trace_observation"] = _receipt_trace_observation(
+            payload,
+            context["traceparent"]
+            if context is not None and context.get("observation_available") is True
+            else None,
+        )
+        return JSONResponse(payload, headers=_headers())
 
     @app.get("/api/v2/anatomy/last")
     def anatomy_last() -> JSONResponse:

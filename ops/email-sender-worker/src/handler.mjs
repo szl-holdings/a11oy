@@ -37,20 +37,39 @@ function sourceRevision(env) {
   return typeof value === "string" && REVISION.test(value) ? value : null;
 }
 
-/** Returns the validated sender address, or null when configuration is unusable. */
-export function configuredSender(env) {
+function secretRequirementMet(env) {
   const secret = env?.API_SECRET;
-  if (typeof secret !== "string" || secret.length < MIN_SECRET_LENGTH) {
-    return null;
-  }
-  if (!env.SEND_EMAIL || typeof env.SEND_EMAIL.send !== "function") {
-    return null;
-  }
+  return typeof secret === "string" && secret.length >= MIN_SECRET_LENGTH;
+}
+
+function sendBindingCallable(env) {
+  return Boolean(env?.SEND_EMAIL) && typeof env.SEND_EMAIL.send === "function";
+}
+
+function senderAddress(env) {
   try {
-    return assertAddress(env.MAIL_FROM, "invalid_from") === SENDER_DOMAIN ? env.MAIL_FROM : null;
+    return assertAddress(env?.MAIL_FROM, "invalid_from") === SENDER_DOMAIN ? env.MAIL_FROM : null;
   } catch {
     return null;
   }
+}
+
+/** Fixed configuration predicates only; never return values, lengths, or digests. */
+function readinessChecks(env, EmailMessage) {
+  return {
+    secret_requirement_met: secretRequirementMet(env),
+    sender_valid: senderAddress(env) !== null,
+    send_binding_callable: sendBindingCallable(env),
+    email_message_available: typeof EmailMessage === "function",
+  };
+}
+
+/** Returns the validated sender address, or null when configuration is unusable. */
+export function configuredSender(env) {
+  if (!secretRequirementMet(env) || !sendBindingCallable(env)) {
+    return null;
+  }
+  return senderAddress(env);
 }
 
 async function sha256(value) {
@@ -152,10 +171,12 @@ export async function handleRequest(
     if (request.method !== "GET") {
       return json(405, { error: "method_not_allowed" }, { allow: "GET" });
     }
+    const checks = readinessChecks(env, EmailMessage);
     return json(200, {
       worker: WORKER_NAME,
       source_revision: sourceRevision(env),
-      ready: configuredSender(env) !== null && typeof EmailMessage === "function",
+      ready: Object.values(checks).every((value) => value === true),
+      readiness_checks: checks,
     });
   }
   if (!SEND_PATHS.has(url.pathname)) {

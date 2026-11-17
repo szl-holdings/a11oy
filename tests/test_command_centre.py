@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 import inspect
 import hashlib
 import json
+import shutil
+import subprocess
 
 import pytest
 from fastapi import FastAPI
@@ -69,7 +71,11 @@ def test_manifest_has_source_order_not_mutation_or_inference(client, monkeypatch
     assert data['authorities']['source'] == 'szl-holdings/a11oy'
     assert data['release_order'][0] == 'protected_github_source'
     assert data['release_order'][1] == 'canonical_hf_publication'
-    assert len(data['surfaces']) == 18
+    assert len(data['surfaces']) == 19
+    oro = [s for s in data['surfaces'] if s['href'] == '/oro/evidence']
+    assert len(oro) == 1
+    assert oro[0]['title'] == 'ORO evidence'
+    assert 'no execution authority' in oro[0]['boundary']
     assert all(s['href'].startswith(('/', 'https://')) for s in data['surfaces'])
     assert any(s['href'] == '/command-v2' for s in data['surfaces'])
     assert any(s['href'] == 'https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab'
@@ -182,7 +188,13 @@ def test_owned_assets_emit_body_not_zero_copy_pathsend(client):
     assert 'id="local-turn-form"' in response.text
     assert 'id="cpu-turn-form"' in response.text
     assert 'id="cpu-public-ack"' in response.text
-    assert 'unsigned lab record' in response.text
+    for element_id in ('cpu-sources-panel', 'cpu-sources', 'cpu-citations'):
+        assert f'id="{element_id}"' in response.text
+    assert 'unsigned local lab record' in response.text
+    assert 'UNSIGNED_LOCAL' in response.text
+    assert 'public source handles' in response.text
+    assert 'no action authority' in response.text
+    assert 'Grounding consistency checks do not prove' in response.text
     assert 'maxlength="1200"' in response.text
     assert 'This is not Grok' in response.text
     assert 'id="study-models"' in response.text
@@ -241,3 +253,232 @@ def test_vendor_exception_is_byte_bound_not_application_exemption():
     assert allowlist.is_allowed('routers/command_centre_web/szl/szl-design-system.css')
     assert not allowlist.is_allowed('routers/command_centre_web/app.js')
     assert not allowlist.is_allowed('routers/command_centre_web/index.html')
+
+
+
+def test_cpu_form_auth_disclosure_and_proposal_outcomes():
+    """Execute the shipped frontend against explicit, adversarial API outcomes."""
+    node = shutil.which("node")
+    assert node is not None, "Node.js is required for the CPU form behavior contract"
+    harness = r"""
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const code = fs.readFileSync(0, 'utf8');
+const elements = new Map();
+function element(id = '') {
+  if (id && elements.has(id)) return elements.get(id);
+  const value = {
+    id, value: '', checked: false, hidden: true, disabled: false,
+    textContent: '', innerHTML: '', children: [], listeners: {},
+    addEventListener(event, listener) { this.listeners[event] = listener; },
+    replaceChildren(...children) { this.children = children; },
+    append(...children) { this.children.push(...children); },
+  };
+  if (id) elements.set(id, value);
+  return value;
+}
+const turnPath = '/api/a11oy/v1/atelier/cpu-lab/turn';
+const calls = [], windowListeners = {}, timeoutBudgets = [];
+let nextResult, allowConfirmation = true, confirmations = 0;
+const response = (value, status = 200) => ({
+  ok: status >= 200 && status < 300, status,
+  headers: { get: name => name === 'content-type' ? 'application/json' : null },
+  json: async () => value,
+});
+const health = {
+  ready: true, mode: 'NO_PROVIDER_KEY_PUBLIC_CPU_LAB',
+  ready_scope: 'LOCAL_PREREQUISITES_ONLY', model: 'test-owned-model', blockers: [],
+};
+const getResults = new Map([
+  ['/api/a11oy/v1/command-centre/manifest', { surfaces: [] }],
+  ['/api/build-info', { git_sha: 'a'.repeat(40) }],
+  ['/api/a11oy/v1/atelier/health', { ready: false, blockers: ['NOT_CONFIGURED'] }],
+  ['/api/a11oy/v1/command-centre/inventory', {
+    counts: { models: 1, kernels: 0, datasets_public: 0, spaces_public: 1 },
+    state: 'OBSERVED_SNAPSHOT', observed_at: '2026-11-16T00:00:00Z',
+  }],
+  ['/api/a11oy/v1/command-centre/study', {
+    schema: 'szl.atelier.model-intake.v1', collection: { models: [] },
+  }],
+  ['/api/a11oy/v1/atelier/local/health', { ready: false, blockers: ['NOT_CONFIGURED'] }],
+  ['/api/a11oy/v1/atelier/cpu-lab/health', health],
+]);
+const context = {
+  document: { getElementById: element, createElement: () => element() },
+  window: {
+    addEventListener: (event, listener) => { windowListeners[event] = listener; },
+    confirm: () => { confirmations += 1; return allowConfirmation; },
+  },
+  AbortController, clearTimeout,
+  setTimeout: (callback, milliseconds) => {
+    timeoutBudgets.push(milliseconds);
+    return setTimeout(callback, milliseconds);
+  },
+  fetch: async (url, options = {}) => {
+    calls.push({ url, options });
+    assert.ok(url.startsWith('/') && !url.startsWith('//'), 'Cross-origin request');
+    if (options.method === 'POST') {
+      assert.equal(url, turnPath);
+      assert.equal(options.credentials, 'same-origin');
+      assert.equal(options.cache, 'no-store');
+      return typeof nextResult === 'function' ? nextResult() : nextResult;
+    }
+    assert.ok(getResults.has(url), 'Unexpected page-load request');
+    assert.equal(options.headers?.Authorization, undefined);
+    return response(getResults.get(url));
+  },
+};
+vm.runInNewContext(code, context);
+const settle = () => new Promise(resolve => setImmediate(resolve));
+const submit = () => element('cpu-turn-form').listeners.submit({ preventDefault() {} });
+const posts = () => calls.filter(call => call.options.method === 'POST');
+function prepare() {
+  element('cpu-operator-key').value = 'frontend-test-operator';
+  element('cpu-prompt').value = 'Which public source supports this claim?';
+  element('cpu-public-ack').checked = true;
+}
+const proposal = {
+  state: 'COMPLETED', answer: '<img src=x> is inert proposal text.',
+  provider_decision: 'PROPOSAL', provider_output_signature_status: 'UNSIGNED_LOCAL',
+  grounding_required: true, authority: 'NO_ACTION_AUTHORITY', executed: false,
+  evidence_handles: [
+    { nodeId: 'public:alpha', nodeKind: 'DOCUMENT', label: '<img src=x> source', note: '<script>inert()</script>' },
+    { nodeId: 'public:beta', nodeKind: 'DOCUMENT', label: 'Second public source', note: 'Returned evidence handle' },
+  ],
+  citations: ['public:alpha'],
+  receipt: { digest: 'e'.repeat(64), phase: 'OUTCOME' },
+  dsse: { payloadType: 'test-only', payload: 'test-only' },
+};
+
+(async () => {
+  await settle();
+  assert.equal(posts().length, 0, 'Page load caused inference');
+  assert.equal(calls.length, getResults.size);
+  assert.equal(element('cpu-send').disabled, false);
+  assert.match(element('cpu-state').textContent, /remote identity not yet checked/);
+
+  prepare(); element('cpu-operator-key').value = '';
+  await submit(); assert.equal(posts().length, 0, 'Anonymous request escaped');
+  prepare(); element('cpu-public-ack').checked = false;
+  await submit(); assert.equal(posts().length, 0, 'Missing disclosure acknowledgement');
+  prepare(); element('cpu-prompt').value += ' ';
+  await submit(); assert.equal(posts().length, 0, 'Prompt was silently normalized');
+  prepare(); element('cpu-prompt').listeners.input();
+  assert.equal(element('cpu-public-ack').checked, false, 'Edited prompt retained acknowledgement');
+  await submit(); assert.equal(posts().length, 0);
+
+  prepare(); nextResult = response(proposal);
+  await submit();
+  assert.equal(posts().length, 1);
+  const sent = posts()[0];
+  assert.equal(timeoutBudgets.at(-1), 90000);
+  assert.ok(timeoutBudgets.at(-1) >= 3 * 4000 + 60000 + 10000,
+    'Client budget must cover three preflights, inference and response grace');
+  assert.equal(sent.options.headers.Authorization, 'Bearer frontend-test-operator');
+  assert.deepEqual(JSON.parse(sent.options.body), {
+    prompt: 'Which public source supports this claim?', declared: 'PUBLIC',
+    public_share_acknowledged: true, max_output_tokens: 24,
+  });
+  assert.equal(element('cpu-public-ack').checked, false);
+  assert.equal(element('cpu-answer').hidden, false);
+  assert.equal(element('cpu-answer').textContent, proposal.answer);
+  assert.equal(element('cpu-answer').innerHTML, '');
+  assert.equal(element('cpu-receipt-panel').hidden, false);
+  assert.equal(JSON.parse(element('cpu-receipt').textContent).answer, undefined);
+  assert.equal(element('cpu-sources-panel').hidden, false);
+  assert.equal(element('cpu-sources').children.length, proposal.evidence_handles.length);
+  for (const [index, row] of element('cpu-sources').children.entries()) {
+    const handle = proposal.evidence_handles[index];
+    assert.equal(row.textContent, `${handle.label}\n${handle.nodeKind} · ${handle.nodeId}\n${handle.note}`);
+    assert.equal(row.innerHTML, '', 'Source metadata became markup');
+    assert.equal(row.href, undefined, 'A URL was invented for an evidence handle');
+  }
+  assert.equal(element('cpu-citations').textContent, 'Citations returned: public:alpha');
+  assert.deepEqual(JSON.parse(element('cpu-receipt').textContent).evidence_handles, proposal.evidence_handles);
+  assert.match(element('cpu-turn-status').textContent, /UNSIGNED_LOCAL; no action authority/);
+
+  const invalid = [
+    { provider_decision: 'HOLD' }, { provider_output_signature_status: 'SIGNED' },
+    { grounding_required: false }, { authority: 'ACTION_AUTHORITY' },
+    { executed: true }, { state: 'HOLD' }, { answer: '   ' },
+    { evidence_handles: [] }, { citations: ['unknown:source'] },
+  ];
+  const missingDecision = { ...proposal }; delete missingDecision.provider_decision;
+  for (const value of [...invalid.map(change => ({ ...proposal, ...change })), missingDecision]) {
+    prepare(); nextResult = response(value);
+    const before = posts().length;
+    await submit(); await settle();
+    assert.equal(posts().length, before + 1, 'Automatic retry after invalid outcome');
+    assert.equal(element('cpu-answer').hidden, true, 'Unverified proposal displayed');
+    assert.equal(element('cpu-answer').textContent, '');
+    assert.equal(element('cpu-sources-panel').hidden, true);
+    assert.equal(element('cpu-sources').children.length, 0);
+    assert.equal(element('cpu-citations').textContent, '');
+    assert.equal(JSON.parse(element('cpu-receipt').textContent).evidence_handles, undefined);
+    assert.match(element('cpu-turn-status').textContent, /UNAVAILABLE.*CPU_LAB_INVALID_OUTCOME/);
+    assert.equal(element('cpu-receipt-panel').hidden, false);
+  }
+
+  for (const [state, status] of [['ABSTAIN', 422], ['REVIEW', 409], ['BLOCKED', 503]]) {
+    prepare(); nextResult = response({
+      ...proposal, state, provider_decision: state, code: 'CPU_LAB_' + state,
+    }, status);
+    const before = posts().length;
+    await submit(); await settle();
+    assert.equal(posts().length, before + 1, 'Automatic retry after terminal decision');
+    assert.equal(element('cpu-answer').hidden, true, 'Terminal decision exposed an answer');
+    assert.equal(element('cpu-sources-panel').hidden, true, 'Terminal decision exposed proposal sources');
+    assert.equal(element('cpu-sources').children.length, 0);
+    assert.equal(JSON.parse(element('cpu-receipt').textContent).evidence_handles, undefined);
+    assert.equal(JSON.parse(element('cpu-receipt').textContent).citations, undefined);
+    assert.match(element('cpu-turn-status').textContent, new RegExp(state + '.*CPU_LAB_' + state));
+    assert.equal(JSON.parse(element('cpu-receipt').textContent).provider_decision, state);
+  }
+
+  for (const reason of ['INCOMPLETE_OUTPUT', '<img src=x>', 'X'.repeat(65)]) {
+    prepare(); nextResult = response({
+      state: 'UNAVAILABLE', code: 'CPU_LAB_INVALID_RESPONSE', reason_code: reason,
+      receipt: { payload: { contract_reason_code: reason } },
+    }, 502);
+    await submit();
+    const status = element('cpu-turn-status').textContent;
+    assert.match(status, /UNAVAILABLE · CPU_LAB_INVALID_RESPONSE/);
+    assert.equal(status.includes(` · ${reason}.`), reason === 'INCOMPLETE_OUTPUT',
+      'Only a bounded uppercase contract reason should appear beside the failure code');
+    assert.equal(element('cpu-turn-status').innerHTML, '');
+    assert.equal(element('cpu-answer').hidden, true);
+  }
+
+  prepare();
+  let release;
+  nextResult = () => new Promise(resolve => { release = resolve; });
+  const beforePending = posts().length;
+  const pending = submit();
+  await submit();
+  assert.equal(posts().length, beforePending + 1, 'Double submission');
+  release(response(proposal)); await pending;
+
+  prepare(); nextResult = () => { throw new Error('transport timeout'); };
+  await submit(); await settle();
+  const beforeRetry = posts().length, beforeConfirm = confirmations;
+  assert.match(element('cpu-turn-status').textContent, /outcome uncertain/);
+  allowConfirmation = false; prepare(); await submit();
+  assert.equal(posts().length, beforeRetry);
+  assert.equal(confirmations, beforeConfirm + 1, 'Uncertain retry needs fresh confirmation');
+
+  element('operator-key').value = 'test-grok-operator';
+  element('local-operator-key').value = 'test-local-operator';
+  windowListeners.pagehide();
+  for (const id of ['operator-key', 'local-operator-key', 'cpu-operator-key']) {
+    assert.equal(element(id).value, '', 'Credential retained after page exit');
+  }
+  assert.equal(element('cpu-public-ack').checked, false);
+})().catch(error => { console.error(error.stack || error); process.exitCode = 1; });
+"""
+    result = subprocess.run(
+        [node, "-e", harness],
+        input=(centre.ROOT / "app.js").read_text(encoding="utf-8"),
+        encoding="utf-8", capture_output=True, timeout=20, check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

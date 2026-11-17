@@ -7,11 +7,13 @@ on:
     paths:
       - '.github/workflows/x402-bazaar-worker.yml'
       - 'ops/x402-bazaar-worker/**'
+      - 'x402/**'
   push:
     branches: [main]
     paths:
       - '.github/workflows/x402-bazaar-worker.yml'
       - 'ops/x402-bazaar-worker/**'
+      - 'x402/**'
 
 permissions:
   contents: read
@@ -40,7 +42,7 @@ jobs:
           node-version: '22'
           check-latest: false
       - name: Run network-free regression tests
-        run: node --test --test-reporter=tap ops/x402-bazaar-worker/worker.test.mjs
+        run: node --test --test-reporter=tap ops/x402-bazaar-worker/worker.test.mjs x402/worker.test.mjs
       - name: Install pinned discovery verification dependencies
         run: npm --prefix ops/x402-bazaar-worker/verification ci --ignore-scripts --no-audit --no-fund
       - name: Verify generated declaration and SDK contracts
