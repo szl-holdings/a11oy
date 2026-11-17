@@ -6,6 +6,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -19,15 +21,30 @@ from ayllu.model_binding import persona_binding
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def synthetic_local_provider_config(monkeypatch):
+    monkeypatch.setattr(
+        orchestrator, "_sovereign_base_url", lambda: "http://127.0.0.1:11434/v1")
+    monkeypatch.setattr(
+        orchestrator, "_inference_headers",
+        lambda **_kwargs: {"Content-Type": "application/json"})
+    monkeypatch.setattr(
+        orchestrator, "forge_profile_model_map",
+        lambda: dict(orchestrator._FORGE_PROFILE_DEFAULTS))
+
+
 def test_exact_ollama_tag_attestation_binds_runtime_identity(monkeypatch):
     monkeypatch.setattr(
         orchestrator, "_serving_base",
         lambda: ("http://127.0.0.1:11434/v1", True),
     )
 
-    def fake_json(url, *, body=None, timeout=2.0, allow_private=False):
+    def fake_json(url, *, body=None, timeout=2.0, allow_private=False,
+                  headers=None, max_redirects=2):
         del timeout
         assert allow_private is True
+        assert headers == {"Content-Type": "application/json"}
+        assert max_redirects == 0
         if url.endswith("/models"):
             return {"data": [{"id": "receiptagent:latest"}, {"id": "khipu:latest"}]}
         if url.endswith("/api/tags"):

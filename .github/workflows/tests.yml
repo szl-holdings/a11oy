@@ -85,6 +85,8 @@ jobs:
           tests/test_org_rag_generations.py
           tests/test_rag_route_readonly.py
           tests/test_ayllu_model_binding.py
+          tests/test_forge_profile_runtime.py
+          tests/test_model_catalog_observation.py
           tests/test_ayllu_routes.py
           tests/test_atelier_curated_snapshot.py
           tests/test_site_route_aliases.py
