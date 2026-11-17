@@ -287,3 +287,59 @@ remain separate decisions.
 Repository tests prove the behavior they exercise. Publication proves that an
 artifact was delivered. Operational qualification requires the corresponding
 live evidence. The engineering program is complete only when those layers agree.
+
+## 9. Follow-up: integration acceptance and research freshness (2026-11-17)
+
+Source-only platform inspection used revision
+`2c16ee9eb2f918a2e5851ded98fe5e3bd0d02ab8`; it did not establish a running
+canonical backend or change the earlier pinned-client inventory.
+
+| Platform source | Established boundary and remaining gap |
+| --- | --- |
+| `artifacts/api-server/README.md`, `artifacts/api-server/package.json` | README names the canonical HTTP owner; the package calls itself a stub. No executable server or dashboard GraphQL composition is tracked there. |
+| `apps/alloy-ingestion-orchestrator/src/server.ts`, `apps/alloy-ingestion-orchestrator/src/router.ts`, `apps/alloy-ingestion-orchestrator/src/routes/runs.ts` | A real standalone server mounts `/orchestrator/v1/runs`, with tenant-scoped list/read routes and the existing engine as owner. This is source wiring, not evidence that the service is running. |
+| `apps/alloy-ingestion-orchestrator/src/security.ts`, `apps/alloy-ingestion-orchestrator/src/routes/approvals.ts` | Configured bearer authentication binds a service tenant, actor and roles; approval validates the tenant/run/request relationship. It does not supply a browser user's authenticated session. |
+| `apps/alloy-ingestion-orchestrator/src/run-store.ts`, `apps/alloy-ingestion-orchestrator/src/checkpoint-store.ts`, `apps/alloy-ingestion-orchestrator/src/runtime-admission.ts` | Runs, checkpoints, pending approvals, audit and idempotency reservations remain process-local; production admission is held until the required durable state exists. |
+| `packages/shared-proxy/src/index.ts` | `/api/` forwards to the configured API port; no ingestion route is mounted. The explicit local credential bridge covers Atelier only. |
+| `artifacts/api-server/src/middlewares/global-auth-enforcer.ts` | The guard expects a previously hydrated principal and imports absent helpers; it is not a complete browser identity provider or BFF. |
+| `artifacts/a11oy/src/graphql/provider.tsx`, `artifacts/a11oy/src/pages/NowBoard.tsx`, `artifacts/a11oy/src/pages/CommandSurface.tsx` | Retained development views declare same-origin GraphQL; their controlled-response browser evidence is not a live backend journey. |
+| `apps/alloy-runtime-api/src/routes/v1/atelier.ts`, `packages/a11oy-atelier/src/` | Existing inference, session, idempotency and receipt semantics require a faithful adapter; they do not define workflow or independent approval authority. |
+
+The next implementation must restore one canonical HTTP composition, bind a
+server-derived user and tenant, and project one existing owner's lifecycle with
+an explicit typed contract. A fixed-tenant service principal can support a
+declared local read bridge; it cannot stand in for a human approver. Resolve the
+durable run, checkpoint, approval, audit and idempotency ownership before
+production lifecycle admission. This is an integration task, not another
+isolated demonstration server or a new state/approval authority.
+
+**First acceptance gate:** a real tenant-isolated HTTP journey through the
+canonical development entry, with allowed and denied requests, actual owner
+state, schema validation, honest empty/error/stale states and retained evidence.
+No intercepted GraphQL response can satisfy that gate. The default executor in
+`packages/workflow-runtime/src/run-engine.ts` simulates completion when no step
+executor is supplied; its success state cannot be relabeled as verified work.
+Public deployment and independent execution custody remain separate gates.
+
+### Benchmark freshness
+
+The [2024 tau-bench paper](https://arxiv.org/abs/2406.12045) remains foundational.
+As reviewed on 2026-11-17, its [original author repository](https://github.com/sierra-research/tau-bench)
+marks its tasks outdated. The [maintained author repository](https://github.com/sierra-research/tau2-bench)
+now documents tau-bench 2.0 after tau3-bench 1.x, released frozen task/data frames,
+and noncomparable 1.x/2.0 scores. Future evaluation must pin the repository
+release/commit, task and data frame, agent/user configuration and judge versions.
+This note records research freshness; no benchmark was run or ranking claimed.
+
+### MODELED formula applications
+
+The [formula registry](../../formula_registry/formula-registry.v1.json) remains authoritative.
+For these entries, `can_constrain_execution=true` and `can_authorize_action=false`;
+each application still requires its applicability and implementation witnesses.
+
+| Formula | Proposed use and exact limit |
+| --- | --- |
+| F1 Replay-Hash Determinism | Deterministic rehearsal replay with identical function and input/trace; does not establish input truth or task correctness. |
+| F4 Khipu DAG Acyclicity | Evidence links only where every admitted edge satisfies the strict backward-edge invariant; a generic dependency graph is not covered automatically. |
+| F7 Chaski FIFO Ordering | Encoded append-at-back/drain-from-front ordering; no external delivery, durability or transport ordering guarantee. |
+| F22 Khipu Emit Monotonicity | Append-next-index sequence-log model; no external clock, database sequence or distributed transport guarantee. |

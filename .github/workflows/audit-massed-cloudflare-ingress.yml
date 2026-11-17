@@ -14,7 +14,16 @@ on:
       - ".github/workflows/audit-massed-cloudflare-ingress.yml"
       - "scripts/audit_cloudflare_massed_ingress.py"
       - "tests/test_cloudflare_massed_ingress_audit.py"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Choose one fixed read-only ingress scope"
+        type: choice
+        required: true
+        default: massed
+        options:
+          - massed
+          - windows-gateway
 
 permissions:
   contents: read
@@ -92,9 +101,10 @@ jobs:
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          AUDIT_PROFILE: ${{ inputs.profile || 'massed' }}
         run: |
           set +e
-          python scripts/audit_cloudflare_massed_ingress.py --report "$AUDIT_REPORT"
+          python scripts/audit_cloudflare_massed_ingress.py --profile "$AUDIT_PROFILE" --report "$AUDIT_REPORT"
           code=$?
           if [ -f "$AUDIT_REPORT" ]; then
             echo "report_written=true" >> "$GITHUB_OUTPUT"

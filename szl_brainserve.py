@@ -1,33 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2026 SZL Holdings. Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
-"""szl_brainserve.py — governed bridge to the estate's own served brain model.
+"""Retired brainserve bridge with read-only compatibility metadata.
 
-WHAT THIS SURFACE ANSWERS: "is a real SZL brain model actually answering right now, and does
-its self-reported provenance match the immutable model we expect — with every honesty caveat
-(unsigned output, receipts that do NOT cover this output, best-effort SLA) surfaced rather
-than hidden?"
-
-Unlike szl_brainlocal (which waits for an operator to declare SZL_LOCAL_LLM_URL and reports
-UNAVAILABLE until then), brainserve targets the estate's OWN committed inference Space at a
-known, provenance-bound, OpenAI-compatible endpoint. So it can report a MEASURED reading
-without any operator secret. An operator MAY override the endpoint via SZL_BRAINSERVE_URL /
-SZL_BRAINSERVE_MODEL; the committed default is the SZL-Khipu inference Space.
-
-HONESTY DISCIPLINE (doctrine v11):
-  * MEASURED is earned ONLY by the served model answering THIS request. Timeout / connection
-    error / HTTP error / unparseable body -> UNAVAILABLE, the transport reason recorded
-    verbatim. A configured-but-asleep Space is UNAVAILABLE, never a healthy reading.
-  * Provenance is REPORTED and CHECKED, never fabricated. If the served model's self-reported
-    repo@revision does not match the pinned expectation, verdict is PROVENANCE-MISMATCH — the
-    reading is still real (label MEASURED) but the surface refuses to call it the expected
-    model.
-  * The endpoint itself reports output.signature_status=UNSIGNED and receipts.covers_this_
-    output=false. brainserve PROPAGATES those caveats verbatim; it NEVER upgrades an unsigned
-    output to "proven" or claims a receipt covers an output it does not.
-  * Lambda stays Conjecture 1, never a theorem; locked-8 immutable adds 0; trust ceiling 0.97.
-  * This surface SERVES/BRIDGES only. It performs no training and admits nothing to gradients.
-  * Not counter-UAS. The bridged model is the in-scope SZL-Khipu brain-navigation model.
-  * Receipt is an UNSIGNED SHA-256 content digest, minted on WRITE (POST) only.
+The former GET probe generated a new model response. Its OpenAI endpoint is
+retired, and neither a page read nor a legacy receipt request can establish
+operator authorization or public-prompt acknowledgement. All execution paths
+are inert. Use the existing authenticated Atelier CPU-lab turn explicitly.
+Historical pin and digest helpers remain available without inference or writes.
+Lambda uniqueness remains Conjecture 1; the locked eight are unchanged.
 """
 
 from __future__ import annotations
@@ -36,8 +16,6 @@ import os
 import json
 import hashlib
 import datetime
-import urllib.error
-import urllib.request
 
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
@@ -70,6 +48,22 @@ EXPECTED_REVISION = "67d60ec577730747055491640cfb91fc4a4b5d25"
 
 PROBE_TIMEOUT_S = 30.0  # HF Spaces can cold-start; bounded but generous.
 MAX_TOKENS = 24
+SUCCESSOR_PATH = "/api/a11oy/v1/atelier/cpu-lab/turn"
+
+
+def _successor() -> dict:
+    return {
+        "method": "POST",
+        "path": SUCCESSOR_PATH,
+        "ui": "/command-centre#cpu-work",
+        "operator_authentication_required": True,
+        "public_share_acknowledged": True,
+        "declared": "PUBLIC",
+        "max_output_tokens": 32,
+        "grounding_required": True,
+        "authority": "PROPOSAL_ONLY",
+        "automatic_forwarding": False,
+    }
 
 # Verdicts (only meaningful when a reading was taken).
 VERDICT_SERVING = "SERVING-EXPECTED"          # answered AND provenance matches expectation
@@ -115,31 +109,16 @@ def read_env(environ=None) -> dict:
         "source": "operator-override" if overridden else "committed-default",
         "committed_default_url": DEFAULT_URL,
         "committed_default_model": DEFAULT_MODEL,
-        "note": ("the committed default targets the estate's own inference Space; an operator "
-                 "may override via the env vars. Reachability is a SEPARATE live call, never "
-                 "inferred from configuration."),
+        "note": (
+            "Historical configuration metadata only. Legacy generation is retired; "
+            "endpoint overrides cannot reactivate this transport."
+        ),
     }
 
 
 def _call_model(url: str, model: str, prompt: str, timeout: float = PROBE_TIMEOUT_S) -> tuple:
-    """POST one probe. Returns (data_dict, error). Never raises; a failure returns (None, reason)
-    so the reading is honestly UNAVAILABLE rather than fabricated."""
-    body = json.dumps({
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": MAX_TOKENS,
-        "temperature": 0.0,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        f"{url}/v1/chat/completions", data=body, method="POST",
-        headers={"content-type": "application/json", "accept": "application/json",
-                 "user-agent": "szl-brainserve/1.0"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            raw = resp.read()
-        return json.loads(raw.decode("utf-8", "replace")), None
-    except Exception as exc:
-        return None, f"{type(exc).__name__}: {str(exc)[:140]}"
+    """Inert compatibility hook: the legacy transport must never be revived."""
+    return None, "RETIRED: use the authenticated Atelier CPU-lab turn explicitly"
 
 
 def _summarize_provenance(prov: dict) -> dict:
@@ -166,48 +145,23 @@ def _summarize_provenance(prov: dict) -> dict:
 
 
 def probe(environ=None, timeout: float = PROBE_TIMEOUT_S, ns: str = "a11oy") -> dict:
-    cfg = read_env(environ)
-    url, model = cfg["url"], cfg["model"]
-    data, err = _call_model(url, model, "Reply with the single word: ok", timeout)
-    if err is not None or not isinstance(data, dict):
-        return {
-            "label": LBL_UNAVAILABLE,
-            "verdict": VERDICT_UNAVAILABLE,
-            "measured": False,
-            "answered": False,
-            "transport_error": err or "unparseable response body",
-            "note": ("served model did not answer THIS request (asleep / cold / unreachable). "
-                     "UNAVAILABLE — never softened into a healthy reading."),
-            "config": cfg,
-        }
-
-    content = ""
-    try:
-        content = str((data.get("choices") or [{}])[0].get("message", {}).get("content", ""))
-    except Exception:
-        content = ""
-    prov = data.get("szl_provenance", {})
-    summary = _summarize_provenance(prov)
-
-    # Provenance check: does the served model self-report the model we expect?
-    matches = (summary.get("reported_repo") == EXPECTED_REPO
-               and summary.get("reported_revision") == EXPECTED_REVISION)
-    verdict = VERDICT_SERVING if matches else VERDICT_MISMATCH
-
+    """Return retirement metadata without a model call or endpoint probe."""
     return {
-        "label": LBL_MEASURED,  # a real answer was received this request
-        "verdict": verdict,
-        "measured": True,
-        "answered": True,
-        "answer_sample": content[:80],
-        "served_model_id": data.get("model"),
-        "provenance_matches_expected": matches,
-        "expected_repo": EXPECTED_REPO,
-        "expected_revision": EXPECTED_REVISION,
-        "provenance": summary,
-        "note": ("MEASURED: the served brain model answered THIS request. provenance is reported "
-                 "and checked; unsigned/receipt caveats are propagated verbatim, never upgraded."),
-        "config": cfg,
+        "ok": False,
+        "state": "RETIRED",
+        "label": LBL_UNAVAILABLE,
+        "verdict": "RETIRED",
+        "measured": False,
+        "answered": False,
+        "operational": False,
+        "inference_performed": False,
+        "receipt_emitted": False,
+        "automatically_forwarded": False,
+        "successor": _successor(),
+        "note": (
+            "Legacy brainserve generation is retired. Explicit operator authentication "
+            "and public-prompt acknowledgement are required at the successor route."
+        ),
     }
 
 
@@ -236,7 +190,7 @@ def content_receipt(result: dict) -> dict:
         "content_sha256": digest,
         "signed": False,
         "mode": "UNSIGNED-CONTENT-DIGEST",
-        "receipt_on": "write (POST serve/receipt)",
+        "receipt_on": "offline historical helper; no HTTP route emits this digest",
         "note": ("unsigned SHA-256 content digest of the brainserve reading (including the served "
                  "model's own unsigned/receipt caveats). RECEIPT-ON-WRITE. This digest binds our "
                  "reading; it does NOT sign the model's output, which remains UNSIGNED upstream."),
@@ -251,12 +205,12 @@ def handle_info(ns: str = "a11oy") -> dict:
         "service": f"{ns}.brain.brainserve",
         "surface_id": SURFACE_ID,
         "label": LBL_MODELED,
-        "title": "Brain Serve — governed bridge to the estate's own served brain model",
-        "what": ("calls the estate's committed OpenAI-compatible inference Space (SZL-Khipu), "
-                 "verifies the served model's self-reported provenance against the pinned "
-                 "expectation, and reports MEASURED when the model answers THIS request — "
-                 "propagating unsigned/receipt caveats verbatim. Operator may override via "
-                 f"{ENV_URL} / {ENV_MODEL}."),
+        "title": "Brain Serve: retired inference bridge",
+        "state": "RETIRED",
+        "successor": _successor(),
+        "inference_performed": False,
+        "receipt_emitted": False,
+        "what": "Compatibility metadata only; legacy model generation is disabled.",
         "verdicts": {
             VERDICT_SERVING: "answered AND provenance matches the pinned expected model",
             VERDICT_MISMATCH: "answered but self-reported model differs from expectation (surfaced, not hidden)",
@@ -287,11 +241,13 @@ def handle_manifest(ns: str = "a11oy") -> dict:
         "surface_id": SURFACE_ID,
         "label": LBL_MODELED,
         "data_label": LBL_MODELED,
-        "title": "Brain Serve — governed bridge to the estate's own served brain model",
+        "title": "Brain Serve: retired inference bridge",
         "kind": "honesty-manifest",
-        "computes": ("live governed reading of the estate's served SZL-Khipu brain model with "
-                     "provenance verification; MEASURED only on a live answer, else UNAVAILABLE. "
-                     "Propagates unsigned/receipt caveats; trains nothing."),
+        "state": "RETIRED",
+        "successor": _successor(),
+        "inference_performed": False,
+        "receipt_emitted": False,
+        "computes": "Declared compatibility metadata only; no inference or receipt emission.",
         "honest_labels_vocabulary": list(HONEST_LABELS),
         "routes": {
             "info": f"GET  /api/{ns}/v1/brain/serve/info",
@@ -316,9 +272,10 @@ def handle_manifest(ns: str = "a11oy") -> dict:
             "no_consciousness_claim": True,
             "zero_runtime_cdn": True,
             "receipt_on_write_not_read": True,
+            "no_generation_on_get": True,
+            "legacy_post_never_forwards": True,
         },
-        "receipt_policy": ("RECEIPT-ON-WRITE-NOT-ON-READ — this GET manifest mints nothing; only "
-                           "POST serve/receipt emits an unsigned SHA-256 digest."),
+        "receipt_policy": "No legacy route emits receipts; POST serve/receipt is RETIRED.",
         "doctrine": _doctrine_block(
             "honesty manifest for the brainserve surface; declarative only, serves nothing here."),
     }
@@ -326,7 +283,6 @@ def handle_manifest(ns: str = "a11oy") -> dict:
 
 def handle_serve(ns: str = "a11oy") -> dict:
     result = probe(ns=ns)
-    result["ok"] = True
     result["endpoint"] = "brain/serve"
     result["service"] = f"{ns}.brain.brainserve"
     result["surface_id"] = SURFACE_ID
@@ -337,11 +293,9 @@ def handle_serve(ns: str = "a11oy") -> dict:
 
 def handle_receipt(ns: str = "a11oy") -> dict:
     result = probe(ns=ns)
-    result["ok"] = True
     result["endpoint"] = "brain/serve/receipt"
     result["service"] = f"{ns}.brain.brainserve"
     result["surface_id"] = SURFACE_ID
-    result["receipt"] = content_receipt(result)
     result["doctrine"] = _doctrine_block(label_top=result.get("label", LBL_MODELED))
     result["computed_at"] = _now_iso()
     return result
@@ -354,16 +308,18 @@ def register(app, ns: str = "a11oy") -> str:
     wired = 0
 
     async def _serve_manifest(request):
-        return JSONResponse(handle_manifest(ns))
+        return JSONResponse(handle_manifest(ns), headers={"Cache-Control": "no-store"})
 
     async def _serve_info(request):
-        return JSONResponse(handle_info(ns))
+        return JSONResponse(handle_info(ns), headers={"Cache-Control": "no-store"})
 
     async def _serve_serve(request):
-        return JSONResponse(handle_serve(ns))
+        return JSONResponse(handle_serve(ns), status_code=410,
+                            headers={"Cache-Control": "no-store"})
 
     async def _serve_receipt(request):
-        return JSONResponse(handle_receipt(ns))
+        return JSONResponse(handle_receipt(ns), status_code=410,
+                            headers={"Cache-Control": "no-store"})
 
     routes = [
         (f"{base}/{SURFACE_ID}/manifest", _serve_manifest, "GET"),
@@ -382,6 +338,10 @@ def register(app, ns: str = "a11oy") -> str:
     add_route = getattr(getattr(app, "router", None), "add_route", None)
     add_api_route = getattr(app, "add_api_route", None)
     for path, fn, method in routes:
+        app.router.routes[:] = [
+            route for route in app.router.routes
+            if getattr(route, "path", None) != path
+        ]
         try:
             if callable(add_route):
                 app.router.add_route(path, fn, methods=[method])

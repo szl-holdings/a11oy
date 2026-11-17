@@ -75,7 +75,7 @@ jobs:
       - name: Install exact core test dependencies
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Test readback and deployment toolchain contracts
-        run: python -m pytest tests/test_verify_worker_revision.py tests/test_managed_alert_transport_workflows.py tests/test_email_worker_account_resolution.py -q
+        run: python -m pytest tests/test_verify_worker_revision.py tests/test_managed_alert_transport_workflows.py ops/email-sender-worker/test/test_diagnose_readiness.py tests/test_email_worker_account_resolution.py -q
 
   deploy:
     name: Deploy szl-email-sender and read back the live revision
@@ -230,3 +230,31 @@ jobs:
             --worker szl-email-sender \
             --expect-revision "${GITHUB_SHA}" \
             --require-ready
+      - name: Observe value-free email readiness predicates
+        id: readiness_diagnostic
+        if: always() && steps.deploy.outcome == 'success'
+        timeout-minutes: 1
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="$(mktemp -d "${RUNNER_TEMP}/email-readiness.XXXXXX")"
+          diagnostic_status=0
+          python -I -B ops/email-sender-worker/diagnose_readiness.py \
+            --deployment-url "${DEPLOYMENT_URL}" \
+            --expect-revision "${GITHUB_SHA}" \
+            --output "${report_dir}/readiness.json" || diagnostic_status=$?
+          if [ -s "${report_dir}/readiness.json" ] && \
+            python -I -B -m json.tool "${report_dir}/readiness.json" >/dev/null 2>&1; then
+            printf 'record_path=%s\n' "${report_dir}/readiness.json" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$diagnostic_status"
+      - name: Preserve the value-free readiness report
+        if: always() && steps.readiness_diagnostic.outputs.record_path != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: email-worker-readiness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.readiness_diagnostic.outputs.record_path }}
+          if-no-files-found: error
+          retention-days: 7
