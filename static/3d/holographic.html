@@ -321,7 +321,8 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
   <div class="evidence-rail__row"><span>Contract</span><code id="evidence-rail-contract">—</code></div>
   <div class="evidence-rail__row"><span>Runtime</span><span id="evidence-rail-runtime">NOT_EVALUATED</span></div>
   <div class="evidence-rail__row"><span>Readiness</span><span id="evidence-rail-readiness">NOT_EVALUATED</span></div>
-  <div class="evidence-rail__links"><a href="/api/a11oy/v1/readiness/tab-matrix?view=summary">Readiness JSON</a><a href="/api/build-info">Build identity</a><a href="/verify">Verify receipt</a></div>
+  <div class="evidence-rail__row"><span>Telemetry</span><span id="evidence-rail-telemetry">NOT_EVALUATED</span></div>
+  <div class="evidence-rail__links"><a href="/api/a11oy/v1/readiness/tab-matrix?view=summary">Readiness JSON</a><a href="/api/build-info">Build identity</a><a href="/api/a11oy/v1/telemetry/summary">Telemetry JSON</a><a href="/verify">Verify receipt</a></div>
  </div>
 </aside>
 <div id="surface-caption" title=""></div>
@@ -670,6 +671,7 @@ const evidenceId = document.getElementById("evidence-rail-id");
 const evidenceContract = document.getElementById("evidence-rail-contract");
 const evidenceRuntime = document.getElementById("evidence-rail-runtime");
 const evidenceReadiness = document.getElementById("evidence-rail-readiness");
+const evidenceTelemetry = document.getElementById("evidence-rail-telemetry");
 const EVIDENCE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const EVIDENCE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let evidenceSnapshotPromise = null;
@@ -703,11 +705,12 @@ async function _fetchEvidenceSnapshot(forceRefresh = false) {
         return response.ok ? await response.json() : null;
       } catch (_) { return null; }
     };
-    const [readiness, build] = await Promise.all([
+    const [readiness, build, telemetry] = await Promise.all([
       getJson("/api/a11oy/v1/readiness/tab-matrix?view=summary"),
       getJson("/api/build-info"),
+      getJson("/api/a11oy/v1/telemetry/summary"),
     ]);
-    return { readiness, build, generation };
+    return { readiness, build, telemetry, generation };
   })();
   return evidenceSnapshotPromise;
 }
@@ -794,12 +797,22 @@ function _updateEvidenceRail(def, forceRefresh = false) {
   if (evidenceContract) evidenceContract.textContent = `${catOf(def)} · ${def.mod}`;
   if (evidenceRuntime) evidenceRuntime.textContent = "CHECKING";
   if (evidenceReadiness) evidenceReadiness.textContent = "CHECKING";
-  _fetchEvidenceSnapshot(forceRefresh).then(({ readiness, build, generation }) => {
+  if (evidenceTelemetry) evidenceTelemetry.textContent = "CHECKING";
+  _fetchEvidenceSnapshot(forceRefresh).then(({ readiness, build, telemetry, generation }) => {
     if (generation !== evidenceRefreshGeneration) return;
     const buildState = build?.build?.state || build?.state || "UNAVAILABLE";
     const revision = build?.build?.revision || build?.revision || null;
     if (evidenceRuntime) evidenceRuntime.textContent = revision ? `${buildState} · ${String(revision).slice(0,12)}…` : buildState;
     const observed = _hasObservedEvidence(readiness, revision);
+    // Telemetry is a separate authority lane. HTTP 200 or configured exporters
+    // cannot upgrade unverified collector delivery to LIVE.
+    const telemetryBound = telemetry?.schema === "szl.telemetry-summary/v1" &&
+      telemetry?.read_only === true && telemetry?.receipt_minted === false &&
+      typeof revision === "string" && telemetry?.source_revision === revision;
+    const telemetryState = telemetryBound && telemetry?.status === "LIVE" &&
+      telemetry?.otel?.collector?.state === "REACHABLE" ? "LIVE" :
+      telemetryBound && telemetry?.status === "DEGRADED" ? "DEGRADED" : "UNAVAILABLE";
+    if (evidenceTelemetry) evidenceTelemetry.textContent = telemetryState;
     if (evidenceReadiness) {
       evidenceReadiness.textContent = _readinessEvidenceText(readiness, observed);
     }

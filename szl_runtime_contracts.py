@@ -4,7 +4,7 @@
 
 Taxonomy home: services/ (runtime health, identity, and observability posture).
 
-The four read-only endpoints deliberately answer different questions:
+The five read-only endpoints deliberately answer different questions:
 
 * ``/api/livez`` proves only that this Python process can answer a request.
 * ``/api/readyz`` re-walks the configured Khipu chain and folds in the existing
@@ -12,6 +12,8 @@ The four read-only endpoints deliberately answer different questions:
 * ``/api/build-info`` emits only observable, allowlisted build metadata.
 * ``/api/<ns>/v1/otel/status`` separates in-process propagation, exporter
   configuration, and fresh collector delivery evidence.
+* ``/api/<ns>/v1/telemetry/summary`` presents that same bounded evidence to
+  frontend consumers without promoting unavailable traces or collection.
 
 GETs never mint receipts, sign data, contact an upstream, or write to disk.
 """
@@ -506,6 +508,33 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
     async def _otel_status():
         return _no_store_json(_otel_posture(app))
 
+    @app.get(f"/api/{ns}/v1/telemetry/summary", tags=["runtime"], include_in_schema=True)
+    async def _telemetry_summary():
+        """Read-only frontend contract; never equate a configured exporter with delivery."""
+        otel = _otel_posture(app)
+        revision, revision_source = _safe_env_sha()
+        collector = otel.get("collector") or {}
+        # LIVE is permitted only by the existing fresh collector-delivery contract.
+        status = (
+            "LIVE" if otel.get("status") == "LIVE" and collector.get("state") == "REACHABLE"
+            else "DEGRADED" if otel.get("in_process", {}).get("state") == "LIVE"
+            else "UNAVAILABLE"
+        )
+        return _no_store_json({
+            "schema": "szl.telemetry-summary/v1",
+            "status": status,
+            "read_only": True,
+            "receipt_minted": False,
+            "source_revision": revision,
+            "source_revision_provenance": revision_source or "UNAVAILABLE",
+            "otel": otel,
+            "traces": {"state": "UNAVAILABLE", "reason": "NOT_ADMITTED_TO_SUMMARY",
+                       "source": f"/api/{ns}/v1/observability/traces"},
+            "scope": "OTEL_POSTURE_ONLY",
+            "production_authorization": False,
+            "note": "Read-time projection; no collector query, no network probe, no signature claim",
+        })
+
     @app.get("/static/landing-honest-bind.js", include_in_schema=False)
     async def _landing_honest_bind_js():
         from fastapi.responses import FileResponse
@@ -541,6 +570,7 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
             "/api/readyz",
             "/api/build-info",
             f"/api/{ns}/v1/otel/status",
+            f"/api/{ns}/v1/telemetry/summary",
             "/static/landing-honest-bind.js",
         ],
         "external_writes": False,
