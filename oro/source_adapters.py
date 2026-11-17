@@ -49,12 +49,15 @@ def _commit(value: Any, field: str) -> str:
 def _canonical_khipu(dag: Any) -> tuple[list[EvidenceNode], dict[str, Any]]:
     if dag is None:
         return [], {"state": "UNKNOWN", "count": 0}
-    recent = getattr(dag, "recent", None)
-    if not callable(recent):
+    window_reader = getattr(dag, "evidence_window", None)
+    bounded_reader = callable(window_reader)
+    reader = window_reader if bounded_reader else getattr(dag, "recent", None)
+    if not callable(reader):
         raise ValueError("existing canonical Khipu DAG reader required")
-    # Wire F's recent() is a lock-protected read. Never call get_dag(),
-    # verify(), checkpoint(), tick(), append_signed(), or an ORO writer.
-    raw = recent(MAX_KHIPU_NODES + 1)
+    # Canonical HTTP inspection requires evidence_window; recent remains a
+    # compatibility path for explicit library callers, with no work-bound claim.
+    # Never call get_dag(), verify(), checkpoint(), tick(), or an ORO writer.
+    raw = reader(MAX_KHIPU_NODES + 1)
     if not isinstance(raw, (list, tuple)) or len(raw) > MAX_KHIPU_NODES + 1:
         raise ValueError("canonical Khipu snapshot exceeds read bound")
     window = raw[-MAX_KHIPU_NODES:]
@@ -102,6 +105,9 @@ def _canonical_khipu(dag: Any) -> tuple[list[EvidenceNode], dict[str, Any]]:
         "window_complete": not partial,
         "omitted_parent_digests": omitted_parents,
         "signature_verification": "UNKNOWN",
+        "read_method": "evidence_window" if bounded_reader else "recent",
+        "validation_scope": "BOUNDED_WINDOW_ONLY" if bounded_reader else "OWNER_DEFINED",
+        "history_validation": "NOT_PERFORMED" if bounded_reader else "OWNER_DEFINED",
     }
 
 

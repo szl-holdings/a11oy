@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from types import SimpleNamespace
 
 import szl_frontier_index as frontier
 
@@ -25,7 +26,8 @@ def test_catalog_ttl_starts_after_probe_completes(monkeypatch) -> None:
     catalog = {"surfaces": []}
     calls: list[tuple[object, str]] = []
 
-    monkeypatch.setattr(frontier.datetime, "datetime", FakeDatetime)
+    monkeypatch.setattr(frontier, "datetime", SimpleNamespace(
+        datetime=FakeDatetime, timezone=dt.timezone))
     monkeypatch.setattr(
         frontier,
         "_build_catalog",

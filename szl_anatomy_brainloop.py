@@ -361,7 +361,29 @@ def _overlay_stat(path: str):
     try:
         info = os.stat(path)
     except FileNotFoundError:
-        return None
+        # Windows may report ENOENT when an ancestor is a file. Establish a
+        # traversable directory before accepting absence, without creating it.
+        missing = path
+        while True:
+            try:
+                os.lstat(missing)
+            except FileNotFoundError:
+                pass
+            else:
+                # An existing entry whose stat failed (e.g. a dangling link)
+                # is unavailable, not an uninitialized overlay.
+                raise OSError("overlay path cannot be resolved") from None
+            parent = os.path.dirname(missing) or os.curdir
+            if parent == missing:
+                raise OSError("overlay root is unavailable") from None
+            try:
+                ancestor = os.stat(parent)
+            except FileNotFoundError:
+                missing = parent
+                continue
+            if not stat.S_ISDIR(ancestor.st_mode):
+                raise NotADirectoryError("overlay ancestor is not a directory")
+            return None
     if not stat.S_ISREG(info.st_mode):
         raise OSError("overlay target is not a regular file")
     return info

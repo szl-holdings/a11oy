@@ -1,22 +1,23 @@
 # SPDX-License-Identifier: Apache-2.0
 """Canonical Evidence Graph (CEG) primitives.
 
-The CEG is deliberately small and append-only.  It does not mint readiness,
-signatures, energy measurements, or authority.  It turns independently
-observed facts into deterministic, hash-addressed edges that can be queried,
-replayed, and compared across deployments.
+The CEG represents observer-supplied facts as immutable, hash-addressed edges.
+It does not persist an append-only ledger or mint readiness, signatures,
+energy measurements, or authority. Snapshots can be queried, replayed, and
+compared across deployments without authenticating the observer's claims.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from types import MappingProxyType
 from typing import Any, Iterable, Mapping
-from fastapi.responses import JSONResponse
 
 # Keep the response class in module globals: route annotations are deferred by
 # ``from __future__ import annotations`` and FastAPI resolves them against the
@@ -24,7 +25,7 @@ from fastapi.responses import JSONResponse
 # the graph primitives importable in bare, non-serving test environments.
 try:
     from fastapi.responses import JSONResponse
-except Exception:  # pragma: no cover - FastAPI is optional for pure primitives
+except ImportError:  # FastAPI is optional for pure primitives
     JSONResponse = None  # type: ignore[assignment,misc]
 
 SCHEMA = "szl.evidence-edge/v1"
@@ -34,9 +35,46 @@ _MAX_EDGES = 256
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
+def _json_value(value: Any, *, active: set[int] | None = None) -> Any:
+    """Return detached JSON data, rejecting values with no strict JSON encoding."""
+    if value is None or type(value) in (str, bool, int):
+        return value
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError("evidence JSON numbers must be finite")
+        return value
+    if not isinstance(value, (Mapping, list, tuple)):
+        raise ValueError(f"unsupported evidence JSON type: {type(value).__name__}")
+    if active is None:
+        active = set()
+    identity = id(value)
+    if identity in active:
+        raise ValueError("evidence JSON cannot contain cycles")
+    active.add(identity)
+    try:
+        if isinstance(value, Mapping):
+            if any(type(key) is not str for key in value):
+                raise ValueError("evidence JSON object keys must be strings")
+            return {key: _json_value(item, active=active) for key, item in value.items()}
+        return [_json_value(item, active=active) for item in value]
+    finally:
+        active.remove(identity)
+
+
+def _freeze_json(value: Any) -> Any:
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze_json(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze_json(item) for item in value)
+    return value
+
+
 def canonical_json(value: Any) -> str:
-    """Return the byte-stable JSON representation used for receipt IDs."""
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    """Return deterministic, strict JSON; this is not an RFC 8785 encoder."""
+    return json.dumps(
+        _json_value(value), ensure_ascii=False, sort_keys=True,
+        separators=(",", ":"), allow_nan=False,
+    )
 
 
 def sha256_hex(value: Any) -> str:
@@ -52,12 +90,26 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _clean_map(value: Mapping[str, Any] | None) -> dict[str, Any]:
-    return dict(value or {})
+def _clean_map(value: Mapping[str, Any] | None, field: str) -> Mapping[str, Any]:
+    if value is None:
+        value = {}
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{field} must be an object")
+    return _freeze_json(_json_value(value))
+
+
+def _names(value: Any, field: str) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)) or any(
+        type(item) is not str or not item for item in value
+    ):
+        raise ValueError(f"{field} must be an array of nonempty strings")
+    if len(value) > 64:
+        raise ValueError(f"an edge may reference at most 64 {field}")
+    return tuple(sorted(set(value)))
 
 
 def _validate_sha256(value: str | None, field: str) -> None:
-    if value is not None and value != "" and not _SHA256_RE.fullmatch(value):
+    if value is not None and (type(value) is not str or not _SHA256_RE.fullmatch(value)):
         raise ValueError(f"{field} must be a lowercase SHA-256 digest")
 
 
@@ -77,39 +129,41 @@ class EvidenceEdge:
     reason: str | None = None
 
     def __post_init__(self) -> None:
-        subject = _clean_map(self.subject)
-        runtime = _clean_map(self.runtime)
-        evidence = _clean_map(self.evidence)
-        authority = _clean_map(self.authority)
-        if not subject.get("kind") or not subject.get("id"):
-            raise ValueError("subject.kind and subject.id are required")
-        if self.verdict not in VERDICTS:
+        subject = _clean_map(self.subject, "subject")
+        runtime = _clean_map(self.runtime, "runtime")
+        evidence = _clean_map(self.evidence, "evidence")
+        authority = _clean_map(self.authority, "authority")
+        if any(type(subject.get(key)) is not str or not subject[key] for key in ("kind", "id")):
+            raise ValueError("subject.kind and subject.id must be nonempty strings")
+        if type(self.verdict) is not str or self.verdict not in VERDICTS:
             raise ValueError(f"unsupported verdict: {self.verdict}")
-        if self.source_revision is not None and not self.source_revision:
-            raise ValueError("source_revision cannot be empty")
+        if self.source_revision is not None and (type(self.source_revision) is not str or not self.source_revision):
+            raise ValueError("source_revision must be a nonempty string or null")
+        if self.reason is not None and type(self.reason) is not str:
+            raise ValueError("reason must be a string or null")
         _validate_sha256(self.artifact_sha256, "artifact_sha256")
         if not isinstance(authority.get("execution_authorized", False), bool):
             raise ValueError("authority.execution_authorized must be boolean")
-        if len(self.parents) > 64:
-            raise ValueError("an edge may reference at most 64 parents")
-        if len(self.invariant_ids) > 64:
-            raise ValueError("an edge may reference at most 64 invariants")
+        parents = _names(self.parents, "parents")
+        invariant_ids = _names(self.invariant_ids, "invariant_ids")
         object.__setattr__(self, "subject", subject)
         object.__setattr__(self, "runtime", runtime)
         object.__setattr__(self, "evidence", evidence)
         object.__setattr__(self, "authority", authority)
-        object.__setattr__(self, "parents", tuple(sorted(set(self.parents))))
-        object.__setattr__(self, "invariant_ids", tuple(sorted(set(self.invariant_ids))))
+        object.__setattr__(self, "parents", parents)
+        object.__setattr__(self, "invariant_ids", invariant_ids)
+        # Reject invalid UTF-8 strings before this edge can be referenced by a parent.
+        canonical_json(self.payload()).encode("utf-8")
 
     def payload(self) -> dict[str, Any]:
         return {
             "schema": SCHEMA,
-            "subject": dict(self.subject),
+            "subject": _json_value(self.subject),
             "source_revision": self.source_revision,
             "artifact_sha256": self.artifact_sha256,
-            "runtime": dict(self.runtime),
-            "evidence": dict(self.evidence),
-            "authority": dict(self.authority),
+            "runtime": _json_value(self.runtime),
+            "evidence": _json_value(self.evidence),
+            "authority": _json_value(self.authority),
             "parents": list(self.parents),
             "invariant_ids": list(self.invariant_ids),
             "verdict": self.verdict,
@@ -127,17 +181,20 @@ class EvidenceEdge:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "EvidenceEdge":
+        if not isinstance(value, Mapping):
+            raise ValueError("evidence edge must be an object")
+        value = _json_value(value)
         if value.get("schema", SCHEMA) != SCHEMA:
             raise ValueError("unsupported evidence edge schema")
         edge = cls(
-            subject=_clean_map(value.get("subject")),
+            subject=value.get("subject"),
             source_revision=value.get("source_revision"),
             artifact_sha256=value.get("artifact_sha256"),
-            runtime=_clean_map(value.get("runtime")),
-            evidence=_clean_map(value.get("evidence")),
-            authority=_clean_map(value.get("authority")),
-            parents=tuple(value.get("parents") or ()),
-            invariant_ids=tuple(value.get("invariant_ids") or ()),
+            runtime=value.get("runtime"),
+            evidence=value.get("evidence"),
+            authority=value.get("authority"),
+            parents=value.get("parents", ()),
+            invariant_ids=value.get("invariant_ids", ()),
             verdict=value.get("verdict", "OBSERVED"),
             reason=value.get("reason"),
         )
@@ -271,16 +328,64 @@ def environment_snapshot(*, max_edges: int = _MAX_EDGES) -> dict[str, Any]:
     }
 
 
-def register(app: Any, *, ns: str = "a11oy") -> tuple[str, str]:
-    """Register read-only graph and query routes on a FastAPI application."""
+def _load_receipt_bundle(path: Any) -> tuple[tuple[EvidenceEdge, ...], dict[str, Any]]:
+    """Load a reviewed release artifact once, without any network or signing."""
+    try:
+        from szl_evidence_receipts import MAX_BUNDLE_BYTES, decode_bundle
+    except ImportError:
+        return (), {"state": "UNAVAILABLE", "reason": "RECEIPT_READER_UNAVAILABLE"}
+    try:
+        with open(path, "rb") as stream:
+            raw = stream.read(MAX_BUNDLE_BYTES + 1)
+    except OSError:
+        return (), {"state": "UNAVAILABLE", "reason": "RECEIPT_BUNDLE_UNREADABLE"}
+    try:
+        edges = tuple(decode_bundle(raw))
+    except (ValueError, TypeError, UnicodeError, RecursionError):
+        return (), {"state": "UNAVAILABLE", "reason": "RECEIPT_BUNDLE_INVALID"}
+    return edges, {
+        "state": "OBSERVED",
+        "reason": "BUNDLED_RECEIPT_OBSERVATIONS",
+        "edge_count": len(edges),
+        "file_sha256": sha256_hex(raw),
+        "signature_status": "UNSIGNED",
+        "claims_verified": False,
+        "scope": "Historical artifact bytes checked at import; no live readiness or authority.",
+    }
+
+
+def register(
+    app: Any, *, ns: str = "a11oy", receipt_bundle_path: Any = None,
+) -> tuple[str, str]:
+    """Register read-only graph routes backed by a fixed release artifact."""
+    from pathlib import Path
     from fastapi import Query
+
     base = f"/api/{ns}/v1/evidence"
+    bundle_path = (
+        Path(__file__).with_name("evidence_graph_receipts.json")
+        if receipt_bundle_path is None else receipt_bundle_path
+    )
+    receipt_edges, receipt_status = _load_receipt_bundle(bundle_path)
+
+    def current_snapshot(limit: int) -> dict[str, Any]:
+        current = environment_snapshot(max_edges=_MAX_EDGES)
+        runtime_state = current["state"]
+        current["runtime_identity_state"] = runtime_state
+        current["receipt_bundle"] = dict(receipt_status)
+        current["graph"] = graph_snapshot(
+            [*current["graph"]["edges"], *receipt_edges], max_edges=limit,
+        )
+        if runtime_state == "OBSERVED" and receipt_status["state"] == "UNAVAILABLE":
+            current["state"] = "DEGRADED"
+            current["reason"] = "RECEIPT_BUNDLE_UNAVAILABLE"
+        return current
 
     @app.get(base + "/graph")
     async def evidence_graph(
         limit: int = Query(_MAX_EDGES, ge=1, le=_MAX_EDGES),
     ) -> JSONResponse:
-        return JSONResponse(environment_snapshot(max_edges=limit))
+        return JSONResponse(current_snapshot(limit), headers={"Cache-Control": "no-store"})
 
     @app.get(base + "/query")
     async def evidence_query(
@@ -290,7 +395,7 @@ def register(app: Any, *, ns: str = "a11oy") -> tuple[str, str]:
         invariant_id: str | None = None,
         limit: int = Query(_MAX_EDGES, ge=1, le=_MAX_EDGES),
     ) -> JSONResponse:
-        current = environment_snapshot(max_edges=limit)
+        current = current_snapshot(limit)
         try:
             selected = query_snapshot(
                 current["graph"],
@@ -301,6 +406,6 @@ def register(app: Any, *, ns: str = "a11oy") -> tuple[str, str]:
             )
         except ValueError as exc:
             return JSONResponse({"schema": GRAPH_SCHEMA, "state": "UNAVAILABLE", "reason": str(exc)}, status_code=400)
-        return JSONResponse({**current, "graph": selected})
+        return JSONResponse({**current, "graph": selected}, headers={"Cache-Control": "no-store"})
 
     return base + "/graph", base + "/query"
