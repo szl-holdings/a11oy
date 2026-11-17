@@ -22,9 +22,25 @@ deriving a separate readiness verdict.
 Each request resolves the existing `app.state.szl_khipu_dag`. Its bounded read
 runs in a threadpool through
 [`project_source_snapshots`](../../oro/source_adapters.py) and
-[`project_dag`](../../oro/evidence_dag.py). The adapter requests at most 33 Wire F
+[`project_dag`](../../oro/evidence_dag.py). The HTTP inspector requires the
+owner's passive evidence_window method; an owner exposing only the older
+recent method is unavailable on this route. It requests at most 33 Wire F
 nodes and projects at most 32. An omitted earlier parent remains an explicit
 window boundary; no parent or cross-source causal edge is invented.
+
+The managed window reader uses the existing space/sequence index and one
+read-only SQLite transaction. It checks selected row lengths with the plain-column
+[octet_length function](https://www.sqlite.org/lang_corefunc.html#octet_length)
+before fetching JSON bodies and refuses a cumulative encoded window above 1 MiB.
+Unsupported function availability or a non-UTF-8 inspection format yields an
+unavailable inspection; neither changes storage admission or full-history reads.
+The SQLite busy timeout is two seconds. It validates selected checksums, identities,
+local continuity, and the retained head, without scanning earlier history.
+Diagnostics state validation_scope BOUNDED_WINDOW_ONLY and history_validation
+NOT_PERFORMED; the page states that limitation. Existing recent, full-history
+validation, append, restoration, snapshot, and lease semantics remain intact.
+This is a bound on the managed Khipu inspection, not a production latency or
+throughput measurement.
 
 Anatomy is a separate, allowlisted summary from
 `szl_anatomy_brainloop.evidence_snapshot()`. This is the read-only v6 observation,

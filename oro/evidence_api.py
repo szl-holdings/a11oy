@@ -110,6 +110,8 @@ def collect_observation(application: FastAPI) -> tuple[int, dict[str, Any]]:
     owner = getattr(application.state, "szl_khipu_dag", None)
     if owner is not None:
         try:
+            if not callable(getattr(owner, "evidence_window", None)):
+                raise ValueError("bounded canonical Khipu window reader required")
             observed = project_source_snapshots(canonical_khipu_dag=owner)
             sources["canonical_khipu"] = observed["sources"]["canonical_khipu"]
             projection = {key: value for key, value in observed.items() if key != "sources"}

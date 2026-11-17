@@ -51,6 +51,9 @@ class ExistingDag:
         self.read_threads = []
 
     def recent(self, count):
+        raise AssertionError("HTTP inspection must not read unbounded history")
+
+    def evidence_window(self, count):
         self.calls.append(count)
         self.read_threads.append(threading.get_ident())
         if self.error is not None:
@@ -140,6 +143,17 @@ class EvidenceApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(owner.calls, [33])
         self.anatomy_reader.assert_called_once_with()
+
+    def test_recent_only_owner_is_refused_without_unbounded_fallback(self):
+        class RecentOnly:
+            def recent(self, _count):
+                raise AssertionError("unbounded reader was called")
+        with TestClient(make_app(RecentOnly())) as client:
+            response = client.get(API_PATH)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["sources"]["canonical_khipu"]["reason"],
+                         "OWNER_CONTRACT_INVALID")
+        self.assertEqual(response.json()["projection"]["nodes"], [])
 
     def test_other_namespaces_are_refused_before_routes_are_added(self):
         for namespace in ("sentra", "../a11oy", "a11oy/child", ""):

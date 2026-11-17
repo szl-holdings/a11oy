@@ -14,7 +14,8 @@ function observation() {
     promotion_authority: false, capabilities: {execution: {available: false, reasons: ["CANONICAL_ORO_ADMISSION_NOT_BOUND"]}},
     sources: {
       canonical_khipu: {state: "DECLARED", count: 1, window_complete: false,
-        omitted_parent_digests: ["c".repeat(64)], signature_verification: "UNKNOWN"},
+        omitted_parent_digests: ["c".repeat(64)], signature_verification: "UNKNOWN",
+        read_method: "evidence_window", validation_scope: "BOUNDED_WINDOW_ONLY", history_validation: "NOT_PERFORMED"},
       second_brain: {state: "UNKNOWN", count: 0},
       anatomy: {state: "MODELED", count: 0, summary: {nodes: 24}},
       hatun: {state: "UNKNOWN", count: 0}
@@ -78,6 +79,7 @@ test("503 after a successful observation clears all displayed handles and counts
   await controller.refresh();
   assert.equal(doc.getElementById("handle-count").textContent, "1 handle");
   assert.equal(doc.getElementById("nodes").children[0].tagName, "details");
+  assert.match(doc.getElementById("sources").textContent, /Full ledger history was not validated/);
   await controller.refresh();
   assert.equal(states.at(-1).phase, "unavailable");
   assert.equal(doc.getElementById("handle-count").textContent, "Not observed");

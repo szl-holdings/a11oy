@@ -41,7 +41,7 @@ The fixture proves local integration and read boundaries. It is not evidence of 
 
 ## Regression execution
 
-The final combined run passed 247 tests and 72 parameterized subtests in 91.77 seconds. It includes the assembled canonical application, ORO runtime/API/evidence contracts, Docker packaging, Anatomy read boundaries, v5/v6 page contracts, and the Anatomy loop. The original browser controller suite passed nine tests; the final lifecycle suite described below passes twelve. All processes exited successfully. Existing deprecation and test-return warnings were reported; no tests were skipped or weakened.
+The initial combined run passed 247 tests and 72 parameterized subtests in 91.77 seconds. It includes the assembled canonical application, ORO runtime/API/evidence contracts, Docker packaging, Anatomy read boundaries, v5/v6 page contracts, and the Anatomy loop. The original browser controller suite passed nine tests; the final lifecycle suite described below passes twelve. All processes exited successfully. Existing deprecation and test-return warnings were reported; no tests were skipped or weakened.
 
 The broader run first exposed the Windows invalid-parent-path case, and a source-owner suite exposed an upstream STRUCTURAL-ONLY label outside Anatomy's four-label contract. Both original tests were preserved. The overlay reader now rejects invalid ancestors; the lungs projection preserves source_label while reporting unavailable measurement. Both fixes and their cross-platform regression cases pass in the final combined run.
 
@@ -58,6 +58,22 @@ The canonical Command Centre manifest and server-rendered page now link to /oro/
 Independent review found that disposing the reader on pagehide left retained DOM evidence without a running expiry or Refresh controller after a back/forward-cache restoration. The view now clears handles when hidden or departed, removes its Refresh listener, and mounts exactly one reader only when the page is active and visible. A disposed pending read cannot repaint or schedule a new expiry after its transport resolves.
 
 The final Node suite passes 12 tests, including repeated persisted pagehide/pageshow events, hidden restoration, listener deduplication, and late transport completion. A real Chromium navigation witness used the actual FastAPI/Khipu/Anatomy path with no intercepted response: returning after owner removal cleared evidence, restored Refresh recovered, node count stayed 2 to 2, signing calls stayed zero, and the overlay remained absent. There were no page errors. This browser run reported persisted=false, so actual browser-cache retention was not observed; the persisted-cache lifecycle is covered by the deterministic event regression.
+
+## Bounded managed Khipu inspection
+
+A further source review established that the previous recent(33) call performed an unrestricted managed-store fetch and full-ledger validation before slicing. The new passive StateStore.provenance_window and Wire F evidence_window methods bound the actual managed read: at most 33 selected rows, at most 1 MiB of cumulative encoded node JSON checked before body retrieval, and a two-second SQLite busy timeout. Metadata, head, and bodies share one read transaction. Selected checksums, identities, continuity and head agreement are checked; omitted history is explicitly not validated.
+
+Existing full-history readers, append admission, snapshots, restoration and leases retain their semantics. The HTTP inspector refuses an owner exposing only the legacy recent method without calling it. Source diagnostics and the visible page state BOUNDED_WINDOW_ONLY and that full ledger history was not validated.
+
+The focused owner, existing provenance persistence, adapter and API run passed 85 tests and 39 subtests. Regressions verify the indexed SQL limit, cumulative-byte rejection before body retrieval, no changed database bytes or files, no signing/write admission, corruption refusal inside the selected window, and continued full-reader refusal for corruption outside that window. This demonstrates bounded inspection semantics, not a production throughput measurement.
+
+Before this owner correction, the merged c9f5c0c7a7814a023c095a3da24e859816f44533 revision also passed 158 focused integration tests and 33 subtests, twelve controller tests, Ruff E9/F, and diff checks.
+
+The subsequent combined run passed 426 tests and 72 subtests in 55.43 seconds, plus all twelve controller tests, Ruff E9/F and diff checks. The actual backend-to-Chrome witness was rerun at 1440px and 390px with the bounded owner API; repeated reads still retained 2 to 2 nodes, made zero signing calls, and created no overlay.
+
+A final SQLite probe caught a subtle size-check problem: length(CAST(node_json AS BLOB)) materialized text internally before counting it. The corrected query uses the plain-column [octet_length function](https://www.sqlite.org/lang_corefunc.html#octet_length), whose documented behavior obtains size from metadata. Read-only encoding validation preserves the UTF-8 byte budget. Missing function availability or unsupported encoding refuses inspection only, without a fallback, SQLite version pin, or change to full readers/storage admission. The resulting focused owner/persistence/adapter/API run passed 87 tests and 39 subtests. Opcode observations were diagnostic evidence, not a runtime or CI gate.
+
+An additional integrated regression drives the actual synthetic managed SQLite owner through the real managed Wire F DAG and FastAPI endpoint. It verifies a 200 response with 32 unverified handles, then a 503 without handles after selected-row corruption, no payload/path disclosure, unchanged database bytes/files on each GET, and zero signing/append/write-admission attempts. Anatomy is an explicit synthetic summary for this isolated storage/API test. The final bounded-window test file passes 30 cases.
 
 ## Production readback during implementation
 

@@ -52,9 +52,16 @@ See [the integration contract and cited prior art](../docs/architecture/oro-evid
 for the storage, signer, and admission boundaries required before canonical ORO
 execution can be enabled.
 
-The Khipu read is limited to 33 recent nodes and projects at most 32. A tail
-with a missing earlier parent is marked partial and exposes only the omitted
-parent digest; the projection does not fabricate that parent. Second Brain
+The Khipu projection contains at most 32 nodes from a 33-node input window.
+Canonical HTTP inspection requires the owner's bounded evidence_window method:
+managed reads select at most 33 rows and check a 1 MiB cumulative JSON budget
+before loading bodies, with a two-second SQLite busy timeout. Only the selected
+window is checked; full history validation is explicitly NOT_PERFORMED. Existing
+full-history readers retain their behavior. The library's legacy recent reader
+is not admitted by the HTTP route.
+
+A tail with a missing earlier parent is marked partial and exposes only the
+omitted parent digest; the projection does not fabricate that parent. Second Brain
 contributes at most 12 hash-shaped citation pointers only when the caller
 supplies an exact immutable source commit. This binding remains `DECLARED`;
 the pointer bytes and source revision match are not independently verified.

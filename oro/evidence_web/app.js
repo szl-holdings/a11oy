@@ -179,6 +179,9 @@
         card.append(element("p", count));
         if (source?.reason) card.append(element("p", explanation(source.reason)));
         if (source?.signature_verification) card.append(element("p", "Signature verification: " + text(source.signature_verification).toLowerCase() + "."));
+        if (source?.validation_scope === "BOUNDED_WINDOW_ONLY" && source.history_validation === "NOT_PERFORMED") {
+          card.append(element("p", "Inspection covers the selected window. Full ledger history was not validated."));
+        }
         if (object(source?.summary)) {
           const summary = Object.entries(source.summary).filter(([, value]) => Number.isSafeInteger(value) && value >= 0);
           if (summary.length) card.append(element("p", "Modeled summary: " + summary.slice(0, 6).map(([key, value]) => explanation(key) + " " + value).join(" · ") + "."));
