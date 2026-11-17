@@ -826,16 +826,30 @@ class EnergyLedger:
             ),
         }
 
-    def storage_health(self) -> dict:
+    def storage_health(self, *, probe: bool = False) -> dict:
         """Honest storage-pressure signal for /healthz + the ledger summary (waveJ Dev1).
 
         Reports the DURABLE bounded store's status — OK / PRESSURE / UNAVAILABLE — plus
         the hard footprint cap, rotation count, and evicted-segment count, so the
         "database or disk is full" class is observable BEFORE it crashes the box. When the
         durable store isn't active (fallback raw-append mode) we still report the last
-        write status honestly and flag that the store is NOT size-bounded."""
+        write status honestly and flag that the store is NOT size-bounded.
+        Reads use tracked status; an explicit writer diagnostic may opt into a
+        filesystem write probe with ``probe=True``."""
         if self._store is not None:
-            s = self._store.status()
+            s = self._store.status(probe=probe)
+            # A successful earlier append must not hide a later failed write or
+            # lock acquisition when observation deliberately skips a write probe.
+            if self._last_store_status == "unavailable":
+                s["status"] = "unavailable"
+                if not probe:
+                    s["writable"] = False
+            elif not probe and s.get("writable") is True:
+                s["writable"] = None  # a tracked healthy directory is not a fresh write test
+            s["write_probe_performed"] = bool(probe)
+            s["fresh_writability_asserted"] = bool(probe)
+            s["status_scope"] = ("WRITE_PROBE_AND_TRACKED_STATUS" if probe
+                                 else "TRACKED_STORAGE_STATUS")
             s["backend"] = "durable-rotating-jsonl"
             return s
         # Fallback (durable store unavailable): honest, and explicitly NOT bounded.
@@ -912,12 +926,46 @@ _LEDGER_LOCK = threading.Lock()
 
 
 def get_ledger() -> EnergyLedger:
+    """Initialize the writer ledger, including its existing recovery lifecycle."""
     global _LEDGER
     if _LEDGER is None:
         with _LEDGER_LOCK:
             if _LEDGER is None:
                 _LEDGER = EnergyLedger()
     return _LEDGER
+
+
+class LedgerObservationUnavailable(RuntimeError):
+    """The writer has not supplied an initialized, readable ledger to observe."""
+
+
+def observe_ledger() -> EnergyLedger:
+    """Read the initialized singleton without opening or recovering a generation.
+
+    Startup/writers own ``get_ledger()``. A GET must not turn an absent singleton
+    into directory creation, an interprocess lock, or a forensic reset receipt.
+    """
+    ledger = _LEDGER
+    if ledger is None:
+        raise LedgerObservationUnavailable("LEDGER_NOT_INITIALIZED")
+    if getattr(ledger, "_load_error", None) is not None:
+        raise LedgerObservationUnavailable("LEDGER_LOAD_UNAVAILABLE")
+    return ledger
+
+
+def _unavailable_observation(reason: str) -> dict:
+    return {
+        "ok": False,
+        "status": "UNAVAILABLE",
+        "error": reason,
+        "read_only": True,
+        "receipts": None,
+        "chain": None,
+        "totals": None,
+        "persistence": None,
+        "storage": {"status": "unavailable", "reason": reason, "bounded": None},
+        "doctrine": DOCTRINE_NOTE,
+    }
 
 
 def ledger_storage_health() -> dict:
@@ -928,7 +976,7 @@ def ledger_storage_health() -> dict:
     observable at the health probe BEFORE it crashes the box. Never raises — on any
     error it returns an honest error stub rather than a fabricated OK."""
     try:
-        return get_ledger().storage_health()
+        return observe_ledger().storage_health(probe=False)
     except Exception as exc:  # pragma: no cover — /healthz must never crash on this
         return {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}",
                 "bounded": None, "doctrine": "v11"}
@@ -1023,8 +1071,12 @@ def wire_operator_to_ledger(operator: Any, ledger: Optional["EnergyLedger"] = No
 # ---------------------------------------------------------------------------
 def handle_ledger(request: Optional[_Request] = None) -> dict:
     # Preserve the small offline contract while bounding every HTTP response.
+    try:
+        ledger = observe_ledger()
+    except LedgerObservationUnavailable as exc:
+        return _unavailable_observation(str(exc))
     if request is None:
-        return get_ledger().summary()
+        return ledger.summary()
     params = request.query_params
     try:
         limit = int(params.get("limit", DEFAULT_LEDGER_PAGE_LIMIT))
@@ -1035,11 +1087,14 @@ def handle_ledger(request: Optional[_Request] = None) -> dict:
         before_seq = None if raw_before in (None, "") else int(raw_before)
     except (TypeError, ValueError):
         before_seq = None
-    return get_ledger().summary(limit=limit, before_seq=before_seq)
+    return ledger.summary(limit=limit, before_seq=before_seq)
 
 
 def handle_receipt(idem: str) -> dict:
-    e = get_ledger().get_by_idem(idem)
+    try:
+        e = observe_ledger().get_by_idem(idem)
+    except LedgerObservationUnavailable as exc:
+        return {**_unavailable_observation(str(exc)), "idempotency_key": idem}
     if e is None:
         return {"ok": False, "error": "no receipt for idempotency_key", "idempotency_key": idem}
     receipt = e.get("receipt", {})
