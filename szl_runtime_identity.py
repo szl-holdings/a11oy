@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -35,6 +36,25 @@ REQUIRED = {"observer_runtime.py", "szl_runtime_identity.py", "serve.py", "gdw_r
             ".github/scripts/hf-sync.yml"}
 MAX_FILE = 32 * 1024 * 1024
 MAX_TOTAL = 256 * 1024 * 1024
+# One startup-owned horizon covers the publisher's bounded operation. It does
+# not restart when an error changes, a request arrives, or start() is repeated.
+RECOVERY_WINDOW = 60 * 60
+MAX_RECOVERY_ATTEMPTS = 40
+RECOVERY_BACKOFF = 10
+MAX_RECOVERY_BACKOFF = 120
+VERIFIER_TIMEOUT = 45
+VERIFIER_POLL = 0.1
+VERIFIER_CLEANUP_TIMEOUT = 1
+MAX_VERIFIER_OUTPUT = 2 * 1024 * 1024
+RECOVERABLE_ERRORS = frozenset(
+    stage + "_" + reason
+    for stage in ("GITHUB_READ", "ARTIFACT_DOWNLOAD")
+    for reason in ("RATE_LIMITED", "TIMEOUT", "TRANSPORT_UNAVAILABLE", "UPSTREAM_UNAVAILABLE")
+) | {"READINESS_FETCH_DEADLINE", "GITHUB_READ_RESOURCE_UNAVAILABLE",
+     "RUNTIME_BINDING_ARTIFACT_UNAVAILABLE", "RUNTIME_ATTESTATION_VERIFIER_UNAVAILABLE",
+     # gh's nonzero result does not distinguish absent from invalid attestation.
+     # This is unresolved evidence, never an admission or a proven transient.
+     "RUNTIME_ATTESTATION_REJECTED"}
 
 
 def regular(root, relative, limit):
@@ -122,8 +142,39 @@ def pinned_publisher(root):
     return matches[0]
 
 
-def verify_attestation(raw, marker, token):
+def verification_open(stop, deadline):
+    require(not stop.is_set(), "RUNTIME_IDENTITY_STOPPED")
+    require(deadline is None or time.monotonic() < deadline,
+            "RUNTIME_IDENTITY_RECOVERY_EXHAUSTED")
+
+
+def stop_verifier(process):
+    if process.poll() is not None:
+        return
+    try:
+        process.terminate()
+    except OSError:
+        pass
+    try:
+        process.wait(timeout=VERIFIER_CLEANUP_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+        except OSError:
+            pass
+        try:
+            process.wait(timeout=VERIFIER_CLEANUP_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            raise EvidenceBlocked("RUNTIME_VERIFIER_CLEANUP_INCOMPLETE") from None
+
+
+def verify_attestation(raw, marker, token, *, stop=None, deadline=None):
     """Use the installed GitHub verifier; never accept caller JSON as a verdict."""
+    stop = threading.Event() if stop is None else stop
+    verification_open(stop, deadline)
+    attempt_deadline = time.monotonic() + VERIFIER_TIMEOUT
+    if deadline is not None:
+        attempt_deadline = min(attempt_deadline, deadline)
     env = {k: v for k, v in os.environ.items() if k in ("PATH", "SYSTEMROOT", "WINDIR", "TMP", "TEMP")}
     env.update(GH_TOKEN=token, GH_HOST="github.com", GH_PROMPT_DISABLED="1")
     with tempfile.TemporaryDirectory(prefix="a11oy-source-verify-") as tmp:
@@ -140,15 +191,30 @@ def verify_attestation(raw, marker, token):
                    "--limit", "1"]
         try:
             with tempfile.TemporaryFile() as output:
-                result = subprocess.run(command, env=env, cwd=tmp, stdin=subprocess.DEVNULL,
-                                        stdout=output, stderr=subprocess.DEVNULL, timeout=45, check=False)
-                require(result.returncode == 0, "RUNTIME_ATTESTATION_REJECTED")
+                verification_open(stop, deadline)
+                require(time.monotonic() < attempt_deadline, "RUNTIME_ATTESTATION_VERIFIER_UNAVAILABLE")
+                process = subprocess.Popen(command, env=env, cwd=tmp, stdin=subprocess.DEVNULL,
+                                           stdout=output, stderr=subprocess.DEVNULL)
+                try:
+                    while True:
+                        verification_open(stop, deadline)
+                        remaining = attempt_deadline - time.monotonic()
+                        require(remaining > 0, "RUNTIME_ATTESTATION_VERIFIER_UNAVAILABLE")
+                        require(os.fstat(output.fileno()).st_size <= MAX_VERIFIER_OUTPUT,
+                                "RUNTIME_VERIFIER_OUTPUT_TOO_LARGE")
+                        result = process.poll()
+                        if result is not None:
+                            break
+                        stop.wait(min(VERIFIER_POLL, remaining))
+                    require(result == 0, "RUNTIME_ATTESTATION_REJECTED")
+                finally:
+                    stop_verifier(process)
                 output.seek(0)
-                raw_result = output.read(2 * 1024 * 1024 + 1)
+                raw_result = output.read(MAX_VERIFIER_OUTPUT + 1)
         except (OSError, subprocess.TimeoutExpired):
             raise EvidenceBlocked("RUNTIME_ATTESTATION_VERIFIER_UNAVAILABLE") from None
-        require(len(raw_result) <= 2 * 1024 * 1024, "RUNTIME_VERIFIER_OUTPUT_TOO_LARGE")
-        results = strict(b'{"results":' + raw_result + b'}', 2 * 1024 * 1024 + 64)["results"]
+        require(len(raw_result) <= MAX_VERIFIER_OUTPUT, "RUNTIME_VERIFIER_OUTPUT_TOO_LARGE")
+        results = strict(b'{"results":' + raw_result + b'}', MAX_VERIFIER_OUTPUT + 64)["results"]
         require(type(results) is list and len(results) == 1 and type(results[0]) is dict,
                 "RUNTIME_VERIFIER_OUTPUT_INVALID")
         verified = results[0].get("verificationResult")
@@ -161,6 +227,8 @@ def verify_attestation(raw, marker, token):
         # a caller-controlled SLSA predicate cannot prove who signed this run.
         require(type(cert) is dict and cert.get("runInvocationURI") == expected_run,
                 "RUNTIME_ATTESTATION_INVOCATION_MISMATCH")
+        verification_open(stop, deadline)
+        require(time.monotonic() < attempt_deadline, "RUNTIME_ATTESTATION_VERIFIER_UNAVAILABLE")
 
 
 def fetch_binding(transport, marker):
@@ -178,6 +246,7 @@ def fetch_binding(transport, marker):
             "RUNTIME_ARTIFACT_CENSUS_INCOMPLETE")
     name = f"hf-runtime-identity-{marker['run_id']}-{marker['run_attempt']}"
     selected = [a for a in artifacts if a.get("name") == name]
+    require(len(selected) <= 1, "RUNTIME_BINDING_ARTIFACT_AMBIGUOUS")
     require(len(selected) == 1, "RUNTIME_BINDING_ARTIFACT_UNAVAILABLE")
     artifact_id = selected[0].get("id")
     require(type(artifact_id) is int and artifact_id > 0, "RUNTIME_ARTIFACT_ID_INVALID")
@@ -221,7 +290,9 @@ class ProcessIdentity:
         self._source = str(env.get("SZL_GIT_SHA") or "")
         self._stop = threading.Event()
         self._lock = threading.RLock()
+        self._attempt_lock = threading.Lock()
         self._thread = None
+        self._deadline = None
         self._verified = None
         self._poisoned = False
         self._raw = None
@@ -237,8 +308,15 @@ class ProcessIdentity:
             self.error = safe_error(exc)
 
     def verify_once(self):
+        # Only one attempt may use the captured credential or latch this boot,
+        # including a concurrent internal call while the startup worker runs.
+        with self._attempt_lock:
+            return self._verify_once()
+
+    def _verify_once(self):
         require(self._raw is not None, self.error)
         with self._lock:
+            verification_open(self._stop, self._deadline)
             require(not self._poisoned, "RUNTIME_IDENTITY_DRIFT_LATCHED")
             if self._verified is not None:
                 return self._verified
@@ -246,22 +324,30 @@ class ProcessIdentity:
         marker = marker_document(self._raw)
         transport = Transport(self._token, self._stop)
         try:
+            if self._deadline is not None:
+                transport.deadline = min(transport.deadline, self._deadline)
             raw = fetch_binding(transport, marker)
         finally:
             transport.close()
+        verification_open(self._stop, self._deadline)
         revision = validate_binding(raw, marker)
-        verify_attestation(raw, marker, self._token)
+        verify_attestation(raw, marker, self._token, stop=self._stop, deadline=self._deadline)
         with self._lock:
+            verification_open(self._stop, self._deadline)
             require(not self._poisoned, "RUNTIME_IDENTITY_DRIFT_LATCHED")
             if self._verified is not None:
                 return self._verified
-            try:
-                measure_catalog(self.root, marker)
-                require(regular(self.marker_root, MARKER, 1024 * 1024) == self._raw, "RUNTIME_MARKER_CHANGED")
-            except Exception as exc:
+        try:
+            measure_catalog(self.root, marker)
+            require(regular(self.marker_root, MARKER, 1024 * 1024) == self._raw, "RUNTIME_MARKER_CHANGED")
+        except Exception as exc:
+            with self._lock:
                 self._poisoned = True
                 self.error = safe_error(exc)
-                raise EvidenceBlocked(self.error) from None
+            raise EvidenceBlocked(self.error) from None
+        with self._lock:
+            verification_open(self._stop, self._deadline)
+            require(not self._poisoned, "RUNTIME_IDENTITY_DRIFT_LATCHED")
             self._verified = VerifiedSourceIdentity(marker["source_sha"], revision, self.boot_id,
                 hashlib.sha256(self._raw).hexdigest(), hashlib.sha256(raw).hexdigest())
             self.error = None
@@ -281,40 +367,63 @@ class ProcessIdentity:
                 raise EvidenceBlocked(self.error) from None
             return self._verified
 
-    def start(self):
-        if self._thread is not None or self._raw is None:
-            return
-        if not self._token:
-            self.error = "RUNTIME_GITHUB_READ_CREDENTIAL_REQUIRED"
-            return
-        def worker():
-            # A bounded startup window permits the artifact upload to race boot.
-            # No HTTP read can start this worker or extend the window.
-            deadline = time.monotonic() + 300
-            while not self._stop.is_set() and time.monotonic() < deadline:
-                try:
-                    self.verify_once()
-                    return
-                except Exception as exc:
+    def _recover(self):
+        backoff = RECOVERY_BACKOFF
+        for attempt in range(MAX_RECOVERY_ATTEMPTS):
+            try:
+                verification_open(self._stop, self._deadline)
+                self.verify_once()
+                return
+            except Exception as exc:
+                with self._lock:
+                    if self._verified is not None or self._poisoned:
+                        return
                     self.error = safe_error(exc)
-                self._stop.wait(10)
-        self._thread = threading.Thread(target=worker, name="runtime-source-identity", daemon=True)
-        self._thread.start()
+                if self.error not in RECOVERABLE_ERRORS:
+                    return
+                delay = backoff
+                retry_after = getattr(exc, "retry_after", None)
+                if retry_after is not None:
+                    if (type(retry_after) not in (int, float) or not math.isfinite(retry_after)
+                            or retry_after < 0):
+                        return
+                    delay = max(delay, retry_after)
+                # Never shorten a provider's requested wait to fit the horizon.
+                if (attempt + 1 == MAX_RECOVERY_ATTEMPTS
+                        or time.monotonic() + delay >= self._deadline):
+                    return
+                if self._stop.wait(delay):
+                    return
+                backoff = min(backoff * 2, MAX_RECOVERY_BACKOFF)
+
+    def start(self):
+        with self._lock:
+            if self._thread is not None or self._raw is None or self._stop.is_set() or self._poisoned:
+                return
+            if not self._token:
+                self.error = "RUNTIME_GITHUB_READ_CREDENTIAL_REQUIRED"
+                return
+            self._deadline = time.monotonic() + RECOVERY_WINDOW
+            self._thread = threading.Thread(target=self._recover,
+                name="runtime-source-identity", daemon=True)
+            self._thread.start()
 
     def stop(self):
-        self._stop.set()
+        with self._lock:
+            self._stop.set()
 
     def snapshot(self):
-        value = self._verified
-        return {"status": "REPORTED" if value else "BLOCKED", "method": METHOD,
-                "source_revision": value.source_revision if value else None,
-                "hf_revision": value.hf_revision if value else None,
-                "runtime_boot_id": self.boot_id, "error": self.error,
-                "marker_sha256": value.marker_sha256 if value else None,
-                "binding_sha256": value.binding_sha256 if value else None,
-                "local_bytes_evidence": "MEASURED" if value else "UNAVAILABLE",
-                "scope": "FINAL_APP_SOURCE_COPY_FILES", "hardware_attestation": False,
-                "image_attestation": False, "execution_authority": False}
+        with self._lock:
+            value = self._verified
+            return {"status": "REPORTED" if value else "BLOCKED", "method": METHOD,
+                    "source_revision": value.source_revision if value else None,
+                    "hf_revision": value.hf_revision if value else None,
+                    "runtime_boot_id": self.boot_id, "error": self.error,
+                    "marker_sha256": value.marker_sha256 if value else None,
+                    "binding_sha256": value.binding_sha256 if value else None,
+                    "local_bytes_evidence": "MEASURED" if value else "UNAVAILABLE",
+                    "scope": "FINAL_APP_SOURCE_COPY_FILES", "hardware_attestation": False,
+                    "image_attestation": False, "execution_authority": False}
 
 
 def safe_error(exc):
