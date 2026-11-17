@@ -91,6 +91,12 @@ test("workerd accepts the Worker's EmailMessage and MIME through send_email", as
     worker: "szl-email-sender",
     source_revision: REVISION,
     ready: true,
+    readiness_checks: {
+      secret_requirement_met: true,
+      sender_valid: true,
+      send_binding_callable: true,
+      email_message_available: true,
+    },
   });
 
   const subject = "Recibo verificado ✅ — canary";
