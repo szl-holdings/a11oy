@@ -15,7 +15,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_FILES = {"vsp_otel/__init__.py", "vsp_otel/middleware.py"}
+PACKAGE_FILES = {"vsp_otel/__init__.py", "vsp_otel/middleware.py", "vsp_otel/trace_ir.py"}
 
 
 def _packaged_runtime(tmp_path: Path) -> Path:
@@ -76,7 +76,10 @@ sys.path.insert(0, str(runtime))
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import vsp_otel.middleware as otel
+import vsp_otel.trace_ir as trace_ir
 assert Path(otel.__file__).resolve().parent == runtime / "vsp_otel"
+assert Path(trace_ir.__file__).resolve().parent == runtime / "vsp_otel"
+assert trace_ir.gated_minimum({"packaged": 1}, required_checks=["packaged"])["decision"] == "PASS"
 app = FastAPI()
 otel.install(app, service_name="packaging-test", endpoint=None)
 @app.get("/probe")

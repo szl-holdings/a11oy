@@ -82,10 +82,20 @@ whether the *subsystem* is unavailable without it (never means "crash").
 | `OPENROUTER_API_KEY` | secret | optional | OpenRouter voter/provider key. | (unset → subsystem DEGRADED) |
 | `TOGETHER_API_KEY` | secret | optional | Together.ai voter key. | (unset → subsystem DEGRADED) |
 | `VLLM_API_KEY` | secret | optional | Auth for a private vLLM endpoint. | (unset → subsystem DEGRADED) |
-| `A11OY_BRAIN_URL` | variable | optional | Central Brain hub pulse URL (falls back to shipped organs). | (none / feature off) |
+| `A11OY_MODEL_CF_ACCESS_CLIENT_ID` | secret | optional | Dedicated model Access Client ID; requires the paired secret and exact origin. | (unset → feature off) |
+| `A11OY_MODEL_CF_ACCESS_CLIENT_SECRET` | secret | optional | Dedicated model Access Client Secret; separate from the model bearer and meter credentials. | (unset → feature off) |
+| `A11OY_MODEL_CF_ACCESS_ORIGIN` | variable | optional | Exact HTTPS origin on port 443 permitted to receive the model Access pair. | (unset → feature off) |
+| `A11OY_BRAIN_URL` | variable | optional | Canonical OpenAI-compatible model base; precedes `A11OY_MODEL_BASE_URL` for code and registry observation. | (none / feature off) |
 | `A11OY_LOCAL_MODEL` | variable | optional | Local model identifier for the sovereign path. | (none / feature off) |
 | `A11OY_MODEL_BASE_URL` | variable | optional | Base URL for the hosted model router. | (none / feature off) |
 | `HF_ROUTER_BASE` | variable | optional | HF Inference router base URL. | (none / feature off) |
+
+The model Access feature is disabled only when all three names are absent. Any
+partial, malformed or mismatched configuration refuses the protected request
+before transport. Its supported inference consumer is the bounded code engine;
+the registry performs catalog observation only. Preflight validates configuration
+without contacting Access and never establishes provider authentication or model
+readiness. See [the credential contract](model-endpoint-credentials.md).
 
 ### core
 
