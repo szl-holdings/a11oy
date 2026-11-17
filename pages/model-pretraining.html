@@ -5,13 +5,16 @@
 <meta name="color-scheme" content="dark light">
 <title>Model preparation · A11oy</title>
 <meta name="description" content="Source-first model preparation. Inspect the recorded Hub inventory and unresolved checks before training.">
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
 <link rel="stylesheet" href="/frontier-tooling/models/assets/view.css">
+<link rel="stylesheet" href="/frontier-tooling/models/assets/training-observations.css">
 <script type="module" src="/frontier-tooling/models/assets/view.js"></script>
+<script type="module" src="/frontier-tooling/models/assets/training-observations.js"></script>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <a class="skip" href="#workspace">Skip to model inventory</a>
-<header><a href="/">A11oy</a><nav aria-label="Product"><a href="/atelier">Atelier</a><a href="/frontier-tooling">Tooling evidence</a></nav></header>
+<header><a href="/">A11oy</a><nav aria-label="Product"><a href="/atelier">Atelier</a><a href="/frontier-tooling">Tooling evidence</a><a href="#training-observations">Operator observations</a></nav></header>
 <main id="workspace">
 <p class="eyebrow">GitHub → Hugging Face → product → proof</p>
 <h1>Source before training.</h1>
@@ -22,6 +25,28 @@
 <p id="shown" class="muted" aria-live="polite"></p>
 <div id="models" class="cards" aria-label="Model records"></div>
 <details id="evidence"><summary>Inventory scope and known bounds</summary><dl><dt>Snapshot observed</dt><dd id="observed">Unavailable</dd><dt>Source manifest SHA-256 · build-derived</dt><dd id="manifest-hash">Unavailable</dd><dt>Product source reported</dt><dd id="product-source">Unavailable</dd></dl><ul id="bounds"></ul><p class="muted">The source digest is recorded by the build; the full manifest is not re-hashed by each request. Hashes identify content; they are not signatures or evidence that model weights were evaluated. Metadata categories are inspection hints. This view does not certify GitHub–Hub parity.</p></details>
+<section id="training-observations" data-surface="dark" aria-labelledby="training-observation-heading">
+<p class="training-observation-eyebrow">Operator access · read only</p>
+<h2 id="training-observation-heading">Training observations</h2>
+<p>Inspect the configured local observation report with tenant-scoped operator access. Observations describe recorded metadata; training completion, process liveness, evaluation, artifact integrity and proofs remain unverified here.</p>
+<div class="training-observation-controls" aria-label="Operator observation access">
+<label for="training-observation-tenant">Tenant<input id="training-observation-tenant" type="text" maxlength="256" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="training-observation-credential-note"></label>
+<label for="training-observation-token">Operator bearer token<input id="training-observation-token" type="password" maxlength="8192" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="training-observation-credential-note"></label>
+<button id="training-observation-load" type="button">Load observations</button>
+<button id="training-observation-disconnect" type="button">Disconnect</button>
+</div>
+<p id="training-observation-credential-note">Loading is manual. The token is used only for that request, cleared from the field immediately and never saved by this page. Disconnect clears displayed observations and access fields.</p>
+<p id="training-observation-status" role="status" aria-live="polite">No operator report loaded. Enter a tenant and token to inspect observations.</p>
+<div id="training-observation-results" hidden>
+<p id="training-observation-summary"></p>
+<div id="training-observation-cards" class="training-observation-cards" aria-label="Operator candidate observations"></div>
+<details class="training-observation-provenance"><summary>Observation source and scope</summary>
+<dl><dt>Reader evaluated at</dt><dd id="training-observation-evaluated">Unavailable</dd><dt>Source report observed at</dt><dd id="training-observation-source-observed">Unavailable</dd><dt>Local report SHA-256</dt><dd id="training-observation-report-hash">Unavailable</dd></dl>
+<p>The digest identifies the local bytes read by the server. It is not a signature. Producer authentication, signature verification and durable retention are not verified. Reported trainer-state integrity is a producer claim. Reloading does not renew a candidate observation's expiry.</p>
+<p>This view grants no training, inference, publication, promotion, deletion or tool-execution authority.</p>
+</details>
+</div>
+</section>
 </main><footer>Read-only model preparation · Existing model, training and publication controls remain authoritative.</footer>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body></html>
