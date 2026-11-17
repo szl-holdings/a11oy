@@ -297,8 +297,12 @@ def query_snapshot(
     known = {edge.receipt_id for edge in source_edges}
     parents = {parent for edge in result["edges"] for parent in edge["parents"]}
     source_bounded = bool(snapshot.get("bounded", False))
-    known_omitted = set(snapshot.get("omitted_parent_ids", [])) if source_bounded else set()
-    known_missing = set(snapshot.get("missing_parent_ids", [])) if source_bounded else parents - known
+    # An unbounded query can still omit parents from an earlier selection.
+    # Explicit empty classifications preserve unresolved legacy references.
+    known_omitted = set(snapshot.get("omitted_parent_ids", []))
+    known_missing = set(snapshot.get(
+        "missing_parent_ids", [] if source_bounded else parents - known,
+    ))
     omitted = (parents & (known | known_omitted)) - included
     missing = (parents & known_missing) - known - known_omitted
     unresolved = parents - included - omitted - missing

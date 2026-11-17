@@ -338,3 +338,77 @@ def test_witness_boot_must_match_the_service_owner(monkeypatch):
     with TestClient(app) as client:
         result = client.get("/api/a11oy/v1/evidence/graph").json()
     assert result["provenance_witness"]["reason"] == "SOURCE_WITNESS_INVALID"
+
+
+def test_nested_queries_preserve_known_omitted_and_missing_parent_ids():
+    parent = edge("parent")
+    child = edge("child", kind="child", parents=(parent.receipt_id, "edge-missing"))
+    source = ceg.graph_snapshot([parent, child])
+    original = ceg.canonical_json(source)
+    selected = ceg.query_snapshot(source, subject_kind="child")
+    selected_edges = selected["edges"]
+    selected_digest = selected["digest_sha256"]
+
+    for _ in range(3):
+        selected = ceg.query_snapshot(selected, subject_kind="child")
+        assert selected["bounded"] is False
+        assert selected["omitted_parent_ids"] == [parent.receipt_id]
+        assert selected["omitted_parent_count"] == 1
+        assert selected["missing_parent_ids"] == ["edge-missing"]
+        assert selected["missing_parent_count"] == 1
+        assert selected["unresolved_parent_count"] == 0
+        assert selected["dangling_parent_count"] == 2
+        assert selected["edges"] == selected_edges
+        assert selected["digest_sha256"] == selected_digest
+        assert_digest_matches_returned_edges(selected)
+
+    empty = ceg.query_snapshot(selected, subject_kind="absent")
+    assert empty["omitted_parent_ids"] == empty["missing_parent_ids"] == []
+    assert empty["unresolved_parent_count"] == empty["dangling_parent_count"] == 0
+    assert ceg.canonical_json(source) == original
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_nested_queries_retain_bounded_source_parent_knowledge(legacy):
+    parent = edge("parent")
+    child = next(
+        item for i in range(1000)
+        if (item := edge(f"bounded-child-{i}", parents=(parent.receipt_id, "edge-missing"))).receipt_id
+        < parent.receipt_id
+    )
+    source = ceg.graph_snapshot([parent, child], max_edges=1)
+    assert source["edges"][0]["receipt_id"] == child.receipt_id
+    if legacy:
+        source.pop("missing_parent_ids")
+        source.pop("omitted_parent_ids")
+    original = ceg.canonical_json(source)
+    selected = source
+
+    for _ in range(3):
+        selected = ceg.query_snapshot(selected)
+        assert selected["bounded"] is False
+        assert selected["omitted_parent_ids"] == ([] if legacy else [parent.receipt_id])
+        assert selected["omitted_parent_count"] == (0 if legacy else 1)
+        assert selected["missing_parent_ids"] == ([] if legacy else ["edge-missing"])
+        assert selected["missing_parent_count"] == (0 if legacy else 1)
+        assert selected["unresolved_parent_count"] == (2 if legacy else 0)
+        assert selected["dangling_parent_count"] == 2
+        assert selected["edges"] == source["edges"]
+        assert selected["digest_sha256"] == source["digest_sha256"]
+        assert_digest_matches_returned_edges(selected)
+
+    assert ceg.canonical_json(source) == original
+
+
+def test_legacy_complete_source_still_classifies_absent_parents():
+    parent = edge("parent")
+    child = edge("child", kind="child", parents=(parent.receipt_id, "edge-missing"))
+    source = ceg.graph_snapshot([parent, child])
+    source.pop("missing_parent_ids")
+    source.pop("omitted_parent_ids")
+
+    selected = ceg.query_snapshot(source, subject_kind="child")
+    assert selected["omitted_parent_ids"] == [parent.receipt_id]
+    assert selected["missing_parent_ids"] == ["edge-missing"]
+    assert selected["unresolved_parent_count"] == 0
+    assert_digest_matches_returned_edges(selected)
