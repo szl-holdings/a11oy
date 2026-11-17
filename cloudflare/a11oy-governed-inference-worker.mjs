@@ -45,6 +45,8 @@ const MODEL_CANDIDATES = Object.freeze({
   ]),
   lora: Object.freeze([FINETUNED_LORA_MODEL]),
 });
+const COMPOUND_BRAIN_SCHEMA = "szl.khipu.compound-second-brain.v1";
+const LEGACY_BRAIN_SCHEMA = "szl.khipu-second-brain-runtime/v1";
 const MAX_BODY_BYTES = 65536;
 const MAX_PROMPT_CHARS = 12000;
 const MAX_EVIDENCE_ITEMS = 8;
@@ -215,6 +217,7 @@ function jsonHeaders(extra = {}) {
     "access-control-allow-headers": "content-type",
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-origin": "*",
+    "access-control-expose-headers": "x-szl-attempt-id,x-szl-source-revision",
     "cache-control": "no-store",
     "content-type": "application/json; charset=utf-8",
     "referrer-policy": "no-referrer",
@@ -231,15 +234,17 @@ function jsonResponse(value, status = 200, extraHeaders = {}) {
   });
 }
 
-function errorResponse(code, status = 400) {
+function errorResponse(code, status = 400, attemptId = null) {
   return jsonResponse(
     {
       schema: "szl.cloudflare-governed-inference-error/v1",
+      ...(attemptId ? { attempt_id: attemptId } : {}),
       error: code,
       executed: false,
       authority_state: "NO_ACTION_AUTHORITY",
     },
     status,
+    attemptId ? { "x-szl-attempt-id": attemptId } : {},
   );
 }
 
@@ -275,36 +280,70 @@ async function fetchJson(fetchImpl, url) {
 function readCount(value, keys) {
   for (const key of keys) {
     const candidate = value?.[key];
-    if (Number.isInteger(candidate) && candidate >= 0) return candidate;
+    if (Number.isSafeInteger(candidate) && candidate >= 0) return candidate;
   }
   return null;
 }
 
-function observeSecondBrain(value, available = true) {
-  if (!available || !value || typeof value !== "object") {
-    return {
-      endpoint: SECOND_BRAIN_URL,
-      state: "UNAVAILABLE",
-      ready_for_grounded_navigation: false,
-      public_chunk_count: null,
-      private_graph_present: false,
-      content_access: "HANDLES_ONLY",
-    };
-  }
-  const ready = value.ready_for_grounded_navigation === true;
-  const publicChunkCount = readCount(value, [
-    "public_chunk_count",
-    "indexed_chunk_count",
-    "corpus_n",
-    "chunks",
-  ]);
+function scalarLabel(value, fallback = null) {
+  return typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 160 &&
+    !/[\u0000-\u001f\u007f]/u.test(value)
+    ? value
+    : fallback;
+}
+
+export function observeSecondBrain(value, available = true) {
+  const isObject = Boolean(value && typeof value === "object" && !Array.isArray(value));
+  const canonical = available && isObject && value.schema === COMPOUND_BRAIN_SCHEMA;
+  const supported = canonical ||
+    (available && isObject && value.schema === LEGACY_BRAIN_SCHEMA);
+  const memory = canonical && value.memory && typeof value.memory === "object" &&
+    !Array.isArray(value.memory) ? value.memory : null;
+  const built = memory?.built === true;
+  const profile = canonical && value.profile && typeof value.profile === "object" &&
+    !Array.isArray(value.profile) ? value.profile : null;
+  const reportedReady = supported && value.ready_for_grounded_navigation === true;
+  const observedState = scalarLabel(value?.status || value?.state, "NOT_READY").toUpperCase();
+  const inconsistentReady = canonical && (
+    (reportedReady && (!built || profile?.exact_tag_observed !== true)) ||
+    (!reportedReady && observedState === "READY")
+  );
+  const ready = reportedReady && !inconsistentReady;
   return {
     endpoint: SECOND_BRAIN_URL,
-    state: ready
-      ? "READY"
-      : String(value.status || value.state || "NOT_READY").toUpperCase(),
+    state: !available || !isObject
+      ? "UNAVAILABLE"
+      : !supported
+        ? "UNAVAILABLE_SCHEMA"
+        : inconsistentReady
+          ? "UNAVAILABLE_INCONSISTENT_READINESS"
+          : ready
+            ? "READY"
+            : observedState,
     ready_for_grounded_navigation: ready,
-    public_chunk_count: publicChunkCount,
+    // Index size does not determine whether its contents may be published.
+    public_chunk_count: supported ? readCount(value, ["public_chunk_count"]) : null,
+    memory_observation: {
+      status: built ? "OBSERVED_INDEX_METADATA" : "UNAVAILABLE",
+      source_schema: supported ? value.schema : null,
+      built,
+      document_count: built ? readCount(memory, ["document_count"]) : null,
+      corpus_chunk_count: built ? readCount(memory, ["corpus_chunk_count", "chunk_count"]) : null,
+      brain_handle_count: built ? readCount(memory, ["brain_handle_count"]) : null,
+      integrity_state: built ? scalarLabel(memory.integrity_state, "UNAVAILABLE") : "UNAVAILABLE",
+      count_scope: "INDEX_METADATA_NOT_PUBLIC_CONTENT_OR_TRAINING_AUTHORITY",
+      raw_content_included: false,
+      training_authority: "NONE",
+    },
+    model_binding: {
+      profile_id: scalarLabel(profile?.profile_id),
+      expected_model: scalarLabel(profile?.expected_model),
+      served_model: scalarLabel(profile?.served_model),
+      exact_tag_observed: profile?.exact_tag_observed === true,
+      artifact_binding: scalarLabel(profile?.artifact_binding, "UNAVAILABLE"),
+    },
     private_graph_present: false,
     content_access: "HANDLES_ONLY",
   };
@@ -335,7 +374,21 @@ function aiReady(env) {
 export function buildContract(revision) {
   return {
     schema: CONTRACT_SCHEMA,
-    version: "1.0.0",
+    version: "1.1.0",
+    input_limits: {
+      prompt_chars: MAX_PROMPT_CHARS,
+      evidence_items: MAX_EVIDENCE_ITEMS,
+      evidence_item_chars: MAX_EVIDENCE_ITEM_CHARS,
+      evidence_total_chars: MAX_EVIDENCE_TOTAL_CHARS,
+      max_new_tokens: { minimum: 16, default: 256, maximum: 768 },
+    },
+    observability: {
+      attempt_id: "SERVER_GENERATED_UUID_PER_INFERENCE_POST",
+      request_id: "DETERMINISTIC_REQUEST_FINGERPRINT_NOT_ATTEMPT_ID",
+      receipt_sha256: "DETERMINISTIC_RECEIPT_PAYLOAD_DIGEST",
+      attempt_id_in_receipt_digest: false,
+      durable_trace_storage: false,
+    },
     source_repository: "szl-holdings/a11oy",
     source_revision: revision,
     endpoint: {
@@ -537,15 +590,17 @@ async function runModel(env, request, evidence) {
     try {
       const options = {
         messages,
-        max_completion_tokens: request.max_new_tokens,
         seed: 17,
         stream: false,
         temperature: 0.2,
         top_p: 0.9,
       };
       if (request.effort === "lora") {
+        // Mistral LoRA uses max_tokens; the chat-completion candidates use the newer field.
+        options.max_tokens = request.max_new_tokens;
         options.lora = FINETUNE_ID;
       } else {
+        options.max_completion_tokens = request.max_new_tokens;
         options.reasoning_effort =
           request.effort === "frontier" ? "high" : "low";
         options.store = false;
@@ -595,10 +650,18 @@ async function publicEvidenceItems(governance, userEvidence) {
     `Doctrine v11 is LOCKED. Lambda is Conjecture 1 and advisory. ` +
     `Locked formulas: ${LOCKED_FORMULAS.join(", ")}.`;
   const brain = governance.secondBrain;
-  const brainText =
+  let brainText =
     `Second Brain state is ${brain.state}; ready_for_grounded_navigation=` +
     `${brain.ready_for_grounded_navigation}; public_chunk_count=` +
     `${brain.public_chunk_count === null ? "UNAVAILABLE" : brain.public_chunk_count}.`;
+  if (brain.memory_observation?.built) {
+    const counts = brain.memory_observation;
+    brainText += " Corpus index metadata: document_count=" +
+      (counts.document_count ?? "UNAVAILABLE") +
+      "; corpus_chunk_count=" + (counts.corpus_chunk_count ?? "UNAVAILABLE") +
+      "; retrieval_handle_count=" + (counts.brain_handle_count ?? "UNAVAILABLE") +
+      ". Counts do not grant content access, training authority, or model readiness.";
+  }
   const raw = [
     { id: "E0", source: DOCTRINE_URL, text: doctrineText },
     { id: "E1", source: SECOND_BRAIN_URL, text: brainText },
@@ -615,7 +678,7 @@ async function publicEvidenceItems(governance, userEvidence) {
   return items;
 }
 
-async function governedInference(request, env, fetchImpl) {
+async function governedInference(request, env, fetchImpl, attemptId) {
   const revision = sourceRevision(env);
   if (!revision) throw new GovernedError("source_revision_unavailable", 503);
   const governance = await loadGovernanceEvidence(fetchImpl);
@@ -694,6 +757,7 @@ async function governedInference(request, env, fetchImpl) {
 
   return {
     schema: RESPONSE_SCHEMA,
+    attempt_id: attemptId,
     request_id: requestId,
     state: "PROPOSAL",
     decision: "review",
@@ -774,6 +838,7 @@ async function governedInference(request, env, fetchImpl) {
       observer_authority: "NONE",
       observed_at: new Date().toISOString(),
       event: {
+        attempt_id: attemptId,
         request_id: requestId,
         prompt_sha256: inputDescriptor.prompt_sha256,
         output_sha256: outputSha256,
@@ -856,6 +921,7 @@ async function parseRequestJson(request) {
 }
 
 export async function handleRequest(request, env, fetchImpl = fetch) {
+  let attemptId = null;
   try {
     const url = new URL(request.url);
     if (url.hostname !== PRODUCT_HOST) {
@@ -896,14 +962,16 @@ export async function handleRequest(request, env, fetchImpl = fetch) {
       if (request.method !== "POST") {
         return errorResponse("method_not_allowed", 405);
       }
+      attemptId = crypto.randomUUID();
       const normalized = normalizeInferenceRequest(
         await parseRequestJson(request),
       );
       return jsonResponse(
-        await governedInference(normalized, env, fetchImpl),
+        await governedInference(normalized, env, fetchImpl, attemptId),
         200,
         {
           "x-szl-governed-inference": "v1",
+          "x-szl-attempt-id": attemptId,
           "x-szl-source-revision": sourceRevision(env) || "unavailable",
         },
       );
@@ -911,9 +979,9 @@ export async function handleRequest(request, env, fetchImpl = fetch) {
     return errorResponse("not_found", 404);
   } catch (error) {
     if (error instanceof GovernedError) {
-      return errorResponse(error.code, error.status);
+      return errorResponse(error.code, error.status, attemptId);
     }
-    return errorResponse("internal_error", 500);
+    return errorResponse("internal_error", 500, attemptId);
   }
 }
 

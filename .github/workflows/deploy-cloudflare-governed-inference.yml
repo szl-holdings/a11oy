@@ -8,6 +8,11 @@ on:
       - "scripts/deploy_cloudflare_governed_inference.py"
       - "tests/test_cloudflare_governed_inference_worker.mjs"
       - "tests/test_cloudflare_governed_inference_deploy.py"
+      - "console/assets/szl-governed-proposal.js"
+      - "console/assets/szl-governed-proposal.css"
+      - "pages/console.html"
+      - "tests/test_governed_proposal_client.mjs"
+      - "tests/test_governed_proposal_client.py"
       - ".github/workflows/deploy-cloudflare-governed-inference.yml"
   push:
     branches:
@@ -17,6 +22,11 @@ on:
       - "scripts/deploy_cloudflare_governed_inference.py"
       - "tests/test_cloudflare_governed_inference_worker.mjs"
       - "tests/test_cloudflare_governed_inference_deploy.py"
+      - "console/assets/szl-governed-proposal.js"
+      - "console/assets/szl-governed-proposal.css"
+      - "pages/console.html"
+      - "tests/test_governed_proposal_client.mjs"
+      - "tests/test_governed_proposal_client.py"
       - ".github/workflows/deploy-cloudflare-governed-inference.yml"
   workflow_dispatch:
     inputs:
@@ -70,6 +80,8 @@ jobs:
           node --test tests/test_cloudflare_governed_inference_worker.mjs
           python -m py_compile scripts/deploy_cloudflare_governed_inference.py
           python -m unittest tests.test_cloudflare_governed_inference_deploy -v
+          node --check console/assets/szl-governed-proposal.js
+          python -m unittest tests.test_governed_proposal_client -v
           git diff --check
 
   deploy:
@@ -127,6 +139,11 @@ jobs:
               scripts/deploy_cloudflare_governed_inference.py \
               tests/test_cloudflare_governed_inference_worker.mjs \
               tests/test_cloudflare_governed_inference_deploy.py \
+              console/assets/szl-governed-proposal.js \
+              console/assets/szl-governed-proposal.css \
+              pages/console.html \
+              tests/test_governed_proposal_client.mjs \
+              tests/test_governed_proposal_client.py \
               .github/workflows/deploy-cloudflare-governed-inference.yml \
               > "$drift_file"; then
               error="unable to compare governed inference source with protected main"
