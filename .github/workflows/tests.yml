@@ -405,6 +405,10 @@ jobs:
           tests/test_atelier_grok.py
           tests/test_atelier_grok_local.py
           tests/test_atelier_grok_cpu_lab.py
+          tests/test_atelier_console_lock.py
+          tests/test_cpu_lab_contract.py
+          test_provider_http.py
+          tests/test_brainserve.py
           tests/test_run_local_atelier.py
           tests/test_command_centre.py
           tests/test_command_centre_view.py

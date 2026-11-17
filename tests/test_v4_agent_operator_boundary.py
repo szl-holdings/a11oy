@@ -186,11 +186,14 @@ def test_public_page_does_not_offer_unauthorized_cloud_selection():
     html = agent._build_agent_html()
     assert 'value="khipu-gguf" checked disabled' in html
     assert 'value="hf-inference-llama" disabled' in html
-    assert "This public page runs only the sovereign voter" in html
-    assert "Additional fan-out is BLOCKED" in html
+    assert "Legacy voter retired" in html
+    assert "Additional fan-out remains BLOCKED" in html
     assert "a11oy · Governed Agent" in html
-    assert "1 public voter" in html
-    assert "Ask Khipu" in html
+    assert "/command-centre#cpu-work" in html
+    assert "public-prompt acknowledgement" in html
+    assert "1 public voter" not in html
+    assert "Ask Khipu" not in html
+    assert "Check retired voter" in html
     assert "Ask the ensemble" not in html
     assert "A11OY_CODE_ADMIN_KEY" not in html
     assert "Authorization" not in html
