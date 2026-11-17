@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Offline restraint receipt canary contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/scripts/restraint_receipt_canary.py
+      - .github/workflows/restraint-receipt-canary.yml
+      - .github/workflows/restraint-receipt-canary-ci.yml
+      - tests/test_restraint_receipt_canary.py
+      - tools/execution_acceptance.py
+      - docs/restraint-receipt-canary.md
+  push:
+    branches: [main]
+    paths:
+      - .github/scripts/restraint_receipt_canary.py
+      - .github/workflows/restraint-receipt-canary.yml
+      - .github/workflows/restraint-receipt-canary-ci.yml
+      - tests/test_restraint_receipt_canary.py
+      - tools/execution_acceptance.py
+      - docs/restraint-receipt-canary.md
+
+permissions:
+  contents: read
+
+concurrency:
+  group: restraint-receipt-canary-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  adversarial-contract:
+    name: Offline restraint canary adverse cases
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout the candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install the verified client and public verification dependencies
+        run: python -I -m pip install --disable-pip-version-check "httpx==0.28.1" "cryptography==50.0.2" "pytest==9.2.0"
+      - name: Exercise the canary only through offline mock transports
+        run: python -m pytest -q tests/test_restraint_receipt_canary.py

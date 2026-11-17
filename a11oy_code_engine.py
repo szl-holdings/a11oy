@@ -1018,10 +1018,10 @@ _HF_ROSTER = [
 def _model_configured() -> bool:
     """Configuration admission only; this does not measure endpoint reachability."""
     if _LOCAL_MODEL_CMD:
-        return True
+        return not _model_access_configured()
     try:
         _model_auth_headers()
-    except ValueError:
+    except (ValueError, ImportError):
         return False
     return True  # Configuration admission only; no endpoint reachability claim.
 
@@ -1046,6 +1046,13 @@ def _model_endpoint():
     return parsed, official
 
 
+def _model_access_configured() -> bool:
+    """Presence is a contract request, including blank/partial configuration."""
+    return any(name in os.environ for name in (
+        "A11OY_MODEL_CF_ACCESS_ORIGIN", "A11OY_MODEL_CF_ACCESS_CLIENT_ID",
+        "A11OY_MODEL_CF_ACCESS_CLIENT_SECRET"))
+
+
 def _model_auth_headers():
     """HF credentials belong only to the official router's HTTPS origin.
 
@@ -1056,13 +1063,23 @@ def _model_auth_headers():
     parsed, official = _model_endpoint()
     token = _HF_TOKEN if official else os.environ.get("A11OY_MODEL_API_KEY")
     if token is None and not official:
-        return {}
-    if (not isinstance(token, str) or not 1 <= len(token) <= 4096
-            or re.fullmatch(r"[A-Za-z0-9._~+/\-]+=*", token) is None):
-        raise ValueError("MODEL_CREDENTIAL_INVALID")
-    if parsed.scheme != "https":
-        raise ValueError("MODEL_CREDENTIAL_REQUIRES_HTTPS")
-    return {"Authorization": "Bearer " + token}
+        headers = {}
+    else:
+        if (not isinstance(token, str) or not 1 <= len(token) <= 4096
+                or re.fullmatch(r"[A-Za-z0-9._~+/\-]+=*", token) is None):
+            raise ValueError("MODEL_CREDENTIAL_INVALID")
+        if parsed.scheme != "https":
+            raise ValueError("MODEL_CREDENTIAL_REQUIRES_HTTPS")
+        headers = {"Authorization": "Bearer " + token}
+    if _model_access_configured():
+        # Shared engine copies do not acquire this implementation or dependency.
+        # A missing canonical companion refuses the requested contract.
+        try:
+            from szl_router_client import model_access_auth_headers
+            return model_access_auth_headers(_MODEL_BASE_URL, headers)
+        except ImportError:
+            raise ValueError("MODEL_ACCESS_CLIENT_UNAVAILABLE") from None
+    return headers
 
 
 def _model_selection_preflight(model_slug):
@@ -1107,6 +1124,8 @@ def strict_transport_preflight(model_slug):
     from urllib.parse import urlsplit
     import ipaddress
     _model_selection_preflight(model_slug)
+    if _model_access_configured():
+        _model_auth_headers()
     parsed = urlsplit(_MODEL_BASE_URL)
     own_hosts = {"a-11-oy.com", "www.a-11-oy.com", "szlholdings-a11oy.hf.space",
                  "localhost", "host.docker.internal"}
@@ -1131,8 +1150,15 @@ def strict_transport_preflight(model_slug):
 
 def _strict_hf_chat(messages, max_tokens, want_model, execution_budget):
     """One selected-model HTTP dispatch; remote provider internals are unknown."""
-    import httpx
-    from szl_router_client import ExecutionBudget, ExecutionBudgetError, _unique_object
+    try:
+        import httpx
+        from szl_router_client import ExecutionBudget, ExecutionBudgetError, _unique_object
+    except ImportError:
+        if not _model_access_configured():
+            raise
+        return {"ok": False, "text": None, "model": None, "attempts": 0,
+                "rate_limited": False, "error": "MODEL_ACCESS_CLIENT_UNAVAILABLE",
+                "execution_limits": None}
 
     if not isinstance(execution_budget, ExecutionBudget):
         return {"ok": False, "text": None, "model": None, "attempts": 0,
@@ -1219,6 +1245,9 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
     if execution_budget is not None:
         return _strict_hf_chat(messages, max_tokens, want_model, execution_budget)
     try:
+        access_configured = _model_access_configured()
+        if access_configured:
+            _model_auth_headers()
         configured_model = _configured_default_model()
         if want_model is None:
             want_model = configured_model
@@ -1226,7 +1255,7 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
         custom_only = any(entry.get("id") == want_model
                           and entry.get("transport") == "custom-https-only"
                           for entry in _FALLBACK_ROSTER)
-        if custom_only:
+        if custom_only or access_configured:
             from szl_router_client import ExecutionBudget
             budget = ExecutionBudget({"max_model_requests": 1,
                 "max_output_tokens": max_tokens, "max_elapsed_seconds": 30})
@@ -1291,6 +1320,20 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
 
 
 def _backend_label() -> dict:
+    access_configured = _model_access_configured()
+    if access_configured:
+        try:
+            _model_auth_headers()
+            if _LOCAL_MODEL_CMD:
+                raise ValueError("STRICT_MODEL_CONFIGURATION_REQUIRED")
+        except ValueError as exc:
+            code = str(exc)
+            if re.fullmatch(r"[A-Z][A-Z0-9_]{0,95}", code) is None:
+                code = "MODEL_ACCESS_CLIENT_UNAVAILABLE"
+            return {"backend": "unavailable", "configured": False, "error": code,
+                    "model_serving": "protected model configuration unavailable",
+                    "honest": "The requested protected model contract is not admitted. "
+                              "No model request or local fallback is authorized."}
     if _LOCAL_MODEL_CMD:
         return {"backend": "local-weights", "model_serving": "real local model (LOCAL_MODEL_CMD)",
                 "offline": True, "honest": "Running your plugged-in local open-weight model."}
@@ -1309,12 +1352,13 @@ def _backend_label() -> dict:
                       else "no Authorization header") if _is_local else "HF token"
         lab = {"backend": "generative", "endpoint": _MODEL_BASE_URL,
                 "model_serving": "%s — open-weight (server-side only)" % tgt,
-                "primary_model": configured_model or _HF_ROSTER[0]["hf_repo"], "configured": True,
+                "primary_model": configured_model or (None if access_configured else _HF_ROSTER[0]["hf_repo"]),
+                "configured": True,
                 "offline": False,
                 "honest": "OpenAI-compatible endpoint configured with " + auth_label
                           + ". Configuration does not establish runtime availability."
                           + " 2x retry + roster fallback; never a fabricated answer."}
-        if any(entry.get("id") == configured_model
+        if access_configured or any(entry.get("id") == configured_model
                and entry.get("transport") == "custom-https-only"
                for entry in _FALLBACK_ROSTER):
             lab["honest"] = ("Custom HTTPS endpoint configured with " + auth_label
@@ -1591,7 +1635,8 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
     # REAL generative path when a model endpoint is configured (HF_TOKEN present
     # or a custom A11OY_MODEL_BASE_URL). Otherwise honest local deterministic.
     gen = None
-    if _model_configured() and prompt.strip():
+    access_configured = _model_access_configured()
+    if (_model_configured() or access_configured) and prompt.strip():
         sys_prompt = ("You are a11oy Code, a governed open-weight coding/research assistant. "
                       "Be concise, correct and cite your reasoning. When asked for code, return "
                       "a single runnable code block. Never claim to be a closed model.")
@@ -1620,7 +1665,14 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
             inference = {"mode": "unavailable", "model": None, "attempts": gen.get("attempts"),
                          "rate_limited": bool(gen.get("rate_limited")), "error": gen.get("error")}
 
-    if mode == "code":
+    if access_configured and not (gen and gen.get("ok")):
+        # A requested protected contract cannot become a local substitute.
+        inference = {"mode": "unavailable", "model": None,
+                     "attempts": (gen or {}).get("attempts", 0),
+                     "rate_limited": bool((gen or {}).get("rate_limited")),
+                     "error": (gen or {}).get("error") or "MODEL_COMPLETION_UNAVAILABLE"}
+        nonconf = 0.35
+    elif mode == "code":
         if gen and gen.get("ok"):
             # extract a code block from the generative answer; fall back to whole text
             mblk = re.search(r"```[a-zA-Z0-9_+-]*\n(.*?)```", gen["text"], re.S)
@@ -1686,9 +1738,10 @@ def governed_turn(mode: str, prompt: str, sign_fn, ns: str,
         except Exception:
             gate_allow = False
             reasons.append("strict execution budget closed or expired")
-    if execution_budget is not None and not (gen and gen.get("ok")):
+    if (execution_budget is not None or access_configured) and not (gen and gen.get("ok")):
         gate_allow = False
-        reasons.append("strict selected-model inference unavailable")
+        reasons.append("protected selected-model inference unavailable" if access_configured
+                       else "strict selected-model inference unavailable")
     if sev_rank >= 3 and confidence < 0.6:
         gate_allow = False; reasons.append("high-severity action with low confidence (deny-by-default)")
     if sev_rank >= 4 and not reversible:
@@ -2165,7 +2218,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
         if mode not in ("chat", "code", "research"):
             mode = "chat"
         want_model = b.get("model") or b.get("want_model") or ""
-        if not _model_configured():
+        if not _model_configured() and not _model_access_configured():
             return JSONResponse({
                 "configured": False,
                 "error": "model endpoint not configured: set HF_TOKEN secret on the Space",
@@ -2179,7 +2232,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
         run = governed_turn(mode, prompt, sign_fn, ns, untrusted_input=(b.get("untrusted_input") or ""),
                             run_chain=_RUN_CHAIN, sandbox=False, want_model=want_model)
         return JSONResponse({
-            "configured": True,
+            "configured": _model_configured(),
             "answer": run.get("answer"),
             "inference": run.get("inference"),
             "decision": run.get("decision"),
@@ -2243,10 +2296,12 @@ def register(app, ns: str, sign_fn, verify_fn=None, signer_label: str = "in-imag
 
     async def _models(request):
         roster, src = _roster()
+        backend = _backend_label()
         return JSONResponse({"roster": roster, "source": src,
                              "generative_roster": _HF_ROSTER,
-                             "endpoint": _MODEL_BASE_URL,
-                             "backend": _backend_label()})
+                             "endpoint": (backend.get("endpoint") if _model_access_configured()
+                                          else _MODEL_BASE_URL),
+                             "backend": backend})
 
     routes = [
         Route("/api/%s/v1/code/turn" % ns, _turn, methods=["POST"], name="%s_code_turn" % ns),

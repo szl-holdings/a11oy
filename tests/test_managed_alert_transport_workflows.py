@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 SECRET_LINE = "SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}"
@@ -89,7 +91,6 @@ def _relay_deploy_job() -> str:
 def test_relay_workflow_deploys_and_requires_a_real_post_deploy_canary() -> None:
     value = _relay_workflow()
     assert WRANGLER_ACTION in value
-    assert "wranglerVersion: '4.150.0'" in value
     assert "npm ci --ignore-scripts" in value
     assert "npx --yes" not in value
     assert "CLOUDFLARE_API_TOKEN" in value
@@ -102,6 +103,41 @@ def test_relay_workflow_deploys_and_requires_a_real_post_deploy_canary() -> None
     assert "exit 0" not in value
 
 
+@pytest.mark.parametrize("worker", ("alert-relay-worker", "email-sender-worker"))
+def test_worker_actions_use_the_verified_lockfile_version(worker: str) -> None:
+    value = (WORKFLOW_DIR / f"{worker}.yml").read_text(encoding="utf-8")
+    lines = value.split("\n  deploy:\n", 1)[1].splitlines()
+    install_index = next(
+        index for index, line in enumerate(lines) if line.strip() == "id: wrangler"
+    )
+    start, install_end = _step_bounds(lines, install_index)
+    install = "\n".join(lines[start:install_end])
+    assert f"working-directory: ops/{worker}" in install
+    order = [
+        "npm ci --ignore-scripts --no-audit --no-fund",
+        "locked_version=",
+        "require('./package-lock.json').packages['node_modules/wrangler'].version",
+        "require('./node_modules/wrangler/package.json').version",
+        '= "$locked_version"',
+        "printf 'version=%s\\n' \"$locked_version\" >> \"$GITHUB_OUTPUT\"",
+    ]
+    positions = [install.index(marker) for marker in order]
+    assert positions == sorted(positions)
+
+    # A separate action pin would replace the npm-ci installation on mismatch.
+    version_inputs = [
+        (index, line.strip())
+        for index, line in enumerate(lines)
+        if line.lstrip().startswith("wranglerVersion:")
+    ]
+    assert len(version_inputs) == 1
+    action_index, version_input = version_inputs[0]
+    assert version_input == "wranglerVersion: ${{ steps.wrangler.outputs.version }}"
+    action_start, action_end = _step_bounds(lines, action_index)
+    assert install_end <= action_start
+    assert WRANGLER_ACTION in "\n".join(lines[action_start:action_end])
+
+
 def test_relay_deploy_binds_the_exact_sha_and_reads_it_back_before_the_canary() -> None:
     value = _relay_workflow()
     deploy = _relay_deploy_job()
@@ -109,7 +145,7 @@ def test_relay_deploy_binds_the_exact_sha_and_reads_it_back_before_the_canary() 
     assert "\npermissions:\n  contents: read\n" in value
     assert "if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'" in deploy
     assert "    needs: test\n" in deploy
-    assert "    environment: cloudflare-production\n" in deploy
+    assert "    environment: production\n" in deploy
     assert "cancel-in-progress: false" in deploy
     assert "ref: ${{ github.sha }}" in deploy
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in deploy

@@ -78,10 +78,11 @@ class NativeReadbacks:
                 and manager.source_revision == _git_revision()
                 and Path(self.service.store.path).resolve() == manager.local_path("series_a").resolve(),
                 "NATIVE_REGISTERED_STATE_REQUIRED")
-        require(manager.begin_write(), "NATIVE_WRITER_UNAVAILABLE")
-        try:
+        # This callback may run on the event loop: never block its cancellation
+        # while handover owns the manager lock and waits for admitted work.
+        with manager.serialized_write_scope(blocking=False):
             manager.confirmed_writer()
-            with self.service.store.lock, closing(self.service.store.connect()) as db, db:
+            with self.service.store.lock, self.service.store.connect(write=True) as db:
                 db.execute("BEGIN IMMEDIATE")
                 row = db.execute("""SELECT p.source_revision,p.runtime_boot_id,o.state
                     FROM execution_observation_plans p JOIN execution_observations o
@@ -111,8 +112,6 @@ class NativeReadbacks:
                                (nonce, parent_case, native_kind, digest))
                 except sqlite3.IntegrityError:
                     raise NativeReadbackBlocked("NATIVE_RECEIPT_ATTEMPT_ALREADY_CONSUMED") from None
-        finally:
-            manager.end_write()
         return {"state": "LOCAL_NATIVE_RECEIPT_RECORDED", "payload_sha256": digest,
                 "durability_acknowledged": False}
 

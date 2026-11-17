@@ -526,7 +526,7 @@ def test_reachable_uds_references_do_not_upgrade_runtime_evidence(monkeypatch):
 def test_frontier_page_renders_both_contracts_without_legacy_live_inference():
     html = page._page_html("a11oy")
 
-    assert "source reachability" in html
+    assert "source availability (reported)" in html
     assert "operational readiness" in html
     assert "all sources live:" not in html
     assert "all_sources_live=" not in html

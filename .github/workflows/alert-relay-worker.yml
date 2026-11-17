@@ -3,7 +3,7 @@ name: Alert relay worker
 # GitOps for szl-alert-relay (ntfy.a11oy.net): test every change, deploy only the
 # exact commit that reached main, fail unless the live relay reports that exact
 # 40-character SHA, then prove one real delivery. Owner prerequisites (secrets,
-# token scopes, the cloudflare-production environment, the WAF skip rule) are in
+# token scopes, the production environment, the WAF skip rule) are in
 # ops/alert-relay-worker/README.md.
 
 on:
@@ -98,7 +98,7 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
-    environment: cloudflare-production
+    environment: production
     timeout-minutes: 15
     concurrency:
       group: deploy-szl-alert-relay
@@ -128,10 +128,13 @@ jobs:
           node-version: '22'
           check-latest: false
       - name: Install the locked Wrangler
+        id: wrangler
         working-directory: ops/alert-relay-worker
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          test "$(npx --no-install wrangler --version | tail -n 1)" = "4.150.0"
+          locked_version="$(node -p "require('./package-lock.json').packages['node_modules/wrangler'].version")"
+          test "$(node -p "require('./node_modules/wrangler/package.json').version")" = "$locked_version"
+          printf 'version=%s\n' "$locked_version" >> "$GITHUB_OUTPUT"
       - name: Resolve Cloudflare deployment account
         id: cloudflare-account
         env:
@@ -141,7 +144,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            echo "::error::cloudflare-production needs CLOUDFLARE_API_TOKEN (see ops/alert-relay-worker/README.md)." >&2
+            echo "::error::production needs CLOUDFLARE_API_TOKEN (see ops/alert-relay-worker/README.md)." >&2
             exit 1
           fi
 
@@ -205,7 +208,7 @@ jobs:
           accountId: ${{ steps.cloudflare-account.outputs.account_id }}
           workingDirectory: ops/alert-relay-worker
           packageManager: npm
-          wranglerVersion: '4.150.0'
+          wranglerVersion: ${{ steps.wrangler.outputs.version }}
           command: deploy --config wrangler.jsonc --message ${{ github.sha }}
           vars: |
             SOURCE_REVISION

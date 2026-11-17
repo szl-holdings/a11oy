@@ -158,7 +158,7 @@ def check_presentation(page, surfaces):
         "nodes => nodes.map(n => ({href:n.getAttribute('href'), title:n.querySelector('strong').textContent, boundary:n.querySelector('span').textContent}))")
     expected = [{"href": href, "title": title, "boundary": boundary}
                 for _lane, title, href, boundary in surfaces]
-    require(len(links) == 18 and links == expected, "18 source-owned navigation links changed")
+    require(len(links) == 19 and links == expected, "19 source-owned navigation links changed")
     org_card = page.locator("#ownership-links a[href='https://huggingface.co/spaces/SZLHOLDINGS/README']")
     require(org_card.count() == 1 and "INVENTORY_ONLY" in org_card.inner_text()
             and "ORG_CARD" in org_card.inner_text(), "org-card ownership boundary missing")
