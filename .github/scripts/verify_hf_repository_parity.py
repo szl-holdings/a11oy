@@ -26,6 +26,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -528,22 +529,31 @@ def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
     """
     namespace = {"__name__": "immutable_runtime_verification_contract",
                  "json": json, "math": math, "re": re, "os": os,
-                 "tempfile": tempfile, "Path": Path, "subprocess": subprocess,
+                 "tempfile": tempfile, "threading": threading, "time": time,
+                 "Path": Path, "subprocess": subprocess,
                  "MAX_JSON": 2 * 1024 * 1024, "MAX_FILE": 32 * 1024 * 1024,
                  "REPOSITORY": "szl-holdings/a11oy", "TARGET": "SZLHOLDINGS/a11oy",
                  "SIGNER": RUNTIME_SIGNER,
                  "REQUIRED": {"observer_runtime.py", "szl_runtime_identity.py", "serve.py",
                               "gdw_runtime.py", ".github/scripts/hf-sync.yml"}}
-    for path, wanted in (
-        ("szl_readiness_artifact.py", {"EvidenceBlocked", "require", "digest", "strict"}),
-        ("szl_runtime_identity.py", {"marker_document", "validate_binding", "verify_attestation"}),
+    for path, wanted, constants in (
+        ("szl_readiness_artifact.py", {"EvidenceBlocked", "require", "digest", "strict"}, ()),
+        ("szl_runtime_identity.py",
+         {"marker_document", "validate_binding", "verify_attestation",
+          "verification_open", "stop_verifier"},
+         ("VERIFIER_TIMEOUT", "VERIFIER_POLL", "VERIFIER_CLEANUP_TIMEOUT", "MAX_VERIFIER_OUTPUT")),
     ):
         raw = _read_url(f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/{path}",
                         opener=opener, max_bytes=128 * 1024)
         require_blob_bytes(path, raw, tree.get(path))
         definitions = [node for node in ast.parse(raw).body
-                       if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in wanted]
-        if len(definitions) != len(wanted) or {node.name for node in definitions} != wanted:
+                       if (isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in wanted)
+                       or (isinstance(node, ast.Assign) and len(node.targets) == 1
+                           and isinstance(node.targets[0], ast.Name)
+                           and node.targets[0].id in constants)]
+        names = {node.name for node in definitions
+                 if isinstance(node, (ast.FunctionDef, ast.ClassDef))}
+        if names != wanted or len(definitions) != len(wanted) + len(constants):
             raise ParityError("immutable runtime verification contract is incomplete")
         exec(compile(ast.Module(body=definitions, type_ignores=[]),
                      "<immutable-runtime-verification-contract>", "exec"), namespace)

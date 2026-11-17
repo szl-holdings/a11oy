@@ -46,19 +46,69 @@ change can restart the Space through the provider, so keep it inside the sole
 publisher's coordinated handover and verify the resulting source, boot and
 storage state. Independent execution admission remains separate.
 
-Before those configuration owners run, the canonical preflight now captures
-the serving source, Series-A process boot ID and fenced storage epoch through
-fixed-origin GETs. The baseline records its actual role, lease, writability and
-claim; a deliberately released or stale process is not relabelled healthy and
-does not prevent a configuration repair. After a reported configuration write,
-`.github/scripts/await_hf_configuration_handover.py` requires a different stable
-process and later **CLEAN** writer epoch serving the same prepublication source.
-Three consecutive bracketed observations must pass the existing seven-store
-validator, with a fresh active lease and no pending publication or unresolved
-errors. Only then does the workflow recheck protected-main ownership and
-publish. No-change reports skip polling. Missing or malformed observations,
-identity changes and timeout hold publication; the helper never restarts,
-releases, claims, signs or modifies provider state.
+## Configuration batch observations
+
+The sole observer is `.github/scripts/await_hf_configuration_handover.py`.
+In both preflight and deferred runtime configuration, the workflow captures a
+baseline before Series-A configuration, waits for that owner when its validated
+report records a write, and then repeats capture/configure/wait for GDW. Each
+wait receives one report and the literal `--owner series-a` or `--owner gdw`.
+The existing configuration owners, maintenance window, installed authority,
+released-state admission and protected-main checks retain their authority.
+An ACTIVE observation does not authorize a later mutation or replace the
+operator's verified handover preparation. Check-only convergence remains
+read-only. A validated no-change report needs no successor and skips polling;
+an unavailable baseline cannot support a changed batch.
+
+The observer reads the immutable private dataset HEAD and its exact bytes,
+the bucket heartbeat bound to its writer/boot/epoch, and the fixed public
+storage and Series-A status routes. Baselines retain the observed HEAD state,
+claim, sequence and identities. Role, writability and lease conditions are
+validated, but are not separately stored as raw status fields. A released
+writer or historical UNCLEAN claim is not relabelled healthy.
+After a write it requires distinct process and storage boots, a later **CLEAN**
+writer epoch, unchanged source/HF revision, a fresh ACTIVE fenced lease, and
+the existing seven-store health/integrity validator. No pending publication
+or unresolved storage error is accepted. Three or more coherent samples must
+span at least 30 seconds, with at least 15 seconds of heartbeat advancement.
+For a returned sample, the independently validated private HEAD epoch, owner
+and global sequence survive failed public validation and streak resets; a new
+epoch must strictly advance the highest observed sequence, including evidence
+from other owners. Otherwise the wait holds. Each observed owner's furthest
+state is retained in canonical order: ACTIVE, HANDOVER_REQUESTED, RELEASED.
+A backwards state observation holds even if its sequence advances. The pending
+handover state contributes private evidence but never qualifies as healthy
+settlement. A new owner may start ACTIVE. Heartbeat timestamps retain their
+maximum only after their own owner/time validation.
+An older observation cannot restore a passing streak. A child failure returning
+no sample supplies no additional private evidence; unseen HEADs are not
+inferred. A newly observed UNCLEAN successor holds the wait.
+A valid observed source or HF revision change also holds the wait when an
+unrelated public storage health check fails.
+
+Each wait has a 900-second monotonic bound, with SDK sampling children limited
+to 30 seconds and a deadline recheck before success. This is bounded polling
+and a child timeout; Python cannot guarantee interruptible OS process creation.
+Preflight's 50-minute and runtime configuration's 55-minute budgets reserve
+two captures, two complete waits, their existing work, and four minutes of
+overhead. Each job retains its separate Series-A and GDW baseline/result pairs.
+The result is an unsigned `szl.hf-config-writer-observation/v1` observation:
+`BASELINE_OBSERVED`, `BASELINE_UNAVAILABLE`, `NO_CONFIGURATION_WRITE`,
+`WRITER_STABLE_AFTER_CONFIG`, or `HOLD`. It never restarts, releases, claims,
+signs, or modifies provider state. `snapshot_objects_verified=false` and
+`execution_authority=false` remain explicit. Public process and storage
+identities are separately observed; `same_process_binding=NOT_ESTABLISHED`
+does not assume routing stickiness or claim both GETs came from one process.
+
+This barrier covers boundaries between configuration batches. A batch can
+contain several provider writes; it does not observe a settled runtime between
+each individual variable/volume write. The pinned shared publisher still
+publishes the payload and then calls
+[`hf_space_source_binding.py`](https://github.com/szl-holdings/.github/blob/5f140bab8adb64fe25252d8832b67b1f43a56c36/.github/scripts/hf_space_source_binding.py)
+to write `SZL_GIT_SHA`, including an already matching value, before its optional
+explicit restart. That separate restart boundary remains in the shared
+publisher's ownership. These observations do not close it or certify every
+publication handover.
 
 The ordering gap was observed during canonical run
 [43991653922](https://github.com/szl-holdings/a11oy/actions/runs/43991653922):
@@ -66,10 +116,22 @@ the preflight report records only the periodic-cadence variable changing. The
 immutable storage history records epoch 277 releasing, epoch 278 claiming
 cleanly on the old source, and epoch 279 taking over after a handover request
 without an intervening release. The released snapshot hashes survived unchanged.
+The epoch-278 CLAIM source is `654c515bb02c7241499364b767416e2d7babc028`;
+epoch 279 claims on `4d724ba783500d6fbe06638853bafa8f3f2a38e2`.
+The request's informational source identifies its requester and does not prove
+that epoch 278 ran the newer revision.
 Interruption of the intermediate startup is a supported explanation, not a
-proved termination cause. The barrier prevents publication from interrupting
-an unobserved configuration startup; it does not certify that no acknowledged
+proved termination cause. The barrier holds the next batch or publication
+until its scoped observations pass; it does not certify that no acknowledged
 writes were lost, repair that historical handover, or grant execution authority.
+
+Offline regressions live in `tests/test_hf_configuration_handover.py`,
+`tests/test_hf_manual_prerequisites_workflow.py`, and
+`tests/test_copy_sync_lockstep_source_derived.py`. They cover deadlines,
+identity/heartbeat regressions, unavailable and malformed evidence, per-owner
+ordering, deferred execution, retained artifacts and complete job budgets.
+Local test results and a read-only baseline do not establish that an actual
+changed-configuration deployment completed the barrier.
 
 ## Admission and read-only preflight
 

@@ -308,6 +308,11 @@ def build_middleware(ns: str = "a11oy"):
     """
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import JSONResponse, Response
+    try:
+        from szl_observability import finish_http_trace as _finish_trace, start_http_trace as _start_trace
+    except Exception:  # tracing is optional and must never block the request path
+        _finish_trace = None
+        _start_trace = None
 
     rl_enabled = _env_flag("A11OY_HARDEN_RATELIMIT", True)
     hsts_enabled = _env_flag("A11OY_HARDEN_HSTS", True)
@@ -374,6 +379,18 @@ def build_middleware(ns: str = "a11oy"):
 
             path = getattr(getattr(request, "url", None), "path", "") or ""
             method = getattr(request, "method", "GET")
+            trace = None
+            if _start_trace is not None:
+                try:
+                    trace = _start_trace(request)
+                except Exception:
+                    trace = None
+            def _record_trace(status_code: int) -> None:
+                if trace is not None and _finish_trace is not None:
+                    try:
+                        _finish_trace(trace, request, status_code)
+                    except Exception:
+                        pass
             ip = _client_ip(request)
             is_liveness = path in _LIVENESS_PATHS
             # DEMO-FLOOR FIX: only meter the JSON data surface; liveness probes and
@@ -399,6 +416,7 @@ def build_middleware(ns: str = "a11oy"):
                     resp.headers["Retry-After"] = str(retry_after)
                     resp.headers["X-Request-ID"] = req_id
                     _apply_security_headers(resp)
+                    _record_trace(429)
                     _access_log(method, path, 429, start, req_id, ip)
                     return resp
 
@@ -423,6 +441,7 @@ def build_middleware(ns: str = "a11oy"):
                         resp.headers["X-Request-ID"] = req_id
                         resp.headers["X-Cache"] = "HIT"
                         _apply_security_headers(resp)
+                        _record_trace(resp.status_code)
                         _access_log(method, path, resp.status_code, start, req_id, ip)
                         return resp
                 except Exception:
@@ -449,6 +468,7 @@ def build_middleware(ns: str = "a11oy"):
                 )
                 resp.headers["X-Request-ID"] = req_id
                 _apply_security_headers(resp)
+                _record_trace(500)
                 _access_log(method, path, 500, start, req_id, ip)
                 return resp
 
@@ -485,11 +505,13 @@ def build_middleware(ns: str = "a11oy"):
                         new_resp.headers["X-Request-ID"] = req_id
                         new_resp.headers["X-Cache"] = "MISS"
                         _apply_security_headers(new_resp)
+                        _record_trace(new_resp.status_code)
                         _access_log(method, path, new_resp.status_code, start, req_id, ip)
                         return new_resp
                 except Exception:
                     pass  # fail-open: return the original response untouched
 
+            _record_trace(getattr(response, "status_code", 500))
             _access_log(method, path, getattr(response, "status_code", 0), start, req_id, ip)
             return response
 

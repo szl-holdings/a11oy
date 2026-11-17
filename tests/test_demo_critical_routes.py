@@ -405,12 +405,24 @@ def test_command_centre_survives_real_product_middleware():
     assert script.status_code == 200
     assert 'reasoning_effort' in script.text
     assert 'No automatic retry' in script.text
+    import hashlib
+    from routers.command_centre import presentation_sources
+    digest = presentation_sources()['routers/command_centre_web/app.js']
+    bound = client.get('/command-centre/assets/' + digest + '/app.js')
+    assert bound.status_code == 200
+    assert bound.content == script.content
+    assert hashlib.sha256(bound.content).hexdigest() == digest
+    assert bound.headers['cache-control'] == 'public, max-age=31536000, immutable, no-transform'
+    missing = client.get('/command-centre/assets/' + '0' * 64 + '/app.js')
+    assert missing.status_code == 404
+    assert missing.json()['code'] == 'ASSET_DIGEST_MISMATCH'
 
 
 def test_command_centre_and_turn_keep_owning_handlers_before_catchalls():
     routes = list(serve.app.router.routes)
     catchall = next(i for i, route in enumerate(routes) if getattr(route, 'path', None) == '/{full_path:path}')
     for path, owner in (('/command-centre', 'routers.command_centre'),
+                        ('/command-centre/assets/{digest}/{filename:path}', 'routers.command_centre'),
                         ('/api/a11oy/v1/command-centre/study', 'routers.command_centre'),
                         ('/api/a11oy/v1/atelier/turn', 'routers.atelier_grok')):
         index, route = next((i, r) for i, r in enumerate(routes) if getattr(r, 'path', None) == path)
