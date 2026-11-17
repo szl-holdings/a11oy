@@ -726,17 +726,28 @@ def sovereign_probe(base: str = "", timeout: float | None = None) -> dict[str, A
             catalog_url, headers={"Accept": "application/json", **headers},
             timeout=to, max_response_bytes=1_048_576, max_redirects=0,
             allow_private=False)
-        out["probed"] = [{"url": catalog_url, "ok": doc is not None, "error": error}]
-        if isinstance(doc, dict) and isinstance(doc.get("data"), list):
-            out["models"] = [str(row["id"]) for row in doc["data"]
-                             if isinstance(row, dict) and isinstance(row.get("id"), str)
-                             and row["id"]]
-            out["live"] = True
-            out["api_style"] = "openai /v1"
-            out["note"] = ("Protected model catalog observed; inference, ownership "
-                           "and production acceptance remain separate.")
-        else:
+        out["probed"] = [{"url": catalog_url, "ok": False, "error": error}]
+        if error is not None:
             out["note"] = "Protected model catalog unavailable; no alternate endpoint was tried."
+            return out
+        # Validate the whole observation before exposing any IDs. Filtering or
+        # coercing malformed rows would turn an unknown inventory into a partial
+        # or empty success. Exact IDs must survive without whitespace repair.
+        if (not isinstance(doc, dict) or not isinstance(doc.get("data"), list)
+                or not all(isinstance(row, dict)
+                           and isinstance(row.get("id"), str)
+                           and row["id"] and row["id"] == row["id"].strip()
+                           for row in doc["data"])):
+            out["probed"][0]["error"] = "MODEL_ACCESS_CATALOG_MALFORMED"
+            out["note"] = ("Protected model catalog malformed; model inventory is unknown. "
+                           "No alternate endpoint was tried.")
+            return out
+        out["models"] = [row["id"] for row in doc["data"]]
+        out["live"] = True
+        out["probed"][0]["ok"] = True
+        out["api_style"] = "openai /v1"
+        out["note"] = ("Protected model catalog observed; inference, ownership "
+                       "and production acceptance remain separate.")
         return out
     # Wave M: we ALWAYS have a concrete base (env or the localhost /v1 default), so
     # we always reachability-probe. env_present tells the caller whether the

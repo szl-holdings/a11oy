@@ -16,6 +16,7 @@ RETAINED = "tests/fixtures/shared-source-payloads/retained-signing-ledger-202611
 SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json"
 PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
 DSSE = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1.json"
+INSPECTION = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1-f8ce1270f5d6.json"
 ENGINE = "a11oy_code_engine.py"
 COMPANION_TEST = "tests/test_model_companion_boundary.py"
 ACTIVE = ".github/shared-source-payload-manifest.json"
@@ -144,15 +145,35 @@ def _assert_current_shared_payload(root):
                             "szl_provenance.py"}:
             assert dsse["files"][relative] == expected
 
+    inspection_raw = (root / INSPECTION).read_bytes()
+    assert hashlib.sha256(inspection_raw).hexdigest() == (
+        "f8ce1270f5d6c4cbc6dad0e8f022232a60b3f4eea522976ffc6bbded4fb70814"
+    )
+    inspection = json.loads(inspection_raw)
+    # The coordinated inspection update retained this payload identifier and
+    # changed only provenance. Preserve both raw versions as distinct archives.
+    assert inspection["schema"] == dsse["schema"]
+    assert inspection["payload_id"] == dsse["payload_id"]
+    assert set(inspection["files"]) == set(dsse["files"])
+    for relative, expected in dsse["files"].items():
+        if relative != "szl_provenance.py":
+            assert inspection["files"][relative] == expected
+    assert inspection["files"]["szl_provenance.py"] == (
+        "eedb1a9243b55d6b925341047bf12cea806018bab0eea2fa96ca3a84996f1dd3"
+    )
+
     manifest = json.loads((root / ACTIVE).read_bytes())
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "model-companion-boundary-20261117-v1"
-    assert set(manifest["files"]) == set(dsse["files"]) | {DSSE, ENGINE, COMPANION_TEST}
+    assert set(manifest["files"]) == set(inspection["files"]) | {
+        DSSE, INSPECTION, ENGINE, COMPANION_TEST,
+    }
     assert manifest["files"][DSSE] == hashlib.sha256(dsse_raw).hexdigest()
+    assert manifest["files"][INSPECTION] == hashlib.sha256(inspection_raw).hexdigest()
     # Only this generation's history assertions change among inherited files.
     # The reviewed shared engine refuses an unavailable optional companion;
     # canonical Access implementation and dependencies are not shared payloads.
-    for relative, expected in dsse["files"].items():
+    for relative, expected in inspection["files"].items():
         if relative != "tests/test_replication_shared_payload.py":
             assert manifest["files"][relative] == expected
     assert manifest["files"][ENGINE] == (
@@ -179,6 +200,8 @@ def test_current_shared_payload_manifest_matches_current_peer():
     "missing_archive_entry", "missing_engine_entry", "missing_companion_test_entry",
     "engine_source", "engine_source_and_digest", "companion_test_source",
     "companion_test_source_and_digest", "canonical_helper_entry", "canonical_companion_entry",
+    "inspection_archive_bytes", "inspection_archive_bytes_and_digest",
+    "missing_inspection_entry", "inspection_provenance_rollback",
 ])
 def test_current_payload_rejects_tampering(tmp_path, change):
     manifest = json.loads((ROOT / ACTIVE).read_bytes())
@@ -199,20 +222,26 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         manifest["payload_id"] = "snowflake-account-host-boundary-20261102-v1"
     elif change == "predecessor_generation":
         manifest["payload_id"] = "dsse-finite-reload-20261112-v1"
-    elif change in {"missing_archive_entry", "missing_engine_entry", "missing_companion_test_entry"}:
+    elif change in {"missing_archive_entry", "missing_engine_entry", "missing_companion_test_entry",
+                    "missing_inspection_entry"}:
         del manifest["files"][{
             "missing_archive_entry": DSSE, "missing_engine_entry": ENGINE,
             "missing_companion_test_entry": COMPANION_TEST,
+            "missing_inspection_entry": INSPECTION,
         }[change]]
     elif change in {"dsse_archive_bytes_and_digest", "engine_source_and_digest",
-                    "companion_test_source_and_digest"}:
+                    "companion_test_source_and_digest", "inspection_archive_bytes_and_digest"}:
         relative = {
             "dsse_archive_bytes_and_digest": DSSE, "engine_source_and_digest": ENGINE,
             "companion_test_source_and_digest": COMPANION_TEST,
+            "inspection_archive_bytes_and_digest": INSPECTION,
         }[change]
         source = tmp_path / relative
         source.write_bytes(source.read_bytes() + b"\n")
         manifest["files"][relative] = hashlib.sha256(source.read_bytes()).hexdigest()
+    elif change == "inspection_provenance_rollback":
+        prior = json.loads((tmp_path / DSSE).read_bytes())
+        manifest["files"]["szl_provenance.py"] = prior["files"]["szl_provenance.py"]
     elif change in {"canonical_helper_entry", "canonical_companion_entry"}:
         relative = ("szl_model_access.py" if change == "canonical_helper_entry"
                     else "szl_router_client.py")
@@ -229,6 +258,7 @@ def test_current_payload_rejects_tampering(tmp_path, change):
             "proof_bytes": PROOF, "dsse_source": "szl_dsse.py",
             "dsse_archive_bytes": DSSE, "engine_source": ENGINE,
             "companion_test_source": COMPANION_TEST,
+            "inspection_archive_bytes": INSPECTION,
         }[change]
         source.write_bytes(source.read_bytes() + b"\n")
     (tmp_path / ACTIVE).write_text(json.dumps(manifest), encoding="utf-8")

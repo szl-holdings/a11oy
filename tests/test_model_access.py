@@ -308,28 +308,41 @@ def test_registered_chat_retains_protected_refusal_and_public_reads_redact_inval
     assert requests == []
 
 
-def catalog_transport(monkeypatch, *, status=200):
+def catalog_transport(monkeypatch, *, status=200, body=None):
     requests = []
+    payload = json.dumps({"data": [{"id": MODEL}]}).encode() if body is None else body
 
     class Response:
         def __init__(self):
             self.status = status
+            self.offset = 0
 
         def getheader(self, name):
             return "https://other.example/v1/models" if name == "Location" else None
 
-        def read(self, _limit):
-            return json.dumps({"data": [{"id": MODEL}]}).encode()
+        def read1(self, limit):
+            chunk = payload[self.offset:self.offset + limit]
+            self.offset += len(chunk)
+            return chunk
+
+        def isclosed(self):
+            return self.offset == len(payload)
+
+        def close(self):
+            self.offset = len(payload)
 
     class Connection:
         sock = None
+
+        def __init__(self, deadline):
+            self._szl_deadline_guard = provider_http._SocketDeadline(None, deadline)
 
         def close(self):
             pass
 
     def request(target, **kwargs):
         requests.append((target, kwargs))
-        return Response(), Connection(), None
+        return Response(), Connection(kwargs["deadline"]), None
 
     monkeypatch.setattr(provider_http, "_resolve_bounded", lambda *_: (
         [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))], None))
@@ -393,6 +406,66 @@ def test_protected_catalog_refusal_is_terminal(isolated, status):
     assert observed["live"] is False
     assert len(requests) == 1 and requests[0][0].hostname == "gpu.example"
     assert len(observed["probed"]) == 1
+
+
+@pytest.mark.parametrize("document", [
+    None, [], "not-a-catalog", {}, {"data": None}, {"data": {}}, {"data": "model"},
+    {"data": [None, {"id": 42}]}, {"data": [{"id": MODEL}, None]},
+    {"data": [{"id": MODEL}, {}]},
+])
+def test_protected_catalog_rejects_malformed_whole_observation(isolated, document):
+    configure(isolated)
+    requests = catalog_transport(isolated, body=json.dumps(document).encode())
+    observed = registry.sovereign_probe()
+    assert observed["live"] is False and observed["models"] == []
+    assert observed["probed"] == [{"url": ORIGIN + "/v1/models", "ok": False,
+                                   "error": "MODEL_ACCESS_CATALOG_MALFORMED"}]
+    assert "inventory is unknown" in observed["note"]
+    assert "api_style" not in observed and MODEL not in json.dumps(observed)
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("invalid_id", [
+    None, 42, True, [], {}, "", " ", "\t\n", " padded", "padded ",
+])
+def test_protected_catalog_never_coerces_or_repairs_model_ids(isolated, invalid_id):
+    configure(isolated)
+    requests = catalog_transport(isolated, body=json.dumps({
+        "data": [{"id": MODEL}, {"id": invalid_id}]}).encode())
+    observed = registry.sovereign_probe()
+    assert observed["live"] is False and observed["models"] == []
+    assert observed["probed"][0]["ok"] is False
+    assert observed["probed"][0]["error"] == "MODEL_ACCESS_CATALOG_MALFORMED"
+    assert MODEL not in json.dumps(observed) and len(requests) == 1
+
+
+@pytest.mark.parametrize("rows", [
+    [], [{"id": MODEL}],
+    [{"id": "Exact-Model:latest", "object": "model"}, {"id": "exact-model:latest"}],
+])
+def test_protected_catalog_preserves_valid_empty_and_exact_ids(isolated, rows):
+    configure(isolated)
+    requests = catalog_transport(isolated, body=json.dumps({"data": rows}).encode())
+    observed = registry.sovereign_probe()
+    assert observed["live"] is True
+    assert observed["models"] == [row["id"] for row in rows]
+    assert observed["probed"] == [{"url": ORIGIN + "/v1/models", "ok": True,
+                                   "error": None}]
+    assert "Protected model catalog observed" in observed["note"]
+    assert observed["api_style"] == "openai /v1" and len(requests) == 1
+    assert registry.sovereign_generate("do not run", model=MODEL)["generated"] is False
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("body", [b"not-json", b'{"data": [', b"\xff"])
+def test_protected_catalog_invalid_json_remains_unavailable(isolated, body):
+    configure(isolated)
+    requests = catalog_transport(isolated, body=body)
+    observed = registry.sovereign_probe()
+    assert observed["live"] is False and observed["models"] == []
+    assert observed["probed"] == [{"url": ORIGIN + "/v1/models", "ok": False,
+                                   "error": "INVALID_JSON"}]
+    assert "catalog unavailable" in observed["note"] and len(requests) == 1
 
 
 @pytest.mark.parametrize("case", ["partial", "different_base", "unselected_code_endpoint"])
