@@ -344,6 +344,36 @@ def test_vitals_lungs_and_metabolism_present_and_labeled():
     return out
 
 
+def test_lungs_structural_mesh_preserves_source_without_measured_claim():
+    """An unqualified fleet gate stays unavailable even with a node reading."""
+    mesh = {
+        "label": "STRUCTURAL-ONLY",
+        "total_watts": None,
+        "total_joules": None,
+        "totals_from_meter_gate": False,
+        "nodes": [{
+            "name": "fixture visualization node",
+            "role": "anchor",
+            "live": True,
+            "watts": 17.0,
+            "joules": None,
+            "joules_label": "UNAVAILABLE",
+            "source": "fixture independent node reading",
+        }],
+    }
+    before = json.dumps(mesh, sort_keys=True)
+    lungs = loop._build_lungs(mesh)
+    assert lungs["label"] == "UNAVAILABLE", lungs
+    assert lungs["label"] in _VERBATIM_LABELS, lungs
+    assert lungs["source_label"] == "STRUCTURAL-ONLY", lungs
+    assert lungs["band"] == "unavailable", lungs
+    assert lungs["total_watts"] is None and lungs["total_joules"] is None, lungs
+    assert lungs["breaths"][0]["breathing_rate_watts"] == 17.0, lungs
+    assert lungs["breaths"][0]["capacity_joules"] is None, lungs
+    assert lungs["breaths"][0]["source"] == "fixture independent node reading", lungs
+    assert json.dumps(mesh, sort_keys=True) == before
+
+
 def test_vitals_reservoir_reflects_measured_meter_when_present():
     """When the merged meter reports MEASURED joules, the reservoir fills MEASURED.
 
@@ -403,6 +433,7 @@ if __name__ == "__main__":
     vitals = test_vitals_eight_systems_all_labeled()
     test_vitals_dead_organ_is_unavailable_not_faked()
     test_vitals_lungs_and_metabolism_present_and_labeled()
+    test_lungs_structural_mesh_preserves_source_without_measured_claim()
     reservoir_measured = test_vitals_reservoir_reflects_measured_meter_when_present()
     print("PASS — anatomy loop self-test (incl. latency guard + Layer 2 living vitals)")
     print(json.dumps({

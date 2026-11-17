@@ -16,6 +16,7 @@ RETAINED = "tests/fixtures/shared-source-payloads/retained-signing-ledger-202611
 SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json"
 PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
 DSSE = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1.json"
+INSPECTION = ".github/shared-source-payloads/dsse-finite-reload-inspection-20261116-v1.json"
 ACTIVE = ".github/shared-source-payload-manifest.json"
 
 
@@ -144,18 +145,39 @@ def _assert_current_shared_payload(root):
                             "szl_provenance.py"}:
             assert dsse["files"][relative] == expected
 
+    # Preserve the later merged inspection predecessor from paired a11oy #3597
+    # / killinchu #629 separately. Its original JSON generation stays unchanged;
+    # only provenance advanced from the immutable request-context snapshot above.
+    inspection_raw = (root / INSPECTION).read_bytes()
+    assert hashlib.sha256(inspection_raw).hexdigest() == (
+        "f8ce1270f5d6c4cbc6dad0e8f022232a60b3f4eea522976ffc6bbded4fb70814"
+    )
+    inspection = json.loads(inspection_raw)
+    assert inspection["schema"] == "szl-shared-source-payload/v1"
+    assert inspection["payload_id"] == "dsse-finite-reload-20261112-v1"
+    assert set(inspection["files"]) == set(dsse["files"])
+    assert inspection["files"]["szl_provenance.py"] == (
+        "eedb1a9243b55d6b925341047bf12cea806018bab0eea2fa96ca3a84996f1dd3"
+    )
+    assert {
+        relative for relative in dsse["files"]
+        if inspection["files"][relative] != dsse["files"][relative]
+    } == {"szl_provenance.py"}
+
     manifest = json.loads((root / ACTIVE).read_bytes())
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "anatomy-observation-auth-20261116-v1"
-    assert set(manifest["files"]) == set(dsse["files"]) | {DSSE}
+    assert set(manifest["files"]) == set(inspection["files"]) | {DSSE, INSPECTION}
     assert manifest["files"][DSSE] == hashlib.sha256(dsse_raw).hexdigest()
-    # Only the two operator protections and this history test move forward.
+    assert manifest["files"][INSPECTION] == hashlib.sha256(inspection_raw).hexdigest()
+    # Only the two operator protections and this history test move forward
+    # from the latest merged inspection predecessor.
     # Pin the reviewed auth bytes so changing source plus its manifest digest
     # cannot silently introduce a different authorization policy.
     assert manifest["files"]["szl_operator_auth.py"] == (
         "f31fc4d4f960eb840583d7b32c9598d2c96319c9818acc3f39f078de8394fa8f"
     )
-    for relative, expected in dsse["files"].items():
+    for relative, expected in inspection["files"].items():
         if relative not in {"szl_operator_auth.py", "tests/test_replication_shared_payload.py"}:
             assert manifest["files"][relative] == expected
     # Check current bytes only against the successor. Archived source digests
@@ -173,7 +195,7 @@ def test_current_shared_payload_manifest_matches_current_peer():
 @pytest.mark.parametrize("change", [
     "source", "source_and_digest", "missing_entry", "schema", "generation",
     "security_digest", "retained_bytes", "security_bytes", "proof_bytes", "dsse_source",
-    "dsse_archive_bytes",
+    "dsse_archive_bytes", "inspection_archive_bytes", "provenance_source_and_digest",
 ])
 def test_current_payload_rejects_tampering(tmp_path, change):
     manifest = json.loads((ROOT / ACTIVE).read_bytes())
@@ -186,6 +208,10 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         source.write_bytes(source.read_bytes() + b"\n")
         if change == "source_and_digest":
             manifest["files"]["szl_operator_auth.py"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    elif change == "provenance_source_and_digest":
+        source = tmp_path / "szl_provenance.py"
+        source.write_bytes(source.read_bytes() + b"\n")
+        manifest["files"]["szl_provenance.py"] = hashlib.sha256(source.read_bytes()).hexdigest()
     elif change == "missing_entry":
         del manifest["files"]["szl_signing_state.py"]
     elif change == "schema":
@@ -200,7 +226,7 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         source = tmp_path / {
             "retained_bytes": RETAINED, "security_bytes": SNOWFLAKE,
             "proof_bytes": PROOF, "dsse_source": "szl_dsse.py",
-            "dsse_archive_bytes": DSSE,
+            "dsse_archive_bytes": DSSE, "inspection_archive_bytes": INSPECTION,
         }[change]
         source.write_bytes(source.read_bytes() + b"\n")
     (tmp_path / ACTIVE).write_text(json.dumps(manifest), encoding="utf-8")

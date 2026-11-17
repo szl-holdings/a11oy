@@ -190,7 +190,7 @@ COPY model_release/m1/ ./model_release/m1/
 # Keep root-level sources explicit while batching them into one filesystem layer.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
+COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py a11oy_cpu_lab_contract.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -560,8 +560,9 @@ COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-hol
 # Command/Loop/Queue/Memory/Ledger. Not a Vite dump. Not a second flagship.
 # NEXUS analog vanity path (AO-2026-08-29-003). Same class as /five-space.
 # Not a flagship. Not a landing door. Hub Space private.
-COPY szl_lyte_lattice.py szl_kernels_organ.py ./
-COPY szl_khipu_organ.py ./
+COPY szl_lyte_lattice.py szl_kernels_organ.py szl_khipu_organ.py ./
+# Canonical read-only ORO evidence bridge and its package-owned assets.
+COPY oro/ ./oro/
 COPY szl_five_space.py ./
 COPY szl_nexus.py ./
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)

@@ -34,6 +34,7 @@ SURFACES = (
     ("operate", "Fleet", "/fleet-c2", "Existing fleet posture; no new dispatch authority"),
     ("operate", "Governance", "/governance", "Policy gates, restraints and honest status"),
     ("operate", "Receipts", "/verify", "Existing receipt verifier; a signature is not inference proof"),
+    ("operate", "ORO evidence", "/oro/evidence", "Canonical Khipu pointers and local Anatomy observations; inspection grants no execution authority"),
     ("operate", "Atelier model walk", "/atelier", "Retained model discovery surface"),
     ("operate", "Atelier research", "/atelier/frontier", "Independent capability synthesis and MODELED evaluations"),
     ("operate", "SZL public CPU lab", "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab", "Separate best-effort public Khipu demonstration; unsigned execution, no sensitive prompts"),
