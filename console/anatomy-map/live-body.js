@@ -8,8 +8,8 @@
  * CRITICAL DISCIPLINE (binding — honest by construction, never a screensaver):
  *   - Every pulse travelling a vessel corresponds to a REAL receipt on the chain
  *     (/api/a11oy/v1/ledger). We never synthesize a receipt.
- *   - Every organ glows LIVE only on a real 2xx+JSON probe; otherwise it dims to an
- *     honest UNREACHABLE state. We never fabricate a green light.
+ *   - Organ glow means a real 2xx+JSON transport response, not operational
+ *     readiness. Source declarations are shown separately; unknown stays unknown.
  *   - sovereign:true is shown ONLY when /code/healthz reports the literal true.
  *   - Λ is advisory and its uniqueness is Conjecture 1 — pulled live from
  *     /v1/lambda + /v1/honest, never hardcoded as proven.
@@ -56,16 +56,21 @@ const KANCHAY = {
 
 /* ---- status vocabulary ---------------------------------------------------- */
 const STATUS = {
-  LIVE: "live",               // endpoint answered 2xx with usable JSON
-  UNREACHABLE: "unreachable", // network / non-2xx / not-JSON — honest unknown
+  // "live" is a legacy renderer/CSS token for transport only, never readiness.
+  REACHABLE: "live",
+  LIVE: "live",               // compatibility alias; do not use as health evidence
+  UNREACHABLE: "unreachable", // no usable 2xx+JSON response; health remains unknown
   PENDING: "pending",         // not yet polled
 };
 
+function engineCount(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
 /* ---- the 4 console organs, each a REAL probe ------------------------------ *
- * These are the organs the unified console shows (Reasoning/Policy/Operator/
- * Receipts). Each maps to a real endpoint that proves it is alive; LIVE only on
- * a real 2xx+JSON answer, otherwise an honest UNREACHABLE dim. `pos` is a normalized
- * body-space anchor [x,y,z] the scene uses to place the organ. */
+ * Each organ maps to an endpoint. A successful probe establishes transport
+ * reachability only; it does not verify readiness or the endpoint's declarations.
+ * `pos` is a normalized body-space anchor [x,y,z] used by the scene. */
 const ORGANS = [
   {
     id: "reasoning", name: "REASONING", glyph: "✸", color: KANCHAY.proof,
@@ -100,7 +105,7 @@ const ORGANS = [
     actions: ["operator.approve"],
     summarize: (j) => {
       const op = j.operator || {};
-      if (op.operator_running === true) return `operator running · ${j.status || "ready"}`;
+      if (op.operator_running === true) return `operator reports running · ${j.status || "status unavailable"}`;
       if (op.state) {
         const requirement = op.required === true ? "required" : "optional";
         return `operator ${op.state} · ${requirement} · ${j.status || "unknown"}`;
@@ -179,14 +184,26 @@ async function getJSON(url, timeoutMs = 9000) {
   }
 }
 
-/* probe one organ honestly -> {status, detail, raw} */
+/* Transport and source declarations are independent; no readiness is derived. */
 async function probeOrgan(organ, timeoutMs = 9000) {
   const r = await getJSON(EP[organ.probe], timeoutMs);
-  if (!r.ok) return { status: STATUS.UNREACHABLE, detail: r.why, raw: null };
-  let detail;
-  try { detail = organ.summarize(r.json); }
-  catch { detail = "responding (shape unrecognized)"; }
-  return { status: STATUS.LIVE, detail, raw: r.json };
+  if (!r.ok) return {
+    status: STATUS.UNREACHABLE, transport: "unreachable", readiness: null,
+    sourceState: null, detail: r.why, raw: null,
+  };
+  let summary;
+  try { summary = organ.summarize(r.json); }
+  catch { summary = "response shape unrecognized"; }
+  // /readyz owns this declaration; other organ probes have different contracts.
+  const declared = organ.probe === "readyz" && r.json && r.json.status;
+  const sourceState = typeof declared === "string" && /^[a-z][a-z0-9_-]{0,63}$/i.test(declared)
+    ? declared : null;
+  const stateDetail = sourceState === null
+    ? "readiness unavailable" : `source status: ${sourceState} (declared)`;
+  return {
+    status: STATUS.REACHABLE, transport: "reachable", readiness: null,
+    sourceState, detail: `transport reachable · ${stateDetail} · ${summary}`, raw: r.json,
+  };
 }
 
 /* fetch the REAL receipt chain. Returns normalized receipts (or honest empty). */
@@ -256,20 +273,31 @@ async function fetchDoctrine(timeoutMs = 9000) {
   };
 }
 
-/* fetch mesh/engine health — the only REAL drift-ish signal available today:
- * engines_total - engines_live antibodies. honest immune intensity in [0,1]. */
+/* Mesh counts are source observations, not whole-system readiness. */
 async function fetchImmune(timeoutMs = 9000) {
   const r = await getJSON(EP.govern, timeoutMs);
-  if (!r.ok) return { reachable: false, intensity: 0, detail: r.why };
-  const j = r.json;
-  const total = typeof j.engines_total === "number" ? j.engines_total : 0;
-  const live = typeof j.engines_live === "number" ? j.engines_live : total;
-  const down = Math.max(0, total - live);
+  if (!r.ok) return {
+    reachable: false, transport: "unreachable", countersAvailable: false,
+    intensity: null, down: null, live: null, total: null,
+    detail: `mesh health unavailable · ${r.why}`,
+  };
+  const j = r.json && typeof r.json === "object" && !Array.isArray(r.json) ? r.json : {};
+  const total = engineCount(j.engines_total);
+  const live = engineCount(j.engines_live);
+  const countersAvailable = total !== null && live !== null && live <= total;
+  if (!countersAvailable) return {
+    reachable: true, transport: "reachable", countersAvailable: false,
+    intensity: null, down: null, live, total,
+    detail: "transport reachable · mesh health unavailable (missing or invalid engine counters)",
+  };
+  const down = total - live;
   return {
-    reachable: true,
-    intensity: total > 0 ? down / total : 0,   // real fraction of mesh down
+    reachable: true, transport: "reachable", countersAvailable: true,
+    intensity: total > 0 ? down / total : null,
     down, live, total,
-    detail: down > 0 ? `${down}/${total} mesh engines down — antibodies active` : `mesh ${live}/${total} healthy`,
+    detail: total === 0
+      ? "transport reachable · mesh health unavailable (no engines reported; 0/0)"
+      : `transport reachable · mesh ${live}/${total} engines reported live · ${down} reported down`,
   };
 }
 
