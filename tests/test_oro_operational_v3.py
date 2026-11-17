@@ -649,3 +649,175 @@ def test_duplicate_json_fields_and_non_json_are_rejected(
             headers={"Content-Type": "application/x-www-form-urlencoded", **AUTH_HEADERS},
         )
         assert non_json.status_code == 422
+
+
+# Content-cycle regressions: receipt chronology is not semantic progress.
+def _retimed_second_request(*, complete=False):
+    payload = execution_payload(
+        barrier_id="barrier-retimed", generation=1, sequence=0,
+        objective_converged=complete,
+        rank_after={"obligations": 0, "evidence_deficits": 2, "budget_units": 7, "turns": 2},
+    )
+    for arrival in payload["arrivals"]:
+        arrival["received_at"] = "2026-08-17T00:00:02.000Z"
+    return payload
+
+
+def _persist_legacy_barrier(service):
+    """Create a test-only signed receipt using the original transport-bound hash."""
+    from dataclasses import replace
+    from oro.core import BARRIER_SCHEMA, DSSE_PAYLOAD_TYPE, canonical_json, receipt_digest, semantic_hash
+    original = service.engine.evaluate
+
+    def legacy(**kwargs):
+        decision = original(**kwargs)
+        merged = {
+            "schema": BARRIER_SCHEMA,
+            "orbit_id": kwargs["orbit_id"],
+            "participants": [
+                {"participant_id": a.participant_id, "payload": a.payload,
+                 "payload_digest": a.digest, "received_at": a.received_at}
+                for a in sorted(kwargs["arrivals"], key=lambda a: a.participant_id)
+            ],
+        }
+        digest = semantic_hash(merged)
+        body = dict(decision.receipt)
+        body.pop("receipt_digest")
+        body["semantic_hash"] = digest
+        body["receipt_digest"] = receipt_digest(body)
+        envelope = service.engine._signer.sign(DSSE_PAYLOAD_TYPE, canonical_json(body))
+        return replace(decision, semantic_digest=digest, receipt=body, envelope=envelope)
+
+    service.engine.evaluate = legacy
+    try:
+        service.execute_plan("plan-1", execution_payload())
+    finally:
+        service.engine.evaluate = original
+
+
+@pytest.mark.parametrize("complete", [False, True])
+def test_retimed_cycle_refuses_without_claiming_progress(tmp_path, complete):
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        service.execute_plan("plan-1", execution_payload())
+        result = service.execute_plan("plan-1", _retimed_second_request(complete=complete))
+        assert result["barrier"]["decision"] == "REFUSE"
+        assert "semantic cycle" in result["barrier"]["reason"]
+        assert result["certificate"]["kind"] == "refusal"
+    finally:
+        service.store.close()
+
+
+def test_retimed_cycle_reopen_preserves_legacy_receipt_bytes(tmp_path):
+    service = service_for(tmp_path)
+    service.create_plan(plan_payload(service))
+    _persist_legacy_barrier(service)
+    before = tuple(service.store.connection.execute(
+        "SELECT body_json, envelope_json FROM receipts WHERE barrier_id='barrier-1'"
+    ).fetchone())
+    service.store.close()
+    service = service_for(tmp_path)
+    try:
+        result = service.execute_plan("plan-1", _retimed_second_request())
+        assert result["barrier"]["decision"] == "REFUSE"
+        after = tuple(service.store.connection.execute(
+            "SELECT body_json, envelope_json FROM receipts WHERE barrier_id='barrier-1'"
+        ).fetchone())
+        assert after == before
+    finally:
+        service.store.close()
+
+
+@pytest.mark.parametrize("field,value", [("amount_micros", 1250001),
+                                        ("observed_at", "2026-08-17T00:00:02.000Z")])
+def test_retimed_changed_payload_is_not_a_false_cycle(tmp_path, field, value):
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        _persist_legacy_barrier(service)
+        payload = _retimed_second_request()
+        payload["arrivals"][0]["payload"][field] = value
+        assert service.execute_plan("plan-1", payload)["barrier"]["decision"] == "CONTINUE"
+    finally:
+        service.store.close()
+
+
+def test_retimed_cycle_order_does_not_change_content(tmp_path):
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        service.execute_plan("plan-1", execution_payload())
+        payload = _retimed_second_request()
+        payload["arrivals"].reverse()
+        assert service.execute_plan("plan-1", payload)["barrier"]["decision"] == "REFUSE"
+    finally:
+        service.store.close()
+
+
+@pytest.mark.parametrize("damage", ["missing", "changed-body", "invalid-json"])
+def test_retimed_cycle_corrupt_legacy_history_holds(tmp_path, damage):
+    from oro.core import OROStateError
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        _persist_legacy_barrier(service)
+        if damage == "missing":
+            service.store.connection.execute("DELETE FROM receipts WHERE barrier_id='barrier-1'")
+        else:
+            raw = '{"participants":[]}' if damage == "changed-body" else '{not-json'
+            service.store.connection.execute(
+                "UPDATE receipts SET body_json=? WHERE barrier_id='barrier-1'", (raw,)
+            )
+        with pytest.raises(OROStateError, match="semantic history"):
+            service.execute_plan("plan-1", _retimed_second_request())
+    finally:
+        service.store.close()
+
+
+@pytest.mark.parametrize("bound", ["MAX_SEMANTIC_HISTORY_BARRIERS", "MAX_SEMANTIC_HISTORY_BYTES"])
+def test_retimed_cycle_history_budget_holds_without_truncating(tmp_path, monkeypatch, bound):
+    import oro.store as store_module
+    from oro.core import OROStateError
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        _persist_legacy_barrier(service)
+        monkeypatch.setattr(store_module, bound, 0)
+        with pytest.raises(OROStateError, match="semantic history"):
+            service.execute_plan("plan-1", _retimed_second_request())
+    finally:
+        service.store.close()
+
+
+def test_retimed_cycle_legacy_lookup_has_no_storage_side_effect(tmp_path):
+    from oro.core import barrier_content_hash, semantic_hash
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        _persist_legacy_barrier(service)
+        pointers = [{"participant_id": a["participant_id"], "arrival_digest": semantic_hash(a["payload"])}
+                    for a in execution_payload()["arrivals"]]
+        before = service.store.connection.total_changes
+        assert service.store.seen_semantic_hash("orbit-1", barrier_content_hash("orbit-1", pointers))
+        assert service.store.connection.total_changes == before
+        assert not service.store.seen_semantic_hash("other-orbit", barrier_content_hash("orbit-1", pointers))
+    finally:
+        service.store.close()
+
+
+@pytest.mark.parametrize("bad", ["ttl", "generation"])
+def test_retimed_cycle_keeps_transport_validation(tmp_path, bad):
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        service.execute_plan("plan-1", execution_payload())
+        payload = _retimed_second_request()
+        if bad == "ttl":
+            payload["arrivals"][0]["received_at"] = "2031-01-01T00:00:00.000Z"
+        else:
+            payload["arrivals"][0]["generation"] = 2
+        with pytest.raises(OROContractError):
+            service.execute_plan("plan-1", payload)
+    finally:
+        service.store.close()
