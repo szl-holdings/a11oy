@@ -52,6 +52,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         cls.deploy_helpers = {path: (ROOT / path).read_bytes() for path in (
             ".github/scripts/resume_hf_space.py",
             ".github/scripts/await_hf_runtime_serving.py",
+            ".github/scripts/await_hf_config_writer.py",
             "scripts/configure_hf_series_a_runtime.py",
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",

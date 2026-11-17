@@ -93,10 +93,16 @@ if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-series-config-admission.ou
   echo '::error::Protected main changed before Series-A configuration.'
   exit 1
 fi
+python -I -B .github/scripts/await_hf_config_writer.py --capture \
+  --output "$RUNNER_TEMP/preflight-series-writer-baseline.json"
 python -I -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
   --expected-source-sha "$GITHUB_SHA" \
   --output "$RUNTIME_CONFIG_REPORT"
+python -I -B .github/scripts/await_hf_config_writer.py --await-writer \
+  --owner series-a --config-report "$RUNTIME_CONFIG_REPORT" \
+  --baseline "$RUNNER_TEMP/preflight-series-writer-baseline.json" \
+  --output "$RUNNER_TEMP/preflight-series-writer-settled.json"
 python3 -I -B scripts/hf_exact_main_ownership.py \
   --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
   --receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json" \
@@ -105,9 +111,15 @@ if ! grep -Fqx 'publish=true' "$RUNNER_TEMP/preflight-gdw-config-admission.out";
   echo '::error::Protected main changed before GDW configuration.'
   exit 1
 fi
+python -I -B .github/scripts/await_hf_config_writer.py --capture \
+  --output "$RUNNER_TEMP/preflight-gdw-writer-baseline.json"
 python -I -B scripts/configure_hf_gdw_runtime.py \
   --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
   --output "$GDW_CONFIG_REPORT"
+python -I -B .github/scripts/await_hf_config_writer.py --await-writer \
+  --owner gdw --config-report "$GDW_CONFIG_REPORT" \
+  --baseline "$RUNNER_TEMP/preflight-gdw-writer-baseline.json" \
+  --output "$RUNNER_TEMP/preflight-gdw-writer-settled.json"
 echo 'converged=true' >> "$GITHUB_OUTPUT"'''
 ADMIT_RUN = r'''set -euo pipefail
 python3 -I -B scripts/hf_exact_main_ownership.py \
@@ -161,10 +173,20 @@ else
     exit 1
   fi
 fi
+if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+  python -I -B .github/scripts/await_hf_config_writer.py --capture \
+    --output "$RUNNER_TEMP/runtime-series-writer-baseline.json"
+fi
 python -I -B scripts/configure_hf_series_a_runtime.py \
   --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
   --expected-source-sha "$GITHUB_SHA" \
   "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
+if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+  python -I -B .github/scripts/await_hf_config_writer.py --await-writer \
+    --owner series-a --config-report "$RUNTIME_CONFIG_REPORT" \
+    --baseline "$RUNNER_TEMP/runtime-series-writer-baseline.json" \
+    --output "$RUNNER_TEMP/runtime-series-writer-settled.json"
+fi
 if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
   python3 -I -B scripts/hf_exact_main_ownership.py \
     --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
@@ -175,10 +197,20 @@ if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
     exit 1
   fi
 fi
+if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+  python -I -B .github/scripts/await_hf_config_writer.py --capture \
+    --output "$RUNNER_TEMP/runtime-gdw-writer-baseline.json"
+fi
 python -I -B scripts/configure_hf_gdw_runtime.py \
   --repo-id "$CANONICAL_SPACE" \
   --expected-source-sha "$GITHUB_SHA" \
-  "${mode[@]}" --output "$GDW_CONFIG_REPORT"'''
+  "${mode[@]}" --output "$GDW_CONFIG_REPORT"
+if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+  python -I -B .github/scripts/await_hf_config_writer.py --await-writer \
+    --owner gdw --config-report "$GDW_CONFIG_REPORT" \
+    --baseline "$RUNNER_TEMP/runtime-gdw-writer-baseline.json" \
+    --output "$RUNNER_TEMP/runtime-gdw-writer-settled.json"
+fi'''
 # Post-deploy jobs may read and verify, never restart, pause or write variables.
 POST_DEPLOY_JOBS = ("runtime-config", "execution-handoff", "readiness-verdict", "execution-readiness", "relock",
                     "post-deployment-parity", "terminal-source-authorization")
@@ -396,6 +428,8 @@ def assert_deploy_path_contract(source):
 
 
     preflight = jobs["preflight"]
+    if preflight.get("timeout-minutes") != "50":
+        raise WorkflowContractError("preflight configuration barrier budget")
     if (preflight.get("permissions") != {"contents": "read"}
             or preflight.get("env", {}).get("HF_TOKEN") != HF_CREDENTIAL
             or preflight.get("outputs") != {
@@ -448,6 +482,8 @@ def assert_deploy_path_contract(source):
         raise WorkflowContractError("deploy authority contract changed")
 
     runtime = jobs["runtime-config"]
+    if runtime.get("timeout-minutes") != "55":
+        raise WorkflowContractError("runtime-config configuration barrier budget")
     if (runtime.get("permissions") != {"contents": "read"}
             or [step.get("name") for step in runtime["steps"]] != [
                 "Checkout exact protected source", "Set up Python", "Install exact Hugging Face control client",
@@ -466,7 +502,11 @@ def assert_deploy_path_contract(source):
     paths = tuple(runtime["steps"][5].get("with", {}).get("path", "").splitlines())
     if paths != ("${{ env.RUNTIME_CONFIG_REPORT }}", "${{ env.GDW_CONFIG_REPORT }}",
                  "${{ runner.temp }}/runtime-series-config-admission.json",
-                 "${{ runner.temp }}/runtime-gdw-config-admission.json"):
+                 "${{ runner.temp }}/runtime-gdw-config-admission.json",
+                 "${{ runner.temp }}/runtime-series-writer-baseline.json",
+                 "${{ runner.temp }}/runtime-series-writer-settled.json",
+                 "${{ runner.temp }}/runtime-gdw-writer-baseline.json",
+                 "${{ runner.temp }}/runtime-gdw-writer-settled.json"):
         raise WorkflowContractError("runtime-config artifact allowlist")
 
     for name in POST_DEPLOY_JOBS:
@@ -831,6 +871,29 @@ class DeployPathWorkflowTests(unittest.TestCase):
         ):
             with self.subTest(path=path):
                 self.assertEqual(tests_workflow.count(path), 1)
+
+    def test_config_writer_barrier_failure_cannot_be_ignored(self):
+        for phase in ("preflight", "runtime"):
+            for owner in ("series", "gdw"):
+                with self.subTest(phase=phase, owner=owner):
+                    needle = '--output "$RUNNER_TEMP/' + phase + '-' + owner + '-writer-settled.json"'
+                    self.assertEqual(self.source.count(needle), 1)
+                    mutated = self.source.replace(needle, needle + " || true", 1)
+                    diagnostic = "preflight convergence" if phase == "preflight" else "runtime-config must verify"
+                    with self.assertRaisesRegex(WorkflowContractError, diagnostic):
+                        assert_deploy_path_contract(mutated)
+
+    def test_configuration_barrier_job_budgets_cannot_be_removed_or_reduced(self):
+        for job, minutes, previous in (("preflight", 50, 15), ("runtime-config", 55, 20)):
+            block = re.search(r"(?ms)^  " + re.escape(job) + r":\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)", self.source).group(0)
+            needle = f"    timeout-minutes: {minutes}\n"
+            self.assertEqual(block.count(needle), 1)
+            for replacement in ("", f"    timeout-minutes: {previous}\n",
+                                "    timeout-minutes: true\n"):
+                with self.subTest(job=job, replacement=replacement):
+                    changed = self.source.replace(block, block.replace(needle, replacement, 1), 1)
+                    with self.assertRaisesRegex(WorkflowContractError, job + " configuration barrier budget"):
+                        assert_deploy_path_contract(changed)
 
     def test_actual_deploy_path_contract(self):
         jobs = assert_deploy_path_contract(self.source)

@@ -146,3 +146,106 @@ local regression. The warning is the existing Starlette TestClient deprecation
 for its HTTPX adapter. The 31 operator cases cover read-only preflight, exact
 identity and heartbeat admission, failed audit writes, uncertain CAS outcomes,
 causal release/readback, timeout and read-only receipt recovery.
+
+## Configuration-to-publication barrier
+
+`.github/scripts/await_hf_config_writer.py` is a read-only observation in the
+existing `hf-sync.yml` lane. Before each writable Series-A or GDW configuration
+batch, it records a baseline. After the batch, an explicit, well-formed
+no-change report skips waiting. A changed batch requires the recorded baseline
+and a later process boot, storage boot, writer ID and lease epoch. Missing
+baseline evidence holds that changed batch; baseline collection alone grants
+no provider authority. This also covers deferred post-deploy configuration.
+Only validated, allowlisted baseline fields are retained; arbitrary input fields
+and malformed identities never enter the uploaded observation report.
+
+The successful observation requires unchanged provider repository/running
+commit identity, an attested source-copy report, matching immutable private
+HEAD and heartbeat identities, ACTIVE fenced writer status, all seven stores
+healthy, no pending publication or active errors, and a CLEAN restored claim.
+The process identity from Series-A and the storage owner are separately observed.
+The two public GETs do not prove that they came from the same process; reports
+explicitly record same_process_binding=NOT_ESTABLISHED. No load-balancer
+stickiness or new authority is assumed.
+At least three consecutive observations must span 30 seconds and show at least
+15 seconds of heartbeat progression. Boot/epoch churn resets the observation;
+a new unclean claim, publication drift, or a storage writer change within one
+epoch holds it. The highest observed epoch and per-owner HEAD sequence/heartbeat
+watermarks survive streak resets and unavailable reads; older state cannot
+settle after newer coherent state was observed. An old UNCLEAN or RELEASED baseline remains in the report and is
+never relabeled as historical clean preservation.
+
+Polling uses a 900-second monotonic deadline, rechecked after reads and validation
+and before success. Each SDK child has a timeout of at most 30 seconds. Python
+cannot guarantee interruptible operating-system process creation; these are
+bounded polling and SDK child-timeout controls, with workflow cancellation as
+an outer limit. Preflight has 50 minutes and runtime-config has 55 minutes:
+each retains its previous 15-/20-minute allowance plus both 900-second waits and
+both 30-second captures, with four additional minutes of margin. The runtime
+allowance still includes the existing 900-second exact-source wait.
+Partial progress is retained as unsigned WAITING evidence; only
+WRITER_STABLE_AFTER_CONFIG satisfies the changed-batch barrier. The child receives
+only HF_TOKEN and allowlisted operating-system, certificate and proxy settings;
+it does not inherit the GitHub credential. Child arguments and reports contain
+no credential values.
+Private dataset and bucket access must already be available to the canonical
+publisher credential. This helper reads fixed metadata and the heartbeat object;
+it does not construct a runtime, request handover, renew a lease, verify snapshot
+object contents, or establish independent execution authority.
+
+### Restart boundaries and remaining scope
+
+| Existing owner | Restart-causing operation | Coverage |
+|---|---|---|
+| A11oy Series-A configuration helper | Variable and, when required, volume reconciliation | Baseline and changed-batch writer barrier before the next batch/publication. Multiple writes within one helper batch can still cause intermediate boots. |
+| A11oy GDW configuration helper | Variable reconciliation | Its own baseline and changed-batch barrier. |
+| Shared reusable publisher | Derived COPY-set Space commit | Existing publication/current-main guards and final exact-runtime verification remain. |
+| Shared `hf_space_source_binding.py` | `SZL_GIT_SHA` variable binding after publication | Separate unresolved sequencing boundary: the pinned helper unconditionally writes the value, including an already matching value. This PR does not modify that owner. |
+| Shared reusable publisher | Explicit restart for a PAUSED Space | Existing manifest-bound conditional restart; unchanged. |
+| Deferred A11oy runtime configuration | The same configuration batches after publication | The same per-batch barrier, followed by the existing exact-source wait. |
+
+The shared code is pinned at
+[`5f140bab`](https://github.com/szl-holdings/.github/blob/5f140bab8adb64fe25252d8832b67b1f43a56c36/.github/workflows/reusable-hf-deploy.yml);
+[source binding](https://github.com/szl-holdings/.github/blob/5f140bab8adb64fe25252d8832b67b1f43a56c36/.github/scripts/hf_space_source_binding.py)
+and [publication](https://github.com/szl-holdings/.github/blob/5f140bab8adb64fe25252d8832b67b1f43a56c36/.github/scripts/hf_deploy_from_dockerfile.py)
+remain that repository's responsibility. Hugging Face documents configuration
+changes as [restart-triggering](https://huggingface.co/docs/huggingface_hub/guides/manage-spaces#configure-secrets-and-variables).
+The barrier closes the observation gap between completed configuration batches
+and the next step; it does not claim every restart boundary is coordinated.
+
+A deliberate verified-release maintenance operation still uses the existing
+helper and object verifier described above. If configuration subsequently
+starts a new writer, the earlier release is not a release of that writer.
+Any later explicit preservation operation needs its own fresh CAS identity,
+causal release and complete snapshot verification. The observer does not take
+over another operator's prepared RELEASED state.
+
+### Retained incident and cadence evidence
+
+[Publisher run 43991653922](https://github.com/szl-holdings/a11oy/actions/runs/43991653922)
+changed the periodic configuration at 2026-11-17 00:57:14Z, published source files
+at 00:58:15–21Z, and bound the source variable at 00:58:23Z. The immutable HEAD
+chain records epoch 277 RELEASED at 00:58:21Z and epoch 278 CLEAN at 00:58:25Z.
+The epoch-278 CLAIM commit
+`8c960c6098d40ca4f4fdc9762efd16afffc3c316` identifies its actual source as
+`654c515bb02c7241499364b767416e2d7babc028`.
+
+Epoch 278 has no snapshot or release transition before HANDOVER_REQUEST at
+00:59:45Z and epoch 279 UNCLEAN_HANDOVER at 01:01:52Z, commit
+`1d39c3cef4f11c75020f9713bbb49632a181f33b`. The request changed the informational
+HEAD source field to requester `4d724ba783500d6fbe06638853bafa8f3f2a38e2`;
+that field in the request is not evidence that epoch 278 ran that source.
+The 17 retained consecutive HEADs (sequences 22032–22048) match their predecessor
+hashes without a missing transition.
+
+Recovery after a nonresponsive writer is supported by ADR-0001. The closely
+spaced configuration/publication operations expose an avoidable sequencing
+risk, but the retained successor logs do not identify the earlier container's
+exit reason. Termination before ASGI startup, a stall, and a failed finalizer
+must not be conflated with a demonstrated root cause. No zero-loss claim is
+established for the unclean transition.
+
+Later epoch-279 GDW captures at 01:06:58, 01:12:09 and 01:17:16Z are separated
+by 311 and 307 seconds after the canonical 300-second configuration was installed.
+Its later RELEASE at 01:21:24Z and epoch-280 CLEAN claim at 01:26:54Z establish a
+different transition; they do not erase epoch 278's missing release.

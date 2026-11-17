@@ -819,8 +819,8 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "bc5403aa3b31ddc6f52b6bec2ff0e8bd852af09940131ffac2cc60035ca003a1"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "f31c0be60794030747539b9f60037698b3c26bc8930dc9d0fe1e2612c1ef9e1a"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "55c84ddc56daf21662bb88c96a7ad894a09ea831a67e300cc20886eaab1d37bf"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "f538b7ce593af02697a74a42a8082e7c8791a80a8c382afd37df212ed16491e0"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
 # package-bound Chromium revision, and gates relock on success.
@@ -845,6 +845,8 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     "tools/execution_acceptance.py": "85bb391bf9d8423c35cc7043be5862e13a1e8b8c0540813b0e85123f2e6504d3",
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
+    # Read-only boot/lease/heartbeat barrier between configuration batches.
+    ".github/scripts/await_hf_config_writer.py": "a54ac63a35f928ad87e0021364eeead1326fabd30ce6c94854a365c9b232eac3",
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     "scripts/configure_hf_series_a_runtime.py": "180fee2ba9d9e6547547e31622d880cec764507a85a99e2f50c6cd81dcf07a65",
