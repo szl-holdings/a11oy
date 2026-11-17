@@ -78,9 +78,14 @@ GDW_VARIABLES = {
     "GDW_OUTBOX_BATCH_SIZE": "100",
     "GDW_OUTBOX_LEASE_SECONDS": "300",
 }
+# ADR-0001 bounds continuous-write snapshot exposure at five minutes. Keep
+# cadence in the existing canonical convergence owner, below the 900s alert;
+# configuring this inert setting does not activate state-store v2.
+STATE_STORE_VARIABLES = {"A11OY_STATE_PERIODIC_SECONDS": "300"}
 RUNTIME_VARIABLES = {
     **SERIES_A_VARIABLES,
     **GDW_VARIABLES,
+    **STATE_STORE_VARIABLES,
 }
 
 
@@ -126,6 +131,7 @@ class RuntimeConfigError(RuntimeError):
             "LEGACY_PRINCIPAL_CONFLICT", "PERSISTENT_STORAGE_UNAVAILABLE",
             "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
             "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
+            "RUNTIME_CONFIG_DRIFT", "RUNTIME_CONFIG_UNAVAILABLE",
             "MANAGED_STORAGE_UNAVAILABLE", "MANAGED_OUTCOME_UNCERTAIN",
             "SOURCE_OWNERSHIP_UNAVAILABLE", "SOURCE_NOT_CURRENT_MAIN",
             *INSTALLED_AUTHORITY_DIAGNOSTICS,
@@ -447,7 +453,8 @@ def await_readback(
         )
     raise RuntimeConfigError(
         f"runtime readback did not converge after {attempts} attempts: "
-        + "; ".join(detail)
+        + "; ".join(detail),
+        diagnostic_code="RUNTIME_CONFIG_DRIFT",
     )
 
 
@@ -480,6 +487,25 @@ def configure(
         raise RuntimeConfigError("SETUP_REQUIRED: Space metadata client is unavailable", diagnostic_code="SPACE_CLIENT_UNAVAILABLE") from None
     prerequisites = manual_prerequisites(api, repo_id=repo_id, origin=origin, authority_get=authority_get)
     if check_only:
+        if (prerequisites["converged"] is True and prerequisites["state"] == "READY"
+                and prerequisites["credential_authority_state"] == "VERIFIED"):
+            # Installed authority alone does not prove configuration parity.
+            # A verification pass reads the full contract once and never writes.
+            try:
+                secret_names = api.get_space_secrets(repo_id=repo_id)
+                _, attempts = await_readback(
+                    api, repo_id=repo_id, bucket=bucket, secret_names=secret_names,
+                    attempts=1, delay_seconds=0,
+                )
+            except RuntimeConfigError:
+                raise
+            except Exception:
+                raise RuntimeConfigError(
+                    "SETUP_REQUIRED: runtime configuration readback is unavailable",
+                    diagnostic_code="RUNTIME_CONFIG_UNAVAILABLE",
+                ) from None
+            prerequisites = dict(prerequisites, variables_managed=sorted(RUNTIME_VARIABLES),
+                                 readback_attempts=attempts)
         return prerequisites
     # Only independently verified installed authority (live runtime key equal
     # to both pins) admits configuration; every other state stays held.
