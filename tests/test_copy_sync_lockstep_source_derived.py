@@ -52,7 +52,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         cls.deploy_helpers = {path: (ROOT / path).read_bytes() for path in (
             ".github/scripts/resume_hf_space.py",
             ".github/scripts/await_hf_runtime_serving.py",
-            ".github/scripts/await_hf_config_writer.py",
+            ".github/scripts/await_hf_configuration_handover.py",
             "scripts/configure_hf_series_a_runtime.py",
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",
@@ -337,6 +337,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         job = self.fixture_job("preflight")
         mutations = (
             ("    needs: source-admission\n", "    needs: []\n"),
+            ("    timeout-minutes: 50\n", "    timeout-minutes: 15\n"),
             ("needs.source-admission.outputs.publish == 'true'", "true"),
             ("needs.source-admission.result == 'success' && ", "github.run_attempt == 1 && needs.source-admission.result == 'success' && "),
             ("    runs-on:", "    continue-on-error: true\n    runs-on:"),
@@ -358,6 +359,14 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ("      restart_required: ${{ steps.runtime.outputs.restart_required }}", "      restart_required: 'true'"),
             ('"huggingface_hub==1.31.0"', '"huggingface_hub"'),
             ("          persist-credentials: false\n", "          persist-credentials: true\n"),
+            ("await_hf_configuration_handover.py capture", "await_hf_configuration_handover.py wait"),
+            ("await_hf_configuration_handover.py wait", "await_hf_configuration_handover.py capture"),
+            ("--owner series-a", "--owner gdw"),
+            ('--report "$RUNTIME_CONFIG_REPORT"', '--report "$RUNTIME_CONFIG_REPORT" --report "$GDW_CONFIG_REPORT"'),
+            ('--baseline "$SERIES_BASELINE_REPORT"', '--baseline "$GDW_BASELINE_REPORT"'),
+            ('--output "$GDW_HANDOVER_REPORT"', '--output "$GDW_HANDOVER_REPORT" || true'),
+            ("            ${{ env.SERIES_HANDOVER_REPORT }}\n", ""),
+            ("            ${{ env.GDW_BASELINE_REPORT }}\n", ""),
         )
         for before, after in mutations:
             with self.subTest(after=after):
@@ -368,7 +377,10 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
     def test_runtime_config_cannot_gain_a_restart_proof_or_skip_verification(self) -> None:
         job = self.fixture_job("runtime-config")
         mutations = (
+            ("    name: Verify or converge deployed runtime configuration\n",
+             "    name: Verify the deployed runtime configuration without restarting it\n"),
             ("    needs: [preflight, deploy]\n", "    needs: deploy\n"),
+            ("    timeout-minutes: 55\n", "    timeout-minutes: 20\n"),
             ("    needs: [preflight, deploy]\n", "    needs: [preflight, deploy]\n    if: ${{ always() }}\n"),
             ("mode=(--check-only)", "mode=(--check-only --skip-authority)"),
             ("set -euo pipefail", "set +e"),
@@ -379,6 +391,14 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ("python -I -B .github/scripts/await_hf_runtime_serving.py", "true"),
             ("python -I -B .github/scripts/await_hf_runtime_serving.py",
              "python -B .github/scripts/await_hf_runtime_serving.py"),
+            ("await_hf_configuration_handover.py capture", "await_hf_configuration_handover.py wait"),
+            ("await_hf_configuration_handover.py wait", "await_hf_configuration_handover.py capture"),
+            ("--owner series-a", "--owner gdw"),
+            ('--report "$RUNTIME_CONFIG_REPORT"', '--report "$RUNTIME_CONFIG_REPORT" --report "$GDW_CONFIG_REPORT"'),
+            ('--baseline "$GDW_BASELINE_REPORT"', '--baseline "$SERIES_BASELINE_REPORT"'),
+            ('--output "$GDW_HANDOVER_REPORT"', '--output "$GDW_HANDOVER_REPORT" || true'),
+            ("            ${{ env.SERIES_BASELINE_REPORT }}\n", ""),
+            ("            ${{ env.GDW_HANDOVER_REPORT }}\n", ""),
         )
         for before, after in mutations:
             with self.subTest(after=after):

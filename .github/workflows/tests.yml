@@ -57,6 +57,8 @@ jobs:
           tests/test_evidence_receipt_routes.py
           tests/test_model_endpoint_credentials.py
           tests/test_energy_ledger_observation.py
+          tests/test_model_access.py test_provider_http.py
+          tests/test_model_companion_boundary.py
           tests/test_collector_reason_codes.py
           tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
@@ -845,9 +847,9 @@ jobs:
           python3 scripts/test_hf_exact_main_ownership.py
           python3 tests/test_hf_sync_supersession_contract.py
           python3 tests/test_hf_manual_prerequisites_workflow.py
+          python3 tests/test_hf_configuration_handover.py
           python3 tests/test_hf_sync_no_exact_pins.py
           python3 tests/test_resume_hf_space.py
-          python3 tests/test_hf_config_writer_barrier.py
 
   theorem-manifest-honesty-selftest:
     name: Theorem-manifest honesty-guard self-test (stdlib, network-free)

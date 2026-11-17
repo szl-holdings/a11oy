@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+from functools import lru_cache
+import importlib.util
 import hashlib
 from itertools import islice
 import json
@@ -32,6 +34,17 @@ BUCKET = "SZLHOLDINGS/szl-evidence"
 HEAD_PATH = "state/v2/head.json"
 HEARTBEAT_PATH = "a11oy/state/v2/lease/heartbeat.json"
 SCHEMA = "szl.hf-config-writer-observation/v1"
+OBSERVATION_FIELDS = (
+    "observed_at", "hf_revision", "source_revision", "runtime_boot_id",
+    "head_commit", "head_sha256", "epoch", "sequence", "writer_id",
+    "storage_boot_id", "claim", "state", "owner_source_revision",
+    "heartbeat_at_unix", "heartbeat_age_seconds",
+)
+BASELINE_FIELDS = frozenset((
+    "schema", "status", "origin", "provider_writes", "signature",
+    "snapshot_objects_verified", "execution_authority", "same_process_binding",
+    "observation",
+))
 STORES = frozenset(("gdw", "series_a", "khipu", "khipu_council", "unay", "khipu_lmdb", "khipu_repl"))
 MAX_BYTES = 64 * 1024
 SAMPLE_SECONDS = 30
@@ -95,7 +108,7 @@ def report_wrote(report, owner):
             and report.get("repo_id") == SPACE and report.get("converged") is True
             and report.get("credential_authority_state") == "VERIFIED", "CONFIG_REPORT_INVALID")
     changed = report.get("variables_changed")
-    require(type(changed) is list
+    require(type(changed) is list and len(changed) <= 256
             and all(type(x) is str and re.fullmatch(r"[A-Z][A-Z0-9_]{0,99}", x)
                     for x in changed) and len(changed) == len(set(changed)), "CONFIG_REPORT_INVALID")
     volume = report.get("volume_changed", False) if owner == "gdw" else report.get("volume_changed")
@@ -103,33 +116,50 @@ def report_wrote(report, owner):
     return bool(changed) or volume
 
 
-def validate_sample(sample, *, now, capture=False):
+@lru_cache(maxsize=1)
+def _relock():
+    """Reuse the canonical storage-health invariants without provider effects."""
+    path = Path(__file__).with_name("verify_canonical_a11oy.py")
+    spec = importlib.util.spec_from_file_location("_configuration_handover_relock", path)
+    require(spec is not None and spec.loader is not None, "STORAGE_VALIDATOR_UNAVAILABLE")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def sample_freshness(sample, *, now):
     require(type(sample) is dict, "SAMPLE_INVALID")
     start, end = sample.get("started_at"), sample.get("observed_at")
     require(finite(start) and finite(end) and 0 <= end - start <= SAMPLE_SECONDS
             and 0 <= now - end <= 10, "SAMPLE_NOT_FRESH")
-    provider = sample.get("provider")
-    require(type(provider) is dict and provider == sample.get("provider_after")
-            and provider.get("stage") == "RUNNING"
-            and hex_value(provider.get("repository_sha"), 40)
-            and provider.get("runtime_sha") == provider["repository_sha"], "PROVIDER_NOT_SETTLED")
+
+
+def private_head(sample, *, now):
+    """Validate immutable HEAD evidence independently of public health reads."""
+    sample_freshness(sample, now=now)
     revision = sample.get("head_revision")
     require(hex_value(revision, 40) and revision == sample.get("head_revision_after")
             and hex_value(sample.get("head_sha256"), 64), "HEAD_CHANGED_OR_UNAVAILABLE")
-    head, status, series, beat = (sample.get(k) for k in ("head", "storage", "series", "heartbeat"))
-    require(all(type(x) is dict for x in (head, status, series, beat)), "OBSERVATION_INCOMPLETE")
+    head = sample.get("head")
+    require(type(head) is dict, "OBSERVATION_INCOMPLETE")
     require(head.get("schema") == "szl.a11oy-state-head/v2"
             and head.get("bucket") == BUCKET and type(head.get("epoch")) is int
             and head["epoch"] >= 1 and type(head.get("sequence")) is int and head["sequence"] >= 1
             and hex_value(head.get("writer_id"), 32) and hex_value(head.get("boot_id"), 32),
             "HEAD_IDENTITY_INVALID")
-    state = head.get("state")
-    require(state == "ACTIVE" or (capture and state == "RELEASED"), "HEAD_NOT_ACTIVE")
+    require(head.get("state") in ("ACTIVE", "HANDOVER", "RELEASED"), "HEAD_NOT_ACTIVE")
     claim, lease = head.get("claim"), head.get("lease")
     require(type(claim) is dict and claim.get("kind") in ("CLEAN", "UNCLEAN_HANDOVER", "FIRST_BOOT")
             and type(lease) is dict and lease.get("heartbeat_path") == HEARTBEAT_PATH
             and finite(lease.get("stale_after_seconds"))
             and 10 <= lease["stale_after_seconds"] <= 3600, "LEASE_INVALID")
+    return head
+
+
+def private_heartbeat(sample, head):
+    """Return a validated heartbeat timestamp without inferring public health."""
+    beat = sample.get("heartbeat")
+    require(type(beat) is dict, "OBSERVATION_INCOMPLETE")
     require(beat.get("schema") == "szl.a11oy-state-heartbeat/v1"
             and all(beat.get(k) == head[k] for k in ("epoch", "writer_id", "boot_id"))
             and type(beat.get("epoch")) is int and finite(beat.get("at_unix")),
@@ -140,8 +170,42 @@ def validate_sample(sample, *, now, capture=False):
         raise Hold("HEARTBEAT_TIMESTAMP_INVALID") from None
     require(stamp.strftime("%Y-%m-%dT%H:%M:%SZ") == beat["at"]
             and abs(stamp.timestamp() - beat["at_unix"]) < 1, "HEARTBEAT_TIMESTAMP_INVALID")
-    age = end - beat["at_unix"]
+    age = sample["observed_at"] - beat["at_unix"]
     require(age >= 0, "HEARTBEAT_NOT_FRESH")
+    return beat["at_unix"], age
+
+
+def runtime_identity(sample, *, now, hf_revision):
+    """Validate reported source identity independently of storage health."""
+    sample_freshness(sample, now=now)
+    series = sample.get("series")
+    require(type(series) is dict, "RUNTIME_IDENTITY_UNAVAILABLE")
+    identity = series.get("runtime_source_identity")
+    require(type(identity) is dict and identity.get("status") == "REPORTED"
+            and identity.get("method") == "GITHUB_ATTESTED_SOURCE_COPY_SET"
+            and identity.get("local_bytes_evidence") == "MEASURED" and identity.get("error") is None
+            and identity.get("hf_revision") == hf_revision
+            and hex_value(identity.get("source_revision"), 40)
+            and series.get("source_revision") == identity["source_revision"]
+            and type(series.get("runtime_boot_id")) is str
+            and re.fullmatch(r"boot_[0-9a-f]{32}", series["runtime_boot_id"])
+            and identity.get("runtime_boot_id") == series["runtime_boot_id"], "RUNTIME_IDENTITY_UNAVAILABLE")
+    return identity
+
+
+def validate_sample(sample, *, now, capture=False):
+    head = private_head(sample, now=now)
+    end, revision = sample["observed_at"], sample["head_revision"]
+    provider = sample.get("provider")
+    require(type(provider) is dict and provider == sample.get("provider_after")
+            and provider.get("stage") == "RUNNING"
+            and hex_value(provider.get("repository_sha"), 40)
+            and provider.get("runtime_sha") == provider["repository_sha"], "PROVIDER_NOT_SETTLED")
+    status, series = (sample.get(k) for k in ("storage", "series"))
+    require(all(type(x) is dict for x in (status, series)), "OBSERVATION_INCOMPLETE")
+    state, claim, lease = head["state"], head["claim"], head["lease"]
+    require(state == "ACTIVE" or (capture and state == "RELEASED"), "HEAD_NOT_ACTIVE")
+    heartbeat_at, age = private_heartbeat(sample, head)
     if state == "ACTIVE":
         require(0 <= age <= min(FRESH_SECONDS, lease["stale_after_seconds"]), "HEARTBEAT_NOT_FRESH")
     require(status.get("schema") == "szl.a11oy-storage-status/v2"
@@ -165,22 +229,17 @@ def validate_sample(sample, *, now, capture=False):
             and all(type(v) is dict and v.get("health") == "OK"
                     and v.get("blocked_code") is None and v.get("last_error_code") is None
                     for v in stores.values()), "STORE_COVERAGE_NOT_HEALTHY")
-    identity = series.get("runtime_source_identity")
-    require(type(identity) is dict and identity.get("status") == "REPORTED"
-            and identity.get("method") == "GITHUB_ATTESTED_SOURCE_COPY_SET"
-            and identity.get("local_bytes_evidence") == "MEASURED" and identity.get("error") is None
-            and identity.get("hf_revision") == provider["runtime_sha"]
-            and hex_value(identity.get("source_revision"), 40)
-            and series.get("source_revision") == identity["source_revision"]
-            and type(series.get("runtime_boot_id")) is str
-            and re.fullmatch(r"boot_[0-9a-f]{32}", series["runtime_boot_id"])
-            and identity.get("runtime_boot_id") == series["runtime_boot_id"], "RUNTIME_IDENTITY_UNAVAILABLE")
+    identity = runtime_identity(sample, now=now, hf_revision=provider["runtime_sha"])
     if not capture:
         require(claim["kind"] == "CLEAN", "CONFIG_RESTART_NOT_CLEAN")
         origins = claim.get("origins")
         require(type(origins) is dict and set(origins) == STORES
                 and all(v == "RESTORED" for v in origins.values())
                 and all(v.get("origin") == "RESTORED" for v in stores.values()), "RESTORE_NOT_OBSERVED")
+        try:
+            _relock().validate_state_store_status(status)
+        except Exception:
+            raise Hold("STORAGE_CONTRACT_NOT_HEALTHY") from None
     return {
         "observed_at": end, "hf_revision": provider["runtime_sha"],
         "source_revision": identity["source_revision"], "runtime_boot_id": series["runtime_boot_id"],
@@ -188,7 +247,7 @@ def validate_sample(sample, *, now, capture=False):
         "epoch": head["epoch"], "sequence": head["sequence"], "writer_id": head["writer_id"],
         "storage_boot_id": head["boot_id"], "claim": claim["kind"], "state": state,
         "owner_source_revision": head.get("source_revision") if hex_value(head.get("source_revision"), 40) else None,
-        "heartbeat_at_unix": beat["at_unix"], "heartbeat_age_seconds": age,
+        "heartbeat_at_unix": heartbeat_at, "heartbeat_age_seconds": age,
     }
 
 
@@ -234,6 +293,9 @@ def collect_sample():
             with session.get(ORIGIN + route, allow_redirects=False, timeout=10, stream=True,
                              headers={"Accept": "application/json", "Cache-Control": "no-cache, no-store"}) as response:
                 require(response.status_code == 200, "PUBLIC_READ_UNAVAILABLE")
+                require(response.url == ORIGIN + route, "PUBLIC_REDIRECT_REFUSED")
+                require(response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                        == "application/json", "PUBLIC_READ_NOT_JSON")
                 chunks, size = [], 0
                 for chunk in response.iter_content(16 * 1024):
                     size += len(chunk)
@@ -249,7 +311,7 @@ def collect_sample():
 def read_sample(budget):
     require(finite(budget) and budget > 0, "READ_DEADLINE_EXHAUSTED")
     try:
-        result = subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "--sample"],
+        result = subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "sample"],
                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                         timeout=min(SAMPLE_SECONDS, budget), check=False,
                         env={key: value for key, value in os.environ.items() if key in CHILD_ENVIRONMENT})
@@ -262,16 +324,24 @@ def read_sample(budget):
 
 
 def audit(status, **values):
-    return {"schema": SCHEMA, "status": status, "provider_writes": 0, "signature": "UNSIGNED",
+    return {"schema": SCHEMA, "status": status, "origin": ORIGIN,
+            "provider_writes": 0, "signature": "UNSIGNED",
             "snapshot_objects_verified": False, "execution_authority": False,
             "same_process_binding": "NOT_ESTABLISHED", **values}
 
 
 def canonical_baseline(baseline, *, now):
-    """Validate retained fields and discard arbitrary input before artifact output."""
-    require(type(baseline) is dict and baseline.get("schema") == SCHEMA
+    """Reject unexpected fields and validate retained baseline data before reporting."""
+    require(type(baseline) is dict and set(baseline) == BASELINE_FIELDS
+            and baseline.get("schema") == SCHEMA and baseline.get("origin") == ORIGIN
             and baseline.get("status") == "BASELINE_OBSERVED"
-            and type(baseline.get("observation")) is dict, "BASELINE_INVALID")
+            and type(baseline.get("provider_writes")) is int and baseline["provider_writes"] == 0
+            and baseline.get("signature") == "UNSIGNED"
+            and baseline.get("snapshot_objects_verified") is False
+            and baseline.get("execution_authority") is False
+            and baseline.get("same_process_binding") == "NOT_ESTABLISHED"
+            and type(baseline.get("observation")) is dict
+            and set(baseline["observation"]) == set(OBSERVATION_FIELDS), "BASELINE_INVALID")
     value = baseline["observation"]
     require(all(hex_value(value.get(k), n) for k, n in (
                 ("hf_revision", 40), ("source_revision", 40), ("head_commit", 40),
@@ -292,11 +362,7 @@ def canonical_baseline(baseline, *, now):
                     - value["heartbeat_age_seconds"]) <= 0.001
             and (value["state"] == "RELEASED"
                  or value["heartbeat_age_seconds"] <= FRESH_SECONDS), "BASELINE_INVALID")
-    fields = ("observed_at", "hf_revision", "source_revision", "runtime_boot_id",
-              "head_commit", "head_sha256", "epoch", "sequence", "writer_id",
-              "storage_boot_id", "claim", "state", "owner_source_revision",
-              "heartbeat_at_unix", "heartbeat_age_seconds")
-    return {key: value.get(key) for key in fields}
+    return {key: value[key] for key in OBSERVATION_FIELDS}
 
 
 def await_writer(baseline, read, *, clock=time.monotonic, wall=time.time, sleep=time.sleep,
@@ -339,25 +405,43 @@ def await_writer(baseline, read, *, clock=time.monotonic, wall=time.time, sleep=
                     hex_value(provider.get(key), 40) and provider[key] != before["hf_revision"]
                     for key in ("repository_sha", "runtime_sha")):
                 raise Hold("PUBLICATION_CHANGED")
+            try:
+                observed_identity = runtime_identity(sample, now=wall(), hf_revision=before["hf_revision"])
+            except Hold:
+                observed_identity = None
+            if observed_identity is not None:
+                require(observed_identity["source_revision"] == before["source_revision"],
+                        "PUBLICATION_CHANGED")
+            # Preserve independently valid private evidence even when a later
+            # heartbeat or public-health read cannot establish a healthy sample.
+            head = private_head(sample, now=wall())
+            require(clock() < deadline, "CONFIG_WRITER_TIMEOUT")
+            require(head["epoch"] >= highest_epoch, "OBSERVED_EPOCH_REGRESSED")
+            owner = (head["writer_id"], head["boot_id"])
+            require(head["epoch"] not in epoch_owners
+                    or epoch_owners[head["epoch"]] == owner, "LEASE_IDENTITY_CHANGED")
+            watermark_key = (head["epoch"], *owner)
+            marks = owner_watermarks.get(watermark_key)
+            try:
+                heartbeat_at, _age = private_heartbeat(sample, head)
+            except Hold:
+                heartbeat_at = None
+            highest_epoch = max(highest_epoch, head["epoch"])
+            epoch_owners[head["epoch"]] = owner
+            known_heartbeats = [value for value in
+                                (heartbeat_at, marks[1] if marks is not None else None)
+                                if value is not None]
+            owner_watermarks[watermark_key] = (
+                max(head["sequence"], marks[0]) if marks is not None else head["sequence"],
+                max(known_heartbeats) if known_heartbeats else None,
+            )
+            require(marks is None or (head["sequence"] >= marks[0]
+                    and (heartbeat_at is None or marks[1] is None
+                         or heartbeat_at >= marks[1])), "OBSERVATION_REGRESSED")
             current = validate_sample(sample, now=wall(), capture=True)
             require(clock() < deadline, "CONFIG_WRITER_TIMEOUT")
             require(current["hf_revision"] == before["hf_revision"]
                     and current["source_revision"] == before["source_revision"], "PUBLICATION_CHANGED")
-            # A broken streak does not erase already observed newer storage state.
-            require(current["epoch"] >= highest_epoch, "OBSERVED_EPOCH_REGRESSED")
-            owner = (current["writer_id"], current["storage_boot_id"])
-            require(current["epoch"] not in epoch_owners
-                    or epoch_owners[current["epoch"]] == owner, "LEASE_IDENTITY_CHANGED")
-            watermark_key = (current["epoch"], *owner)
-            marks = owner_watermarks.get(watermark_key)
-            highest_epoch = max(highest_epoch, current["epoch"])
-            epoch_owners[current["epoch"]] = owner
-            owner_watermarks[watermark_key] = (
-                max(current["sequence"], marks[0]) if marks is not None else current["sequence"],
-                max(current["heartbeat_at_unix"], marks[1]) if marks is not None else current["heartbeat_at_unix"],
-            )
-            require(marks is None or (current["sequence"] >= marks[0]
-                    and current["heartbeat_at_unix"] >= marks[1]), "OBSERVATION_REGRESSED")
             require(current["runtime_boot_id"] != before["runtime_boot_id"]
                     and current["storage_boot_id"] != before["storage_boot_id"]
                     and current["writer_id"] != before["writer_id"]
@@ -399,29 +483,31 @@ def await_writer(baseline, read, *, clock=time.monotonic, wall=time.time, sleep=
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    modes = parser.add_mutually_exclusive_group(required=True)
-    modes.add_argument("--sample", action="store_true", help=argparse.SUPPRESS)
-    modes.add_argument("--capture", action="store_true")
-    modes.add_argument("--await-writer", action="store_true")
+    parser.add_argument("mode", choices=("capture", "wait", "sample"))
+    parser.add_argument("--origin")
     parser.add_argument("--baseline", type=Path)
-    parser.add_argument("--config-report", type=Path)
+    parser.add_argument("--report", action="append", type=Path, default=[])
     parser.add_argument("--owner", choices=("series-a", "gdw"))
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
+    valid_capture = False
     try:
-        if args.sample:
-            require(not any((args.baseline, args.config_report, args.owner, args.output)), "ARGUMENTS_INVALID")
+        if args.mode == "sample":
+            require(not any((args.origin, args.baseline, args.report, args.owner, args.output)),
+                    "ARGUMENTS_INVALID")
             print(json.dumps(collect_sample(), allow_nan=False))
             return 0
+        require(args.origin == ORIGIN, "CANONICAL_ORIGIN_REQUIRED")
         require(args.output is not None, "OUTPUT_REQUIRED")
-        if args.capture:
-            require(not any((args.baseline, args.config_report, args.owner)), "ARGUMENTS_INVALID")
+        if args.mode == "capture":
+            require(not any((args.baseline, args.report, args.owner)), "ARGUMENTS_INVALID")
+            valid_capture = True
             report = audit("BASELINE_OBSERVED", observation=validate_sample(
                 read_sample(SAMPLE_SECONDS), now=time.time(), capture=True))
         else:
-            require(args.baseline is not None and args.config_report is not None and args.owner is not None,
-                    "ARGUMENTS_INVALID")
-            config = strict_json(args.config_report.read_bytes())
+            require(args.baseline is not None and len(args.report) == 1
+                    and args.owner is not None, "ARGUMENTS_INVALID")
+            config = strict_json(args.report[0].read_bytes())
             if not report_wrote(config, args.owner):
                 report = audit("NO_CONFIGURATION_WRITE")
             else:
@@ -429,10 +515,10 @@ def main(argv=None):
                                       record=lambda value: args.output.write_text(
                                           json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8"))
     except Hold as error:
-        status = "BASELINE_UNAVAILABLE" if args.capture and args.output is not None else "HOLD"
+        status = "BASELINE_UNAVAILABLE" if valid_capture else "HOLD"
         report = audit(status, reason=str(error))
     except Exception:
-        status = "BASELINE_UNAVAILABLE" if args.capture and args.output is not None else "HOLD"
+        status = "BASELINE_UNAVAILABLE" if valid_capture else "HOLD"
         report = audit(status, reason="OBSERVATION_UNAVAILABLE")
     if args.output is not None:
         args.output.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")

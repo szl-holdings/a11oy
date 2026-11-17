@@ -410,7 +410,195 @@ class RepairTests(unittest.TestCase):
         self.assert_no_write(self.run_repair(configured_account=""))
 
 
+    def test_envelope_failure_reports_fixed_route_phase_and_no_provider_values(self):
+        cases = [
+            ("accounts", 1, "ACCOUNT_DISCOVERY", "INITIAL"),
+            ("settings", 1, "WORKER_SETTINGS", "INITIAL"),
+            ("secret", 1, "SECRET_METADATA", "INITIAL"),
+            ("subdomain", 1, "ACCOUNT_SUBDOMAIN", "INITIAL"),
+            ("deployment", 1, "ACTIVE_DEPLOYMENT", "INITIAL"),
+            ("versions", 2, "LATEST_VERSION", "FINAL"),
+            ("put", 1, "SECRET_UPDATE", "UPDATE_ACK"),
+        ]
+        for kind, ordinal, route, phase in cases:
+            with self.subTest(route=route, phase=phase):
+                self.directory = Path(self.tmp.name) / kind
+                self.provider = Provider()
+                def malformed(n, value, ordinal=ordinal):
+                    if n != ordinal:
+                        return value
+                    return response({
+                        "success": True, "result": value, "errors": None,
+                        "messages": [{"message": CANDIDATE}], "untrusted_key": CF_TOKEN,
+                    })
+                self.provider.overrides[kind] = malformed
+                report = self.run_repair(configured_account="" if kind == "accounts" else ACCOUNT)
+                self.assertEqual(report["diagnostic_code"], "CLOUDFLARE_RESPONSE_INVALID")
+                self.assertEqual(report["cloudflare_envelope"], {
+                    "route": route, "phase": phase, "envelope_is_object": True,
+                    "errors_shape": "NULL", "messages_shape": "NONEMPTY_LIST",
+                    "errors_count": None, "result_present": True,
+                })
+                if kind == "put":
+                    self.assertEqual(report["status"], "WRITE_OUTCOME_UNCERTAIN")
+                    self.assertTrue(report["mutation_attempted"])
+                    self.assertFalse(report["mutation_acknowledged"])
+                    self.assertEqual(self.provider.events[-1][0], "PUT")
+                else:
+                    self.assertEqual(report["status"], "BLOCKED")
+                    self.assert_no_write(report)
+                self.assertNotIn("probe", self.provider.counts)
+                emitted = self.output.getvalue()
+                emitted += "".join(path.read_text() for path in self.directory.iterdir())
+                for forbidden in (CANDIDATE, CF_TOKEN, GH_TOKEN, ACCOUNT, "untrusted_key"):
+                    self.assertNotIn(forbidden, emitted)
+
+
+    def test_observed_latest_null_envelope_passes_initial_and_final_reads(self):
+        for execute in (False, True):
+            with self.subTest(execute=execute):
+                self.directory = Path(self.tmp.name) / str(execute)
+                self.provider = Provider()
+                self.provider.overrides["versions"] = lambda _n, value: response({
+                    "success": True, "errors": None, "messages": None, "result": value,
+                })
+                report = self.run_repair(execute=execute)
+                self.assertEqual(report["status"], "VERIFIED" if execute else "READY_FOR_EXECUTION")
+                self.assertEqual(self.provider.counts["versions"], 2)
+                self.assertEqual(self.provider.counts["main"], 2)
+                self.assertEqual(report["prior_version_id"], VERSION)
+                self.assertEqual(self.provider.counts.get("put", 0), int(execute))
+                if not execute:
+                    self.assert_no_write(report)
+                    self.assertNotIn("probe", self.provider.counts)
+
+    def test_latest_null_envelope_does_not_bypass_version_result_validation(self):
+        results = [
+            None, {}, {"items": []}, {"items": [{"id": "invalid"}]},
+            {"items": [{"id": OTHER_VERSION}]},
+            {"items": [{"id": VERSION}, {"id": OTHER_VERSION}]},
+        ]
+        for i, value in enumerate(results):
+            with self.subTest(case=i):
+                self.directory = Path(self.tmp.name) / str(i)
+                self.provider = Provider()
+                self.provider.overrides["versions"] = lambda _n, _v, value=value: response({
+                    "success": True, "errors": None, "messages": None, "result": value,
+                })
+                report = self.run_repair()
+                self.assertEqual(report["status"], "BLOCKED")
+                self.assert_no_write(report)
+                self.assertNotIn("probe", self.provider.counts)
+
+    def test_null_pair_on_other_read_or_update_ack_keeps_prior_refusal(self):
+        for kind in ("settings", "put"):
+            with self.subTest(route=kind):
+                self.directory = Path(self.tmp.name) / kind
+                self.provider = Provider()
+                self.provider.overrides[kind] = lambda _n, value: response({
+                    "success": True, "errors": None, "messages": None, "result": value,
+                })
+                report = self.run_repair()
+                self.assertEqual(report["diagnostic_code"], "CLOUDFLARE_RESPONSE_INVALID")
+                self.assertEqual(report["cloudflare_envelope"]["errors_shape"], "NULL")
+                self.assertEqual(report["cloudflare_envelope"]["messages_shape"], "NULL")
+                self.assertNotIn("probe", self.provider.counts)
+                if kind == "put":
+                    self.assertEqual(report["status"], "WRITE_OUTCOME_UNCERTAIN")
+                    self.assertTrue(report["mutation_attempted"])
+                    self.assertFalse(report["mutation_acknowledged"])
+                    self.assertEqual(self.provider.events[-1][0], "PUT")
+                else:
+                    self.assertEqual(report["status"], "BLOCKED")
+                    self.assert_no_write(report)
+
+
 class BoundaryTests(unittest.TestCase):
+
+    def test_latest_null_compatibility_requires_exact_route_phase_presence_and_types(self):
+        payload = {"success": True, "errors": None, "messages": None, "result": {"items": []}}
+        routes = (
+            "ACCOUNT_DISCOVERY", "ACCOUNT_SUBDOMAIN", "WORKER_SETTINGS", "SECRET_METADATA",
+            "ACTIVE_DEPLOYMENT", "LATEST_VERSION", "SECRET_UPDATE",
+        )
+        for route in routes:
+            for phase in ("INITIAL", "FINAL", "UPDATE_ACK"):
+                with self.subTest(route=route, phase=phase):
+                    if route == "LATEST_VERSION" and phase in {"INITIAL", "FINAL"}:
+                        self.assertEqual(m.api_result(payload, route=route, phase=phase), payload["result"])
+                    else:
+                        with self.assertRaises(m.RepairError):
+                            m.api_result(payload, route=route, phase=phase)
+        variants = [
+            {key: value for key, value in payload.items() if key != "errors"},
+            {key: value for key, value in payload.items() if key != "messages"},
+            {key: value for key, value in payload.items() if key not in {"errors", "messages"}},
+            {key: value for key, value in payload.items() if key != "result"},
+            {**payload, "errors": []}, {**payload, "messages": []},
+            {**payload, "errors": ["untrusted"]}, {**payload, "errors": "untrusted"},
+            {**payload, "errors": {}}, {**payload, "messages": "untrusted"},
+            {**payload, "messages": {}}, {**payload, "success": False},
+            {**payload, "success": 1},
+        ]
+        for i, variant in enumerate(variants):
+            for phase in ("INITIAL", "FINAL"):
+                with self.subTest(case=i, phase=phase), self.assertRaises(m.RepairError):
+                    m.api_result(variant, route="LATEST_VERSION", phase=phase)
+
+    def test_envelope_diagnostics_preserve_original_admission_decisions(self):
+        cases = [
+            ("empty", {"success": True, "errors": [], "messages": [], "result": {}}, "EMPTY_LIST", "EMPTY_LIST", True),
+            ("errors-absent", {"success": True, "messages": [], "result": {}}, "ABSENT", "EMPTY_LIST", True),
+            ("errors-null", {"success": True, "errors": None, "result": {}}, "NULL", "ABSENT", True),
+            ("errors-other", {"success": True, "errors": CANDIDATE, "result": {}}, "OTHER", "ABSENT", True),
+            ("errors-nonempty", {"success": True, "errors": [{"message": CANDIDATE}, CF_TOKEN], "result": {}}, "NONEMPTY_LIST", "ABSENT", True),
+            ("messages-absent", {"success": True, "errors": [], "result": {}}, "EMPTY_LIST", "ABSENT", True),
+            ("messages-null", {"success": True, "errors": [], "messages": None, "result": {}}, "EMPTY_LIST", "NULL", True),
+            ("messages-other", {"success": True, "errors": [], "messages": CF_TOKEN, "result": {}}, "EMPTY_LIST", "OTHER", True),
+            ("messages-nonempty", {"success": True, "errors": [], "messages": [CANDIDATE], "result": {}}, "EMPTY_LIST", "NONEMPTY_LIST", True),
+            ("result-absent", {"success": True, "errors": [], "messages": []}, "EMPTY_LIST", "EMPTY_LIST", False),
+            ("result-null", {"success": True, "errors": [], "messages": [], "result": None}, "EMPTY_LIST", "EMPTY_LIST", True),
+            ("success-false", {"success": False, "errors": [], "result": {}}, "EMPTY_LIST", "ABSENT", True),
+            ("success-number", {"success": 1, "errors": [], "result": {}}, "EMPTY_LIST", "ABSENT", True),
+            ("not-object", [], "ABSENT", "ABSENT", False),
+        ]
+        for label, payload, errors_shape, messages_shape, result_present in cases:
+            with self.subTest(case=label):
+                original_accepts = (
+                    type(payload) is dict and payload.get("success") is True
+                    and payload.get("errors") == [] and type(payload.get("messages", [])) is list
+                    and "result" in payload
+                )
+                if original_accepts:
+                    self.assertEqual(
+                        m.api_result(payload, route="WORKER_SETTINGS", phase="INITIAL"),
+                        payload["result"],
+                    )
+                else:
+                    with self.assertRaises(m.RepairError) as raised:
+                        m.api_result(payload, route="WORKER_SETTINGS", phase="INITIAL")
+                    facts = raised.exception.cloudflare_envelope
+                    self.assertEqual(facts, {
+                        "route": "WORKER_SETTINGS", "phase": "INITIAL",
+                        "envelope_is_object": type(payload) is dict,
+                        "errors_shape": errors_shape, "messages_shape": messages_shape,
+                        "errors_count": len(payload["errors"]) if type(payload) is dict
+                        and type(payload.get("errors")) is list else None,
+                        "result_present": result_present,
+                    })
+                    encoded = json.dumps(facts)
+                    self.assertNotIn(CANDIDATE, encoded)
+                    self.assertNotIn(CF_TOKEN, encoded)
+
+    def test_envelope_diagnostics_refuse_untrusted_context(self):
+        for route, phase in ((CANDIDATE, "INITIAL"), ("WORKER_SETTINGS", CANDIDATE)):
+            with self.subTest(field="route" if route == CANDIDATE else "phase"):
+                with self.assertRaises(m.RepairError) as raised:
+                    m.api_result(envelope({}), route=route, phase=phase)
+                self.assertEqual(raised.exception.code, "DIAGNOSTIC_CONTEXT_INVALID")
+                self.assertIsNone(raised.exception.cloudflare_envelope)
+                self.assertNotIn(CANDIDATE, str(raised.exception))
+
     def test_json_rejects_duplicate_nonfinite_oversized_and_invalid_utf8(self):
         invalid = [
             b'{"a":1,"a":2}', b'{"a":NaN}', b'{"a":1e999}', b'{"a":Infinity}',
