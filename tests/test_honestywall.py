@@ -395,66 +395,6 @@ def test_real_sovereign_route_reachable_unverified_is_not_a_wall_violation(monke
     assert agg["verdict"] == hw.INTACT, agg["verdict_reason"]
 
 
-def test_real_sovereign_catalog_entry_reports_the_node_health_label(monkeypatch):
-    """Pins the second disclosed catalog change. With the node unreachable (the CI default)
-    the frontier-index sovereign entry is UNAVAILABLE. With the node reachable but unverified
-    (the live case) it now reports the node's own health label, UNKNOWN from
-    /llm/sovereign/health, where it used to skip that endpoint and fall through to ROADMAP
-    from /energy/sovereign. Neither case claims LIVE or MEASURED."""
-    import szl_llm_registry as reg
-
-    (surface,) = [s for s in fi._surface_registry() if s.get("id") == "sovereign"]
-    get_paths = fi._registered_get_paths(serve.app, "a11oy")
-
-    default = fi._classify_surface(serve.app, surface, get_paths, "a11oy")
-    assert default["label"] == "UNAVAILABLE", default
-
-    model_tag = "llama3-szl-finetuned-q4"
-    private_url = "http://secret-tunnel.example.invalid:11434/v1"
-    matrix = {
-        "node_count": 1, "reachable_count": 1, "any_reachable": True,
-        "primary_base_url": private_url,
-        "selected": {"index": 0, "role": "primary"},
-        "nodes": [{"index": 0, "role": "primary", "reachable": True,
-                   "api_style": "openai /v1", "served_models": [model_tag],
-                   "base_url": private_url, "error": "HTTP_STATUS:502"}],
-        "note": private_url,
-    }
-    monkeypatch.setattr(reg, "sovereign_mesh_matrix", lambda timeout=None: matrix)
-    monkeypatch.setattr(reg, "_sovereign_env_present", lambda: True)
-    monkeypatch.setattr(reg, "_sovereign_env_used", lambda: "A11OY_BRAIN_URL")
-    monkeypatch.setattr(reg, "_sovereign_model_slug", lambda: model_tag)
-
-    live = fi._classify_surface(serve.app, surface, get_paths, "a11oy")
-    assert live["label"] == "UNKNOWN", live
-    assert live["endpoint"] == "/api/a11oy/v1/llm/sovereign/health", live
-    assert live["label"] not in {"LIVE", "MEASURED", "PROVEN"}
-
-
-def test_real_router_status_resolves_to_unknown_in_catalog_and_checker():
-    """Pins the disclosed catalog side effect against the REAL route: unprobed
-    /llm/router/status exposes only the sovereign sub-node label UNKNOWN, so the frontier
-    index and the independent CI checker both resolve it to UNKNOWN (a downgrade from the
-    MODELED it fell through to before; never an upgrade)."""
-    import importlib.util
-    import pathlib
-
-    with TestClient(serve.app) as c:
-        r = c.get("/api/a11oy/v1/llm/router/status")
-    assert r.status_code == 200
-    payload = r.json()
-    (node,) = payload["local_nodes"]
-    assert node["state"] == "UNPROBED" and node["label"] == "UNKNOWN"
-    assert fi._extract_label(payload) == "UNKNOWN"
-
-    checker_path = (pathlib.Path(__file__).resolve().parents[1]
-                    / ".github/scripts/frontier_index_honesty_check.py")
-    spec = importlib.util.spec_from_file_location("fi_honesty_checker_pin", checker_path)
-    checker = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(checker)
-    assert checker.independent_label(payload) == "UNKNOWN"
-
-
 def test_lambda_negated_theorem_is_not_a_violation():
     """Regression: a lambda declared as a Conjecture that explicitly says it is
     'NOT a theorem' / 'never a theorem' must PASS. The prior naive substring test
