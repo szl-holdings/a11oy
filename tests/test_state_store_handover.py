@@ -705,15 +705,12 @@ def test_read_only_accessor_retains_committed_wal_data(observation_world, monkey
     writer, owner, *_ = observation_world
     monkeypatch.setenv("A11OY_SERIES_A_SQLITE_JOURNAL", "WAL")
     wal_owner = Store(requested_path=owner.path)
-    connection = wal_owner.connect()
-    try:
+    with wal_owner.connect() as connection:
         row = reserve_observation(writer, wal_owner)
         before = legacy_observation_rows(wal_owner)
         assert wal_owner.read_execution_observation(row["receipt_id"]) == row
         assert legacy_observation_rows(wal_owner) == before
         assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
-    finally:
-        connection.close()
 
 
 # Exact local SNAPSHOT intent after ambiguous CAS/readback failure.

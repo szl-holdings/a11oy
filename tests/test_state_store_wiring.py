@@ -92,11 +92,26 @@ def test_legacy_behaviour_is_unchanged_without_v2(monkeypatch, tmp_path):
     assert "durability_authority" not in contract
 
 
-def test_series_a_store_resolves_the_local_root_despite_the_mount_contract(v2):
+def test_series_a_store_resolves_the_local_root_despite_the_mount_contract(v2, monkeypatch, tmp_path):
     from routers import series_a_control_plane as series_a
-    store = series_a.Store()
-    assert Path(store.path) == v2 / "series-a" / "control-plane-v2.sqlite3"
-    assert (v2 / "series-a" / "control-plane-v2.sqlite3").is_file()
+    from tests.state_store_support import FakeClock, FakeHeadBackend, replica
+    writer = replica(tmp_path, "writer", ss.LocalDirObjectStore(tmp_path / "objects"),
+                     FakeHeadBackend(), FakeClock(), root=v2)
+    writer.boot()
+    monkeypatch.setattr(ss, "_ACTIVE", writer)
+    try:
+        store = series_a.Store()
+        assert Path(store.path) == v2 / "series-a" / "control-plane-v2.sqlite3"
+        assert (v2 / "series-a" / "control-plane-v2.sqlite3").is_file()
+    finally:
+        writer._close_watchers()
+
+
+def test_series_a_store_cannot_initialize_before_v2_owner_admission(v2):
+    from routers import series_a_control_plane as series_a
+    with pytest.raises(ss.StateWriteUnavailable, match="STATE_STORE_NOT_ACTIVATED"):
+        series_a.Store()
+    assert not (v2 / "series-a" / "control-plane-v2.sqlite3").exists()
 
 
 def _unay_pick_data_dir():

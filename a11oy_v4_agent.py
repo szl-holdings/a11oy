@@ -231,13 +231,13 @@ def _build_agent_html() -> str:
         avail = v.is_available()
         is_sovereign = v.VOTER_ID == SOVEREIGN_VOTER_ID
         dot_color = "#39d98a" if is_sovereign and avail else ("#ffcc66" if avail else "#556677")
-        dot_title = ("sovereign public demo" if is_sovereign else
+        dot_title = ("RETIRED: legacy voter inference unavailable" if is_sovereign else
                      "BLOCKED — hard budget admission unavailable" if avail else
                      "env var not set — unavailable")
         status_cls = "available" if is_sovereign and avail else "unavailable"
         bfcl = f" · BFCL {v.BFCL_SCORE}" if v.BFCL_SCORE else ""
         tooltip = f"{v.LICENSE} · {v.PROVIDER} · ctx {v.CONTEXT_WINDOW:,}{bfcl}"
-        disabled_attr = ('checked disabled title="Sovereign-default: always active"' if is_sovereign
+        disabled_attr = ('checked disabled title="Legacy default retained in catalog: inference RETIRED"' if is_sovereign
                          else f'disabled title="BLOCKED pending hard budget admission · {tooltip}"')
         rows += f"""
         <div class="voter-row {status_cls}">
@@ -251,7 +251,7 @@ def _build_agent_html() -> str:
 
     return f"""<!DOCTYPE html>
 <!-- SPDX-License-Identifier: Apache-2.0  © 2026 SZL Holdings · Signed: Yachay -->
-<!-- a11oy · Governed Agent · one public voter · Doctrine v11 LOCKED 749/14/163 -->
+<!-- a11oy · Governed Agent · legacy public voter retired · Doctrine v11 LOCKED 749/14/163 -->
 <!-- Co-Authored-By: Perplexity Computer Agent -->
 <html lang="en">
 <head>
@@ -313,17 +313,18 @@ def _build_agent_html() -> str:
 <body>
 <header>
   <h1>a11oy · Governed Agent
-    <span class="badge">1 public voter</span>
+    <span class="badge">Legacy voter retired</span>
     <span class="badge">Λ-aggregator</span>
     <span class="badge">Doctrine v11</span>
   </h1>
   <div class="sub">
-    Public prompts route to one Khipu voter; its response receives a deterministic
-    Yuyay-13 score. This is not a multi-model ensemble result.
-    Sovereign-default: <strong>{SOVEREIGN_VOTER_ID}</strong> always participates.
-    This public page runs only the sovereign voter. Additional fan-out is BLOCKED
-    until a hard budget and concurrency admission is available; a provider token
-    or operator credential alone does not enable it.
+    The legacy <strong>{SOVEREIGN_VOTER_ID}</strong> generation route is retired.
+    This catalog retains its identity with an unavailable result; this page does
+    not provide model inference. Use the
+    <a href="/command-centre#cpu-work">Atelier CPU-lab form</a> with operator
+    authentication and explicit public-prompt acknowledgement for a new request.
+    Additional fan-out remains BLOCKED until hard budget and concurrency admission
+    is available; a provider token or operator credential alone does not enable it.
   </div>
 </header>
 
@@ -331,7 +332,7 @@ def _build_agent_html() -> str:
   <!-- Left: voter selector + prompt -->
   <div>
     <div class="card">
-      <h2>Voter catalog <span class="badge" style="font-size:10px">{VOTER_COUNT} listed · 1 public</span></h2>
+      <h2>Voter catalog <span class="badge" style="font-size:10px">{VOTER_COUNT} listed · legacy generation retired</span></h2>
       <div id="voter-list">
         {rows}
       </div>
@@ -341,12 +342,12 @@ def _build_agent_html() -> str:
   <!-- Right: prompt + results -->
   <div>
     <div class="card">
-      <h2>Prompt</h2>
+      <h2>Legacy request (inference unavailable)</h2>
       <label for="prompt-input">Prompt</label>
       <textarea id="prompt-input" placeholder="Enter your prompt…">Hello — which model are you and what can you do?</textarea>
       <label for="system-input">System prompt (optional)</label>
       <textarea id="system-input" style="min-height:40px" placeholder="You are a helpful assistant."></textarea>
-      <button id="btn-ask" onclick="doAsk()">Ask Khipu</button>
+      <button id="btn-ask" onclick="doAsk()">Check retired voter</button>
       <span id="ask-status" style="font-family:var(--mono);font-size:12px;color:var(--dim);margin-left:10px"></span>
     </div>
 
@@ -369,7 +370,7 @@ def _build_agent_html() -> str:
 
 <div class="foot">
   Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem; 163 sorries) ·
-  {SOVEREIGN_VOTER_ID} sovereign-default · other fan-out BLOCKED · Co-Authored-By: Perplexity Computer Agent
+  {SOVEREIGN_VOTER_ID} RETIRED · other fan-out BLOCKED · Co-Authored-By: Perplexity Computer Agent
 </div>
 
 <script>

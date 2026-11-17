@@ -15,19 +15,22 @@ must regenerate any number before citing it. Reproduce the canonical Lean figure
 ```bash
 gh repo clone szl-holdings/lutar-lean /tmp/lutar -- --depth 1
 cd /tmp/lutar
-DECL=$(grep -rE '^(theorem|lemma|def|abbrev|axiom) ' --include='*.lean' Lutar/ | wc -l)
-AXIOM_UNIQ=$(grep -rhE '^axiom ' --include='*.lean' Lutar/ | awk '{print $2}' | sort -u | wc -l)
-SORRY=$(grep -rE '\bsorry\b' --include='*.lean' Lutar/ | wc -l)
-echo "Lean: $DECL declarations / $AXIOM_UNIQ unique axioms / $SORRY sorries"
+git rev-parse HEAD
+python .github/scripts/lean_numbers.py --repo-path . --out lean_numbers.current.json
+cat lean_numbers.current.json
 ```
 
 | Snapshot | Declarations | Unique axioms | Sorries | Anchor |
 |----------|-------------|---------------|---------|--------|
 | **v11 LOCKED (contract)** | <span class="locked">749</span> | <span class="locked">14</span> | <span class="locked">163</span> | tag `lutar-v18.0.0` / `c7c0ba17` |
-| Live (matches contract) | 749 *(measured @ `c7c0ba17`)* | 14 | 163 (112 baseline + 51 Putnam) | `lean_numbers.json` |
+| Historical authority snapshot (2026-05-31T11:00:00Z) | 749 | 14 | 163 (112 baseline + 51 Putnam) | `c7c0ba17` / `lean_numbers.json` |
 
-Both are stated honestly. The **locked** figures are the doctrine contract; the **live** figures are the current measured reality, and now match the locked contract. Source for the live snapshot:
-[`lean_numbers.json`](https://github.com/szl-holdings/.github/blob/main/.github/data/lean_numbers.json).
+The locked figures describe the doctrine baseline. The dated authority snapshot
+does **not** establish current `main` HEAD counts. Cite a regenerated census with
+its exact commit, scope, and counting method for a current claim.
+Source: [immutable `lean_numbers.json`](https://github.com/szl-holdings/.github/blob/5cd00651972728f0264ac6348d3a8bf30749fcc0/.github/data/lean_numbers.json).
+The eight locked-proven formulas remain `{F1,F4,F7,F11,F12,F18,F19,F22}`;
+Lambda uniqueness remains Conjecture 1.
 
 ## Lean kernel
 
@@ -59,7 +62,7 @@ A complete, versioned list is maintained in the thesis repository's `CITATION.cf
 | Anchor | Meaning |
 |--------|---------|
 | `lutar-v18.0.0` / `c7c0ba17` | Doctrine v11 LOCKED Lean snapshot (749/14/163) |
-| `3de37e5` | Live reproducibility correction (752/160) |
+| `3de37e5` | Historical alternate 752/160 claim; not the authority manifest or a current census |
 | `85de269` | lutar-lean `main` HEAD at 2026-05-30 verification |
 | rosie PR #6 | CSS ingress + QEC lineage (v17) |
 
