@@ -491,6 +491,61 @@ class GatewayProfileTests(unittest.TestCase):
                 self.assertEqual(result["status"], "INCOMPLETE")
                 self.assertEqual(len(opener.requests), 1)
 
+
+    def test_strict_pagination_rejects_zero_page_rows_and_regressing_page_totals(self):
+        for target in ("zone", "dns"):
+            with self.subTest(target=target):
+                payloads, opener, dns, _ = gateway_fixture()
+                path = audit.ZONES if target == "zone" else dns
+                info = payloads[path]["result_info"]
+                info.pop("total_count")
+                info["total_pages"] = 0
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(
+                    result["observations"][target]["status"], "INCONSISTENT_PAGINATION"
+                )
+                if target == "zone":
+                    self.assertEqual(len(opener.requests), 1)
+
+        first = {"id": GATEWAY_ZONE_ID, "name": audit.ZONE_NAME, "status": "active",
+                 "account": {"id": GATEWAY_ACCOUNT_ID}}
+        second = {**first, "id": "4" * 32}
+        pages = {}
+        for page, row, total_pages in ((1, first, 2), (2, second, 1)):
+            payload = gateway_page([row], page=page, page_size=audit.ZONE_PAGE_SIZE)
+            payload["result_info"].pop("total_count")
+            payload["result_info"]["total_pages"] = total_pages
+            pages[page] = payload
+
+        def callback(request):
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(request.full_url).query)
+            return Response(pages[int(query["page"][0])])
+
+        client = audit.Client(FIXTURE_TOKEN, Opener(callback), profile="windows-gateway")
+        result, _ = audit.collection(
+            client, audit.ZONES, audit.gateway_zone_metadata,
+            id_parser=audit.cloudflare_identifier, page_size=audit.ZONE_PAGE_SIZE,
+            strict_pagination=True,
+        )
+        self.assertFalse(result["complete"])
+        self.assertEqual(result["status"], "INCONSISTENT_PAGINATION")
+        self.assertEqual(client.calls, 2)
+
+    def test_empty_zero_page_is_complete_absence_without_establishing_binding(self):
+        for target in ("zone", "dns"):
+            with self.subTest(target=target):
+                payloads, opener, dns, _ = gateway_fixture()
+                path = audit.ZONES if target == "zone" else dns
+                payloads[path]["result"] = []
+                payloads[path]["result_info"].update(count=0, total_pages=0)
+                payloads[path]["result_info"].pop("total_count")
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertTrue(result["observations"][target]["complete"])
+                expected = "ACTIVE_ZONE_NOT_OBSERVED" if target == "zone" else "GATEWAY_DNS_ABSENT"
+                self.assertIn(expected, result["issues"])
+
     def test_duplicate_zone_ids_are_not_unique_scope(self):
         payloads, opener, _, _ = gateway_fixture()
         row = payloads[audit.ZONES]["result"][0]

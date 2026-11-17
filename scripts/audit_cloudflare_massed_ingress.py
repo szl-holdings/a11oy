@@ -358,6 +358,10 @@ def collection(client, path, projector, *, id_parser=identifier, page_size=PAGE_
             for key in ("total_pages", "total_count"):
                 if key in info and integer(info[key]) is None:
                     raise AuditError("INVALID_PAGINATION")
+            if strict_pagination and "total_pages" in info:
+                total_pages = info["total_pages"]
+                if total_pages < page and not (page == 1 and total_pages == 0 and not items):
+                    raise AuditError("INCONSISTENT_PAGINATION")
             if strict_pagination and "total_pages" in info and "total_count" in info:
                 count = info["total_count"]
                 expected = (count + page_size - 1) // page_size
