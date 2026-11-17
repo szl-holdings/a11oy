@@ -3,266 +3,264 @@ SPDX-License-Identifier: Apache-2.0
 (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 - Doctrine v11
 -->
 
-# Sovereign Mesh Runbook — harness the 2-box GPU mesh behind ONE endpoint
+# Sovereign compute and meter verification runbook
 
-**You are at the LAPTOP (`betterwithage`, RTX 5050) right now.** These are your hands —
-the cloud agent cannot reach your LAN. Follow the PowerShell baby-steps in order.
-Copy-paste one block at a time and read the "you should see" line before moving on.
+Use this runbook from the repository root on the Windows host that owns the
+selected installation. It covers native Ollama, the authenticated GPU meter,
+and the gateway profile selected for that installation. Source configuration,
+local process health, admitted inference, and measured energy are separate
+observations; record each with its source revision and observation time.
 
-**What we are building:** the cloud a11oy Space calls **ONE** endpoint
-(`gateway.a-11-oy.com`, model `sovereign-llm`); a **LiteLLM** gateway load-balances
-your two Windows GPU boxes (tower `omen` RTX 4060 Ti + this laptop `betterwithage`
-RTX 5050), both running **Ollama**. Everything is durable (boot-persistent tasks) and
-self-healing (restart policies + LiteLLM node cooldown). Cloudflare = public ingress,
-Tailscale = private transport, Docker = the stateless sidecars only.
+The commands below inspect existing services unless a section explicitly points
+to an installation procedure. They do not establish current production readiness,
+authorize a model workload, or activate a public endpoint.
 
-```
-a11oy Space (cloud)
-   |  HTTPS + Bearer + CF-Access-Client-*    (ONE endpoint)
-   v
-Cloudflare edge (Access service token)  ->  gateway.a-11-oy.com
-   v  (cloudflared, outbound-only tunnel)
-LiteLLM :4000  (model "sovereign-llm")
-   |  Tailscale (private, tailnet-only :11434)
-   +--> omen         Ollama  (llama3.1:8b)
-   +--> betterwithage Ollama (glm-4.7-flash + the #789 energy probe)
-```
+## 1. Identify the intended service before changing anything
 
-> **HONESTY (Doctrine v11).** Nothing below "goes green" on faith. A node is only
-> `wired`/`live` when a **real** call to it succeeds THIS request. Joules are
-> **MEASURED** only from a real NVML delta (the #789 probe); otherwise the honest
-> `MEASURED_SHARED_BOUNDED` / `UNAVAILABLE` empty-state stands. A truthful BLOCKED
-> beats a fake green. **Ollama's `:11434` is never public.**
-
----
-
-## 0. Prerequisites (one-time, on the laptop)
-
-```powershell
-# Confirm the driver + GPU are visible (native, no Docker).
-nvidia-smi
-# you should see: your RTX 5050 listed, a driver version (want 535+), and power draw.
-
-# Confirm Ollama, Tailscale, cloudflared, python are installed.
-ollama --version
-tailscale version
-cloudflared --version
-python --version    # or: py --version
-```
-
-If `nvidia-smi` shows the GPU but `power.draw` is `N/A` (some laptop GPUs do), the
-#789 probe will honestly emit `UNAVAILABLE` rather than a fake joule — that is fine,
-the mesh still works, you just do not get MEASURED joules from this box.
-
----
-
-## Step (a) — pull glm-4.7-flash + start the #789 energy probe on the laptop
-
-```powershell
-# 1. Pull the laptop's model.
-ollama pull glm-4.7-flash
-
-# 2. Make sure Ollama accepts the tunneled Host header + binds for the tailnet.
-#    (These are the machine-level env the persist script sets; safe to set now.)
-[System.Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS","*","Machine")
-[System.Environment]::SetEnvironmentVariable("OLLAMA_HOST","0.0.0.0:11434","Machine")
-
-# 3. Start the #789 per-inference energy probe in a LOOP (refreshes every 60s).
-#    Writes ~/.a11oy_ollama_energy.json which omen_joule_exporter.py merges as models[].
-$env:OLLAMA_MODEL = "glm-4.7-flash:latest"
-python box-scripts\ollama_energy_probe.py --loop 60
-# you should see: a line per cycle with joules + a VERBATIM label
-#   (MEASURED_SHARED_BOUNDED by default; MEASURED only if you assert exclusivity;
-#    UNAVAILABLE if NVML/power.draw cannot be read — never a fabricated number).
-```
-
-Leave that window running. (For the durable version, `box-scripts\laptop_persist.ps1`
-registers Ollama + the exporter + the `laptop-szl` tunnel as AtStartup tasks — run it
-**as Administrator** once you have verified the manual path works.)
-
-> **Clean MEASURED (optional):** only if *nothing else* uses the GPU during the window:
-> `$env:OLLAMA_GPU_EXCLUSIVE = "1"` before launching the probe. Otherwise keep the
-> honest `MEASURED_SHARED_BOUNDED` upper bound — do not upgrade the label.
-
----
-
-## Step (b) — start LiteLLM (the unified gateway)
-
-Run LiteLLM on the **always-on** box. If the laptop is your always-on box for now,
-run it here; normally it lives on `omen`. Two ways — pick ONE.
-
-### (b-native) Native Python — simplest, no Docker/WSL2 (RECOMMENDED to start)
-
-```powershell
-pip install "litellm[proxy]"
-
-# Bearer the Space must send (generate a real random key; keep it secret).
-$env:LITELLM_MASTER_KEY   = "sk-REPLACE-with-a-real-random-key"
-# The shared pool model (must fit BOTH cards for true load-balancing).
-$env:SOVEREIGN_POOL_MODEL = "llama3.1:8b"
-# Tailscale MagicDNS names (or 100.x IPs from `tailscale ip -4` on each box).
-$env:OMEN_OLLAMA_URL      = "http://omen:11434"
-$env:BWA_OLLAMA_URL       = "http://betterwithage:11434"
-$env:OMEN_MODEL           = "llama3.1:8b"
-$env:BWA_MODEL            = "glm-4.7-flash:latest"
-
-litellm --config box-scripts\litellm_config.yaml --port 4000
-# you should see: "Uvicorn running on http://0.0.0.0:4000".
-```
-
-Verify locally (new PowerShell window):
-
-```powershell
-curl.exe -s http://localhost:4000/health/liveliness
-# you should see: {"status":"healthy"...}
-
-curl.exe -s http://localhost:4000/v1/models -H "Authorization: Bearer $env:LITELLM_MASTER_KEY"
-# you should see: sovereign-llm, omen-llama, betterwithage-glm in the list.
-
-curl.exe -s http://localhost:4000/v1/chat/completions `
-  -H "Authorization: Bearer $env:LITELLM_MASTER_KEY" `
-  -H "Content-Type: application/json" `
-  -d '{"model":"sovereign-llm","messages":[{"role":"user","content":"say ok"}]}'
-# you should see: a real completion (proves LiteLLM reached a live Ollama node).
-```
-
-### (b-docker) Containerized sidecars — Ollama STILL native
-
-> **WSL2 GPU passthrough is fragile.** Only the *sidecars* go in Docker; Ollama and
-> the #789 probe stay native (Step a). If `dcgm-exporter` cannot get the GPU, comment
-> it out and rely on the native probe for joules — the meter path does not need it.
-
-```powershell
-# .env next to the compose file (NEVER commit it):
-#   LITELLM_MASTER_KEY=sk-...      CF_TUNNEL_TOKEN_GPU=...(if using token mode)
-#   OMEN_OLLAMA_URL=http://host.docker.internal:11434   (native Ollama on THIS box)
-#   BWA_OLLAMA_URL=http://betterwithage:11434            (tailnet)
-docker compose -f box-scripts\docker-compose.yml up -d litellm prometheus grafana
-docker compose -f box-scripts\docker-compose.yml ps
-# you should see: litellm (healthy). On the laptop, use docker-compose.laptop.yml
-# which is telemetry-only (dcgm-exporter).
-```
-
----
-
-## Step (c) — verify meter2 `models[]` appears
-
-The #789 probe (Step a) writes energy JSON; `omen_joule_exporter.py` (engine name
-`betterwithage` on the laptop) merges it as top-level `models[]` and serves it on
-`:9471`, tunneled as `meter2.a-11-oy.com`.
-
-```powershell
-# Local exporter (if not already running via laptop_persist.ps1):
-$env:OMEN_ENGINE_NAME = "betterwithage"
-python box-scripts\omen_joule_exporter.py     # serves 0.0.0.0:9471
-
-# Local check:
-curl.exe -s http://localhost:9471/ | python -m json.tool
-# you should see: engines[] with engine "betterwithage" AND a top-level models[]
-#   entry for glm-4.7-flash with joules_per_token + a VERBATIM label
-#   (or an UNAVAILABLE null if NVML/power.draw is not readable — honest, not fake).
-
-# Public check (through the laptop-szl tunnel):
-curl.exe -s https://meter2.a-11-oy.com/ | python -m json.tool
-# you should see: the same models[] payload.
-```
-
-If `models[]` is missing: the probe is not running (Step a) or the energy JSON is
-stale (>300s, `OLLAMA_ENERGY_MAX_AGE_S`) → it is intentionally surfaced as
-`UNAVAILABLE`, never a stale/fake number.
-
----
-
-## Step (d) — point the Space at the LiteLLM gateway
-
-Expose LiteLLM publicly as `gateway.a-11-oy.com` via cloudflared (see
-`box-scripts/cloudflared_ingress.example.yml` — the real `~/.cloudflared/config.yml`
-is on-box, not committed). Then set the **Space secrets**:
-
-| Space secret | Value | Effect |
+| Component | Existing contract | What a successful read establishes |
 |---|---|---|
-| `SZL_LOCAL_LLM_URL` | `https://gateway.a-11-oy.com` | Points the sovereign-local path at the gateway (single endpoint). |
-| `A11OY_SOVEREIGN_GATEWAY_URL` | `https://gateway.a-11-oy.com` | *Preferred.* Takes precedence over `SZL_LOCAL_LLM_URL`; the brain/anatomy use the unified LiteLLM endpoint. **Unset ⇒ falls back to `SZL_LOCAL_LLM_URL` (unchanged).** |
-| `A11OY_SOVEREIGN_GATEWAY_KEY` | your `LITELLM_MASTER_KEY` | Bearer sent to the gateway. Secret is never logged/returned. (Fallback name: `SZL_LOCAL_LLM_KEY`.) |
-| `SZL_LOCAL_LLM_MODEL` | `sovereign-llm` | The model name LiteLLM load-balances across both nodes. |
+| Native Ollama | Existing local server, commonly `127.0.0.1:11434`; `GET /api/version` | Process/version response; model identity and GPU execution remain unverified. |
+| Authenticated meter | `127.0.0.1:9471` by default; `GET /` and `GET /metrics` require per-client HMAC | An authorized exporter response; energy qualification still requires its measurement evidence. |
+| Massed proposal gateway | `127.0.0.1:4000`; `GET /health` returns `status: "local_gateway"` | Local proposal-gateway liveness and an instance identifier. It does not probe the model or mint a receipt. |
+| Staged Ollama/LiteLLM gateway | An explicitly selected, unused loopback port and an exact consumer/backend model mapping | Only the checks described in [gateway preflight](GATEWAY_PREFLIGHT.md). |
 
-> Only **one** of `A11OY_SOVEREIGN_GATEWAY_URL` / `SZL_LOCAL_LLM_URL` is required.
-> Set the gateway one to prefer the unified endpoint; both unset ⇒ honest stub.
-> If Cloudflare Access is in front, also set the Space's `CF-Access-Client-Id` /
-> `CF-Access-Client-Secret` (service token) — layered auth (bearer **and** Access).
+Port 4000 is not evidence that LiteLLM is installed. An existing Massed proposal
+gateway and a staged Ollama/LiteLLM gateway are different profiles; preserve the
+owned listener and its supervisor. Do not install one over the other or redirect
+an existing tunnel to a staging service.
 
----
+These bounded reads do not generate text or read credentials:
 
-## Step (e) — verify the Space wired to the mesh
+~~~powershell
+git rev-parse HEAD
+git status --short
+nvidia-smi --query-gpu=name,driver_version,power.draw,power.limit --format=csv,noheader,nounits
+Get-NetTCPConnection -State Listen |
+  Where-Object { $_.LocalPort -in 11434,9471,4000 } |
+  Select-Object LocalAddress,LocalPort,OwningProcess
+curl.exe --silent --show-error --max-time 3 --fail http://127.0.0.1:11434/api/version
+curl.exe --silent --show-error --max-time 3 --fail http://127.0.0.1:4000/health
+~~~
 
-```powershell
-# 1. Registry wired_count should increment (sovereign_local now wired).
-curl.exe -s "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/registry?probe=1" | python -m json.tool
-# you should see: wired_count >= 1, "sovereign_local" in wired_model_ids, and its
-#   badge {wired:true, base_url: the gateway}. local_live:true ONLY if the node
-#   answered THIS request.
+A refused connection identifies an unavailable local service. HTTP 200 with HTML,
+an unexpected schema, or another service's response is not a successful contract
+check. A loopback request does not prove the listener is loopback-only; inspect
+`LocalAddress` as well. Hardware names and driver versions do not establish
+ownership, a running model, or an inference receipt. An `N/A` power field stays
+unavailable, never zero.
 
-# 2. Sovereign health: live + served models THIS request.
-curl.exe -s "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/sovereign/health" | python -m json.tool
-# you should see: env_present:true, live:true, served_models includes sovereign-llm.
+Ollama stays native for these Windows profiles. Keep its access within the
+installation's reviewed loopback/private-network boundary; never expose bare
+Ollama through public ingress. A 403 is not a reason to set wildcard
+`OLLAMA_ORIGINS` or `OLLAMA_HOST`. Diagnose the selected origin, hostname,
+authentication and existing network policy before proposing a configuration
+change.
 
-# 3. Route a real prompt to the mesh.
-curl.exe -s -X POST "https://szlholdings-a11oy.hf.space/api/a11oy/v1/llm/route" `
-  -H "Content-Type: application/json" `
-  -d '{"prompt":"one sentence: why sovereign inference matters","task_hint":"sovereign"}'
-# you should see: routed_via "sovereign_local (...)", a REAL response, and a
-#   lambda_receipt (Λ = Conjecture 1, advisory). If the node is down you get an
-#   HONEST STUB — the tier selection + Λ + receipt are still real.
-```
+## 2. Follow the matching gateway profile
 
-`/brain/ask` (Wave 1/2) then routes its grounded prompt to `sovereign-llm` through the
-same gateway when `A11OY_SOVEREIGN_GATEWAY_URL` (or `SZL_LOCAL_LLM_URL`) is set;
-otherwise it honestly returns the retrieved subgraph with "no local model wired".
+### Existing Massed proposal gateway
 
----
+Use [the VM model gateway runbook](../ops/vm-model-gateway/README.md) for its
+source pins, transport configuration, protected receipt directory, P-256 audit
+signer and native Windows supervisor. The gateway has one exact model alias and
+a bounded proposal API; it is not an Ollama load balancer.
 
-## Security (Doctrine v11 — non-negotiable)
+The health response is public local process metadata. The authenticated model
+catalog and inference path are separate contracts. Keep authentication material
+in the existing protected runtime; do not put it in command arguments, logs,
+task XML or this repository. Follow the runbook's existing-launcher mapping
+when maintaining an installed supervisor rather than replacing its task action.
 
-1. **Ollama is NEVER public.** `:11434` is served over the tailnet only. It is not in
-   any cloudflared ingress rule. Ollama has no built-in auth — the network IS its auth.
-2. **Layered auth on the ONE public endpoint** (`gateway.a-11-oy.com`):
-   - **LiteLLM bearer** (`master_key`) required on every request, **and**
-   - **Cloudflare Access service token** in front of the tunnel hostname, **and**
-   - **Tailnet ACL** (`box-scripts/tailscale_acl.json`, deny-by-default): only
-     `tag:llm-gateway` may reach `tag:llm-gpu:11434`. A leaked bearer alone, or a
-     leaked Access token alone, is insufficient.
-3. **Never use Tailscale Funnel** for Ollama (no funnel grant exists in the ACL).
-4. **Pin image tags** on GPU-facing containers; do not auto-update them unattended.
-5. **Never commit a key.** `LITELLM_MASTER_KEY`, tunnel tokens, and the gateway bearer
-   live only in the shell/`.env`/Space secrets — never in the tree.
+The gateway's local signed intent/outcome chain uses `REPO_DECLARED` trust.
+It does not confer canonical A11oy execution authority, model qualification,
+independent ownership proof or production acceptance.
 
-## Self-healing / durability
+### Staged Ollama/LiteLLM gateway
 
-| Layer | Mechanism |
+Use [GATEWAY_PREFLIGHT.md](GATEWAY_PREFLIGHT.md) and its pinned dependency file.
+Select the intended consumer alias, exact Ollama backend tag and independently
+retained artifact digest before staging. Do not assume a historical model tag
+is installed or copy the candidate catalog's digest into the expected field.
+
+The preflight supports a narrow static profile with one model entry. It does not
+validate the older multi-node load-balancing configuration as an equivalent
+profile. A wider gateway configuration needs its own reviewed validation.
+
+The following is a template for an **already staged**, loopback-only gateway.
+Replace every capitalized placeholder with the retained installation values.
+Port 14000 is an example staging port: independently confirm it is unused and
+not selected by a tunnel before a separate installation operation uses it.
+
+~~~powershell
+python -B box-scripts/gateway_preflight.py `
+  --config "PATH_TO_EXISTING_PROTECTED_STAGING_CONFIG" `
+  --model "EXACT_CONSUMER_ALIAS" `
+  --backend-model "EXACT_OLLAMA_TAG" `
+  --backend-digest "RETAINED_64_CHARACTER_LOWERCASE_SHA256" `
+  --gateway-origin http://127.0.0.1:14000 `
+  --ollama-url http://127.0.0.1:11434 `
+  --public-gateway "EXACT_INTENDED_HTTPS_GATEWAY_ORIGIN" `
+  --consumer-base https://a-11-oy.com `
+  --timeout 3 `
+  --probe
+~~~
+
+The existing key must be supplied through the protected environment named in
+the preflight contract, never an inline key. With `--probe`, the tool performs
+at most five GETs; it does not infer, start a service, download weights, sign a
+receipt or activate ingress. Exit 0 / `LOCAL_PREFLIGHT_PASS` still reports
+`production_ready=false` and `activation_authorized=false`. Preserve a blocked
+result for any alias, digest, authentication or consumer mismatch.
+
+## 3. Install and verify the authenticated meter separately
+
+The authoritative installation and protocol contract is
+[METER_REQUEST_AUTH.md](METER_REQUEST_AUTH.md). Use the canonical
+[exporter](omen_joule_exporter.py) and [request helper](../szl_meter_access.py)
+together.
+
+For a separately authorized Windows installation,
+[install_meter_windows.ps1](install_meter_windows.ps1) requires a clean committed
+checkout and an exact `-SourceRevision`. It preserves existing private
+configuration, records installed source hashes, and does not start a listener or
+tunnel. The installed [run_meter_windows.ps1](run_meter_windows.ps1) verifies those
+hashes and runs the authenticated loopback exporter as the same Windows user
+that owns its DPAPI configuration. A SYSTEM task cannot substitute for that
+user's DPAPI identity. Do not use the legacy bulk restart scripts as prerequisites.
+
+| Configuration name | Role |
 |---|---|
-| Ollama (native Win) | `laptop_persist.ps1` / `omen_boot_persist.ps1` — AtStartup task, `RestartCount 999`, `-AllowStartIfOnBatteries`. |
-| #789 probe + exporter | Same persist scripts (AtStartup, auto-restart). |
-| Tailscale (Win) | "Run unattended" mode; Startup Type = Automatic. |
-| cloudflared / litellm / prometheus / grafana / dcgm-exporter | `restart: unless-stopped` + healthchecks (docker-compose). |
-| LiteLLM ↔ node failure | `cooldown_time: 30`, `num_retries: 2`, least-busy routing auto-skips a down node. |
+| `SZL_METER_HMAC_AUDIENCE` | Server's exact canonical origin; the request Host must match it. |
+| `SZL_METER_HMAC_CLIENT_KEYS` | Server's independent per-client private keys. |
+| `SZL_METER_HMAC_TARGETS` | Client configuration keyed by exact meter origin; the source-owned version selector may select a versioned name. |
+| `OMEN_EXPORTER_BIND` / `OMEN_EXPORTER_PORT` | Restricted listener configuration; the Windows launcher uses loopback port 9471. |
+| `OMEN_ENGINE_NAME` | Meter engine identity; reconcile it with the intended consumer/node label. |
+| `SZL_GLM_METER` | Meter selected by the live energy reader. |
+| `A11OY_JOULE_METER_URL` / `A11OY_JOULE_METER_URLS` | Meter source configuration used by the energy operator. |
 
-## Native-Windows fallback (the honest default)
+Do not print or copy private values during verification. Public remote meters
+require HTTPS, exact audience/client configuration, and the applicable ingress
+policy. Plain-HTTP tailnet fallback and redirects do not carry a meter capability.
+The reverse proxy must preserve the canonical Host; substituting a loopback Host
+does not satisfy an HTTPS audience.
 
-WSL2 GPU-in-Docker is fragile (driver-version sensitivity, "restart Docker Desktop
-fully" gotchas, silent CPU fallback). So the **model-serving path stays native**:
-run Ollama + the #789 probe natively (Steps a, c), and containerize only the
-stateless sidecars (LiteLLM / Prometheus / Grafana / cloudflared / dcgm-exporter).
-If `dcgm-exporter` cannot acquire the GPU in its container, drop it and rely on the
-native NVML probe for MEASURED joules — the mesh and the meter both still work.
+An anonymous request is a **denial check**, not a telemetry read:
 
-## Troubleshooting
+~~~powershell
+curl.exe --silent --show-error --max-time 3 --output NUL --write-out "%{http_code}\n" http://127.0.0.1:9471/
+~~~
 
-- **`gpu2`/tunnel 403** → set `OLLAMA_ORIGINS=*` and `OLLAMA_HOST=0.0.0.0:11434` at
-  machine level (Step a), then restart Ollama.
-- **LiteLLM 401 from the Space** → the Space's `A11OY_SOVEREIGN_GATEWAY_KEY` (bearer)
-  must equal `LITELLM_MASTER_KEY`; if Access is on, also send the CF service token.
-- **`wired_count` did not increment** → `SZL_LOCAL_LLM_URL` / `A11OY_SOVEREIGN_GATEWAY_URL`
-  not set as a Space secret, or the gateway is unreachable (honest stub — not a bug).
-- **`models[]` missing on meter2** → the #789 probe is not looping, or the reading is
-  stale/`UNAVAILABLE` (NVML/power.draw not readable). Honest empty-state, never faked.
-</content>
+The current exporter denies unauthenticated telemetry. A 401/403 records denial;
+a timeout records unavailability. Neither proves that an enrolled client can
+read telemetry. An anonymous 200 requires investigation.
+
+For an **already enrolled meter2 client** in its protected environment, this
+bounded authenticated read checks the response shape without printing headers,
+keys, GPU identifiers or telemetry bodies:
+
+~~~powershell
+@'
+import json
+from szl_meter_access import open_meter_get
+
+with open_meter_get("https://meter2.a-11-oy.com/", timeout=3.0) as response:
+    status = response.status
+    body = response.read(65537)
+if status != 200 or len(body) > 65536:
+    raise RuntimeError("meter response is unavailable or exceeds the read limit")
+document = json.loads(body)
+if not isinstance(document, dict) or not isinstance(document.get("engines"), list):
+    raise RuntimeError("meter response does not match the exporter shape")
+print({"http_status": status, "exporter_json": True, "energy_qualified": False})
+'@ | python -B -
+~~~
+
+This requires the installed audience and exact-origin client configuration to
+agree; it does not provision them. Retain separate local/public authenticated
+readback, anonymous denial, replay denial and old-key rejection evidence using
+the protocol contract. A successful response shape does not qualify its energy.
+
+The [HF enrollment helper](enroll_meter_hf.py) remains a proposal with a real
+apply-path refusal documented in the authentication runbook. Do not bypass that
+refusal or treat synthetic enrollment tests as a live key transfer.
+
+## 4. Reconcile the actual canonical consumer
+
+Check the deployed source and consumer, not just the intended hostname. Current
+[registry resolution](../szl_llm_registry.py) uses this endpoint precedence:
+
+1. `A11OY_BRAIN_URL`
+2. `A11OY_MODEL_BASE_URL`
+3. `A11OY_SOVEREIGN_GATEWAY_URL`
+4. `SZL_LOCAL_LLM_URL`
+5. A guarded localhost default when none is explicitly configured.
+
+The fallback default is not operator intent or a production GPU binding.
+`SZL_LOCAL_LLM_MODEL` requests an exact served tag; an explicit missing tag must
+remain blocked. A gateway profile must agree with the consumer's API style,
+exact alias, backend tag and retained artifact identity. Do not silently point
+a sovereign consumer at a proposal gateway or substitute another installed model.
+
+The registry's bearer configuration uses `A11OY_SOVEREIGN_GATEWAY_KEY` with
+`SZL_LOCAL_LLM_KEY` fallback. That bearer, ingress Access policy and meter HMAC
+serve different boundaries; one does not replace the others.
+
+Read the public canonical diagnostics without generating a model workload:
+
+~~~powershell
+curl.exe --silent --show-error --max-time 15 --fail https://a-11-oy.com/api/a11oy/v1/llm/sovereign/health
+curl.exe --silent --show-error --max-time 15 --fail https://a-11-oy.com/api/a11oy/v1/energy/operator/status
+curl.exe --silent --show-error --max-time 15 --fail https://a-11-oy.com/api/a11oy/v1/energy/live
+~~~
+
+The sovereign health route reports metadata reachability and exact-tag
+availability. Its anonymous response deliberately withholds private model/origin
+data and retains `gpu_verified=false`, `weights_verified=false`,
+`ownership_proof="UNAVAILABLE"` and `operational=false`. A reachable node is labeled
+`UNKNOWN`; an unreachable one is `UNAVAILABLE`. Historical durable inference
+receipts do not prove the current endpoint, weights or GPU.
+
+Keep those boundaries when interpreting a green local health check or a
+successful model catalog. Admitted inference needs the selected execution path,
+its authorization, actual outcome and bound retained evidence. This read-only
+sequence does not run that workload.
+
+## 5. Qualify energy without upgrading its scope
+
+The [exporter](omen_joule_exporter.py), [energy live reader](../szl_energy_live.py)
+and [operator](../szl_energy_operator.py) require fresh, monotone direct NVML
+total-energy-counter deltas for the same GPU identity and continuity interval.
+Unsupported counters, stale samples, missing devices or counter decreases leave
+measured joules unavailable. Sampled-power integration stays `MODELED`.
+
+The operator distinguishes a measured bounded GPU-host window from energy
+attributable exclusively to a job. Its job energy stays `SAMPLE` and nonbillable
+without separately proven exclusive attribution. An environment assertion of
+exclusivity cannot supply that proof.
+
+The [legacy Ollama energy probe](ollama_energy_probe.py) generates real inference
+and writes a local observation file. It is not a passive prerequisite for
+hardware, process or authenticated-meter checks. Its labels and any `models[]`
+entry must pass the current consumer's evidence checks; launching a loop or
+seeing that field does not establish qualified energy.
+
+Before any separate inference qualification, select the exact model and workload,
+retain authorization, bound the run, bracket it with compatible meter samples,
+and preserve the outcome and measurement scope. Do not start the continuous
+energy operator merely to make a readiness tile change.
+
+## Troubleshooting by boundary
+
+| Observation | Next check |
+|---|---|
+| Port 4000 is occupied | Identify the existing gateway profile and supervisor. Keep staging on a separately selected unused loopback port. |
+| Ollama answers version but model is absent | Reconcile the explicit alias/tag and independently retained artifact identity; do not select the first installed model. |
+| Meter anonymous request returns 403 | Expected denial can coexist with a working meter. Verify the enrolled client, canonical Host/audience, clock and replay policy separately. |
+| Public gateway or meter returns 403 | Distinguish edge policy from origin authentication. Inspect the authorized route and identity; do not widen binds or origins. |
+| Local gateway health succeeds but canonical consumer is blocked | Check endpoint precedence, API style, exact model mapping, ingress and retained execution evidence. |
+| Counter API works but measured joules are unavailable | Check freshness, same-device continuity, direct counter provenance and the consumer's requested scope. |
+| `models[]` is missing or stale | Preserve the empty/unavailable observation; it is not permission to start an inference loop. |
+| A service fails after restart | Verify the installed source, launcher identity and that service's documented supervisor. Do not restart unrelated tasks or rewrite DNS. |
+
+Record unresolved boundaries explicitly. None of these diagnostic reads grants
+release authority or upgrades Λ-uniqueness beyond Conjecture 1.

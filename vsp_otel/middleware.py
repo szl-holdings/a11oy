@@ -34,6 +34,7 @@ import re
 import secrets
 import time
 from contextlib import contextmanager
+from types import MappingProxyType
 from urllib.parse import urlsplit
 
 _VERSION = "0.2.0"
@@ -127,6 +128,21 @@ def make_traceparent(trace_id=None, parent_id=None, sampled=True):
     tid = trace_id or _hex(16)
     pid = parent_id or _hex(8)
     return f"00-{tid}-{pid}-{'01' if sampled else '00'}"
+
+
+def server_trace_context(request):
+    """Return this installation's immutable native context, or None.
+
+    The app-owned reader checks a private per-installation identity marker.
+    Request headers and mutable compatibility aliases are not this authority.
+    This is trace identity only; it grants no application/action authority.
+    """
+    try:
+        reader = getattr(request.app, "_vsp_otel_context_reader", None)
+        context = reader(request) if callable(reader) else None
+    except Exception:
+        return None
+    return context if type(context) is MappingProxyType else None
 
 
 class _Tracer:
@@ -235,6 +251,17 @@ def install(app, service_name: str | None = None, endpoint: str | None = _ENDPOI
     svc = service_name or os.environ.get("OTEL_SERVICE_NAME") \
         or getattr(app, "title", "organ").split()[0].lower()
     tracer = _Tracer(svc, endpoint)
+    context_token = object()
+
+    def context_reader(request):
+        binding = getattr(getattr(request, "state", None), "_vsp_otel_server_context", None)
+        if (
+            type(binding) is tuple and len(binding) == 2
+            and binding[0] is context_token
+            and type(binding[1]) is MappingProxyType
+        ):
+            return binding[1]
+        return None
 
     @app.middleware("http")
     async def _vsp_otel_mw(request, call_next):
@@ -244,33 +271,80 @@ def install(app, service_name: str | None = None, endpoint: str | None = _ENDPOI
             "http.method": request.method,
             "http.route": request.url.path,
             "szl.service": svc,
-            "szl.parent_trace_id": parsed["trace_id"] if parsed else "(root)",
         }
         accepted_parent = incoming if parsed else None
         with tracer.server_span(
                 f"{svc} {request.method} {request.url.path}", accepted_parent, start_attrs) as span:
+            native_context = None
+            observation_available = True
+            span_source = "IN_PROCESS"
             if span is not None:
-                ctx = span.get_span_context()
-                trace_id = f"{ctx.trace_id:032x}"
-                span_id = f"{ctx.span_id:016x}"
-                sampled = bool(ctx.trace_flags & 0x01)
+                try:
+                    ctx = span.get_span_context()
+                    tid, sid, flags = ctx.trace_id, ctx.span_id, ctx.trace_flags
+                    if (
+                        type(tid) is not int or not 0 < tid < 2**128
+                        or type(sid) is not int or not 0 < sid < 2**64
+                        or not isinstance(flags, int) or isinstance(flags, bool)
+                        or not 0 <= flags <= 255
+                    ):
+                        raise ValueError("invalid SDK server context")
+                    native_context = (f"{tid:032x}", f"{sid:016x}", bool(flags & 0x01))
+                    span_source = "OTEL_SERVER_SPAN"
+                except Exception:
+                    # Propagation remains available, but this failed SDK context
+                    # cannot support an OBSERVED evidence sidecar.
+                    observation_available = False
+                    span_source = "IN_PROCESS_FALLBACK"
+            if native_context is not None:
+                trace_id, span_id, sampled = native_context
             else:
                 trace_id = parsed["trace_id"] if parsed else _hex(16)
                 span_id = _hex(8)
                 sampled = parsed["sampled"] if parsed else True
-            request.state.trace_id = trace_id
-            request.state.traceparent = make_traceparent(trace_id, span_id, sampled)
+            # A configured SDK propagator may establish a different trace.
+            # Preserve its actual identity without claiming the rejected lineage.
+            parent_accepted = parsed is not None and trace_id == parsed["trace_id"]
+            if native_context is not None:
+                try:
+                    span.set_attribute(
+                        "szl.parent_trace_id", trace_id if parent_accepted else "(root)"
+                    )
+                except Exception:
+                    pass
+            context = MappingProxyType({
+                "traceparent": make_traceparent(trace_id, span_id, sampled),
+                "trace_id": trace_id,
+                "span_id": span_id,
+                "trace_flags": "01" if sampled else "00",
+                "inbound_parent": parsed["parent_id"] if parent_accepted else None,
+                "parent_accepted": parent_accepted,
+                "span_source": span_source,
+                "observation_available": observation_available,
+            })
+            request.state._vsp_otel_server_context = (context_token, context)
+            # Compatibility aliases all describe the same native server span.
+            # Consumers that stamp evidence use the immutable reader instead.
+            request.state.traceparent = context["traceparent"]
+            request.state.trace_id = context["trace_id"]
+            request.state.span_id = context["span_id"]
+            request.state.trace_flags = context["trace_flags"]
+            request.state.inbound_parent = context["inbound_parent"]
             request.state.vsp_otel_exporter = tracer.exporter
             t0 = time.time_ns()
             response = await call_next(request)
             if span is not None:
-                span.set_attribute("http.status_code", getattr(response, "status_code", 0))
-                span.set_attribute("duration_ns", time.time_ns() - t0)
+                try:
+                    span.set_attribute("http.status_code", getattr(response, "status_code", 0))
+                    span.set_attribute("duration_ns", time.time_ns() - t0)
+                except Exception:
+                    pass  # A diagnostic exporter must not veto a response.
         # Echo a continuing traceparent so the next organ keeps the trace-id.
-        response.headers["traceparent"] = request.state.traceparent
+        response.headers["traceparent"] = context["traceparent"]
         response.headers["x-vsp-otel"] = f"{_VERSION};{tracer.exporter}"
         return response
 
+    app._vsp_otel_context_reader = context_reader
     app._vsp_otel_installed = True
     app._vsp_otel_service = svc
     # Honest, machine-readable status of what was actually wired: either an OTLP

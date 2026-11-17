@@ -1,131 +1,196 @@
-"""Khipu fleet-contract signing routes (platform readiness-reliability).
-
-The platform readiness-reliability executor probes ``{base}/healthz``,
-``{base}/khipu/sign``, ``{base}/khipu/verify`` and ``{base}/metrics`` for every
-flagship.  a11oy's estate signing surfaces live under ``/api/a11oy/v1/*``; the
-root ``/khipu/sign`` and ``/khipu/verify`` routes are the fleet-contract
-aliases.  They must do REAL sign/verify work with the loaded production key
-(same backend as the capability self-test) and fail closed with HTTP 503 and an
-honest reason when no usable key is loaded — never a fabricated 200, and never
-a 404 that silently reds the fleet receipt (platform #983 root cause).
-"""
-
-from __future__ import annotations
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+"""Fleet status reads consume retained observations; POSTs retain real crypto."""
 
 import base64
 import hashlib
+import json
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
-
-pytest.importorskip("cryptography")
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+from fastapi.testclient import TestClient
 
-starlette_testclient = pytest.importorskip("starlette.testclient")
-TestClient = starlette_testclient.TestClient
+import serve
+from szl_signing_state import SigningState
 
-import serve  # noqa: E402
-
-
-def _test_key_pair():
-    key = ec.generate_private_key(ec.SECP256R1())
-    priv_pem = key.private_bytes(
-        serialization.Encoding.PEM,
-        serialization.PrivateFormat.PKCS8,
-        serialization.NoEncryption(),
-    ).decode("ascii")
-    pub_pem = key.public_key().public_bytes(
-        serialization.Encoding.PEM,
-        serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("ascii")
-    return priv_pem, pub_pem
+PATHS = ("/khipu/sign", "/khipu/verify")
 
 
 @pytest.fixture()
-def client():
-    return TestClient(serve.app)
-
-
-def test_routes_are_registered_not_404(client):
-    """The fleet contract paths exist on the route table (root cause of #983)."""
-    for path in ("/khipu/sign", "/khipu/verify"):
-        assert any(getattr(r, "path", None) == path for r in serve.app.routes), (
-            f"{path} must be registered for the readiness-reliability executor"
-        )
-        resp = client.get(path)
-        assert resp.status_code in (200, 503), (
-            f"{path} must answer 200 (usable key) or 503 (fail-closed), "
-            f"got {resp.status_code}"
-        )
-
-
-def test_fail_closed_503_without_key(client, monkeypatch):
-    monkeypatch.setattr(serve, "_A11OY_PRIV", None)
-    monkeypatch.setattr(serve, "_A11OY_PUB_PEM", "")
-    for path in ("/khipu/sign", "/khipu/verify"):
-        resp = client.get(path)
-        assert resp.status_code == 503, f"{path} must fail closed without a key"
-        body = resp.json()
-        assert body["status"] == "UNAVAILABLE"
-        assert "signer-key-not-loaded" in body["reason"]
-
-
-def test_sign_and_verify_roundtrip_with_loaded_key(client, monkeypatch):
-    priv_pem, pub_pem = _test_key_pair()
-    monkeypatch.setattr(serve, "_A11OY_PRIV",
-                        serialization.load_pem_private_key(priv_pem.encode(), None))
-    monkeypatch.setattr(serve, "_A11OY_PUB_PEM", pub_pem)
-
-    signed = client.get("/khipu/sign")
-    assert signed.status_code == 200
-    body = signed.json()
-    assert body["schema"] == "szl.khipu-fleet-sign/v1"
-    assert body["status"] == "SIGNED"
-    assert body["verified"] is True
-    assert len(body["payload_digest"]) == 64
-    assert body["signature_b64"]
-    # The signature is a real ECDSA-P256 signature over the canonical receipt.
-    sig = base64.b64decode(body["signature_b64"], validate=True)
-    assert len(sig) >= 64
-
-    # Self roundtrip verify (no body): VERIFIED with a fresh receipt.
-    verified = client.get("/khipu/verify")
-    assert verified.status_code == 200
-    assert verified.json()["verdict"] == "VERIFIED"
-    assert verified.json()["verified"] is True
-
-    # Supplied-receipt POST verify: the pre-existing receipt-DAG verifier
-    # (/khipu/{hash}) front-matches POST /khipu/verify and performs REAL DSSE
-    # verification (verified/keyid evidence, honest false on garbage). The
-    # fleet contract only requires a 2xx from a real verifier — both the
-    # fleet route (GET) and the DAG verifier (POST) qualify.
-    check = client.post("/khipu/verify", json={
-        "payload_digest": body["payload_digest"],
-        "signature_b64": body["signature_b64"],
-    })
-    assert check.status_code == 200
-    cb = check.json()
-    assert cb.get("verdict") in ("VERIFIED", "FAILED") or "verified" in cb, (
-        "POST /khipu/verify must reach a real verifier (fleet or receipt DAG)"
+def runtime(monkeypatch):
+    now = [100.0]
+    owner = SigningState(clock=lambda: now[0])
+    key = ec.generate_private_key(ec.SECP256R1())
+    public = key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode("ascii")
+    fingerprint = hashlib.sha256(public.strip().encode("ascii")).hexdigest()
+    monkeypatch.setattr(serve, "_A11OY_PRIV", key)
+    monkeypatch.setattr(serve, "_A11OY_PUB_PEM", public)
+    monkeypatch.setattr(serve, "_A11OY_KEYID", fingerprint)
+    monkeypatch.setattr(serve, "_A11OY_KEY_SOURCE", "ephemeral")
+    monkeypatch.setattr(serve, "_A11OY_KEY_ERR", None)
+    monkeypatch.setattr(serve, "_A11OY_SIGNER_CONFIGURED", False)
+    monkeypatch.setattr(serve, "_A11OY_SIGNING_STATE", owner)
+    monkeypatch.setitem(serve.app.state._state, "szl_signing_state", owner)
+    monkeypatch.setattr(
+        serve.app.state, "szl_series_a_service",
+        SimpleNamespace(runtime_boot_id="fleet-test-boot"), raising=False
+    )
+    return SimpleNamespace(
+        owner=owner, now=now, key=key, public=public, fingerprint=fingerprint,
+        client=TestClient(serve.app)
     )
 
-    # Tampered signature is honestly reported, never a 5xx or a fake green.
-    tampered = client.post("/khipu/verify", json={
-        "payload_digest": body["payload_digest"],
-        "signature_b64": base64.b64encode(b"\x00" * 64).decode(),
-    })
-    assert tampered.status_code == 200
-    tb = tampered.json()
-    honest_fail = (tb.get("verdict") == "FAILED"
-                   or tb.get("verified") is False)
-    assert honest_fail, f"tampered input must not verify: {tb}"
+
+def observe(runtime):
+    serve._refresh_a11oy_signing_state()
+    serve._observe_a11oy_signing_capability()
+    assert runtime.owner.read()["signing_ready"] is True
 
 
-def test_sign_receipt_is_bound_to_key_fingerprint(client, monkeypatch):
-    priv_pem, pub_pem = _test_key_pair()
-    monkeypatch.setattr(serve, "_A11OY_PRIV",
-                        serialization.load_pem_private_key(priv_pem.encode(), None))
-    monkeypatch.setattr(serve, "_A11OY_PUB_PEM", pub_pem)
-    body = client.get("/khipu/sign").json()
-    expected_fp = hashlib.sha256(pub_pem.strip().encode("ascii")).hexdigest()
-    assert body["key_fingerprint"] == expected_fp
+@pytest.mark.parametrize("path", PATHS)
+def test_no_observation_or_only_metadata_fails_closed(runtime, path):
+    for phase in ("unobserved", "metadata-only"):
+        if phase == "metadata-only":
+            serve._refresh_a11oy_signing_state()
+        response = runtime.client.get(path)
+        assert response.status_code == 503
+        body = response.json()
+        assert body["status"] == "UNAVAILABLE"
+        assert body["receipt_minted"] is False
+        assert body["signing_state"]["signing_ready"] is False
+        assert body["receipt_verification"] == "NOT_EVALUATED"
+
+
+@pytest.mark.parametrize("method", ("GET", "HEAD"))
+@pytest.mark.parametrize("path", PATHS)
+def test_fresh_observed_capability_is_a_passive_read(runtime, monkeypatch, method, path):
+    observe(runtime)
+    observation = runtime.owner._observation
+    evidence = runtime.owner._evidence
+    forbidden = Mock(side_effect=AssertionError("fleet read attempted signing or refresh"))
+    for name in (
+        "_khipu_fleet_signer_ready", "_khipu_fleet_receipt",
+        "_refresh_a11oy_signing_state", "_observe_a11oy_signing_capability",
+        "_a11oy_sign_receipt",
+    ):
+        monkeypatch.setattr(serve, name, forbidden)
+    monkeypatch.setattr(serve, "_A11OY_PRIV", SimpleNamespace(
+        sign=forbidden, public_key=forbidden
+    ))
+    for _ in range(2):
+        response = runtime.client.request(method, path)
+        assert response.status_code == 200
+        assert "no-store" in response.headers["cache-control"]
+        if method == "HEAD":
+            assert response.content == b""
+        else:
+            body = response.json()
+            assert body["status"] == "READY"
+            assert body["scope"] == "PROCESS_LOCAL_SIGNING_CAPABILITY"
+            assert body["receipt_minted"] is False
+            assert body["sign_on_read"] is False
+            assert body["receipt_verification"] == "NOT_EVALUATED"
+            assert not {"signature_b64", "payload_digest", "verified", "verdict"} & body.keys()
+            assert body["signing_state"]["signing_ready"] is True
+            assert body["signing_state"]["public_key_fingerprint"] == runtime.fingerprint
+            assert body["signing_state"]["execution_authorized"] is False
+    forbidden.assert_not_called()
+    assert runtime.owner._observation is observation
+    assert runtime.owner._evidence is evidence
+
+
+@pytest.mark.parametrize("path", PATHS)
+@pytest.mark.parametrize("loss", ("stale", "rotation", "invalidated", "boot"))
+def test_stale_changed_or_lost_evidence_cannot_stay_ready(runtime, path, loss):
+    observe(runtime)
+    if loss == "stale":
+        runtime.now[0] = 160.0
+    elif loss == "invalidated":
+        runtime.owner.invalidate()
+    elif loss == "rotation":
+        monkey = ec.generate_private_key(ec.SECP256R1())
+        serve._A11OY_PRIV = monkey
+        serve._refresh_a11oy_signing_state()
+    else:
+        serve.app.state.szl_series_a_service.runtime_boot_id = "different-boot"
+        serve._refresh_a11oy_signing_state()
+    response = runtime.client.get(path)
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "UNAVAILABLE"
+    assert body["signing_state"]["signing_ready"] is False
+    assert body["receipt_minted"] is False
+
+
+def test_post_sign_still_requires_operator_identity(runtime, monkeypatch):
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "fleet-test-operator-only")
+    forbidden = Mock(side_effect=AssertionError("anonymous request reached signer"))
+    monkeypatch.setattr(serve, "_A11OY_PRIV", SimpleNamespace(sign=forbidden))
+    response = runtime.client.post("/khipu/sign", json={"payload": {"test": True}})
+    assert response.status_code == 401
+    assert response.json()["status"] == "BLOCKED"
+    forbidden.assert_not_called()
+
+
+def test_authenticated_post_sign_keeps_existing_owner_and_real_crypto(runtime, monkeypatch):
+    routes = [
+        route for route in serve.app.routes
+        if getattr(route, "path", None) == "/khipu/sign"
+        and "POST" in getattr(route, "methods", set())
+    ]
+    assert routes[0].endpoint.__name__ == "warhacker_sign"
+    dsse = serve._wh_aliases._dsse
+    monkeypatch.setenv("A11OY_CODE_ADMIN_KEY", "fleet-test-operator-only")
+    monkeypatch.setattr(dsse, "_load_private_key", lambda: runtime.key)
+    monkeypatch.setattr(dsse, "_RUNTIME_PUBLIC_KEYS", {})
+    monkeypatch.setattr(dsse, "_ACTIVE_RUNTIME_KEYID", None)
+    response = runtime.client.post(
+        "/khipu/sign",
+        headers={"Authorization": "Bearer fleet-test-operator-only"},
+        json={"payload": {"scope": "TEST_ONLY", "value": 1}},
+    )
+    assert response.status_code == 200
+    envelope = response.json()["envelope"]
+    assert envelope["signed"] is True
+    payload = base64.b64decode(envelope["payload"], validate=True)
+    signature = base64.b64decode(envelope["signatures"][0]["sig"], validate=True)
+    runtime.key.public_key().verify(
+        signature, serve._a11oy_pae(envelope["payloadType"], payload),
+        ec.ECDSA(hashes.SHA256())
+    )
+    assert json.loads(payload)["payload"] == {"scope": "TEST_ONLY", "value": 1}
+
+
+def test_post_verifier_rejects_tampering_without_signing(runtime, monkeypatch):
+    payload = b'{"scope":"TEST_ONLY","value":1}'
+    payload_type = "application/vnd.szl.khipu+json"
+    signature = runtime.key.sign(
+        serve._a11oy_pae(payload_type, payload), ec.ECDSA(hashes.SHA256())
+    )
+    envelope = {
+        "payloadType": payload_type,
+        "payload": base64.b64encode(payload).decode("ascii"),
+        "signatures": [{"keyid": runtime.fingerprint,
+                        "sig": base64.b64encode(signature).decode("ascii")}],
+    }
+    forbidden = Mock(side_effect=AssertionError("verification attempted signing"))
+    monkeypatch.setattr(serve, "_A11OY_PRIV", SimpleNamespace(sign=forbidden))
+    response = runtime.client.post(
+        "/khipu/verify", json={"envelope": envelope, "pubkey_pem": runtime.public}
+    )
+    assert response.status_code == 200
+    assert response.json()["verified"] is True
+    altered = json.loads(json.dumps(envelope))
+    altered["payload"] = base64.b64encode(b'{"scope":"TEST_ONLY","value":2}').decode("ascii")
+    response = runtime.client.post(
+        "/khipu/verify", json={"envelope": altered, "pubkey_pem": runtime.public}
+    )
+    assert response.status_code == 200
+    assert response.json()["verified"] is False
+    forbidden.assert_not_called()
