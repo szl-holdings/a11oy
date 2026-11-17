@@ -55,7 +55,7 @@ class World:
             f"/accounts/{AID}/workers/scripts/{self.worker}/settings": envelope({
                 "compatibility_date": "2026-09-03",
                 "compatibility_flags": ["cache_option_enabled", PRIVATE],
-                "cache": {"enabled": False},
+                "cache_options": {"enabled": False},
                 "bindings": [{"type": "secret_text", "name": PRIVATE, "text": TOKEN}],
             }),
         }
@@ -161,19 +161,84 @@ class CacheAuditContract(unittest.TestCase):
                 self.assertEqual(report["state"], "UNAVAILABLE")
                 self.assertEqual(len(world.calls), 1)
 
-    def test_foreign_worker_or_unexpected_route_refuses_worker_settings(self):
-        for extra in (False, True):
-            with self.subTest(extra=extra):
+    def test_missing_ambiguous_malformed_or_foreign_apex_refuses_worker_settings(self):
+        for case, reason in (
+            ("missing", "APEX_ROUTE_MISSING"), ("duplicate", "APEX_ROUTE_AMBIGUOUS"),
+            ("malformed", "MALFORMED_ROUTE_METADATA"), ("foreign", "APEX_WORKER_NOT_ALLOWLISTED"),
+        ):
+            with self.subTest(case=case):
                 world = World()
                 rows = world.responses[BASE + "/workers/routes"][0]["result"]
-                if extra:
-                    rows.append({"pattern": audit.ZONE + "/command-centre/*", "script": PRIVATE})
+                if case == "missing":
+                    del rows[0]
+                elif case == "duplicate":
+                    rows.append(copy.deepcopy(rows[0]))
+                elif case == "malformed":
+                    rows.append({"pattern": {PRIVATE: TOKEN}})
                 else:
                     rows[0]["script"] = PRIVATE
                 report = world.run()
+                self.assertEqual(report["observations"]["worker_apex_identity"]["reason"], reason)
+                self.assertEqual(report["observations"]["worker_route"]["state"], "UNAVAILABLE")
                 self.assertEqual(report["observations"]["worker_settings"]["state"], "UNAVAILABLE")
                 self.assertFalse(any("/accounts/" in url for url, _ in world.calls))
                 self.assertNotIn(PRIVATE, json.dumps(report))
+                self.assertNotIn(TOKEN, json.dumps(report))
+
+    def test_unknown_routes_allow_only_known_apex_metadata_without_coverage_upgrade(self):
+        for pattern, script in (
+            (PRIVATE + "." + audit.ZONE + "/*", PRIVATE),
+            (audit.ZONE + "/command-centre/*", PRIVATE),
+            (audit.ZONE + "/command-centre/app.js", None),
+        ):
+            with self.subTest(pattern=pattern):
+                world = World()
+                world.responses[BASE + "/workers/routes"][0]["result"].append({
+                    "pattern": pattern, "script": script,
+                })
+                report = world.run()
+                observations = report["observations"]
+                self.assertEqual(report["state"], "PARTIAL")
+                self.assertFalse(report["provider_write_capability"])
+                self.assertEqual(report["effective_policy"], "NOT_EVALUATED")
+                self.assertEqual(observations["worker_apex_identity"]["script"], world.worker)
+                self.assertEqual(observations["worker_apex_identity"]["binding_evidence"], "EXACT_APEX_METADATA_ONLY")
+                self.assertEqual(observations["worker_route"]["state"], "UNAVAILABLE")
+                self.assertEqual(observations["worker_route"]["reason"], "UNRECOGNIZED_ROUTE_PATTERNS")
+                self.assertEqual(observations["worker_route"]["unrecognized_patterns"], 1)
+                self.assertEqual(observations["worker_settings"]["state"], "OBSERVED")
+                self.assertEqual(observations["route_recheck"]["state"], "UNAVAILABLE")
+                self.assertTrue(observations["route_recheck"]["same_apex_binding"])
+                settings_calls = [(url, options) for url, options in world.calls if "/accounts/" in url]
+                self.assertEqual(len(settings_calls), 1)
+                self.assertEqual(settings_calls[0][0], audit.API + f"/accounts/{AID}/workers/scripts/{world.worker}/settings")
+                self.assertEqual(settings_calls[0][1]["method"], "GET")
+                self.assertIsNone(settings_calls[0][1]["body"])
+                self.assertEqual(len(world.calls), 11)
+                self.assertNotIn(PRIVATE, json.dumps(report))
+
+    def test_apex_change_on_recheck_stays_unavailable(self):
+        world = World()
+        route_reads = 0
+
+        def transport(url, **options):
+            nonlocal route_reads
+            document, error = world.transport(url, **options)
+            if url.endswith("/workers/routes"):
+                route_reads += 1
+                if route_reads == 2:
+                    document["result"][0]["script"] = PRIVATE
+            return document, error
+
+        report = audit.audit(TOKEN, transport=transport)
+        self.assertEqual(report["state"], "PARTIAL")
+        self.assertEqual(report["observations"]["worker_settings"]["state"], "OBSERVED")
+        recheck = report["observations"]["route_recheck"]
+        self.assertEqual(recheck["state"], "UNAVAILABLE")
+        self.assertEqual(recheck["reason"], "APEX_WORKER_NOT_ALLOWLISTED")
+        self.assertFalse(recheck["same_apex_binding"])
+        self.assertNotIn(PRIVATE, json.dumps(report))
+
 
     def test_provider_secrets_expressions_bindings_and_arbitrary_headers_are_not_retained(self):
         world = World()
@@ -357,6 +422,54 @@ class CacheAuditContract(unittest.TestCase):
         report = world.run()
         self.assertEqual(report["observations"]["worker_settings"]["state"], "UNAVAILABLE")
         self.assertEqual(report["observations"]["browser_cache_ttl"]["value"], 3600)
+
+    def test_worker_api_cache_options_distinguish_absent_from_explicit_false(self):
+        absent = audit.worker_summary({"cache": {"enabled": True}})
+        self.assertEqual(absent["worker_cache"], {"state": "NOT_REPORTED"})
+        self.assertEqual(absent["entrypoint_cache_overrides"], {"state": "NOT_REPORTED"})
+        present = audit.worker_summary({"cache_options": {"enabled": False, "cross_version_cache": True}})
+        self.assertEqual(present["worker_cache"], {
+            "state": "PRESENT", "enabled": False, "cross_version_cache": True})
+        self.assertEqual(present["state"], "OBSERVED")
+        self.assertFalse(audit.worker_summary({
+            "cache_options": {"enabled": True, "cross_version_cache": False}
+        })["worker_cache"]["cross_version_cache"])
+
+    def test_worker_api_export_cache_overrides_are_counted_without_names_or_bindings(self):
+        result = audit.worker_summary({
+            "cache_options": {"enabled": False},
+            "exports": {
+                PRIVATE: {"type": "worker", "cache": {"enabled": True}},
+                TOKEN: {"type": "worker", "cache": {"enabled": False}},
+                "private-unnamed-default": {"type": "worker"},
+                "private-object-class": {"type": "durable-object", "storage": PRIVATE},
+            },
+            "bindings": [{"name": PRIVATE, "text": TOKEN}],
+        })
+        self.assertEqual(result["entrypoint_cache_overrides"], {
+            "state": "PRESENT", "worker_entries": 3, "enabled": 1,
+            "disabled": 1, "not_reported": 1, "other_exports_omitted": 1,
+        })
+        self.assertEqual(result["state"], "OBSERVED")
+        for secret in (PRIVATE, TOKEN, "private-unnamed-default", "private-object-class"):
+            self.assertNotIn(secret, json.dumps(result))
+        self.assertEqual(result["export_names"], "NOT_RETAINED")
+
+    def test_malformed_or_oversized_worker_cache_metadata_is_partial(self):
+        cases = [
+            {"cache_options": {"enabled": "false"}},
+            {"cache_options": {"enabled": False, "cross_version_cache": {PRIVATE: TOKEN}}},
+            {"cache_options": None},
+            {"exports": []},
+            {"exports": {PRIVATE: {"type": "worker", "cache": {"enabled": None}}}},
+            {"exports": {str(index): {"type": "worker"} for index in range(audit.MAX_ROWS + 1)}},
+        ]
+        for value in cases:
+            with self.subTest(value=value):
+                result = audit.worker_summary(value)
+                self.assertEqual(result["state"], "PARTIAL")
+                self.assertNotIn(PRIVATE, json.dumps(result))
+                self.assertNotIn(TOKEN, json.dumps(result))
 
     def test_workflow_admits_only_manual_main_source_and_environment_token(self):
         source = (audit.ROOT / ".github/workflows/audit-command-centre-cache-policy.yml").read_text(encoding="utf-8")
