@@ -81,6 +81,9 @@ EVIDENCE_GRAPH_COPY_ADDITIONS = {
 # One explicit telemetry module; prior source digests and layer budget stay fixed.
 TRACE_OBSERVATION_COPY_ADDITIONS = {"vsp_otel/trace_ir.py"}
 
+# The bounded ORO evidence package uses the layer saved by batching two
+# adjacent root COPY instructions. Every historical source digest stays intact.
+ORO_EVIDENCE_COPY_ADDITIONS = {"oro/"}
 # The governed CPU lab uses one pure contract adapter in the existing root COPY.
 # Exclude only that named addition from each frozen historical source set.
 CPU_LAB_CONTRACT_COPY_ADDITIONS = {"a11oy_cpu_lab_contract.py"}
@@ -220,6 +223,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= copy_sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= copy_sources
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= copy_sources
+    assert ORO_EVIDENCE_COPY_ADDITIONS <= copy_sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
@@ -245,6 +249,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | BUILD_ENV_FANOUT_COPY_ADDITIONS
         | EVIDENCE_GRAPH_COPY_ADDITIONS
         | TRACE_OBSERVATION_COPY_ADDITIONS
+        | ORO_EVIDENCE_COPY_ADDITIONS
         | CPU_LAB_CONTRACT_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
@@ -284,6 +289,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= sources
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= sources
+    assert ORO_EVIDENCE_COPY_ADDITIONS <= sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
@@ -306,6 +312,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - BUILD_ENV_FANOUT_COPY_ADDITIONS
         - EVIDENCE_GRAPH_COPY_ADDITIONS
         - TRACE_OBSERVATION_COPY_ADDITIONS
+        - ORO_EVIDENCE_COPY_ADDITIONS
         - CPU_LAB_CONTRACT_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
@@ -343,6 +350,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= sources
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= sources
+    assert ORO_EVIDENCE_COPY_ADDITIONS <= sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
@@ -365,6 +373,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - BUILD_ENV_FANOUT_COPY_ADDITIONS
         - EVIDENCE_GRAPH_COPY_ADDITIONS
         - TRACE_OBSERVATION_COPY_ADDITIONS
+        - ORO_EVIDENCE_COPY_ADDITIONS
         - CPU_LAB_CONTRACT_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")

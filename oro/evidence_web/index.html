@@ -1,0 +1,64 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<html lang="en" data-surface="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Inspect ORO source observations, bounded evidence handles, and authority boundaries.">
+<title>ORO Evidence · A11oy</title>
+<link rel="stylesheet" href="/assets/szl/szl-design-system.css">
+<link rel="stylesheet" href="/assets/szl/szl-console.css">
+<link rel="stylesheet" href="/oro/evidence/assets/styles.css">
+<script src="/oro/evidence/assets/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to evidence</a>
+<div class="workspace">
+<header class="masthead">
+<a class="wordmark" href="/command" aria-label="A11oy command centre">a11oy<span aria-hidden="true"> / </span><span>ORO</span></a>
+<nav aria-label="Workspace"><a href="/command">Command</a><a href="/proof">Proof registry</a><a href="/api/a11oy/v1/oro/evidence">Evidence API <span aria-hidden="true">↗</span></a></nav>
+</header>
+<main id="main">
+<section class="page-head">
+<div><p class="eyebrow">Obligation-Ranked Orbits / inspection</p><h1>Follow the evidence.</h1><p class="lead">Inspect the source links behind the orchestration graph, their boundaries, and what remains unverified.</p></div>
+<button id="refresh" class="refresh" type="button">Refresh observation</button>
+</section>
+<section class="observation-strip" aria-label="Current observation">
+<div class="observation-main"><span class="state-dot" aria-hidden="true"></span><strong id="observation-status">No observation yet</strong><span id="observation-detail">Waiting for the evidence reader.</span></div>
+<div class="view-scope">READ ONLY</div>
+</section>
+<p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+<noscript><p class="notice">JavaScript is required for live observations. The <a href="/api/a11oy/v1/oro/evidence">evidence API</a> remains available for direct inspection.</p></noscript>
+<div class="layout">
+<section class="panel evidence-panel" aria-labelledby="evidence-heading">
+<header class="panel-head"><div><p class="eyebrow">Bounded source pointers</p><h2 id="evidence-heading">Evidence window</h2></div><span id="handle-count" class="count">—</span></header>
+<p class="panel-intro">A pointer identifies declared evidence. Its presence does not verify the content, signature, proof, or permission to act.</p>
+<p id="window-boundary" class="notice">No chain boundary has been observed.</p>
+<div id="nodes" class="nodes"><p class="empty">Evidence handles will appear after an observation.</p></div>
+</section>
+<aside class="panel sources-panel" aria-labelledby="sources-heading">
+<header class="panel-head"><div><p class="eyebrow">Existing evidence owners</p><h2 id="sources-heading">Source observations</h2></div></header>
+<div id="sources" class="sources"><p class="empty">No sources have been observed.</p></div>
+</aside>
+<section class="panel authority-panel" aria-labelledby="authority-heading">
+<header class="panel-head"><div><p class="eyebrow">Authority boundary</p><h2 id="authority-heading">Inspect before acting</h2></div><span class="scope-tag">NO EXECUTION AUTHORITY</span></header>
+<p>This view cannot execute, sign, or promote work. Independent checks and the canonical action authority are required before a candidate can proceed.</p>
+<ul id="execution-reasons" class="reason-list"><li>No execution prerequisites have been observed.</li></ul>
+</section>
+<section class="panel observation-panel" aria-labelledby="details-heading">
+<header class="panel-head"><div><p class="eyebrow">Identity and time</p><h2 id="details-heading">Observation details</h2></div></header>
+<dl class="details-list">
+<div><dt>Collected by the reader</dt><dd id="collected-at">Not observed</dd></div>
+<div><dt>Source revision</dt><dd id="source-revision" class="mono">Not observed</dd></div>
+<div><dt>Evidence freshness</dt><dd id="freshness">Not asserted</dd></div>
+</dl>
+<p class="fine-print">Collection time describes this read. It does not establish when the underlying evidence was created or whether it is current.</p>
+</section>
+</div>
+<details class="raw-panel"><summary>Inspect the returned observation</summary><pre id="raw">No observation yet.</pre></details>
+<footer><p>Evidence handles remain unverified in this inspection view.</p><a href="/api/a11oy/v1/honest">Doctrine and proof scope <span aria-hidden="true">↗</span></a></footer>
+</main>
+</div>
+</body>
+</html>
