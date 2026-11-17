@@ -653,6 +653,10 @@ jobs:
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"
         run: python -B -m pytest -q -p no:cacheprovider tests/test_signing_state_routes.py
+      - name: Verify fleet signing read-only routes in isolation
+        env:
+          SZL_EVIDENCE_WARM_DELAY: "3600"
+        run: python -B -m pytest -q -p no:cacheprovider tests/test_khipu_fleet_signing.py
       - name: Verify lean health signing diagnostics in isolation
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"

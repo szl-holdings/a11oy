@@ -17,6 +17,25 @@ shutdown and can terminate before that outer `finally` runs. The repaired
 ASGI shutdown hook awaits the existing state-store close operation before this
 signal boundary, including when an earlier application cleanup raises.
 
+## Canonical snapshot cadence
+
+The existing `scripts/configure_hf_series_a_runtime.py` convergence owner manages
+`A11OY_STATE_PERIODIC_SECONDS=300` for the canonical Space, matching ADR-0001's
+continuous-write snapshot interval. The 900-second alert default remains in
+`a11oy_state_store`; this setting does not activate v2 or change its lease rules.
+A 1,800-second override allows ordinary waiting to exceed that alert threshold.
+Restarting only resets the observation ages and does not reconcile the interval.
+
+The normal `hf-sync.yml` configuration step corrects a drifted cadence only after
+its existing maintenance-window, protected-main and installed-authority gates.
+It requires provider readback of the complete managed variable contract. Its
+`--check-only` path performs one bounded readback after authority verification;
+missing or drifted values remain `SETUP_REQUIRED` without any provider write.
+An already converged deployment receives no cadence write. A configuration
+change can restart the Space through the provider, so keep it inside the sole
+publisher's coordinated handover and verify the resulting source, boot and
+storage state. Independent execution admission remains separate.
+
 ## Admission and read-only preflight
 
 Coordinate the sole publisher and check that neither `hf-sync.yml` nor

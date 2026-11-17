@@ -10907,12 +10907,10 @@ async def _stop_a11oy_signing_state():
 
 # KHIPU FLEET CONTRACT (platform readiness-reliability executor): the fleet
 # probes {base}/healthz, {base}/khipu/sign, {base}/khipu/verify, {base}/metrics.
-# The estate signing surfaces live at /api/a11oy/v1/* — these ROOT routes are
-# the fleet-contract aliases and perform the REAL sign/verify work with the
-# loaded production key on every request (the same backend as the capability
-# self-test; no stub, no fabricated 200). Fail-closed: key not loaded or
-# fingerprint-mismatched -> HTTP 503 with the honest reason, so the readiness
-# receipt records a real fault instead of a fake green.
+# Fleet GET/HEAD probes project lifecycle-owned signing evidence without
+# signing or refreshing it. They require fresh, boot-bound and key-matched
+# capability evidence; missing or expired evidence returns HTTP 503.
+# Actual receipt signing and verification remain on their existing POST paths.
 def _khipu_fleet_signer_ready() -> tuple[object, str | None]:
     """(private key, verification fingerprint) when the loaded signer is real."""
     if _A11OY_PRIV is None or not _A11OY_PUB_PEM:
@@ -10944,7 +10942,29 @@ def _khipu_fleet_receipt(verification: str) -> dict:
     }
 
 
-@app.api_route("/khipu/sign", methods=["GET", "POST"])
+def _khipu_fleet_signing_observation(operation: str) -> JSONResponse:
+    from szl_signing_state import read_state
+
+    state = read_state(app)
+    ready = state["signing_ready"] is True
+    return JSONResponse({
+        "schema": f"szl.khipu-fleet-{operation}/v1",
+        "status": "READY" if ready else "UNAVAILABLE",
+        "scope": "PROCESS_LOCAL_SIGNING_CAPABILITY",
+        "receipt_minted": False,
+        "sign_on_read": False,
+        "receipt_verification": "NOT_EVALUATED",
+        "operation_method": "POST",
+        "signing_state": state,
+    }, status_code=200 if ready else 503, headers={"Cache-Control": "no-store"})
+
+
+@app.api_route("/khipu/sign", methods=["GET", "HEAD"])
+async def khipu_fleet_sign_status() -> JSONResponse:
+    return _khipu_fleet_signing_observation("sign")
+
+
+@app.post("/khipu/sign")
 async def khipu_fleet_sign() -> JSONResponse:
     priv, verification = _khipu_fleet_signer_ready()
     if priv is None:
@@ -10968,7 +10988,12 @@ async def khipu_fleet_sign() -> JSONResponse:
                          "verified": True})
 
 
-@app.api_route("/khipu/verify", methods=["GET", "POST"])
+@app.api_route("/khipu/verify", methods=["GET", "HEAD"])
+async def khipu_fleet_verify_status() -> JSONResponse:
+    return _khipu_fleet_signing_observation("verify")
+
+
+@app.post("/khipu/verify")
 async def khipu_fleet_verify(request: "Request" = None) -> JSONResponse:
     priv, verification = _khipu_fleet_signer_ready()
     if priv is None:
