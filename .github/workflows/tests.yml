@@ -57,6 +57,8 @@ jobs:
           tests/test_evidence_receipt_routes.py
           tests/test_model_endpoint_credentials.py
           tests/test_energy_ledger_observation.py
+          tests/test_model_access.py test_provider_http.py
+          tests/test_model_companion_boundary.py
           tests/test_collector_reason_codes.py
           tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
@@ -337,6 +339,7 @@ jobs:
           tests/test_state_store_asgi_shutdown.py
           tests/test_state_store_handover_operator.py
           tests/test_state_store_handover.py
+          tests/test_series_a_state_store_fence.py
           tests/test_state_store_restore.py
           tests/test_current_state_snapshot_rehearsal.py
           tests/test_state_store_wiring.py
@@ -376,6 +379,7 @@ jobs:
           tests/test_sqlite_orphan_repair.py
           tests/test_sqlite_logical_fingerprint.py
           tests/test_state_store_handover.py
+          tests/test_series_a_state_store_fence.py
           tests/test_state_store_restore.py
           tests/test_state_store_wiring.py
           tests/test_gdw_durable_runtime.py
@@ -409,6 +413,7 @@ jobs:
           tests/test_atelier_console_lock.py
           tests/test_cpu_lab_contract.py
           test_provider_http.py
+          tests/test_cloudflare_command_centre_cache_audit.py
           tests/test_brainserve.py
           tests/test_run_local_atelier.py
           tests/test_command_centre.py
