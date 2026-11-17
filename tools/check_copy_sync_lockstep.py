@@ -849,7 +849,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     # Read-only proof of a new clean configuration writer before publication.
     ".github/scripts/await_hf_configuration_handover.py": "4e49d195c0e7da1a7260dd4ad7ca84835c9e8d26fdf522e6928d9166e7a13852",
-    "scripts/configure_hf_series_a_runtime.py": "06250573191430fc07b5ece9a14efad7dbf3040f3213b49c91f3ba5a0ab431e2",
+    "scripts/configure_hf_series_a_runtime.py": "dc4d54b31beb794e62e66ec614bd46257353d0ecdf2645e7295655cb2d96f60c",
     "scripts/configure_hf_gdw_runtime.py": "289c0a3d0896c3b10321e2aa3f4543188e238cf22b1b79d632c98cbf23ba0462",
     # Installed-authority verifier imported by both configure helpers, with
     # its pinned verification key and static fallback source.
