@@ -2,7 +2,7 @@
 // Read-only live x402 challenge witness. Unpaid HEAD only; never a settlement test.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
