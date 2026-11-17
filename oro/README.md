@@ -37,12 +37,31 @@ authority.
 `oro.source_adapters.project_source_snapshots` accepts an **existing** Wire F
 Khipu DAG reader and explicit Second Brain, Anatomy, and Hatun adapter
 snapshots. It does not fetch sources, start a DAG runner, checkpoint, sign,
-write, or feed the ORO barrier engine. This is a Python inspection seam, not a
-runtime route or evidence of cross-service deployment.
+write, or feed the ORO barrier engine.
 
-The Khipu read is limited to 33 recent nodes and projects at most 32. A tail
-with a missing earlier parent is marked partial and exposes only the omitted
-parent digest; the projection does not fabricate that parent. Second Brain
+The canonical app registers oro.evidence_api at /api/a11oy/v1/oro/evidence
+and /oro/evidence. This inspection route reads the already-registered Wire F
+owner and the local Anatomy v6 summary; it never constructs the standalone
+ORO runtime. Missing external Second Brain and Hatun snapshots remain UNKNOWN.
+The v6 summary is not recast as a v7 topology or a verified evidence handle.
+Retrieval time does not assert evidence freshness, and all execution, signing,
+and promotion authority remains false. Deployment is established only by a
+successful route readback at the corresponding source revision.
+
+See [the integration contract and cited prior art](../docs/architecture/oro-evidence-integration.md)
+for the storage, signer, and admission boundaries required before canonical ORO
+execution can be enabled.
+
+The Khipu projection contains at most 32 nodes from a 33-node input window.
+Canonical HTTP inspection requires the owner's bounded evidence_window method:
+managed reads select at most 33 rows and check a 1 MiB cumulative JSON budget
+before loading bodies, with a two-second SQLite busy timeout. Only the selected
+window is checked; full history validation is explicitly NOT_PERFORMED. Existing
+full-history readers retain their behavior. The library's legacy recent reader
+is not admitted by the HTTP route.
+
+A tail with a missing earlier parent is marked partial and exposes only the
+omitted parent digest; the projection does not fabricate that parent. Second Brain
 contributes at most 12 hash-shaped citation pointers only when the caller
 supplies an exact immutable source commit. This binding remains `DECLARED`;
 the pointer bytes and source revision match are not independently verified.
@@ -57,6 +76,28 @@ The standalone ORO service does not own these other runtimes. An owner must
 supply already-read snapshots to this function; an absent source stays
 `UNKNOWN` or `UNAVAILABLE`. The projection SHA-256 is an inspection checksum,
 not a Khipu receipt, signature, or Lean proof.
+
+## Content-cycle identity and retained history
+
+A barrier's cycle fingerprint uses the versioned `szl.oro-barrier-content/v1`
+projection: orbit identity plus sorted participant identities and payload digests.
+Changing only transport `received_at`, generation, or barrier ID is not evidence of
+semantic progress. Payload-owned observation times remain part of the payload digest.
+TTL, participant membership, generation, and invariant checks retain their inputs.
+
+For histories written before this projection, the store reads committed receipt
+participant pointers, checks canonical bytes, receipt digest and barrier binding,
+and projects the content identity without rewriting old receipts, DSSE envelopes,
+or indexes. The fallback is bounded to 4,096 barriers and 16 MiB of receipt bodies;
+missing, corrupt or over-budget history holds instead of silently truncating. This
+is local integrity reconciliation, not independent signature or source admission.
+It introduces no database migration, provider call, scheduler, or release authority.
+
+This closes a transport-timestamp replay blind spot. It does not prove general
+semantic equivalence, understand paraphrases, or change the structural rank theorem
+boundary. Unchanged content with a later delivery timestamp is refused even when
+an untrusted caller declares objective convergence. Existing rank, Codex, formula,
+expiry and independent-approval controls remain separate.
 
 ## Local source verification
 

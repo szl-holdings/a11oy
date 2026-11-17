@@ -1,23 +1,30 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import base64
+from contextlib import closing
 import json
 from pathlib import Path
+import sqlite3
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi.testclient import TestClient
 
 from oro.api import create_app
 from oro.core import (
     Allocation,
     CodexManifest,
+    DSSE_PAYLOAD_TYPE,
     OROContractError,
+    OROStateError,
     Rank,
     RoleSpec,
     allocate_rank,
+    canonical_json,
 )
 from oro.service import OROService
-from oro.signing import Ed25519DSSESigner
+from oro.signing import Ed25519DSSESigner, dsse_pae
 from oro.store import OROStore
 
 SOURCE_REVISION = "a" * 40
@@ -227,6 +234,186 @@ def test_complete_barrier_is_signed_and_persisted(tmp_path: Path) -> None:
     assert service.store.counts()["receipts"] == 1
     assert service.store.integrity()["ready"] is True
     service.store.close()
+
+
+@pytest.fixture
+def signer_envelope_service(tmp_path: Path):
+    private_key = Ed25519PrivateKey.generate()
+    signer = Ed25519DSSESigner(
+        key_id="oro-envelope-test", private_key=private_key, source="ephemeral-test"
+    )
+    store = OROStore(tmp_path / "envelope.sqlite", production=False)
+    try:
+        yield OROService(store=store, signer=signer, production=False), private_key.public_key()
+    finally:
+        store.close()
+
+
+def assert_no_committed_barrier_outcome(service: OROService) -> None:
+    # A separate reader observes committed state, including the existing pre-sign writes.
+    with closing(sqlite3.connect(service.store.path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
+        for table in ("barriers", "receipts", "arrivals", "rank_allocations",
+                      "invariant_results", "semantic_hashes"):
+            assert db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+        assert db.execute(
+            "SELECT status, generation, current_rank_json FROM orbit_runs WHERE orbit_id='orbit-1'"
+        ).fetchone() == ("RUNNING", 0, canonical_json(plan_payload(service)["rank"]).decode("utf-8"))
+        assert db.execute("SELECT status FROM plans WHERE plan_id='plan-1'").fetchone() == ("RUNNING",)
+        assert db.execute("SELECT kind FROM certificates").fetchall() == [("intent",)]
+        assert db.execute("SELECT COUNT(*) FROM negative_results").fetchone()[0] == 1
+
+
+@pytest.mark.parametrize("misbinding", ["different_payload", "equivalent_json", "different_type"])
+def test_signer_envelope_binding_rejects_valid_signature_over_other_content(
+    signer_envelope_service, monkeypatch: pytest.MonkeyPatch, misbinding: str
+) -> None:
+    service, public_key = signer_envelope_service
+    real_sign = service.signer.sign
+    verified = []
+
+    def misbound_sign(payload_type: str, payload: bytes):
+        if misbinding == "different_type":
+            payload_type = "application/vnd.szl.receipt+json"
+        elif misbinding == "equivalent_json":
+            original = payload
+            payload += b"\n"
+            assert json.loads(payload) == json.loads(original)
+        else:
+            changed = json.loads(payload)
+            changed["decision"] = "REFUSE"
+            payload = canonical_json(changed)
+        envelope = real_sign(payload_type, payload)
+        public_key.verify(
+            base64.b64decode(envelope["signatures"][0]["sig"], validate=True),
+            dsse_pae(payload_type, payload),
+        )
+        verified.append(envelope)
+        return envelope
+
+    monkeypatch.setattr(service.signer, "sign", misbound_sign)
+    service.create_plan(plan_payload(service))
+    with pytest.raises(OROStateError, match="governed signer returned"):
+        service.execute_plan("plan-1", execution_payload(objective_converged=True))
+    assert len(verified) == 1
+    assert_no_committed_barrier_outcome(service)
+
+
+@pytest.mark.parametrize("malformation", [
+    "not_object", "missing_type", "missing_payload", "payload_not_text",
+    "payload_non_ascii", "payload_invalid_alphabet", "payload_whitespace",
+    "payload_extra_padding", "missing_signatures", "empty_signatures",
+    "signatures_not_array", "signature_not_object", "signature_missing_sig",
+    "signature_not_text", "signature_empty", "signature_invalid_base64",
+    "signature_whitespace", "signature_extra_padding", "signature_keyid_not_text",
+    "mixed_valid_and_invalid_signatures",
+])
+def test_signer_envelope_binding_rejects_malformed_envelopes(
+    signer_envelope_service, monkeypatch: pytest.MonkeyPatch, malformation: str
+) -> None:
+    service, _ = signer_envelope_service
+    real_sign = service.signer.sign
+
+    def malformed_sign(payload_type: str, payload: bytes):
+        envelope = real_sign(payload_type, payload)
+        signature = envelope["signatures"][0]
+        if malformation == "not_object":
+            return ["not-an-envelope"]
+        if malformation == "missing_type":
+            envelope.pop("payloadType")
+        elif malformation == "missing_payload":
+            envelope.pop("payload")
+        elif malformation == "payload_not_text":
+            envelope["payload"] = 17
+        elif malformation == "payload_non_ascii":
+            envelope["payload"] += "\u00e9"
+        elif malformation == "payload_invalid_alphabet":
+            envelope["payload"] += "!"
+        elif malformation == "payload_whitespace":
+            envelope["payload"] += "\n"
+        elif malformation == "payload_extra_padding":
+            envelope["payload"] += "="
+        elif malformation == "missing_signatures":
+            envelope.pop("signatures")
+        elif malformation == "empty_signatures":
+            envelope["signatures"] = []
+        elif malformation == "signatures_not_array":
+            envelope["signatures"] = {"sig": signature["sig"]}
+        elif malformation == "signature_not_object":
+            envelope["signatures"] = [signature["sig"]]
+        elif malformation == "signature_missing_sig":
+            signature.pop("sig")
+        elif malformation == "signature_not_text":
+            signature["sig"] = 17
+        elif malformation == "signature_empty":
+            signature["sig"] = ""
+        elif malformation == "signature_invalid_base64":
+            signature["sig"] = "!"
+        elif malformation == "signature_whitespace":
+            signature["sig"] += "\n"
+        elif malformation == "signature_extra_padding":
+            signature["sig"] += "="
+        elif malformation == "signature_keyid_not_text":
+            signature["keyid"] = 17
+        elif malformation == "mixed_valid_and_invalid_signatures":
+            envelope["signatures"].append({"sig": "!"})
+        return envelope
+
+    monkeypatch.setattr(service.signer, "sign", malformed_sign)
+    service.create_plan(plan_payload(service))
+    with pytest.raises(OROStateError, match="governed signer returned"):
+        service.execute_plan("plan-1", execution_payload(objective_converged=True))
+    assert_no_committed_barrier_outcome(service)
+
+
+@pytest.mark.parametrize("keyid", [None, ""])
+def test_signer_envelope_binding_preserves_dsse_extensions_and_optional_keyid(
+    signer_envelope_service, monkeypatch: pytest.MonkeyPatch, keyid: str | None
+) -> None:
+    service, public_key = signer_envelope_service
+    real_sign = service.signer.sign
+
+    def compatible_sign(payload_type: str, payload: bytes):
+        envelope = real_sign(payload_type, payload)
+        signature = envelope["signatures"][0]
+        if keyid is None:
+            signature.pop("keyid")
+        else:
+            signature["keyid"] = keyid
+        envelope["payload"] = base64.urlsafe_b64encode(payload).decode("ascii")
+        signature["sig"] = base64.urlsafe_b64encode(
+            base64.b64decode(signature["sig"], validate=True)
+        ).decode("ascii")
+        signature["extension"] = "untrusted-hint"
+        envelope["extension"] = {"authority": "NONE"}
+        envelope["signatures"].append(dict(signature))
+        return envelope
+
+    monkeypatch.setattr(service.signer, "sign", compatible_sign)
+    service.create_plan(plan_payload(service))
+    result = service.execute_plan("plan-1", execution_payload(objective_converged=True))
+    envelope = result["barrier"]["envelope"]
+    payload = base64.b64decode(envelope["payload"], altchars=b"-_", validate=True)
+    assert envelope["payloadType"] == DSSE_PAYLOAD_TYPE
+    assert payload == canonical_json(result["barrier"]["body"])
+    for signature in envelope["signatures"]:
+        public_key.verify(
+            base64.b64decode(signature["sig"], altchars=b"-_", validate=True),
+            dsse_pae(DSSE_PAYLOAD_TYPE, payload),
+        )
+    assert result["barrier"]["decision"] == "COMPLETE"
+    assert service.store.counts()["receipts"] == 1
+
+
+def test_signer_envelope_binding_keeps_explicit_unsigned_development_path(tmp_path: Path) -> None:
+    store = OROStore(tmp_path / "unsigned.sqlite", production=False)
+    try:
+        service = OROService(store=store, signer=None, production=False)
+        service.create_plan(plan_payload(service))
+        result = service.execute_plan("plan-1", execution_payload(objective_converged=True))
+        assert result["barrier"]["envelope"]["signatures"] == []
+        assert result["barrier"]["signer_identity"]["state"] == "UNSIGNED_NON_PRODUCTION"
+    finally:
+        store.close()
 
 
 def test_continuation_advances_durable_generation_and_rank(tmp_path: Path) -> None:
@@ -462,3 +649,175 @@ def test_duplicate_json_fields_and_non_json_are_rejected(
             headers={"Content-Type": "application/x-www-form-urlencoded", **AUTH_HEADERS},
         )
         assert non_json.status_code == 422
+
+
+# Content-cycle regressions: receipt chronology is not semantic progress.
+def _retimed_second_request(*, complete=False):
+    payload = execution_payload(
+        barrier_id="barrier-retimed", generation=1, sequence=0,
+        objective_converged=complete,
+        rank_after={"obligations": 0, "evidence_deficits": 2, "budget_units": 7, "turns": 2},
+    )
+    for arrival in payload["arrivals"]:
+        arrival["received_at"] = "2026-08-17T00:00:02.000Z"
+    return payload
+
+
+def _persist_legacy_barrier(service):
+    """Create a test-only signed receipt using the original transport-bound hash."""
+    from dataclasses import replace
+    from oro.core import BARRIER_SCHEMA, DSSE_PAYLOAD_TYPE, canonical_json, receipt_digest, semantic_hash
+    original = service.engine.evaluate
+
+    def legacy(**kwargs):
+        decision = original(**kwargs)
+        merged = {
+            "schema": BARRIER_SCHEMA,
+            "orbit_id": kwargs["orbit_id"],
+            "participants": [
+                {"participant_id": a.participant_id, "payload": a.payload,
+                 "payload_digest": a.digest, "received_at": a.received_at}
+                for a in sorted(kwargs["arrivals"], key=lambda a: a.participant_id)
+            ],
+        }
+        digest = semantic_hash(merged)
+        body = dict(decision.receipt)
+        body.pop("receipt_digest")
+        body["semantic_hash"] = digest
+        body["receipt_digest"] = receipt_digest(body)
+        envelope = service.engine._signer.sign(DSSE_PAYLOAD_TYPE, canonical_json(body))
+        return replace(decision, semantic_digest=digest, receipt=body, envelope=envelope)
+
+    service.engine.evaluate = legacy
+    try:
+        service.execute_plan("plan-1", execution_payload())
+    finally:
+        service.engine.evaluate = original
+
+
+@pytest.mark.parametrize("complete", [False, True])
+def test_retimed_cycle_refuses_without_claiming_progress(tmp_path, complete):
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        service.execute_plan("plan-1", execution_payload())
+        result = service.execute_plan("plan-1", _retimed_second_request(complete=complete))
+        assert result["barrier"]["decision"] == "REFUSE"
+        assert "semantic cycle" in result["barrier"]["reason"]
+        assert result["certificate"]["kind"] == "refusal"
+    finally:
+        service.store.close()
+
+
+def test_retimed_cycle_reopen_preserves_legacy_receipt_bytes(tmp_path):
+    service = service_for(tmp_path)
+    service.create_plan(plan_payload(service))
+    _persist_legacy_barrier(service)
+    before = tuple(service.store.connection.execute(
+        "SELECT body_json, envelope_json FROM receipts WHERE barrier_id='barrier-1'"
+    ).fetchone())
+    service.store.close()
+    service = service_for(tmp_path)
+    try:
+        result = service.execute_plan("plan-1", _retimed_second_request())
+        assert result["barrier"]["decision"] == "REFUSE"
+        after = tuple(service.store.connection.execute(
+            "SELECT body_json, envelope_json FROM receipts WHERE barrier_id='barrier-1'"
+        ).fetchone())
+        assert after == before
+    finally:
+        service.store.close()
+
+
+@pytest.mark.parametrize("field,value", [("amount_micros", 1250001),
+                                        ("observed_at", "2026-08-17T00:00:02.000Z")])
+def test_retimed_changed_payload_is_not_a_false_cycle(tmp_path, field, value):
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        _persist_legacy_barrier(service)
+        payload = _retimed_second_request()
+        payload["arrivals"][0]["payload"][field] = value
+        assert service.execute_plan("plan-1", payload)["barrier"]["decision"] == "CONTINUE"
+    finally:
+        service.store.close()
+
+
+def test_retimed_cycle_order_does_not_change_content(tmp_path):
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        service.execute_plan("plan-1", execution_payload())
+        payload = _retimed_second_request()
+        payload["arrivals"].reverse()
+        assert service.execute_plan("plan-1", payload)["barrier"]["decision"] == "REFUSE"
+    finally:
+        service.store.close()
+
+
+@pytest.mark.parametrize("damage", ["missing", "changed-body", "invalid-json"])
+def test_retimed_cycle_corrupt_legacy_history_holds(tmp_path, damage):
+    from oro.core import OROStateError
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        _persist_legacy_barrier(service)
+        if damage == "missing":
+            service.store.connection.execute("DELETE FROM receipts WHERE barrier_id='barrier-1'")
+        else:
+            raw = '{"participants":[]}' if damage == "changed-body" else '{not-json'
+            service.store.connection.execute(
+                "UPDATE receipts SET body_json=? WHERE barrier_id='barrier-1'", (raw,)
+            )
+        with pytest.raises(OROStateError, match="semantic history"):
+            service.execute_plan("plan-1", _retimed_second_request())
+    finally:
+        service.store.close()
+
+
+@pytest.mark.parametrize("bound", ["MAX_SEMANTIC_HISTORY_BARRIERS", "MAX_SEMANTIC_HISTORY_BYTES"])
+def test_retimed_cycle_history_budget_holds_without_truncating(tmp_path, monkeypatch, bound):
+    import oro.store as store_module
+    from oro.core import OROStateError
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        _persist_legacy_barrier(service)
+        monkeypatch.setattr(store_module, bound, 0)
+        with pytest.raises(OROStateError, match="semantic history"):
+            service.execute_plan("plan-1", _retimed_second_request())
+    finally:
+        service.store.close()
+
+
+def test_retimed_cycle_legacy_lookup_has_no_storage_side_effect(tmp_path):
+    from oro.core import barrier_content_hash, semantic_hash
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        _persist_legacy_barrier(service)
+        pointers = [{"participant_id": a["participant_id"], "arrival_digest": semantic_hash(a["payload"])}
+                    for a in execution_payload()["arrivals"]]
+        before = service.store.connection.total_changes
+        assert service.store.seen_semantic_hash("orbit-1", barrier_content_hash("orbit-1", pointers))
+        assert service.store.connection.total_changes == before
+        assert not service.store.seen_semantic_hash("other-orbit", barrier_content_hash("orbit-1", pointers))
+    finally:
+        service.store.close()
+
+
+@pytest.mark.parametrize("bad", ["ttl", "generation"])
+def test_retimed_cycle_keeps_transport_validation(tmp_path, bad):
+    service = service_for(tmp_path)
+    try:
+        service.create_plan(plan_payload(service))
+        service.execute_plan("plan-1", execution_payload())
+        payload = _retimed_second_request()
+        if bad == "ttl":
+            payload["arrivals"][0]["received_at"] = "2031-01-01T00:00:00.000Z"
+        else:
+            payload["arrivals"][0]["generation"] = 2
+        with pytest.raises(OROContractError):
+            service.execute_plan("plan-1", payload)
+    finally:
+        service.store.close()

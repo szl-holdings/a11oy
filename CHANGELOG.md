@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - honesty wall UNKNOWN label and console Ask & Act badge
+
+- The honesty wall no longer reports VIOLATED for a sovereign node that is
+  reachable but unverified. GET /api/a11oy/v1/llm/sovereign/health labels that
+  state UNKNOWN, which is in the public-estate contract truthVocabulary, so every
+  honest-label vocabulary copy now lists it. UNKNOWN counts only as the whole
+  label value: free text that merely contains the word stays VIOLATED.
+- Label changes in the frontier-index catalog, and in /api/a11oy/v1/status and
+  /api/a11oy/v1/whatsnew/feed, which copy its labels verbatim:
+  - router moves from MODELED to UNKNOWN, taken from the unprobed sovereign
+    sub-node on /api/a11oy/v1/llm/router/status. This is a weaker claim, not an
+    upgrade.
+  - sovereign, only while the node is reachable but unverified (the live case),
+    moves from ROADMAP (/api/a11oy/v1/energy/sovereign) to UNKNOWN, the node's
+    own label on /api/a11oy/v1/llm/sovereign/health. Otherwise it is unchanged
+    from before: UNAVAILABLE when the node refuses, ROADMAP when the health
+    probe times out. Neither case claims LIVE or MEASURED.
+- The console Ask & Act badge drops its LIVE token and reads GDW UNAVAILABLE,
+  EXECUTION ROADMAP, DRAFT ONLY, matching the console tab liveness check.
+
+### Fixed - governed CPU lab operator integration
+
+- The authenticated CPU form at /command-centre#cpu-work now uses the pinned
+  governed v3 inference contract. The existing Atelier request body is unchanged;
+  successful responses carry PROPOSAL, UNSIGNED_LOCAL, grounding-required and
+  no-action-authority metadata, plus validated public source handles.
+  ABSTAIN, REVIEW and BLOCKED remain explicit non-answer outcomes.
+- Migration: replace legacy POST /api/a11oy/v1/khipu/chat and the brainserve
+  generation/probe routes with POST /api/a11oy/v1/atelier/cpu-lab/turn, using
+  operator authentication and a fresh acknowledgment for the exact PUBLIC prompt.
+  Retired generation routes return HTTP 410. Khipu status and brainserve metadata
+  reads do not generate, sign, forward prompts or probe the retired service.
+  The old Khipu voter remains discoverable but unavailable.
+- Provider calls enforce absolute I/O deadlines, bounded response/error bodies,
+  exact declared success status and no POST address replay after uncertain outcomes.
+  The CPU form has a 90-second allowance and displays bounded contract reason codes.
+- The historical fabrication evaluator is explicitly unavailable (exit 2) until
+  qualified for the governed contract. Its scheduled failure gate remains strict;
+  unavailability no longer passes as a skip or creates a fabricated-model finding.
+  See docs/reviews/model-serving-closure-2026-11-16.md for evidence and limits.
+
+
+### Fixed - source-pinned Lean snapshot labels
+
+- Retained Yachay source and evidence docs now cite the historical authority
+  snapshot at `c7c0ba17` with its measurement timestamp, rather than calling
+  752/160 a live census.
+- The legacy `doctrine_locked.live_regen` and `putnam_green` fields are now null.
+  Explicit integrations should read `lean_snapshot`, including its historical
+  status and `current_head_verified: false`.
+- Yachay remains unmounted and absent from the production image; no chat route
+  is activated by this correction. Current HEAD proof counts remain unverified.
+
 ### Added - serve the estate-trained lora adapter as the `lora` effort
 
 - The governed inference edge (`cloudflare/a11oy-governed-inference-worker.mjs`)

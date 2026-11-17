@@ -320,7 +320,7 @@ class Observer:
     def _journal_plan(self, challenge, envelope):
         raw = acceptance.canonical(envelope).decode()
         context = challenge.context
-        with self.service.store.lock, closing(self.service.store.connect()) as db, db:
+        with self.service.store.lock, self.service.store.connect(write=True) as db:
             db.execute("""CREATE TABLE IF NOT EXISTS execution_observation_evidence(
                 run_nonce TEXT PRIMARY KEY REFERENCES execution_observation_plans(run_nonce),
                 source_revision TEXT NOT NULL, runtime_revision TEXT NOT NULL,
@@ -339,7 +339,7 @@ class Observer:
 
     def _journal_complete(self, nonce, bundle):
         raw = acceptance.canonical(bundle).decode()
-        with self.service.store.lock, closing(self.service.store.connect()) as db, db:
+        with self.service.store.lock, self.service.store.connect(write=True) as db:
             row = db.execute("SELECT plan_envelope_json FROM execution_observation_evidence "
                              "WHERE run_nonce=? AND state='PLANNED'", (nonce,)).fetchone()
             require(row is not None and row[0] == acceptance.canonical(bundle["plan"]).decode(),
@@ -357,13 +357,10 @@ class Observer:
         finishes; a concurrent quiesce therefore cannot mistake it for drained.
         No subsequent effect or export is resumed after task cancellation.
         """
-        require(manager.begin_write(), "OBSERVATION_WRITER_UNAVAILABLE")
-        try:
+        with manager.serialized_write_scope():
             with self._guard:
                 require(nonce not in self._cancelled, "OBSERVATION_CANCELLED")
             return function(*args, **kwargs)
-        finally:
-            manager.end_write()
 
     async def run(self, envelope, nonce, headers):
         credentials, operator_reference = self._caller(headers)
