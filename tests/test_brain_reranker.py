@@ -220,7 +220,15 @@ def test_docker_and_frontend_wiring_present():
     registry = (root / "static/3d/holographic.html").read_text(encoding="utf-8")
     backend_registry = (root / "szl3d_holographic.py").read_text(encoding="utf-8")
     anatomy = (root / "szl_anatomy_3d.py").read_text(encoding="utf-8")
-    assert "COPY szl_braincorpus.py szl_brain_reranker.py ./" in docker
+    from tests.image_layout import runtime_copies
+
+    root_sources = {
+        source
+        for sources, destination in runtime_copies(docker)
+        if destination == "/app/"
+        for source in sources
+    }
+    assert {"szl_braincorpus.py", "szl_brain_reranker.py", "szl_anatomy_3d.py"} <= root_sources
     assert "import szl_brain_reranker" in serve
     assert 'id: "brainreranker"' in registry
     assert '"id": "brainreranker"' in backend_registry

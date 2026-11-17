@@ -32,6 +32,16 @@ class ExecutionBudgetError(ValueError):
     """A local request bound failed; never contains provider or credential text."""
 
 
+def model_access_auth_headers(base_url, bearer_headers):
+    """Canonical model Access adapter; shared engines may lack this companion.
+
+    The shared caller reaches this only when a dedicated Access setting exists.
+    Configuration validation is pure; this adds no request, fallback or signer.
+    """
+    from szl_model_access import model_access_headers
+    return {**bearer_headers, **model_access_headers(base_url)}
+
+
 class ExecutionBudget:
     """Opt-in bounds on client requests, requested output and observed elapsed time.
 

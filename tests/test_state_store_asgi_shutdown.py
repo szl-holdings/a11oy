@@ -28,6 +28,7 @@ def _serve_shutdown(**overrides):
                 if isinstance(node, ast.AsyncFunctionDef) and node.name == "shutdown")
     hook.decorator_list = []
     scope = {
+        "app": SimpleNamespace(state=SimpleNamespace()),
         "asyncio": asyncio, "sys": sys, "_rd_artifact": None,
         "_stop_a11oy_signing_state": stop_signing_sampler,
         "_a11oy_eval_autorun_stop": lambda: None,
@@ -101,6 +102,10 @@ def test_asgi_state_release_precedes_uvicorn_sigterm_reraise():
         async def stop_signing_sampler():
             await asyncio.sleep(0)
             print("SIGNER_STOP_FINISHED", flush=True)
+        async def stop_series_a():
+            await asyncio.sleep(0)
+            print("SERIES_A_STOP_FINISHED", flush=True)
+        app.state.szl_series_a_service = types.SimpleNamespace(stop=stop_series_a)
         scope = {"app": app, "asyncio": asyncio, "sys": sys,
                  "_rd_artifact": None, "_a11oy_eval_autorun_stop": lambda: None,
                  "_stop_a11oy_signing_state": stop_signing_sampler,
@@ -129,6 +134,59 @@ def test_asgi_state_release_precedes_uvicorn_sigterm_reraise():
     )
     assert result.returncode == -signal.SIGTERM, (result.returncode, result.stdout, result.stderr)
     assert result.stdout.splitlines() == [
-        "SIGNER_STOP_FINISHED", "STATE_RELEASE_FINISHED"], result.stderr
+        "SIGNER_STOP_FINISHED", "SERIES_A_STOP_FINISHED", "STATE_RELEASE_FINISHED"], result.stderr
 
 
+
+
+def test_asgi_shutdown_joins_series_a_before_off_loop_state_release(monkeypatch):
+    calls = []
+    loop_thread = threading.get_ident()
+
+    async def stop_series_a():
+        calls.append(("series-a-stop-start", threading.get_ident()))
+        await asyncio.sleep(0)
+        calls.append(("series-a-stop-finished", threading.get_ident()))
+
+    monkeypatch.setattr(ss, "shutdown", lambda: calls.append(("release", threading.get_ident())))
+    service = SimpleNamespace(stop=stop_series_a)
+    hook = _serve_shutdown(app=SimpleNamespace(state=SimpleNamespace(szl_series_a_service=service)))
+    asyncio.run(hook())
+    assert [name for name, _ in calls] == ["series-a-stop-start", "series-a-stop-finished", "release"]
+    assert calls[0][1] == calls[1][1] == loop_thread
+    assert calls[-1][1] != loop_thread
+
+
+def test_series_a_shutdown_failure_still_releases_state(monkeypatch):
+    calls = []
+
+    async def fail_series_a_stop():
+        await asyncio.sleep(0)
+        calls.append("series-a-stop-failed")
+        raise RuntimeError("synthetic series-a stop failure")
+
+    monkeypatch.setattr(ss, "shutdown", lambda: calls.append("release"))
+    service = SimpleNamespace(stop=fail_series_a_stop)
+    hook = _serve_shutdown(app=SimpleNamespace(state=SimpleNamespace(szl_series_a_service=service)))
+    with pytest.raises(RuntimeError, match="synthetic series-a stop failure"):
+        asyncio.run(hook())
+    assert calls == ["series-a-stop-failed", "release"]
+
+
+def test_earlier_shutdown_failure_still_stops_series_a_and_releases_state(monkeypatch):
+    calls = []
+
+    def fail_reader_stop():
+        raise RuntimeError("synthetic earlier shutdown failure")
+
+    async def stop_series_a():
+        await asyncio.sleep(0)
+        calls.append("series-a-stop-finished")
+
+    monkeypatch.setattr(ss, "shutdown", lambda: calls.append("release"))
+    hook = _serve_shutdown(
+        _rd_artifact=SimpleNamespace(reader=SimpleNamespace(stop=fail_reader_stop)),
+        app=SimpleNamespace(state=SimpleNamespace(szl_series_a_service=SimpleNamespace(stop=stop_series_a))))
+    with pytest.raises(RuntimeError, match="synthetic earlier shutdown failure"):
+        asyncio.run(hook())
+    assert calls == ["series-a-stop-finished", "release"]

@@ -105,6 +105,22 @@ class SourceAdapterTests(unittest.TestCase):
         self.assertNotIn("private-looking-id", str(result))
         self.assertNotIn("khipu.handle.alpha", str(result))
 
+    def test_bounded_owner_protocol_is_used_without_legacy_fallback(self):
+        class BoundedDag(ExistingDag):
+            def evidence_window(self, count):
+                self.calls.append(("evidence_window", count))
+                return self.nodes[-count:]
+            def recent(self, _count):
+                raise AssertionError("bounded inspection must not use recent")
+        owner = BoundedDag([khipu_node(0)])
+        result = project_source_snapshots(canonical_khipu_dag=owner)
+        self.assertEqual(owner.calls, [("evidence_window", 33)])
+        state = result["sources"]["canonical_khipu"]
+        self.assertEqual(state["read_method"], "evidence_window")
+        self.assertEqual(state["validation_scope"], "BOUNDED_WINDOW_ONLY")
+        self.assertEqual(state["history_validation"], "NOT_PERFORMED")
+        self.assertEqual(result["nodes"][0]["evidence"]["proof_status"], "UNVERIFIED")
+
     def test_real_wire_f_reader_does_not_append_or_sign_on_projection(self):
         import szl_provenance
 
