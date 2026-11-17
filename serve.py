@@ -604,6 +604,22 @@ except Exception as _gdw_frontier_error:  # pragma: no cover - fail one surface 
     }
 
 
+# Provenance layer: ORO inspects existing canonical owners at request time.
+# Importing the standalone oro.api would construct a separate store and signer;
+# this registrar exposes only bounded public evidence and no mutation routes.
+try:
+    from oro.evidence_api import register as _register_oro_evidence
+
+    _ORO_EVIDENCE_STATUS = _register_oro_evidence(app)
+except Exception as _oro_evidence_error:  # pragma: no cover - isolated surface failure
+    _ORO_EVIDENCE_STATUS = {
+        "ok": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_oro_evidence_error).__name__,
+        "routes": [],
+    }
+
+
 # Services layer: the public Steward namespace is reserved before either
 # catch-all. Its pinned package may be unavailable or stale, but its reader
 # still rejects non-GET requests rather than forwarding them to the proxy.
