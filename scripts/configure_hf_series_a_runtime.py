@@ -82,6 +82,13 @@ GDW_VARIABLES = {
 # cadence in the existing canonical convergence owner, below the 900s alert;
 # configuring this inert setting does not activate state-store v2.
 STATE_STORE_VARIABLES = {"A11OY_STATE_PERIODIC_SECONDS": "300"}
+# Match Settings.from_environ in a11oy_state_store without importing runtime
+# storage code into the deployment helper. Bounds reject; they do not clamp.
+STATE_STORE_CADENCE_SETTINGS = {
+    "A11OY_STATE_DEBOUNCE_SECONDS": (30, 1, 3600),
+    "A11OY_STATE_PERIODIC_SECONDS": (300, 5, 86400),
+    "A11OY_STATE_ALERT_SECONDS": (900, 60, 86400),
+}
 RUNTIME_VARIABLES = {
     **SERIES_A_VARIABLES,
     **GDW_VARIABLES,
@@ -132,6 +139,7 @@ class RuntimeConfigError(RuntimeError):
             "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
             "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
             "RUNTIME_CONFIG_DRIFT", "RUNTIME_CONFIG_UNAVAILABLE",
+            "STATE_STORE_CADENCE_INVALID",
             "MANAGED_STORAGE_UNAVAILABLE", "MANAGED_OUTCOME_UNCERTAIN",
             "SOURCE_OWNERSHIP_UNAVAILABLE", "SOURCE_NOT_CURRENT_MAIN",
             *INSTALLED_AUTHORITY_DIAGNOSTICS,
@@ -347,6 +355,46 @@ def plan_volumes(
     return records, True
 
 
+def validate_state_store_cadence(
+    current: Mapping[str, Any], desired: Mapping[str, str],
+) -> None:
+    """Validate the planned schedule without changing preserved settings.
+
+    Managed periodic drift is repairable, including malformed old values.
+    Readback still requires its exact managed value before reporting convergence.
+    Debounce and alert are preserved, so malformed values must stop all writes.
+    """
+    effective: dict[str, float] = {}
+    for name, (default, minimum, maximum) in STATE_STORE_CADENCE_SETTINGS.items():
+        raw = desired[name] if name in desired else (
+            _value(current[name], "value") if name in current else ""
+        )
+        try:
+            if type(raw) is not str:
+                raise ValueError("malformed setting metadata")
+            raw = raw.strip()
+            parsed = float(raw) if raw else float(default)
+        except (TypeError, ValueError):
+            raise RuntimeConfigError(
+                "SETUP_REQUIRED: state-store cadence setting is invalid",
+                diagnostic_code="STATE_STORE_CADENCE_INVALID",
+            ) from None
+        # As in the runtime parser, this also rejects NaN and infinities.
+        if not minimum <= parsed <= maximum:
+            raise RuntimeConfigError(
+                "SETUP_REQUIRED: state-store cadence setting is out of range",
+                diagnostic_code="STATE_STORE_CADENCE_INVALID",
+            )
+        effective[name] = parsed
+    # Quiet-time debounce and periodic overdue are alternative snapshot triggers.
+    # A longer valid debounce does not extend the periodic exposure bound.
+    if effective["A11OY_STATE_PERIODIC_SECONDS"] >= effective["A11OY_STATE_ALERT_SECONDS"]:
+        raise RuntimeConfigError(
+            "SETUP_REQUIRED: periodic snapshot interval must be below alert interval",
+            diagnostic_code="STATE_STORE_CADENCE_INVALID",
+        )
+
+
 def plan_variables(
     current: Mapping[str, Any],
     secret_names: Iterable[str],
@@ -363,13 +411,14 @@ def plan_variables(
         raise RuntimeConfigError("qualified durable storage cannot be replaced by the legacy mount contract")
 
     secrets = set(secret_names)
-    collisions = sorted(set(desired) & secrets)
+    collisions = sorted((set(desired) | set(STATE_STORE_CADENCE_SETTINGS)) & secrets)
     if collisions:
         raise RuntimeConfigError(
             "runtime variable names collide with Space secrets: "
             + ",".join(collisions)
         )
 
+    validate_state_store_cadence(current, desired)
     changes: dict[str, str] = {}
     for name, expected in desired.items():
         item = current.get(name)
