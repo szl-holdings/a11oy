@@ -6,6 +6,7 @@
 import json
 import shutil
 import subprocess
+from html.parser import HTMLParser
 
 import a11oy_frontier_page as frontier
 
@@ -169,6 +170,91 @@ def test_untrusted_predicates_reasons_and_pointers_are_escaped_in_rendered_html(
     assert "onerror=&quot;" in card
     assert "&amp;" in card
     assert "<dt>Operational readiness</dt><dd>NOT_READY</dd>" in card
+
+
+class _ParsedProvenance(HTMLParser):
+    def __init__(self, markup):
+        super().__init__(convert_charrefs=True)
+        self.tags = []
+        self.links = []
+        self.text = []
+        self.feed(markup)
+        self.close()
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append(tag)
+        if tag == "a":
+            self.links.append(dict(attrs))
+
+    def handle_data(self, data):
+        self.text.append(data)
+
+
+def test_descriptive_and_templated_provenance_references_remain_text():
+    references = [
+        "/api/a11oy/v1/immune/verdict (REAL fail-closed gate) + the MEASURED energy joule-truth path",
+        "/api/a11oy/v1/materials/certify (PAC-Bayes/Lean evidence must retain the status reported by that dependency)",
+        "/api/a11oy/v1/provenance/receipts/{receipt_id}",
+        "/api/a11oy/v1/provenance/receipts/receipt_id}",
+        "/api/a11oy/v1/provenance/receipts?filter={pending}&scope=all",
+    ]
+    rendered = _node("payload.map(value => provHtml({inspect: value}))", references)
+    for reference, markup in zip(references, rendered):
+        parsed = _ParsedProvenance(markup)
+        assert parsed.links == [], repr(reference)
+        assert parsed.tags == ["div", "span"]
+        assert "".join(parsed.text) == "inspect: " + reference
+
+
+def test_raw_whitespace_and_ascii_controls_never_become_provenance_links():
+    separators = [chr(value) for value in range(32)] + [
+        "\x7f", " ", "\u00a0", "\u2028", "\u2029",
+    ]
+    references = [
+        "/api/a11oy/v1/provenance/" + separator + "receipt"
+        for separator in separators
+    ] + [
+        " /api/a11oy/v1/provenance/chain",
+        "/api/a11oy/v1/provenance/chain ",
+    ]
+    rendered = _node("payload.map(value => provHtml({inspect: value}))", references)
+    for reference, markup in zip(references, rendered):
+        parsed = _ParsedProvenance(markup)
+        assert parsed.links == [], repr(reference)
+        assert "".join(parsed.text) == "inspect: " + reference
+
+
+def test_concrete_api_and_orbital_references_preserve_usable_links():
+    references = [
+        "/api/a11oy/v1/provenance/chain",
+        "/api/a11oy/v1/provenance/chain?limit=5&order=desc",
+        "/api/a11oy/v1/provenance/receipts/receipt%20name",
+        "/api/a11oy/v1/provenance/receipts?q=receipt%20name&scope=all",
+        "/orbital",
+    ]
+    rendered = _node("payload.map(value => provHtml({inspect: value}))", references)
+    for reference, markup in zip(references, rendered):
+        parsed = _ParsedProvenance(markup)
+        assert parsed.links == [{"href": reference}], repr(reference)
+        assert parsed.tags == ["div", "span", "a"]
+        assert "".join(parsed.text) == "inspect: " + reference
+
+
+def test_hostile_provenance_stays_escaped_in_labels_text_and_link_attributes():
+    label = '<img src=x onerror="alert(1)">'
+    references = [
+        '/api/inspect?q="><img/src=x/onerror=alert(1)>&owner=\'reviewer\'',
+        '/api/inspect explanatory <script>alert("x")</script> & \'note\'',
+    ]
+    rendered = _node("payload.map(provHtml)", [{label: value} for value in references])
+    for index, (reference, markup) in enumerate(zip(references, rendered)):
+        parsed = _ParsedProvenance(markup)
+        assert "<img" not in markup
+        assert "<script" not in markup
+        assert "&lt;" in markup and "&quot;" in markup and "&amp;" in markup
+        assert parsed.tags == ["div", "span"] + (["a"] if index == 0 else [])
+        assert parsed.links == ([{"href": reference}] if index == 0 else [])
+        assert "".join(parsed.text) == label + ": " + reference
 
 
 def test_manifest_timestamps_are_labeled_without_implying_source_freshness():
