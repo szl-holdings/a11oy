@@ -5242,12 +5242,19 @@ async def shutdown() -> None:
         if _http_client:
             await _http_client.aclose()
     finally:
-        # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
-        # gdw_runtime finally may never run, so await the final snapshot and
-        # lease release here, while the process is still alive.
-        import a11oy_state_store
+        try:
+            # This hook is registered before the Series-A shutdown handler.
+            # Stop its producers before the final snapshot and lease release.
+            service = getattr(app.state, "szl_series_a_service", None)
+            if service is not None:
+                await service.stop()
+        finally:
+            # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
+            # gdw_runtime finally may never run, so await storage finalization
+            # even when a producer's cleanup reports an error.
+            import a11oy_state_store
 
-        await asyncio.to_thread(a11oy_state_store.shutdown)
+            await asyncio.to_thread(a11oy_state_store.shutdown)
 
 
 # ---------------------------------------------------------------------------
