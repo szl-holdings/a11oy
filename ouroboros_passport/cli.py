@@ -16,9 +16,13 @@ def main(argv=None):
         dsd = hashlib.sha256(open(args.dataset, "rb").read()).hexdigest()
         print(json.dumps(build_from_training_report(report, dsd, tenant=args.tenant), indent=2))
     elif args.cmd == "verify":
-        print(json.dumps(verify(json.load(open(args.passport, encoding="utf-8"))), indent=2))
+        result = verify(json.load(open(args.passport, encoding="utf-8")))
+        print(json.dumps(result, indent=2))
+        return 0 if result["valid"] else 1
     elif args.cmd == "promote":
-        print(json.dumps(evaluate(json.load(open(args.passport, encoding="utf-8"))), indent=2))
+        result = evaluate(json.load(open(args.passport, encoding="utf-8")))
+        print(json.dumps(result, indent=2))
+        return 0 if result["eligible"] else 1
     elif args.cmd == "selftest":
         report = {"run": "selftest-r1", "base": "Qwen/Qwen3-1.7B", "corpus_examples": 188,
                   "dataset": "SZLHOLDINGS/clinical-abstention-sft-api-v2", "wall_hours": 0.7,
