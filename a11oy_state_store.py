@@ -93,6 +93,10 @@ DURABLE_V1_ENV = "GDW_DURABLE_STORAGE"
 HISTORY_DEPTH = 5
 MAX_HEAD_BYTES = 64 * 1024
 MAX_SMALL_OBJECT_BYTES = 64 * 1024
+# Passive inspection limits; existing writes and full-history readers are unchanged.
+MAX_PROVENANCE_WINDOW_NODES = 33
+MAX_PROVENANCE_WINDOW_BYTES = 1024 * 1024
+PROVENANCE_WINDOW_BUSY_TIMEOUT = 2.0
 
 MODE_DISABLED = "DISABLED"
 MODE_FENCED = "FENCED"
@@ -882,6 +886,90 @@ class StateStore:
                 return nodes
         except (sqlite3.Error, ValueError, TypeError, KeyError) as error:
             raise StorageBlocked("PROVENANCE_READ_INVALID") from error
+
+    def provenance_window(self, space: str, limit: int, validate: Callable) -> list[dict[str, Any]]:
+        """Read a bounded tail for inspection, never certify ledger history.
+
+        The existing space/sequence index bounds both SELECTs. Plain-column
+        octet_length reads sizes from metadata without loading TEXT bodies.
+        Check cumulative sizes before body fetch, in the same read transaction.
+        If that SQL capability is absent, only this inspection fails closed.
+        No schema, journal, receipt, signature, lease or snapshot is changed.
+        """
+        if type(limit) is not int or not 1 <= limit <= MAX_PROVENANCE_WINDOW_NODES:
+            raise ValueError("invalid provenance inspection window")
+        path = self._provenance_path()
+        with open(path, "rb") as source:
+            header = source.read(20)
+        if len(header) < 20 or 2 in header[18:20]:
+            raise StorageBlocked("PROVENANCE_PASSIVE_READ_UNAVAILABLE")
+        try:
+            with contextlib.closing(sqlite3.connect(
+                    path.resolve().as_uri() + "?mode=ro", uri=True,
+                    timeout=PROVENANCE_WINDOW_BUSY_TIMEOUT)) as db:
+                db.execute("BEGIN")
+                # The byte budget and stored checksums use canonical UTF-8.
+                # Refuse only this inspection before loading another encoding.
+                if db.execute("PRAGMA encoding").fetchone() != ("UTF-8",):
+                    raise StorageBlocked("PROVENANCE_WINDOW_ENCODING_UNSUPPORTED")
+                tables = {row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name IN ('provenance_nodes', 'provenance_heads')")}
+                if not tables:
+                    return []
+                if tables != {"provenance_nodes", "provenance_heads"}:
+                    raise StorageBlocked("PROVENANCE_SCHEMA_INCOMPLETE")
+                head = db.execute(
+                    "SELECT last_index, digest FROM provenance_heads WHERE space=?",
+                    (space,)).fetchone()
+                metadata = db.execute(
+                    "SELECT sequence, digest, node_sha256, octet_length(node_json) "
+                    "FROM provenance_nodes WHERE space=? ORDER BY sequence DESC LIMIT ?",
+                    (space, limit)).fetchall()
+                if not metadata and head is None:
+                    return []
+                if (head is None or type(head[0]) is not int or head[0] < 0
+                        or not isinstance(head[1], str) or not _HEX64.fullmatch(head[1])
+                        or len(metadata) != min(limit, head[0] + 1)):
+                    raise StorageBlocked("PROVENANCE_HEAD_MISMATCH")
+                encoded_bytes = 0
+                for offset, (sequence, digest, checksum, length) in enumerate(metadata):
+                    if (type(sequence) is not int or sequence != head[0] - offset
+                            or not isinstance(digest, str) or not _HEX64.fullmatch(digest)
+                            or not isinstance(checksum, str) or not _HEX64.fullmatch(checksum)
+                            or type(length) is not int or length <= 0):
+                        raise StorageBlocked("PROVENANCE_WINDOW_METADATA_INVALID")
+                    encoded_bytes += length
+                    if encoded_bytes > MAX_PROVENANCE_WINDOW_BYTES:
+                        raise StorageBlocked("PROVENANCE_WINDOW_BYTE_LIMIT")
+                if metadata[0][:2] != head:
+                    raise StorageBlocked("PROVENANCE_HEAD_MISMATCH")
+                rows = db.execute(
+                    "SELECT sequence, digest, node_json, node_sha256 "
+                    "FROM provenance_nodes WHERE space=? ORDER BY sequence DESC LIMIT ?",
+                    (space, limit)).fetchall()
+                if len(rows) != len(metadata):
+                    raise StorageBlocked("PROVENANCE_WINDOW_CHANGED")
+                nodes = []
+                for row, meta in zip(rows, metadata):
+                    sequence, digest, encoded, checksum = row
+                    if ((sequence, digest, checksum) != meta[:3]
+                            or not isinstance(encoded, str)):
+                        raise StorageBlocked("PROVENANCE_WINDOW_METADATA_INVALID")
+                    raw = encoded.encode("utf-8")
+                    if len(raw) != meta[3] or _sha256_bytes(raw) != checksum:
+                        raise StorageBlocked("PROVENANCE_NODE_CHECKSUM_MISMATCH")
+                    node = json.loads(encoded)
+                    if (not isinstance(node, dict) or type(node.get("index")) is not int
+                            or node["index"] != sequence or node.get("digest") != digest
+                            or node.get("space") != space):
+                        raise StorageBlocked("PROVENANCE_NODE_IDENTITY_MISMATCH")
+                    nodes.append(node)
+                nodes.reverse()
+                validate(nodes)
+                return nodes
+        except (sqlite3.Error, ValueError, TypeError, KeyError, RecursionError, UnicodeError) as error:
+            raise StorageBlocked("PROVENANCE_WINDOW_INVALID") from error
 
     def append_provenance_node(self, space: str, build: Callable, validate: Callable,
                                *, confirm: bool = False) -> tuple[dict[str, Any], Optional[dict]]:
