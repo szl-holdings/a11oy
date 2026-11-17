@@ -84,16 +84,16 @@
     "current_inventory_evidence": {
       "source_admission_manifest": {
         "path": "research/formula-training-admission/admission-manifest.json",
-        "file_sha256": "c78f5e6e7da4d1f9eb18959219dedce9d9415819d01d091d9e3f198ed8686519"
+        "file_sha256": "4de17da6a5ade9451ee8daf392c9b749d95c917c5bd71815f894bf043dc1a284"
       },
       "m1_brain_ingest_ledger": {
         "path": "model_release/m1/brain-ingest-ledger.jsonl",
         "rows": 9484,
-        "file_sha256": "785b9c9842b09580ebc0b18d10b346ed5ee08ad7d52f156be89236300e3bb97d"
+        "file_sha256": "b52d060db04b6f2550208275a7c41f09565cadcfb299a30525d39fb47a9dfeaa"
       },
       "m1_corpus_manifest": {
         "path": "model_release/m1/corpus-ingestion-manifest.json",
-        "file_sha256": "5cb19e9a22e3dc7109cd86ee7639a592bae7a59f61e5d42d9cef012a12fc3fd2"
+        "file_sha256": "0ca782f0809b039a4a49911a18d8abff9fd81f0662148536e80665d9d52fa0cc"
       }
     },
     "candidate_schema": "szl.brain-training-candidate.v2",

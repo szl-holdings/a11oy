@@ -48,14 +48,14 @@
     "training_admission": "BLOCKED_PENDING_NAMESPACE_AND_SOURCE_RECONCILIATION",
     "tranche_rows": 148
   },
-  "manifest_receipt_sha256": "b305cdb40053d66bf09d78468ee16e3c13b44e6679293bdc1cfb340abe5d60a3",
+  "manifest_receipt_sha256": "e23f6a3e12093f1a4322a9829efbf230e716bf758e36fa6236c203b451f750f8",
   "schema_version": "szl.formula-training-admission-manifest.v1",
   "source_snapshot": {
     "brain": {
       "distinct_artifact_count": 4249,
       "formula_node_count": 23,
-      "graph_content_sha256": "024b779c6ed1656cb35b7e49a3283102cebfff8634cc74afa3cd7ae9c3070cd4",
-      "inventory_sha256": "33556aa3a673038dd674175014296a4dd3f594d13ccf7049cf54cc9004fb867a",
+      "graph_content_sha256": "65e1c5e99a79432f8d68f4b61c5acd7cd6ea14cb5528b5ade790b55576bea724",
+      "inventory_sha256": "0fe248109d7a8d32f8a3ecd09950f3f8a2c3a683c7399efbd9b73223ad7f7c2d",
       "person_metadata_count": 5235,
       "quarantined_node_count": 9484,
       "raw_node_count": 9484,
@@ -113,12 +113,12 @@
       "aligned": true,
       "brain_ledger_path": "model_release/m1/brain-ingest-ledger.jsonl",
       "brain_ledger_rows": 9484,
-      "brain_ledger_sha256": "785b9c9842b09580ebc0b18d10b346ed5ee08ad7d52f156be89236300e3bb97d",
+      "brain_ledger_sha256": "b52d060db04b6f2550208275a7c41f09565cadcfb299a30525d39fb47a9dfeaa",
       "current_only_node_ids": [],
       "current_raw_nodes": 9484,
       "m1_only_node_ids": [],
       "manifest_path": "model_release/m1/corpus-ingestion-manifest.json",
-      "manifest_sha256": "5cb19e9a22e3dc7109cd86ee7639a592bae7a59f61e5d42d9cef012a12fc3fd2",
+      "manifest_sha256": "0ca782f0809b039a4a49911a18d8abff9fd81f0662148536e80665d9d52fa0cc",
       "raw_training_eligible_rows": 0,
       "training_state": "NOT_RUN"
     },

@@ -43,11 +43,11 @@
   "leakage_policy": "all rows from one source_family have exactly one split; formula families are HOLDOUT; quarantined rows are never training text",
   "ledgers": {
     "brain_nodes": {
-      "bytes": 13406988,
+      "bytes": 13406983,
       "path": "brain-ingest-ledger.jsonl",
       "rows": 9484,
       "schema": "szl.m1-brain-ingest-decision/v1",
-      "sha256": "785b9c9842b09580ebc0b18d10b346ed5ee08ad7d52f156be89236300e3bb97d"
+      "sha256": "b52d060db04b6f2550208275a7c41f09565cadcfb299a30525d39fb47a9dfeaa"
     },
     "formulas": {
       "bytes": 202738,
@@ -115,10 +115,10 @@
     }
   },
   "source_snapshot": {
-    "brain_graph_receipt_id": "brain-graph:sha256:f1959a4a4faa641bf1b61ec577e370043b6ca142757735bbe5a657032f3c5bbb",
-    "brain_graph_sha256": "f1959a4a4faa641bf1b61ec577e370043b6ca142757735bbe5a657032f3c5bbb",
+    "brain_graph_receipt_id": "brain-graph:sha256:ec3135fe5ca73c691c25ca938dc01b8631a5aa8e554617e77b8e13bf746dd231",
+    "brain_graph_sha256": "ec3135fe5ca73c691c25ca938dc01b8631a5aa8e554617e77b8e13bf746dd231",
     "distinct_artifact_count": 4249,
-    "link_count_reported_by_graph": 14297,
+    "link_count_reported_by_graph": 14296,
     "network_fetches": 0,
     "person_metadata_count": 5235,
     "raw_node_count": 9484,

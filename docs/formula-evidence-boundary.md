@@ -64,9 +64,22 @@ The current inventory refresh follows the artifact dependencies in one pass:
 the M1 producer writes its five proposal artifacts; the admission producer
 preflights and writes its four artifacts, then writes the frontier JSON, its
 exact-count schema and the Ayllu policy references. The admission verifier checks
-all seven of its outputs. Repeating the generators preserves the same bytes.
+all seven of its outputs. Repeating the generators with unchanged inputs
+preserves the same bytes.
 The old frozen admission reference remains explicitly historical. Current graph
 observations cannot rewrite the evidence for an already evaluated model.
+
+Graph content can change while its node count stays constant. After a reviewed
+graph-input change, refresh current evidence through the existing producers:
+
+```sh
+python szl_m1_corpus_manifest.py
+python szl_formula_training_admission.py --write
+python szl_formula_training_admission.py --verify
+```
+
+The verification gate compares exact output bytes and reports stale artifacts;
+it does not regenerate them silently during CI or alter retained observations.
 
 Matching hashes alone do not establish that rows are quarantined. Both producer
 and reader check every actual ledger row for `training_eligible is False` and

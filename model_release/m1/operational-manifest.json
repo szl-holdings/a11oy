@@ -100,20 +100,20 @@
   },
   "evidence": {
     "brain_ingest_ledger": {
-      "bytes": 13406988,
+      "bytes": 13406983,
       "path": "brain-ingest-ledger.jsonl",
       "rows": 9484,
-      "sha256": "785b9c9842b09580ebc0b18d10b346ed5ee08ad7d52f156be89236300e3bb97d"
+      "sha256": "b52d060db04b6f2550208275a7c41f09565cadcfb299a30525d39fb47a9dfeaa"
     },
     "candidate_manifest": {
       "bytes": 1866,
       "path": "candidate-manifest.json",
-      "sha256": "202339f3be6e444dd64207ebd6c5792aeee252684d1a6f4c649dcb4e22aff0c3"
+      "sha256": "270a3f5f0f54c4c197afc062684eb9c3bcd70398732c648f7d51387faa08c4e2"
     },
     "corpus_ingestion_manifest": {
       "bytes": 3901,
       "path": "corpus-ingestion-manifest.json",
-      "sha256": "5cb19e9a22e3dc7109cd86ee7639a592bae7a59f61e5d42d9cef012a12fc3fd2"
+      "sha256": "0ca782f0809b039a4a49911a18d8abff9fd81f0662148536e80665d9d52fa0cc"
     },
     "evaluation_manifest": {
       "bytes": 1253,

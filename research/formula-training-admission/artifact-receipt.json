@@ -1,12 +1,12 @@
 {
-  "artifact_receipt_sha256": "12da7bd6be50f21c4333ac61a4b54aca46bd892ffc2281542e8ad4c8696c8d20",
+  "artifact_receipt_sha256": "676450c375e8e2d375c8da8809317ee3516862e0e172c24e3ec4d590666319a2",
   "artifacts": {
-    "research/formula-training-admission/admission-manifest.json": "c78f5e6e7da4d1f9eb18959219dedce9d9415819d01d091d9e3f198ed8686519",
+    "research/formula-training-admission/admission-manifest.json": "4de17da6a5ade9451ee8daf392c9b749d95c917c5bd71815f894bf043dc1a284",
     "research/formula-training-admission/admission-tranche.jsonl": "951db654168ea732f84fd185234227a555b13e013ee182d8bce89eae62fb35fe",
     "research/formula-training-admission/formula-id-crosswalk.json": "3f1fd6ffcf656968fd92d6172a8b7c47b7c212d1325900d11b3f7c4f2dc21a9c"
   },
   "crosswalk_receipt_sha256": "de7ab64c8efa05c7649ce8a8e43e0a54eb6858dcf624eb1a48fcdb0601f2bc79",
-  "manifest_receipt_sha256": "b305cdb40053d66bf09d78468ee16e3c13b44e6679293bdc1cfb340abe5d60a3",
+  "manifest_receipt_sha256": "e23f6a3e12093f1a4322a9829efbf230e716bf758e36fa6236c203b451f750f8",
   "network_used": false,
   "schema_version": "szl.formula-training-admission-artifact-receipt.v1",
   "signature_status": "UNSIGNED_CONTENT_RECEIPT",

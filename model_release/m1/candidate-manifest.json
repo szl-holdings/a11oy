@@ -37,7 +37,7 @@
     "brain_raw_nodes": 9484,
     "formula_records": 123,
     "manifest_path": "corpus-ingestion-manifest.json",
-    "manifest_sha256": "5cb19e9a22e3dc7109cd86ee7639a592bae7a59f61e5d42d9cef012a12fc3fd2",
+    "manifest_sha256": "0ca782f0809b039a4a49911a18d8abff9fd81f0662148536e80665d9d52fa0cc",
     "relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER",
     "training_state": "NOT_RUN"
   },
