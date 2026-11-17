@@ -846,7 +846,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only runtime-stage classifier; it has no provider write path.
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
     # Read-only boot/lease/heartbeat barrier between configuration batches.
-    ".github/scripts/await_hf_config_writer.py": "a54ac63a35f928ad87e0021364eeead1326fabd30ce6c94854a365c9b232eac3",
+    ".github/scripts/await_hf_config_writer.py": "d0f5927b30b53e7018c107b80224c2088f12ed470714585bd0c60177a235d3e0",
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     "scripts/configure_hf_series_a_runtime.py": "dc4d54b31beb794e62e66ec614bd46257353d0ecdf2645e7295655cb2d96f60c",

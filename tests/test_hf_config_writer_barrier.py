@@ -518,16 +518,19 @@ class WriterBarrierTests(unittest.TestCase):
         def timeout(command, **kwargs):
             called.append((command, kwargs))
             raise subprocess.TimeoutExpired(command, kwargs["timeout"], stderr="secret-value")
-        with self.assertRaisesRegex(M.Hold, "^SAMPLE_TIMEOUT$"):
-            M.read_sample(3, runner=timeout)
+        with patch.object(M.subprocess, "run", side_effect=timeout):
+            with self.assertRaisesRegex(M.Hold, "^SAMPLE_TIMEOUT$"):
+                M.read_sample(3)
         self.assertEqual(called[0][1]["timeout"], 3)
         self.assertEqual(called[0][1]["stderr"], subprocess.DEVNULL)
         self.assertNotIn("GITHUB_TOKEN", called[0][1]["env"])
         self.assertNotIn("GH_TOKEN", called[0][1]["env"])
         self.assertEqual(called[0][0][1:3], ["-I", "-B"])
         self.assertEqual(called[0][0][-1], "--sample")
-        with self.assertRaisesRegex(M.Hold, "^SAMPLE_READ_UNAVAILABLE$"):
-            M.read_sample(30, runner=lambda *_a, **_k: SimpleNamespace(returncode=2, stdout=b"private-value"))
+        with patch.object(M.subprocess, "run", return_value=SimpleNamespace(
+                returncode=2, stdout=b"private-value")):
+            with self.assertRaisesRegex(M.Hold, "^SAMPLE_READ_UNAVAILABLE$"):
+                M.read_sample(30)
 
     def test_duplicate_nonfinite_and_oversized_json_fail_closed(self):
         for raw in (b'{"x":1,"x":2}', b'{"x":NaN}', b"[]", b" " * (8 * M.MAX_BYTES + 1)):

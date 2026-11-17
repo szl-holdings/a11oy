@@ -246,10 +246,10 @@ def collect_sample():
     return sample
 
 
-def read_sample(budget, *, runner=subprocess.run):
+def read_sample(budget):
     require(finite(budget) and budget > 0, "READ_DEADLINE_EXHAUSTED")
     try:
-        result = runner([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "--sample"],
+        result = subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "--sample"],
                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                         timeout=min(SAMPLE_SECONDS, budget), check=False,
                         env={key: value for key, value in os.environ.items() if key in CHILD_ENVIRONMENT})
