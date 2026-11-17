@@ -60,8 +60,6 @@ jobs:
     name: Anatomy read boundary and browser contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      SZL_ANATOMY_BROWSER_ARTIFACT_DIR: ${{ runner.temp }}/anatomy-browser
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -94,6 +92,8 @@ jobs:
       - name: Install isolated Chromium
         run: python -m playwright install --with-deps chromium
       - name: Verify registered routes and seven browser surfaces
+        env:
+          SZL_ANATOMY_BROWSER_ARTIFACT_DIR: ${{ runner.temp }}/anatomy-browser
         run: >-
           python -m pytest -q
           tests/test_anatomy_3d_observation_contract.py
