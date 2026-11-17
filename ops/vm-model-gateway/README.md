@@ -5,7 +5,7 @@
 
 This is an isolated A11oy **proposal** adapter for the already running Massed Compute
 `llama-server`. It binds `127.0.0.1:4000` and reaches only the verified SSH
-loopback tunnel at `127.0.0.1:19483`. It is not a production route, an A11oy
+loopback tunnel (default `127.0.0.1:19483`). It is not a production route, an A11oy
 execution authority, a held-out evaluation, or a claim of model quality.
 
 ## Contract
@@ -52,6 +52,12 @@ $env:SZL_VM_GATEWAY_RECEIPTS_DIR = <existing protected directory outside this re
 python -B ops/vm-model-gateway/gateway.py
 ```
 
+For direct local startup, `SZL_VM_GATEWAY_TUNNEL_PORT` can select a different
+existing private loopback tunnel. It accepts an ASCII decimal port from 1024 to
+65535, excluding the gateway port 4000. The default remains 19483. Both the
+upstream host and gateway bind stay `127.0.0.1`; no host or remote-target override
+is accepted. This direct mode does not supervise or adopt the tunnel.
+
 The signer and receipts directory are mandatory. The gateway uses the repo's
 `szl_dsse.sign_payload` and `verify_envelope` implementation. Its local audit
 signer has `REPO_DECLARED` trust; these receipts are **not** native A11oy
@@ -72,14 +78,61 @@ held-out quality evaluation, and A11oy's own acceptance gates remain separate.
 
 ## Native Windows supervisor
 
-`windows-bootstrap.py` captures startup errors without opening a console and
-runs `windows-supervisor.py` from the same directory. The supervisor starts only
-the pinned SSH forward and proposal gateway. It signs an intent before starting
-either process, signs the startup result or failure, and places both children in
-a Windows job with kill-on-close. An occupied local port refuses startup. A child
-exit ends the supervisor; any scheduler retry restarts transport only and never
-replays an inference request. Job assignment follows child creation; abrupt
-supervisor termination in that startup interval is not qualified here.
+`windows-bootstrap.py` launches the pinned supervisor in a fresh process without
+opening a console. One bootstrap invocation permits **one initial start and at
+most three retries**, with **60 seconds after completed cleanup** before each
+retry. The budget never resets after a healthy interval. A clean supervisor exit
+still requires cleanup and does not retry. Pin, path, logging, launch, or cleanup
+failures stop the bootstrap instead of bypassing a check.
+
+Every attempt starts inside a fresh unnamed Windows Job using
+`CreateProcessW` with `PROC_THREAD_ATTRIBUTE_JOB_LIST`. The Job is assigned before
+the supervisor's initial thread runs; there is no spawn-then-assign fallback.
+The bootstrap retains the sole noninheritable Job handle with kill-on-close and
+no breakaway. The unchanged supervisor's own Job nests beneath it, so its SSH and
+gateway children are also covered during their inner assignment interval.
+
+Cleanup terminates only this owned Job, waits retained process handles, and
+requires empty Job membership before closing it. The bootstrap tracks native
+member identities during the attempt. The lifetime Job process count must match
+the retained identity census; a missed or late process makes cleanup unproven
+and prevents another attempt. This includes a very short-lived child missed
+entirely by the census, so not every early startup failure is recoverable.
+Free ports, a dead supervisor PID, or an empty
+active-process count alone are not accepted as a complete cleanup barrier.
+
+The supervisor signs its intent before starting SSH or the gateway and signs
+the startup result or failure. Each fresh supervisor process that reaches signing
+creates a separate operation chain with a fresh timestamp and initial
+`previous_sha256: null`.
+Bootstrap JSONL lifecycle records are explicitly **UNSIGNED**, with no execution
+authority; they are not a global signed chain. Every attempt has exclusive new
+stdout/stderr files. The bootstrap reads only its pinned supervisor source and
+writes diagnostic logs; it never opens bearer or signer files. An occupied
+local port still refuses supervisor startup. Recovery never replays inference.
+
+The native process primitives follow Microsoft's
+[creation-time Job assignment](https://devblogs.microsoft.com/oldnewthing/20230209-00/?p=107812),
+[process attribute contract](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute),
+and [nested Job semantics](https://learn.microsoft.com/en-us/windows/win32/procthread/nested-jobs).
+Windows 10 or newer is required.
+The supervisor reads `transport-config.json` from its private runtime directory
+before opening either credential file. A missing file retains port 19483. To
+select a separate owned local listener, the complete nonsecret file is:
+
+```json
+{"schema":"szl.vm-model-transport/v1","local_tunnel_port":19484}
+```
+
+Only those two fields are accepted. Duplicate or unknown fields, malformed or
+oversize input, a symlink, a noninteger port, privileged ports, and port 4000
+refuse startup. The selected port is used for the owned SSH forward, its health
+probe, the child gateway environment, and supervisor evidence. It persists
+across scheduled restarts because the same file is read on every start.
+The supervisor does not inherit a tunnel-port choice from the task's environment.
+The remote target remains `127.0.0.1:8080` and the gateway remains
+`127.0.0.1:4000`.
+
 Source for this host service belongs to the
 `services` and `provenance` layers; these scripts are not copied into the HF image.
 
@@ -93,12 +146,23 @@ Source for this host service belongs to the
    credentials. Keep `logs`, `operations`, and `receipts` as private subdirectories.
 2. Copy `windows-bootstrap.py` and `windows-supervisor.py` there. Populate `source/`
    with exactly the following source files from A11oy commit
-   `548ae61181d55ca72d9d7151c16e97b382277dae`, preserving their relative paths:
-   `ops/vm-model-gateway/gateway.py`, `szl_dsse.py`, and `szl_content_address.py`.
-   Check their bytes against all three SHA-256 pins in `EXPECTED`. The supervisor
+   `c66bbeaf69e2e961a8df0d3c27e324268116b585`, preserving their relative paths:
+   `ops/vm-model-gateway/gateway.py`, `ops/vm-model-gateway/runtime_config.py`,
+   `szl_dsse.py`, and `szl_content_address.py`.
+   Check their bytes against all four SHA-256 pins in `EXPECTED`. The supervisor
    verifies these copied bytes on each start. Its revision field is **DECLARED**;
-   checking three files does not attest the entire checkout, Python environment,
+   checking four files does not attest the entire checkout, Python environment,
    VM, or running image.
+
+   The exact same reviewed bootstrap bytes support two explicit filename
+   layouts: `windows-bootstrap.py` selects sibling `windows-supervisor.py`;
+   `bootstrap.py` selects sibling `supervisor.py`. Preserve the existing task
+   action and install under its existing filename. Do not transform the source
+   bytes or select a target through an environment variable. Other launcher
+   names, a missing sibling, or a symlink refuse startup. Before every attempt
+   the bootstrap requires supervisor SHA-256
+   `d09f82606c5b2af2e9c6311ee412b8f8340172400583227bf011534a3b28e41c`.
+   Record both installed filenames and hashes in the installation receipt.
 3. Place the reviewed host-specific OpenSSH configuration at `ssh-config`. It must
    define `szl-massed-qualification`, require host-key checking, identify only the
    authorized VM and protected SSH key, and permit the explicit loopback forward.
@@ -115,20 +179,83 @@ Source for this host service belongs to the
 5. Register an explicitly authorized user-scoped Task Scheduler task with an
    **AtLogon** trigger for that user, an absolute native `pythonw.exe` action using
    `-I -B` and the absolute `windows-bootstrap.py` path, the private runtime working
-   directory, and **IgnoreNew** for overlapping instances. Configure a bounded
-   failure retry (for example, three retries one minute apart); retain the task
-   XML and read back its principal, trigger, action, and retry settings. This
-   logon task does not establish operation before user sign-in. The existing
-   Cloudflare tunnel remains a separately owned service.
+   directory, and **IgnoreNew** for overlapping instances. Native Task Scheduler
+   failure retry must be disabled: the optional `RestartOnFailure` XML element
+   must be **absent**. Do not emit `Count=0`, which is invalid when that element
+   is present. The bootstrap owns the entire four-attempt budget; leaving three
+   native retries enabled could multiply it to sixteen supervisor starts.
+   Retain and read back the task XML, including the absent native retry element.
+   Preserve the existing principal, trigger, action, overlap policy, and engine
+   setting during migration. This logon task does not establish operation before
+   user sign-in. The existing Cloudflare tunnel remains separately owned.
+
+### Selecting a separate owned tunnel
+
+This source package does not change the installed service. Deploy only the
+reviewed source and retain an installation receipt for the exact release used.
+
+1. Read back current listener ownership, the scheduled task action, and the
+   approved SSH target. A successful raw `/health` is transport evidence only.
+   Preserve unrelated listeners and the current public route.
+2. Stage the reviewed bootstrap and supervisor plus the four copied source
+   files described above. Compare the source bytes with the hard-coded
+   `EXPECTED` manifest and keep the reviewed SSH configuration pin unchanged.
+   Never calculate new trust pins from arbitrary installed files.
+3. Confirm the proposed local port and 4000 are free, then place the complete
+   `transport-config.json` in the private runtime directory. For the separate
+   port example use 19484 only if it is free. Retain the existing directory ACLs,
+   credential files, receipt chain, and task trigger/action.
+4. Start the existing task. Freshly inspect its owned child PIDs, loopback binds,
+   `current-processes.json`, and chained supervisor intent/outcome. The selected
+   `upstream` in the state and receipt must agree. The old external tunnel
+   must retain its own PID and listener. A conflict must stop startup without
+   reading credentials or taking over the existing listener.
+5. Check local `GET /health` and unauthenticated `GET /v1/models` (401).
+   Use an already credentialed operator client for the bounded authenticated
+   model-identity check and any separately authorized inference smoke test;
+   record only statuses, model identity, instance ID, and receipt references.
+   Do not print credential or signer material. If no such client is available,
+   authenticated acceptance remains unverified.
+6. Qualify the owned-child cleanup and bounded bootstrap retry using the
+   acceptance procedure below. Compare local/public instance IDs only after a
+   separately reviewed edge route points at this gateway. An unchanged public
+   raw-engine route cannot establish gateway acceptance.
+
+No inference is replayed by a supervisor retry. A nondefault local port does not
+validate the remote engine's model bytes, add execution authority, or lift the
+existing `production_acceptance: BLOCKED` status.
+
+### Bootstrap migration and rollback
+
+Treat the reviewed bootstrap replacement and removal of native
+`RestartOnFailure` as one installation unit. Stage and hash the exact source,
+retain the prior bootstrap and task XML, then quiesce only the owned task and
+verify its retained process handles have exited. Replace only the bootstrap
+bytes and remove the optional native retry element while the task is stopped.
+Read back both before starting. The supervisor and four copied runtime files
+remain byte-for-byte unchanged. If either installation step fails, restore
+both the prior bootstrap and prior task XML before starting. Never leave the
+new four-attempt bootstrap paired with the previous native retry policy.
 
 ### Installation acceptance evidence
 
-The source package and the Linux fixture suite do not establish native Windows
-recovery. Native autorestart qualification remains **BLOCKED** until the operator
-records a controlled owned-child exit, the supervisor's cleanup, the scheduled
-task retry, and fresh matching local/public gateway instance IDs. Preserve failure
-evidence, new PIDs, task readback, and verified chained DSSE intent/outcome receipts.
+The portable fixture suite does not establish native recovery. The Windows
+tests additionally use credential-free child/grandchild canaries to verify
+creation-time Job ownership and cleanup, including a nested Job and a retained
+grandchild process handle. They do not launch the real gateway or read its keys.
+
+Native gateway recovery remains **BLOCKED** until the operator records a
+controlled owned-child exit, the old supervisor and owned descendants completing
+cleanup, the same bootstrap waiting at least 60 seconds, and a fresh supervisor,
+SSH, gateway, and local gateway instance ID. Preserve bootstrap records, retained
+handle wait results, new PIDs, task readback, and independently verified supervisor
+DSSE operation chains. Compare a public instance ID only after a separately
+reviewed edge route actually points at this gateway.
+
 Inspect upstream slots for idle state before any controlled transport restart.
+After four failed attempts, the bootstrap exits failed; another invocation
+requires an explicit operator start or the configured logon trigger. A bootstrap
+crash, logout, reboot, or extended outage is not an unlimited-recovery promise.
 Logout/reboot recovery is **UNKNOWN** until separately exercised. A saved
 `current-processes.json` is historical state and always requires a fresh probe.
 

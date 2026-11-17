@@ -143,7 +143,7 @@ def main() -> None:
                     page.locator('#category').select_option('GGUF_HINT')
                     check(0 < page.locator('#models .card').count() < expected, 'Category filter failed')
                     page.locator('#category').select_option('ALL')
-                    page.locator('summary').focus(); page.keyboard.press('Enter')
+                    page.locator('#evidence > summary').focus(); page.keyboard.press('Enter')
                     check(page.locator('#evidence').get_attribute('open') is not None, 'Keyboard details failed')
                     check(page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Page overflow')
                     page.screenshot(path=str(output / f'models-{width}.png'), full_page=True)

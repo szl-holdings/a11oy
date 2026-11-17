@@ -22,14 +22,15 @@ class _Ledger:
     def persistence_info(self):
         return {"label": "EPHEMERAL", "survives_redeploy": False}
 
-    def storage_health(self):
+    def storage_health(self, *, probe=False):
+        assert probe is False
         return {"status": "ok"}
 
 
 def _install_ledger(monkeypatch, totals):
     ledger = _Ledger(totals)
     monkeypatch.setitem(
-        sys.modules, "szl_energy_ledger", SimpleNamespace(get_ledger=lambda: ledger)
+        sys.modules, "szl_energy_ledger", SimpleNamespace(observe_ledger=lambda: ledger)
     )
 
 
