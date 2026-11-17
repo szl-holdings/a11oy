@@ -56,6 +56,7 @@ jobs:
           tests/test_evidence_graph.py tests/test_evidence_receipts.py
           tests/test_evidence_receipt_routes.py
           tests/test_model_endpoint_credentials.py
+          tests/test_energy_ledger_observation.py
           tests/test_collector_reason_codes.py
           tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
@@ -405,6 +406,10 @@ jobs:
           tests/test_atelier_grok.py
           tests/test_atelier_grok_local.py
           tests/test_atelier_grok_cpu_lab.py
+          tests/test_atelier_console_lock.py
+          tests/test_cpu_lab_contract.py
+          test_provider_http.py
+          tests/test_brainserve.py
           tests/test_run_local_atelier.py
           tests/test_command_centre.py
           tests/test_command_centre_view.py
@@ -652,6 +657,10 @@ jobs:
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"
         run: python -B -m pytest -q -p no:cacheprovider tests/test_signing_state_routes.py
+      - name: Verify fleet signing read-only routes in isolation
+        env:
+          SZL_EVIDENCE_WARM_DELAY: "3600"
+        run: python -B -m pytest -q -p no:cacheprovider tests/test_khipu_fleet_signing.py
       - name: Verify lean health signing diagnostics in isolation
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"
@@ -1158,6 +1167,7 @@ jobs:
           tests/test_frontier_readiness_boundary.py
           tests/test_frontier_readiness_page.py
           tests/test_frontier_bootstrap.py
+          tests/test_frontier_surface_loader.py
           tests/test_frontier_responsive_page.py
           tests/test_anatomy_readiness.py
           tests/test_provenance_receipt_write_boundary.py

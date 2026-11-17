@@ -1,29 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 # Doctrine v11 LOCKED 749/14/163. Λ = Conjecture 1 (NOT a theorem).
-"""khipu_gguf.py — SOVEREIGN DEFAULT voter.
+"""Retired Khipu CPU-lab voter and historical model metadata.
 
-Talks to the public CPU inference lab's OpenAI-compatible /v1 base.
-Llama / Mistral / Qwen Hugging Face voters remain optional cloud voters;
-they are not the sovereign path.
-
-Pin (identity, not a score) MEASURED 2026-08-28 ~12:32pm ET:
-  Space  https://szlholdings-szl-model-inference-lab.hf.space
-  OpenAI /v1  https://szlholdings-szl-model-inference-lab.hf.space/v1
-  /healthz {"status":"READY"}
-  Model  SZLHOLDINGS/SZL-Khipu-1.5B-GGUF@67d60ec577730747055491640cfb91fc4a4b5d25
-  File   SZL-Khipu-1.5B-Q4_K_M.gguf
-  sha256 13c1a1993063e1dff92f7413ccf48eaca6d48efc8801ae9af35961ae3396623a
-
-ATELIER lock: Try Khipu and this voter call szl-model-inference-lab /v1 only.
-Forge lab is SNAPSHOT — not a trainer, not Serve Studio. A11OY_KHIPU_LAB_BASE
-may point at loopback / *.test for hermetic tests; forge-lab / trainer /
-serve-studio hosts are ignored and the locked lab is used.
-
-Hard clamps: max_tokens <= 32, temperature = 0, stream = false.
-Auth is the publicly documented dummy Bearer not-a-secret. This voter never
-reads HF_TOKEN or any other secret. A missing lab is status=error — never a
-fabricated completion and never a tokens/s marketing number.
+The legacy OpenAI generation contract is retired. This voter cannot infer
+operator authentication or public-prompt acknowledgement from ensemble input.
+It remains discoverable as unavailable and never forwards a prompt. Explicit
+generation belongs to the existing authenticated Atelier CPU-lab turn route.
+Historical artifact pins and receipt parsers are compatibility metadata only.
+Lambda uniqueness remains Conjecture 1.
 """
 from __future__ import annotations
 
@@ -31,7 +16,6 @@ import os
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-import httpx
 
 from .base_voter import BaseVoter
 
@@ -71,6 +55,26 @@ KHIPU_MEASURED_PROBE_2026_08_28: Dict[str, Any] = {
 }
 
 SOVEREIGN_VOTER_ID = "khipu-gguf"
+KHIPU_SUCCESSOR_PATH = "/api/a11oy/v1/atelier/cpu-lab/turn"
+KHIPU_RETIRED_REASON = (
+    "RETIRED: legacy CPU-lab generation is disabled. Use the authenticated "
+    "Atelier CPU-lab turn with explicit public-prompt acknowledgement."
+)
+
+
+def khipu_successor() -> Dict[str, Any]:
+    return {
+        "method": "POST",
+        "path": KHIPU_SUCCESSOR_PATH,
+        "ui": "/command-centre#cpu-work",
+        "operator_authentication_required": True,
+        "public_share_acknowledged": True,
+        "declared": "PUBLIC",
+        "max_output_tokens": KHIPU_MAX_TOKENS,
+        "grounding_required": True,
+        "authority": "PROPOSAL_ONLY",
+        "automatic_forwarding": False,
+    }
 
 
 def _is_test_or_loopback_host(host: str) -> bool:
@@ -104,7 +108,7 @@ def khipu_lab_base() -> str:
 
 
 def khipu_lab_v1() -> str:
-    """OpenAI-compatible base. Production: .../szl-model-inference-lab.hf.space/v1."""
+    """Historical retired OpenAI base; metadata only, never a generation target."""
     return khipu_lab_base() + "/v1"
 
 
@@ -112,6 +116,7 @@ def khipu_pin() -> Dict[str, Any]:
     return {
         "lab_base": khipu_lab_base(),
         "lab_v1": khipu_lab_v1(),
+        "lab_v1_state": "RETIRED",
         "locked_lab_v1": KHIPU_LAB_V1,
         "model_repo": KHIPU_MODEL_REPO,
         "model_rev": KHIPU_MODEL_REV,
@@ -120,7 +125,10 @@ def khipu_pin() -> Dict[str, Any]:
         "max_tokens": KHIPU_MAX_TOKENS,
         "temperature": KHIPU_TEMPERATURE,
         "stream": False,
-        "auth": "dummy Bearer not-a-secret",
+        "auth": "RETIRED ? no inference credential is used by this voter",
+        "generation_state": "RETIRED",
+        "operational": False,
+        "successor": khipu_successor(),
         "gpu_inference_endpoint": "ROADMAP",
         "forge_lab": "SNAPSHOT",
         "forge_lab_role": "not a trainer, not Serve Studio",
@@ -208,11 +216,34 @@ class KhipuGGUFVoter(BaseVoter):
     BFCL_SCORE = None
 
     def is_available(self) -> bool:
-        # Public dummy auth. Reachability is reported per-call as ok/error.
-        return True
+        return False
 
     def _active_env_var(self):
         return None
+
+    def metadata(self) -> Dict[str, Any]:
+        return {
+            **super().metadata(),
+            "status": "unavailable",
+            "state": "RETIRED",
+            "reason": KHIPU_RETIRED_REASON,
+            "successor": khipu_successor(),
+        }
+
+    async def vote(
+        self,
+        prompt: str,
+        system: Optional[str] = None,
+        max_tokens: int = KHIPU_MAX_TOKENS,
+        temperature: float = KHIPU_TEMPERATURE,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        result = await super().vote(
+            prompt, system=system, max_tokens=max_tokens,
+            temperature=temperature, **kwargs,
+        )
+        result["reason"] = KHIPU_RETIRED_REASON
+        return result
 
     async def _call(
         self,
@@ -222,29 +253,4 @@ class KhipuGGUFVoter(BaseVoter):
         temperature: float = KHIPU_TEMPERATURE,
         **kwargs: Any,
     ) -> str:
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
-        payload = {
-            "model": self.MODEL_ID,
-            "messages": messages,
-            "max_tokens": clamp_max_tokens(max_tokens),
-            "temperature": KHIPU_TEMPERATURE,
-            "stream": False,
-        }
-        headers = {
-            "Authorization": "Bearer %s" % KHIPU_LAB_DUMMY_BEARER,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-        url = khipu_lab_v1() + "/chat/completions"
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-        extracted = extract_lab_receipt(data if isinstance(data, dict) else {})
-        text = extracted["text"]
-        if not text:
-            raise RuntimeError("lab returned empty completion (honest miss, not fabricated)")
-        return text
+        raise RuntimeError(KHIPU_RETIRED_REASON)

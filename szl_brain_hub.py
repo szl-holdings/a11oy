@@ -42,7 +42,7 @@ HONESTY (Doctrine v11 LOCKED):
 REUSE (wire, don't reinvent):
   * knowledge — a11oy_brain_graph.get_brain_graph (cached); harvest_vault for
     provenance of the self-writing vault.
-  * energy    — szl_energy_ledger.get_ledger().{totals,persistence_info,storage_health}.
+  * energy    — szl_energy_ledger.observe_ledger().{totals,persistence_info,storage_health}.
   * signing   — szl_dsse.sign_payload (real in-Space, unsigned honest locally).
 
 Standalone self-test (no server):
@@ -155,11 +155,13 @@ def energy_summary() -> dict:
     measured billable energy; they remain UNAVAILABLE in this view.
     """
     try:
-        import szl_energy_ledger as _el
-        led = _el.get_ledger()
+        _el = sys.modules.get("szl_energy_ledger")
+        if _el is None:
+            raise RuntimeError("LEDGER_MODULE_NOT_INITIALIZED")
+        led = _el.observe_ledger()
         totals = led.totals()
         persistence = led.persistence_info()
-        storage = led.storage_health()
+        storage = led.storage_health(probe=False)
 
         joules_label = totals.get("joules_measured_label")
         raw_billable = totals.get("joules_measured_billable")
