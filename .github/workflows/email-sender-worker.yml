@@ -142,7 +142,7 @@ jobs:
             response_file="$(mktemp)"
             trap 'rm -f "$response_file"' EXIT
             if ! curl --fail --silent --show-error --retry 2 --retry-all-errors \
-              --connect-timeout 10 --max-time 30 \
+              --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
               -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
               -H "Accept: application/json" \
               "https://api.cloudflare.com/client/v4/accounts?page=1&per_page=5" \
@@ -175,7 +175,9 @@ jobs:
           if info is not None:
               if not isinstance(info, dict):
                   raise SystemExit("Cloudflare account discovery pagination is malformed")
-              for field in ("count", "page", "total_count"):
+              if "per_page" in info and (type(info["per_page"]) is not int or info["per_page"] != 5):
+                  raise SystemExit("Cloudflare account discovery pagination does not match the request")
+              for field in ("count", "page", "total_count", "total_pages"):
                   if field in info and (type(info[field]) is not int or info[field] != 1):
                       raise SystemExit("Cloudflare account discovery must return exactly one account")
 

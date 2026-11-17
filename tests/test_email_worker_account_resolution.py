@@ -62,6 +62,10 @@ def test_one_account_is_selected_from_a_successful_response(tmp_path, metadata):
     {"success": True, "result": [{"id": ACCOUNT}], "result_info": {"total_count": True}},
     {"success": True, "result": [{"id": ACCOUNT}], "result_info": {"count": 0}},
     {"success": True, "result": [{"id": ACCOUNT}], "result_info": {"page": 2}},
+    {"success": True, "result": [{"id": ACCOUNT}], "result_info": {"per_page": False}},
+    {"success": True, "result": [{"id": ACCOUNT}], "result_info": {"per_page": 1}},
+    {"success": True, "result": [{"id": ACCOUNT}], "result_info": {"per_page": 50}},
+    {"success": True, "result": [{"id": ACCOUNT}], "result_info": {"total_pages": 2}},
 ])
 def test_invalid_or_ambiguous_account_responses_stop_without_outputs(tmp_path, payload):
     result = _run(tmp_path, json.dumps(payload).encode())
@@ -90,7 +94,7 @@ def test_account_resolution_keeps_the_existing_deployment_boundary():
     assert 'echo "::add-mask::$account_id"' in deploy
     assert "https://api.cloudflare.com/client/v4/accounts?page=1&per_page=5" in deploy
     assert 'if [[ ! "$account_id" =~ ^[0-9a-fA-F]{32}$ ]]' in deploy
-    assert "--connect-timeout 10 --max-time 30" in deploy
+    assert "--connect-timeout 10 --max-time 30 --max-filesize 1048576" in deploy
     assert "--require-ready" in deploy
     assert "/zones" not in deploy
     assert "--send" not in deploy
