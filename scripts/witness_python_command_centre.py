@@ -222,6 +222,24 @@ def reset_keyboard_origin(page):
     }""")
 
 
+def request_failure_is_error(request, origin, allowed_paths=ALLOWED_PATHS):
+    """Classify a browser request failure as a real error, not a cancel.
+
+    Chromium reports its own client-side cancellation of an allowed local
+    GET as net::ERR_ABORTED, for example when the keyboard walk's fragment
+    navigation lands while a late allowed read is still in flight. Such a
+    cancellation is neither prohibited traffic (tracked separately as
+    violations and still failing) nor a server-side transport failure;
+    the per-path read counts and the fail-closed readiness labels are
+    enforced independently and still fail the witness.
+    """
+    failure = str(request.failure) if request.failure else ""
+    if "net::ERR_ABORTED" in failure and request_allowed(
+            request.method, request.url, origin, allowed_paths):
+        return False
+    return True
+
+
 def observe(browser, fixture, route, width, javascript, output):
     from playwright.sync_api import expect
     errors, requests, violations = [], [], []
@@ -245,8 +263,12 @@ def observe(browser, fixture, route, width, javascript, output):
     page.on("pageerror", lambda error: errors.append("page: " + str(error)))
     page.on("console", lambda message: errors.append("console: " + message.text)
             if message.type in {"error", "warning"} else None)
-    page.on("requestfailed", lambda request: errors.append(
-        "request failed: " + urlsplit(request.url).path[:500] + "; " + str(request.failure)[:300]))
+    def request_failed(request):
+        if request_failure_is_error(request, fixture["origin"], fixture["allowed_paths"]):
+            errors.append("request failed: " + urlsplit(request.url).path[:500]
+                          + "; " + str(request.failure)[:300])
+
+    page.on("requestfailed", request_failed)
     try:
         response = page.goto(fixture["origin"] + route, wait_until="networkidle", timeout=20000)
         require(response is not None and response.status == 200, "page did not return HTTP 200")
