@@ -112,7 +112,7 @@ def sdk_boundary(monkeypatch):
                     attrs={}
                     span=SimpleNamespace(set_attribute=lambda k,v:attrs.__setitem__(k,v))
                     try: yield span
-                    finally: owner.spans.append({'name':name,'attrs':attrs})
+                    finally: owner.spans.append({'name':name,'attrs':attrs,'kind':kwargs['kind'],'parent':kwargs['context']})
             return Tracer()
         def shutdown(self):
             self.shutdown_calls+=1
@@ -135,7 +135,7 @@ def sdk_boundary(monkeypatch):
         return m
     root=module('opentelemetry',True);trace=module('opentelemetry.trace')
     root.trace=trace;root.propagate=SimpleNamespace(extract=lambda carrier:carrier)
-    trace.SpanKind=SimpleNamespace(SERVER='server')
+    trace.SpanKind=SimpleNamespace(SERVER='server',INTERNAL='internal')
     def set_provider(provider):
         state.set_calls.append(provider)
         if state.global_provider is None:state.global_provider=provider
@@ -247,3 +247,13 @@ def test_install_binds_owned_provider_shutdown_to_app_lifecycle(sdk_boundary):
     assert handlers==[app._vsp_otel_shutdown], 'shutdown handler not registered with the app lifecycle'
     app._vsp_otel_shutdown()
     assert own.shutdown_calls==1, 'lifecycle handler did not flush the owned provider'
+
+
+def test_existing_server_context_gets_an_internal_observation(sdk_boundary):
+    parent='00-'+'1'*32+'-'+'2'*16+'-01'
+    tracer=otel._Tracer('inherited','http://127.0.0.1:14317')
+    with tracer.server_span('request-observation',parent,{},inherited_server=True):
+        pass
+    span=sdk_boundary.providers[-1].spans[0]
+    assert span['kind']=='internal'
+    assert span['parent']=={'traceparent':parent}

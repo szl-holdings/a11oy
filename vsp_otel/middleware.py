@@ -8,11 +8,13 @@ Field leaders harnessed (cited):
 
 `install(app)` adds an ASGI middleware that, for every request:
   1. parses any incoming `traceparent` (W3C §3.2), validating shape/non-zero ids;
-  2. mints a child span id, keeping the same trace-id (cross-pod continuity);
-  3. if the OpenTelemetry SDK + OTLP/gRPC exporter are installed, emits a real
-     server span only when OTEL_EXPORTER_OTLP_ENDPOINT passes the private endpoint policy;
-  4. ALWAYS echoes a valid outbound `traceparent` response header so the next
-     organ continues the SAME trace-id (this is what cross_pod_trace_test asserts).
+  2. preserves an established host server context, or mints a server span id
+     while keeping the incoming trace-id (cross-pod continuity);
+  3. if the OpenTelemetry SDK + OTLP/gRPC exporter are installed, records a SERVER
+     span, or an INTERNAL child when the host already owns the server context,
+     only when OTEL_EXPORTER_OTLP_ENDPOINT passes the private endpoint policy;
+  4. echoes the canonical valid outbound `traceparent` for trace continuity;
+     unsupported or partial host context degrades observation without failing inference.
 
 Honest disclosure: if the OTel SDK is absent the span is NOT exported to a
 collector — but the traceparent propagation (the cross-pod contract) still works
@@ -37,6 +39,7 @@ from contextlib import contextmanager
 from urllib.parse import urlsplit
 
 _VERSION = "0.2.0"
+_UNSET_CONTEXT = object()
 # Honest gating: a real collector endpoint is used ONLY when the operator sets
 # OTEL_EXPORTER_OTLP_ENDPOINT. When it is unset there is no collector to export
 # to (prod is a single HF Space, not the k8s mesh the collector config targets),
@@ -189,7 +192,8 @@ class _Tracer:
             self.exporter = f"in-process-only ({type(e).__name__})"
 
     @contextmanager
-    def server_span(self, name: str, incoming_traceparent: str | None, attrs: dict):
+    def server_span(self, name: str, incoming_traceparent: str | None, attrs: dict,
+                    *, inherited_server: bool = False):
         if self._tracer is None:
             yield None
             return
@@ -198,7 +202,8 @@ class _Tracer:
             parent = (propagate.extract({"traceparent": incoming_traceparent})
                       if incoming_traceparent else None)
             span_context = self._tracer.start_as_current_span(
-                name, context=parent, kind=trace.SpanKind.SERVER)
+                name, context=parent,
+                kind=trace.SpanKind.INTERNAL if inherited_server else trace.SpanKind.SERVER)
         except Exception:
             yield None
             return
@@ -240,16 +245,44 @@ def install(app, service_name: str | None = None, endpoint: str | None = _ENDPOI
     async def _vsp_otel_mw(request, call_next):
         incoming = request.headers.get("traceparent")
         parsed = parse_traceparent(incoming)
+        # Wire D may already own this request's server span. Preserve that host
+        # context instead of replacing it with a sibling span before the route.
+        existing_parent = getattr(request.state, "traceparent", _UNSET_CONTEXT)
+        existing_trace = getattr(request.state, "trace_id", _UNSET_CONTEXT)
+        existing_span = getattr(request.state, "span_id", _UNSET_CONTEXT)
+        existing = parse_traceparent(existing_parent)
+        host_context_present = any(value is not _UNSET_CONTEXT for value in (
+            existing_parent, existing_trace, existing_span
+        ))
+        if host_context_present and (
+            existing is None
+            or existing_trace != existing["trace_id"]
+            or existing_span != existing["parent_id"]
+        ):
+            # Do not invent a competing identity for unsupported or partial
+            # host state. Inference runs; its trace sidecar is UNAVAILABLE.
+            request.state.traceparent = None
+            request.state.vsp_otel_exporter = tracer.exporter
+            response = await call_next(request)
+            response.headers["x-vsp-otel"] = f"{_VERSION};{tracer.exporter}"
+            return response
         start_attrs = {
             "http.method": request.method,
             "http.route": request.url.path,
             "szl.service": svc,
             "szl.parent_trace_id": parsed["trace_id"] if parsed else "(root)",
         }
-        accepted_parent = incoming if parsed else None
+        accepted_parent = existing_parent if existing else incoming if parsed else None
         with tracer.server_span(
-                f"{svc} {request.method} {request.url.path}", accepted_parent, start_attrs) as span:
-            if span is not None:
+                f"{svc} {request.method} {request.url.path}", accepted_parent, start_attrs,
+                inherited_server=existing is not None) as span:
+            if existing:
+                # A configured provider records an INTERNAL child observation;
+                # the route, Wire D ledger and response keep the server's ID.
+                trace_id = existing["trace_id"]
+                span_id = existing["parent_id"]
+                sampled = existing["sampled"]
+            elif span is not None:
                 ctx = span.get_span_context()
                 trace_id = f"{ctx.trace_id:032x}"
                 span_id = f"{ctx.span_id:016x}"
@@ -259,7 +292,10 @@ def install(app, service_name: str | None = None, endpoint: str | None = _ENDPOI
                 span_id = _hex(8)
                 sampled = parsed["sampled"] if parsed else True
             request.state.trace_id = trace_id
-            request.state.traceparent = make_traceparent(trace_id, span_id, sampled)
+            request.state.span_id = span_id
+            request.state.traceparent = (
+                existing_parent if existing else make_traceparent(trace_id, span_id, sampled)
+            )
             request.state.vsp_otel_exporter = tracer.exporter
             t0 = time.time_ns()
             response = await call_next(request)

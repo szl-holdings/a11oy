@@ -153,3 +153,162 @@ def test_receipt_authority_drift_cannot_hide_behind_response_flags(proposal):
     result = cortex._receipt_trace_observation(proposal, TRACE)
     assert result["state"] == "UNAVAILABLE"
     assert result["diagnostic"]["decision"] == "HOLD"
+
+
+def install_actual_wire_d_middleware(app):
+    """Run the production Wire D middleware and pure helpers, without signing/storage."""
+    import ast
+    import os
+    import re
+    import threading
+    from collections import deque
+    from datetime import datetime, timezone
+    from pathlib import Path
+    from typing import Any
+    from starlette.requests import Request
+
+    source = Path(cortex.__file__).with_name("szl_provenance.py")
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    names = {
+        "_rand_hex", "new_trace_id", "new_span_id", "parse_traceparent",
+        "parse_tracestate", "mutate_tracestate", "_TraceState",
+    }
+    helpers = [
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in names
+    ]
+    assert {node.name for node in helpers} == names
+    registration = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "register_provenance"
+    )
+    middleware = next(
+        node for node in registration.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_wire_d_mw"
+    )
+    namespace = {
+        "os": os, "re": re, "threading": threading, "deque": deque,
+        "datetime": datetime, "timezone": timezone, "Any": Any, "Request": Request,
+    }
+    exec(compile(ast.Module(body=helpers, type_ignores=[]), str(source), "exec"), namespace)
+    state = namespace["_TraceState"]()
+    namespace.update(app=app, space="a11oy", tstate=state)
+    exec(compile(ast.Module(body=[middleware], type_ignores=[]), str(source), "exec"), namespace)
+    return state
+
+
+@pytest.mark.parametrize("incoming", [TRACE, TRACE[:-2] + "01", TRACE[:-2] + "03", None, "invalid-traceparent"])
+@pytest.mark.parametrize("configured_provider", [False, True])
+def test_production_wire_d_and_vsp_share_server_context(proposal, monkeypatch, incoming, configured_provider):
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    calls = []
+    if configured_provider:
+        real_tracer = otel._Tracer
+
+        class ControlledTracer(real_tracer):
+            def __init__(self, service, endpoint):
+                super().__init__(service, None)
+
+            @contextmanager
+            def server_span(self, name, parent, attrs, **options):
+                calls.append({"parent": parent, **options})
+                parsed = otel.parse_traceparent(parent)
+                context = SimpleNamespace(
+                    trace_id=int(parsed["trace_id"], 16) if parsed else int("9" * 32, 16),
+                    span_id=int("e" * 16, 16),
+                    trace_flags=0,
+                )
+                yield SimpleNamespace(get_span_context=lambda: context, set_attribute=lambda *args: None)
+
+        monkeypatch.setattr(otel, "_Tracer", ControlledTracer)
+
+    app = FastAPI()
+    # This is the actual serve.py installation order: Wire D wraps VSP.
+    otel.install(app, service_name="trace-coexistence-test", endpoint=None)
+    wire = install_actual_wire_d_middleware(app)
+    cortex.register(app)
+    headers = {"traceparent": incoming} if incoming is not None else {}
+    with mock.patch.object(cortex, "infer_payload", side_effect=lambda request: copy.deepcopy(proposal)):
+        with TestClient(app) as client:
+            response = client.post("/api/v2/governed-infer", json={"prompt": "context-test"}, headers=headers)
+    assert response.status_code == 200
+    event = response.json()["trace_observation"]
+    returned = otel.parse_traceparent(response.headers["traceparent"])
+    recorded = wire.snapshot()["recent"][-1]
+    if incoming == TRACE[:-2] + "03":
+        # The existing strict VSP v00 profile rejects this Wire D context.
+        assert returned is None
+        assert event["state"] == "UNAVAILABLE"
+        assert event["reason_codes"] == ["TRACE_CONTEXT_UNAVAILABLE"]
+        assert response.json()["receipt"] == proposal["receipt"]
+        assert response.headers["traceparent"].split("-")[2] == recorded["span_id"]
+        assert calls == []
+        return
+    assert event["state"] == "OBSERVED"
+    assert event["trace_id"] == returned["trace_id"] == recorded["trace_id"]
+    assert event["span_id"] == returned["parent_id"] == recorded["span_id"]
+    assert event["trace_flags"] == returned["flags"]
+    assert wire.snapshot()["active_span_count"] == 0
+    if otel.parse_traceparent(incoming):
+        supplied = otel.parse_traceparent(incoming)
+        assert returned["trace_id"] == supplied["trace_id"]
+        assert returned["parent_id"] != supplied["parent_id"]
+    if configured_provider:
+        assert calls == [{"parent": response.headers["traceparent"], "inherited_server": True}]
+        assert event["span_id"] != "e" * 16
+
+
+@pytest.mark.parametrize("attribute,value,remove", [
+    ("trace_id", "9" * 32, False),
+    ("span_id", "9" * 16, False),
+    ("traceparent", "invalid-host-context", False),
+    ("traceparent", "", False),
+    ("traceparent", None, False),
+    ("traceparent", None, True),
+    ("span_id", None, True),
+    ("trace_id", None, True),
+])
+def test_inconsistent_host_context_cannot_claim_observed(proposal, attribute, value, remove):
+    app = FastAPI()
+    otel.install(app, service_name="trace-corrupt-host-test", endpoint=None)
+
+    @app.middleware("http")
+    async def corrupt_context(request, call_next):
+        if remove:
+            delattr(request.state, attribute)
+        else:
+            setattr(request.state, attribute, value)
+        return await call_next(request)
+
+    install_actual_wire_d_middleware(app)
+    cortex.register(app)
+    with mock.patch.object(cortex, "infer_payload", side_effect=lambda request: copy.deepcopy(proposal)):
+        with TestClient(app) as client:
+            response = client.post("/api/v2/governed-infer", json={"prompt": "context-test"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["state"] == "PROPOSAL"
+    assert body["receipt"] == proposal["receipt"]
+    assert body["trace_observation"]["state"] == "UNAVAILABLE"
+    assert body["trace_observation"]["reason_codes"] == ["TRACE_CONTEXT_UNAVAILABLE"]
+    assert otel.parse_traceparent(response.headers["traceparent"]) is not None
+
+
+def test_production_middleware_installation_matches_coexistence_fixture():
+    import ast
+    from pathlib import Path
+
+    tree = ast.parse(Path(cortex.__file__).with_name("serve.py").read_text(encoding="utf-8"))
+    def calls(owner, method):
+        return [
+            node.lineno for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == owner and node.func.attr == method
+        ]
+    vsp = calls("_vsp_otel", "install")
+    wire = calls("_prov", "register_provenance")
+    assert len(vsp) == len(wire) == 1
+    assert vsp[0] < wire[0], "Reconcile fixture and canonical context before changing middleware order"

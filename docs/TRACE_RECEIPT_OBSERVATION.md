@@ -64,6 +64,21 @@ describes that same operation rather than inventing a child span. It does not
 derive a trace identifier from the deterministic cortex request identifier.
 Repeated requests therefore retain the middleware's per-request span behavior.
 
+When Wire D has already established a valid server context, VSP preserves that
+context for the route, Wire D ledger and response header. A configured OTel
+provider records an INTERNAL child observation beneath that existing server
+span; its child ID does not replace the server identity in the receipt sidecar.
+Without an existing server context, VSP retains its own server-span behavior.
+
+The production coexistence regression executes the actual Wire D middleware
+body and its pure trace helpers alongside VSP and the cortex route. It covers
+valid, absent and invalid incoming context and both in-process and
+configured-provider paths. An existing host context must also match the host's
+trace and span identifiers and the strict v00 profile (lowercase, nonzero IDs;
+flags 00 or 01). Unsupported or partial host context produces an UNAVAILABLE
+sidecar while preserving the successful inference. The fixture executes no signing,
+ledger persistence or private-key code.
+
 `observation_sha256` hashes all other sidecar fields using sorted-key, compact
 UTF-8 Python JSON with `ensure_ascii=False` and `allow_nan=False`.
 This is a deterministic representation checksum, not RFC 8785 canonicalization,
