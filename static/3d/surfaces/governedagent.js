@@ -268,7 +268,7 @@ function _requestInputsChanged() {
 
 async function _fireRun() {
   if (S.running) return;
-  let token = String((_el.operatorToken && _el.operatorToken.value) || "").trim();
+  const token = String((_el.operatorToken && _el.operatorToken.value) || "").trim();
   const tenant = String((_el.tenant && _el.tenant.value) || "").trim();
   const task = String((_el.task && _el.task.value) || "").trim();
   const model = String((_el.modelSel && _el.modelSel.value) || "").trim();
@@ -311,7 +311,6 @@ async function _fireRun() {
         authorization: "Bearer " + token, "x-a11oy-tenant": tenant },
       body: serialized, signal: controller.signal,
     });
-    token = "";
     if (lifecycle !== _lifecycle) return;
     if (!(response.headers.get("content-type") || "").toLowerCase().includes("application/json")) {
       throw new Error("NON_JSON_RESPONSE");
@@ -341,7 +340,7 @@ async function _fireRun() {
     S.outcomeUncertain = true;
     S.runState = "UNKNOWN - response unavailable or invalid; execution may have occurred; no automatic retry";
   } finally {
-    token = ""; clearTimeout(timer);
+    clearTimeout(timer);
     if (lifecycle === _lifecycle) {
       _runController = null; S.running = false; _clearCredentials(); _paintOverlay();
     }
