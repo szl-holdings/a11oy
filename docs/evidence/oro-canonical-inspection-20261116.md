@@ -3,7 +3,7 @@
 
 # Canonical ORO inspection verification
 
-Date: 2026-11-16. Scope: local implementation and integration checks. This record is unsigned and does not attest a production deployment.
+Date: 2026-11-16; additional verification on 2026-11-17 UTC. Scope: local implementation and integration checks. This record is unsigned and does not attest a production deployment.
 
 ## Problem and candidate
 
@@ -41,7 +41,7 @@ The fixture proves local integration and read boundaries. It is not evidence of 
 
 ## Regression execution
 
-The final combined run passed 247 tests and 72 parameterized subtests in 91.77 seconds. It includes the assembled canonical application, ORO runtime/API/evidence contracts, Docker packaging, Anatomy read boundaries, v5/v6 page contracts, and the Anatomy loop. The browser controller suite passed nine tests. All processes exited successfully. Existing deprecation and test-return warnings were reported; no tests were skipped or weakened.
+The final combined run passed 247 tests and 72 parameterized subtests in 91.77 seconds. It includes the assembled canonical application, ORO runtime/API/evidence contracts, Docker packaging, Anatomy read boundaries, v5/v6 page contracts, and the Anatomy loop. The original browser controller suite passed nine tests; the final lifecycle suite described below passes twelve. All processes exited successfully. Existing deprecation and test-return warnings were reported; no tests were skipped or weakened.
 
 The broader run first exposed the Windows invalid-parent-path case, and a source-owner suite exposed an upstream STRUCTURAL-ONLY label outside Anatomy's four-label contract. Both original tests were preserved. The overlay reader now rejects invalid ancestors; the lungs projection preserves source_label while reporting unavailable measurement. Both fixes and their cross-platform regression cases pass in the final combined run.
 
@@ -49,7 +49,15 @@ Commands: python -B -m pytest -q -p no:cacheprovider oro/test_*.py tests/test_or
 
 ## Integration with current main
 
-Implementation commit d1d89925abc9562118bd3a2a024ed00059683b1d integrates main revision 6848d7a1f15fe72883cc49bf3172e0e4439a325a. The one packaging-test conflict retained both the existing trace observation addition and the new ORO package addition; neither source baseline nor the layer ceiling was relaxed. After integration, the focused packaging and ORO API rerun passed 26 tests and 33 subtests. This verification-record update changes documentation only. Hosted checks will validate the final PR revision.
+Implementation commit d1d89925abc9562118bd3a2a024ed00059683b1d integrates main revision 6848d7a1f15fe72883cc49bf3172e0e4439a325a. The one packaging-test conflict retained both the existing trace observation addition and the new ORO package addition; neither source baseline nor the layer ceiling was relaxed. After integration, the focused packaging and ORO API rerun passed 26 tests and 33 subtests. Hosted checks validate the final PR revision and remain authoritative for merge.
+
+## Navigation and page lifecycle
+
+The canonical Command Centre manifest and server-rendered page now link to /oro/evidence. Its manifest test preserves the exact surface count and verifies that the added entry grants no execution authority. The focused Command Centre suite passes 34 tests. The combined manifest, renderer and existing browser-witness suite passes 148 tests with one environment failure: Windows raises WinError 1314 while creating the symlink fixture, before product code runs. No test was skipped or weakened. The existing Tests workflow runs that same case on Ubuntu in its GDW authenticated durability and promotion contract job; its Python command-centre local presentation witness job covers the browser tests.
+
+Independent review found that disposing the reader on pagehide left retained DOM evidence without a running expiry or Refresh controller after a back/forward-cache restoration. The view now clears handles when hidden or departed, removes its Refresh listener, and mounts exactly one reader only when the page is active and visible. A disposed pending read cannot repaint or schedule a new expiry after its transport resolves.
+
+The final Node suite passes 12 tests, including repeated persisted pagehide/pageshow events, hidden restoration, listener deduplication, and late transport completion. A real Chromium navigation witness used the actual FastAPI/Khipu/Anatomy path with no intercepted response: returning after owner removal cleared evidence, restored Refresh recovered, node count stayed 2 to 2, signing calls stayed zero, and the overlay remained absent. There were no page errors. This browser run reported persisted=false, so actual browser-cache retention was not observed; the persisted-cache lifecycle is covered by the deterministic event regression.
 
 ## Production readback during implementation
 
@@ -58,3 +66,7 @@ At 23:50–23:51 UTC, the live build-info endpoint still reported f6e30e83343674
 Production acceptance requires the canonical hf-sync delivery path, a readback of the new page and JSON route at the admitted revision, preserved read-only behavior, and the applicable repository gates. A local or hosted test pass alone does not establish that deployment.
 
 See [the architecture and cited prior art](../architecture/oro-evidence-integration.md) for design sources and the remaining ORO execution contracts.
+
+At 00:12-00:14 UTC on 2026-11-17, a separate canonical publication had advanced the public runtime to e782b24e50c26447a77b8d45ed16f99fc35a6a67. Its copy-set identity was reported through GITHUB_ATTESTED_SOURCE_COPY_SET, storage reported CLEAN with all seven stores OK, and operational readiness remained NOT_READY. The publication workflow was still running at that observation.
+
+Source publication and independently admitted execution are separate contracts. A preceding publisher had completed publication/source checks but refused the subsequent execution handoff because configured HF/boot context referred to an older runtime. The publisher intentionally does not manufacture that admission or replace independently configured execution pins. Follow the established process in [execution readiness](../execution-readiness.md); neither this inspection page nor a Git commit signature supplies execution approval. The separate content-cycle repair in PR #3563 changes barrier hashing and historical reconciliation, not the canonical ORO storage, signer, or admission boundaries.

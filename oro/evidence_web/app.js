@@ -111,6 +111,7 @@
           }, timeoutMs);
         });
         const {response, body} = await Promise.race([request, deadline]);
+        if (disposed) return;
         if (!response.ok || body.status === "UNAVAILABLE") {
           emit({phase: "unavailable", observation: body, reason: "SOURCE_UNAVAILABLE", httpStatus: response.status});
         } else {
@@ -262,16 +263,58 @@
       await controller.refresh();
       if (!stopped) pollTimer = setTimeout(poll, 30000);
     }
-    doc.getElementById("refresh").addEventListener("click", () => controller.refresh());
+    const refreshButton = doc.getElementById("refresh");
+    const refresh = () => controller.refresh();
+    refreshButton.addEventListener("click", refresh);
     poll();
     return {
-      dispose() { stopped = true; clearTimeout(pollTimer); controller.dispose(); }
+      dispose() {
+        if (stopped) return;
+        stopped = true;
+        clearTimeout(pollTimer);
+        refreshButton.removeEventListener("click", refresh);
+        controller.dispose();
+        // A restored browser page must not retain handles whose expiry timer
+        // stopped while the document was hidden or in the back/forward cache.
+        render({phase: "stale", observation: null, reason: "DISPLAY_OBSERVATION_EXPIRED"});
+      }
     };
   }
-  const exported = {API, validateObservation, createController, createRenderer, mount};
-  if (typeof module === "object" && module.exports) module.exports = exported;
-  if (global.document && typeof global.fetch === "function") {
-    const mounted = mount(global.document, global.fetch.bind(global));
-    global.addEventListener("pagehide", () => mounted.dispose(), {once: true});
+
+  function bindPageLifecycle(page) {
+    let mounted = null, activePage = true, disposed = false;
+    function stop() {
+      mounted?.dispose();
+      mounted = null;
+    }
+    function resume() {
+      if (!disposed && activePage && !page.document.hidden && mounted === null) {
+        mounted = mount(page.document, page.fetch.bind(page));
+      }
+    }
+    function hide() { activePage = false; stop(); }
+    function show() { activePage = true; resume(); }
+    function visibility() {
+      if (page.document.hidden) stop();
+      else resume();
+    }
+    page.addEventListener("pagehide", hide);
+    page.addEventListener("pageshow", show);
+    page.document.addEventListener("visibilitychange", visibility);
+    resume();
+    return {
+      dispose() {
+        if (disposed) return;
+        disposed = true;
+        stop();
+        page.removeEventListener("pagehide", hide);
+        page.removeEventListener("pageshow", show);
+        page.document.removeEventListener("visibilitychange", visibility);
+      }
+    };
   }
+
+  const exported = {API, validateObservation, createController, createRenderer, mount, bindPageLifecycle};
+  if (typeof module === "object" && module.exports) module.exports = exported;
+  if (global.document && typeof global.fetch === "function") bindPageLifecycle(global);
 })(typeof window === "undefined" ? globalThis : window);

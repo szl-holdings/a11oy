@@ -3,7 +3,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const {validateObservation, createController, createRenderer} = require("../oro/evidence_web/app.js");
+const {validateObservation, createController, createRenderer, bindPageLifecycle} = require("../oro/evidence_web/app.js");
 
 const DIGEST = "a".repeat(64);
 function observation() {
@@ -39,6 +39,7 @@ function timers() {
   return {
     setTimer(fn, ms) { const id = ++sequence; tasks.set(id, {fn, ms}); return id; },
     clearTimer(id) { tasks.delete(id); },
+    pendingCount() { return tasks.size; },
     fire(ms) {
       const entry = [...tasks].find(([, task]) => task.ms === ms);
       assert.ok(entry, "expected timer " + ms);
@@ -46,8 +47,8 @@ function timers() {
     }
   };
 }
-class Element {
-  constructor(tag) { this.tagName = tag; this.children = []; this.value = ""; this.disabled = false; }
+class Element extends EventTarget {
+  constructor(tag) { super(); this.tagName = tag; this.children = []; this.value = ""; this.disabled = false; }
   set innerHTML(_value) { throw new Error("HTML interpretation is forbidden"); }
   set textContent(value) { this.value = String(value); this.children = []; }
   get textContent() { return this.value + this.children.map(child => child.textContent).join(" "); }
@@ -189,4 +190,104 @@ test("network failure after success never retains a previous claim", async () =>
   assert.doesNotMatch(doc.getElementById("raw").textContent, /private transport/);
   assert.match(doc.getElementById("raw").textContent, /OBSERVATION_REQUEST_FAILED/);
   controller.dispose();
+});
+
+
+test("back/forward restores clear old handles and refresh with one live controller", async () => {
+  const doc = Object.assign(new EventTarget(), document(), {hidden: false});
+  let reads = 0;
+  const page = Object.assign(new EventTarget(), {
+    document: doc,
+    fetch: async () => { reads++; return response(observation()); }
+  });
+  const settle = () => new Promise(resolve => setImmediate(resolve));
+  const lifecycle = bindPageLifecycle(page);
+  try {
+    await settle();
+    assert.equal(reads, 1);
+    assert.equal(doc.getElementById("handle-count").textContent, "1 handle");
+    for (let cycle = 0; cycle < 2; cycle++) {
+      page.dispatchEvent(Object.assign(new Event("pagehide"), {persisted: true}));
+      assert.equal(doc.getElementById("handle-count").textContent, "Not observed");
+      assert.doesNotMatch(doc.getElementById("nodes").textContent, /khipu:/);
+      page.dispatchEvent(Object.assign(new Event("pageshow"), {persisted: true}));
+      assert.equal(doc.getElementById("observation-status").textContent, "Collecting observation");
+      assert.equal(doc.getElementById("handle-count").textContent, "Not observed");
+      await settle();
+      assert.equal(reads, cycle + 2);
+      assert.equal(doc.getElementById("handle-count").textContent, "1 handle");
+      page.dispatchEvent(Object.assign(new Event("pageshow"), {persisted: true}));
+      await settle();
+      assert.equal(reads, cycle + 2, "duplicate pageshow must not add a reader");
+    }
+    doc.getElementById("refresh").dispatchEvent(new Event("click"));
+    await settle();
+    assert.equal(reads, 4, "restored Refresh must have exactly one active listener");
+  } finally {
+    lifecycle.dispose();
+  }
+});
+
+test("a hidden restored page waits for visibility before reading and clears on hide", async () => {
+  const doc = Object.assign(new EventTarget(), document(), {hidden: false});
+  let reads = 0;
+  const page = Object.assign(new EventTarget(), {
+    document: doc,
+    fetch: async () => { reads++; return response(observation()); }
+  });
+  const settle = () => new Promise(resolve => setImmediate(resolve));
+  const lifecycle = bindPageLifecycle(page);
+  try {
+    await settle();
+    assert.equal(reads, 1);
+    page.dispatchEvent(Object.assign(new Event("pagehide"), {persisted: true}));
+    doc.hidden = true;
+    page.dispatchEvent(Object.assign(new Event("pageshow"), {persisted: true}));
+    doc.dispatchEvent(new Event("visibilitychange"));
+    await settle();
+    assert.equal(reads, 1, "restoration in the background must not fetch");
+    assert.equal(doc.getElementById("handle-count").textContent, "Not observed");
+    doc.hidden = false;
+    doc.dispatchEvent(new Event("visibilitychange"));
+    await settle();
+    assert.equal(reads, 2);
+    doc.hidden = true;
+    doc.dispatchEvent(new Event("visibilitychange"));
+    doc.getElementById("refresh").dispatchEvent(new Event("click"));
+    await settle();
+    assert.equal(reads, 2);
+    assert.equal(doc.getElementById("handle-count").textContent, "Not observed");
+    doc.hidden = false;
+    doc.dispatchEvent(new Event("visibilitychange"));
+    await settle();
+    assert.equal(reads, 3);
+    lifecycle.dispose();
+    page.dispatchEvent(new Event("pageshow"));
+    doc.dispatchEvent(new Event("visibilitychange"));
+    doc.getElementById("refresh").dispatchEvent(new Event("click"));
+    await settle();
+    assert.equal(reads, 3, "disposing the lifecycle removes all restart and refresh listeners");
+  } finally {
+    lifecycle.dispose();
+  }
+});
+
+
+test("a disposed pending reader ignores late transport completion and cannot recreate timers", async () => {
+  const states = [], timer = timers();
+  let finishRead, signal;
+  const controller = createController({...timer, onState: state => states.push(state),
+    fetchImpl: (_url, options) => {
+      signal = options.signal;
+      return new Promise(resolve => { finishRead = resolve; });
+    }});
+  const pending = controller.refresh();
+  assert.equal(timer.pendingCount(), 1);
+  controller.dispose();
+  assert.equal(signal.aborted, true);
+  assert.equal(timer.pendingCount(), 0);
+  finishRead(response(observation()));
+  await pending;
+  assert.deepEqual(states.map(state => state.phase), ["loading"]);
+  assert.equal(timer.pendingCount(), 0, "late completion must not add a display expiry timer");
 });

@@ -69,7 +69,11 @@ def test_manifest_has_source_order_not_mutation_or_inference(client, monkeypatch
     assert data['authorities']['source'] == 'szl-holdings/a11oy'
     assert data['release_order'][0] == 'protected_github_source'
     assert data['release_order'][1] == 'canonical_hf_publication'
-    assert len(data['surfaces']) == 18
+    assert len(data['surfaces']) == 19
+    oro = [s for s in data['surfaces'] if s['href'] == '/oro/evidence']
+    assert len(oro) == 1
+    assert oro[0]['title'] == 'ORO evidence'
+    assert 'no execution authority' in oro[0]['boundary']
     assert all(s['href'].startswith(('/', 'https://')) for s in data['surfaces'])
     assert any(s['href'] == '/command-v2' for s in data['surfaces'])
     assert any(s['href'] == 'https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab'
