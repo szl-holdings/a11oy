@@ -12,6 +12,8 @@ on:
       - scripts/prove_hf_series_a_restart.py
       - scripts/enroll_hf_atelier_operator.py
       - scripts/test_configure_hf_series_a_runtime.py
+      - .github/scripts/await_hf_configuration_handover.py
+      - tests/test_hf_configuration_handover.py
       - scripts/test_prove_hf_series_a_restart.py
       - scripts/test_enroll_hf_atelier_operator.py
       - docs/ATELIER_COMMAND_CENTRE.md
@@ -54,6 +56,7 @@ jobs:
         run: |
           python -m compileall -q .github/scripts/verify_canonical_a11oy.py routers/series_a_control_plane.py scripts/configure_hf_series_a_runtime.py scripts/prove_hf_series_a_restart.py scripts/enroll_hf_atelier_operator.py scripts/test_configure_hf_series_a_runtime.py scripts/test_prove_hf_series_a_restart.py scripts/test_enroll_hf_atelier_operator.py tests/test_canonical_a11oy_relock.py tests/test_series_a_control_plane.py tests/test_series_a_github_read_binding.py
           python -m pytest -q scripts/test_configure_hf_series_a_runtime.py scripts/test_prove_hf_series_a_restart.py scripts/test_enroll_hf_atelier_operator.py tests/test_canonical_a11oy_relock.py tests/test_series_a_control_plane.py tests/test_series_a_github_read_binding.py
+          python -B -m pytest -q -p no:cacheprovider tests/test_hf_configuration_handover.py
           git diff --check
       - name: Prove no mock framework imports
         run: |
