@@ -24,7 +24,7 @@ if str(REPO) not in sys.path:
 import szl_dsse  # noqa: E402 - canonical A11oy P-256 DSSE implementation
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from runtime_config import DEFAULT_TUNNEL_PORT, GATEWAY_PORT, LOOPBACK_HOST, LocalTransport
+from runtime_config import DEFAULT_TUNNEL_PORT, LOOPBACK_HOST, LocalTransport
 
 ALIAS = "prism-ml/Ternary-Bonsai-2-27B-PQ2_0"
 RAW_MODEL = "./models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf"

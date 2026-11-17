@@ -11,7 +11,7 @@ urlopen=build_opener(ProxyHandler({})).open
 HOME = Path(__file__).resolve().parent
 SOURCE = HOME / "source"
 EXPECTED = {
- "ops/vm-model-gateway/gateway.py": "23320b73715cf431e20fe2f6eb9c0c6141a94b9ea3b60d4b5bd6867fbbf81a04",
+ "ops/vm-model-gateway/gateway.py": "d0eda48d20813ad8a91f99168b4a9bccadf10cb34dddf77d93b64fe829af34e9",
  "ops/vm-model-gateway/runtime_config.py": "370902b7c22fdb66f2bfed68b1991ccad82d173b1ebc553d53d020ee6bd389f3",
  "szl_dsse.py": "dbe0188605d77610dee97f5b6efc069166a2a15fe46cf4f89881d4f5fa209d2f",
  "szl_content_address.py": "211b69d47fbbddf496fcfdedb0311e6fe6b67b67428100dd27ce7ce1f7247b10",
