@@ -53,7 +53,7 @@ for (const file of files) {
   const source = html.slice(start, end);
 
   test(file + ': shipped inline script parses', () => {
-    const scripts = [...html.matchAll(/<script(?:[\s/][^>]*)?>([\s\S]*?)<\/script\s*>/gi)]
+    const scripts = [...html.matchAll(/<script(?:[\s/][^>]*)?>([\s\S]*?)<\/script(?:[\s/][^>]*)?>/gi)]
       .map(match => match[1]).filter(script => script.includes('async function ask_recs(){'));
     assert.equal(scripts.length, 1);
     assert.doesNotThrow(() => new Script(scripts[0]));
