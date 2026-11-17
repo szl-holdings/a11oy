@@ -972,20 +972,33 @@ class AuthenticatedDerivedMarkerTests(unittest.TestCase):
         return io.BytesIO(self.raw)
 
     def verified_cli(self, command, **kwargs):
+        """Simulate the current cancellable Popen contract, not obsolete run()."""
         self.commands.append(command)
         self.assertEqual(command[:3], ["gh", "attestation", "verify"])
-        self.assertEqual(kwargs["timeout"], 45)
         self.assertEqual(kwargs["env"]["GH_TOKEN"], "fixture-job-read-token")
         self.assertNotIn("GITHUB_TOKEN", kwargs["env"])
         self.assertNotIn("HF_TOKEN", kwargs["env"])
+        self.assertEqual(kwargs["stdin"], MODULE.subprocess.DEVNULL)
+        self.assertEqual(kwargs["stderr"], MODULE.subprocess.DEVNULL)
+        self.assertEqual(kwargs["cwd"], kwargs["env"]["GH_CONFIG_DIR"])
+        self.assertEqual(command[command.index("--format") + 1], "json")
+        self.assertIn("--deny-self-hosted-runners", command)
         body = Path(command[3]).read_bytes()
         kwargs["stdout"].write(self.canonical([{"verificationResult": {"signature": {
             "certificate": {"runInvocationURI": self.invocation}}}}]))
-        return MODULE.subprocess.CompletedProcess(command, 0 if body == self.expected_binding else 1)
+
+        class CompletedVerifier:
+            def __init__(self, status):
+                self.status = status
+
+            def poll(self):
+                return self.status
+
+        return CompletedVerifier(0 if body == self.expected_binding else 1)
 
     def verify(self):
         with mock.patch.dict(MODULE.os.environ, {"GITHUB_TOKEN": "fixture-job-read-token"}), \
-                mock.patch.object(MODULE.subprocess, "run", side_effect=self.verified_cli):
+                mock.patch.object(MODULE.subprocess, "Popen", side_effect=self.verified_cli):
             return MODULE.verify_derived_runtime_marker(github_repo=GITHUB_REPO,
                 github_ref=self.source, hf_repo=HF_REPO, hf_ref=self.hf,
                 tree=self.tree, opener=self.opener)
@@ -1039,14 +1052,42 @@ class AuthenticatedDerivedMarkerTests(unittest.TestCase):
         with self.assertRaisesRegex(MODULE.ParityError, "exact unavailable placeholder"):
             self.verify()
 
+    def test_source_bound_verifier_limits_and_helpers_cannot_silently_change(self):
+        path = "szl_runtime_identity.py"
+        original = self.files[path]
+        original_oid = self.tree[path]
+        for before, after, expected in (
+            (b"VERIFIER_TIMEOUT = 45", b"VERIFIER_TIMEOUT = 120",
+             "immutable runtime verifier limits differ"),
+            (b"def stop_verifier(process):", b"def stop_verifier_renamed(process):",
+             "immutable runtime verification contract is incomplete"),
+        ):
+            with self.subTest(change=before):
+                self.assertIn(before, original)
+                self.files[path] = original.replace(before, after, 1)
+                self.tree[path] = DerivedDotCopyTests.oid(self.files[path])
+                with self.assertRaisesRegex(MODULE.ParityError, expected):
+                    self.verify()
+                self.files[path] = original
+                self.tree[path] = original_oid
+
+    def test_successful_process_without_verified_attestation_json_is_not_admitted(self):
+        class EmptyProcess:
+            def poll(self):
+                return 0
+
+        with mock.patch.object(self, "verified_cli", return_value=EmptyProcess()):
+            with self.assertRaises(MODULE.ParityError):
+                self.verify()
+
     def test_missing_job_credential_has_no_generic_token_fallback(self):
         with mock.patch.dict(MODULE.os.environ, {"GH_TOKEN": "must-not-be-used"}, clear=True), \
-                mock.patch.object(MODULE.subprocess, "run") as run:
+                mock.patch.object(MODULE.subprocess, "Popen") as launched:
             with self.assertRaisesRegex(MODULE.ParityError, "job's GitHub read credential"):
                 MODULE.verify_derived_runtime_marker(github_repo=GITHUB_REPO,
                     github_ref=self.source, hf_repo=HF_REPO, hf_ref=self.hf,
                     tree=self.tree, opener=self.opener)
-            run.assert_not_called()
+            launched.assert_not_called()
 
     def test_oversized_or_duplicate_marker_is_rejected(self):
         for raw in (b"x" * (1024 * 1024 + 1), b'{"schema":"x","schema":"y"}', MODULE.RUNTIME_PLACEHOLDER):

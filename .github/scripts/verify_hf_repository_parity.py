@@ -26,6 +26,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -529,6 +530,7 @@ def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
     namespace = {"__name__": "immutable_runtime_verification_contract",
                  "json": json, "math": math, "re": re, "os": os,
                  "tempfile": tempfile, "Path": Path, "subprocess": subprocess,
+                 "threading": threading, "time": time,
                  "MAX_JSON": 2 * 1024 * 1024, "MAX_FILE": 32 * 1024 * 1024,
                  "REPOSITORY": "szl-holdings/a11oy", "TARGET": "SZLHOLDINGS/a11oy",
                  "SIGNER": RUNTIME_SIGNER,
@@ -536,12 +538,45 @@ def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
                               "gdw_runtime.py", ".github/scripts/hf-sync.yml"}}
     for path, wanted in (
         ("szl_readiness_artifact.py", {"EvidenceBlocked", "require", "digest", "strict"}),
-        ("szl_runtime_identity.py", {"marker_document", "validate_binding", "verify_attestation"}),
+        ("szl_runtime_identity.py", {"marker_document", "validate_binding",
+                                     "verification_open", "stop_verifier", "verify_attestation"}),
     ):
         raw = _read_url(f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/{path}",
                         opener=opener, max_bytes=128 * 1024)
         require_blob_bytes(path, raw, tree.get(path))
-        definitions = [node for node in ast.parse(raw).body
+        source_ast = ast.parse(raw)
+        if path == "szl_runtime_identity.py":
+            # The verified runtime now owns a bounded cancellable Popen verifier.
+            # Copy its source-bound literal limits, never executable module setup.
+            # Any change to these limits requires explicit parity review.
+            limits = {"VERIFIER_TIMEOUT": 45, "VERIFIER_POLL": 0.1,
+                      "VERIFIER_CLEANUP_TIMEOUT": 1,
+                      "MAX_VERIFIER_OUTPUT": 2 * 1024 * 1024}
+            observed = {}
+            for node in source_ast.body:
+                if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                        and isinstance(node.targets[0], ast.Name)
+                        and node.targets[0].id in limits):
+                    name = node.targets[0].id
+                    if name in observed:
+                        raise ParityError("immutable runtime verifier limits are ambiguous")
+                    try:
+                        observed[name] = ast.literal_eval(node.value)
+                    except (ValueError, TypeError, SyntaxError) as exc:
+                        # This one immutable upstream constant uses a literal
+                        # multiplication, not ast.literal_eval-compatible syntax.
+                        reviewed = ast.parse("2 * 1024 * 1024", mode="eval").body
+                        if (name != "MAX_VERIFIER_OUTPUT"
+                                or ast.dump(node.value, include_attributes=False)
+                                != ast.dump(reviewed, include_attributes=False)):
+                            raise ParityError("immutable runtime verifier limits are not literals") from exc
+                        observed[name] = 2 * 1024 * 1024
+            if (set(observed) != set(limits) or any(
+                    type(observed[name]) is not type(expected) or observed[name] != expected
+                    for name, expected in limits.items())):
+                raise ParityError("immutable runtime verifier limits differ from reviewed bounds")
+            namespace.update(observed)
+        definitions = [node for node in source_ast.body
                        if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in wanted]
         if len(definitions) != len(wanted) or {node.name for node in definitions} != wanted:
             raise ParityError("immutable runtime verification contract is incomplete")
