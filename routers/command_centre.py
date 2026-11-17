@@ -24,6 +24,13 @@ STUDY = Path(__file__).resolve().parent / "data" / "atelier-model-intake-2026-09
 PUBLIC_ESTATE = Path(__file__).resolve().parents[1] / "static/shared/public-estate-contract.v1.json"
 PROOF_INVENTORY = "https://a11oy.net/estate/hf-current.json"
 HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}
+IMMUTABLE_HEADERS = {**HEADERS, "Cache-Control": "public, max-age=31536000, immutable, no-transform"}
+ASSETS = {
+    "app.js": ("app.js", "text/javascript"),
+    "style.css": ("style.css", "text/css"),
+    "szl-design-system.css": ("szl/szl-design-system.css", "text/css"),
+    "szl-console.css": ("szl/szl-console.css", "text/css"),
+}
 PAGE_HEADERS = {**HEADERS, "Cache-Control": "no-store, no-transform", "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'", "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"}
 
 SURFACES = (
@@ -152,7 +159,7 @@ def presentation_sources():
         "routers/command_centre.py": Path(__file__),
         "routers/command_centre_view.py": Path(command_centre_view.__file__),
     }
-    for suffix in ("app.js", "style.css", "szl/szl-design-system.css", "szl/szl-console.css"):
+    for suffix, _media_type in ASSETS.values():
         sources["routers/command_centre_web/" + suffix] = ROOT / suffix
     return {name: hashlib.sha256(_bounded_source(path, 1048576)).hexdigest()
             for name, path in sources.items()}
@@ -218,17 +225,25 @@ def proof_inventory():
 def register(app):
     prior = list(app.router.routes)
 
-    def asset(path, media_type, headers=HEADERS):
+    def asset(path, media_type, headers=HEADERS, digest=None):
         # The product's middleware cannot safely relay FileResponse pathsend.
         # Emit bounded body bytes, as the existing front door does.
         try:
-            with path.open("rb") as stream:
-                body = stream.read(1048577)
-            if len(body) > 1048576:
-                raise ValueError("asset exceeds bound")
+            body = _bounded_source(path, 1048576)
         except (OSError, ValueError):
             return JSONResponse({"state": "UNAVAILABLE", "code": "ASSET_UNAVAILABLE"}, status_code=503, headers=HEADERS)
+        # Check the same bounded bytes that Response sends, never a later file read.
+        if digest is not None and hashlib.sha256(body).hexdigest() != digest:
+            return JSONResponse({"state": "UNAVAILABLE", "code": "ASSET_DIGEST_MISMATCH"},
+                                status_code=404, headers=HEADERS)
         return Response(body, media_type=media_type, headers=headers)
+
+    def immutable_asset(digest, filename):
+        if not re.fullmatch(r"[0-9a-f]{64}", digest) or filename not in ASSETS:
+            return JSONResponse({"state": "UNAVAILABLE", "code": "ASSET_NOT_FOUND"},
+                                status_code=404, headers=HEADERS)
+        suffix, media_type = ASSETS[filename]
+        return asset(ROOT / suffix, media_type, IMMUTABLE_HEADERS, digest=digest)
 
     def page():
         try:
@@ -270,6 +285,8 @@ def register(app):
         app.add_api_route(path, page, methods=["GET", "HEAD"], include_in_schema=False)
     for path, handler in (("/command-centre/app.js", script), ("/command-centre/style.css", styles), ("/command-centre/szl/szl-design-system.css", brand), ("/command-centre/szl/szl-console.css", console_styles), ("/api/a11oy/v1/command-centre/manifest", source_manifest), ("/api/a11oy/v1/command-centre/inventory", inventory), ("/api/a11oy/v1/command-centre/study", study)):
         app.add_api_route(path, handler, methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route("/command-centre/assets/{digest}/{filename:path}", immutable_asset,
+                      methods=["GET", "HEAD"], include_in_schema=False)
     added = [route for route in app.router.routes if route not in prior]
     app.router.routes[:] = added + prior
     return {"module": "routers.command_centre", "routes": len(added), "read_only": True}
