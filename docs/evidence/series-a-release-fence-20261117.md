@@ -184,3 +184,34 @@ results neither validate this candidate repair nor resolve persistence history.
 Storage ownership and the meaning of clean and unclean acquisition remain those
 of [ADR-0001](../adr/ADR-0001-a11oy-state-store.md). This incident introduces no
 new storage authority, automatic recovery path, or execution qualification.
+
+
+## Follow-up: owner source annotation across revisions
+
+A later read-only audit of the actual epoch 281 to 282 transition found a
+source-only inconsistency. The automatic `HANDOVER_REQUEST` retained the
+incumbent epoch, writer, boot, bucket, claim, lease and snapshot map, but recorded
+the incoming process's source revision. The outgoing process's actual `RELEASE`
+restored its own source annotation. The successor's `CLAIM` contained the exact
+released seven-store snapshot map.
+
+At source `91122d4`, the existing operator helper rejects a request/release
+source mismatch as `RELEASE_IDENTITY_MISMATCH`; the retained audit classified it
+more specifically as `RELEASE_OWNER_PROVENANCE_CHANGED`. That historical HOLD
+remains a HOLD. Matching actual owner fields and snapshot maps supplies narrower
+evidence; it does not replace the failed source-consistency result.
+
+The producer correction preserves the incumbent `source_revision` on
+`HANDOVER_REQUEST`, matching its existing treatment of incumbent boot identity
+and lease. Other transitions keep their existing source-selection behavior;
+`CLAIM` records the successor's source when supplied. The parser, release
+verifier, historical HEADs and schema remain unchanged. Source revision remains
+informational, not a storage version-admission gate or independent execution
+authority.
+
+The regression uses distinct outgoing and incoming source revisions, runs the
+actual request/release/claim lifecycle, and passes the genuine request/release
+pair through the unchanged operator helper. A source-only mutation of RELEASE
+must still be rejected. Earlier shared test fixtures assigned the same source
+to both replicas and therefore could not expose this discrepancy. The follow-up
+pull request records the failing producer baseline and final validation.

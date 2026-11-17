@@ -2113,10 +2113,13 @@ class StateStore:
 
     def _next(self, current: dict[str, Any], current_body: bytes, **changes: Any) -> dict[str, Any]:
         value = json.loads(json.dumps(current))
+        # A request still describes the incumbent; the requester owns no lease yet.
         value.update(operation_id=uuid.uuid4().hex, sequence=current["sequence"] + 1,
                      previous_manifest_sha256=_sha256_bytes(current_body),
                      boot_id=self.boot_id if changes.get("transition") != "HANDOVER_REQUEST" else current["boot_id"],
-                     source_revision=self.source_revision or current["source_revision"])
+                     source_revision=(current["source_revision"]
+                                      if changes.get("transition") == "HANDOVER_REQUEST"
+                                      else self.source_revision or current["source_revision"]))
         value["lease"] = dict(current["lease"], renewed_at=_iso(self.clock()))
         if changes.get("transition") == "HANDOVER_REQUEST":
             value["lease"] = dict(current["lease"])
