@@ -5444,6 +5444,7 @@ def _preflight_signal() -> dict:
 # ---------------------------------------------------------------------------
 
 import time as _hz_time
+import threading as _hz_threading
 _A11OY_START_TIME = _hz_time.time()
 # Last-known dependency (Node :8081) ping, cached so /healthz stays dependency-light
 # and NEVER 5xx; any failure degrades honestly instead of faking green (Doctrine v11).
@@ -5583,21 +5584,24 @@ def _frontier_liveness_signal() -> dict:
 # NEVER fakes a reachable node. A tunnel may answer from cloud, but reachability
 # does not verify an owned GPU, weights, or the doctrine wrapper.
 _SOVEREIGN_HZ_CACHE: dict = {}
+_SOVEREIGN_HZ_LOCK = _hz_threading.Lock()
 
 
 def _sovereign_health_signal(ttl: float = 30.0) -> dict:
-    now = _hz_time.time()
-    ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
-    if ca is not None and (now - ca) < ttl:
-        return _SOVEREIGN_HZ_CACHE.get("value", {})
-    try:
-        import szl_sovereign_panel as _szl_sov_hz
-        val = _szl_sov_hz.rollup_signal()
-    except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
-        val = {"reachable": False, "model": "szl-sovereign-local",
-               "label": "UNAVAILABLE", "error": type(exc).__name__}
-    _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
-    return val
+    # One refresh for this cache key, including the fail-closed error result.
+    with _SOVEREIGN_HZ_LOCK:
+        now = _hz_time.time()
+        ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
+        if ca is not None and (now - ca) < ttl:
+            return _SOVEREIGN_HZ_CACHE.get("value", {})
+        try:
+            import szl_sovereign_panel as _szl_sov_hz
+            val = _szl_sov_hz.rollup_signal()
+        except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
+            val = {"reachable": False, "model": "szl-sovereign-local",
+                   "label": "UNAVAILABLE", "error": type(exc).__name__}
+        _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
+        return val
 
 
 # Wave O / Dev 5: compact Brain rollup for /healthz. Reads the Brain command layer
@@ -5625,6 +5629,7 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
 
 @app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
+    from starlette.concurrency import run_in_threadpool
     from szl_brain import mcp_inventory_snapshot
     _mcp_inventory = mcp_inventory_snapshot("a11oy")
     # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
@@ -5634,8 +5639,9 @@ async def healthz() -> JSONResponse:
     _ca = dep.get("checked_at")
     _storage = _ledger_storage_signal()
     _signer = _signer_availability_signal()
-    _frontier = _frontier_liveness_signal()
-    _sovereign = _sovereign_health_signal()
+    # These cached rollups may perform bounded synchronous probes on a miss.
+    _frontier = await run_in_threadpool(_frontier_liveness_signal)
+    _sovereign = await run_in_threadpool(_sovereign_health_signal)
     _brain = _brain_health_signal()
     _preflight = _preflight_signal()
     # Source/image identity is diagnostic evidence, never an attestation.  The
@@ -5814,7 +5820,8 @@ async def preflight_status() -> JSONResponse:
 
 
 @app.api_route("/api/a11oy/readyz", methods=["GET", "HEAD"])
-async def readyz() -> JSONResponse:
+def readyz() -> JSONResponse:
+    # Synchronous lung probes run in FastAPI's worker pool, not the ASGI loop.
     # Keep service readiness separate from optional capability readiness. A public
     # CPU-only surface may serve in a truthful degraded state, while a deployment
     # that declares the operator required must fail closed. A reachable lung with
