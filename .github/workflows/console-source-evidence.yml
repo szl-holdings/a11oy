@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - pages/console.html
+      - console/index.html
+      - pages_console.html
+      - tests/test_console_recommendations.mjs
       - tests/test_console_source_runtime_evidence.mjs
       - scripts/test_console_evidence.cjs
       - .github/workflows/console-source-evidence.yml
@@ -14,6 +17,9 @@ on:
     branches: [main]
     paths:
       - pages/console.html
+      - console/index.html
+      - pages_console.html
+      - tests/test_console_recommendations.mjs
       - tests/test_console_source_runtime_evidence.mjs
       - scripts/test_console_evidence.cjs
       - .github/workflows/console-source-evidence.yml
@@ -41,6 +47,6 @@ jobs:
         with:
           node-version: '24'
       - name: Run console source and runtime evidence tests
-        run: node --test tests/test_console_source_runtime_evidence.mjs
+        run: node --test tests/test_console_source_runtime_evidence.mjs tests/test_console_recommendations.mjs
       - name: Verify shipped ledger, energy and sample-signature helpers offline
         run: node scripts/test_console_evidence.cjs

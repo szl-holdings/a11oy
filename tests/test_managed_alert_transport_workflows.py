@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 SECRET_LINE = "SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}"
@@ -101,14 +103,16 @@ def test_relay_workflow_deploys_and_requires_a_real_post_deploy_canary() -> None
     assert "exit 0" not in value
 
 
-def test_relay_action_uses_the_verified_lockfile_version() -> None:
-    lines = _relay_deploy_job().splitlines()
+@pytest.mark.parametrize("worker", ("alert-relay-worker", "email-sender-worker"))
+def test_worker_actions_use_the_verified_lockfile_version(worker: str) -> None:
+    value = (WORKFLOW_DIR / f"{worker}.yml").read_text(encoding="utf-8")
+    lines = value.split("\n  deploy:\n", 1)[1].splitlines()
     install_index = next(
         index for index, line in enumerate(lines) if line.strip() == "id: wrangler"
     )
     start, install_end = _step_bounds(lines, install_index)
     install = "\n".join(lines[start:install_end])
-    assert "working-directory: ops/alert-relay-worker" in install
+    assert f"working-directory: ops/{worker}" in install
     order = [
         "npm ci --ignore-scripts --no-audit --no-fund",
         "locked_version=",

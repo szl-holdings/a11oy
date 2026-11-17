@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 # Doctrine v11 LOCKED 749/14/163. Λ = Conjecture 1 (NOT a theorem).
-"""ATELIER lock for /console: inference-lab /v1 only; honest labels.
+"""The console opens Atelier without a second public inference path.
 
-Try Khipu must call szl-model-inference-lab /v1. Forge lab is SNAPSHOT — not a
-trainer, not Serve Studio. Energy-attested runs stay UNAVAILABLE until a
-dedicated evidence contract is implemented. Ask & Act is not a live control plane.
+Operator authorization, exact public disclosure acknowledgement and outcome
+validation belong to the governed Atelier form. Navigation cannot run inference.
+Energy evidence stays UNAVAILABLE. Ask & Act is not a live control plane.
 Λ = Conjecture 1.
 """
 
@@ -16,22 +16,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONSOLE = ROOT / "pages" / "console.html"
-LOCKED_V1 = "https://szlholdings-szl-model-inference-lab.hf.space/v1"
+GOVERNED_FORM = "/command-centre#cpu-work"
 
 
 def _console() -> str:
     return CONSOLE.read_text(encoding="utf-8")
 
 
-def test_try_khipu_calls_inference_lab_v1_only() -> None:
+def test_try_khipu_opens_authenticated_atelier_only() -> None:
     html = _console()
     start = html.find("/* try-khipu-panel")
     stop = html.find("/* end try-khipu-panel */")
     assert start >= 0 and stop > start
     slice_ = html[start:stop]
-    assert LOCKED_V1 in slice_
-    assert "/api/a11oy/v1/khipu/chat" in slice_
-    assert "/api/a11oy/v1/khipu/status" in slice_
+    assert f'href="{GOVERNED_FORM}"' in slice_
+    assert "/api/a11oy/v1/khipu/chat" not in slice_
+    assert "/api/a11oy/v1/khipu/status" not in slice_
+    assert "/v1/chat/completions" not in slice_
+    assert "fetch(" not in slice_
+    assert "XMLHttpRequest" not in slice_
+    assert "<textarea" not in slice_
     assert "szl-forge-lab.hf.space" not in slice_.lower()
     assert "szl-forge-lab.static.hf.space" not in slice_.lower()
 
@@ -59,10 +63,10 @@ def test_energy_attested_runs_fail_closed_without_evidence_contract() -> None:
     panel = html[start:stop]
     compact = "".join(panel.split())
 
-    assert "varenergyRuns='UNAVAILABLE'" in compact
+    assert "Energy evidence remains UNAVAILABLE" in panel
     assert "hon.energy_attested_runs" not in panel
     assert "pin.energy_attested_runs" not in panel
-    assert "chip('UNAVAILABLE','UNAVAILABLE')" in compact
+    assert "MEASURED" not in panel
     assert "||'8/8 SIMULATED'" not in compact
 
 

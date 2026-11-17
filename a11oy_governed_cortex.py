@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from vsp_otel import trace_ir
+from vsp_otel.middleware import server_trace_context
 
 SCHEMA_VERSION = "szl.a11oy.owned-khipu-cortex/v1"
 HEALTH_SCHEMA = "szl.a11oy.owned-khipu-cortex-health/v1"
@@ -1169,8 +1170,12 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
             payload = infer_payload(request)
         except CortexBoundaryError as exc:
             return _error(exc.code, exc.status, nemo_witness=exc.nemo_witness)
+        context = server_trace_context(http_request)
         payload["trace_observation"] = _receipt_trace_observation(
-            payload, getattr(http_request.state, "traceparent", None)
+            payload,
+            context["traceparent"]
+            if context is not None and context.get("observation_available") is True
+            else None,
         )
         return JSONResponse(payload, headers=_headers())
 
