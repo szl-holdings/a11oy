@@ -1177,11 +1177,15 @@ def _build_lungs(mesh: dict) -> dict:
             "joules_label": jl,
             "source": n.get("source"),
         })
-    label = mesh.get("label", LABEL_UNAVAILABLE) if isinstance(mesh, dict) else LABEL_UNAVAILABLE
+    source_label = mesh.get("label", LABEL_UNAVAILABLE) if isinstance(mesh, dict) else LABEL_UNAVAILABLE
+    # Structural fleet metadata has no qualified meter gate. Preserve its
+    # upstream label while using Anatomy's unavailable measurement state.
+    label = LABEL_UNAVAILABLE if source_label == "STRUCTURAL-ONLY" else source_label
     return {
         "breaths": breaths,
         "total_watts": mesh.get("total_watts") if isinstance(mesh, dict) else None,
         "total_joules": mesh.get("total_joules") if isinstance(mesh, dict) else None,
+        "source_label": source_label,
         "label": label,
         "band": _band_from(label, ok=(label == LABEL_MEASURED)),
         "note": ("breathing rate ∝ live watts, capacity ∝ joules; MEASURED only from a "

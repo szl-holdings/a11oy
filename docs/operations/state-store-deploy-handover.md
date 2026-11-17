@@ -31,6 +31,16 @@ its existing maintenance-window, protected-main and installed-authority gates.
 It requires provider readback of the complete managed variable contract. Its
 `--check-only` path performs one bounded readback after authority verification;
 missing or drifted values remain `SETUP_REQUIRED` without any provider write.
+Before any volume or variable write, the helper validates the planned periodic
+interval against the preserved alert interval: periodic must be strictly lower.
+Alert and debounce use the runtime's blank-as-default parsing and bounded ranges;
+malformed, nonfinite or out-of-range preserved values and secret shadowing of any
+cadence setting fail closed. Managed periodic drift remains repairable to 300.
+Debounce may exceed the periodic interval because quiet and overdue are alternative
+snapshot triggers. Readback repeats validation and requires the exact managed
+periodic value before declaring convergence. The helper does not change alert or
+debounce and does not claim that configuration alone proves snapshot health.
+
 An already converged deployment receives no cadence write. A configuration
 change can restart the Space through the provider, so keep it inside the sole
 publisher's coordinated handover and verify the resulting source, boot and
