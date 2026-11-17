@@ -5470,18 +5470,13 @@ def _ledger_storage_signal(ttl: float = 15.0) -> dict:
     if ca is not None and (now - ca) < ttl:
         return _LEDGER_STORAGE_CACHE.get("value", {})
     try:
-        import szl_energy_ledger as _szl_el_health
-        # probe=False: don't do a write-probe on the hot health path; use the store's
-        # tracked state (dir-ok + last write status), which is already honest.
-        led = _szl_el_health.get_ledger()
-        try:
-            val = led.storage_health()
-            # If the durable store is present, refresh its status WITHOUT a write-probe.
-            if getattr(led, "_store", None) is not None:
-                val = led._store.status(probe=False)
-                val["backend"] = "durable-rotating-jsonl"
-        except Exception:
-            val = _szl_el_health.ledger_storage_health()
+        # Observe only the writer-initialized ledger. The accessor never creates a
+        # store, recovers a generation, or performs a filesystem write probe. Even
+        # module import belongs to startup: its path selection may write-probe.
+        _szl_el_health = sys.modules.get("szl_energy_ledger")
+        if _szl_el_health is None:
+            raise RuntimeError("LEDGER_MODULE_NOT_INITIALIZED")
+        val = _szl_el_health.ledger_storage_health()
     except Exception as exc:
         val = {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}",
                "bounded": None}
