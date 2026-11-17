@@ -789,10 +789,20 @@ def test_check_only_cadence_read_failure_is_sanitized(monkeypatch):
 
 
 @pytest.mark.parametrize("check_only", [False, True])
-def test_cadence_secret_collision_fails_without_value_access_or_write(monkeypatch, check_only):
+@pytest.mark.parametrize("name", [
+    "A11OY_STATE_PERIODIC_SECONDS", "A11OY_STATE_ALERT_SECONDS", "A11OY_STATE_DEBOUNCE_SECONDS",
+])
+@pytest.mark.parametrize("public_value_present", [False, True])
+def test_cadence_secret_collision_fails_without_value_access_or_write(
+    monkeypatch, check_only, name, public_value_present
+):
     api = CadenceApi()
+    if public_value_present:
+        api.variables[name] = Value(value="900" if name.endswith("ALERT_SECONDS") else "30")
+    else:
+        api.variables.pop(name, None)
     secret_reads = []
-    api.secrets = NamesOnlyMetadata(verified_names("A11OY_STATE_PERIODIC_SECONDS"), secret_reads)
+    api.secrets = NamesOnlyMetadata(verified_names(name), secret_reads)
     kwargs = install_cadence_api(monkeypatch, api)
     with pytest.raises(config.RuntimeConfigError, match="collide"):
         config.configure(**kwargs, check_only=check_only)
@@ -813,3 +823,169 @@ def test_check_only_cli_reports_cadence_drift_as_not_converged(monkeypatch, caps
     assert "synthetic-hf-control" not in json.dumps(report)
     assert "1800" not in json.dumps(report)
     assert api.writes == []
+
+
+class CadencePrewriteApi(CadenceApi):
+    """Plan a volume and unrelated variable write before cadence validation."""
+
+    def __init__(self):
+        super().__init__()
+        self.volume_reads = 0
+        self.variables["A11OY_REQUIRE_PERSISTENT_STORAGE"] = Value(value="0")
+
+    def space_info(self, *, repo_id):
+        self.volume_reads += 1
+        # Authority sees the existing mount; a later planning read needs it
+        # reconciled. Invalid cadence must stop that first effect as well.
+        volumes = [] if self.volume_reads == 2 else [volume(config.CANONICAL_BUCKET, "/data")]
+        return SimpleNamespace(runtime=SimpleNamespace(volumes=volumes))
+
+
+@pytest.mark.parametrize("check_only", [False, True])
+@pytest.mark.parametrize("name,raw", [
+    ("A11OY_STATE_ALERT_SECONDS", "300"),
+    ("A11OY_STATE_ALERT_SECONDS", "60"),
+    ("A11OY_STATE_ALERT_SECONDS", "299.9"),
+    ("A11OY_STATE_ALERT_SECONDS", "59.9"),
+    ("A11OY_STATE_ALERT_SECONDS", "86400.1"),
+    ("A11OY_STATE_DEBOUNCE_SECONDS", "0"),
+    ("A11OY_STATE_DEBOUNCE_SECONDS", "3600.1"),
+    *[(name, raw)
+      for name in ("A11OY_STATE_ALERT_SECONDS", "A11OY_STATE_DEBOUNCE_SECONDS")
+      for raw in ("not-a-number", "NaN", "inf", "-inf", "1e9999")],
+])
+def test_cadence_preserved_settings_reject_invalid_values_before_any_write(
+    monkeypatch, check_only, name, raw
+):
+    api = CadencePrewriteApi()
+    api.variables[name] = Value(value=raw)
+    kwargs = install_cadence_api(monkeypatch, api)
+    monkeypatch.setattr(sys.modules["huggingface_hub"], "Volume", SimpleNamespace, raising=False)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs, check_only=check_only)
+    assert error.value.diagnostic_code == "STATE_STORE_CADENCE_INVALID"
+    assert raw not in str(error.value)
+    assert api.writes == []
+
+
+@pytest.mark.parametrize("check_only", [False, True])
+@pytest.mark.parametrize("name,raw", [
+    ("A11OY_STATE_ALERT_SECONDS", None),
+    ("A11OY_STATE_ALERT_SECONDS", 900),
+    ("A11OY_STATE_DEBOUNCE_SECONDS", False),
+    ("A11OY_STATE_DEBOUNCE_SECONDS", {}),
+])
+def test_cadence_preserved_metadata_must_contain_string_values(
+    monkeypatch, check_only, name, raw
+):
+    api = CadencePrewriteApi()
+    api.variables[name] = Value(value=raw)
+    kwargs = install_cadence_api(monkeypatch, api)
+    monkeypatch.setattr(sys.modules["huggingface_hub"], "Volume", SimpleNamespace, raising=False)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs, check_only=check_only)
+    assert error.value.diagnostic_code == "STATE_STORE_CADENCE_INVALID"
+    assert api.writes == []
+
+
+@pytest.mark.parametrize("alert,debounce", [
+    (None, None),
+    ("900", "30"),
+    ("  ", ""),
+    ("300.1", "1"),
+    ("900", "3600"),
+    ("86400", "3600"),
+])
+def test_cadence_repair_preserves_effective_runtime_settings(monkeypatch, alert, debounce):
+    # The deployed parser owns defaults and bounds. Test against it without
+    # constructing a StateStore or importing it in the deployment helper.
+    from a11oy_state_store import Settings
+
+    api = CadenceApi()
+    preserved = {}
+    for name, raw in (("A11OY_STATE_ALERT_SECONDS", alert),
+                      ("A11OY_STATE_DEBOUNCE_SECONDS", debounce)):
+        if raw is not None:
+            api.variables[name] = Value(value=raw)
+            preserved[name] = raw
+    kwargs = install_cadence_api(monkeypatch, api)
+    result = config.configure(**kwargs)
+    actual = Settings.from_environ({
+        "A11OY_STATE_PERIODIC_SECONDS": api.variables["A11OY_STATE_PERIODIC_SECONDS"].value,
+        **{name: api.variables[name].value for name in preserved},
+    })
+    expected = Settings.from_environ({"A11OY_STATE_PERIODIC_SECONDS": "300", **preserved})
+    assert actual == expected and actual.periodic_s < actual.alert_s
+    assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
+    assert result["converged"] is True
+    assert {name: api.variables[name].value for name in preserved} == preserved
+    assert config.configure(**kwargs, check_only=True)["converged"] is True
+    assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
+
+
+@pytest.mark.parametrize("observed", [None, "1800", "not-a-number", "NaN", "inf", "", "300.0"])
+def test_managed_periodic_drift_is_repairable_but_never_passes_check_only(monkeypatch, observed):
+    api = CadenceApi()
+    if observed is None:
+        api.variables.pop("A11OY_STATE_PERIODIC_SECONDS")
+    else:
+        api.variables["A11OY_STATE_PERIODIC_SECONDS"] = Value(value=observed)
+    kwargs = install_cadence_api(monkeypatch, api)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs, check_only=True)
+    assert error.value.diagnostic_code == "RUNTIME_CONFIG_DRIFT"
+    assert api.writes == []
+    assert config.configure(**kwargs)["converged"] is True
+    assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
+    assert config.configure(**kwargs, check_only=True)["converged"] is True
+
+
+def test_cadence_readback_revalidates_preserved_alert(monkeypatch):
+    api = CadenceApi()
+    kwargs = install_cadence_api(monkeypatch, api)
+    write = api.add_space_variable
+
+    def changed_alert(**options):
+        write(**options)
+        api.variables["A11OY_STATE_ALERT_SECONDS"] = Value(value="300")
+
+    monkeypatch.setattr(api, "add_space_variable", changed_alert)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs)
+    assert error.value.diagnostic_code == "STATE_STORE_CADENCE_INVALID"
+    assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
+
+
+def test_cadence_invalid_cli_report_is_sanitized_and_read_only(monkeypatch, capsys):
+    api = ConvergedApi()
+    canary = "synthetic-private-provider-detail"
+    api.variables["A11OY_STATE_ALERT_SECONDS"] = Value(value=canary)
+    install_cadence_api(monkeypatch, api)
+    monkeypatch.setattr(verifier, "default_get", pinned_get)
+    monkeypatch.setenv("HF_TOKEN", "synthetic-hf-control")
+    assert config.main(["--check-only"]) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["state"] == "SETUP_REQUIRED" and report["converged"] is False
+    assert report["diagnostic_code"] == "STATE_STORE_CADENCE_INVALID"
+    assert report["secret_values_read"] is False and report["secret_values_written"] is False
+    assert canary not in json.dumps(report)
+    assert api.writes == []
+
+
+@pytest.mark.parametrize("alert", [None, "", "  ", "600"])
+def test_cadence_relation_tracks_the_runtime_alert_default(alert):
+    from a11oy_state_store import Settings
+
+    values = {} if alert is None else {"A11OY_STATE_ALERT_SECONDS": alert}
+    runtime = Settings.from_environ(values)
+    current = {name: Value(value=value) for name, value in values.items()}
+    # Derive the boundary from the real runtime parser, including blank defaults,
+    # rather than asserting that a second copy of the literal default is equal.
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.plan_variables(
+            current, set(), {"A11OY_STATE_PERIODIC_SECONDS": str(runtime.alert_s)}
+        )
+    assert error.value.diagnostic_code == "STATE_STORE_CADENCE_INVALID"
+    assert config.plan_variables(
+        current, set(), {"A11OY_STATE_PERIODIC_SECONDS": str(runtime.alert_s - 0.5)}
+    ) == {"A11OY_STATE_PERIODIC_SECONDS": str(runtime.alert_s - 0.5)}
