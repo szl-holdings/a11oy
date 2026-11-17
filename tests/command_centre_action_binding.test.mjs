@@ -13,17 +13,33 @@ const specs = {
   local: { prefix: 'local-', endpoint: '/api/a11oy/v1/atelier/local', provider: 'local_ollama', mode: 'NO_KEY_LOCAL', model: 'fixture-local' },
   cpu: { prefix: 'cpu-', endpoint: '/api/a11oy/v1/atelier/cpu-lab', provider: 'szl_cpu_lab', mode: 'NO_PROVIDER_KEY_PUBLIC_CPU_LAB', model: 'fixture-cpu' },
 };
+const canonical = value => {
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
+  if (value && typeof value === 'object')
+    return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
+  return JSON.stringify(value);
+};
 function completed(lane, request) {
-  const s = specs[lane], answer = 'Synthetic answer — no inference';
+  const s = specs[lane], answer = 'Synthetic answer ? no inference';
+  const cpu = lane === 'cpu';
+  const evidence_handles = [{nodeId:'public:alpha',nodeKind:'DOCUMENT',label:'Public source',note:'Fixture only'}];
+  const citations = ['public:alpha'];
   const payload = { schema: 'a11oy.atelier.single-turn.receipt/v1', phase: 'OUTCOME',
     state: 'COMPLETED', client_request_id: request.client_request_id, request_id: '9ebcb810-a2c4-4005-8608-987e6cdecb08',
     provider: s.provider, ...(s.mode ? { mode: s.mode } : {}), model: request.model || s.model,
     prompt_sha256: digest(request.prompt), answer_sha256: digest(answer),
     source_revision: SHA, decision_receipt_hash: 'b'.repeat(64), classification: 'PUBLIC',
-    ...(lane === 'cpu' ? { public_share_acknowledged: true, provider_output_signature_status: 'UNSIGNED' } : {}) };
+    ...(cpu ? { public_share_acknowledged: true, provider_decision:'PROPOSAL',
+      provider_output_signature_status:'UNSIGNED_LOCAL', grounding_required:true,
+      authority:'NO_ACTION_AUTHORITY', executed:false, provider_outcome_uncertain:false,
+      provider_output_authenticity_verified:false,
+      evidence_handles_sha256:digest(canonical(evidence_handles)),
+      citations_sha256:digest(canonical(citations)) } : {}) };
   return { state: 'COMPLETED', answer, request_id: payload.request_id, model: payload.model,
     ...(s.mode ? { provider: s.provider, mode: s.mode } : {}),
-    ...(lane === 'cpu' ? { provider_output_signature_status: 'UNSIGNED' } : {}), retry_safe: false,
+    ...(cpu ? { provider_decision:'PROPOSAL',provider_output_signature_status:'UNSIGNED_LOCAL',
+      grounding_required:true,authority:'NO_ACTION_AUTHORITY',executed:false,
+      provider_output_authenticity_verified:false,evidence_handles,citations } : {}), retry_safe: false,
     receipt: { payload, digest: 'c'.repeat(64), persisted: true, signature_verified: true,
       chain_scope: 'SINGLE_PROCESS_RETAINED_METADATA_CHAIN' },
     dsse: { signed: true, payloadType: 'application/vnd.szl.atelier-turn+json',
@@ -83,7 +99,7 @@ for (const lane of Object.keys(specs)) {
     const h = await harness(); if (lane === 'cpu') await h.acknowledge();
     await h.submit(lane); assert.equal(h.posts().length, 1);
     assert.equal(h.node(specs[lane].prefix + 'answer').hidden, false);
-    assert.match(h.node(specs[lane].prefix + 'turn-status').textContent, /not independently verified in this browser/i);
+    assert.match(h.node(specs[lane].prefix + 'turn-status').textContent, lane === 'cpu' ? /Source-grounded proposal.*UNSIGNED_LOCAL/i : /not independently verified in this browser/i);
   });
   test(`${lane}: no configured health means no submission`, async () => {
     const h = await harness({ healthReady: false }); if (lane === 'cpu') await h.acknowledge();
@@ -231,5 +247,23 @@ for (const lane of Object.keys(specs)) {
     await h.submit(lane);
     assert.equal(h.posts().length,1);
     assert.equal(h.node(specs[lane].prefix+'answer').hidden,false);
+  });
+}
+
+
+for (const [name, mutate] of [
+  ['altered public source handle', value => { value.evidence_handles[0].note = 'CHANGED'; }],
+  ['altered public citation list', value => { value.citations = []; }],
+  ['claimed executed action', value => { value.executed = true; }],
+  ['spoofed signed provider output', value => { value.provider_output_signature_status = 'VERIFIED'; }],
+]) {
+  test('cpu: ' + name + ' is withheld without retry', async () => {
+    const h = await harness({ transform: value => { mutate(value); return value; } });
+    await h.acknowledge();
+    await h.submit('cpu');
+    assert.equal(h.posts().length, 1);
+    assert.equal(h.node('cpu-answer').hidden, true);
+    assert.equal(h.node('cpu-sources-panel').hidden, true);
+    assert.match(h.node('cpu-turn-status').textContent, /uncertain|unavailable/i);
   });
 }
