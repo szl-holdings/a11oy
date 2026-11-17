@@ -118,6 +118,22 @@ def _unavailable_tile(name: str, category: str, provenance: dict, err: str) -> d
                  error=err)
 
 
+def _permanently_modeled(tile: dict) -> bool:
+    """True only for a tile its producer explicitly declared permanently modeled.
+
+    A permanently MODELED/ROADMAP tile is a capability the estate can never
+    supply operational evidence for, by design (doctrine v11: the orbital tier
+    has no on-orbit hardware and never claimed it). Counting such a tile as
+    "blocked" made operational readiness permanently NOT_READY — a structural
+    deadlock, not an honest signal. The tile stays NOT_READY on its own card and
+    is reported transparently in modeled_roadmap_tiles; it gates nothing.
+    The declaration can never upgrade a label or unblock an operational tile:
+    only a MODELED/ROADMAP tile that declares permanently_modeled=True is
+    exempt, and no tile that could ever become ready is marked this way."""
+    return (tile.get("permanently_modeled") is True
+            and str(tile.get("label") or "").upper() in {MODELED, ROADMAP})
+
+
 def _tile_operational_readiness(tile: dict) -> tuple[bool, list[str]]:
     """Derive runtime readiness from tile evidence without upgrading its label.
 
@@ -443,6 +459,11 @@ def _tile_orbital() -> dict:
     return _tile(
         "Orbital compute tier", "orbital", status="MODELED roadmap (no on-orbit hardware)",
         label=MODELED,
+        # Doctrine v11: no on-orbit hardware exists and none is planned, so this
+        # tile can never supply operational evidence. Declaring it permanently
+        # modeled keeps it honest (MODELED, NOT_READY, hardware_not_present)
+        # without deadlocking the readiness composite — issue #3654.
+        permanently_modeled=True,
         provenance={
             "topology_endpoint": f"{_API}/orbital/topology",
             "projection_endpoint": f"{_API}/orbital/projection",
@@ -851,7 +872,17 @@ def _build_manifest(app=None) -> dict:
             },
         }
         readiness_rows.append({"name": tile["name"], "ready": ready, "reasons": reasons})
-    blocked = [row for row in readiness_rows if not row["ready"]]
+    # A permanently-modeled roadmap tile (issue #3654) is neither ready nor
+    # blocked: it is reported transparently in modeled_roadmap_tiles and does
+    # not gate the composite. Every tile that CAN become operational still does.
+    modeled_roadmap = [
+        row for row, tile in zip(readiness_rows, tiles)
+        if not row["ready"] and _permanently_modeled(tile)
+    ]
+    blocked = [
+        row for row, tile in zip(readiness_rows, tiles)
+        if not row["ready"] and not _permanently_modeled(tile)
+    ]
     all_sources_reachable = len(degraded) == 0
     operationally_ready = not blocked and bool(tiles)
 
@@ -909,6 +940,7 @@ def _build_manifest(app=None) -> dict:
                 "ready": operationally_ready,
                 "ready_tiles": [row["name"] for row in readiness_rows if row["ready"]],
                 "blocked_tiles": blocked,
+                "modeled_roadmap_tiles": modeled_roadmap,
             },
             # Deprecated for old clients. This value is intentionally stricter than source
             # reachability and cannot be true while a required tile is stopped, unminted,

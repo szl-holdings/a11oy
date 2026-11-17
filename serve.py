@@ -5555,14 +5555,16 @@ def _frontier_liveness_signal() -> dict:
         readiness = summary["operational_readiness"]
         live = readiness["ready_tiles"]
         blocked = readiness["blocked_tiles"]
+        modeled_roadmap = readiness.get("modeled_roadmap_tiles") or []
         degraded = [row["name"] for row in blocked]
         # The manifest distinguishes readable sources from operating capabilities.
         # A stopped operator or MODELED tile can be reachable without being live.
         # Missing/inconsistent readiness evidence must never become an ok rollup.
         if (type(total) is not int or total < 0
                 or not isinstance(live, list) or not isinstance(blocked, list)
+                or not isinstance(modeled_roadmap, list)
                 or type(readiness["ready"]) is not bool
-                or total != len(live) + len(blocked)
+                or total != len(live) + len(blocked) + len(modeled_roadmap)
                 or readiness["ready"] != (bool(total) and not blocked)):
             raise ValueError("frontier operational readiness evidence is inconsistent")
         degraded_n = len(blocked)
@@ -5573,6 +5575,7 @@ def _frontier_liveness_signal() -> dict:
             "endpoints_live": live_n,
             "endpoints_degraded": degraded_n,
             "degraded_tiles": degraded[:12],
+            "modeled_roadmap_tiles": [row["name"] for row in modeled_roadmap],
             "all_sources_live": readiness["ready"],
             "source_reachability": source,
             "operational_readiness": readiness,
@@ -9304,6 +9307,16 @@ try:
                     detail = "; ".join(reasons) if strings(reasons) and reasons else "operational evidence missing"
                     finding("warn", row["name"], detail,
                             "Supply and verify the missing operational evidence, then refresh readiness.")
+            modeled = frontier.get("modeled_roadmap_tiles")
+            if isinstance(modeled, list):
+                for row in modeled:
+                    if not isinstance(row, dict) or not isinstance(row.get("name"), str):
+                        continue
+                    reasons = row.get("reasons")
+                    detail = ("; ".join(reasons) if strings(reasons) and reasons
+                              else "permanently-modeled roadmap capability")
+                    finding("info", row["name"], detail,
+                            "Roadmap item: no operational evidence can exist by design (doctrine v11).")
             consistent = False
             if (readiness is not None and strings(degraded) and strings(blockers)
                     and strings(live) and valid_rows
