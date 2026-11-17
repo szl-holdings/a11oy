@@ -8,6 +8,7 @@ action access. Strings are text, never markup. Browser actions remain in the
 existing, separately source-bound JavaScript client.
 """
 
+import base64
 import hashlib
 import html
 import json
@@ -18,8 +19,36 @@ from urllib.parse import urlsplit
 
 _TAGS = frozenset("html head meta title link script body a div aside p nav main header h1 h2 h3 button section article code small span form label input textarea select option details summary pre strong ol li footer noscript dl dt dd".split())
 _VOID = frozenset({"meta", "link", "input"})
-_ATTRS = frozenset("id class lang charset name content href rel src defer type autocomplete spellcheck placeholder rows maxlength required value readonly disabled hidden selected for role".split())
+_ATTRS = frozenset("id class lang charset name content href rel src defer type autocomplete spellcheck placeholder rows maxlength required value readonly disabled hidden selected for role integrity".split())
 _ORIGINS = frozenset({"github.com", "huggingface.co", "a11oy.net", "a-11-oy.com"})
+ASSET_SOURCES = {
+    "app.js": "routers/command_centre_web/app.js",
+    "style.css": "routers/command_centre_web/style.css",
+    "szl-design-system.css": "routers/command_centre_web/szl/szl-design-system.css",
+    "szl-console.css": "routers/command_centre_web/szl/szl-console.css",
+}
+
+
+def _sri(digest):
+    return "sha256-" + base64.b64encode(bytes.fromhex(digest)).decode("ascii")
+
+
+def asset_reference(sources, filename):
+    """Bind one fixed public asset to the exact manifest digest; no I/O."""
+    if not isinstance(sources, dict) or filename not in ASSET_SOURCES:
+        raise ValueError("asset source unavailable")
+    digest = sources.get(ASSET_SOURCES[filename])
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise ValueError("asset digest unavailable")
+    return {"url": "/command-centre/assets/" + digest + "/" + filename,
+            "integrity": _sri(digest)}
+
+
+def _check_asset(url, integrity, filenames):
+    match = re.fullmatch(r"/command-centre/assets/([0-9a-f]{64})/([^/]+)", url or "")
+    if (not match or match[2] not in filenames
+            or integrity != _sri(match[1])):
+        raise ValueError("asset URL and integrity must bind the same fixed source")
 
 
 def safe_href(value):
@@ -72,21 +101,32 @@ class Element:
 def node(tag, *children, **attributes):
     if tag not in _TAGS:
         raise ValueError("unapproved element")
-    if tag == "script" and (children or attributes.get("src") != "/command-centre/app.js"):
-        raise ValueError("only the retained external action client is admitted")
-    checked = []
+    checked = {}
     for name, value in attributes.items():
         name = name.rstrip("_").replace("_", "-")
         if name not in _ATTRS and not re.fullmatch(r"(?:aria|data)-[a-z][a-z0-9-]*", name):
             raise ValueError("unapproved attribute")
+        if name in checked:
+            raise ValueError("duplicate attribute")
         if name in {"href", "src"}:
             value = safe_href(value)
-        if name == "src" and (tag != "script" or value != "/command-centre/app.js"):
+        if name == "src" and tag != "script":
             raise ValueError("unapproved script")
-        checked.append((name, value))
+        checked[name] = value
+    if tag == "link" and checked.get("rel") not in ("canonical", "stylesheet"):
+        raise ValueError("only canonical link relations are admitted")
+    if tag == "script":
+        if children or set(checked) != {"src", "integrity", "defer"} or checked["defer"] is not True:
+            raise ValueError("only the integrity-bound deferred action client is admitted")
+        _check_asset(checked["src"], checked["integrity"], {"app.js"})
+    elif tag == "link" and checked.get("rel") == "stylesheet":
+        _check_asset(checked.get("href"), checked.get("integrity"),
+                     set(ASSET_SOURCES) - {"app.js"})
+    elif "integrity" in checked:
+        raise ValueError("integrity is reserved for fixed scripts and stylesheets")
     if tag in _VOID and children:
         raise ValueError("void element cannot have children")
-    return Element(tag, children, tuple(checked))
+    return Element(tag, children, tuple(checked.items()))
 
 
 def _head(number, title, label=None):
@@ -251,13 +291,19 @@ def render_page(model):
     if len(encoded) > 65536:
         raise ValueError("page model exceeds bound")
     input_digest = hashlib.sha256(encoded).hexdigest()
+    presentation = model.get("presentation")
+    if not isinstance(presentation, dict):
+        raise ValueError("presentation sources unavailable")
+    assets = {name: asset_reference(presentation.get("sources"), name)
+              for name in ASSET_SOURCES}
     body = node("html", node("head", node("meta", charset="utf-8"),
         node("meta", name="viewport", content="width=device-width, initial-scale=1"),
         node("title", "SZL Atelier · Command centre"),
         node("meta", name="description", content="One product entry point for governed work, existing SZL runtime tools, canonical source and publication evidence."),
         node("link", rel="canonical", href="https://a-11-oy.com/command-centre"),
-        *(node("link", rel="stylesheet", href=path) for path in ("/command-centre/szl/szl-design-system.css", "/command-centre/szl/szl-console.css", "/command-centre/style.css")),
-        node("script", src="/command-centre/app.js", defer=True)),
+        *(node("link", rel="stylesheet", href=assets[name]["url"], integrity=assets[name]["integrity"])
+          for name in ("szl-design-system.css", "szl-console.css", "style.css")),
+        node("script", src=assets["app.js"]["url"], integrity=assets["app.js"]["integrity"], defer=True)),
         node("body", node("a", "Skip to work", href="#work", class_="skip"),
             node("div", node("aside", node("a", "SZL", node("span", "Atelier"), href="/", class_="identity"),
                 node("p", "Command centre", class_="eyebrow"),
