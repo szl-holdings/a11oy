@@ -72,8 +72,14 @@ the existing seven-store health/integrity validator. No pending publication
 or unresolved storage error is accepted. Three or more coherent samples must
 span at least 30 seconds, with at least 15 seconds of heartbeat advancement.
 For a returned sample, the independently validated private HEAD epoch, owner
-and sequence survive failed public validation and streak resets; heartbeat
-timestamps retain their maximum only after their own owner/time validation.
+and global sequence survive failed public validation and streak resets; a new
+epoch must strictly advance the highest observed sequence, including evidence
+from other owners. Otherwise the wait holds. Each observed owner's furthest
+state is retained in canonical order: ACTIVE, HANDOVER_REQUESTED, RELEASED.
+A backwards state observation holds even if its sequence advances. The pending
+handover state contributes private evidence but never qualifies as healthy
+settlement. A new owner may start ACTIVE. Heartbeat timestamps retain their
+maximum only after their own owner/time validation.
 An older observation cannot restore a passing streak. A child failure returning
 no sample supplies no additional private evidence; unseen HEADs are not
 inferred. A newly observed UNCLEAN successor holds the wait.

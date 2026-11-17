@@ -41,6 +41,7 @@ CORE = {
     'a11oy-mini': 'SZLHOLDINGS/A11OY-MINI',
 }
 PUBLIC = {'alias': 'khipu-gguf-public', 'repo_id': 'SZLHOLDINGS/SZL-Khipu-1.5B-GGUF', 'credential_value_exposed': False}
+GOVERNED = {'alias': 'khipu-governed-public', 'repo_id': 'SZLHOLDINGS/SZL-Khipu-1.5B-GGUF', 'credential_value_exposed': False}
 
 def core_rows():
     return [{'alias': alias, 'repo_id': repo, 'credential_value_exposed': False} for alias, repo in CORE.items()]
@@ -49,7 +50,11 @@ def test_the_current_finance_profile_requires_its_four_exact_source_owned_models
     assert intelligence.MODEL_ASSETS.get(PUBLIC['alias']) == PUBLIC['repo_id']
     assert intelligence.profile_models_match('finance', core_rows() + [PUBLIC])
     assert not intelligence.profile_models_match('finance', core_rows())
-    for vertical in ('sentra', 'lyte', 'killinchu', 'terra', 'counsel'):
+    assert intelligence.MODEL_ASSETS.get(GOVERNED['alias']) == GOVERNED['repo_id']
+    assert intelligence.profile_models_match('lyte', core_rows() + [GOVERNED])
+    assert not intelligence.profile_models_match('lyte', core_rows())
+    assert not intelligence.profile_models_match('lyte', core_rows() + [PUBLIC])
+    for vertical in ('sentra', 'killinchu', 'terra', 'counsel'):
         assert intelligence.profile_models_match(vertical, core_rows())
         assert not intelligence.profile_models_match(vertical, core_rows() + [PUBLIC])
 

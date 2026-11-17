@@ -838,7 +838,7 @@ REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "7590b85e303209c953e267aa5bd8b861e557e
 REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
-    ".github/scripts/admit_execution_handoff.py": "5c3c9b13eb4151e9b98d279505798c9b801a0b9028a3a947e6eeb70ec90847ae",
+    ".github/scripts/admit_execution_handoff.py": "373195db13b3b4b434585deb7e3146d6ed7d81cabcc3a9691467db2ba3043312",
     ".github/scripts/collect_execution_readiness.py": "b58e1b5b681709f2f547b64230cb5dc1133368bd51d724d0d2b87fc35468a100",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
@@ -850,7 +850,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     # Read-only observation after each configuration batch, including deferred writes.
-    ".github/scripts/await_hf_configuration_handover.py": "26bf70445971aab74c00123daa7612aee38187b7d2fe3265669ecda8123d1774",
+    ".github/scripts/await_hf_configuration_handover.py": "cc6e383934e2a681daf529690f9d14cad84bd4bc191e94fe428aea3ff4c739a1",
     "scripts/configure_hf_series_a_runtime.py": "dc4d54b31beb794e62e66ec614bd46257353d0ecdf2645e7295655cb2d96f60c",
     "scripts/configure_hf_gdw_runtime.py": "43611e182618321ed70647afee9e017295a7fedc6d29446e5b209059abdc28f3",
     # Installed-authority verifier imported by both configure helpers, with
