@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-# (c) 2026 SZL Holdings — Doctrine v11. Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
-"""Fabrication gate: continuously measure the served brain model's refusal-to-fabricate
-posture in CI (the SOTA "abstention benchmark in CI" move, adapted honestly).
+# (c) 2026 SZL Holdings - Doctrine v11. Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+"""Retired fabrication monitor: emit unavailable evidence and exit 2.
 
-Runs szl_braineval's fixed doctrine probe battery against the estate's own public
-inference Space (SZL-Khipu-1.5B-GGUF) — no secrets, no API keys: the endpoint is public.
+The legacy /v1/chat/completions inference contract is retired. This monitor
+performs no inference and cannot mint public-prompt consent for an unattended
+workflow. It never turns retirement into a successful availability SKIP.
 
-HONEST GATE SEMANTICS (fail-closed on fabrication, fail-open on availability):
-  * the model answers THIS request and FABRICATES on a probe  -> exit 1 (real failure)
-  * the model answers and refuses                             -> exit 0, MEASURED posture reported
-  * the endpoint is unreachable / asleep                      -> exit 0 with verdict SKIP
-    (external availability is NOT a fabrication signal; the gate catches lying, not downtime)
-
-The verdict is a MEASURED reading taken from the live model THIS run — never fabricated,
-never upgraded. If the Space is cold, the first probe warms it (timeout is generous).
+A replacement evaluator must use the authenticated primary route
+POST /api/a11oy/v1/atelier/cpu-lab/turn with declared="PUBLIC" and explicit
+public_share_acknowledged=true, then qualify actual outcome, grounding and
+receipt binding before claiming measured refusal posture. Merely switching
+to the upstream /api/v3/governed-infer URL does not qualify that evaluation.
 """
 from __future__ import annotations
 
@@ -22,76 +19,61 @@ import json
 import sys
 from pathlib import Path
 
-# repo root on sys.path so this runs from anywhere (CI checks out the repo root)
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-# The estate's own public inference Space — no secret required (public endpoint).
 DEFAULT_URL = "https://szlholdings-szl-model-inference-lab.hf.space"
 DEFAULT_MODEL = "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF@67d60ec577730747055491640cfb91fc4a4b5d25"
-
-# HF Spaces can cold-start slowly; the first probe pays the warm-up, later ones are fast.
-PROBE_TIMEOUT_S = 150.0
-
 SCHEMA = "szl.fabrication-gate/v1"
 OUT_PATH = Path("fabrication-gate-verdict.json")
+PRIMARY_PATH = "/api/a11oy/v1/atelier/cpu-lab/turn"
+
+
+def issue_eligible(verdict) -> bool:
+    """A monitor failure alone is never evidence that a model fabricated."""
+    return (
+        isinstance(verdict, dict)
+        and verdict.get("gate_outcome") == "FAIL"
+        and verdict.get("label") == "MEASURED"
+        and verdict.get("model_verdict") == "FABRICATION-DETECTED"
+    )
 
 
 def main() -> int:
-    import szl_braineval as be
-
-    environ = {
-        "SZL_LOCAL_LLM_URL": DEFAULT_URL,
-        "SZL_LOCAL_LLM_MODEL": DEFAULT_MODEL,
-    }
-    result = be.evaluate(environ=environ, timeout=PROBE_TIMEOUT_S, ns="a11oy")
-
     verdict = {
         "schema": SCHEMA,
         "gate": "fabrication",
-        "label": result.get("label"),
-        "model_verdict": result.get("verdict"),
-        "refusal_rate": result.get("refusal_rate"),
-        "probes": [
-            {"family": p.get("family"), "outcome": p.get("outcome")}
-            for p in (result.get("probes") or [])
-        ],
+        "gate_outcome": "RETIRED",
+        "label": "UNAVAILABLE",
+        "model_verdict": "UNAVAILABLE",
+        "refusal_rate": None,
+        "probes": [],
         "model": DEFAULT_MODEL,
         "endpoint": DEFAULT_URL,
-        "note": None,
+        "retired_path": "/v1/chat/completions",
+        "inference_performed": False,
+        "evaluation_performed": False,
+        "successor": {
+            "method": "POST",
+            "path": PRIMARY_PATH,
+            "ui": "/command-centre#cpu-work",
+            "operator_authentication_required": True,
+            "public_share_acknowledged": True,
+            "declared": "PUBLIC",
+            "grounding_required": True,
+            "automatic_forwarding": False,
+        },
+        "migration_requirement": (
+            "Qualify a governed evaluator through authenticated " + PRIMARY_PATH
+            + " with explicit public-prompt acknowledgement, outcome/grounding checks "
+            "and request-bound receipt evidence. No current refusal posture is measured."
+        ),
+        "note": (
+            "Legacy inference contract retired. Monitoring is UNAVAILABLE; "
+            "no model call was made and retirement is not a fabrication finding."
+        ),
     }
-
-    if result.get("label") != "MEASURED":
-        # Unavailable endpoint -> SKIP (never fail CI on external availability).
-        verdict["gate_outcome"] = "SKIP"
-        verdict["note"] = (
-            "served model did not answer this run (asleep/cold/unreachable); availability is "
-            "not a fabrication signal, so the gate skips rather than fails or fabricates."
-        )
-        OUT_PATH.write_text(json.dumps(verdict, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        print(json.dumps(verdict, indent=2, sort_keys=True))
-        print("::notice::fabrication gate SKIP — served model unavailable this run.")
-        return 0
-
-    if result.get("verdict") == "FABRICATION-DETECTED":
-        verdict["gate_outcome"] = "FAIL"
-        verdict["note"] = (
-            "the served model FABRICATED on a doctrine probe this run — a real, measured "
-            "failure. This gate fails closed: no merge train proceeds on a lying model."
-        )
-        OUT_PATH.write_text(json.dumps(verdict, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        print(json.dumps(verdict, indent=2, sort_keys=True))
-        print("::error::fabrication gate FAIL — served model fabricated on a probe (see verdict).")
-        return 1
-
-    verdict["gate_outcome"] = "PASS"
-    verdict["note"] = (
-        "MEASURED refusal posture for the served model this run; a valid reading, never "
-        "inflated (rate is capped at the 0.97 trust ceiling by construction)."
-    )
     OUT_PATH.write_text(json.dumps(verdict, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(verdict, indent=2, sort_keys=True))
-    print("::notice::fabrication gate PASS — refusal posture measured.")
-    return 0
+    print("::error::fabrication monitoring RETIRED / UNAVAILABLE; governed evaluation migration required.")
+    return 2
 
 
 if __name__ == "__main__":
