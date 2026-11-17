@@ -600,7 +600,7 @@ def spans_recent(ns: str = "a11oy") -> dict:
             if not isinstance(row, dict):
                 raise ValueError("invalid trace")
             trace_id, started = row.get("trace_id"), row.get("started_at")
-            if (not isinstance(trace_id, str) or not 1 <= len(trace_id) <= 128
+            if (not isinstance(trace_id, str) or not 1 <= len(trace_id) <= 200
                     or not isinstance(started, str) or len(started) > 64):
                 raise ValueError("invalid trace identity")
             timestamp = datetime.fromisoformat(started.replace("Z", "+00:00"))
@@ -695,11 +695,13 @@ def _shell(title: str, subtitle: str, anatomy_js: str) -> str:
 <link rel="stylesheet" href="/assets/szl/szl-design-system.css">
 <style>
 *{box-sizing:border-box} html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body)}
-#c{position:fixed;inset:0;width:100vw;height:100vh;display:block}
-header{position:relative;z-index:6;padding:18px 22px;background:var(--surface);border-bottom:1px solid var(--border)}
+body{min-height:100vh;display:flex;flex-direction:column}
+#anatomy-stage{position:relative;flex:1 0 320px;min-height:320px;min-width:0;width:100%}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block}
+header{position:relative;flex:none;z-index:6;padding:18px 22px;background:var(--surface);border-bottom:1px solid var(--border)}
 h1{font-size:20px;margin:0 0 6px} .sub{font-size:13px;color:var(--text-sub);max-width:100ch}
 nav{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px} nav a,.doi a{color:var(--link)}
-#observation{position:relative;z-index:6;margin:16px 22px;padding:12px 16px;max-width:720px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+#observation{position:relative;flex:none;z-index:6;margin:16px 22px;padding:12px 16px;max-width:720px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
 #fstat{font-weight:600;overflow-wrap:anywhere} #evidence-detail{color:var(--text-sub);font-size:13px;margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
 #card{position:fixed;right:18px;bottom:80px;width:min(360px,calc(100vw - 36px));max-height:50vh;overflow:auto;z-index:8;display:none;background:var(--surface-raised);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:16px}
 #card.open{display:block} #card h3{margin:0 0 8px;font-size:16px} #card p{margin:7px 0;font-size:13px;overflow-wrap:anywhere}
@@ -708,14 +710,14 @@ nav{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px} nav a,.doi a{color
 #palette .box{margin:12vh auto;width:min(520px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
 #palq{width:100%;background:var(--surface-alt);color:var(--text);padding:10px;border:1px solid var(--border)}
 .item{display:block;width:100%;text-align:left;padding:10px;background:var(--surface);color:var(--text);border:0;cursor:pointer}.item.sel{background:var(--surface-raised)}
-footer{position:fixed;bottom:0;left:0;right:0;padding:10px 22px;z-index:6;background:var(--surface);color:var(--text-sub);font-size:11px;display:flex;flex-wrap:wrap;gap:8px 18px;border-top:1px solid var(--border)}
+footer{position:relative;flex:none;padding:10px 22px;z-index:6;background:var(--surface);color:var(--text-sub);font-size:11px;display:flex;flex-wrap:wrap;gap:8px 18px;border-top:1px solid var(--border)}
 @media(max-width:700px){header{padding:12px}h1{font-size:17px}#observation{margin:10px 12px}footer{padding:8px 12px}nav{font-size:12px}}
 </style></head><body>
-<canvas id="c" aria-label="Modeled anatomy geometry; runtime observations are in the text panel"></canvas>
 <header><h1>__TITLE__</h1><div class="sub">__SUBTITLE__</div>
 <div class="sub">Geometry is MODELED. Rotation is decorative, not execution or measured activity. Click a shape for its evidence card. Ctrl/⌘ K opens navigation.</div>
 <nav aria-label="Anatomy views">__NAV_LINKS__</nav></header>
 <section id="observation" aria-live="polite"><div id="fstat">UNAVAILABLE · observation not read</div><p id="evidence-detail">No execution authority or signature verification is established.</p></section>
+<main id="anatomy-stage"><canvas id="c" aria-label="Modeled anatomy geometry; runtime observations are in the text panel"></canvas></main>
 <aside id="card" aria-label="Evidence card"></aside>
 <div id="palette"><div class="box"><input id="palq" aria-label="Find an anatomy view" placeholder="Find an anatomy view"><div id="palist"></div></div></div>
 <footer><span>Doctrine v11 LOCKED · exactly 8 locked formulas</span><span>Λ: Conjecture 1 (NOT a theorem)</span><span>Historical snapshot: 749/14/163 · not current proof counts</span><span>Signature verification: NOT PERFORMED</span></footer>
@@ -761,7 +763,7 @@ document.addEventListener("keydown",event=>{
   }
 });
 $("#palq").addEventListener("input",event=>{palSel=0;renderPal(event.target.value);});
-const cv=$("#c");
+const cv=$("#c"),stage=$("#anatomy-stage");
 const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 const scene=new THREE.Scene();
@@ -770,10 +772,27 @@ scene.add(new THREE.AmbientLight(0xffffff,0.85));
 const light=new THREE.PointLight(0xffffff,1.1);light.position.set(120,160,200);scene.add(light);
 const ray=new THREE.Raycaster(),mouse=new THREE.Vector2(),pickable=[];
 const observationGroup=new THREE.Group();scene.add(observationGroup);
-function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+function resize(){
+  const width=stage.clientWidth,height=stage.clientHeight;if(width<1||height<1)return;
+  renderer.setSize(width,height,false);camera.aspect=width/height;
+  // Contract-bounded meshes only; keep the default model extent when no data exists.
+  scene.updateMatrixWorld(true);const bounds=new THREE.Box3();
+  pickable.slice(0,80).forEach(mesh=>bounds.expandByObject(mesh));
+  let halfWidth=125,halfHeight=125,depth=0;
+  if(!bounds.isEmpty()&&[bounds.min.x,bounds.min.y,bounds.min.z,bounds.max.x,bounds.max.y,bounds.max.z].every(Number.isFinite)){
+    halfWidth=Math.max(halfWidth,Math.abs(bounds.min.x),Math.abs(bounds.max.x));
+    halfHeight=Math.max(halfHeight,Math.abs(bounds.min.y),Math.abs(bounds.max.y));
+    depth=Math.max(Math.abs(bounds.min.z),Math.abs(bounds.max.z));
+  }
+  const tangent=Math.tan(camera.fov*Math.PI/360);
+  camera.position.z=Math.max(300,depth+1.15*Math.max(halfWidth/(tangent*camera.aspect),halfHeight/tangent));
+  camera.updateProjectionMatrix();
+}
 window.addEventListener("resize",resize);
+const stageObserver=new ResizeObserver(resize);stageObserver.observe(stage);
 cv.addEventListener("click",event=>{
-  mouse.x=(event.clientX/innerWidth)*2-1;mouse.y=-(event.clientY/innerHeight)*2+1;
+  const rect=cv.getBoundingClientRect();if(rect.width<1||rect.height<1)return;
+  mouse.x=((event.clientX-rect.left)/rect.width)*2-1;mouse.y=-((event.clientY-rect.top)/rect.height)*2+1;
   ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(pickable,true)[0];
   if(hit){let object=hit.object;while(object&&!object.userData.formula)object=object.parent;if(object)showCard(object.userData.formula,object.userData.extra);}
 });
@@ -783,6 +802,7 @@ function clearObservation(message="UNAVAILABLE · reading observation"){
   for(let i=pickable.length-1;i>=0;i--)if(pickable[i].userData.observation)pickable.splice(i,1);
   $("#card").classList.remove("open");$("#card").replaceChildren();setStat(message);
   setDetail("No current observation is displayed. Execution authority and signature verification are not established.");
+  resize();
 }
 __ANATOMY_JS__
 resize();
@@ -864,7 +884,7 @@ function evidenceCard(name,id){return {id:id||"observation",name,status:"OBSERVE
 function connectPositions(positions){for(let i=1;i<positions.length;i++){const geometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...positions[i-1]),new THREE.Vector3(...positions[i])]);observationGroup.add(new THREE.Line(geometry,new THREE.LineBasicMaterial({color:COLORS[KIND]||COLORS.nervous})));}}
 function renderObservation(value){
   const data=value.data;setStat(value.state+" · "+value.evidence_class+" · "+value.reason);
-  if(value.state==="MODELED"){setDetail("Eight declared gate shapes. No gate evaluation or cross-organ request was performed.");return;}
+  if(value.state==="MODELED"){setDetail("Eight declared gate shapes. No gate evaluation or cross-organ request was performed.");resize();return;}
   const suffix="\nSignature verification: NOT PERFORMED. Execution authority: NOT ESTABLISHED.";
   if(KIND==="heart"){
     data.axes.forEach((row,index)=>meshAt(ringPosition(index,13,90),COLORS.heart,evidenceCard(row.axis,"sample axis"),row,true,new THREE.SphereGeometry(3+row.score*5,16,16)));
@@ -885,6 +905,7 @@ function renderObservation(value){
     data.anatomies.filter(row=>row.state==="OBSERVED").forEach(row=>meshAt(BODY_POS[row.anatomy],COLORS[row.anatomy],evidenceCard(row.anatomy,"partial observation"),row,true));
     setDetail("Partial observations: "+data.observed_count+" of "+data.anatomy_count+" anatomies. Operational readiness: NOT ESTABLISHED."+suffix);
   }
+  resize();
 }
 async function readBoundedJSON(response){
   if(!response.ok||!(response.headers.get("content-type")||"").toLowerCase().includes("application/json"))throw new Error("unavailable response");

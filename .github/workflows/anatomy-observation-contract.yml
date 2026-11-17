@@ -7,6 +7,14 @@ on:
     paths:
       - "szl_anatomy_3d.py"
       - "szl_operator_auth.py"
+      - "szl_khipu.py"
+      - "szl_observability.py"
+      - "Dockerfile"
+      - "serve.py"
+      - "szl3d_holographic.py"
+      - "static/3d/holographic.html"
+      - "tests/image_layout.py"
+      - "tests/test_brain_reranker.py"
       - "tests/test_anatomy_3d_observation_contract.py"
       - "tests/test_anatomy_3d_browser_contract.py"
       - "tests/test_chain_verified_missing_defaults.py"
@@ -21,6 +29,14 @@ on:
     paths:
       - "szl_anatomy_3d.py"
       - "szl_operator_auth.py"
+      - "szl_khipu.py"
+      - "szl_observability.py"
+      - "Dockerfile"
+      - "serve.py"
+      - "szl3d_holographic.py"
+      - "static/3d/holographic.html"
+      - "tests/image_layout.py"
+      - "tests/test_brain_reranker.py"
       - "tests/test_anatomy_3d_observation_contract.py"
       - "tests/test_anatomy_3d_browser_contract.py"
       - "tests/test_chain_verified_missing_defaults.py"
@@ -58,6 +74,23 @@ jobs:
           python -m pip install --require-hashes
           -r .github/requirements/ci-rag.txt
           -r .github/requirements/platform-candidate-browser.txt
+      - name: Verify shipped modules and preserved route wiring
+        run: |
+          python - <<'PY'
+          import ast
+          import pathlib
+
+          source = pathlib.Path("tests/test_brain_reranker.py").resolve()
+          tree = ast.parse(source.read_text(encoding="utf-8"))
+          name = "test_docker_and_frontend_wiring_present"
+          nodes = [node for node in tree.body
+                   if isinstance(node, ast.FunctionDef) and node.name == name]
+          assert len(nodes) == 1, "Expected the existing source-wiring test"
+          namespace = {"__file__": str(source), "pathlib": pathlib}
+          exec(compile(ast.Module(body=nodes, type_ignores=[]), str(source), "exec"),
+               namespace)
+          namespace[name]()
+          PY
       - name: Install isolated Chromium
         run: python -m playwright install --with-deps chromium
       - name: Verify registered routes and seven browser surfaces

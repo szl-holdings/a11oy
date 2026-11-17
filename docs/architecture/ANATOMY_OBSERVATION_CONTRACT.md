@@ -75,7 +75,7 @@ Chain inspection reads at most 60 existing records under the existing registry a
 
 Trace inspection uses at most 20 already-collected summaries. It does not start a collector or import a provider. Process-wide scope is explicit. Raw trace names, inbound IDs, attributes, prompts, and tool arguments are excluded from the public view; the minimized projection uses fixed labels and an opaque correlation reference. Correlation does not establish a completed or authorized action.
 
-The composed body does not create a receipt. It keeps modeled brain/immune geometry, missing data, sample evidence, chain scope, and trace scope distinct.
+The composed body does not create a receipt. It reports modeled brain/immune geometry, missing data, and sample observation states. Detailed organ selection, chain integrity, and process-wide trace scope remain on their individual endpoints; the composed rows are not a substitute for that detailed evidence.
 
 ## Browser behavior
 
@@ -89,7 +89,7 @@ Evidence cards use text nodes and fixed DOI destinations. Returned metadata is n
 
 ## Verification and compatibility
 
-The registered-route suite traps evaluator, signer, key-resolution, append, and lazy-store paths on reads. It also exercises handler and middleware refusal before body parsing, namespaces, cache bounds/expiry, malformed numbers, partial failures, and authorized write-to-read projection.
+The registered-route suite traps evaluator, signer, key-resolution, append, and lazy-store paths on reads. It also exercises handler and middleware refusal before body parsing, namespaces, cache bounds/expiry, malformed numbers, partial failures, and authorized write-to-read projection. Two compatibility cases extract the actual Khipu emitter and trace-summary code through AST isolation, then feed their real record formats into the read projections without importing production dependencies. The focused workflow triggers on changes to both underlying source modules.
 
 The offline browser suite loads actual page builders, vendored Three.js, and local CSS. It captures all requested methods, blocks unrecognized network access, exercises failure transitions and bounded scene resources, and consumes current backend-generated default envelopes. It does not import a production signer or use a real browser profile.
 

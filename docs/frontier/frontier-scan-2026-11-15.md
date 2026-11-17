@@ -2,7 +2,7 @@
 
 Review correction, 2026-11-16: the records below describe the dated audit and its referenced artifacts. They do not establish current runtime readiness or a comparison proving that other systems lack these capabilities. The architecture follow-up is [the 2026-11-16 source review](2026-11-16-observation-action-architecture.md).
 
-Measured via the live Hugging Face API on 2026-11-15T02:10-02:25Z by the owner-delegated DC audit lane. Every row carries an estate truth label; no claim exceeds its evidence. Full scrape: hf_frontier_scrape_20261115.json, frontier_deep_scrape_20261115.json, frontier_bases_20261115.json (owner machine, C:\SZL\estate-audit).
+The owner-delegated DC audit lane reported a live Hugging Face API observation on 2026-11-15T02:10-02:25Z. The labels below are historical audit labels; individual claims remain subject to the scope and contents of their referenced artifacts. Full scrape: hf_frontier_scrape_20261115.json, frontier_deep_scrape_20261115.json, frontier_bases_20261115.json (owner machine, C:\SZL\estate-audit).
 
 ## 1 · Open-source leaders (MEASURED unless labeled otherwise)
 

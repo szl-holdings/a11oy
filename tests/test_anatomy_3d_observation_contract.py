@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Offline route tests. All action/signing/storage dependencies are isolated fakes.
+"""Offline route tests with isolated fakes and two AST-only source compatibility checks.
 
 No provider credential, project signer, live service or real receipt is loaded.
 The deliberately invalid fixture signature proves only the NOT_PERFORMED label.
 """
 
 import asyncio
+import ast
 import builtins
+from collections import deque
 import copy
+from datetime import datetime, timezone
 import hashlib
 import importlib.util
 import json
@@ -17,7 +20,9 @@ import sys
 import threading
 import time
 import types
+import uuid
 from pathlib import Path
+from typing import Any, Deque, Dict, List, Optional
 from unittest.mock import patch
 
 import pytest
@@ -474,3 +479,117 @@ def test_default_exporter_matches_all_registered_projection_kinds():
         _assert_read_boundary(payload)
         assert payload["kind"] == kind
         assert payload["state"] == ("MODELED" if kind == "immune" else "UNAVAILABLE")
+
+
+def _source_definitions(filename, names, globals_):
+    """Run only selected real source definitions, with no import or module startup.
+
+    The selected classes use an isolated registry/ring and explicit stdlib globals.
+    No project module import, environment setup, disk store or signer is executed.
+    Missing source definitions fail the compatibility test rather than using a fake.
+    """
+    tree = ast.parse((ROOT / filename).read_text(encoding="utf-8"))
+    selected, found = [], set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            node_names = {node.name}
+        elif isinstance(node, ast.Assign):
+            node_names = {target.id for target in node.targets if isinstance(target, ast.Name)}
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            node_names = {node.target.id}
+        else:
+            continue
+        if node_names & names:
+            assert node_names <= names
+            selected.append(node)
+            found.update(node_names)
+    assert found == names
+    isolated_tree = ast.Module(body=selected, type_ignores=[])
+    assert not any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in ast.walk(isolated_tree))
+    safe_builtins = {name: getattr(builtins, name) for name in (
+        "__build_class__", "object", "staticmethod", "property", "str", "int", "float",
+        "dict", "list", "tuple", "set", "len", "min", "max", "round", "range",
+        "enumerate", "reversed", "bool", "isinstance", "Exception", "ValueError", "TypeError",
+    )}
+    namespace = {"__builtins__": safe_builtins, "__name__": "anatomy_source_compatibility", **globals_}
+    exec(compile(isolated_tree, str(ROOT / filename), "exec"), namespace)
+    return namespace
+
+
+def test_real_khipu_emitted_record_matches_registered_read_projection(isolated, monkeypatch):
+    real = _source_definitions(
+        "szl_khipu.py", {"_GENESIS", "KhipuDAG", "_REGISTRY", "_REG_LOCK", "get_dag"},
+        {"hashlib": hashlib, "json": json, "threading": threading,
+         "time": isolated.clock, "Any": Any},
+    )
+    dag = real["get_dag"]("kallpa", "sourcecompat")
+    first = dag.emit("fixture-sample", {"unicode": "Λ", "sample": True})
+    isolated.clock.advance(1)
+    second = dag.emit("fixture-routing", {"routes": [1, 2]})
+    before = copy.deepcopy(dag._chain)
+    assert dag.verify_chain() == {"ok": True, "depth": 2, "broken_at": None}
+    real["get_dag"] = _trap
+    monkeypatch.setattr(real["KhipuDAG"], "emit", _trap)
+    monkeypatch.setattr(isolated.module, "_KHIPU", types.SimpleNamespace(**real))
+    monkeypatch.setattr(isolated.module, "_write_dependency", _trap)
+    isolated.module.register(isolated.app, ns="sourcecompat")
+
+    response = isolated.client.get("/api/sourcecompat/v4/khipu/chain?organ=kallpa")
+    assert response.status_code == 200
+    result = response.json()
+    _assert_read_boundary(result)
+    assert result["state"] == "OBSERVED" and result["data_scope"] == "PROCESS_LOCAL_HASH_CHAIN"
+    assert result["data"]["organ"] == "kallpa" and result["data"]["head"] == second["digest"]
+    assert [row["digest"] for row in result["data"]["pendants"]] == [first["digest"], second["digest"]]
+    assert result["chain_integrity"] == {"state": "VERIFIED", "scope": "RETAINED_SUFFIX",
+                                          "checked_records": 2, "prefix_verified": True}
+    assert result["chain_verified"] is True and result["signature_verified"] is False
+    assert "DSSE_PLACEHOLDER" not in json.dumps(result)
+    assert isolated.client.get("/api/a11oy/v4/khipu/chain?organ=kallpa").json()["state"] == "UNAVAILABLE"
+    assert dag._chain == before and set(real["_REGISTRY"]) == {"sourcecompat/kallpa"}
+    assert not isolated.signer.calls and not isolated.evaluations
+
+
+def test_real_recent_traces_matches_minimized_registered_projection(isolated, monkeypatch):
+    real = _source_definitions(
+        "szl_observability.py",
+        {"DEFAULT_RING_CAPACITY", "MAX_SPANS_PER_TRACE", "_now_iso", "Span", "Trace",
+         "TraceRing", "recent_traces"},
+        {"time": time, "threading": threading, "uuid": uuid, "deque": deque,
+         "datetime": datetime, "timezone": timezone, "Any": Any, "Optional": Optional,
+         "List": List, "Dict": Dict, "Deque": Deque},
+    )
+    ring = real["TraceRing"](capacity=3)
+    real["TRACES"] = ring
+    raw_id, raw_name = "private-source-fixture-id-".ljust(200, "x"), "private customer fixture <img>"
+    trace = real["Trace"](raw_name, trace_id=raw_id)
+    child = trace.start_span("private source child", parent_id=trace.root.span_id)
+    child.set_status("TIMEOUT")
+    child.end()
+    trace.end()
+    ring.add(trace)
+    actual = real["recent_traces"](limit=20, slowest_first=False)
+    assert len(actual) == 1 and len(actual[0]["trace_id"]) == 200
+    assert actual[0]["status"] == "TIMEOUT" and actual[0]["span_count"] == 2
+    monkeypatch.setattr(isolated.module, "time", time)
+    monkeypatch.setattr(isolated.module, "_write_dependency", _trap)
+    monkeypatch.setattr(isolated.khipu, "get_dag", _trap)
+    monkeypatch.setitem(sys.modules, "szl_observability",
+                        types.SimpleNamespace(recent_traces=real["recent_traces"]))
+
+    response = isolated.client.get("/api/tenant_two/v4/spans/recent")
+    assert response.status_code == 200
+    result = response.json()
+    _assert_read_boundary(result)
+    assert result["state"] == "OBSERVED" and result["data_scope"] == "PROCESS_WIDE_NOT_NAMESPACE_BOUND"
+    projected = result["data"]["traces"][0]
+    assert projected["name"] == "Process trace summary"
+    assert projected["trace_ref"] == hashlib.sha256(("szl.anatomy.trace-ref/v1\0" + raw_id).encode()).hexdigest()
+    assert projected["status"] == actual[0]["status"] and projected["span_count"] == actual[0]["span_count"]
+    assert projected["duration_ms"] == actual[0]["duration_ms"]
+    assert projected["started_at"] == isolated.module._utc_at(datetime.fromisoformat(trace.started_at).timestamp())
+    assert result["data"]["correlation_only"] is True and result["data"]["span_count"] is None
+    assert raw_id not in json.dumps(result) and raw_name not in json.dumps(result)
+    assert "trace_id" not in json.dumps(result) and "attributes" not in json.dumps(result)
+    assert real["recent_traces"](limit=20, slowest_first=False) == actual and len(ring) == 1
+    assert not isolated.signer.calls and not isolated.evaluations and not isolated.khipu._REGISTRY
