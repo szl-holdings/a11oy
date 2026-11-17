@@ -47,6 +47,10 @@ The broader run first exposed the Windows invalid-parent-path case, and a source
 
 Commands: python -B -m pytest -q -p no:cacheprovider oro/test_*.py tests/test_oro_operational_v3.py tests/test_dockerfile_layer_budget.py; node --test tests/test_oro_evidence_ui.cjs; python -B -m pytest -q -p no:cacheprovider tests/test_demo_critical_routes.py tests/test_anatomy_read_boundary.py tests/test_anatomy_seed_read_contract.py tests/test_anatomy_v6_page_contract.py tests/test_anatomy_v5_contract.py test_anatomy_loop.py. On the DC Windows host, use a unique explicit pytest basetemp to isolate the session from an unrelated inaccessible shared pytest-current entry.
 
+## Integration with current main
+
+Implementation commit d1d89925abc9562118bd3a2a024ed00059683b1d integrates main revision 6848d7a1f15fe72883cc49bf3172e0e4439a325a. The one packaging-test conflict retained both the existing trace observation addition and the new ORO package addition; neither source baseline nor the layer ceiling was relaxed. After integration, the focused packaging and ORO API rerun passed 26 tests and 33 subtests. This verification-record update changes documentation only. Hosted checks will validate the final PR revision.
+
 ## Production readback during implementation
 
 At 23:50–23:51 UTC, the live build-info endpoint still reported f6e30e83343674e544af0ad83a03c058d9c9d53b. The service was reachable; the frontier rollup reported NOT_READY with one ready capability and seven blocked capabilities. The storage readback reported an active fenced writer, healthy stores, no active error, and alert=false. These are timestamped observations, not a prediction of later availability.
