@@ -76,7 +76,10 @@ def test_invalid_or_ambiguous_account_responses_stop_without_outputs(tmp_path, p
     assert "Traceback" not in result.stderr
 
 
-@pytest.mark.parametrize("raw", [b"private-response-marker", b"\xff", b"x" * (1024 * 1024 + 1)])
+@pytest.mark.parametrize(
+    "raw", [b"private-response-marker", b"\xff", b"x" * (1024 * 1024 + 1)],
+    ids=("malformed-json", "invalid-utf8", "oversized-response"),
+)
 def test_unreadable_and_oversized_responses_do_not_leak_contents(tmp_path, raw):
     result = _run(tmp_path, raw)
     assert result.returncode != 0
