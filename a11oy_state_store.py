@@ -919,11 +919,18 @@ class StateStore:
                     return []
                 if tables != {"provenance_nodes", "provenance_heads"}:
                     raise StorageBlocked("PROVENANCE_SCHEMA_INCOMPLETE")
+                # Affinity does not enforce column types or lengths. Keep raw
+                # invalid metadata out of Python before its existing validation.
                 head = db.execute(
-                    "SELECT last_index, digest FROM provenance_heads WHERE space=?",
+                    "SELECT CASE WHEN typeof(last_index)='integer' THEN last_index END, "
+                    "CASE WHEN typeof(digest)='text' AND octet_length(digest)=64 "
+                    "THEN digest END FROM provenance_heads WHERE space=?",
                     (space,)).fetchone()
                 metadata = db.execute(
-                    "SELECT sequence, digest, node_sha256, octet_length(node_json) "
+                    "SELECT CASE WHEN typeof(sequence)='integer' THEN sequence END, "
+                    "CASE WHEN typeof(digest)='text' AND octet_length(digest)=64 THEN digest END, "
+                    "CASE WHEN typeof(node_sha256)='text' AND octet_length(node_sha256)=64 "
+                    "THEN node_sha256 END, octet_length(node_json) "
                     "FROM provenance_nodes WHERE space=? ORDER BY sequence DESC LIMIT ?",
                     (space, limit)).fetchall()
                 if not metadata and head is None:
