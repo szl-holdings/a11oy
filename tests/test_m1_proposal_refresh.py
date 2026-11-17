@@ -3,12 +3,15 @@
 """Current source projections cannot rewrite the existing adapter's history."""
 
 import copy
+import importlib.util
 import json
+from pathlib import Path
 
 import pytest
 
 import a11oy_brain_graph as brain
 import szl_m1_corpus_manifest as m1
+import szl_formula_training_admission as admission
 
 
 def _write_json(path, value):
@@ -161,3 +164,235 @@ def test_build_refuses_to_rebind_trained_or_out_of_scope_artifacts(proposal, mut
     with pytest.raises(ValueError, match=expected):
         m1.build()
     assert {path.name: path.read_bytes() for path in directory.iterdir()} == before
+
+
+@pytest.fixture
+def current_inventory(proposal, monkeypatch):
+    directory, _, _ = proposal
+    corpus = m1.build()
+    # The real producer's artifacts are in its standard relative paths when the
+    # downstream admission writer runs. Keep its exact bytes in this fixture.
+    for source, relative in ((m1.GRAPH_LEDGER, m1.CURRENT_BRAIN_LEDGER_PATH),
+                             (m1.CORPUS_MANIFEST, m1.CURRENT_M1_MANIFEST_PATH)):
+        destination = directory / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(source.read_bytes())
+    repository = Path(__file__).resolve().parents[1]
+    relative_paths = (
+        "model_release/frontier-qualification/frontier-adoption.json",
+        "model_release/frontier-qualification/frontier-adoption.schema.json",
+        "model_release/szl-khipu-second-brain.json",
+        m1.HISTORICAL_ADMISSION_PATH,
+    )
+    for relative in relative_paths:
+        destination = directory / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((repository / relative).read_bytes())
+    frontier = json.loads((directory / relative_paths[0]).read_text())
+    schema = json.loads((directory / relative_paths[1]).read_text())
+    ayllu = json.loads((directory / relative_paths[2]).read_text())
+    # Start at the historical boundary even if the checked-in current proposal
+    # has already been refreshed by an earlier producer invocation.
+    policy = ayllu["brain_training_policy"]
+    historical = (policy.get("historical_inventory_evidence") or {}).get("source_admission_manifest")
+    if historical:
+        policy["current_inventory_evidence"]["source_admission_manifest"] = historical
+    policy.pop("historical_inventory_evidence", None)
+    _write_json(directory / relative_paths[2], ayllu)
+    manifest = {
+        "schema_version": "szl.formula-training-admission-manifest.v1",
+        "status": "COMPLETE_FAIL_CLOSED_HOLDOUT_ONLY",
+        "claims_boundary": {"training_triggered": False, "model_promoted": False, "raw_node_text_emitted": False},
+        "decision_summary": {"train_rows": 0, "raw_brain_rows_emitted": 0, "raw_brain_nodes_quarantined": 3},
+        "source_snapshot": {
+            "brain": {"raw_node_count": 3, "quarantined_node_count": 3, "training_text_rows_emitted": 0,
+                      "reason_counts": {"LICENSE_UNKNOWN": 3, "REVISION_UNKNOWN": 3,
+                                        "FRESHNESS_UNKNOWN": 2, "DUPLICATE_CANONICAL_KEY": 1,
+                                        "PROVENANCE_UNKNOWN": 1}},
+            "m1_alignment": {
+                "aligned": True, "current_raw_nodes": 3, "brain_ledger_rows": 3,
+                "training_state": "NOT_RUN",
+                "admission": "CURRENT_INVENTORY_ONLY_ALL_ROWS_QUARANTINED",
+                "raw_training_eligible_rows": 0, "current_only_node_ids": [], "m1_only_node_ids": [],
+                "manifest_path": m1.CURRENT_M1_MANIFEST_PATH,
+                "manifest_sha256": m1._sha_file(directory / m1.CURRENT_M1_MANIFEST_PATH),
+                "brain_ledger_path": m1.CURRENT_BRAIN_LEDGER_PATH,
+                "brain_ledger_sha256": corpus["ledgers"]["brain_nodes"]["sha256"],
+            },
+        },
+    }
+    manifest["manifest_receipt_sha256"] = m1._sha(m1._canonical(manifest))
+    artifacts = {"crosswalk": {}, "tranche_rows": [], "manifest": manifest,
+                 "receipt": {"artifact_receipt_sha256": "fixture-receipt"}}
+    monkeypatch.setattr(admission, "build_artifacts", lambda root: artifacts)
+    return directory, artifacts, frontier, schema, ayllu
+
+
+def test_admission_writer_refreshes_current_inventory_after_final_bytes_and_preserves_history(current_inventory):
+    from jsonschema import Draft202012Validator
+
+    directory, artifacts, old_frontier, old_schema, old_ayllu = current_inventory
+    history_bytes = (directory / m1.HISTORICAL_ADMISSION_PATH).read_bytes()
+    repository = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location(
+        "frontier_refresh_guard", repository / "model_release/frontier-qualification/frontier_admission_guard.py")
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    frontier_path = directory / "model_release/frontier-qualification/frontier-adoption.json"
+    with pytest.raises(guard.FrontierAdmissionError, match="Brain node observation changed"):
+        guard.load_registry(frontier_path)
+
+    admission.write_artifacts(directory)
+    assert admission.verify_committed(directory)["ok"] is True
+    frontier = guard.load_registry(frontier_path)
+    schema = json.loads((directory / "model_release/frontier-qualification/frontier-adoption.schema.json").read_text())
+    ayllu = json.loads((directory / "model_release/szl-khipu-second-brain.json").read_text())
+    Draft202012Validator(schema).validate(frontier)
+    assert frontier["as_of"] == old_frontier["as_of"]
+    for key in ("raw_nodes_observed", "raw_nodes_available_to_retrieval_and_evaluation"):
+        assert frontier["brain_model_truth"][key] == 3
+        assert schema["$defs"]["brainTruth"]["properties"][key] == {"const": 3}
+        frontier["brain_model_truth"][key] = old_frontier["brain_model_truth"][key]
+        schema["$defs"]["brainTruth"]["properties"][key] = old_schema["$defs"]["brainTruth"]["properties"][key]
+    assert frontier["brain_model_truth"]["raw_observation_scope"] == m1.CURRENT_INVENTORY_SCOPE
+    for document in (frontier, old_frontier):
+        document["brain_model_truth"].pop("raw_observation_scope", None)
+    for document in (schema, old_schema):
+        document["$defs"]["brainTruth"]["properties"].pop("raw_observation_scope", None)
+        document["$defs"]["brainTruth"]["required"] = [
+            key for key in document["$defs"]["brainTruth"]["required"] if key != "raw_observation_scope"]
+    assert frontier == old_frontier
+    assert schema == old_schema
+
+    policy = ayllu["brain_training_policy"]
+    old_policy = old_ayllu["brain_training_policy"]
+    assert policy["raw_nodes_observed"] == 3
+    assert policy["raw_nodes_admitted_to_gradients"] == 0
+    assert policy["current_inventory_obligations"] == {
+        "license_or_rights_unknown": 3, "author_or_rightsholder_permission_unknown": 3,
+        "privacy_or_pii_clearance_unknown": 3, "allowlisted_review_unknown": 3,
+        "immutable_source_revision_unknown": 3, "freshness_unknown": 2,
+        "duplicate_candidates": 1, "provenance_unknown": 1,
+    }
+    assert policy["historical_inventory_evidence"]["source_admission_manifest"] == (
+        old_policy["current_inventory_evidence"]["source_admission_manifest"])
+    assert (directory / m1.HISTORICAL_ADMISSION_PATH).read_bytes() == history_bytes
+    for key, relative in (("source_admission_manifest", m1.CURRENT_ADMISSION_PATH),
+                          ("m1_brain_ingest_ledger", m1.CURRENT_BRAIN_LEDGER_PATH),
+                          ("m1_corpus_manifest", m1.CURRENT_M1_MANIFEST_PATH)):
+        entry = policy["current_inventory_evidence"][key]
+        assert entry["path"] == relative
+        assert entry["file_sha256"] == m1._sha_file(directory / relative)
+    assert policy["current_inventory_evidence"]["m1_brain_ingest_ledger"]["rows"] == 3
+    assert (directory / m1.CURRENT_ADMISSION_PATH).read_bytes() == admission._json_bytes(artifacts["manifest"])
+    for document in (ayllu, old_ayllu):
+        for key in ("raw_nodes_observed", "current_inventory_observation_scope", "current_inventory_obligations",
+                    "current_inventory_evidence", "historical_inventory_evidence"):
+            document["brain_training_policy"].pop(key, None)
+    assert ayllu == old_ayllu
+    before = {path.relative_to(directory): path.read_bytes() for path in directory.rglob("*") if path.is_file()}
+    admission.write_artifacts(directory)
+    assert {path.relative_to(directory): path.read_bytes() for path in directory.rglob("*") if path.is_file()} == before
+    assert admission.verify_committed(directory)["ok"] is True
+
+
+@pytest.mark.parametrize("mutation,expected", [
+    ("path", "CURRENT_INVENTORY_EVIDENCE_PATH_MISMATCH"),
+    ("historical", "CURRENT_INVENTORY_HISTORICAL_SOURCE_BINDING_INVALID"),
+    ("schema", "CURRENT_INVENTORY_EXACT_SCHEMA_BOUNDARY_CHANGED"),
+    ("authority", "CURRENT_INVENTORY_AUTHORITY_BOUNDARY_CHANGED"),
+    ("receipt", "CURRENT_INVENTORY_ADMISSION_RECEIPT_INVALID"),
+])
+def test_current_inventory_preflight_refuses_before_any_admission_or_policy_write(current_inventory, mutation, expected):
+    directory, artifacts, _, _, _ = current_inventory
+    policy_path = directory / "model_release/szl-khipu-second-brain.json"
+    document = json.loads(policy_path.read_text())
+    if mutation == "path":
+        document["brain_training_policy"]["current_inventory_evidence"]["m1_brain_ingest_ledger"]["path"] = "../outside.jsonl"
+        _write_json(policy_path, document)
+    elif mutation == "authority":
+        document["brain_training_policy"]["raw_nodes_admitted_to_gradients"] = 1
+        _write_json(policy_path, document)
+    elif mutation == "historical":
+        (directory / m1.HISTORICAL_ADMISSION_PATH).write_text("tampered historical source")
+    elif mutation == "schema":
+        path = directory / "model_release/frontier-qualification/frontier-adoption.schema.json"
+        schema = json.loads(path.read_text())
+        schema["$defs"]["brainTruth"]["properties"]["raw_nodes_observed"] = {"type": "integer"}
+        _write_json(path, schema)
+    else:
+        artifacts["manifest"]["manifest_receipt_sha256"] = "0" * 64
+    before = {path.relative_to(directory): path.read_bytes() for path in directory.rglob("*") if path.is_file()}
+    with pytest.raises(ValueError, match=expected):
+        admission.write_artifacts(directory)
+    assert {path.relative_to(directory): path.read_bytes() for path in directory.rglob("*") if path.is_file()} == before
+
+
+@pytest.mark.parametrize("target", ["frontier", "schema", "policy"])
+def test_verification_includes_current_inventory_outputs_and_rejects_stale_valid_targets(current_inventory, target):
+    directory, _, _, _, _ = current_inventory
+    admission.write_artifacts(directory)
+    paths = {
+        "frontier": "model_release/frontier-qualification/frontier-adoption.json",
+        "schema": "model_release/frontier-qualification/frontier-adoption.schema.json",
+        "policy": "model_release/szl-khipu-second-brain.json",
+    }
+    path = directory / paths[target]
+    document = json.loads(path.read_text())
+    if target == "frontier":
+        document["brain_model_truth"]["raw_nodes_observed"] = 4
+    elif target == "schema":
+        document["$defs"]["brainTruth"]["properties"]["raw_nodes_observed"]["const"] = 4
+    else:
+        document["brain_training_policy"]["current_inventory_evidence"]["m1_corpus_manifest"]["file_sha256"] = "0" * 64
+    _write_json(path, document)
+    result = admission.verify_committed(directory)
+    assert result["ok"] is False
+    assert result["mismatches"] == [paths[target]]
+    admission.write_artifacts(directory)
+    assert admission.verify_committed(directory)["ok"] is True
+
+
+@pytest.mark.parametrize("mutation,expected", [
+    ("boolean_gradient", "CURRENT_INVENTORY_AUTHORITY_BOUNDARY_CHANGED"),
+    ("boolean_eligible", "CURRENT_INVENTORY_ADMISSION_ALIGNMENT_INVALID"),
+    ("trained_corpus", "CURRENT_INVENTORY_M1_BINDING_INVALID"),
+    ("training_claim", "CURRENT_INVENTORY_ADMISSION_AUTHORITY_CONFLICT"),
+    ("training_row", "CURRENT_INVENTORY_LEDGER_NOT_QUARANTINED"),
+])
+def test_rehashed_evidence_cannot_contradict_current_inventory_quarantine(current_inventory, mutation, expected):
+    directory, artifacts, _, _, _ = current_inventory
+    manifest = artifacts["manifest"]
+    alignment = manifest["source_snapshot"]["m1_alignment"]
+    if mutation == "boolean_gradient":
+        path = directory / "model_release/szl-khipu-second-brain.json"
+        document = json.loads(path.read_text())
+        document["brain_training_policy"]["raw_nodes_admitted_to_gradients"] = False
+        _write_json(path, document)
+    elif mutation == "boolean_eligible":
+        alignment["raw_training_eligible_rows"] = False
+    elif mutation == "training_claim":
+        manifest["claims_boundary"]["training_triggered"] = True
+    else:
+        path = directory / m1.CURRENT_M1_MANIFEST_PATH
+        corpus = json.loads(path.read_text())
+        if mutation == "trained_corpus":
+            corpus["training_state"] = "TRAINED"
+        else:
+            ledger_path = directory / m1.CURRENT_BRAIN_LEDGER_PATH
+            rows = [json.loads(line) for line in ledger_path.read_text().splitlines()]
+            rows[0].update({"training_eligible": True, "training_decision": "TRAIN"})
+            m1._write_jsonl(ledger_path, rows)
+            corpus["ledgers"]["brain_nodes"].update({
+                "sha256": m1._sha_file(ledger_path), "bytes": ledger_path.stat().st_size,
+            })
+            alignment["brain_ledger_sha256"] = m1._sha_file(ledger_path)
+        _write_json(path, corpus)
+        alignment["manifest_sha256"] = m1._sha_file(path)
+    payload = {key: value for key, value in manifest.items() if key != "manifest_receipt_sha256"}
+    manifest["manifest_receipt_sha256"] = m1._sha(m1._canonical(payload))
+    before = {path.relative_to(directory): path.read_bytes() for path in directory.rglob("*") if path.is_file()}
+    for operation in (admission.write_artifacts, admission.verify_committed):
+        with pytest.raises(ValueError, match=expected):
+            operation(directory)
+        assert {path.relative_to(directory): path.read_bytes() for path in directory.rglob("*") if path.is_file()} == before

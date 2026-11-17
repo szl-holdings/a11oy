@@ -45,7 +45,7 @@
     "turn_output_sha256"
   ],
   "brain_training_policy": {
-    "raw_nodes_observed": 9465,
+    "raw_nodes_observed": 9484,
     "raw_nodes_admitted_to_gradients": 0,
     "current_state": "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED",
     "admission_engine": "szl_brain_training_admission.py",
@@ -72,29 +72,29 @@
       "explicit_train_admission_switch"
     ],
     "current_inventory_obligations": {
-      "license_or_rights_unknown": 9465,
-      "author_or_rightsholder_permission_unknown": 9465,
-      "privacy_or_pii_clearance_unknown": 9465,
-      "allowlisted_review_unknown": 9465,
-      "immutable_source_revision_unknown": 9465,
-      "freshness_unknown": 9430,
-      "duplicate_candidates": 3747,
-      "provenance_unknown": 185
+      "license_or_rights_unknown": 9484,
+      "immutable_source_revision_unknown": 9484,
+      "freshness_unknown": 9450,
+      "duplicate_candidates": 3756,
+      "provenance_unknown": 196,
+      "author_or_rightsholder_permission_unknown": 9484,
+      "privacy_or_pii_clearance_unknown": 9484,
+      "allowlisted_review_unknown": 9484
     },
     "current_inventory_evidence": {
-        "source_admission_manifest": {
-          "path": "dataset_release/szl-proof-obligation-queue/data/source-admission-manifest.json",
-          "file_sha256": "37c3ded4d6d5590157f93f7e926ff942e398e46c44c9e277c8ed846bc518bff8"
-        },
-        "m1_brain_ingest_ledger": {
-          "path": "model_release/m1/brain-ingest-ledger.jsonl",
-          "rows": 9465,
-          "file_sha256": "d2946716f30ae6705f5f6b75ffbac862a42eefb55f2787ec320ed4f0992df8d0"
-        },
-        "m1_corpus_manifest": {
-          "path": "model_release/m1/corpus-ingestion-manifest.json",
-          "file_sha256": "7305f93e5592bd94f1681e23ddb0f819d258db23dfe5fbc1180da6180a3259f7"
-        }
+      "source_admission_manifest": {
+        "path": "research/formula-training-admission/admission-manifest.json",
+        "file_sha256": "c78f5e6e7da4d1f9eb18959219dedce9d9415819d01d091d9e3f198ed8686519"
+      },
+      "m1_brain_ingest_ledger": {
+        "path": "model_release/m1/brain-ingest-ledger.jsonl",
+        "rows": 9484,
+        "file_sha256": "785b9c9842b09580ebc0b18d10b346ed5ee08ad7d52f156be89236300e3bb97d"
+      },
+      "m1_corpus_manifest": {
+        "path": "model_release/m1/corpus-ingestion-manifest.json",
+        "file_sha256": "5cb19e9a22e3dc7109cd86ee7639a592bae7a59f61e5d42d9cef012a12fc3fd2"
+      }
     },
     "candidate_schema": "szl.brain-training-candidate.v2",
     "decision_schema": "szl.brain-training-admission-decision.v2",
@@ -153,7 +153,14 @@
       "SELF_REVIEW_WITHOUT_ALLOWLISTED_SIGNED_EVIDENCE",
       "ENABLE_TRAIN_ADMISSION_BY_DEFAULT",
       "WEAKEN_GATES_TO_REACH_A_TARGET_ROW_COUNT"
-    ]
+    ],
+    "current_inventory_observation_scope": "CURRENT_VERSIONED_GRAPH_NOT_MODEL_EVALUATION",
+    "historical_inventory_evidence": {
+      "source_admission_manifest": {
+        "path": "dataset_release/szl-proof-obligation-queue/data/source-admission-manifest.json",
+        "file_sha256": "37c3ded4d6d5590157f93f7e926ff942e398e46c44c9e277c8ed846bc518bff8"
+      }
+    }
   },
   "promotion": {
     "automatic": false,

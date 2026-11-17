@@ -44,6 +44,8 @@ The repaired reads expose fixed-seed `SAMPLE` evaluations, no receipt history,
 | Brain graph | Historical numerical node IDs remain stable; separate `formal_formula` nodes carry canonical proof metadata. No implicit mapping edges. |
 | Numerical curriculum | Valid demonstration metadata is an unverified holdout, with the formal registry in a separate field. |
 | M1 proposal generator | Raw or historical declarations do not become `KERNEL_ACCEPTED` or `REFUTED` from status strings. Receipt association requires the same namespace. |
+| Frontier inventory | Current graph counts and exact schema constants are generated from the validated admission inputs. Research dates and model evaluations retain their original scope. |
+| Ayllu model binding | Current observations require matching ledger bytes, row semantics, corpus counts and admission evidence. Missing or conflicting evidence yields null observed counts and no training authority. |
 
 The raw `FORMULA_META` and `EXPERIMENTAL_WAVES` constants are retained historical
 inputs for reconciliation. Public projections use `numeric_demo_metadata()`.
@@ -57,6 +59,30 @@ reader requires the explicit numerical or historical namespace and rejects
 unsupported proof credit. The frozen proof-obligation package verifies and
 reproduces its retained historical inputs; current source drift is reported
 separately without rewriting its source commits or release manifest.
+
+The current inventory refresh follows the artifact dependencies in one pass:
+the M1 producer writes its five proposal artifacts; the admission producer
+preflights and writes its four artifacts, then writes the frontier JSON, its
+exact-count schema and the Ayllu policy references. The admission verifier checks
+all seven of its outputs. Repeating the generators preserves the same bytes.
+The old frozen admission reference remains explicitly historical. Current graph
+observations cannot rewrite the evidence for an already evaluated model.
+
+Matching hashes alone do not establish that rows are quarantined. Both producer
+and reader check every actual ledger row for `training_eligible is False` and
+`training_decision == "QUARANTINE"`; they require exact integer counts, zero
+eligible or emitted training rows, empty alignment deltas and the existing
+untrained, unpromoted proposal states. Rehashed contradictory claims are refused.
+When the reader cannot establish those facts, observed raw and admitted counts
+are null, while `training_admission_authorized` remains false. Runtime RAG handle
+counts stay separate from the versioned inventory.
+
+The retained July 15 Second Brain observation is restored byte-for-byte from its
+original introduction commit, `0f4df9e83e4ae65dfed80570264c9f35fc06dfff`.
+A later count migration had changed six observed counts from 9,464 to 9,465
+without changing the observation timestamp or native evidence. The historical
+test now binds the original receipt digest and original counts; current inventory
+growth is represented only by the current producer outputs.
 
 Sample checks use `PASS`, `FAIL`, or `NOT_EVALUATED`. The F10 approximation uses
 the same threshold it displays, including a failing fixed-seed example. F16
@@ -84,7 +110,9 @@ Reads perform no signing, ledger append, model inference, or provider calls.
 The regression suites check real FastAPI responses, HTML/API agreement, exact
 locked-eight membership, Lambda limits, namespace separation, source pins,
 tampered and missing authority, cache invalidation, reproducible samples,
-negative fuel-bound observations, and downstream holdout status. The rendered
+negative fuel-bound observations, downstream holdout status, rehashed semantic
+contradictions, stale downstream inventory references and repeat generation.
+The rendered
 page uses the existing KANCHAY styles. These source tests do not establish
 deployment, current image parity, or production readiness.
 

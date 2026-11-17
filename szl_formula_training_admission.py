@@ -777,18 +777,27 @@ def build_artifacts(repo_root: pathlib.Path | str | None = None) -> dict[str, An
 
 
 def write_artifacts(repo_root: pathlib.Path | str | None = None) -> dict[str, Any]:
+    from szl_m1_corpus_manifest import prepare_current_inventory_refresh
+
     root = pathlib.Path(repo_root or ROOT).resolve()
     artifacts = build_artifacts(root)
+    # Validate every downstream target before writing; these references bind the
+    # admission bytes below and therefore must be committed after those bytes.
+    inventory_updates = prepare_current_inventory_refresh(root, artifacts["manifest"])
     output = root / OUTPUT_DIR
     output.mkdir(parents=True, exist_ok=True)
     (root / CROSSWALK).write_bytes(_json_bytes(artifacts["crosswalk"]))
     (root / TRANCHE).write_bytes(_jsonl_bytes(artifacts["tranche_rows"]))
     (root / MANIFEST).write_bytes(_json_bytes(artifacts["manifest"]))
     (root / RECEIPT).write_bytes(_json_bytes(artifacts["receipt"]))
+    for path, content in inventory_updates.items():
+        path.write_bytes(content)
     return artifacts
 
 
 def verify_committed(repo_root: pathlib.Path | str | None = None) -> dict[str, Any]:
+    from szl_m1_corpus_manifest import prepare_current_inventory_refresh
+
     root = pathlib.Path(repo_root or ROOT).resolve()
     artifacts = build_artifacts(root)
     expected = {
@@ -797,6 +806,10 @@ def verify_committed(repo_root: pathlib.Path | str | None = None) -> dict[str, A
         MANIFEST: _json_bytes(artifacts["manifest"]),
         RECEIPT: _json_bytes(artifacts["receipt"]),
     }
+    expected.update({
+        path.relative_to(root): content
+        for path, content in prepare_current_inventory_refresh(root, artifacts["manifest"]).items()
+    })
     mismatches = [
         relative.as_posix()
         for relative, content in expected.items()

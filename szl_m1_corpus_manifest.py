@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import copy
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
@@ -30,6 +31,11 @@ FORMULA_STATUS_VOCABULARY = ["KERNEL_ACCEPTED", "CONDITIONAL", "OPEN", "REFUTED"
 NUMERIC_NAMESPACE = "puriq.numeric-demo.v1"
 THESIS_NAMESPACE = "knowledge.formula-history.v1"
 NUMERIC_SOURCE_FAMILY = "puriq-numeric-demonstrations"
+CURRENT_INVENTORY_SCOPE = "CURRENT_VERSIONED_GRAPH_NOT_MODEL_EVALUATION"
+CURRENT_ADMISSION_PATH = "research/formula-training-admission/admission-manifest.json"
+HISTORICAL_ADMISSION_PATH = "dataset_release/szl-proof-obligation-queue/data/source-admission-manifest.json"
+CURRENT_BRAIN_LEDGER_PATH = "model_release/m1/brain-ingest-ledger.jsonl"
+CURRENT_M1_MANIFEST_PATH = "model_release/m1/corpus-ingestion-manifest.json"
 
 
 def _canonical(value: Any) -> bytes:
@@ -273,6 +279,173 @@ def _write_jsonl(path: Path, rows: Iterable[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as stream:
         for row in rows:
             stream.write(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
+
+
+def prepare_current_inventory_refresh(root: Path, admission: dict[str, Any]) -> dict[Path, bytes]:
+    """Prepare current inventory references after admission, without writing.
+
+    The admission writer calls this before any output writes, then writes these
+    prepared references last. Research dates, model identities and historical
+    evaluation evidence are preserved. This projection confers no authority.
+    """
+    def read(relative: str) -> dict[str, Any]:
+        value = json.loads((root / relative).read_text(encoding="utf-8"))
+        if not isinstance(value, dict):
+            raise ValueError(f"CURRENT_INVENTORY_OBJECT_REQUIRED:{relative}")
+        return value
+
+    def encode(value: dict[str, Any], *, canonical_keys: bool = False) -> bytes:
+        # Retain the order of reviewed policy documents; admission bytes use
+        # their existing sorted-key encoding for the exact downstream digest.
+        return (json.dumps(value, indent=2, ensure_ascii=False, sort_keys=canonical_keys) + "\n").encode("utf-8")
+
+    def is_zero(value: Any) -> bool:
+        return type(value) is int and value == 0
+
+    def matches_count(value: Any, expected: int) -> bool:
+        return type(value) is int and value == expected
+
+    frontier_path = "model_release/frontier-qualification/frontier-adoption.json"
+    schema_path = "model_release/frontier-qualification/frontier-adoption.schema.json"
+    ayllu_path = "model_release/szl-khipu-second-brain.json"
+    frontier, schema, ayllu = read(frontier_path), read(schema_path), read(ayllu_path)
+    brain = frontier.get("brain_model_truth") or {}
+    policy = ayllu.get("brain_training_policy") or {}
+    if (frontier.get("schema_version") != "szl.frontier-adoption.v1"
+            or frontier.get("status") != "GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION"
+            or not is_zero(brain.get("raw_nodes_admitted_to_gradients"))
+            or ayllu.get("schema_version") != "szl.khipu.compound-second-brain.v1"
+            or not is_zero(policy.get("raw_nodes_admitted_to_gradients"))
+            or policy.get("current_state") != "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED"):
+        raise ValueError("CURRENT_INVENTORY_AUTHORITY_BOUNDARY_CHANGED")
+    properties = ((schema.get("$defs") or {}).get("brainTruth") or {}).get("properties")
+    count_fields = ("raw_nodes_observed", "raw_nodes_available_to_retrieval_and_evaluation")
+    if (not isinstance(properties, dict)
+            or any(not isinstance(properties.get(key), dict)
+                   or type(properties[key].get("const")) is not int
+                   or properties[key]["const"] <= 0 for key in count_fields)):
+        raise ValueError("CURRENT_INVENTORY_EXACT_SCHEMA_BOUNDARY_CHANGED")
+
+    evidence = policy.get("current_inventory_evidence") or {}
+    for key, expected in (("m1_brain_ingest_ledger", CURRENT_BRAIN_LEDGER_PATH),
+                          ("m1_corpus_manifest", CURRENT_M1_MANIFEST_PATH)):
+        if not isinstance(evidence.get(key), dict) or evidence[key].get("path") != expected:
+            raise ValueError(f"CURRENT_INVENTORY_EVIDENCE_PATH_MISMATCH:{key}")
+    source = evidence.get("source_admission_manifest") or {}
+    if source.get("path") not in {HISTORICAL_ADMISSION_PATH, CURRENT_ADMISSION_PATH}:
+        raise ValueError("CURRENT_INVENTORY_EVIDENCE_PATH_MISMATCH:source_admission_manifest")
+    history = policy.get("historical_inventory_evidence")
+    if history is None and source.get("path") == HISTORICAL_ADMISSION_PATH:
+        history = {"source_admission_manifest": copy.deepcopy(source)}
+    historical = (history or {}).get("source_admission_manifest") or {}
+    if (historical.get("path") != HISTORICAL_ADMISSION_PATH
+            or historical.get("file_sha256") != _sha_file(root / HISTORICAL_ADMISSION_PATH)):
+        raise ValueError("CURRENT_INVENTORY_HISTORICAL_SOURCE_BINDING_INVALID")
+
+    payload = dict(admission)
+    receipt = payload.pop("manifest_receipt_sha256", None)
+    if receipt != _sha(_canonical(payload)):
+        raise ValueError("CURRENT_INVENTORY_ADMISSION_RECEIPT_INVALID")
+    claims = admission.get("claims_boundary") or {}
+    decisions = admission.get("decision_summary") or {}
+    if (admission.get("schema_version") != "szl.formula-training-admission-manifest.v1"
+            or admission.get("status") != "COMPLETE_FAIL_CLOSED_HOLDOUT_ONLY"
+            or claims.get("training_triggered") is not False
+            or claims.get("model_promoted") is not False
+            or claims.get("raw_node_text_emitted") is not False
+            or not is_zero(decisions.get("train_rows"))
+            or not is_zero(decisions.get("raw_brain_rows_emitted"))):
+        raise ValueError("CURRENT_INVENTORY_ADMISSION_AUTHORITY_CONFLICT")
+    snapshot = admission.get("source_snapshot") or {}
+    observed = snapshot.get("brain") or {}
+    alignment = snapshot.get("m1_alignment") or {}
+    count = observed.get("raw_node_count")
+    if (type(count) is not int or count <= 0
+            or not matches_count(observed.get("quarantined_node_count"), count)
+            or not matches_count(decisions.get("raw_brain_nodes_quarantined"), count)
+            or not is_zero(observed.get("training_text_rows_emitted"))
+            or alignment.get("aligned") is not True
+            or not matches_count(alignment.get("current_raw_nodes"), count)
+            or not matches_count(alignment.get("brain_ledger_rows"), count)
+            or not is_zero(alignment.get("raw_training_eligible_rows"))
+            or alignment.get("training_state") != "NOT_RUN"
+            or alignment.get("admission") != "CURRENT_INVENTORY_ONLY_ALL_ROWS_QUARANTINED"
+            or alignment.get("current_only_node_ids") != []
+            or alignment.get("m1_only_node_ids") != []
+            or alignment.get("manifest_path") != CURRENT_M1_MANIFEST_PATH
+            or alignment.get("brain_ledger_path") != CURRENT_BRAIN_LEDGER_PATH):
+        raise ValueError("CURRENT_INVENTORY_ADMISSION_ALIGNMENT_INVALID")
+    ledger_path, manifest_path = root / CURRENT_BRAIN_LEDGER_PATH, root / CURRENT_M1_MANIFEST_PATH
+    ledger_sha, manifest_sha = _sha_file(ledger_path), _sha_file(manifest_path)
+    corpus = read(CURRENT_M1_MANIFEST_PATH)
+    ledger = (corpus.get("ledgers") or {}).get("brain_nodes") or {}
+    coverage = corpus.get("coverage") or {}
+    node_decisions = coverage.get("node_decisions")
+    if (corpus.get("schema") != "szl.m1-corpus-ingestion-manifest/v1"
+            or corpus.get("release_state") != "NOT_PROMOTED"
+            or corpus.get("training_state") != "NOT_RUN"
+            or corpus.get("training_relation") != "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER"
+            or alignment.get("brain_ledger_sha256") != ledger_sha
+            or alignment.get("manifest_sha256") != manifest_sha
+            or ledger.get("sha256") != ledger_sha or not matches_count(ledger.get("rows"), count)
+            or not matches_count(ledger.get("bytes"), ledger_path.stat().st_size)
+            or ledger.get("path") != Path(CURRENT_BRAIN_LEDGER_PATH).name
+            or not matches_count((corpus.get("source_snapshot") or {}).get("raw_node_count"), count)
+            or not matches_count(coverage.get("raw_nodes_training_quarantined"), count)
+            or not matches_count(coverage.get("node_decisions_total"), count)
+            or not matches_count(coverage.get("node_decisions_expected"), count)
+            or not isinstance(node_decisions, dict) or set(node_decisions) != {"QUARANTINE"}
+            or not matches_count(node_decisions.get("QUARANTINE"), count)
+            or not is_zero(coverage.get("training_eligible_nodes"))):
+        raise ValueError("CURRENT_INVENTORY_M1_BINDING_INVALID")
+    actual_rows = 0
+    with ledger_path.open(encoding="utf-8") as stream:
+        for line in stream:
+            row = json.loads(line)
+            if (not isinstance(row, dict) or row.get("training_eligible") is not False
+                    or row.get("training_decision") != "QUARANTINE"):
+                raise ValueError("CURRENT_INVENTORY_LEDGER_NOT_QUARANTINED")
+            actual_rows += 1
+    if actual_rows != count:
+        raise ValueError("CURRENT_INVENTORY_LEDGER_COUNT_MISMATCH")
+
+    obligations = {
+        "license_or_rights_unknown": "LICENSE_UNKNOWN",
+        "immutable_source_revision_unknown": "REVISION_UNKNOWN",
+        "freshness_unknown": "FRESHNESS_UNKNOWN",
+        "duplicate_candidates": "DUPLICATE_CANONICAL_KEY",
+        "provenance_unknown": "PROVENANCE_UNKNOWN",
+    }
+    reasons = observed.get("reason_counts") or {}
+    current_obligations = {}
+    for key, reason in obligations.items():
+        value = reasons.get(reason, 0)
+        if type(value) is not int or not 0 <= value <= count:
+            raise ValueError(f"CURRENT_INVENTORY_REASON_COUNT_INVALID:{reason}")
+        current_obligations[key] = value
+    # This inventory-only pipeline supplies no signed permission/privacy/review evidence.
+    for key in ("author_or_rightsholder_permission_unknown", "privacy_or_pii_clearance_unknown",
+                "allowlisted_review_unknown"):
+        current_obligations[key] = count
+    for key in count_fields:
+        brain[key] = count
+        properties[key]["const"] = count
+    brain["raw_observation_scope"] = CURRENT_INVENTORY_SCOPE
+    properties["raw_observation_scope"] = {"const": CURRENT_INVENTORY_SCOPE}
+    required = schema["$defs"]["brainTruth"]["required"]
+    if "raw_observation_scope" not in required:
+        required.append("raw_observation_scope")
+    policy["raw_nodes_observed"] = count
+    policy["current_inventory_observation_scope"] = CURRENT_INVENTORY_SCOPE
+    policy["current_inventory_obligations"] = current_obligations
+    policy["historical_inventory_evidence"] = history
+    evidence["source_admission_manifest"] = {
+        "path": CURRENT_ADMISSION_PATH, "file_sha256": _sha(encode(admission, canonical_keys=True)),
+    }
+    evidence["m1_brain_ingest_ledger"].update({"rows": count, "file_sha256": ledger_sha})
+    evidence["m1_corpus_manifest"]["file_sha256"] = manifest_sha
+    return {root / frontier_path: encode(frontier), root / schema_path: encode(schema),
+            root / ayllu_path: encode(ayllu)}
 
 
 def _load_proposal_bindings() -> tuple[dict[str, Any], dict[str, Any]]:

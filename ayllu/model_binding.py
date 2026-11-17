@@ -10,7 +10,9 @@ organs.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
+from pathlib import Path
 from typing import Any, Mapping
 
 
@@ -19,11 +21,148 @@ SECOND_BRAIN_SCHEMA = "szl.khipu.compound-second-brain.v1"
 FAMILY_ID = "SZL-Forge-1.5B"
 COMPUTE_PLANE = "SZL-Yupaq"
 BINDING_STATE = "PROFILE_AWARE_LOCAL_ROUTING_ARTIFACT_BINDING_PARTIAL"
-CANONICAL_RAW_BRAIN_NODES_OBSERVED = 9_465
 CANONICAL_RAW_BRAIN_NODES_SOURCE = (
     "model_release/szl-khipu-second-brain.json"
     "#brain_training_policy.raw_nodes_observed"
 )
+_INVENTORY_ROOT = Path(__file__).resolve().parents[1]
+_INVENTORY_PATHS = {
+    "source_admission_manifest": "research/formula-training-admission/admission-manifest.json",
+    "m1_brain_ingest_ledger": "model_release/m1/brain-ingest-ledger.jsonl",
+    "m1_corpus_manifest": "model_release/m1/corpus-ingestion-manifest.json",
+}
+
+
+def _bounded_inventory_read(relative: str, limit: int) -> bytes:
+    path = _INVENTORY_ROOT / relative
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > limit:
+        raise ValueError("inventory file unavailable")
+    with path.open("rb") as stream:
+        raw = stream.read(limit + 1)
+    if len(raw) > limit:
+        raise ValueError("inventory byte limit exceeded")
+    return raw
+
+
+def current_brain_inventory() -> dict[str, Any]:
+    """Observe the fixed local release inventory without granting authority.
+
+    Mutable runtime index counts and retained historical pilot counts cannot
+    replace this binding. Reads are bounded and perform no network or writes.
+    """
+    try:
+        policy_bytes = _bounded_inventory_read(
+            "model_release/szl-khipu-second-brain.json", 256 * 1024,
+        )
+        document = json.loads(policy_bytes)
+        if document["schema_version"] != SECOND_BRAIN_SCHEMA:
+            raise ValueError("inventory policy schema mismatch")
+        policy = document["brain_training_policy"]
+        evidence = policy["current_inventory_evidence"]
+        if set(evidence) != set(_INVENTORY_PATHS):
+            raise ValueError("inventory evidence set mismatch")
+        data = {}
+        for name, relative in _INVENTORY_PATHS.items():
+            item = evidence[name]
+            if item["path"] != relative:
+                raise ValueError("inventory evidence path mismatch")
+            raw = _bounded_inventory_read(
+                relative, 32 * 1024 * 1024 if name == "m1_brain_ingest_ledger" else 1024 * 1024,
+            )
+            if hashlib.sha256(raw).hexdigest() != item["file_sha256"]:
+                raise ValueError("inventory evidence digest mismatch")
+            data[name] = raw
+        ledger = data["m1_brain_ingest_ledger"]
+        observed_rows = 0
+        for line in ledger.splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if (row["training_eligible"] is not False
+                    or row["training_decision"] != "QUARANTINE"):
+                raise ValueError("inventory ledger quarantine mismatch")
+            observed_rows += 1
+        manifest = json.loads(data["m1_corpus_manifest"])
+        entry = manifest["ledgers"]["brain_nodes"]
+        counts = (policy["raw_nodes_observed"],
+                  evidence["m1_brain_ingest_ledger"]["rows"], entry["rows"])
+        if any(type(count) is not int or count != observed_rows for count in counts):
+            raise ValueError("inventory row count mismatch")
+        if (entry["path"] != "brain-ingest-ledger.jsonl"
+                or entry["sha256"] != evidence["m1_brain_ingest_ledger"]["file_sha256"]
+                or type(entry["bytes"]) is not int or entry["bytes"] != len(ledger)):
+            raise ValueError("inventory manifest binding mismatch")
+        admission = json.loads(data["source_admission_manifest"])
+        admission_receipt = admission.pop("manifest_receipt_sha256")
+        if _canonical_sha256(admission) != admission_receipt:
+            raise ValueError("inventory admission receipt mismatch")
+        alignment = admission["source_snapshot"]["m1_alignment"]
+        if (alignment["aligned"] is not True
+                or alignment["brain_ledger_path"] != _INVENTORY_PATHS["m1_brain_ingest_ledger"]
+                or alignment["manifest_path"] != _INVENTORY_PATHS["m1_corpus_manifest"]
+                or alignment["brain_ledger_sha256"] != entry["sha256"]
+                or alignment["manifest_sha256"] != evidence["m1_corpus_manifest"]["file_sha256"]
+                or type(alignment["brain_ledger_rows"]) is not int
+                or alignment["brain_ledger_rows"] != observed_rows
+                or type(alignment["current_raw_nodes"]) is not int
+                or alignment["current_raw_nodes"] != observed_rows):
+            raise ValueError("inventory admission source mismatch")
+        coverage = manifest["coverage"]
+        brain = admission["source_snapshot"]["brain"]
+        decision = admission["decision_summary"]
+        zero_counts = (
+            policy["raw_nodes_admitted_to_gradients"],
+            alignment["raw_training_eligible_rows"],
+            coverage["training_eligible_nodes"],
+            brain["training_text_rows_emitted"],
+            decision["train_rows"], decision["raw_brain_rows_emitted"],
+        )
+        if any(type(count) is not int or count != 0 for count in zero_counts):
+            raise ValueError("inventory zero admission boundary mismatch")
+        quarantined_counts = (
+            manifest["source_snapshot"]["raw_node_count"],
+            coverage["node_decisions_total"], coverage["node_decisions_expected"],
+            coverage["raw_nodes_training_quarantined"],
+            coverage["quarantined_or_excluded_nodes"],
+            brain["raw_node_count"], brain["quarantined_node_count"],
+            decision["raw_brain_nodes_quarantined"],
+        )
+        if any(type(count) is not int or count != observed_rows for count in quarantined_counts):
+            raise ValueError("inventory quarantine coverage mismatch")
+        decisions = coverage["node_decisions"]
+        if (set(decisions) != {"QUARANTINE"}
+                or type(decisions["QUARANTINE"]) is not int
+                or decisions["QUARANTINE"] != observed_rows
+                or alignment["current_only_node_ids"] != []
+                or alignment["m1_only_node_ids"] != []):
+            raise ValueError("inventory quarantine alignment mismatch")
+        if (manifest["release_state"] != "NOT_PROMOTED"
+                or manifest["training_state"] != "NOT_RUN"
+                or manifest["training_relation"] != "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER"
+                or alignment["training_state"] != "NOT_RUN"
+                or alignment["admission"] != "CURRENT_INVENTORY_ONLY_ALL_ROWS_QUARANTINED"
+                or admission["status"] != "COMPLETE_FAIL_CLOSED_HOLDOUT_ONLY"
+                or policy["current_state"] != (
+                    "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED")
+                or any(admission["claims_boundary"][key] is not False for key in (
+                    "training_triggered", "model_promoted", "raw_node_text_emitted"))):
+            raise ValueError("inventory proposal state mismatch")
+        return {
+            "state": "OBSERVED", "raw_nodes_observed": observed_rows,
+            "source": CANONICAL_RAW_BRAIN_NODES_SOURCE,
+            "policy_sha256": hashlib.sha256(policy_bytes).hexdigest(),
+            "ledger_sha256": entry["sha256"],
+            "scope": "LOCAL_RELEASE_INVENTORY_NOT_RUNTIME_INDEX_OR_TRAINING_ADMISSION",
+            "execution_authority": False,
+        }
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RecursionError):
+        return {
+            "state": "UNAVAILABLE", "raw_nodes_observed": None,
+            "source": CANONICAL_RAW_BRAIN_NODES_SOURCE,
+            "reason": "CURRENT_INVENTORY_EVIDENCE_UNAVAILABLE",
+            "scope": "LOCAL_RELEASE_INVENTORY_NOT_RUNTIME_INDEX_OR_TRAINING_ADMISSION",
+            "execution_authority": False,
+        }
 
 _ALL_COMPUTE_OPERATIONS = (
     "formula.org_lambda.weighted_geomean",
@@ -254,6 +393,7 @@ def second_brain_binding(
     """
     backend = copy.deepcopy(dict(backend_status or {}))
     rag = copy.deepcopy(dict(rag_status or {}))
+    inventory = current_brain_inventory()
     runtime_indexed_handle_count = rag.get("brain_handle_count") or 0
     profile_runtime = (
         (backend.get("forge_profiles") or {}).get("profiles") or {}
@@ -307,7 +447,7 @@ def second_brain_binding(
             "corpus": rag.get("corpus"),
             "index_mode": rag.get("mode"),
             "scope_boundary": (
-                "Corpus chunks, the canonical 9,465-node release observation, and "
+                "Corpus chunks, the evidence-validated current release inventory, and "
                 "the current runtime Brain handle plane are separate, independently "
                 "counted planes. Handles preserve source and quarantine metadata and "
                 "grant no gradient authority."
@@ -329,10 +469,15 @@ def second_brain_binding(
             "abstain_when_ungrounded": True,
         },
         "training_boundary": {
-            "raw_brain_nodes_observed": CANONICAL_RAW_BRAIN_NODES_OBSERVED,
+            "raw_brain_nodes_observed": inventory["raw_nodes_observed"],
+            "raw_brain_nodes_observation_state": inventory["state"],
+            "current_inventory_evidence": inventory,
             "raw_brain_nodes_observation_source": CANONICAL_RAW_BRAIN_NODES_SOURCE,
             "raw_brain_nodes_observed_is_runtime_index_count": False,
-            "raw_brain_nodes_admitted_to_gradients": 0,
+            "raw_brain_nodes_admitted_to_gradients": (
+                0 if inventory["state"] == "OBSERVED" else None
+            ),
+            "training_admission_authorized": False,
             "admission_is_row_level": True,
             "admission_engine": "szl_brain_training_admission.py",
             "admission_contract": "szl.brain-training-admission-report.v2",
@@ -352,6 +497,7 @@ def second_brain_binding(
             ],
             "current_state": (
                 "ROW_LEVEL_ADMISSION_ENGINE_IMPLEMENTED_CURRENT_RAW_ROWS_QUARANTINED"
+                if inventory["state"] == "OBSERVED" else "CURRENT_INVENTORY_UNAVAILABLE"
             ),
             "required": [
                 "stable_node_id",
@@ -413,7 +559,6 @@ def _canonical_sha256(value: Any) -> str:
 
 __all__ = [
     "BINDING_STATE",
-    "CANONICAL_RAW_BRAIN_NODES_OBSERVED",
     "CANONICAL_RAW_BRAIN_NODES_SOURCE",
     "COMPUTE_PLANE",
     "FAMILY_ID",
@@ -423,4 +568,5 @@ __all__ = [
     "persona_binding",
     "prompt_contract",
     "second_brain_binding",
+    "current_brain_inventory",
 ]
