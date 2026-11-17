@@ -1,0 +1,37 @@
+{
+  "": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "authority": false,
+  "candidate_sha256": "f163c88b249f9c7b78951de1e4f940047e2852c403f6b46adf91c92e74236fdb",
+  "counts": {
+    "datasets": 88,
+    "kernels": 14,
+    "models": 147,
+    "spaces": 23
+  },
+  "observedAt": "2026-11-16T23:09:31Z",
+  "repeat_observation_sha256": "a68324ae7d7af352623b9eff84f524769db61776408b3bde5881963ee1aded7a",
+  "rows": [],
+  "schema": "szl.hf-public-cursor-drift/v1",
+  "source_revision": "628b3f10de1ea9837ce5c535c4c20b722c45b320",
+  "state": "TRANSPORT_CURSOR_CHURN_WITH_IDENTICAL_SEMANTIC_ROWS",
+  "top": {
+    "publicApiEndpoints": {
+      "new": [
+        "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true",
+        "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true&cursor=eyIkb3IiOlt7InRyZW5kaW5nU2NvcmUiOjAsIl9pZCI6eyIkZ3QiOiI2YWYzZWE1YmVjZGQ2NjVkOWI0YmM0ZTMifX0seyJ0cmVuZGluZ1Njb3JlIjp7IiRsdCI6MH19LHsidHJlbmRpbmdTY29yZSI6bnVsbH1dLCJzZWFyY2hTZXF1ZW5jZVRva2VuIjoiQ0ttUjFRRWFDU0VBQUFBQUFBQUFBQm9PV2d4cTgrcGI3TjFtWFp0THhPTWlEbG9NYXZQcVcremRabDJiUzhUaiJ9",
+        "https://huggingface.co/api/datasets?author=SZLHOLDINGS&limit=100&full=true",
+        "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true",
+        "https://huggingface.co/api/spaces/SZLHOLDINGS/README",
+        "https://huggingface.co/api/kernels?author=SZLHOLDINGS&limit=100&full=true"
+      ],
+      "old": [
+        "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true",
+        "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true&cursor=eyIkb3IiOlt7InRyZW5kaW5nU2NvcmUiOjAsIl9pZCI6eyIkZ3QiOiI2YWYzZWE1YmVjZGQ2NjVkOWI0YmM0ZTMifX0seyJ0cmVuZGluZ1Njb3JlIjp7IiRsdCI6MH19LHsidHJlbmRpbmdTY29yZSI6bnVsbH1dLCJzZWFyY2hTZXF1ZW5jZVRva2VuIjoiQ01McW1nSWFDU0VBQUFBQUFBQUFBQm9PV2d4cTgrcGI3TjFtWFp0THhPTWlEbG9NYXZQcVcremRabDJiUzhUaiJ9",
+        "https://huggingface.co/api/datasets?author=SZLHOLDINGS&limit=100&full=true",
+        "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true",
+        "https://huggingface.co/api/spaces/SZLHOLDINGS/README",
+        "https://huggingface.co/api/kernels?author=SZLHOLDINGS&limit=100&full=true"
+      ]
+    }
+  }
+}

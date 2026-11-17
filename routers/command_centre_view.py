@@ -214,16 +214,20 @@ def _local_work():
 
 def _cpu_work():
     return node("section", _head("01 · Work · public demonstration", "Try the SZL CPU lab.", "No provider API key · 32-token ceiling"),
-        node("p", "This is a separate, best-effort SZL Khipu 1.5B demonstration, not Grok and not the local Ollama model. Send ", node("strong", "public, non-sensitive text only"),
-             "; do not include personal, regulated or secret data. Atelier still requires its operator credential and policy gate, and signs its own decision and observed outcome. The lab's execution record is ", node("strong", "UNSIGNED"),
-             ", and a signed Atelier receipt does not prove the lab's answer is correct or its remote execution independently attested. The lab permits one concurrent request and may be unavailable.", class_="muted"),
+        node("p", "This best-effort public CPU demonstration returns source-grounded proposals with public source handles, or an abstention, review, or block. Send ", node("strong", "public, non-sensitive text only"),
+             "; do not include personal, regulated or secret data. Atelier requires its operator credential and policy gate, and signs its own decision and observed outcome. The lab record is ", node("strong", "UNSIGNED_LOCAL"),
+             ". A proposal has no action authority and executes no action. Grounding consistency checks do not prove the answer is factually correct or remotely attested. The lab permits one concurrent request and may be unavailable.", class_="muted"),
         node("form", *_credential("cpu-"), node("label", "Public question for the CPU lab", for_="cpu-prompt"),
              node("textarea", id="cpu-prompt", rows="4", maxlength="1200", required=True, placeholder="Ask one short public question. No sensitive information."),
              node("label", node("input", id="cpu-public-ack", type="checkbox", required=True), " I confirm this exact prompt is safe to disclose to the public SZL CPU lab. Automated checks cannot reliably detect all personal, confidential or secret data.", class_="cpu-public-ack"),
              node("div", node("label", "Fixed model", node("input", id="cpu-model", type="text", value="Not configured", readonly=True)),
                   node("label", "Classification", node("input", type="text", value="PUBLIC only", readonly=True)),
                   node("button", "Send bounded demo request", id="cpu-send", type="submit", disabled=True), class_="controls cpu-controls"), id="cpu-turn-form"),
-        *_outcome("cpu-", "No CPU lab request has been sent.", "CPU lab model answer", "Inspect Atelier outcome and unsigned lab record hash"),
+        *_outcome("cpu-", "No CPU lab request has been sent.", "CPU lab source-grounded proposal", "Inspect Atelier outcome and unsigned local lab record"),
+        node("div", node("h3", "Public source handles"),
+             node("p", "These are the lab\'s public evidence handles and returned citation identifiers. They do not establish factual correctness or action authority.", class_="fine"),
+             node("ol", id="cpu-sources"), node("p", id="cpu-citations", class_="fine"),
+             id="cpu-sources-panel", hidden=True),
         node("p", "One request, no automatic retry or tool execution. A timeout can leave the lab outcome uncertain. The upstream lab is a best-effort public demo without an SLA; ", node("a", "inspect its independent source and limits", href="https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab"), ".", class_="fine"), id="cpu-work", class_="work panel cpu-work")
 
 
