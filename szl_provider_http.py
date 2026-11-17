@@ -60,6 +60,51 @@ class _Target:
     addresses: tuple[str, ...]
 
 
+class _SocketDeadline:
+    """Interrupt socket I/O at the absolute deadline, including buffered framing.
+
+    A per-recv timeout alone is an inactivity timeout: a peer can keep it alive
+    by dripping header or chunk-framing bytes. Keep the actual socket reference
+    because HTTPConnection may clear .sock after a Connection: close response.
+    """
+
+    def __init__(self, sock: socket.socket | None, deadline: float) -> None:
+        self.sock = sock
+        self.deadline = deadline
+        self.expired = threading.Event()
+        self._cancelled = threading.Event()
+        self._timer = threading.Timer(_remaining(deadline), self._interrupt)
+        self._timer.name = "provider-http-deadline"
+        self._timer.daemon = True
+        self._timer.start()
+
+    def _interrupt(self) -> None:
+        if self._cancelled.is_set():
+            return
+        self.expired.set()
+        if self.sock is not None:
+            try:
+                # shutdown wakes a buffered read; closing its file object from
+                # this thread could block on the reader's BufferedReader lock.
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+    def check(self) -> None:
+        if self.expired.is_set() or _remaining(self.deadline) <= 0:
+            self._interrupt()
+            raise TimeoutError("provider deadline exceeded")
+
+    def refresh_timeout(self) -> None:
+        self.check()
+        if self.sock is not None:
+            self.sock.settimeout(_remaining(self.deadline))
+
+    def cancel(self) -> None:
+        self._cancelled.set()
+        self._timer.cancel()
+
+
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
     """HTTPS connection that uses a validated IP while verifying the URL host."""
 
@@ -71,17 +116,33 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         *,
         timeout: float,
         context: ssl.SSLContext,
+        deadline: float | None = None,
     ) -> None:
         super().__init__(hostname, port=port, timeout=timeout, context=context)
         self._validated_address = address
+        self._absolute_deadline = deadline if deadline is not None else time.monotonic() + timeout
 
     def connect(self) -> None:
+        remaining = _remaining(self._absolute_deadline)
+        if remaining <= 0:
+            raise TimeoutError("provider deadline exceeded")
         self.sock = socket.create_connection(
             (self._validated_address, self.port),
-            self.timeout,
+            remaining,
             self.source_address,
         )
-        self.sock = self._context.wrap_socket(self.sock, server_hostname=self.host)
+        # Assign the SSL socket before its handshake so the timer can interrupt
+        # it, and retain hostname verification against the original URL host.
+        self.sock = self._context.wrap_socket(
+            self.sock, server_hostname=self.host, do_handshake_on_connect=False,
+        )
+        handshake_deadline = _SocketDeadline(self.sock, self._absolute_deadline)
+        try:
+            handshake_deadline.refresh_timeout()
+            self.sock.do_handshake()
+            handshake_deadline.check()
+        finally:
+            handshake_deadline.cancel()
 
 
 def _remaining(deadline: float) -> float:
@@ -258,7 +319,9 @@ def _request_once(
         remaining = _remaining(deadline)
         if remaining <= 0:
             return None, None, "TIMEOUT"
-        connection: http.client.HTTPConnection
+        connection: http.client.HTTPConnection | None = None
+        response: http.client.HTTPResponse | None = None
+        guard: _SocketDeadline | None = None
         try:
             if target.scheme == "https":
                 connection = _PinnedHTTPSConnection(
@@ -267,6 +330,7 @@ def _request_once(
                     target.port,
                     timeout=remaining,
                     context=ssl.create_default_context(),
+                    deadline=deadline,
                 )
             else:
                 connection = http.client.HTTPConnection(
@@ -274,6 +338,13 @@ def _request_once(
                     port=target.port,
                     timeout=remaining,
                 )
+            # Connect explicitly so the watchdog owns the socket before request
+            # writes or response-header parsing. A TCP connect retains its own
+            # bounded timeout; HTTPS also bounds its separate handshake.
+            connection.connect()
+            guard = _SocketDeadline(connection.sock, deadline)
+            connection._szl_deadline_guard = guard
+            guard.refresh_timeout()
             hop_headers = dict(headers)
             hop_headers["Host"] = target.host_header
             connection.request(
@@ -282,24 +353,51 @@ def _request_once(
                 body=body,
                 headers=hop_headers,
             )
-            response_budget = _remaining(deadline)
-            if response_budget <= 0:
-                connection.close()
-                return None, None, "TIMEOUT"
-            if connection.sock is not None:
-                connection.sock.settimeout(response_budget)
-            return connection.getresponse(), connection, None
+            guard.refresh_timeout()
+            response = connection.getresponse()
+            guard.check()
+            return response, connection, None
         except (TimeoutError, socket.timeout):
             last_error = "TIMEOUT"
         except ssl.SSLError:
-            last_error = "TLS_FAILURE"
+            last_error = "TIMEOUT" if _remaining(deadline) <= 0 else "TLS_FAILURE"
         except Exception:
-            last_error = "NETWORK_FAILURE"
-        try:
+            last_error = (
+                "TIMEOUT" if _remaining(deadline) <= 0 or (guard and guard.expired.is_set())
+                else "NETWORK_FAILURE"
+            )
+        if guard is not None:
+            guard.cancel()
+        if response is not None:
+            response.close()
+        if connection is not None:
             connection.close()
-        except Exception:
-            pass
+        # A lost POST acknowledgement leaves the remote outcome unknown. Trying
+        # another resolved address could duplicate the inference or other effect.
+        if method == "POST":
+            break
     return None, None, last_error
+
+
+def _read_response_bounded(
+    response: http.client.HTTPResponse,
+    guard: _SocketDeadline,
+    max_response_bytes: int,
+) -> tuple[bytes | None, str | None]:
+    raw = bytearray()
+    while not response.isclosed():
+        guard.refresh_timeout()
+        # read1 performs at most one body recv. Chunk headers/trailers can still
+        # require multiple internal reads; the absolute watchdog covers those.
+        chunk = response.read1(min(65_536, max_response_bytes + 1 - len(raw)))
+        guard.check()
+        if not chunk:
+            break
+        raw.extend(chunk)
+        if len(raw) > max_response_bytes:
+            return None, "RESPONSE_TOO_LARGE"
+    guard.check()
+    return bytes(raw), None
 
 
 def http_json(
@@ -312,11 +410,18 @@ def http_json(
     max_response_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
     max_redirects: int = DEFAULT_MAX_REDIRECTS,
     allow_private: bool = False,
+    error_body_statuses: tuple[int, ...] = (),
+    success_status: int | None = None,
 ) -> tuple[Any, str | None]:
     """Fetch one JSON document through the bounded provider transport.
 
     Returns ``(document, None)`` only after a real 2xx response containing valid
-    UTF-8 JSON.  Every failure returns ``(None, STABLE_ERROR_CODE)``.  The caller
+    UTF-8 JSON. By default, failures return ``(None, STABLE_ERROR_CODE)``.
+    An explicit ``error_body_statuses`` allowlist preserves a bounded JSON error
+    document alongside ``HTTP_STATUS:N``; it never turns that status into success.
+    This lets governed callers validate ABSTAIN/REVIEW bodies. Setting
+    ``success_status`` requires that exact 2xx status; other 2xx responses retain
+    their HTTP error code instead of being promoted to success. The caller
     must set ``allow_private=True`` only for an operator-controlled self-hosted
     base URL (for example local Ollama at ``127.0.0.1:11434``).
     """
@@ -358,6 +463,15 @@ def http_json(
     ):
         return None, "INVALID_REDIRECT_LIMIT"
 
+    if (not isinstance(error_body_statuses, tuple) or len(error_body_statuses) > 8
+            or any(type(status) is not int or not 400 <= status <= 599
+                   for status in error_body_statuses)):
+        return None, "INVALID_ERROR_BODY_STATUSES"
+
+    if success_status is not None and (type(success_status) is not int
+                                       or not 200 <= success_status < 300):
+        return None, "INVALID_SUCCESS_STATUS"
+
     active_headers, header_error = _prepare_headers(headers)
     if header_error or active_headers is None:
         return None, header_error or "INVALID_HEADERS"
@@ -396,7 +510,9 @@ def http_json(
         )
         if request_error or response is None or connection is None:
             return None, request_error or "NETWORK_FAILURE"
+        guard = connection._szl_deadline_guard
         try:
+            guard.check()
             status = int(response.status)
             if status in _REDIRECT_STATUSES:
                 location = response.getheader("Location")
@@ -420,8 +536,10 @@ def http_json(
                 redirects_followed += 1
                 continue
 
-            if not 200 <= status < 300:
-                return None, f"HTTP_STATUS:{status}"
+            success = 200 <= status < 300 and (success_status is None or status == success_status)
+            status_error = None if success else f"HTTP_STATUS:{status}"
+            if status_error and status not in error_body_statuses:
+                return None, status_error
 
             content_length = response.getheader("Content-Length")
             if content_length:
@@ -433,23 +551,25 @@ def http_json(
                         return None, "RESPONSE_TOO_LARGE"
                 except ValueError:
                     return None, "INVALID_CONTENT_LENGTH"
-            read_budget = _remaining(deadline)
-            if read_budget <= 0:
-                return None, "TIMEOUT"
-            if connection.sock is not None:
-                connection.sock.settimeout(read_budget)
-            raw = response.read(max_response_bytes + 1)
-            if len(raw) > max_response_bytes:
-                return None, "RESPONSE_TOO_LARGE"
+            raw, read_error = _read_response_bounded(response, guard, max_response_bytes)
+            if read_error or raw is None:
+                return None, read_error or "NETWORK_FAILURE"
             try:
-                return json.loads(raw.decode("utf-8")), None
+                document = json.loads(raw.decode("utf-8"))
+                guard.check()
+                return document, status_error
             except (UnicodeDecodeError, json.JSONDecodeError):
+                guard.check()
                 return None, "INVALID_JSON"
         except (TimeoutError, socket.timeout):
             return None, "TIMEOUT"
         except Exception:
+            if guard.expired.is_set() or _remaining(deadline) <= 0:
+                return None, "TIMEOUT"
             return None, "NETWORK_FAILURE"
         finally:
+            guard.cancel()
+            response.close()
             connection.close()
 
 

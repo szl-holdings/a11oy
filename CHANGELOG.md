@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - governed CPU lab operator integration
+
+- The authenticated CPU form at /command-centre#cpu-work now uses the pinned
+  governed v3 inference contract. The existing Atelier request body is unchanged;
+  successful responses carry PROPOSAL, UNSIGNED_LOCAL, grounding-required and
+  no-action-authority metadata, plus validated public source handles.
+  ABSTAIN, REVIEW and BLOCKED remain explicit non-answer outcomes.
+- Migration: replace legacy POST /api/a11oy/v1/khipu/chat and the brainserve
+  generation/probe routes with POST /api/a11oy/v1/atelier/cpu-lab/turn, using
+  operator authentication and a fresh acknowledgment for the exact PUBLIC prompt.
+  Retired generation routes return HTTP 410. Khipu status and brainserve metadata
+  reads do not generate, sign, forward prompts or probe the retired service.
+  The old Khipu voter remains discoverable but unavailable.
+- Provider calls enforce absolute I/O deadlines, bounded response/error bodies,
+  exact declared success status and no POST address replay after uncertain outcomes.
+  The CPU form has a 90-second allowance and displays bounded contract reason codes.
+- The historical fabrication evaluator is explicitly unavailable (exit 2) until
+  qualified for the governed contract. Its scheduled failure gate remains strict;
+  unavailability no longer passes as a skip or creates a fabricated-model finding.
+  See docs/reviews/model-serving-closure-2026-11-16.md for evidence and limits.
+
+
 ### Fixed - source-pinned Lean snapshot labels
 
 - Retained Yachay source and evidence docs now cite the historical authority

@@ -1,0 +1,25 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "assessments_and_support_requests_unchanged": true,
+  "authority": {
+    "deployment": false,
+    "promotion": false,
+    "qualification": false,
+    "routing": false
+  },
+  "collector_path": "scripts/collect_model_inference_support.py",
+  "collector_sha256": "b9720ee50f4cbead14c18f00e8fa4a45fe9616aaa9b71006a3ab934290706b76",
+  "collector_source_revision": "628b3f10de1ea9837ce5c535c4c20b722c45b320",
+  "generated_at": "2026-11-16T23:11:16.035154+00:00",
+  "historical_assessments_refreshed": false,
+  "mode": "ANONYMOUS_PUBLIC_METADATA_GETS_ONLY",
+  "model_executed": false,
+  "models": 147,
+  "previous_source_sha256": "faea8669e0410b323e7d2a3afc4d3086db28b0a76048620aa49d49b8f5b2eff5",
+  "refreshed_source_sha256": "5c3d64ba676b188178fbee2cac41ee8191a080919f2fe169efbb180453877741",
+  "schema": "szl.hf-provider-observation-refresh/v1",
+  "source_path": "docs/model-inference-support.json",
+  "states": {
+    "NO_PROVIDER_MAPPING": 147
+  }
+}

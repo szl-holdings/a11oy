@@ -124,6 +124,131 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         self.assertEqual([entry["id"] for entry in audit.api_items("models")],
                          ["SZLHOLDINGS/a", "SZLHOLDINGS/b", "SZLHOLDINGS/c"])
 
+    def test_two_page_observations_ignore_only_opaque_cursor_values(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
+
+        def observe(cursor: str) -> dict:
+            continuation = base + "&cursor=" + cursor
+            pages = {
+                base: {"status": 200,
+                       "json": [item(f"SZLHOLDINGS/model-{n:03}") for n in range(100)],
+                       "link": f'<{continuation}>; rel="next"'},
+                continuation: {"status": 200, "json": [item("SZLHOLDINGS/model-100")]},
+            }
+            with patch.object(audit, "public_get", side_effect=pages.__getitem__) as request:
+                rows = audit.api_items("models")
+            self.assertEqual([call.args[0] for call in request.call_args_list],
+                             [base, continuation])
+            self.assertEqual(rows.endpoints, [base, continuation])
+            self.assertEqual(len(rows), 101)
+            return {"publicApiEndpoints": rows.endpoints, "inventory": {"models": rows}}
+
+        first, second = observe("b25l%3D"), observe("dHdv%3D")
+        originals = [json.dumps(first), json.dumps(second)]
+        self.assertNotEqual(first["publicApiEndpoints"], second["publicApiEndpoints"])
+        self.assertEqual(audit.semantic_manifest(first, classes_with()),
+                         audit.semantic_manifest(second, classes_with()))
+        self.assertEqual(originals, [json.dumps(first), json.dumps(second)])
+
+    def test_malformed_cursor_is_rejected_before_followup_request(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
+        for suffix in ("%", "%GG", "%FF", "%0A", "%20", "next&cursor=other",
+                       "next#", "next\t", ""):
+            with self.subTest(cursor=suffix), patch.object(
+                audit, "public_get", return_value={
+                    "status": 200, "json": [],
+                    "link": f'<{base}&cursor={suffix}>; rel="next"',
+                },
+            ) as request:
+                with self.assertRaises(audit.InventoryError):
+                    audit.api_items("models")
+                request.assert_called_once_with(base)
+
+    def test_endpoint_comparison_preserves_all_non_cursor_bytes(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
+        original = audit.semantic_public_api_endpoint(base + "&cursor=first")
+        changes = (
+            base.replace("models", "datasets") + "&cursor=second",
+            base.replace("author=SZL", "author=%53ZL") + "&cursor=second",
+            base.replace("author=SZLHOLDINGS&limit=100", "limit=100&author=SZLHOLDINGS")
+                + "&cursor=second",
+            base + "&curs%6Fr=second",
+            base.replace("https:", "HTTPS:") + "&cursor=second",
+            base,
+        )
+        for changed in changes:
+            with self.subTest(url=changed):
+                self.assertNotEqual(original, audit.semantic_public_api_endpoint(changed))
+        self.assertEqual(original, base + "&cursor=__opaque_cursor__")
+
+    def test_endpoint_list_keeps_order_multiplicity_and_reserved_readme(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
+        reserved = "https://huggingface.co/api/spaces/SZLHOLDINGS/README"
+        endpoints = [base, base + "&cursor=first", reserved]
+        first = {"publicApiEndpoints": endpoints}
+        stable = audit.semantic_manifest(first, classes_with())
+        for changed in (
+            endpoints[:-1], endpoints[1:], endpoints + [endpoints[1]],
+            [endpoints[1], endpoints[0], reserved], list(reversed(endpoints)),
+        ):
+            with self.subTest(endpoints=changed):
+                self.assertNotEqual(stable, audit.semantic_manifest(
+                    {"publicApiEndpoints": changed}, classes_with()))
+        self.assertEqual(stable["publicApiEndpoints"][-1], reserved)
+        self.assertEqual(first["publicApiEndpoints"], endpoints)
+
+    def test_unsafe_endpoint_and_malformed_query_evidence_fails_closed(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
+        bad_urls = (
+            base.replace("huggingface.co", "example.com"),
+            base.replace("https:", "http:"),
+            base.replace("huggingface.co", "user@huggingface.co"),
+            base.replace("huggingface.co", "huggingface.co:443"),
+            base.replace("/models?", "/models/?"),
+            base.replace("SZLHOLDINGS", "other"),
+            base.replace("limit=100", "limit=99"),
+            base.replace("full=true", "full=false"),
+            base.replace("&full=true", ""),
+            base + "&author=SZLHOLDINGS", base + "&unknown=value",
+            base + "&cursor=one&cursor=two", base + "&cursor=", base + "&cursor",
+            base + "&cursor=%", base + "&cursor=%GG", base + "&cursor=%FF",
+            base + "&cursor=%00", base + "&cursor=%0D%0A", base + "&cursor=+",
+            base + "&cursor=next#", base + "&cursor=next#fragment",
+            base + "&cursor=next&", base + "&cursor=next&&full=true",
+            " " + base, "\x00" + base, base + "\t", base + "\r\n",
+            "https://huggingface.co/api/spaces/SZLHOLDINGS/README?cursor=next",
+            None, 7, "",
+        )
+        for url in bad_urls:
+            with self.subTest(url=url), self.assertRaises(audit.InventoryError):
+                audit.semantic_manifest({"publicApiEndpoints": [url]}, classes_with())
+        for endpoints in (None, {}, base):
+            with self.subTest(endpoints=endpoints), self.assertRaises(audit.InventoryError):
+                audit.semantic_manifest({"publicApiEndpoints": endpoints}, classes_with())
+
+    def test_cursor_rotation_keeps_governed_gated_card_and_curated_tag_drift(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
+        classes = classes_with(("model", "SZLHOLDINGS/governed"))
+        first = {
+            "publicApiEndpoints": [base, base + "&cursor=first"],
+            "inventory": {"models": [
+                item("SZLHOLDINGS/governed"),
+                {**item("SZLHOLDINGS/gated"), "gated": True},
+                item("SZLHOLDINGS/source"),
+            ]},
+        }
+        for index, field, value in (
+            (0, "sha", "b" * 40), (1, "sha", "b" * 40),
+            (2, "cardSemanticSha256", "d" * 64),
+            (2, "tags", ["license:other"]),
+        ):
+            second = json.loads(json.dumps(first))
+            second["publicApiEndpoints"][1] = base + "&cursor=second"
+            second["inventory"]["models"][index][field] = value
+            with self.subTest(row=index, field=field):
+                self.assertNotEqual(audit.semantic_manifest(first, classes),
+                                    audit.semantic_manifest(second, classes))
+
     def test_duplicate_private_foreign_and_unbounded_pages_fail_closed(self) -> None:
         invalid_pages = ([item("SZLHOLDINGS/a")] * 2,
                          [{**item("SZLHOLDINGS/a"), "private": True}],
@@ -708,6 +833,55 @@ class GovernedRevisionAndLabelledResultTests(unittest.TestCase):
     def advance(self, row: dict) -> None:
         row["sha"] = "b" * 40
         row["lastModified"] = "2026-07-26T00:30:00Z"
+
+    def test_rotating_cursor_reports_current_and_keeps_exact_snapshot(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
+        rows = audit.ApiItems([item("SZLHOLDINGS/model")], [base, base + "&cursor=first"])
+        self.snapshot({"models": rows})
+        original = self.output.read_bytes()
+        rows.endpoints[1] = base + "&cursor=second"
+        result, message = self.check()
+        self.assertEqual(result, 0, message)
+        self.assertEqual(self.report_result()["result"], "CURRENT")
+        self.assertEqual(self.output.read_bytes(), original)
+
+    def test_invalid_tracked_endpoint_is_invalid_before_network(self) -> None:
+        manifest = self.snapshot({"models": [item("SZLHOLDINGS/model")]})
+        for endpoints in (
+            [manifest["publicApiEndpoints"][0] + "&cursor=%0A"],
+            [manifest["publicApiEndpoints"][0] + "&cursor=next#"],
+            None,
+        ):
+            bad = {**manifest, "publicApiEndpoints": endpoints}
+            self.output.write_text(json.dumps(bad, indent=2) + "\n", encoding="utf-8")
+            with self.subTest(endpoints=endpoints), patch.object(
+                audit, "build_manifest", side_effect=AssertionError("network read attempted"),
+            ) as build:
+                result, message = self.check()
+                build.assert_not_called()
+                self.assertEqual(result, 1, message)
+                self.assertEqual(self.report_result()["result"], "INVALID")
+
+    def test_invalid_live_endpoint_is_labelled_invalid(self) -> None:
+        manifest = self.snapshot({"models": [item("SZLHOLDINGS/model")]})
+        live = {**manifest, "publicApiEndpoints": [
+            manifest["publicApiEndpoints"][0] + "&cursor=next&cursor=other",
+        ]}
+        with patch.object(audit, "build_manifest", return_value=live):
+            result, message = self.check()
+        self.assertEqual(result, 1, message)
+        self.assertEqual(self.report_result()["result"], "INVALID")
+
+    def test_missing_pagination_page_is_still_reported_as_drift(self) -> None:
+        base = "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true"
+        rows = audit.ApiItems([item("SZLHOLDINGS/model")], [base, base + "&cursor=first"])
+        self.snapshot({"models": rows})
+        rows.endpoints.pop()
+        result, message = self.check()
+        self.assertEqual(result, 1, message)
+        report = self.report_result()
+        self.assertEqual(report["result"], "DRIFT")
+        self.assertIn("publicApiEndpoints", report["changedTopLevelFields"])
 
     def test_ungated_governed_head_move_with_unchanged_card_is_invalid(self) -> None:
         fixtures = {"models": [item("SZLHOLDINGS/szl-nemo")]}
