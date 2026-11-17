@@ -49,7 +49,6 @@ schema, the shared szl-evidence dataset and an exact SDK version pin, which
 are the defects that retired v1. ``source_revision`` here is informational.
 """
 
-import asyncio
 import contextlib
 import contextvars
 import hashlib
@@ -795,8 +794,13 @@ _WRITE_PERMIT: contextvars.ContextVar[Optional[_WritePermit]] = contextvars.Cont
 
 
 def _current_task() -> Any:
+    # Passive workers can import storage after disabling sockets. Do not import
+    # asyncio/SSL here; a running task requires asyncio to be initialized already.
+    current_task = getattr(sys.modules.get("asyncio"), "current_task", None)
+    if current_task is None:
+        return None
     try:
-        return asyncio.current_task()
+        return current_task()
     except RuntimeError:
         return None
 
