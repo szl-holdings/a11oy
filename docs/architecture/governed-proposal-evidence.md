@@ -235,6 +235,49 @@ The locked formula set remains exactly
 Conjecture 1, and Khipu BFT remains Conjecture 2. This change adds no formula to the
 locked set and invokes no Lean proof checker.
 
+### Canonical formula scopes and existing bindings
+
+The inspection link uses the immutable
+[canonical registry source](https://github.com/szl-holdings/a11oy/blob/1e5d070806696ac4d45d9bb411e1972a4bc5f849/formula_registry/formula-registry.v1.json),
+whose payload schema is `szl.formula-authority.v2` despite the legacy v1
+filename. Its authority digest is
+`ec1d9e1aa6c6bcb1fb70731c86d46374a6aeed6d311c2bf5e315b12c87ec6b08`,
+formal source commit is
+`c497b4ed402249f23da7f290426f0e21c70ab926` in
+`szl-holdings/lutar-lean`, and signature status is unsigned. Reading this
+record or checking its digest is not running Lean.
+
+| ID | Scope in the canonical record | Required runtime interpretation |
+|---|---|---|
+| F1 | Deterministic replay for identical function and inputs | Bind the exact implementation and input/trace; no claim of input truth |
+| F4 | Graph acyclicity under a strict backward-edge invariant | Validate that invariant for admitted edges; parent hashes alone are insufficient |
+| F7 | Append-back, drain-front FIFO queue model | Check concrete queue transitions; external delivery and durability remain separate |
+| F11 | Additive credit followed by equal debit | Apply to the specified accounting transition; no general fairness claim |
+| F12 | Natural-number additive distributivity | Limited additive fragment; no nonlinear synchronization claim |
+| F18 | RS(10,6) recovery arithmetic with up to four erasures | Verify actual configuration and shard evidence; no encoder or restore proof |
+| F19 | Additive and monotone natural-number budgets | Limited scaffolding; no physical energy or sensor-accuracy claim |
+| F22 | Append-next-index sequence log | Check the actual sequence/lease; UUIDs are not monotone ledger positions |
+
+The mapping from formal F-identifiers to the 21 callable kernel functions is
+explicitly `UNKNOWN_NOT_ASSERTED`. Historical proof/corpus snapshots are
+quarantined as non-authorities. The older formula-tiers report is not the
+canonical inspection destination.
+
+The origin's `a11oy_governed_cortex.py` already has an F1-only
+`REPLAY_HASH_DETERMINISM_ONLY` pre-generation binding, with no authorization
+basis. The public Cloudflare edge in this change remains narrower: it enforces
+the exact inventory and advisory boundary and records that inventory. It does
+not bind formula-specific applicability to arbitrary generated answers.
+
+For a future capability profile, reuse `receipt_basis()` and
+`applicability_basis()` from `szl_formula_registry.py`. The latter checks
+the requested formula, label, and digest format; it does not inspect the
+evidence behind the digest. A separate typed premise check must produce PASS,
+FAIL, UNKNOWN, or NOT_APPLICABLE before a consumer constructs and relies on an
+applicability record. Record the implementation revision, evidence, checker
+identity, and limits as CEG edges. Do not force all eight formulas into every
+request.
+
 A checked proof establishes its formal proposition under stated assumptions.
 It does not establish that a model generated a true answer, that a sensor was
 calibrated, or that production is running the referenced artifact. Those require

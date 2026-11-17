@@ -351,7 +351,7 @@
       pair(facts, 'Locked formula inventory', body.formula_authority.locked_proven_ids.join(', '));
       pair(facts, 'Lambda status', 'Conjecture 1 — advisory; cannot authorize actions');
       node('p', 'gp-note', 'The output and canonical receipt payload hashes match locally. Hash consistency does not authenticate a signer or prove a model claim. The receipt is unsigned. The locked formula inventory does not prove this generated answer.', details);
-      var tiers = node('a', 'gp-link', 'Inspect formula proof scopes', details); tiers.href = '/api/a11oy/v1/formula-tiers';
+      var tiers = node('a', 'gp-link', 'Inspect pinned formula authority and limits', details); tiers.href = 'https://github.com/szl-holdings/a11oy/blob/1e5d070806696ac4d45d9bb411e1972a4bc5f849/formula_registry/formula-registry.v1.json';
       memory(details, body.second_brain);
       var handles = node('details', 'gp-details', null, details);
       node('summary', '', 'Returned evidence handles and citation claims', handles);
