@@ -52,7 +52,12 @@ DOCTRINE v11:
 """
 
 import datetime
+import math
+import queue
 import re
+import threading
+import time
+from concurrent.futures import Future, TimeoutError as ProbeTimeout
 from typing import Any
 
 # Honesty-label vocabulary (doctrine v11). Tests grep these exact strings. This is the
@@ -235,9 +240,94 @@ def _pick_probe_endpoints(surface_id: str, routes: list[str], ns: str) -> list[s
 # TestClient from inside a live request corrupts the outer request. Calling the route
 # function directly reads the surface's OWN honest label without touching the ASGI /
 # middleware stack — which is exactly the ground truth we want. Every call is bounded by
-# a worker-thread timeout so a proxy endpoint that reaches for the network cannot hang the
-# catalog; on timeout / error the surface degrades to the honest "no label" outcome.
+# a caller deadline in a process-owned bounded worker pool. Timed-out Python work
+# may continue, but admission stays bounded and timeout/saturation never supplies a label.
 # ---------------------------------------------------------------------------
+
+_PROBE_WORKERS = 4
+_PROBE_CAPACITY = 8  # Running plus queued jobs; admission never waits.
+_PROBE_POOL = None
+_PROBE_POOL_LOCK = threading.Lock()
+
+
+class _RouteProbePool:
+    """Process-owned, lazy daemon workers for bounded read-only probes.
+
+    Timeouts do not kill Python threads. A running job holds its admission slot
+    until it finishes. Daemon workers avoid an unbounded interpreter-exit join;
+    the pool is not created or torn down by individual requests or app lifespans.
+    """
+    def __init__(self, workers: int = _PROBE_WORKERS, capacity: int = _PROBE_CAPACITY):
+        if (type(workers) is not int or type(capacity) is not int
+                or workers < 1 or capacity < workers):
+            raise ValueError("invalid probe pool limits")
+        self._worker_limit = workers
+        self._slots = threading.BoundedSemaphore(capacity)
+        self._queue = queue.Queue(maxsize=capacity)
+        self._lock = threading.Lock()
+        self._closed = threading.Event()
+        self._threads = []
+
+    def submit(self, work):
+        with self._lock:
+            if self._closed.is_set() or not self._slots.acquire(blocking=False):
+                return None
+            try:
+                while len(self._threads) < self._worker_limit:
+                    thread = threading.Thread(
+                        target=self._run, name="frontier-label-probe", daemon=True)
+                    thread.start()
+                    self._threads.append(thread)
+                future = Future()
+                self._queue.put_nowait((future, work))
+                return future
+            except BaseException:
+                self._slots.release()
+                raise
+
+    def _run(self):
+        while not self._closed.is_set() or not self._queue.empty():
+            try:
+                future, work = self._queue.get(timeout=0.05)
+            except queue.Empty:
+                continue
+            try:
+                if future.set_running_or_notify_cancel():
+                    try:
+                        value = work()
+                    except BaseException as exc:
+                        future.set_exception(exc)
+                    else:
+                        future.set_result(value)
+            finally:
+                # A cancelled queued job also retains its slot until dequeued.
+                # This keeps cancelled queue entries bounded under saturation.
+                self._slots.release()
+                self._queue.task_done()
+
+    def shutdown(self, timeout: float = 1.0) -> bool:
+        """Stop after accepted work; bounded join, never force-stop a worker.
+
+        Tests release synthetic blocking work before calling this method. The
+        production singleton lives until process exit; no ASGI lifecycle hook
+        restarts it while an earlier read may still be running.
+        """
+        with self._lock:
+            self._closed.set()
+            threads = tuple(self._threads)
+        deadline = time.monotonic() + timeout
+        for thread in threads:
+            thread.join(max(0.0, deadline - time.monotonic()))
+        return not any(thread.is_alive() for thread in threads)
+
+
+def _get_probe_pool():
+    global _PROBE_POOL
+    with _PROBE_POOL_LOCK:
+        if _PROBE_POOL is None:
+            _PROBE_POOL = _RouteProbePool()
+        return _PROBE_POOL
+
 
 def _get_route(app, path: str):
     """Return the registered GET route object whose path == `path` (or None)."""
@@ -267,7 +357,7 @@ def _synthetic_request(app, path: str):
     return Request(scope, receive=_receive)
 
 
-def _invoke_route(app, route, path: str, timeout: float):
+def _invoke_route(app, route, path: str, timeout: float, diagnostics=None):
     """Invoke a route's endpoint callable directly, bounded by `timeout` seconds, and return
     its decoded JSON payload (dict) or None. Supplies a synthetic Request for a `Request`
     parameter; if any other argument is required (path/query params we cannot safely
@@ -275,13 +365,28 @@ def _invoke_route(app, route, path: str, timeout: float):
     import inspect
     import json as _json
 
+    def failed(state, **details):
+        if diagnostics is not None:
+            diagnostics.append({"endpoint": path, "state": state, **details})
+        return None
+
+    if type(timeout) not in (int, float):
+        return failed("INVALID_TIMEOUT")
+    try:
+        timeout = float(timeout)
+    except (ValueError, OverflowError):
+        return failed("INVALID_TIMEOUT")
+    if not math.isfinite(timeout) or not 0 < timeout <= threading.TIMEOUT_MAX:
+        return failed("INVALID_TIMEOUT")
+    deadline = time.monotonic() + timeout
+
     fn = getattr(route, "endpoint", None)
     if fn is None or not callable(fn):
-        return None
+        return failed("NOT_CALLABLE")
     try:
         sig = inspect.signature(fn)
     except (TypeError, ValueError):
-        return None
+        return failed("UNSUPPORTED_SIGNATURE")
 
     from starlette.requests import Request as _Req
     kwargs: dict[str, Any] = {}
@@ -293,37 +398,48 @@ def _invoke_route(app, route, path: str, timeout: float):
         if p.annotation is _Req or p.name in ("req", "request"):
             kwargs[p.name] = _synthetic_request(app, path)
         else:
-            return None  # needs an arg we won't fabricate -> decline (honest)
+            return failed("REQUIRED_ARGUMENT_UNAVAILABLE")
 
     def _work():
         import asyncio as _aio
         if inspect.iscoroutinefunction(fn):
-            return _aio.run(fn(**kwargs))
-        res = fn(**kwargs)
-        if inspect.isawaitable(res):
-            return _aio.run(res)
-        return res
+            res = _aio.run(fn(**kwargs))
+        else:
+            res = fn(**kwargs)
+            if inspect.isawaitable(res):
+                res = _aio.run(res)
+        # Response access and JSON decoding are part of the same deadline.
+        if isinstance(res, dict):
+            return res, None
+        body = getattr(res, "body", None)
+        if body is None:
+            return None, "NON_OBJECT_RESPONSE"
+        try:
+            payload = _json.loads(body)
+        except Exception:
+            return None, "INVALID_JSON_RESPONSE"
+        if not isinstance(payload, dict):
+            return None, "NON_OBJECT_RESPONSE"
+        return payload, None
 
-    import concurrent.futures as _cf
     try:
-        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
-            res = ex.submit(_work).result(timeout=timeout)
-    except Exception:
-        return None
+        future = _get_probe_pool().submit(_work)
+        if future is None:
+            return failed("SATURATED")
+        try:
+            payload, failure = future.result(timeout=max(0.0, deadline - time.monotonic()))
+        except ProbeTimeout:
+            cancelled = future.cancel()
+            return failed("TIMEOUT", cancelled_before_start=cancelled,
+                          worker_may_continue=not future.done(),
+                          running_work_cancelled=False)
+    except Exception as exc:
+        return failed("ERROR", error_class=type(exc).__name__)
 
-    if isinstance(res, dict):
-        return res
-    body = getattr(res, "body", None)
-    if body is None:
-        return None
-    try:
-        payload = _json.loads(body)
-    except Exception:
-        return None
-    return payload if isinstance(payload, dict) else None
+    return failed(failure) if failure is not None else payload
 
 
-def _probe_label(app, endpoints: list[str], timeout: float = 3.0
+def _probe_label(app, endpoints: list[str], timeout: float = 3.0, diagnostics=None
                  ) -> tuple[str | None, str | None, list[str], bool]:
     """Probe candidate endpoints by invoking their route callables directly and return
     (label, endpoint_used, citations, any_ok). Fully guarded: a slow/error endpoint never
@@ -333,7 +449,7 @@ def _probe_label(app, endpoints: list[str], timeout: float = 3.0
         route = _get_route(app, ep)
         if route is None:
             continue
-        payload = _invoke_route(app, route, ep, timeout)
+        payload = _invoke_route(app, route, ep, timeout, diagnostics=diagnostics)
         if payload is None:
             continue
         any_ok = True
@@ -377,7 +493,10 @@ def _classify_surface(app, surface: dict, get_paths: list[str], ns: str) -> dict
         entry["note"] = "no a11oy-native /api route registered; client-side surface"
         return entry
 
-    label, used_ep, citations, any_200 = _probe_label(app, probe)
+    failures = []
+    label, used_ep, citations, any_200 = _probe_label(app, probe, diagnostics=failures)
+    if failures:
+        entry["probe_failures"] = failures
     if label:
         entry["backend"] = NATIVE
         entry["label"] = label            # VERBATIM from the backend — never upgraded.
