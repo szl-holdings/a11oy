@@ -1,0 +1,283 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "added_inventory_only_classifications": [
+    "SZLHOLDINGS/szl-constellation"
+  ],
+  "archive_sha256": "a0039ddbfcd721868b9af4daebfa55aee9f5a4b467b76f63e3c30ac3fc4d5c6f",
+  "artifact_id": 14281856187,
+  "candidate_sha256": "775f252b55116f3b3684f12e913008f1a19c131e94a52d2c3cf900239ee6dd93",
+  "counts": {
+    "datasets": 88,
+    "kernels": 14,
+    "models": 147,
+    "spaces": 23
+  },
+  "governed_model_reviews": [
+    {
+      "changes": [
+        {
+          "after": {
+            "blob_id": "d8b4b6a2e0b39a221a13377847b5754fe684859b",
+            "lfs": null,
+            "size": 5173
+          },
+          "before": {
+            "blob_id": "31a28a5a691773c5cb0f5b22c4a5c52e32e2bc9c",
+            "lfs": null,
+            "size": 3817
+          },
+          "path": "README.md"
+        },
+        {
+          "after": {
+            "blob_id": "c9a63e1fb0d49fd39463d14650b7489fa38a7553",
+            "lfs": null,
+            "size": 6275
+          },
+          "before": {
+            "blob_id": "86cbc2ee467008a99a76a1b17e7ad9fd041cee99",
+            "lfs": null,
+            "size": 6275
+          },
+          "path": "publication.json"
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "new_count": 20,
+      "new_metadata": {
+        "card": {
+          "library_name": "transformers",
+          "license": "apache-2.0",
+          "tags": [
+            "governed-ai",
+            "szl-holdings",
+            "doctrine-v11",
+            "receipt",
+            "signed"
+          ]
+        },
+        "disabled": false,
+        "gated": "auto",
+        "private": false
+      },
+      "new_revision": "aa357f2a7849bc5f42991d7382f3ae2cffadca53",
+      "old_count": 20,
+      "old_metadata": {
+        "card": {
+          "library_name": "transformers",
+          "license": "apache-2.0",
+          "tags": [
+            "governed-ai",
+            "szl-holdings",
+            "doctrine-v11",
+            "receipt",
+            "signed"
+          ]
+        },
+        "disabled": false,
+        "gated": "auto",
+        "private": false
+      },
+      "old_revision": "d3c0b7e7a3a7242e6cd279bcd8e0bc67c16d7ce2",
+      "unchanged_lfs": [
+        {
+          "blob_id": "0cb49f48902ad765f489fd45b21cc186afca93ad",
+          "lfs": {
+            "pointer_size": 134,
+            "sha256": "706aff139489d62cb1ac221c0f92a1a8595cd6a42032c542efe8028684e57cf2",
+            "size": 147770496
+          },
+          "path": "adapter/adapter_model.safetensors",
+          "size": 147770496
+        },
+        {
+          "blob_id": "1a6ef2a0a8e2281b4d543060f9df5f766d6ee764",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "a797592fb35c32cc6ebf5739c0a1d9312123300acaf09987d207d86196bc6e7d",
+            "size": 3087467144
+          },
+          "path": "model.safetensors",
+          "size": 3087467144
+        },
+        {
+          "blob_id": "d73428d91463b495bc017fb6a2fb3a656646482b",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "6b4360dd6a184650ffc48056c2569bc603f896c5adfe94b10f1c79f809638aa5",
+            "size": 11422166
+          },
+          "path": "tokenizer.json",
+          "size": 11422166
+        }
+      ]
+    },
+    {
+      "changes": [
+        {
+          "after": {
+            "blob_id": "d69a943320c8d132369066865eca1b644cea10dd",
+            "lfs": null,
+            "size": 1316
+          },
+          "before": {
+            "blob_id": "1bdf22cb97d692a64874065ac80ee1bdd0960ebc",
+            "lfs": null,
+            "size": 2961
+          },
+          "path": "README.md"
+        }
+      ],
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "new_count": 32,
+      "new_metadata": {
+        "card": {
+          "license": "apache-2.0",
+          "tags": [
+            "szl-holdings"
+          ]
+        },
+        "disabled": false,
+        "gated": "manual",
+        "private": false
+      },
+      "new_revision": "613c4a3e28c72c182399b888ffca6693fab3dc8e",
+      "old_count": 32,
+      "old_metadata": {
+        "card": {
+          "library_name": "kernels",
+          "license": "apache-2.0",
+          "tags": [
+            "governed-ai",
+            "szl-holdings",
+            "doctrine-v11",
+            "kernel",
+            "hub"
+          ]
+        },
+        "disabled": false,
+        "gated": "manual",
+        "private": false
+      },
+      "old_revision": "083d760878a3bd2e77cff5ab5c3c348327b0de47",
+      "unchanged_lfs": []
+    },
+    {
+      "changes": [
+        {
+          "after": {
+            "blob_id": "d38a27f2e4f10dc3c3d450fc2c5326b3396ae8b6",
+            "lfs": null,
+            "size": 7904
+          },
+          "before": {
+            "blob_id": "980234a614263e5f08ca6831ad1bc16c13df2eac",
+            "lfs": null,
+            "size": 6465
+          },
+          "path": "README.md"
+        }
+      ],
+      "id": "SZLHOLDINGS/szl-nemo",
+      "new_count": 17,
+      "new_metadata": {
+        "card": {
+          "license": "apache-2.0",
+          "tags": [
+            "software",
+            "recipe-conformance",
+            "historical",
+            "szl-holdings",
+            "not-a-checkpoint"
+          ]
+        },
+        "disabled": false,
+        "gated": false,
+        "private": false
+      },
+      "new_revision": "130cce3ae8c7a047b065749c2604aa37e751c041",
+      "old_count": 17,
+      "old_metadata": {
+        "card": {
+          "license": "apache-2.0",
+          "tags": [
+            "software",
+            "recipe-conformance",
+            "historical",
+            "szl-holdings",
+            "not-a-checkpoint"
+          ]
+        },
+        "disabled": false,
+        "gated": false,
+        "private": false
+      },
+      "old_revision": "37890b4504cdb11590f7a9fb9ee5054261206e30",
+      "unchanged_lfs": []
+    }
+  ],
+  "initial_collector_artifact": {
+    "archive_sha256": "3b29b66bc44ace69632cd05986337e2c62979d803b9168b1ad253af0f7daed2a",
+    "artifact_id": 14279491931,
+    "candidate_sha256": "f163c88b249f9c7b78951de1e4f940047e2852c403f6b46adf91c92e74236fdb",
+    "observedAt": "2026-11-16T22:47:14Z",
+    "run_id": 43973290094,
+    "source": "628b3f10de1ea9837ce5c535c4c20b722c45b320"
+  },
+  "keeper_policy_changed": false,
+  "keeper_policy_sha256": "2993a5e02cb64920f81c76a404595ee60fd7ea24ca2257942079c06a7c05b929",
+  "manifest_scope": "OBSERVATION_ONLY_NOT_MODEL_OR_RUNTIME_QUALIFICATION",
+  "new_model_count": 16,
+  "observedAt": "2026-11-16T23:19:02Z",
+  "preserved_model_assessment_and_request_count": 131,
+  "previous_counts": {
+    "datasets": 71,
+    "kernels": 14,
+    "models": 131,
+    "spaces": 34
+  },
+  "previous_sha256": "172b3fb07450f3471daab6b9ae747fed20c57c7de1fff4f3801e8c822d17b285",
+  "production_authorization": false,
+  "provider_observations_refreshed": 147,
+  "public_scope": "ANONYMOUS_PUBLIC_INVENTORY_ONLY",
+  "release_manifests_modified": false,
+  "removed_public_classifications": [
+    "SZLHOLDINGS/estate-gardener",
+    "SZLHOLDINGS/eternal-auditor",
+    "SZLHOLDINGS/immune",
+    "SZLHOLDINGS/oac-system-health-lab",
+    "SZLHOLDINGS/szl-chief-engineer",
+    "SZLHOLDINGS/szl-cyber-shield",
+    "SZLHOLDINGS/szl-dream-architect",
+    "SZLHOLDINGS/szl-energy-ledger",
+    "SZLHOLDINGS/szl-infra-warden",
+    "SZLHOLDINGS/szl-marketing-1-1",
+    "SZLHOLDINGS/szl-provenance-pitch",
+    "SZLHOLDINGS/szl-research-council"
+  ],
+  "review_evidence_files": {
+    "cursor-drift.json": "6aabd1a9d11d9a6345beabebe787e805818340ef342c4cb6c7969ee3502fe14d",
+    "governed-trees.json": "c59e38fe506a064658c0601ab2bb7e6a3b6f3462c9d41c80ae7670826ddc51ac",
+    "live-check.json": "2b968a4571f4ea671271e8903ff9aa1d567fdf904e745381b5347f457d03dc60",
+    "native-candidate-refresh.json": "f03879079733b995250c907aa5e75105fdfb8a804df3edd90d00ec7db8e54944",
+    "new-model-observations.json": "d24d46dfaa2cd9f713d52dee58d6c2c5b23ae00fe0f9142a97196775bed14da7",
+    "provider-observation-refresh.json": "86fc3047adc40449f46516aae63f938fb28ba8a83f07c3dbb2133a6987b7ce3c",
+    "publication-source-binding.json": "90c8b44638bc2bb6f28de8b2c14456e961cae12f2e020d2a1bcfead0406ecf40"
+  },
+  "review_findings": {
+    "SZLHOLDINGS/README": "Only two broken URL line breaks were repaired in the public org card. Card equality after these exact replacements was asserted. No claims, counts, model artifacts, qualification or visibility decisions changed.",
+    "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent": "README and publication metadata changed. Model, adapter, tokenizer, config, source_files and release_receipt unchanged. Existing NOT_PROMOTED/NOT_ESTABLISHED release decisions remain unchanged.",
+    "SZLHOLDINGS/szl-lambda-gate": "README changed to a legacy model-namespace pointer. Native-kernel claims and library tags were removed. No executable or binary files changed.",
+    "SZLHOLDINGS/szl-nemo": "README added repository facts. No checkpoint, evaluation, training, weight, or license change. Existing recipe-only qualification remains unchanged."
+  },
+  "review_kind": "ASSISTANT_METADATA_AND_SOURCE_REVIEW_REQUIRES_HUMAN_PR_REVIEW",
+  "run_id": 43978161790,
+  "schema": "szl.hf-source-review/v1",
+  "signature_status": "UNSIGNED",
+  "source": "ac68b78415eecd21cf47f09fa725ed8a6e72fc78",
+  "source_snapshot_base": "628b3f10de1ea9837ce5c535c4c20b722c45b320",
+  "training_authorization": false,
+  "validated": true,
+  "visibility_changes": false,
+  "visibility_decision": "UNCHANGED_PENDING_OWNER_DECISION_FOR_CONSTELLATION; INVENTORY_CLASSIFICATION_ONLY"
+}

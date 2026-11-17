@@ -406,6 +406,10 @@ jobs:
           tests/test_atelier_grok.py
           tests/test_atelier_grok_local.py
           tests/test_atelier_grok_cpu_lab.py
+          tests/test_atelier_console_lock.py
+          tests/test_cpu_lab_contract.py
+          test_provider_http.py
+          tests/test_brainserve.py
           tests/test_run_local_atelier.py
           tests/test_command_centre.py
           tests/test_command_centre_view.py
@@ -1163,6 +1167,7 @@ jobs:
           tests/test_frontier_readiness_boundary.py
           tests/test_frontier_readiness_page.py
           tests/test_frontier_bootstrap.py
+          tests/test_frontier_surface_loader.py
           tests/test_frontier_responsive_page.py
           tests/test_anatomy_readiness.py
           tests/test_provenance_receipt_write_boundary.py
