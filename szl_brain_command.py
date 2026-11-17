@@ -53,6 +53,7 @@ import datetime
 import hashlib
 import json
 import math
+import sys
 from typing import Any, Optional
 
 try:
@@ -144,8 +145,10 @@ def _knowledge_summary(ns: str = "a11oy") -> dict:
 # --------------------------------------------------------------------------- #
 def _energy_summary() -> dict:
     try:
-        import szl_energy_ledger as _el
-        ledger = _el.get_ledger()
+        _el = sys.modules.get("szl_energy_ledger")
+        if _el is None:
+            raise RuntimeError("LEDGER_MODULE_NOT_INITIALIZED")
+        ledger = _el.observe_ledger()
         t = ledger.totals()
         raw_joules = t.get("joules_measured_billable")
         try:

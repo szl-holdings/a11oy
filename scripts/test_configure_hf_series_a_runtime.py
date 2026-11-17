@@ -530,7 +530,7 @@ def test_configure_proceeds_only_when_installed_authority_is_verified(monkeypatc
 
 
 def test_verified_check_only_cli_exits_zero(monkeypatch, tmp_path, capsys):
-    api = MetadataOnlyApi(secret_names=verified_names())
+    api = ConvergedApi()
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
     monkeypatch.setattr(verifier, "default_get", pinned_get)
     monkeypatch.setenv("HF_TOKEN", "synthetic-hf-control")
@@ -701,3 +701,115 @@ def test_managed_alternative_entry_delegates_one_pair_attempt(monkeypatch, capsy
     assert len(calls) == 1 and calls[0][0] == (Path("locator.json"),)
     assert calls[0][1]["source_revision"] == "a" * 40 and calls[0][1]["check_only"] is False
     assert calls[0][1]["repo_id"] == config.CANONICAL_SPACE and calls[0][1]["bucket"] == config.CANONICAL_BUCKET
+
+
+class CadenceApi(ConvergedApi):
+    """Observe the installed drift and only acknowledge writes when requested."""
+
+    def __init__(self, *, accept_write=True):
+        super().__init__()
+        self.accept_write = accept_write
+        self.variables["A11OY_STATE_PERIODIC_SECONDS"] = Value(value="1800")
+        self.variables["UNRELATED_OPERATOR_SETTING"] = Value(value="preserve")
+
+    def add_space_variable(self, *, repo_id, key, value, description):
+        assert repo_id == config.CANONICAL_SPACE
+        self.writes.append((key, value))
+        if self.accept_write:
+            self.variables[key] = Value(value=value)
+
+
+def install_cadence_api(monkeypatch, api):
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
+    return {"repo_id": config.CANONICAL_SPACE, "bucket": config.CANONICAL_BUCKET,
+            "token": "synthetic-hf-control", "authority_get": pinned_get,
+            "expected_source_sha": "a" * 40, "main_reader": lambda: "a" * 40}
+
+
+def test_canonical_cadence_convergence_corrects_1800_and_is_idempotent(monkeypatch):
+    api = CadenceApi()
+    kwargs = install_cadence_api(monkeypatch, api)
+    report = config.configure(**kwargs)
+    assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
+    assert report["variables_changed"] == ["A11OY_STATE_PERIODIC_SECONDS"]
+    assert report["volume_changed"] is False and report["converged"] is True
+    assert api.variables["UNRELATED_OPERATOR_SETTING"].value == "preserve"
+    assert "A11OY_STATE_STORE" not in api.variables
+    assert "A11OY_STATE_ALERT_SECONDS" not in api.variables
+    repeated = config.configure(**kwargs)
+    assert repeated["variables_changed"] == [] and repeated["converged"] is True
+    assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
+
+
+def test_cadence_write_acknowledgement_without_readback_is_not_convergence(monkeypatch):
+    api = CadenceApi(accept_write=False)
+    kwargs = install_cadence_api(monkeypatch, api)
+    readback = config.await_readback
+    monkeypatch.setattr(config, "await_readback", lambda *args, **options: readback(
+        *args, **options, attempts=2, delay_seconds=0, sleep=lambda _seconds: None))
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs)
+    assert error.value.diagnostic_code == "RUNTIME_CONFIG_DRIFT"
+    assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
+    assert api.variables["A11OY_STATE_PERIODIC_SECONDS"].value == "1800"
+
+
+@pytest.mark.parametrize("observed", [None, "1800"])
+def test_verified_check_only_rejects_cadence_drift_without_writes(monkeypatch, observed):
+    api = ConvergedApi()
+    if observed is None:
+        api.variables.pop("A11OY_STATE_PERIODIC_SECONDS")
+    else:
+        api.variables["A11OY_STATE_PERIODIC_SECONDS"] = Value(value=observed)
+    kwargs = install_cadence_api(monkeypatch, api)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs, check_only=True)
+    assert error.value.diagnostic_code == "RUNTIME_CONFIG_DRIFT"
+    assert api.writes == []
+
+
+def test_check_only_cadence_read_failure_is_sanitized(monkeypatch):
+    api = ConvergedApi()
+    kwargs = install_cadence_api(monkeypatch, api)
+    reads = 0
+
+    def fail_readback(*, repo_id):
+        nonlocal reads
+        reads += 1
+        if reads == 2:
+            raise RuntimeError("synthetic-provider-private-detail")
+        return api.variables
+
+    monkeypatch.setattr(api, "get_space_variables", fail_readback)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs, check_only=True)
+    assert error.value.diagnostic_code == "RUNTIME_CONFIG_UNAVAILABLE"
+    assert "synthetic-provider-private-detail" not in str(error.value)
+    assert api.writes == []
+
+
+@pytest.mark.parametrize("check_only", [False, True])
+def test_cadence_secret_collision_fails_without_value_access_or_write(monkeypatch, check_only):
+    api = CadenceApi()
+    secret_reads = []
+    api.secrets = NamesOnlyMetadata(verified_names("A11OY_STATE_PERIODIC_SECONDS"), secret_reads)
+    kwargs = install_cadence_api(monkeypatch, api)
+    with pytest.raises(config.RuntimeConfigError, match="collide"):
+        config.configure(**kwargs, check_only=check_only)
+    assert secret_reads == [] and api.writes == []
+
+
+def test_check_only_cli_reports_cadence_drift_as_not_converged(monkeypatch, capsys):
+    api = CadenceApi()
+    install_cadence_api(monkeypatch, api)
+    monkeypatch.setattr(verifier, "default_get", pinned_get)
+    monkeypatch.setenv("HF_TOKEN", "synthetic-hf-control")
+    monkeypatch.delenv("CANONICAL_ORIGIN", raising=False)
+    assert config.main(["--check-only"]) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["state"] == "SETUP_REQUIRED" and report["converged"] is False
+    assert report["diagnostic_code"] == "RUNTIME_CONFIG_DRIFT"
+    assert report["secret_values_read"] is False and report["secret_values_written"] is False
+    assert "synthetic-hf-control" not in json.dumps(report)
+    assert "1800" not in json.dumps(report)
+    assert api.writes == []
