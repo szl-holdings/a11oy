@@ -974,18 +974,32 @@ class AuthenticatedDerivedMarkerTests(unittest.TestCase):
     def verified_cli(self, command, **kwargs):
         self.commands.append(command)
         self.assertEqual(command[:3], ["gh", "attestation", "verify"])
-        self.assertEqual(kwargs["timeout"], 45)
         self.assertEqual(kwargs["env"]["GH_TOKEN"], "fixture-job-read-token")
         self.assertNotIn("GITHUB_TOKEN", kwargs["env"])
         self.assertNotIn("HF_TOKEN", kwargs["env"])
         body = Path(command[3]).read_bytes()
+        accepted = 0 if body == self.expected_binding else 1
         kwargs["stdout"].write(self.canonical([{"verificationResult": {"signature": {
             "certificate": {"runInvocationURI": self.invocation}}}}]))
-        return MODULE.subprocess.CompletedProcess(command, 0 if body == self.expected_binding else 1)
+
+        class _VerifiedProcess:
+            def poll(_self):
+                return accepted
+
+            def wait(_self, timeout=None):
+                return accepted
+
+            def terminate(_self):
+                return None
+
+            def kill(_self):
+                return None
+
+        return _VerifiedProcess()
 
     def verify(self):
         with mock.patch.dict(MODULE.os.environ, {"GITHUB_TOKEN": "fixture-job-read-token"}), \
-                mock.patch.object(MODULE.subprocess, "run", side_effect=self.verified_cli):
+                mock.patch.object(MODULE.subprocess, "Popen", side_effect=self.verified_cli):
             return MODULE.verify_derived_runtime_marker(github_repo=GITHUB_REPO,
                 github_ref=self.source, hf_repo=HF_REPO, hf_ref=self.hf,
                 tree=self.tree, opener=self.opener)
@@ -1041,7 +1055,7 @@ class AuthenticatedDerivedMarkerTests(unittest.TestCase):
 
     def test_missing_job_credential_has_no_generic_token_fallback(self):
         with mock.patch.dict(MODULE.os.environ, {"GH_TOKEN": "must-not-be-used"}, clear=True), \
-                mock.patch.object(MODULE.subprocess, "run") as run:
+                mock.patch.object(MODULE.subprocess, "Popen") as run:
             with self.assertRaisesRegex(MODULE.ParityError, "job's GitHub read credential"):
                 MODULE.verify_derived_runtime_marker(github_repo=GITHUB_REPO,
                     github_ref=self.source, hf_repo=HF_REPO, hf_ref=self.hf,

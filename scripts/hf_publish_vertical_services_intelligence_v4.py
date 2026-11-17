@@ -58,6 +58,7 @@ INTELLIGENCE_ALIASES = {
 
 MODEL_ASSETS = {
     "khipu-gguf-public": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+    "khipu-governed-public": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
     "khipu-1.5b": "SZLHOLDINGS/SZL-Khipu-1.5B",
     "receipt-agent": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
     "a11oy-mini": "SZLHOLDINGS/A11OY-MINI",
@@ -129,6 +130,8 @@ def profile_models_match(vertical: str, rows: Any) -> bool:
     expected = {"khipu-1.5b", "receipt-agent", "a11oy-mini"}
     if vertical == "finance":
         expected.add("khipu-gguf-public")
+    if vertical == "lyte":
+        expected.add("khipu-governed-public")
     if vertical not in CANONICAL_VERTICALS or not isinstance(rows, list) or len(rows) != len(expected):
         return False
     observed = set()
@@ -224,7 +227,7 @@ def verify_intelligence(base: ModuleType) -> dict[str, Any]:
         profile_valid = (
             profile_status == 200
             and profile.get("vertical") == vertical
-            and len(profile.get("tasks", {})) == 4
+            and len(profile.get("tasks", {})) == (5 if vertical == "lyte" else 4)
             and profile_models_match(vertical, model_rows)
             and len(kernel_rows) >= 5
             and len(profile.get("novel_capabilities", [])) == 3

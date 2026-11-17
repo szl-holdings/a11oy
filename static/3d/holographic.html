@@ -321,7 +321,10 @@ footer{padding:6px 14px;border-top:1px solid var(--line);flex:0 0 auto;
   <div class="evidence-rail__row"><span>Contract</span><code id="evidence-rail-contract">—</code></div>
   <div class="evidence-rail__row"><span>Runtime</span><span id="evidence-rail-runtime">NOT_EVALUATED</span></div>
   <div class="evidence-rail__row"><span>Readiness</span><span id="evidence-rail-readiness">NOT_EVALUATED</span></div>
-  <div class="evidence-rail__links"><a href="/api/a11oy/v1/readiness/tab-matrix?view=summary">Readiness JSON</a><a href="/api/build-info">Build identity</a><a href="/verify">Verify receipt</a></div>
+  <div class="evidence-rail__row"><span>Telemetry</span><span id="evidence-rail-telemetry">UNAVAILABLE</span></div>
+  <div class="evidence-rail__row"><span>Freshness</span><span id="evidence-rail-freshness">UNAVAILABLE</span></div>
+  <div class="evidence-rail__row"><span>Coverage</span><span id="evidence-rail-coverage">UNAVAILABLE</span></div>
+  <div class="evidence-rail__links"><a href="/api/a11oy/v1/readiness/tab-matrix?view=summary">Readiness JSON</a><a href="/api/a11oy/v1/otel/status">OTel status</a><a href="/api/a11oy/v1/observability/traces">Trace ring</a><a href="/api/build-info">Build identity</a><a href="/verify">Verify receipt</a></div>
  </div>
 </aside>
 <div id="surface-caption" title=""></div>
@@ -670,6 +673,9 @@ const evidenceId = document.getElementById("evidence-rail-id");
 const evidenceContract = document.getElementById("evidence-rail-contract");
 const evidenceRuntime = document.getElementById("evidence-rail-runtime");
 const evidenceReadiness = document.getElementById("evidence-rail-readiness");
+const evidenceTelemetry = document.getElementById("evidence-rail-telemetry");
+const evidenceFreshness = document.getElementById("evidence-rail-freshness");
+const evidenceCoverage = document.getElementById("evidence-rail-coverage");
 const EVIDENCE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const EVIDENCE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 let evidenceSnapshotPromise = null;
@@ -703,11 +709,13 @@ async function _fetchEvidenceSnapshot(forceRefresh = false) {
         return response.ok ? await response.json() : null;
       } catch (_) { return null; }
     };
-    const [readiness, build] = await Promise.all([
+    const [readiness, build, telemetry, otel] = await Promise.all([
       getJson("/api/a11oy/v1/readiness/tab-matrix?view=summary"),
       getJson("/api/build-info"),
+      getJson("/api/a11oy/v1/telemetry/summary"),
+      getJson("/api/a11oy/v1/otel/status"),
     ]);
-    return { readiness, build, generation };
+    return { readiness, build, telemetry, otel, generation };
   })();
   return evidenceSnapshotPromise;
 }
@@ -774,13 +782,38 @@ function _nextEvidenceRefreshDelay(readiness, nowMs = Date.now()) {
     Math.min(EVIDENCE_REFRESH_INTERVAL_MS, untilExpiry + 50),
   );
 }
-function _scheduleEvidenceRefresh(def, readiness) {
+function _nextTelemetryRefreshDelay(telemetry) {
+  const age = telemetry?.freshness?.age_s;
+  const maxAge = telemetry?.freshness?.max_age_s;
+  if (telemetry?.state !== "OBSERVED" || typeof age !== "number" || !Number.isFinite(age) || age < 0 || typeof maxAge !== "number" || !Number.isFinite(maxAge) || maxAge <= 0) {
+    return EVIDENCE_REFRESH_INTERVAL_MS;
+  }
+  return Math.max(50, Math.min(EVIDENCE_REFRESH_INTERVAL_MS, (maxAge - age) * 1000 + 50));
+}
+function _scheduleEvidenceRefresh(def, readiness, telemetry) {
   if (evidenceRefreshTimer) clearTimeout(evidenceRefreshTimer);
   evidenceRefreshTimer = setTimeout(
     () => _updateEvidenceRail(def, true),
-    _nextEvidenceRefreshDelay(readiness),
+    Math.min(_nextEvidenceRefreshDelay(readiness), _nextTelemetryRefreshDelay(telemetry)),
   );
 }
+function _telemetryEvidenceText(telemetry, otel) {
+  const count = telemetry?.counts?.trace_count;
+  const traceState = telemetry?.state || "UNAVAILABLE";
+  const traceText = Number.isInteger(count) && count >= 0 ? String(count) : "UNAVAILABLE";
+  const propagation = otel?.trace_propagation || otel?.in_process?.trace_propagation || "UNKNOWN";
+  const exporter = otel?.exporter?.state || "UNAVAILABLE";
+  const collectorAge = otel?.collector?.age_s;
+  const traceAge = telemetry?.freshness?.age_s;
+  const isAge = (age) => typeof age === "number" && Number.isFinite(age) && age >= 0;
+  return {
+    telemetry: (otel?.status || traceState) + " · propagation " + propagation + " · export " + exporter + " · traces " + traceText + " (" + traceState + ")",
+    freshness: isAge(collectorAge) ? "collector age " + collectorAge + "s"
+      : (isAge(traceAge) ? "trace age " + traceAge + "s · " + traceState : "UNAVAILABLE"),
+    coverage: "collector " + (otel?.collector?.state || "UNAVAILABLE") + " · datasets " + (telemetry?.coverage?.state || "UNAVAILABLE")
+  };
+}
+
 function _updateEvidenceRail(def, forceRefresh = false) {
   if (!evidenceRail || !def) return;
   evidenceRail.dataset.state = "UNVERIFIED";
@@ -794,7 +827,10 @@ function _updateEvidenceRail(def, forceRefresh = false) {
   if (evidenceContract) evidenceContract.textContent = `${catOf(def)} · ${def.mod}`;
   if (evidenceRuntime) evidenceRuntime.textContent = "CHECKING";
   if (evidenceReadiness) evidenceReadiness.textContent = "CHECKING";
-  _fetchEvidenceSnapshot(forceRefresh).then(({ readiness, build, generation }) => {
+  if (evidenceTelemetry) evidenceTelemetry.textContent = "CHECKING";
+  if (evidenceFreshness) evidenceFreshness.textContent = "CHECKING";
+  if (evidenceCoverage) evidenceCoverage.textContent = "CHECKING";
+  _fetchEvidenceSnapshot(forceRefresh).then(({ readiness, build, telemetry, otel, generation }) => {
     if (generation !== evidenceRefreshGeneration) return;
     const buildState = build?.build?.state || build?.state || "UNAVAILABLE";
     const revision = build?.build?.revision || build?.revision || null;
@@ -803,6 +839,10 @@ function _updateEvidenceRail(def, forceRefresh = false) {
     if (evidenceReadiness) {
       evidenceReadiness.textContent = _readinessEvidenceText(readiness, observed);
     }
+    const telemetryEvidence = _telemetryEvidenceText(telemetry, otel);
+    if (evidenceTelemetry) evidenceTelemetry.textContent = telemetryEvidence.telemetry;
+    if (evidenceFreshness) evidenceFreshness.textContent = telemetryEvidence.freshness;
+    if (evidenceCoverage) evidenceCoverage.textContent = telemetryEvidence.coverage;
     evidenceRail.dataset.state = observed ? "OBSERVED" : "UNVERIFIED";
     if (evidenceState) evidenceState.textContent = observed ? "OBSERVED" : "UNVERIFIED";
     if (estateObservationBadge) {
@@ -811,7 +851,7 @@ function _updateEvidenceRail(def, forceRefresh = false) {
         ? "The estate, observed—not assumed."
         : "Evidence status: UNVERIFIED";
     }
-    _scheduleEvidenceRefresh(def, readiness);
+    _scheduleEvidenceRefresh(def, readiness, telemetry);
   });
 }
 function _resumeEvidenceRefresh() {
