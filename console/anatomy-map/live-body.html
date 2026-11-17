@@ -11,7 +11,7 @@
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2" />
 <title>SZL Living Anatomy — BODY v1 · the Sovereign Org as one living organism</title>
-<meta name="description" content="Body v1: the Sovereign Org rendered as one living governed organism. CatmullRom Bezier-tube vessels = the one DSSE chain; GPU pulses = REAL receipts from /api/a11oy/v1/ledger; 4 organs (Reasoning/Policy/Operator/Receipts) glow LIVE or dim UNREACHABLE on real probes; Λ (F19) drives the double-beat heartbeat + overall glow; verticals & SLSA shown honestly as ROADMAP where no endpoint exists. Honest by construction. Λ = Conjecture 1." />
+<meta name="description" content="Body v1: the Sovereign Org rendered as one living governed organism. CatmullRom Bezier-tube vessels = the one DSSE chain; GPU pulses = REAL receipts from /api/a11oy/v1/ledger; 4 organs (Reasoning/Policy/Operator/Receipts) show transport reachability on real probes, without asserting operational readiness; Λ (F19) drives the double-beat heartbeat + overall glow; verticals & SLSA shown honestly as ROADMAP where no endpoint exists. Honest by construction. Λ = Conjecture 1." />
 <style>
   :root{
     --void:#080c14; --void2:#0b1120;
@@ -109,14 +109,14 @@
 </style>
 </head>
 <body>
-<canvas id="scene" aria-label="3D living organism of the Sovereign Org"></canvas>
+<canvas id="scene" aria-label="3D organism: organ glow shows endpoint transport reachability, not operational readiness"></canvas>
 <div id="boot">initializing living body…</div>
 
 <div class="hud" id="title"><div class="inner">
   <div class="eyebrow">SZL Living Anatomy · body v1</div>
   <h1>The Sovereign Org as <span class="accent">one living organism</span></h1>
   <div class="sub">Vessels are the one DSSE chain. Each travelling pulse is a REAL receipt
-    from the ledger; each organ glows only on a real probe; Λ drives the heartbeat.
+    from the ledger; organ glow shows transport reachability only; Λ drives the heartbeat.
     <a href="./index.html">← full 3D atlas</a></div>
 </div></div>
 
@@ -134,7 +134,7 @@
 </div>
 
 <div class="hud panel" id="organs" aria-live="polite">
-  <div class="hdr">organs · honest probes</div>
+  <div class="hdr" title="A 2xx JSON response establishes transport reachability. Source status is declared, not independently verified.">organs · transport probes</div>
   <div id="organ-rows"></div>
 </div>
 
@@ -147,6 +147,7 @@
   <div id="honesty">
     <span class="sw"></span><b id="h-lambda">Λ = Conjecture 1</b> — advisory, never green.<br>
     <span class="sw"></span><b>Verticals</b> &amp; <b>SLSA</b>: no live endpoint → honest ROADMAP, no fake flow.<br>
+    <span class="sw"></span><b>Organ glow</b>: transport reachable; system readiness not assessed.<br>
     <span class="sw"></span>Read-only · no key sent · open-weight.
   </div>
 </div>
@@ -155,7 +156,7 @@
   <span><i style="background:var(--proof)"></i>live receipt pulse</span>
   <span><i style="background:var(--warn)"></i>denied gate</span>
   <span><i style="background:var(--gold)"></i>Λ heartbeat</span>
-  <span><i style="background:var(--dim)"></i>unreachable / roadmap</span>
+  <span><i style="background:var(--dim)"></i>transport unavailable / roadmap</span>
 </div>
 
 <script src="./lib/three.min.js"></script>
@@ -327,7 +328,7 @@ function setOrganDot(row, state, color) {
 }
 
 /* ============================ live data wiring =========================== */
-const STATE = { lambda: 0.90, lambdaPass: true, organLive: {}, lastSeq: -1, immune: 0 };
+const STATE = { lambda: 0.90, lambdaPass: true, organLive: {}, lastSeq: -1, immune: null };
 let seenIds = new Set();
 
 function logLine(html) {
@@ -346,7 +347,7 @@ async function refreshOrgans() {
       od.textContent = r.detail; setOrganDot(row, "live", o.color);
       STATE.organLive[o.id] = true;
       const om = organMeshes.get(o.id);
-      om.mat.emissiveIntensity = 0.6;        // healthy glow
+      om.mat.emissiveIntensity = 0.6;        // transport glow, not readiness
     } else {
       od.textContent = `unreachable — ${r.detail} · honest empty-state`;
       setOrganDot(row, "unreachable"); STATE.organLive[o.id] = false;
@@ -391,9 +392,10 @@ async function refreshDoctrine() {
 
 async function refreshImmune() {
   const im = await LiveBody.fetchImmune();
-  STATE.immune = im.reachable ? im.intensity : 0;
-  swarm.count = Math.round(STATE.immune * SWARM_MAX);
-  if (im.reachable) logLine(`<b>immune:</b> ${im.detail}`);
+  STATE.immune = im.countersAvailable === true && Number.isFinite(im.intensity)
+    && im.intensity >= 0 && im.intensity <= 1 ? im.intensity : null;
+  swarm.count = STATE.immune === null ? 0 : Math.round(STATE.immune * SWARM_MAX);
+  logLine(`<b>immune:</b> ${im.detail}`);
 }
 
 /* spawn pulses for REAL receipts we haven't shown yet (honest: 1 pulse / receipt) */
