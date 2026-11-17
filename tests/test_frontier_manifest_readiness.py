@@ -329,7 +329,10 @@ def test_sovereign_socket_is_transport_evidence_only(monkeypatch):
     assert tile["ownership_verified"] is False
     assert ready is False
     assert "no_sovereign_gpu_reachable" not in reasons
-    assert "sovereign_ownership_not_verified" in reasons
+    # Ownership stays documented (never verified by a transport probe); since
+    # #3654 it is not a runtime blocker, so it must not appear in reasons.
+    assert "sovereign_ownership_not_verified" not in reasons
+    assert tile["operational_evidence"].get("runtime_satisfiable") is not False
     assert "model_inference_not_verified_by_transport_probe" in reasons
 
 
@@ -438,7 +441,7 @@ def test_verified_inference_receipt_on_reachable_rented_gpu_clears_only_inferenc
     assert tile["rented_gpu_reachable"] == 1
     assert tile["ownership_verified"] is False
     assert "no_sovereign_gpu_reachable" in reasons
-    assert "sovereign_ownership_not_verified" in reasons
+    assert "sovereign_ownership_not_verified" not in reasons
     assert ready is False
 
 
@@ -473,7 +476,8 @@ def test_rented_gpu_marked_sovereign_never_counts_as_sovereign(monkeypatch):
 
     assert tile["sovereign_gpu_reachable"] == 0
     assert "no_sovereign_gpu_reachable" in reasons
-    assert "sovereign_ownership_not_verified" in reasons
+    assert "sovereign_ownership_not_verified" not in reasons
+    assert tile["ownership_verified"] is False
 
 
 def test_importable_uds_source_does_not_establish_signed_bundle(monkeypatch):
@@ -685,3 +689,52 @@ def test_running_operator_with_a_gpu_needs_a_measured_job(monkeypatch):
     measured = manifest._tile_energy_operator()
 
     assert manifest._tile_operational_readiness(measured) == (True, [])
+
+
+def test_by_design_tiles_are_reported_not_blocking():
+    summary = manifest._build_manifest()["summary"]
+    readiness = summary["operational_readiness"]
+    nrv = {row["name"]: row for row in readiness["not_runtime_verifiable"]}
+    blocked = {row["name"] for row in readiness["blocked_tiles"]}
+    ready = set(readiness["ready_tiles"])
+
+    assert "Orbital compute tier" in nrv
+    assert "Signed UDS bundle" in nrv
+    assert "Orbital compute tier" not in blocked
+    assert "Signed UDS bundle" not in blocked
+    assert "Orbital compute tier" not in ready
+    assert "Signed UDS bundle" not in ready
+    assert (len(ready) + len(blocked) + len(nrv)) == summary["tiles"]
+    for row in readiness["not_runtime_verifiable"]:
+        assert row["expectation"], "a by-design tile must report its expectation"
+
+
+def test_sovereign_gpu_with_verified_inference_is_ready_without_ownership_proof(
+        tmp_path, monkeypatch):
+    import szl_backend_hardening as bh
+
+    pool = {
+        "scope": "TRANSPORT_REACHABILITY",
+        "cached_at": "2026-11-17T00:00:00Z",
+        "nodes": [{"name": "sovereign-node", "kind": "gpu", "reachable": True,
+                   "sovereign": True, "probe_kind": "TCP_CONNECT",
+                   "endpoint": "configured sovereign GPU endpoint (registry config)",
+                   "inference_verified": False, "ownership_verified": False}],
+        "counts": {"nodes_total": 1, "nodes_reachable": 1,
+                   "gpu_nodes_reachable": 1, "sovereign_gpu_nodes_reachable": 1,
+                   "inference_verified_nodes": 0},
+    }
+    monkeypatch.setattr(bh, "probe_fabric_pool", lambda: pool)
+    _write_pool_receipt(tmp_path, monkeypatch, node_id="sovereign-node")
+
+    tile = manifest._tile_compute_fabric()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["inference_verified"] is True
+    assert tile["sovereign_gpu_reachable"] == 1
+    assert tile["counts_consistent"] is True
+    # Ownership stays documented, never verified by the probe, and is not a blocker.
+    assert tile["ownership_verified"] is False
+    assert "sovereign_ownership_not_verified" not in reasons
+    assert reasons == []
+    assert ready is True

@@ -51,6 +51,16 @@ The projection is an explanation, not a new evidence record. Detailed observatio
 
 The existing `summary.source_reachability` continues to describe producer availability. The existing `summary.operational_readiness` continues to describe the roll-up of evaluated tiles. `summary.all_sources_live` remains the deprecated alias for operational readiness, with its existing compatibility explanation. It must not be reinterpreted as transport availability.
 
+## Runtime-verifiability boundary (by-design capabilities)
+
+`summary.operational_readiness` additionally reports `not_runtime_verifiable`: a list of `{name, expectation}` rows for capabilities whose bounded predicate this surface cannot satisfy at runtime **by design**. As of #3654 these are the orbital compute tier (no on-orbit hardware exists or is planned; the tile stays MODELED per doctrine v11) and the signed UDS bundle tile (this feed observes source metadata only; attestation verification lives in the `uds-sign-release` workflow and is recorded out-of-band).
+
+These tiles are neither in `ready_tiles` nor in `blocked_tiles`. `blocked_tiles` contains only tiles whose predicate a live runtime can actually satisfy, so `ready` can become true through real operational work alone. This is a reporting split, not an evidence change: per-tile `operational_readiness` states, honesty labels, `satisfied` flags, and reason codes are unchanged, and the by-design tiles remain fully visible in `capabilities` and in `not_runtime_verifiable` with the expectation text explaining why each is reported rather than gated.
+
+The same change removes the unconditional `sovereign_ownership_not_verified` reason from the compute-fabric tile (#3654). A transport probe cannot verify GPU ownership, so ownership stays a documented field (`ownership_verified: false` with `sovereignty_scope`); the fabric tile's predicate is now the runtime-verifiable subset: a configured sovereign GPU transport-reachable, consistent probe counts, and a verified compute-pool/v1 inference receipt bound to that node. A reachable-but-unverified fabric still blocks; ownership is no longer a permanently unsatisfiable requirement inside a runtime gate.
+
+Consumers that partition tiles must account for `not_runtime_verifiable`; the healthz liveness signal's consistency check does. A missing, malformed, or count-mismatched `not_runtime_verifiable` value fails closed: the rollup reports unavailable rather than ok.
+
 ## Frontend responsibilities
 
 The UI consumes the supplied decision. It validates the contract's representation rather than recalculating a capability's predicate.
