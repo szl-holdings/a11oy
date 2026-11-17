@@ -843,8 +843,9 @@ function provHtml(prov) {{
   for (const [k, v] of Object.entries(prov)) {{
     if (v == null || v === '') continue;
     let val = esc(v);
-    // make in-app endpoint pointers clickable so a reader can go check the artifact
-    if (typeof v === 'string' && v.startsWith('/api/') && !v.includes('{{')) {{
+    // Link concrete endpoint URIs; narrative text and unresolved templates stay text.
+    if (typeof v === 'string' && v.startsWith('/api/')
+        && !/[\\s\\x00-\\x1f\\x7f{{}}]/.test(v)) {{
       val = `<a href="${{esc(v)}}">${{esc(v)}}</a>`;
     }} else if (v === '/orbital') {{
       val = `<a href="/orbital">${{esc(v)}}</a>`;
