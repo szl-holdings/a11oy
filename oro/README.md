@@ -37,8 +37,20 @@ authority.
 `oro.source_adapters.project_source_snapshots` accepts an **existing** Wire F
 Khipu DAG reader and explicit Second Brain, Anatomy, and Hatun adapter
 snapshots. It does not fetch sources, start a DAG runner, checkpoint, sign,
-write, or feed the ORO barrier engine. This is a Python inspection seam, not a
-runtime route or evidence of cross-service deployment.
+write, or feed the ORO barrier engine.
+
+The canonical app registers oro.evidence_api at /api/a11oy/v1/oro/evidence
+and /oro/evidence. This inspection route reads the already-registered Wire F
+owner and the local Anatomy v6 summary; it never constructs the standalone
+ORO runtime. Missing external Second Brain and Hatun snapshots remain UNKNOWN.
+The v6 summary is not recast as a v7 topology or a verified evidence handle.
+Retrieval time does not assert evidence freshness, and all execution, signing,
+and promotion authority remains false. Deployment is established only by a
+successful route readback at the corresponding source revision.
+
+See [the integration contract and cited prior art](../docs/architecture/oro-evidence-integration.md)
+for the storage, signer, and admission boundaries required before canonical ORO
+execution can be enabled.
 
 The Khipu read is limited to 33 recent nodes and projects at most 32. A tail
 with a missing earlier parent is marked partial and exposes only the omitted
