@@ -17,6 +17,9 @@ SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-2026
 PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
 DSSE = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1.json"
 INSPECTION = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1-f8ce1270f5d6.json"
+ANATOMY_INSPECTION = ".github/shared-source-payloads/dsse-finite-reload-inspection-20261116-v1.json"
+ANATOMY = ".github/shared-source-payloads/anatomy-observation-20261116-v1.json"
+MODEL = ".github/shared-source-payloads/model-companion-boundary-20261117-v1.json"
 ENGINE = "a11oy_code_engine.py"
 COMPANION_TEST = "tests/test_model_companion_boundary.py"
 ACTIVE = ".github/shared-source-payload-manifest.json"
@@ -162,26 +165,73 @@ def _assert_current_shared_payload(root):
         "eedb1a9243b55d6b925341047bf12cea806018bab0eea2fa96ca3a84996f1dd3"
     )
 
-    manifest = json.loads((root / ACTIVE).read_bytes())
-    assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "model-companion-boundary-20261117-v1"
-    assert set(manifest["files"]) == set(inspection["files"]) | {
+    # Both published branches retained the same inspection bytes under distinct
+    # archive paths. Preserve both names and require exact byte identity.
+    assert (root / ANATOMY_INSPECTION).read_bytes() == inspection_raw
+
+    model_raw = (root / MODEL).read_bytes()
+    assert hashlib.sha256(model_raw).hexdigest() == (
+        "3443d1aaa7890df4f994659ffc4953f35c89b7d313d31c7c5abc374b915662bd"
+    )
+    model = json.loads(model_raw)
+    assert model["schema"] == "szl-shared-source-payload/v1"
+    assert model["payload_id"] == "model-companion-boundary-20261117-v1"
+    assert set(model["files"]) == set(inspection["files"]) | {
         DSSE, INSPECTION, ENGINE, COMPANION_TEST,
     }
-    assert manifest["files"][DSSE] == hashlib.sha256(dsse_raw).hexdigest()
-    assert manifest["files"][INSPECTION] == hashlib.sha256(inspection_raw).hexdigest()
-    # Only this generation's history assertions change among inherited files.
+    assert model["files"][DSSE] == hashlib.sha256(dsse_raw).hexdigest()
+    assert model["files"][INSPECTION] == hashlib.sha256(inspection_raw).hexdigest()
+    # Only the first model generation's history assertions changed among
+    # inherited files. Retain that published parent without regenerating it.
     # The reviewed shared engine refuses an unavailable optional companion;
     # canonical Access implementation and dependencies are not shared payloads.
     for relative, expected in inspection["files"].items():
         if relative != "tests/test_replication_shared_payload.py":
-            assert manifest["files"][relative] == expected
-    assert manifest["files"][ENGINE] == (
+            assert model["files"][relative] == expected
+    assert model["files"][ENGINE] == (
         "613183938099a18c82e59941079c7824de3978c74c423df8a7a59436d0801c98"
     )
-    assert manifest["files"][COMPANION_TEST] == (
+    assert model["files"][COMPANION_TEST] == (
         "9d838b554c9e6cb54cdf1054a6b9342d4d37db8afd5b7c08263265bfe1d11b90"
     )
+
+    anatomy_raw = (root / ANATOMY).read_bytes()
+    assert hashlib.sha256(anatomy_raw).hexdigest() == (
+        "3c1ae61a001b98a87cafb767048b2f9c50b3efd70f44c351835d9f132b6918b6"
+    )
+    anatomy = json.loads(anatomy_raw)
+    assert anatomy["schema"] == "szl-shared-source-payload/v1"
+    assert anatomy["payload_id"] == "anatomy-observation-auth-20261116-v1"
+    assert set(anatomy["files"]) == set(inspection["files"]) | {DSSE, ANATOMY_INSPECTION}
+    assert anatomy["files"][DSSE] == hashlib.sha256(dsse_raw).hexdigest()
+    assert anatomy["files"][ANATOMY_INSPECTION] == hashlib.sha256(inspection_raw).hexdigest()
+    # The independent anatomy parent adds two operator protections. Only that
+    # reviewed source transition and its history test differ from inspection.
+    assert anatomy["files"]["szl_operator_auth.py"] == (
+        "f31fc4d4f960eb840583d7b32c9598d2c96319c9818acc3f39f078de8394fa8f"
+    )
+    assert {
+        relative for relative in inspection["files"]
+        if anatomy["files"][relative] != inspection["files"][relative]
+    } == {"szl_operator_auth.py", "tests/test_replication_shared_payload.py"}
+
+    manifest = json.loads((root / ACTIVE).read_bytes())
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "model-companion-boundary-20261117-v2"
+    assert set(manifest["files"]) == set(model["files"]) | set(anatomy["files"]) | {
+        MODEL, ANATOMY,
+    }
+    assert manifest["files"][MODEL] == hashlib.sha256(model_raw).hexdigest()
+    assert manifest["files"][ANATOMY] == hashlib.sha256(anatomy_raw).hexdigest()
+    # Conserve both published parents. Current auth comes from the reviewed
+    # anatomy parent; engine and companion test remain the reviewed model bytes.
+    # Only this combined history test has a new digest of its own.
+    for relative, expected in model["files"].items():
+        if relative not in {"szl_operator_auth.py", "tests/test_replication_shared_payload.py"}:
+            assert manifest["files"][relative] == expected
+    for relative, expected in anatomy["files"].items():
+        if relative != "tests/test_replication_shared_payload.py":
+            assert manifest["files"][relative] == expected
     # Verify all current bytes; predecessor receipts above stay immutable.
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected
@@ -202,6 +252,11 @@ def test_current_shared_payload_manifest_matches_current_peer():
     "companion_test_source_and_digest", "canonical_helper_entry", "canonical_companion_entry",
     "inspection_archive_bytes", "inspection_archive_bytes_and_digest",
     "missing_inspection_entry", "inspection_provenance_rollback",
+    "named_inspection_archive_bytes", "named_inspection_archive_bytes_and_digest",
+    "missing_named_inspection_entry", "anatomy_archive_bytes", "anatomy_archive_bytes_and_digest",
+    "model_archive_bytes", "model_archive_bytes_and_digest", "missing_anatomy_entry",
+    "missing_model_entry", "provenance_source_and_digest", "anatomy_auth_rollback",
+    "model_predecessor_generation", "anatomy_predecessor_generation",
 ])
 def test_current_payload_rejects_tampering(tmp_path, change):
     manifest = json.loads((ROOT / ACTIVE).read_bytes())
@@ -222,19 +277,32 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         manifest["payload_id"] = "snowflake-account-host-boundary-20261102-v1"
     elif change == "predecessor_generation":
         manifest["payload_id"] = "dsse-finite-reload-20261112-v1"
+    elif change == "model_predecessor_generation":
+        manifest["payload_id"] = "model-companion-boundary-20261117-v1"
+    elif change == "anatomy_predecessor_generation":
+        manifest["payload_id"] = "anatomy-observation-auth-20261116-v1"
     elif change in {"missing_archive_entry", "missing_engine_entry", "missing_companion_test_entry",
-                    "missing_inspection_entry"}:
+                    "missing_inspection_entry", "missing_named_inspection_entry",
+                    "missing_anatomy_entry", "missing_model_entry"}:
         del manifest["files"][{
             "missing_archive_entry": DSSE, "missing_engine_entry": ENGINE,
             "missing_companion_test_entry": COMPANION_TEST,
             "missing_inspection_entry": INSPECTION,
+            "missing_named_inspection_entry": ANATOMY_INSPECTION,
+            "missing_anatomy_entry": ANATOMY, "missing_model_entry": MODEL,
         }[change]]
     elif change in {"dsse_archive_bytes_and_digest", "engine_source_and_digest",
-                    "companion_test_source_and_digest", "inspection_archive_bytes_and_digest"}:
+                    "companion_test_source_and_digest", "inspection_archive_bytes_and_digest",
+                    "named_inspection_archive_bytes_and_digest", "anatomy_archive_bytes_and_digest",
+                    "model_archive_bytes_and_digest", "provenance_source_and_digest"}:
         relative = {
             "dsse_archive_bytes_and_digest": DSSE, "engine_source_and_digest": ENGINE,
             "companion_test_source_and_digest": COMPANION_TEST,
             "inspection_archive_bytes_and_digest": INSPECTION,
+            "named_inspection_archive_bytes_and_digest": ANATOMY_INSPECTION,
+            "anatomy_archive_bytes_and_digest": ANATOMY,
+            "model_archive_bytes_and_digest": MODEL,
+            "provenance_source_and_digest": "szl_provenance.py",
         }[change]
         source = tmp_path / relative
         source.write_bytes(source.read_bytes() + b"\n")
@@ -242,6 +310,9 @@ def test_current_payload_rejects_tampering(tmp_path, change):
     elif change == "inspection_provenance_rollback":
         prior = json.loads((tmp_path / DSSE).read_bytes())
         manifest["files"]["szl_provenance.py"] = prior["files"]["szl_provenance.py"]
+    elif change == "anatomy_auth_rollback":
+        prior = json.loads((tmp_path / MODEL).read_bytes())
+        manifest["files"]["szl_operator_auth.py"] = prior["files"]["szl_operator_auth.py"]
     elif change in {"canonical_helper_entry", "canonical_companion_entry"}:
         relative = ("szl_model_access.py" if change == "canonical_helper_entry"
                     else "szl_router_client.py")
@@ -259,6 +330,8 @@ def test_current_payload_rejects_tampering(tmp_path, change):
             "dsse_archive_bytes": DSSE, "engine_source": ENGINE,
             "companion_test_source": COMPANION_TEST,
             "inspection_archive_bytes": INSPECTION,
+            "named_inspection_archive_bytes": ANATOMY_INSPECTION,
+            "anatomy_archive_bytes": ANATOMY, "model_archive_bytes": MODEL,
         }[change]
         source.write_bytes(source.read_bytes() + b"\n")
     (tmp_path / ACTIVE).write_text(json.dumps(manifest), encoding="utf-8")
