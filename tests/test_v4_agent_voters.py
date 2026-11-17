@@ -114,17 +114,43 @@ def test_all_voters_have_required_fields():
         meta = v.metadata()
         for field in required_fields:
             assert field in meta, f"{v.VOTER_ID}: missing metadata field '{field}'"
-        assert meta["status"] in ("available", "token_required"), (
-            f"{v.VOTER_ID}: invalid status {meta['status']!r}"
-        )
+        if v.VOTER_ID == SOVEREIGN_VOTER_ID:
+            assert meta["status"] == "unavailable"
+            assert meta["state"] == "RETIRED"
+            assert meta["successor"]["operator_authentication_required"] is True
+        else:
+            assert meta["status"] in ("available", "token_required"), (
+                f"{v.VOTER_ID}: invalid status {meta['status']!r}"
+            )
 
 
-def test_sovereign_default_always_available():
-    """khipu-gguf (sovereign-default) must always be available regardless of env vars."""
+def test_retired_sovereign_default_is_discoverable_but_unavailable(monkeypatch):
+    """A configured token or explicit prompt acknowledgement cannot revive it."""
     khipu = get_voter("khipu-gguf")
-    assert khipu is not None, "khipu-gguf voter not found in registry"
-    assert khipu.is_available(), "khipu-gguf (sovereign-default) must always be available"
-    assert khipu.metadata()["status"] == "available"
+    assert khipu is not None
+    monkeypatch.setenv("A11OY_KHIPU_LAB_BASE", "http://lab.test")
+    monkeypatch.setenv("HF_TOKEN", "test-only-unused")
+    assert khipu.is_available() is False
+    meta = khipu.metadata()
+    assert meta["status"] == "unavailable" and meta["state"] == "RETIRED"
+    assert "RETIRED" in meta["reason"]
+    assert meta["successor"]["path"] == "/api/a11oy/v1/atelier/cpu-lab/turn"
+    assert meta["successor"]["public_share_acknowledged"] is True
+    result = asyncio.run(khipu.vote(prompt="never forwarded",
+                                   public_share_acknowledged=True, declared="PUBLIC"))
+    assert result["status"] == "unavailable" and result["text"] is None
+    assert result["latency_ms"] is None
+
+
+def test_agent_html_names_retirement_and_explicit_successor():
+    import a11oy_v4_agent as agent_mod
+    html = agent_mod._build_agent_html()
+    assert "Legacy voter retired" in html
+    assert "/command-centre#cpu-work" in html
+    assert "operator authentication" in " ".join(html.split())
+    assert "public-prompt acknowledgement" in html
+    assert "always participates" not in html
+    assert "always active" not in html
 
 
 def test_qwen_local_still_in_pool_not_sovereign():
