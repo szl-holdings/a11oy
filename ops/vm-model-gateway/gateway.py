@@ -508,7 +508,7 @@ def main():
         raise SystemExit("persistent signer and receipts directory required")
     gateway = Gateway(key, receipt_path, upstream_port=transport.tunnel_port)
     Handler.gateway = gateway
-    with BoundedServer((LOOPBACK_HOST, GATEWAY_PORT), Handler) as server:
+    with BoundedServer((LOOPBACK_HOST, transport.gateway_port), Handler) as server:
         server.serve_forever(poll_interval=0.2)
 
 
