@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-11-16T23:19:02Z",
+  "observedAt": "2026-11-17T04:28:31Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -15,7 +15,7 @@
   "canonicalRule": "GitHub releases, CI, manifests, checksums, and DOI records are canonical; Hugging Face is a generated discovery and diligence mirror.",
   "publicApiEndpoints": [
     "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true",
-    "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true&cursor=eyIkb3IiOlt7InRyZW5kaW5nU2NvcmUiOjAsIl9pZCI6eyIkZ3QiOiI2YWYzZWE1YmVjZGQ2NjVkOWI0YmM0ZTMifX0seyJ0cmVuZGluZ1Njb3JlIjp7IiRsdCI6MH19LHsidHJlbmRpbmdTY29yZSI6bnVsbH1dLCJzZWFyY2hTZXF1ZW5jZVRva2VuIjoiQ01McW1nSWFDU0VBQUFBQUFBQUFBQm9PV2d4cTgrcGI3TjFtWFp0THhPTWlEbG9NYXZQcVcremRabDJiUzhUaiJ9",
+    "https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true&cursor=eyIkb3IiOlt7InRyZW5kaW5nU2NvcmUiOjAsIl9pZCI6eyIkZ3QiOiI2YWYzZWE1YmVjZGQ2NjVkOWI0YmM0ZTMifX0seyJ0cmVuZGluZ1Njb3JlIjp7IiRsdCI6MH19LHsidHJlbmRpbmdTY29yZSI6bnVsbH1dLCJzZWFyY2hTZXF1ZW5jZVRva2VuIjoiQ0ttUjFRRWFDU0VBQUFBQUFBQUFBQm9PV2d4cTgrcGI3TjFtWFp0THhPTWlEbG9NYXZQcVcremRabDJiUzhUaiJ9",
     "https://huggingface.co/api/datasets?author=SZLHOLDINGS&limit=100&full=true",
     "https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true",
     "https://huggingface.co/api/spaces/SZLHOLDINGS/README",
@@ -23,8 +23,8 @@
   ],
   "counts": {
     "models": 147,
-    "datasets": 88,
-    "spaces": 23,
+    "datasets": 89,
+    "spaces": 24,
     "kernels": 14
   },
   "guardrails": [
@@ -5479,8 +5479,8 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "e75e8fdd18c724a39bbc2cd4552363e4225479d3",
-        "lastModified": "2026-11-16T23:17:25.000Z",
+        "sha": "6270ff5a794fbc4b0a655701b79a036abf46067a",
+        "lastModified": "2026-11-17T04:28:23.000Z",
         "cardSemanticSha256": "29c6ff0d5d596431f0719729ccdeaf2154fb33005be979f27f18e931faa50c97",
         "createdAt": "2026-11-09T01:14:35.000Z",
         "tags": [
@@ -5750,8 +5750,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "fa2e43dc705dbfef6b558c3a695cefd22de884ae",
-        "lastModified": "2026-11-16T23:18:19.000Z",
+        "sha": "91cc14b7fc5d905279e1150aeb7a1d83bad58bda",
+        "lastModified": "2026-11-17T04:24:45.000Z",
         "cardSemanticSha256": "2062f8a7461392e79949029144cffe0e7690821603c87c95e7a8db2146056ab5",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -6368,15 +6368,14 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "44d4a5d49d7a71b2cc0a0ebadf28b40af223c061",
-        "lastModified": "2026-11-16T23:08:28.000Z",
+        "sha": "aa8b182ba5a222fa7a41780b2080b46b901a3c10",
+        "lastModified": "2026-11-17T04:18:54.000Z",
         "cardSemanticSha256": "3ea206de79a9e6a80f089300b88206b778cb9400156259349087ba4de4b635c6",
         "createdAt": "2026-06-01T13:06:04.000Z",
         "tags": [
           "task_categories:other",
           "license:apache-2.0",
-          "size_categories:1K<n<10K",
-          "modality:text",
+          "size_categories:n<1K",
           "region:us",
           "szl-holdings",
           "readiness",
@@ -7565,6 +7564,36 @@
         "unsafeFlags": []
       },
       {
+        "id": "SZLHOLDINGS/wink-observatory-data",
+        "repoType": "dataset",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "cc-by-4.0",
+        "sha": "b891ff021227d85cb7f3cd51fdde6df4aa03d918",
+        "lastModified": "2026-11-17T03:10:35.000Z",
+        "cardSemanticSha256": "9f6b074bed792ded488fabc7e50e19308de82f4e3f7f3a8802c088ceaf099d5e",
+        "createdAt": "2026-11-17T03:10:01.000Z",
+        "tags": [
+          "task_categories:tabular-classification",
+          "license:cc-by-4.0",
+          "size_categories:n<1K",
+          "region:us",
+          "governed-ai",
+          "evidence-receipts",
+          "witness-records",
+          "wink-protocol",
+          "szl-holdings",
+          "vidal-gadea-lab"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/datasets/SZLHOLDINGS/wink-observatory-data"
+        ],
+        "unsafeFlags": []
+      },
+      {
         "id": "SZLHOLDINGS/world-science-sft-api-v1",
         "repoType": "dataset",
         "private": false,
@@ -7665,8 +7694,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "fdab04d593816117e8371255698819fe1a9122ab",
-        "lastModified": "2026-11-16T23:11:16.000Z",
+        "sha": "217c30564b6f884b7d129ac7eaa4733afb894b2a",
+        "lastModified": "2026-11-17T04:21:46.000Z",
         "cardSemanticSha256": "59a086383c876aae55d52567641047cb20b43908c683d074e7bdab7d2738c71b",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -7693,9 +7722,9 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "70307c16449973b38e4ef55f0ebc34eb80cbd946",
-        "lastModified": "2026-11-16T21:18:19.000Z",
-        "cardSemanticSha256": "222de7dc9304346e384a66b1de46ae1d0ae16a55bb5e8df0b8f32c09fdb875a9",
+        "sha": "3b277e06d84e0f0a888b44048f367f728c53c69a",
+        "lastModified": "2026-11-17T04:23:52.000Z",
+        "cardSemanticSha256": "48c36071d19e72eacb25afb8044dcb128b9b4f9b3bb3021ee19135a77f41bccd",
         "createdAt": "2026-09-04T00:12:25.000Z",
         "tags": [
           "docker",
@@ -7797,8 +7826,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "c7226f731846731b86316a6beef3c4fa0188feb4",
-        "lastModified": "2026-11-16T21:10:15.000Z",
+        "sha": "96acc063e92affc8df74590d79f278b34dcf271a",
+        "lastModified": "2026-11-17T04:07:44.000Z",
         "cardSemanticSha256": "43aedbeed5319a18545151385c1007eb3d22d4a6270da3e5cdecdd321017894b",
         "createdAt": "2026-09-04T01:29:50.000Z",
         "tags": [
@@ -7872,8 +7901,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "afb8b6e7c247769b01a089bca1fd912439b48f6f",
-        "lastModified": "2026-11-16T06:34:52.000Z",
+        "sha": "3571622aba99a8330e8a130954382039fec96500",
+        "lastModified": "2026-11-17T03:29:30.000Z",
         "cardSemanticSha256": "30a55935f707a3a08321082775d800830dcb51bffb58f88338669a51accdd3a1",
         "createdAt": "2026-06-01T05:46:37.000Z",
         "tags": [
@@ -8110,8 +8139,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "230e160b041d1c515dbcaab2045655fb43b7be7d",
-        "lastModified": "2026-11-16T21:18:57.000Z",
+        "sha": "86f5716c2040c246dbd2d306549ccbbbc0775fee",
+        "lastModified": "2026-11-17T03:25:57.000Z",
         "cardSemanticSha256": "6d35ed1cabaf7b58d25b9f7a2996280d27bee8b638955607ea321a7bad4208fc",
         "createdAt": "2026-09-04T13:48:34.000Z",
         "tags": [
@@ -8216,8 +8245,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "0c691b578fedcd0b3102d3514cfad78c263871c3",
-        "lastModified": "2026-11-16T23:11:41.000Z",
+        "sha": "57f2160ff85f56f72884d2bb697c437c5efc7671",
+        "lastModified": "2026-11-17T03:26:34.000Z",
         "cardSemanticSha256": "e522d9e917d9829754f92ae3d109600c99f961c0e2ff34fc815946ae09e90e7f",
         "createdAt": "2026-09-03T22:26:50.000Z",
         "tags": [
@@ -8227,6 +8256,34 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/spaces/SZLHOLDINGS/vertical-services"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/wink-observatory",
+        "repoType": "space",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": "static",
+        "license": "apache-2.0",
+        "sha": "01e1021e7e1d80a0d4754fa01ca84282cb854c85",
+        "lastModified": "2026-11-17T03:11:47.000Z",
+        "cardSemanticSha256": "26090d4294e9b3f57227c4bb8fd4557ee4e70dc52a802f3fd20566b854c15fd3",
+        "createdAt": "2026-11-17T03:10:01.000Z",
+        "tags": [
+          "static",
+          "governed-ai",
+          "visualization",
+          "webgl",
+          "three-js",
+          "evidence-receipts",
+          "wink-protocol",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/spaces/SZLHOLDINGS/wink-observatory"
         ],
         "unsafeFlags": []
       }

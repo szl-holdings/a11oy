@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-11-16T23:19:02Z",
+  "observedAt": "2026-11-17T04:28:31Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,8 +27,8 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 147,
-      "datasets": 88,
-      "spaces": 23,
+      "datasets": 89,
+      "spaces": 24,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -3102,6 +3102,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/wink-observatory-data",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/wink-observatory-data"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/world-science-sft-api-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -3351,6 +3361,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/vertical-services"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/wink-observatory",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/wink-observatory"
       ]
     },
     {

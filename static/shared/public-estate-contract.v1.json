@@ -145,7 +145,8 @@
     "SZLHOLDINGS/szl-foundation-confirmation",
     "SZLHOLDINGS/szl-frontier",
     "SZLHOLDINGS/szl-model-inference-lab",
-    "SZLHOLDINGS/vertical-services"
+    "SZLHOLDINGS/vertical-services",
+    "SZLHOLDINGS/wink-observatory"
   ],
   "inventoryOnlyHuggingFaceRepositories": [
     {

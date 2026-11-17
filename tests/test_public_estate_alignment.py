@@ -59,7 +59,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 15)
+        self.assertEqual(len(topology), 16)
         self.assertEqual(
             self.contract["supportingSystems"][0]["huggingFaceRepositories"],
             [],
@@ -83,6 +83,16 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             sorted(topology + inventory_only, key=str.casefold),
             observed,
         )
+
+    def test_wink_observatory_is_laboratory_not_keeper_or_release_authority(self) -> None:
+        space = "SZLHOLDINGS/wink-observatory"
+        self.assertIn(space, self.contract["laboratorySurfaces"])
+        self.assertIn(space, alignment.topology_spaces(self.contract))
+        self.assertIn(space, alignment.measured_spaces(self.manifest))
+        self.assertNotIn(space, alignment.inventory_only_spaces(self.contract))
+        self.assertNotIn(space, alignment.governed_keep_spaces())
+        self.assertFalse(self.contract["authority"]["productionAuthorization"])
+        self.assertFalse(self.contract["authority"]["automaticRemediation"])
 
     def test_new_public_inventory_is_not_a_keeper_or_runtime_promotion(self) -> None:
         # anatomy is a governed org keeper (owner decision 2026-11-07); the rest remain inventory-only
