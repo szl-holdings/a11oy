@@ -62,11 +62,12 @@ from typing import Any
 # MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). It is an honest weak claim
 # in the same spirit as MODELED / ROADMAP, so its absence here flagged honest surfaces as liars.
 # UNKNOWN is listed in the public-estate contract truthVocabulary
-# (static/shared/public-estate-contract.v1.json) and is the most conservative honest token: it
-# never upgrades a claim. It counts only as the whole label value (see
-# szl_frontier_index._WHOLE_VALUE_ONLY_LABELS), never as a word inside free text. A surface declares it when evidence exists but is unverified (e.g.
-# /llm/sovereign/health: node reachable, provenance unverified). That is distinct from the wall's
-# own per-surface reachability status UNKNOWN below (the wall could not read the manifest).
+# (static/shared/public-estate-contract.v1.json). It is a weak honest token that never upgrades a
+# claim, and it counts only as the whole label value (see
+# szl_frontier_index._WHOLE_VALUE_ONLY_LABELS), never as a word inside free text. A surface
+# declares it when evidence exists but is unverified (e.g. /llm/sovereign/health: node reachable,
+# provenance unverified). That is distinct from the wall's own per-surface reachability status
+# UNKNOWN below (the wall could not read the manifest).
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
     "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",

@@ -57,11 +57,18 @@ HONEST_LABELS = {
     "FOUNDER-GATED", "FOUNDER", "GATED", "AWAITING", "PENDING", "REVIEW",
     # DECLARED — asserted/stated, not measured and not proven; never upgraded to MEASURED.
     "DECLARED",
-    # UNKNOWN — public-estate contract truthVocabulary (static/shared/public-estate-contract.v1.json):
-    # evidence exists but is unverified; never upgrades a claim. /status copies catalog labels
-    # verbatim, and the catalog resolves it (e.g. an unprobed sovereign node in router status).
-    "UNKNOWN",
 }
+
+# UNKNOWN — public-estate contract truthVocabulary (static/shared/public-estate-contract.v1.json):
+# evidence exists but is unverified; never upgrades a claim. /status copies catalog labels
+# verbatim, and the catalog resolves it (e.g. an unprobed sovereign node in router status).
+# It is an ordinary English word, so unlike HONEST_LABELS above it is accepted only as the whole
+# label value: "risk unknown" inside free text is not an honest label.
+WHOLE_VALUE_LABELS = frozenset({"UNKNOWN"})
+
+
+def _is_honest_label(lab: str) -> bool:
+    return lab.strip() in WHOLE_VALUE_LABELS or any(voc in lab for voc in HONEST_LABELS)
 
 # EXACT key names we treat as the honesty-disclosure label (checked strictly against
 # the honest vocabulary). Other *_label fields (status_label=reachable,
@@ -293,10 +300,19 @@ def test_frontier_endpoint_honest_label(entry):
             f"field — doctrine requires an honest disclosure label."
         )
     for lab in labels:
-        assert any(voc in lab for voc in HONEST_LABELS), (
+        assert _is_honest_label(lab), (
             f"{entry['path']} label {lab!r} is not in the honest vocabulary "
-            f"{sorted(HONEST_LABELS)}"
+            f"{sorted(HONEST_LABELS | WHOLE_VALUE_LABELS)}"
         )
+
+
+def test_honest_label_predicate_accepts_unknown_only_as_whole_value():
+    # _labels_all upper-cases every label before this predicate sees it.
+    for lab in ("UNKNOWN", " UNKNOWN ", "MODELED/SIMULATED — NOT HARDWARE", "UNAVAILABLE"):
+        assert _is_honest_label(lab), lab
+    for lab in ("THEOREM PROVED; UNKNOWN", "PRODUCTION-GRADE, RISK UNKNOWN",
+                "UNKNOWN RISK, SHIP IT", "TOTALLY-MADE-UP"):
+        assert not _is_honest_label(lab), lab
 
 
 @pytest.mark.parametrize("entry", MANIFEST, ids=IDS)

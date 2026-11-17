@@ -16,9 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   state UNKNOWN, which is in the public-estate contract truthVocabulary, so every
   honest-label vocabulary copy now lists it. UNKNOWN counts only as the whole
   label value: free text that merely contains the word stays VIOLATED.
-- Label change: the frontier-index catalog label for the router surface moves
-  from MODELED to UNKNOWN, taken from the unprobed sovereign sub-node on
-  /api/a11oy/v1/llm/router/status. This is a weaker claim, not an upgrade.
+- Label changes in the frontier-index catalog (and /status, which copies it):
+  - router moves from MODELED to UNKNOWN, taken from the unprobed sovereign
+    sub-node on /api/a11oy/v1/llm/router/status. This is a weaker claim, not an
+    upgrade.
+  - sovereign, only while the node is reachable but unverified (the live case),
+    moves from ROADMAP (/api/a11oy/v1/energy/sovereign) to UNKNOWN, the node's
+    own label on /api/a11oy/v1/llm/sovereign/health. With the node unreachable
+    it stays UNAVAILABLE. Neither case claims LIVE or MEASURED.
 - The console Ask & Act badge drops its LIVE token and reads GDW UNAVAILABLE,
   EXECUTION ROADMAP, DRAFT ONLY, matching the console tab liveness check.
 

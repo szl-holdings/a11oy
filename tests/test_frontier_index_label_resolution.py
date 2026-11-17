@@ -42,3 +42,14 @@ def test_router_status_unprobed_sovereign_node_resolves_to_unknown() -> None:
         }],
     }
     assert _extract_label(payload) == "UNKNOWN"
+
+
+def test_whatsnew_vocabulary_covers_every_catalog_label() -> None:
+    """The whatsnew feed copies each catalog label verbatim, so every token the shared resolver
+    can return (UNKNOWN included) must be representable in the feed's vocabulary."""
+    import szl_frontier_index as fi
+    import szl_whatsnew as wn
+
+    assert set(fi.HONEST_LABELS) <= set(wn.HONEST_LABELS), (
+        sorted(set(fi.HONEST_LABELS) - set(wn.HONEST_LABELS)))
+    assert "UNKNOWN" in wn.HONEST_LABELS
