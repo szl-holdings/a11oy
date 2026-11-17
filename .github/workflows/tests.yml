@@ -484,11 +484,11 @@ jobs:
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
           pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run operator & reason endpoint tests
-        # Scoped to this module only: it boots serve.py in-process with no network
+        # Scoped to these modules: they exercise serve.py in-process with no network
         # and guards the Task #516 governed operator/reason surface against 404
         # regressions and envelope-stripping. Other tests/ modules may need extra
         # deps and are out of scope for this guard.
-        run: pytest tests/test_operator_reason_envelope.py -q
+        run: pytest tests/test_operator_reason_envelope.py tests/test_operator_recommendation_health.py -q
 
   python-formula-registry-guard:
     name: Proof-carrying formula registry — no overclaims (pytest, offline)
@@ -1144,6 +1144,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node for the served JavaScript contract tests
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -1165,6 +1169,12 @@ jobs:
         run: >-
           pytest test_frontier_surfaces.py test_frontier_manifest.py
           tests/test_frontier_manifest_readiness.py
+          tests/test_frontier_readiness_projection.py
+          tests/test_frontier_readiness_boundary.py
+          tests/test_frontier_readiness_page.py
+          tests/test_frontier_bootstrap.py
+          tests/test_frontier_responsive_page.py
+          tests/test_anatomy_readiness.py
           tests/test_provenance_receipt_write_boundary.py
           tests/test_frontier_health_rollup.py
           tests/test_mcp_inventory_observation.py

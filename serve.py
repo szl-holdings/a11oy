@@ -9225,7 +9225,101 @@ try:
                 "honesty": ("Action recorded in a SHA-256 hash-chained audit ring + receipt. Ring is in-process "
                             "(resets on restart). No arbitrary code executed.")}
 
-    _SC_RECOMMEND = {'recommendations': [{'severity': 'ok', 'organ': 'a11oy', 'finding': 'Platform consolidated: the Policy/Safety, Reasoning and Operator capabilities are all served in-process by a11oy. No external services required.', 'remedy': 'None — nominal. All decision, compliance and operator data is native to a11oy.'}], 'counts': {'critical': 0, 'warn': 0, 'info': 0, 'ok': 1}, 'citations': [{'endpoint': '/api/a11oy/healthz (self-contained platform health)', 'data': {'a11oy': {'ok': True}}}], 'honesty': "Recommendations are derived from a11oy's own consolidated state — no synthetic alerts and no fabricated probes. Every capability is folded into a11oy itself."}
+    def _sc_recommend(health_report=None, http_status=None):
+        """Project the existing health contract without admitting or executing work."""
+        observed = (isinstance(health_report, dict)
+                    and health_report.get("service") == "a11oy"
+                    and health_report.get("status") in ("ok", "degraded")
+                    and http_status in (200, 503))
+        rows = []
+
+        def finding(severity, organ, detail, remedy):
+            rows.append({"severity": severity, "organ": organ,
+                         "finding": detail, "remedy": remedy})
+
+        def strings(value):
+            return (isinstance(value, list)
+                    and all(isinstance(item, str) and item.strip() for item in value))
+
+        readiness = health_report.get("operational_readiness") if observed else None
+        readiness = readiness if isinstance(readiness, dict) else None
+        ready = False
+        if not observed:
+            finding("warn", "a11oy", "Health evidence is UNAVAILABLE; readiness cannot be confirmed.",
+                    "Restore /api/a11oy/healthz and refresh the observation.")
+        else:
+            degraded = health_report.get("degraded_reasons", [])
+            blockers = readiness.get("service_blockers") if readiness else None
+            service_reasons = list(dict.fromkeys(
+                (degraded if strings(degraded) else [])
+                + (blockers if strings(blockers) else [])))
+            if health_report["status"] != "ok" and not service_reasons:
+                service_reasons.append("service_status_degraded")
+            if http_status != 200:
+                service_reasons.append("health_http_" + str(http_status))
+            for reason in service_reasons:
+                finding("critical", "a11oy", reason,
+                        "Resolve this service blocker and re-observe /api/a11oy/healthz.")
+
+            frontier = readiness.get("frontier") if readiness else None
+            frontier = frontier if isinstance(frontier, dict) else {}
+            live = frontier.get("ready_tiles")
+            blocked = frontier.get("blocked_tiles")
+            valid_rows = (isinstance(blocked, list) and all(
+                isinstance(row, dict) and isinstance(row.get("name"), str)
+                and bool(row["name"].strip()) and strings(row.get("reasons"))
+                and bool(row["reasons"]) for row in blocked))
+            if isinstance(blocked, list):
+                for row in blocked:
+                    if not isinstance(row, dict) or not isinstance(row.get("name"), str):
+                        continue
+                    reasons = row.get("reasons")
+                    detail = "; ".join(reasons) if strings(reasons) and reasons else "operational evidence missing"
+                    finding("warn", row["name"], detail,
+                            "Supply and verify the missing operational evidence, then refresh readiness.")
+            consistent = False
+            if (readiness is not None and strings(degraded) and strings(blockers)
+                    and strings(live) and valid_rows
+                    and type(readiness.get("ready")) is bool
+                    and type(frontier.get("ready")) is bool):
+                names = live + [row["name"] for row in blocked]
+                frontier_ready = bool(names) and not blocked
+                expected_ready = (frontier_ready and health_report["status"] == "ok"
+                                  and not degraded and not blockers)
+                consistent = (bool(names) and len(names) == len(set(names))
+                              and frontier["ready"] == frontier_ready
+                              and frontier.get("state") == ("READY" if frontier_ready else "NOT_READY")
+                              and readiness["ready"] == expected_ready
+                              and readiness.get("status") == ("READY" if expected_ready else "NOT_READY")
+                              and set(blockers) == set(degraded))
+                ready = consistent and expected_ready and http_status == 200
+            if not consistent:
+                finding("warn", "a11oy", "Operational readiness evidence is missing or inconsistent.",
+                        "Restore the canonical readiness report; service reachability alone cannot establish readiness.")
+            if ready:
+                finding("ok", "a11oy", "The observed health rollup reports ready service and frontier capabilities.",
+                        "Continue observing the source evidence; this report does not authorize an action.")
+
+        return {
+            "status": "REAL" if ready else "DEGRADED",
+            "health_state": "OBSERVED" if ready else "DEGRADED" if observed else "UNAVAILABLE",
+            "grounded": observed, "observed_at": _sc_now(),
+            "source_http_status": http_status, "operational_readiness": readiness,
+            "recommendations": rows,
+            "counts": {severity: sum(row["severity"] == severity for row in rows)
+                       for severity in ("critical", "warn", "info", "ok")},
+            "citations": [{"endpoint": "/api/a11oy/healthz",
+                           "data": health_report if observed else {"state": "UNAVAILABLE"}}],
+            "honesty": ("Recommendations project the current health rollup and preserve its blockers. "
+                        "They do not independently verify source evidence, grant admission, or mint receipts."),
+        }
+
+    async def _sc_operator_recommendations():
+        try:
+            response = await healthz()
+            return _sc_recommend(_sc_json.loads(response.body), response.status_code)
+        except Exception:
+            return _sc_recommend()
 
     async def _sc_body(request):
         try:
@@ -9313,7 +9407,7 @@ try:
         return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
 
     async def _sc_rosie_recommend():
-        return _SCJSON(_SC_RECOMMEND)
+        return _SCJSON(await _sc_operator_recommendations(), headers={"Cache-Control": "no-store"})
 
     async def _sc_rosie_ledger():
         return _SCJSON(_SC_BUNDLE["ledger"])
@@ -9454,7 +9548,8 @@ try:
 
     @app.get("/api/a11oy/v1/operator/recommend")
     async def _sc_cap_recommend():
-        return _SCJSON(gov_envelope(_SC_RECOMMEND, status="REAL"))
+        report = await _sc_operator_recommendations()
+        return _SCJSON(gov_envelope(report, status=report["status"]), headers={"Cache-Control": "no-store"})
 
     @app.get("/api/a11oy/v1/operator/ledger")
     async def _sc_cap_ledger():
@@ -9587,7 +9682,7 @@ try:
         _cites = [{"endpoint": c["endpoint"], "data": {"status": c["status"], "checked_at": _now}} for c in caps]
         return _SCJSON(gov_envelope(summary, status=("REAL" if _deg == 0 else "DEGRADED"), citations=_cites))
 
-    def _sc_command_loop(body):
+    def _sc_command_loop(body, recommendation_report=None):
         body = body or {}
         command = str(body.get("command") or body.get("intent") or "").strip()
         target = str(body.get("target") or "").strip()
@@ -9606,8 +9701,10 @@ try:
         stg("Signal", "REAL", "Operator intent received.", {"command": command, "target": target})
         topic = _sc_classify(command)
         stg("Context", "REAL", "Classified intent + read live platform context.", {"topic": topic})
-        stg("Recommend", "REAL", "Platform recommendation read from consolidated state.",
-            _SC_RECOMMEND.get("recommendations"))
+        recommendation_report = recommendation_report or _sc_recommend()
+        stg("Recommend", recommendation_report["status"], "Recommendation derived from observed health evidence.",
+            recommendation_report["recommendations"])
+        stages[-1]["evidence"] = recommendation_report
         stg("Simulate", "DEGRADED", "No real action simulator wired in this runtime \u2014 not faked.")
         verdict = _sc_build_verdict({"agent": operator,
                                      "action": {"command": command, "target": target},
@@ -9653,7 +9750,8 @@ try:
         rejected = _sc_rejected(body)
         if rejected is not None:
             return rejected
-        res = _sc_command_loop(body)
+        recommendations = await _sc_operator_recommendations()
+        res = _sc_command_loop(body, recommendation_report=recommendations)
         ran = bool((res.get("stages") or [{}])[0].get("status") == "REAL")
         cites = [{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}},
                  {"endpoint": "/api/a11oy/v1/policy/decide", "data": {"governed": True}}]
