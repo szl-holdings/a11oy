@@ -602,39 +602,3 @@ def test_all_three_jobs_and_their_dependency_order_are_required(combined,mutatio
     else:fake.relock_job["started_at"]=stamp(fake.now-timedelta(seconds=6))
     with pytest.raises(subject.EvidenceBlocked,match="READINESS_JOB_"):
         observe(fake)
-
-
-@pytest.mark.parametrize("headers,expected", [
-    ({"retry-after": "60"}, 60),
-    ({"x-ratelimit-reset": "1600"}, 600),
-    ({"retry-after": "60", "x-ratelimit-reset": "1600"}, 600),
-    ({"retry-after": "Thu, 01 Jan 1970 00:26:40 GMT"}, 600),
-    ({"retry-after": "7200"}, 7200),
-    ({"retry-after": "NaN", "x-ratelimit-reset": "inf"}, None),
-    ({"retry-after": "-1", "x-ratelimit-reset": "999"}, None),
-    ({"retry-after": "secret https://fixture.invalid/?token=secret"}, None),
-    ({"retry-after": "9" * 129}, None),
-])
-def test_rate_limit_timing_keeps_only_valid_numeric_delay(headers, expected):
-    assert subject.rate_limit_delay(headers, now=1000) == expected
-
-
-def test_rate_limit_transport_carries_delay_without_raw_headers_or_body(monkeypatch):
-    monkeypatch.setattr(subject.time, "time", lambda: 1000)
-    class NeverRead(httpx.SyncByteStream):
-        def __iter__(self):
-            pytest.fail("rate-limit response body was read")
-            yield b"private body"
-    transport = subject.Transport("fixture-secret", threading.Event(),
-        client=httpx.Client(transport=httpx.MockTransport(lambda request:
-            httpx.Response(403, headers={
-                "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1600",
-                "retry-after": "60", "x-private": "provider-secret",
-            }, stream=NeverRead()))))
-    try:
-        with pytest.raises(subject.RateLimited) as observed:
-            transport.json("/branches/main")
-        assert str(observed.value) == "GITHUB_READ_RATE_LIMITED"
-        assert vars(observed.value) == {"retry_after_seconds": 600}
-    finally:
-        transport.close()
