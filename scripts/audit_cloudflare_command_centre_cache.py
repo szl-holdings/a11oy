@@ -380,23 +380,56 @@ def worker_summary(value):
     date = date if isinstance(date, str) and re.fullmatch(r"20[0-9]{2}-[0-9]{2}-[0-9]{2}", date) else None
     flags = value.get("compatibility_flags")
     flags = flags if isinstance(flags, list) else []
-    cache = value.get("cache")
     out = {
         "state": "OBSERVED", "compatibility_date": date,
         "cache_compatibility_flags": sorted({flag for flag in flags if isinstance(flag, str) and flag in FLAGS}),
         "other_compatibility_flags_omitted": sum(not isinstance(flag, str) or flag not in FLAGS for flag in flags),
         "worker_cache": {"state": "NOT_REPORTED"},
+        "entrypoint_cache_overrides": {"state": "NOT_REPORTED"},
         "bindings": "NOT_RETAINED",
+        "export_names": "NOT_RETAINED",
         "source_bytes": "NOT_READ",
     }
-    if isinstance(cache, dict):
-        out["worker_cache"] = {"state": "PRESENT"}
-        for key in ("enabled", "persist", "shared"):
-            if type(cache.get(key)) is bool:
-                out["worker_cache"][key] = cache[key]
-        if isinstance(cache.get("entrypoints"), dict):
-            out["worker_cache"]["entrypoint_count"] = len(cache["entrypoints"])
-            out["worker_cache"]["entrypoint_details"] = "NOT_RETAINED"
+    if "cache_options" in value:
+        cache = value["cache_options"]
+        projected = {"state": "PRESENT"}
+        if not isinstance(cache, dict) or type(cache.get("enabled")) is not bool:
+            projected["state"] = "MALFORMED"
+        else:
+            projected["enabled"] = cache["enabled"]
+        if isinstance(cache, dict) and "cross_version_cache" in cache:
+            if type(cache["cross_version_cache"]) is bool:
+                projected["cross_version_cache"] = cache["cross_version_cache"]
+            else:
+                projected["state"] = "MALFORMED"
+        out["worker_cache"] = projected
+    if "exports" in value:
+        exports = value["exports"]
+        projected = {"state": "PRESENT", "worker_entries": 0,
+                     "enabled": 0, "disabled": 0, "not_reported": 0,
+                     "other_exports_omitted": 0}
+        if not isinstance(exports, dict):
+            projected["state"] = "MALFORMED"
+        elif len(exports) > MAX_ROWS:
+            projected = {"state": "TRUNCATED", "reason": "EXPORT_ROW_BOUND"}
+        else:
+            for entry in exports.values():
+                if not isinstance(entry, dict) or not isinstance(entry.get("type"), str):
+                    projected["state"] = "MALFORMED"
+                    continue
+                if entry["type"] != "worker":
+                    projected["other_exports_omitted"] += 1
+                    continue
+                projected["worker_entries"] += 1
+                if "cache" not in entry:
+                    projected["not_reported"] += 1
+                elif isinstance(entry["cache"], dict) and type(entry["cache"].get("enabled")) is bool:
+                    projected["enabled" if entry["cache"]["enabled"] else "disabled"] += 1
+                else:
+                    projected["state"] = "MALFORMED"
+        out["entrypoint_cache_overrides"] = projected
+    if incomplete_projection(out):
+        out["state"] = "PARTIAL"
     return out
 
 
@@ -495,19 +528,38 @@ def collection(observation, *, completion=None):
     return {"state": "OBSERVED", "rows": rows}
 
 
-def route_owner(rows, expected):
+def route_observations(collection_result, expected):
+    if collection_result["state"] != "OBSERVED":
+        return dict(collection_result), dict(collection_result)
+    rows = collection_result["rows"]
     apex = [row for row in rows if isinstance(row, dict) and row.get("pattern") == ZONE + "/*"]
-    if len(apex) != 1 or enum_value(apex[0].get("script"), {expected, "szl-a11oy-product-edge-v3"}) is None:
-        return None
-    # Unknown routes are not presumed harmless to the four asset paths.
     safe_patterns = {
         ZONE + "/*", "www." + ZONE + "/*", ZONE + "/api/a11oy/v1/*",
         ZONE + "/v1/*", ZONE + "/api/v2/*", "api." + ZONE + "/v1/evidence-snapshot",
         "atlas." + ZONE + "/*",
     }
-    if any(not isinstance(row, dict) or enum_value(row.get("pattern"), safe_patterns) is None for row in rows):
-        return None
-    return apex[0]["script"]
+    counts = {
+        "routes_observed": len(rows), "apex_bindings": len(apex),
+        "malformed_routes": sum(not isinstance(row, dict) or not isinstance(row.get("pattern"), str) for row in rows),
+        "unrecognized_patterns": sum(not isinstance(row, dict) or enum_value(row.get("pattern"), safe_patterns) is None for row in rows),
+    }
+    owner = enum_value(apex[0].get("script"), {expected, "szl-a11oy-product-edge-v3"}) if len(apex) == 1 else None
+    reason = ("MALFORMED_ROUTE_METADATA" if counts["malformed_routes"] else
+              "APEX_ROUTE_MISSING" if not apex else "APEX_ROUTE_AMBIGUOUS" if len(apex) != 1 else
+              "APEX_WORKER_NOT_ALLOWLISTED" if owner is None else None)
+    if reason:
+        refused = {"state": "UNAVAILABLE", "reason": reason, **counts}
+        return dict(refused), dict(refused)
+    identity = {"state": "OBSERVED", "pattern": ZONE + "/*", "script": owner,
+                "binding_evidence": "EXACT_APEX_METADATA_ONLY", **counts}
+    # A known script's metadata is safe to read; unknown routes still prevent
+    # claiming that the four asset requests are handled by that script.
+    if counts["unrecognized_patterns"]:
+        coverage = {"state": "UNAVAILABLE", "reason": "UNRECOGNIZED_ROUTE_PATTERNS", **counts}
+    else:
+        coverage = {"state": "OBSERVED", "pattern": ZONE + "/*", "script": owner,
+                    "binding_evidence": "ROUTE_METADATA_ONLY", **counts}
+    return identity, coverage
 
 
 def audit(bearer, *, transport=None, clock=None):
@@ -548,12 +600,12 @@ def audit(bearer, *, transport=None, clock=None):
         source_sha = hashlib.sha256(source).hexdigest()
         expected = "szl-a11oy-product-edge-v4-" + source_sha[:16]
         routes = collection(client.read("routes"))
-        owner = route_owner(routes["rows"], expected) if routes["state"] == "OBSERVED" else None
-        observations["worker_route"] = (
-            {"state": "OBSERVED", "pattern": ZONE + "/*", "script": owner,
-             "local_worker_sha256": source_sha, "binding_evidence": "ROUTE_METADATA_ONLY"}
-            if owner else {"state": routes["state"] if routes["state"] != "OBSERVED" else "UNAVAILABLE",
-                           "reason": "OWNED_WORKER_NOT_VERIFIED"})
+        identity, coverage = route_observations(routes, expected)
+        if identity["state"] == "OBSERVED":
+            identity["local_worker_sha256"] = source_sha
+        observations["worker_apex_identity"] = identity
+        observations["worker_route"] = coverage
+        owner = identity.get("script") if identity["state"] == "OBSERVED" else None
         client.worker = owner
         inventory = collection(client.read("rulesets"), completion="cursor")
         phases_present = None
@@ -588,10 +640,12 @@ def audit(bearer, *, transport=None, clock=None):
             settings = client.read("worker")
             observations["worker_settings"] = worker_summary(settings["result"]) if settings["state"] == "OBSERVED" else settings
             final_routes = collection(client.read("routes"))
-            final_owner = route_owner(final_routes["rows"], expected) if final_routes["state"] == "OBSERVED" else None
+            final_identity, final_coverage = route_observations(final_routes, expected)
+            same_apex = final_identity.get("script") == owner and final_identity["state"] == "OBSERVED"
             observations["route_recheck"] = (
-                {"state": "OBSERVED", "same_owner": True} if final_owner == owner
-                else {"state": "UNAVAILABLE", "reason": "ROUTE_CHANGED_OR_RECHECK_FAILED"})
+                {"state": "OBSERVED", "same_owner": True} if same_apex and final_coverage["state"] == "OBSERVED"
+                else {**final_coverage, "state": "UNAVAILABLE", "same_apex_binding": same_apex,
+                      "reason": final_coverage.get("reason", "APEX_BINDING_CHANGED" if same_apex is False and final_identity["state"] == "OBSERVED" else "ROUTE_RECHECK_FAILED")})
         else:
             observations["worker_settings"] = {"state": "UNAVAILABLE", "reason": "OWNED_WORKER_NOT_VERIFIED"}
         report["state"] = "OBSERVED" if all(
