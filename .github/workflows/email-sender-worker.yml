@@ -14,6 +14,7 @@ on:
       - 'ops/email-sender-worker/**'
       - 'scripts/verify_worker_revision.py'
       - 'tests/test_verify_worker_revision.py'
+      - 'tests/test_email_worker_account_resolution.py'
   push:
     branches: [main]
     paths:
@@ -21,6 +22,7 @@ on:
       - 'ops/email-sender-worker/**'
       - 'scripts/verify_worker_revision.py'
       - 'tests/test_verify_worker_revision.py'
+      - 'tests/test_email_worker_account_resolution.py'
   workflow_dispatch:
 
 permissions:
@@ -72,8 +74,8 @@ jobs:
           python-version: '3.12'
       - name: Install exact core test dependencies
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
-      - name: Test the post-deploy readback contract
-        run: python -m pytest tests/test_verify_worker_revision.py -q
+      - name: Test readback and deployment toolchain contracts
+        run: python -m pytest tests/test_verify_worker_revision.py tests/test_managed_alert_transport_workflows.py tests/test_email_worker_account_resolution.py -q
 
   deploy:
     name: Deploy szl-email-sender and read back the live revision
@@ -110,21 +112,91 @@ jobs:
           node-version: '22'
           check-latest: false
       - name: Install the locked Wrangler
+        id: wrangler
         working-directory: ops/email-sender-worker
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
-          test "$(npx --no-install wrangler --version | tail -n 1)" = "4.150.0"
-      - name: Require Cloudflare deployment credentials
+          locked_version="$(node -p "require('./package-lock.json').packages['node_modules/wrangler'].version")"
+          test "$(node -p "require('./node_modules/wrangler/package.json').version")" = "$locked_version"
+          printf 'version=%s\n' "$locked_version" >> "$GITHUB_OUTPUT"
+      - name: Resolve Cloudflare deployment account
+        id: cloudflare-account
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-            echo "::error::cloudflare-production needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (see ops/email-sender-worker/README.md)."
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "::error::cloudflare-production needs CLOUDFLARE_API_TOKEN (see ops/email-sender-worker/README.md)." >&2
             exit 1
           fi
+
+          account_id="${CLOUDFLARE_ACCOUNT_ID:-}"
+          if [ -n "$account_id" ]; then
+            if [[ ! "$account_id" =~ ^[0-9a-fA-F]{32}$ ]]; then
+              echo "::error::CLOUDFLARE_ACCOUNT_ID must be exactly 32 hexadecimal characters." >&2
+              exit 1
+            fi
+          else
+            response_file="$(mktemp)"
+            trap 'rm -f "$response_file"' EXIT
+            if ! curl --fail --silent --show-error --retry 2 --retry-all-errors \
+              --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Accept: application/json" \
+              "https://api.cloudflare.com/client/v4/accounts?page=1&per_page=5" \
+              --output "$response_file"; then
+              echo "::error::Cloudflare account discovery request failed." >&2
+              exit 1
+            fi
+            account_id="$(python - "$response_file" <<'PY'
+          import json
+          import re
+          import sys
+
+          try:
+              with open(sys.argv[1], "rb") as response:
+                  raw = response.read(1024 * 1024 + 1)
+              if len(raw) > 1024 * 1024:
+                  raise SystemExit("Cloudflare account discovery response exceeds its size limit")
+              payload = json.loads(raw)
+          except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+              raise SystemExit("invalid Cloudflare account discovery response") from None
+
+          if not isinstance(payload, dict) or payload.get("success") is not True:
+              raise SystemExit("Cloudflare account discovery response was not successful")
+
+          accounts = payload.get("result")
+          if not isinstance(accounts, list) or len(accounts) != 1:
+              raise SystemExit("Cloudflare account discovery must return exactly one account")
+
+          info = payload.get("result_info")
+          if info is not None:
+              if not isinstance(info, dict):
+                  raise SystemExit("Cloudflare account discovery pagination is malformed")
+              if "per_page" in info and (type(info["per_page"]) is not int or info["per_page"] != 5):
+                  raise SystemExit("Cloudflare account discovery pagination does not match the request")
+              for field in ("count", "page", "total_count", "total_pages"):
+                  if field in info and (type(info[field]) is not int or info[field] != 1):
+                      raise SystemExit("Cloudflare account discovery must return exactly one account")
+
+          account = accounts[0]
+          account_id = account.get("id") if isinstance(account, dict) else None
+          if not isinstance(account_id, str) or re.fullmatch(r"[0-9a-fA-F]{32}", account_id) is None:
+              raise SystemExit("Cloudflare account discovery returned a malformed account id")
+
+          print(account_id)
+          PY
+          )"
+          fi
+
+          if [[ ! "$account_id" =~ ^[0-9a-fA-F]{32}$ ]]; then
+            echo "::error::resolved Cloudflare account id is malformed." >&2
+            exit 1
+          fi
+          echo "::add-mask::$account_id"
+          printf 'account_id=%s\n' "$account_id" >> "$GITHUB_OUTPUT"
       - name: Deploy the exact commit with SOURCE_REVISION
         id: deploy
         uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
@@ -132,10 +204,10 @@ jobs:
           SOURCE_REVISION: ${{ github.sha }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          accountId: ${{ steps.cloudflare-account.outputs.account_id }}
           workingDirectory: ops/email-sender-worker
           packageManager: npm
-          wranglerVersion: '4.150.0'
+          wranglerVersion: ${{ steps.wrangler.outputs.version }}
           command: deploy --message ${{ github.sha }}
           vars: |
             SOURCE_REVISION
