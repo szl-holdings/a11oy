@@ -839,7 +839,7 @@ REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531f
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
     ".github/scripts/admit_execution_handoff.py": "5c3c9b13eb4151e9b98d279505798c9b801a0b9028a3a947e6eeb70ec90847ae",
-    ".github/scripts/collect_execution_readiness.py": "b58e1b5b681709f2f547b64230cb5dc1133368bd51d724d0d2b87fc35468a100",
+    ".github/scripts/collect_execution_readiness.py": "2b3c908690606ea782c76da1fadd7c2e3337bcf57ab4514bb9f5832c38d2dc61",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
     "observer_adapters.py": "84b80c124c8e6e70c0292934f150873ea93340a8995795e48cab477628e90b66",
