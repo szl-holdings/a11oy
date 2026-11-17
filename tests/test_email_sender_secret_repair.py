@@ -454,7 +454,96 @@ class RepairTests(unittest.TestCase):
                     self.assertNotIn(forbidden, emitted)
 
 
+    def test_observed_latest_null_envelope_passes_initial_and_final_reads(self):
+        for execute in (False, True):
+            with self.subTest(execute=execute):
+                self.directory = Path(self.tmp.name) / str(execute)
+                self.provider = Provider()
+                self.provider.overrides["versions"] = lambda _n, value: response({
+                    "success": True, "errors": None, "messages": None, "result": value,
+                })
+                report = self.run_repair(execute=execute)
+                self.assertEqual(report["status"], "VERIFIED" if execute else "READY_FOR_EXECUTION")
+                self.assertEqual(self.provider.counts["versions"], 2)
+                self.assertEqual(self.provider.counts["main"], 2)
+                self.assertEqual(report["prior_version_id"], VERSION)
+                self.assertEqual(self.provider.counts.get("put", 0), int(execute))
+                if not execute:
+                    self.assert_no_write(report)
+                    self.assertNotIn("probe", self.provider.counts)
+
+    def test_latest_null_envelope_does_not_bypass_version_result_validation(self):
+        results = [
+            None, {}, {"items": []}, {"items": [{"id": "invalid"}]},
+            {"items": [{"id": OTHER_VERSION}]},
+            {"items": [{"id": VERSION}, {"id": OTHER_VERSION}]},
+        ]
+        for i, value in enumerate(results):
+            with self.subTest(case=i):
+                self.directory = Path(self.tmp.name) / str(i)
+                self.provider = Provider()
+                self.provider.overrides["versions"] = lambda _n, _v, value=value: response({
+                    "success": True, "errors": None, "messages": None, "result": value,
+                })
+                report = self.run_repair()
+                self.assertEqual(report["status"], "BLOCKED")
+                self.assert_no_write(report)
+                self.assertNotIn("probe", self.provider.counts)
+
+    def test_null_pair_on_other_read_or_update_ack_keeps_prior_refusal(self):
+        for kind in ("settings", "put"):
+            with self.subTest(route=kind):
+                self.directory = Path(self.tmp.name) / kind
+                self.provider = Provider()
+                self.provider.overrides[kind] = lambda _n, value: response({
+                    "success": True, "errors": None, "messages": None, "result": value,
+                })
+                report = self.run_repair()
+                self.assertEqual(report["diagnostic_code"], "CLOUDFLARE_RESPONSE_INVALID")
+                self.assertEqual(report["cloudflare_envelope"]["errors_shape"], "NULL")
+                self.assertEqual(report["cloudflare_envelope"]["messages_shape"], "NULL")
+                self.assertNotIn("probe", self.provider.counts)
+                if kind == "put":
+                    self.assertEqual(report["status"], "WRITE_OUTCOME_UNCERTAIN")
+                    self.assertTrue(report["mutation_attempted"])
+                    self.assertFalse(report["mutation_acknowledged"])
+                    self.assertEqual(self.provider.events[-1][0], "PUT")
+                else:
+                    self.assertEqual(report["status"], "BLOCKED")
+                    self.assert_no_write(report)
+
+
 class BoundaryTests(unittest.TestCase):
+
+    def test_latest_null_compatibility_requires_exact_route_phase_presence_and_types(self):
+        payload = {"success": True, "errors": None, "messages": None, "result": {"items": []}}
+        routes = (
+            "ACCOUNT_DISCOVERY", "ACCOUNT_SUBDOMAIN", "WORKER_SETTINGS", "SECRET_METADATA",
+            "ACTIVE_DEPLOYMENT", "LATEST_VERSION", "SECRET_UPDATE",
+        )
+        for route in routes:
+            for phase in ("INITIAL", "FINAL", "UPDATE_ACK"):
+                with self.subTest(route=route, phase=phase):
+                    if route == "LATEST_VERSION" and phase in {"INITIAL", "FINAL"}:
+                        self.assertEqual(m.api_result(payload, route=route, phase=phase), payload["result"])
+                    else:
+                        with self.assertRaises(m.RepairError):
+                            m.api_result(payload, route=route, phase=phase)
+        variants = [
+            {key: value for key, value in payload.items() if key != "errors"},
+            {key: value for key, value in payload.items() if key != "messages"},
+            {key: value for key, value in payload.items() if key not in {"errors", "messages"}},
+            {key: value for key, value in payload.items() if key != "result"},
+            {**payload, "errors": []}, {**payload, "messages": []},
+            {**payload, "errors": ["untrusted"]}, {**payload, "errors": "untrusted"},
+            {**payload, "errors": {}}, {**payload, "messages": "untrusted"},
+            {**payload, "messages": {}}, {**payload, "success": False},
+            {**payload, "success": 1},
+        ]
+        for i, variant in enumerate(variants):
+            for phase in ("INITIAL", "FINAL"):
+                with self.subTest(case=i, phase=phase), self.assertRaises(m.RepairError):
+                    m.api_result(variant, route="LATEST_VERSION", phase=phase)
 
     def test_envelope_diagnostics_preserve_original_admission_decisions(self):
         cases = [

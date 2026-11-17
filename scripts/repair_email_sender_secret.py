@@ -333,9 +333,15 @@ def api_result(payload, *, route, phase):
         if not condition:
             raise RepairError(code, cloudflare_envelope=facts)
 
-    # Diagnostic-only change: preserve the exact original admission predicates.
     admit(is_object and payload.get("success") is True, "CLOUDFLARE_RESPONSE_UNSUCCESSFUL")
-    admit(payload.get("errors") == [] and type(payload.get("messages", [])) is list,
+    # Observed latest-version GET convention; never extend this to update ACKs.
+    latest_version_null_envelope = (
+        route == "LATEST_VERSION" and phase in {"INITIAL", "FINAL"}
+        and "errors" in payload and payload["errors"] is None
+        and "messages" in payload and payload["messages"] is None
+    )
+    admit((payload.get("errors") == [] and type(payload.get("messages", [])) is list)
+          or latest_version_null_envelope,
           "CLOUDFLARE_RESPONSE_INVALID")
     admit("result" in payload, "CLOUDFLARE_RESPONSE_INVALID")
     return payload["result"]
