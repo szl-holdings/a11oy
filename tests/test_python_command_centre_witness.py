@@ -188,3 +188,65 @@ def test_browser_errors_are_retained_without_waiving_the_gate(tmp_path):
     assert any("SYNTHETIC_EXPECTED_BROWSER_FAILURE" in item for item in evidence["errors"])
     assert evidence["counts"]["errors"] > 0
     assert evidence["violations"] == []
+
+def test_fixture_allows_only_its_exact_digest_assets():
+    import hashlib
+    from routers import command_centre_view as view
+    with witness.fixture_server(REVISION) as fixture:
+        assert len(fixture['asset_paths']) == 4
+        with httpx.Client(trust_env=False, follow_redirects=False) as client:
+            for path in fixture['asset_paths']:
+                digest, filename = path.split('/')[-2:]
+                assert digest == fixture['bindings'][view.ASSET_SOURCES[filename]]
+                assert witness.request_allowed('GET', fixture['origin'] + path,
+                                               fixture['origin'], fixture['allowed_paths'])
+                response = client.get(fixture['origin'] + path)
+                assert response.status_code == 200
+                assert hashlib.sha256(response.content).hexdigest() == digest
+                assert not witness.request_allowed(
+                    'GET', fixture['origin'] + path.replace(digest, '0' * 64),
+                    fixture['origin'], fixture['allowed_paths'])
+                assert not witness.request_allowed(
+                    'POST', fixture['origin'] + path, fixture['origin'], fixture['allowed_paths'])
+                assert not witness.request_allowed(
+                    'GET', fixture['origin'] + path + '?bypass=1',
+                    fixture['origin'], fixture['allowed_paths'])
+
+
+def test_browser_rejects_altered_script_and_keeps_all_send_buttons_disabled(monkeypatch):
+    from fastapi.responses import Response
+    from playwright.sync_api import expect, sync_playwright
+    from routers import command_centre as centre
+
+    register = centre.register
+    tampered_body = b"window.alteredAssetRan=true; for(const id of ['send','local-send','cpu-send']) document.getElementById(id).disabled=false;"
+
+    def register_with_tampered_transport(app):
+        result = register(app)
+        @app.middleware('http')
+        async def alter_script(request, call_next):
+            response = await call_next(request)
+            if request.url.path.startswith('/command-centre/assets/') and request.url.path.endswith('/app.js'):
+                return Response(tampered_body, media_type='text/javascript')
+            return response
+        return result
+
+    monkeypatch.setattr(centre, 'register', register_with_tampered_transport)
+    with witness.fixture_server(REVISION) as fixture:
+        with sync_playwright() as playwright, playwright.chromium.launch(headless=True) as browser:
+            page = browser.new_page()
+            console_errors, scripts = [], []
+            page.on('console', lambda message: console_errors.append(message.text)
+                    if message.type == 'error' else None)
+            page.on('response', lambda response: scripts.append(response)
+                    if response.url.endswith('/app.js') else None)
+            response = page.goto(fixture['origin'] + '/command-centre', wait_until='networkidle')
+            assert response.status == 200
+            assert len(scripts) == 1 and scripts[0].status == 200
+            assert scripts[0].body() == tampered_body
+            assert page.evaluate('window.alteredAssetRan === undefined') is True
+            for button in witness.BUTTONS:
+                expect(page.locator('#' + button)).to_be_disabled()
+            assert any('integrity' in error.lower() for error in console_errors)
+            assert all(row['method'] == 'GET' for row in fixture['requests'])
+            assert not any('/atelier/' in row['path'] for row in fixture['requests'])

@@ -6,6 +6,8 @@ from datetime import datetime, timedelta, timezone
 import inspect
 import hashlib
 import json
+import shutil
+import subprocess
 
 import pytest
 from fastapi import FastAPI
@@ -56,6 +58,7 @@ def test_owned_assets(client, path):
     assert response.status_code == 200
     assert response.headers['x-content-type-options'] == 'nosniff'
     assert len(response.content) > 100
+    assert response.headers['cache-control'] == 'no-store'
     assert client.head(path).status_code == 200
 
 
@@ -69,7 +72,11 @@ def test_manifest_has_source_order_not_mutation_or_inference(client, monkeypatch
     assert data['authorities']['source'] == 'szl-holdings/a11oy'
     assert data['release_order'][0] == 'protected_github_source'
     assert data['release_order'][1] == 'canonical_hf_publication'
-    assert len(data['surfaces']) == 18
+    assert len(data['surfaces']) == 19
+    oro = [s for s in data['surfaces'] if s['href'] == '/oro/evidence']
+    assert len(oro) == 1
+    assert oro[0]['title'] == 'ORO evidence'
+    assert 'no execution authority' in oro[0]['boundary']
     assert all(s['href'].startswith(('/', 'https://')) for s in data['surfaces'])
     assert any(s['href'] == '/command-v2' for s in data['surfaces'])
     assert any(s['href'] == 'https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab'
@@ -149,8 +156,10 @@ def test_get_does_not_call_provider_or_store_credentials():
 
 def test_css_has_existing_design_system(client):
     page = client.get('/command-centre').text
-    assert '/command-centre/szl/szl-design-system.css' in page
-    assert '/command-centre/szl/szl-console.css' in page
+    sources = centre.presentation_sources()
+    for name in ('szl-design-system.css', 'szl-console.css'):
+        digest = sources['routers/command_centre_web/szl/' + name]
+        assert '/command-centre/assets/' + digest + '/' + name in page
 
 
 def test_bundled_study_is_pinned_not_performance_evidence(client):
@@ -182,7 +191,13 @@ def test_owned_assets_emit_body_not_zero_copy_pathsend(client):
     assert 'id="local-turn-form"' in response.text
     assert 'id="cpu-turn-form"' in response.text
     assert 'id="cpu-public-ack"' in response.text
-    assert 'unsigned lab record' in response.text
+    for element_id in ('cpu-sources-panel', 'cpu-sources', 'cpu-citations'):
+        assert f'id="{element_id}"' in response.text
+    assert 'unsigned local lab record' in response.text
+    assert 'UNSIGNED_LOCAL' in response.text
+    assert 'public source handles' in response.text
+    assert 'no action authority' in response.text
+    assert 'Grounding consistency checks do not prove' in response.text
     assert 'maxlength="1200"' in response.text
     assert 'This is not Grok' in response.text
     assert 'id="study-models"' in response.text
@@ -255,3 +270,369 @@ def test_browser_action_binding_contract():
                             cwd=root, capture_output=True, text=True, encoding="utf-8",
                             errors="replace", timeout=60)
     assert result.returncode == 0, result.stdout + result.stderr
+
+def test_cpu_form_auth_disclosure_and_proposal_outcomes():
+    """Execute the shipped frontend against explicit, adversarial API outcomes."""
+    node = shutil.which("node")
+    assert node is not None, "Node.js is required for the CPU form behavior contract"
+    harness = r"""
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const {createHash,webcrypto} = require('node:crypto');
+const code = fs.readFileSync(0, 'utf8');
+const elements = new Map();
+function element(id = '') {
+  if (id && elements.has(id)) return elements.get(id);
+  const value = {
+    id, value: '', checked: false, hidden: true, disabled: false,
+    textContent: '', innerHTML: '', children: [], listeners: {},
+    addEventListener(event, listener) { this.listeners[event] = listener; },
+    replaceChildren(...children) { this.children = children; },
+    append(...children) { this.children.push(...children); },
+  };
+  if (id) elements.set(id, value);
+  return value;
+}
+const turnPath = '/api/a11oy/v1/atelier/cpu-lab/turn';
+const calls = [], windowListeners = {}, timeoutBudgets = [];
+let nextResult, allowConfirmation = true, confirmations = 0;
+const response = (value, status = 200) => ({value,status});
+const digest = text => createHash('sha256').update(text).digest('hex');
+const canonical = value => {
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
+  if (value && typeof value === 'object')
+    return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
+  return JSON.stringify(value);
+};
+function makeResponse(fixture, request = null) {
+  let value = fixture.value;
+  if (request && value.state === 'COMPLETED' && typeof value.answer === 'string') {
+    const request_id = 'b9d46744-f97f-4a21-b868-4d3fa68b77d2';
+    const handles = value.evidence_handles || [];
+    const citations = value.citations || [];
+    const payload = {
+      schema:'a11oy.atelier.single-turn.receipt/v1',phase:'OUTCOME',state:'COMPLETED',
+      request_id,client_request_id:request.client_request_id,provider:'szl_cpu_lab',
+      mode:'NO_PROVIDER_KEY_PUBLIC_CPU_LAB',model:'test-owned-model',
+      source_revision:'a'.repeat(40),decision_receipt_hash:'b'.repeat(64),
+      prompt_sha256:digest(request.prompt),answer_sha256:digest(value.answer),
+      classification:'PUBLIC',public_share_acknowledged:true,
+      provider_decision:value.provider_decision,
+      provider_output_signature_status:'UNSIGNED_LOCAL',
+      grounding_required:true,authority:'NO_ACTION_AUTHORITY',executed:false,
+      provider_outcome_uncertain:false,provider_output_authenticity_verified:false,
+      evidence_handles_sha256:digest(canonical(handles)),
+      citations_sha256:digest(canonical(citations)),
+    };
+    value = {...value,model:'test-owned-model',provider:'szl_cpu_lab',
+      mode:'NO_PROVIDER_KEY_PUBLIC_CPU_LAB',request_id,retry_safe:false,
+      provider_output_authenticity_verified:false,
+      receipt:{digest:'c'.repeat(64),persisted:true,signature_verified:true,
+        chain_scope:'SINGLE_PROCESS_RETAINED_METADATA_CHAIN',payload},
+      dsse:{signed:true,payloadType:'application/vnd.szl.atelier-turn+json',
+        payload:Buffer.from(JSON.stringify(payload)).toString('base64'),
+        signatures:[{keyid:'synthetic-key',sig:'ZmFrZQ=='}]}};
+  }
+  return new Response(JSON.stringify(value),{status:fixture.status,headers:{'content-type':'application/json'}});
+}
+const health = {
+  ready: true, mode: 'NO_PROVIDER_KEY_PUBLIC_CPU_LAB',
+  ready_scope: 'LOCAL_PREREQUISITES_ONLY', model: 'test-owned-model', blockers: [],
+  provider:'szl_cpu_lab',source_revision:'a'.repeat(40),
+};
+const getResults = new Map([
+  ['/api/a11oy/v1/command-centre/manifest', { surfaces: [] }],
+  ['/api/build-info', { git_sha: 'a'.repeat(40) }],
+  ['/api/a11oy/v1/atelier/health', { ready: false, blockers: ['NOT_CONFIGURED'] }],
+  ['/api/a11oy/v1/command-centre/inventory', {
+    counts: { models: 1, kernels: 0, datasets_public: 0, spaces_public: 1 },
+    state: 'OBSERVED_SNAPSHOT', observed_at: '2026-11-16T00:00:00Z',
+  }],
+  ['/api/a11oy/v1/command-centre/study', {
+    schema: 'szl.atelier.model-intake.v1', collection: { models: [] },
+  }],
+  ['/api/a11oy/v1/atelier/local/health', { ready: false, blockers: ['NOT_CONFIGURED'] }],
+  ['/api/a11oy/v1/atelier/cpu-lab/health', health],
+]);
+const context = {
+  document: { getElementById: element, createElement: () => element() },
+  window: {
+    addEventListener: (event, listener) => { windowListeners[event] = listener; },
+    confirm: () => { confirmations += 1; return allowConfirmation; },
+  },
+  AbortController, clearTimeout, crypto:webcrypto, Response, TextEncoder, TextDecoder, Uint8Array, atob, btoa,
+  setTimeout: (callback, milliseconds) => {
+    timeoutBudgets.push(milliseconds);
+    return setTimeout(callback, milliseconds);
+  },
+  fetch: async (url, options = {}) => {
+    calls.push({ url, options });
+    assert.ok(url.startsWith('/') && !url.startsWith('//'), 'Cross-origin request');
+    if (options.method === 'POST') {
+      assert.equal(url, turnPath);
+      assert.equal(options.credentials, 'same-origin');
+      assert.equal(options.cache, 'no-store');
+      const fixture = await (typeof nextResult === 'function' ? nextResult(JSON.parse(options.body)) : nextResult);
+      return makeResponse(fixture,JSON.parse(options.body));
+    }
+    assert.ok(getResults.has(url), 'Unexpected page-load request');
+    assert.equal(options.headers?.Authorization, undefined);
+    return makeResponse(response(getResults.get(url)));
+  },
+};
+vm.runInNewContext(code, context);
+const settle = () => new Promise(resolve => setImmediate(resolve));
+const submit = () => element('cpu-turn-form').listeners.submit({ preventDefault() {} });
+const posts = () => calls.filter(call => call.options.method === 'POST');
+function prepare() {
+  element('cpu-operator-key').value = 'frontend-test-operator';
+  element('cpu-prompt').value = 'Which public source supports this claim?';
+  element('cpu-public-ack').checked = true;
+  element('cpu-public-ack').listeners.change();
+}
+const proposal = {
+  state: 'COMPLETED', answer: '<img src=x> is inert proposal text.',
+  provider_decision: 'PROPOSAL', provider_output_signature_status: 'UNSIGNED_LOCAL',
+  grounding_required: true, authority: 'NO_ACTION_AUTHORITY', executed: false,
+  evidence_handles: [
+    { nodeId: 'public:alpha', nodeKind: 'DOCUMENT', label: '<img src=x> source', note: '<script>inert()</script>' },
+    { nodeId: 'public:beta', nodeKind: 'DOCUMENT', label: 'Second public source', note: 'Returned evidence handle' },
+  ],
+  citations: ['public:alpha'],
+  receipt: { digest: 'e'.repeat(64), phase: 'OUTCOME' },
+  dsse: { payloadType: 'test-only', payload: 'test-only' },
+};
+
+(async () => {
+  await settle();
+  assert.equal(posts().length, 0, 'Page load caused inference');
+  assert.equal(calls.length, getResults.size);
+  assert.equal(element('cpu-send').disabled, false);
+  assert.match(element('cpu-state').textContent, /remote identity not yet checked/);
+
+  prepare(); element('cpu-operator-key').value = '';
+  await submit(); assert.equal(posts().length, 0, 'Anonymous request escaped');
+  prepare(); element('cpu-public-ack').checked = false;
+  await submit(); assert.equal(posts().length, 0, 'Missing disclosure acknowledgement');
+  prepare(); element('cpu-prompt').value += ' ';
+  await submit(); assert.equal(posts().length, 0, 'Prompt was silently normalized');
+  prepare(); element('cpu-prompt').listeners.input();
+  assert.equal(element('cpu-public-ack').checked, false, 'Edited prompt retained acknowledgement');
+  await submit(); assert.equal(posts().length, 0);
+
+  prepare(); nextResult = response(proposal);
+  await submit();
+  assert.equal(posts().length, 1);
+  const sent = posts()[0];
+  assert.equal(timeoutBudgets.at(-1), 90000);
+  assert.ok(timeoutBudgets.at(-1) >= 3 * 4000 + 60000 + 10000,
+    'Client budget must cover three preflights, inference and response grace');
+  assert.equal(sent.options.headers.Authorization, 'Bearer frontend-test-operator');
+  const actualBody = JSON.parse(sent.options.body);
+  assert.match(actualBody.client_request_id,/^[0-9a-f-]{36}$/);
+  delete actualBody.client_request_id;
+  assert.deepEqual(actualBody, {
+    prompt: 'Which public source supports this claim?', declared: 'PUBLIC',
+    public_share_acknowledged: true, max_output_tokens: 24,
+  });
+  assert.equal(element('cpu-public-ack').checked, false);
+  assert.equal(element('cpu-answer').hidden, false);
+  assert.equal(element('cpu-answer').textContent, proposal.answer);
+  assert.equal(element('cpu-answer').innerHTML, '');
+  assert.equal(element('cpu-receipt-panel').hidden, false);
+  assert.equal(JSON.parse(element('cpu-receipt').textContent).answer, undefined);
+  assert.equal(element('cpu-sources-panel').hidden, false);
+  assert.equal(element('cpu-sources').children.length, proposal.evidence_handles.length);
+  for (const [index, row] of element('cpu-sources').children.entries()) {
+    const handle = proposal.evidence_handles[index];
+    assert.equal(row.textContent, `${handle.label}\n${handle.nodeKind} · ${handle.nodeId}\n${handle.note}`);
+    assert.equal(row.innerHTML, '', 'Source metadata became markup');
+    assert.equal(row.href, undefined, 'A URL was invented for an evidence handle');
+  }
+  assert.equal(element('cpu-citations').textContent, 'Citations returned: public:alpha');
+  assert.deepEqual(JSON.parse(element('cpu-receipt').textContent).evidence_handles, proposal.evidence_handles);
+  assert.match(element('cpu-turn-status').textContent, /UNSIGNED_LOCAL; no action authority/);
+
+  const invalid = [
+    { provider_decision: 'HOLD' }, { provider_output_signature_status: 'SIGNED' },
+    { grounding_required: false }, { authority: 'ACTION_AUTHORITY' },
+    { executed: true }, { state: 'HOLD' }, { answer: '   ' },
+    { evidence_handles: [] }, { citations: ['unknown:source'] },
+  ];
+  const missingDecision = { ...proposal }; delete missingDecision.provider_decision;
+  for (const value of [...invalid.map(change => ({ ...proposal, ...change })), missingDecision]) {
+    prepare(); nextResult = response(value);
+    const before = posts().length;
+    await submit(); await settle();
+    assert.equal(posts().length, before + 1, 'Automatic retry after invalid outcome');
+    assert.equal(element('cpu-answer').hidden, true, 'Unverified proposal displayed');
+    assert.equal(element('cpu-answer').textContent, '');
+    assert.equal(element('cpu-sources-panel').hidden, true);
+    assert.equal(element('cpu-sources').children.length, 0);
+    assert.equal(element('cpu-citations').textContent, '');
+    assert.equal(JSON.parse(element('cpu-receipt').textContent).evidence_handles, undefined);
+    assert.match(element('cpu-turn-status').textContent, /UNAVAILABLE.*CPU_LAB_INVALID_OUTCOME/);
+    assert.equal(element('cpu-receipt-panel').hidden, false);
+  }
+
+  for (const [state, status] of [['ABSTAIN', 422], ['REVIEW', 409], ['BLOCKED', 503]]) {
+    prepare(); nextResult = response({
+      ...proposal, state, provider_decision: state, code: 'CPU_LAB_' + state,
+    }, status);
+    const before = posts().length;
+    await submit(); await settle();
+    assert.equal(posts().length, before + 1, 'Automatic retry after terminal decision');
+    assert.equal(element('cpu-answer').hidden, true, 'Terminal decision exposed an answer');
+    assert.equal(element('cpu-sources-panel').hidden, true, 'Terminal decision exposed proposal sources');
+    assert.equal(element('cpu-sources').children.length, 0);
+    assert.equal(JSON.parse(element('cpu-receipt').textContent).evidence_handles, undefined);
+    assert.equal(JSON.parse(element('cpu-receipt').textContent).citations, undefined);
+    assert.match(element('cpu-turn-status').textContent, new RegExp(state + '.*CPU_LAB_' + state));
+    assert.equal(JSON.parse(element('cpu-receipt').textContent).provider_decision, state);
+  }
+
+  for (const reason of ['INCOMPLETE_OUTPUT', '<img src=x>', 'X'.repeat(65)]) {
+    prepare(); nextResult = response({
+      state: 'UNAVAILABLE', code: 'CPU_LAB_INVALID_RESPONSE', reason_code: reason,
+      receipt: { payload: { contract_reason_code: reason } },
+    }, 502);
+    await submit();
+    const status = element('cpu-turn-status').textContent;
+    assert.match(status, /UNAVAILABLE · CPU_LAB_INVALID_RESPONSE/);
+    assert.equal(status.includes(` · ${reason}.`), reason === 'INCOMPLETE_OUTPUT',
+      'Only a bounded uppercase contract reason should appear beside the failure code');
+    assert.equal(element('cpu-turn-status').innerHTML, '');
+    assert.equal(element('cpu-answer').hidden, true);
+  }
+
+  prepare();
+  let release;
+  nextResult = () => new Promise(resolve => { release = resolve; });
+  const beforePending = posts().length;
+  const pending = submit();
+  await submit();
+  assert.equal(posts().length, beforePending + 1, 'Double submission');
+  release(response(proposal)); await pending;
+
+  prepare(); nextResult = () => { throw new Error('transport timeout'); };
+  await submit(); await settle();
+  const beforeRetry = posts().length, beforeConfirm = confirmations;
+  assert.match(element('cpu-turn-status').textContent, /outcome uncertain/);
+  allowConfirmation = false; prepare(); await submit();
+  assert.equal(posts().length, beforeRetry);
+  assert.equal(confirmations, beforeConfirm + 1, 'Uncertain retry needs fresh confirmation');
+
+  element('operator-key').value = 'test-grok-operator';
+  element('local-operator-key').value = 'test-local-operator';
+  windowListeners.pagehide();
+  for (const id of ['operator-key', 'local-operator-key', 'cpu-operator-key']) {
+    assert.equal(element(id).value, '', 'Credential retained after page exit');
+  }
+  assert.equal(element('cpu-public-ack').checked, false);
+})().catch(error => { console.error(error.stack || error); process.exitCode = 1; });
+"""
+    result = subprocess.run(
+        [node, "-e", harness],
+        input=(centre.ROOT / "app.js").read_text(encoding="utf-8"),
+        encoding="utf-8", capture_output=True, timeout=20, check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize('filename,suffix,media_type', [
+    ('app.js', 'app.js', 'text/javascript'),
+    ('style.css', 'style.css', 'text/css'),
+    ('szl-design-system.css', 'szl/szl-design-system.css', 'text/css'),
+    ('szl-console.css', 'szl/szl-console.css', 'text/css'),
+])
+def test_digest_assets_serve_exact_manifest_bytes(client, monkeypatch, filename, suffix, media_type):
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError('asset delivery cannot contact a provider')
+    monkeypatch.setattr(centre, 'http_json', forbidden)
+    body = (centre.ROOT / suffix).read_bytes()
+    digest = hashlib.sha256(body).hexdigest()
+    assert centre.presentation_sources()['routers/command_centre_web/' + suffix] == digest
+    path = '/command-centre/assets/' + digest + '/' + filename
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.content == body
+    assert hashlib.sha256(response.content).hexdigest() == digest
+    assert response.headers['content-type'] == media_type + '; charset=utf-8'
+    assert response.headers['x-content-type-options'] == 'nosniff'
+    assert response.headers['cache-control'] == 'public, max-age=31536000, immutable, no-transform'
+    head = client.head(path)
+    assert head.status_code == 200 and head.content == b''
+    assert head.headers['content-length'] == str(len(body))
+    assert client.post(path, json={}).status_code == 405
+
+
+def test_stale_digest_never_falls_back_to_new_asset_bytes(client, tmp_path, monkeypatch):
+    original, updated = b'original script bytes', b'changed script bytes'
+    path = tmp_path / 'app.js'
+    path.write_bytes(original)
+    monkeypatch.setattr(centre, 'ROOT', tmp_path)
+    old_url = '/command-centre/assets/' + hashlib.sha256(original).hexdigest() + '/app.js'
+    assert client.get(old_url).content == original
+    path.write_bytes(updated)
+    stale = client.get(old_url)
+    assert stale.status_code == 404
+    assert stale.json() == {'state': 'UNAVAILABLE', 'code': 'ASSET_DIGEST_MISMATCH'}
+    assert stale.headers['cache-control'] == 'no-store'
+    assert updated not in stale.content
+    assert client.head(old_url).status_code == 404
+    new_url = '/command-centre/assets/' + hashlib.sha256(updated).hexdigest() + '/app.js'
+    assert client.get(new_url).content == updated
+    assert client.get('/command-centre/app.js').content == updated
+
+
+def test_response_hash_checks_the_read_bytes_not_a_reopened_path(client, tmp_path, monkeypatch):
+    original, updated = b'bytes admitted for this response', b'changed after read'
+    path = tmp_path / 'app.js'
+    path.write_bytes(original)
+    monkeypatch.setattr(centre, 'ROOT', tmp_path)
+    read = centre._bounded_source
+    reads = []
+    def changing_source(source, limit):
+        reads.append((source, limit))
+        body = read(source, limit)
+        source.write_bytes(updated)
+        return body
+    monkeypatch.setattr(centre, '_bounded_source', changing_source)
+    url = '/command-centre/assets/' + hashlib.sha256(original).hexdigest() + '/app.js'
+    response = client.get(url)
+    assert response.status_code == 200 and response.content == original
+    assert reads == [(path, 1048576)]
+    monkeypatch.setattr(centre, '_bounded_source', read)
+    assert client.get(url).status_code == 404
+
+
+@pytest.mark.parametrize('digest,filename', [
+    ('a' * 63, 'app.js'), ('A' * 64, 'app.js'), ('g' * 64, 'app.js'),
+    ('a' * 65, 'app.js'), ('a' * 64, 'other.js'), ('a' * 64, 'index.html'),
+    ('a' * 64, 'szl/szl-console.css'), ('a' * 64, 'app.js/extra'),
+    ('a' * 64, '%2e%2e%2fapp.js'), ('a' * 64, '%5capp.js'),
+    ('a' * 64, ''), ('a' * 64, 'app.js%00'), ('a' * 64, 'APP.JS'),
+])
+def test_invalid_digest_or_filename_never_resolves_a_file(client, monkeypatch, digest, filename):
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError('invalid asset request resolved a file')
+    monkeypatch.setattr(centre, '_bounded_source', forbidden)
+    response = client.get('/command-centre/assets/' + digest + '/' + filename)
+    assert response.status_code == 404
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.json()['code'] == 'ASSET_NOT_FOUND'
+
+
+@pytest.mark.parametrize('kind', ['missing', 'directory', 'oversized'])
+def test_unavailable_digest_asset_is_bounded_uncached_and_explicit(client, tmp_path, monkeypatch, kind):
+    path = tmp_path / 'app.js'
+    if kind == 'directory':
+        path.mkdir()
+    elif kind == 'oversized':
+        path.write_bytes(b'x' * 1048577)
+    monkeypatch.setattr(centre, 'ROOT', tmp_path)
+    response = client.get('/command-centre/assets/' + 'a' * 64 + '/app.js')
+    assert response.status_code == 503
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.json() == {'state': 'UNAVAILABLE', 'code': 'ASSET_UNAVAILABLE'}

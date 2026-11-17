@@ -22,9 +22,11 @@ unproven until startup and native live proof.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -78,9 +80,21 @@ GDW_VARIABLES = {
     "GDW_OUTBOX_BATCH_SIZE": "100",
     "GDW_OUTBOX_LEASE_SECONDS": "300",
 }
+# ADR-0001 bounds continuous-write snapshot exposure at five minutes. Keep
+# cadence in the existing canonical convergence owner, below the 900s alert;
+# configuring this inert setting does not activate state-store v2.
+STATE_STORE_VARIABLES = {"A11OY_STATE_PERIODIC_SECONDS": "300"}
+# Match Settings.from_environ in a11oy_state_store without importing runtime
+# storage code into the deployment helper. Bounds reject; they do not clamp.
+STATE_STORE_CADENCE_SETTINGS = {
+    "A11OY_STATE_DEBOUNCE_SECONDS": (30, 1, 3600),
+    "A11OY_STATE_PERIODIC_SECONDS": (300, 5, 86400),
+    "A11OY_STATE_ALERT_SECONDS": (900, 60, 86400),
+}
 RUNTIME_VARIABLES = {
     **SERIES_A_VARIABLES,
     **GDW_VARIABLES,
+    **STATE_STORE_VARIABLES,
 }
 
 
@@ -126,8 +140,13 @@ class RuntimeConfigError(RuntimeError):
             "LEGACY_PRINCIPAL_CONFLICT", "PERSISTENT_STORAGE_UNAVAILABLE",
             "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
             "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
+            "RUNTIME_CONFIG_DRIFT", "RUNTIME_CONFIG_UNAVAILABLE",
+            "STATE_STORE_CADENCE_INVALID",
             "MANAGED_STORAGE_UNAVAILABLE", "MANAGED_OUTCOME_UNCERTAIN",
             "SOURCE_OWNERSHIP_UNAVAILABLE", "SOURCE_NOT_CURRENT_MAIN",
+            "STATE_STORE_RELEASE_REQUIRED", "STATE_STORE_RELEASE_UNVERIFIED",
+            "STATE_STORE_RELEASE_CHANGED", "STATE_STORE_OBSERVATION_EXPIRED",
+            "RUNTIME_CONFIG_REQUEST_REFUSED", "RUNTIME_CONFIG_OUTCOME_UNCERTAIN",
             *INSTALLED_AUTHORITY_DIAGNOSTICS,
         }
         self.diagnostic_code = diagnostic_code if diagnostic_code in allowed else "PREREQUISITES_UNAVAILABLE"
@@ -341,6 +360,46 @@ def plan_volumes(
     return records, True
 
 
+def validate_state_store_cadence(
+    current: Mapping[str, Any], desired: Mapping[str, str],
+) -> None:
+    """Validate the planned schedule without changing preserved settings.
+
+    Managed periodic drift is repairable, including malformed old values.
+    Readback still requires its exact managed value before reporting convergence.
+    Debounce and alert are preserved, so malformed values must stop all writes.
+    """
+    effective: dict[str, float] = {}
+    for name, (default, minimum, maximum) in STATE_STORE_CADENCE_SETTINGS.items():
+        raw = desired[name] if name in desired else (
+            _value(current[name], "value") if name in current else ""
+        )
+        try:
+            if type(raw) is not str:
+                raise ValueError("malformed setting metadata")
+            raw = raw.strip()
+            parsed = float(raw) if raw else float(default)
+        except (TypeError, ValueError):
+            raise RuntimeConfigError(
+                "SETUP_REQUIRED: state-store cadence setting is invalid",
+                diagnostic_code="STATE_STORE_CADENCE_INVALID",
+            ) from None
+        # As in the runtime parser, this also rejects NaN and infinities.
+        if not minimum <= parsed <= maximum:
+            raise RuntimeConfigError(
+                "SETUP_REQUIRED: state-store cadence setting is out of range",
+                diagnostic_code="STATE_STORE_CADENCE_INVALID",
+            )
+        effective[name] = parsed
+    # Quiet-time debounce and periodic overdue are alternative snapshot triggers.
+    # A longer valid debounce does not extend the periodic exposure bound.
+    if effective["A11OY_STATE_PERIODIC_SECONDS"] >= effective["A11OY_STATE_ALERT_SECONDS"]:
+        raise RuntimeConfigError(
+            "SETUP_REQUIRED: periodic snapshot interval must be below alert interval",
+            diagnostic_code="STATE_STORE_CADENCE_INVALID",
+        )
+
+
 def plan_variables(
     current: Mapping[str, Any],
     secret_names: Iterable[str],
@@ -357,13 +416,14 @@ def plan_variables(
         raise RuntimeConfigError("qualified durable storage cannot be replaced by the legacy mount contract")
 
     secrets = set(secret_names)
-    collisions = sorted(set(desired) & secrets)
+    collisions = sorted((set(desired) | set(STATE_STORE_CADENCE_SETTINGS)) & secrets)
     if collisions:
         raise RuntimeConfigError(
             "runtime variable names collide with Space secrets: "
             + ",".join(collisions)
         )
 
+    validate_state_store_cadence(current, desired)
     changes: dict[str, str] = {}
     for name, expected in desired.items():
         item = current.get(name)
@@ -447,9 +507,270 @@ def await_readback(
         )
     raise RuntimeConfigError(
         f"runtime readback did not converge after {attempts} attempts: "
-        + "; ".join(detail)
+        + "; ".join(detail),
+        diagnostic_code="RUNTIME_CONFIG_DRIFT",
     )
 
+
+# Configuration writes can restart a process without changing its code revision.
+# This is a fresh refusal gate, not an atomic lock or an audited handover.
+STORAGE_STATUS_URL = DEFAULT_CANONICAL_ORIGIN + "/api/a11oy/v1/storage/status"
+STATE_OBSERVATION_SECONDS = 30.0
+CONFIG_SUBMISSION_SECONDS = 5.0
+MAX_STORAGE_STATUS_BYTES = 256 * 1024
+
+
+def load_state_store() -> Any:
+    """Load only existing parser dependencies under isolated Python; never activate."""
+    name = "_series_a_release_state_store"
+    root = Path(__file__).resolve().parents[1]
+    if name not in sys.modules:
+        path = root / "a11oy_state_store.py"
+        spec = importlib.util.spec_from_file_location(name, path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("state parser unavailable")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        previous_path = list(sys.path)
+        try:
+            # The canonical workflow uses -I. Its existing state parser imports
+            # these repository siblings; scope path resolution to this import.
+            sys.path.insert(0, str(root))
+            spec.loader.exec_module(module)
+            for dependency in ("gdw_sqlite_repair", "gdw_durable_storage"):
+                imported = sys.modules.get(dependency)
+                if Path(getattr(imported, "__file__", "")).resolve() != (root / (dependency + ".py")).resolve():
+                    raise RuntimeError("state dependency source mismatch")
+        except Exception:
+            sys.modules.pop(name, None)
+            raise
+        finally:
+            sys.path[:] = previous_path
+    module = sys.modules[name]
+    if Path(module.__file__).resolve() != (root / "a11oy_state_store.py").resolve():
+        raise RuntimeError("state parser source mismatch")
+    return module
+
+def read_storage_status() -> Mapping[str, Any]:
+    """One bounded, unauthenticated GET to the canonical runtime."""
+    import httpx
+
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate field")
+            result[key] = value
+        return result
+
+    def nonfinite(_value):
+        raise ValueError("nonfinite value")
+
+    with httpx.Client(transport=httpx.HTTPTransport(retries=0),
+                      follow_redirects=False, timeout=5) as client:
+        with client.stream("GET", STORAGE_STATUS_URL,
+                           headers={"Accept": "application/json", "Accept-Encoding": "identity"}) as response:
+            if response.status_code != 200 or response.headers.get("content-encoding", "").lower() not in ("", "identity"):
+                raise ValueError("storage status unavailable")
+            raw = bytearray()
+            for part in response.iter_raw():
+                if len(raw) + len(part) > MAX_STORAGE_STATUS_BYTES:
+                    raise ValueError("storage status too large")
+                raw.extend(part)
+    result = json.loads(raw, object_pairs_hook=unique, parse_constant=nonfinite)
+    if type(result) is not dict:
+        raise ValueError("storage status is not an object")
+    return result
+
+
+class ReleasedStateGuard:
+    """Pin one observed release and recheck the CURRENT tip before each write.
+
+    Public status alone can be served by an older boot. The private HEAD is the
+    current fence. Existing audited handover and object verification remain
+    separate prerequisites; this guard neither performs nor certifies them.
+    """
+
+    def __init__(self, api, *, status_get=None, observe=None, clock=time.monotonic):
+        self.api = api
+        self.status_get = status_get or read_storage_status
+        self.observe = observe
+        self.clock = clock
+        self.pinned = None
+        self.summary = {"state": "NOT_OBSERVED"}
+        self.temporary = None
+        self.backend = None
+
+    def close(self):
+        if self.temporary is not None:
+            self.temporary.cleanup()
+
+    def _observe(self, ss):
+        if self.observe is not None:
+            return self.observe()
+        if self.backend is None:
+            import tempfile
+            self.temporary = tempfile.TemporaryDirectory(prefix="a11oy-config-release-")
+            self.backend = ss.HFDatasetHeadBackend(self.api, ss.DEFAULT_DATASET, Path(self.temporary.name))
+        return self.backend.observe()
+
+    def admit(self):
+        import hashlib
+        import math
+
+        def require(condition, code="STATE_STORE_RELEASE_UNVERIFIED"):
+            if not condition:
+                raise RuntimeConfigError("SETUP_REQUIRED: storage release is not verified",
+                                         diagnostic_code=code)
+        started = self.clock()
+        try:
+            require(type(started) in (int, float) and math.isfinite(started))
+            ss = load_state_store()
+            variables = self.api.get_space_variables(repo_id=CANONICAL_SPACE)
+            require(isinstance(variables, Mapping))
+            configured = _value(variables.get(ss.ENABLE_ENV), "value", "")
+            require(type(configured) is str)
+            configured = configured.strip().lower()
+            secrets = self.api.get_space_secrets(repo_id=CANONICAL_SPACE)
+            require(isinstance(secrets, (Mapping, list, tuple, set))
+                    and ss.ENABLE_ENV not in secrets)
+            status = self.status_get()
+            require(type(status) is dict and status.get("schema") == ss.STATUS_SCHEMA)
+            if status.get("mode") == ss.MODE_DISABLED:
+                # A new configuration can precede the old process's restart.
+                # A secret activation flag is deliberately not read or guessed.
+                require(configured in {"", "0", "false", "off", "disabled"}
+                        and status.get("role") == ss.MODE_DISABLED
+                        and status.get("writable") is True)
+                pinned = ("DISABLED",)
+                summary = {"state": "DISABLED"}
+            else:
+                require(configured == ss.ENABLED_VALUE
+                        and status.get("mode") == ss.MODE_FENCED
+                        and status.get("role") == ss.ROLE_RELEASED
+                        and status.get("writable") is False
+                        and (status.get("lease") or {}).get("state") == ss.STATE_RELEASED,
+                        "STATE_STORE_RELEASE_REQUIRED")
+                require(status.get("active_errors") == {} and status.get("pending_publish") == []
+                        and status.get("last_error") is None and status.get("alert") is False)
+                observed = self._observe(ss)
+                head = ss.parse_head(observed.body)
+                require(type(observed.revision) is str and re.fullmatch(r"[0-9a-f]{40}", observed.revision)
+                        and head["state"] == ss.STATE_RELEASED and head["transition"] == "RELEASE"
+                        and head["bucket"] == CANONICAL_BUCKET
+                        and type(status.get("epoch")) is int and status["epoch"] == head["epoch"]
+                        and type(status["lease"].get("sequence")) is int
+                        and status["lease"]["sequence"] == head["sequence"]
+                        and status.get("claim") == head["claim"]["kind"])
+                stores = status.get("stores")
+                labels = {spec.label for spec in ss.STORES}
+                require(type(stores) is dict and set(stores) == labels
+                        and set(head["snapshots"]) == labels)
+                for spec in ss.STORES:
+                    row, entry = stores[spec.label], head["snapshots"][spec.label]
+                    require(type(row) is dict and row.get("health") == "OK"
+                            and row.get("kind") == spec.kind
+                            and type(row.get("snapshot_failures")) is int and row["snapshot_failures"] == 0
+                            and row.get("blocked_code") is None and row.get("last_error_code") is None
+                            and row.get("sha16") == entry["sha256"][:16]
+                            and entry["kind"] == spec.kind
+                            and row.get("integrity") == entry["integrity"])
+                pinned = (observed.revision, hashlib.sha256(observed.body).hexdigest(),
+                          head["epoch"], head["writer_id"], head["boot_id"])
+                # Do not mistake reading an old immutable release for ownership
+                # of the current tip after a successor has claimed it.
+                final = self._observe(ss)
+                require(final.revision == observed.revision and final.body == observed.body,
+                        "STATE_STORE_RELEASE_CHANGED")
+                summary = {"state": "RELEASED", "epoch": head["epoch"], "sequence": head["sequence"],
+                           "claim": head["claim"]["kind"], "manifest_sha256": pinned[1]}
+            require(self.pinned is None or pinned == self.pinned, "STATE_STORE_RELEASE_CHANGED")
+            completed = self.clock()
+            require(type(completed) in (int, float) and math.isfinite(completed)
+                    and 0 <= completed - started < STATE_OBSERVATION_SECONDS,
+                    "STATE_STORE_OBSERVATION_EXPIRED")
+            self.pinned, self.summary = pinned, summary
+            return min(started + STATE_OBSERVATION_SECONDS, completed + CONFIG_SUBMISSION_SECONDS)
+        except RuntimeConfigError:
+            raise
+        except Exception:
+            raise RuntimeConfigError("SETUP_REQUIRED: storage release observation is unavailable",
+                                     diagnostic_code="STATE_STORE_RELEASE_UNVERIFIED") from None
+
+
+class RuntimeMutationClient:
+    """Invocation-local transport for the two existing configuration operations.
+
+    SDK-equivalent POST variables / PUT volumes payloads, no redirects or
+    retries. Only the current prepared request may pass its dispatch deadline.
+    No SDK global client factory or other invocation's transport is changed.
+    """
+
+    def __init__(self, token, *, transport=None, clock=time.monotonic):
+        import httpx
+        self.token = token
+        self.clock = clock
+        self.pending = None
+        self.attempted = []
+        self.acknowledged = []
+        self.client = httpx.Client(
+            transport=transport or httpx.HTTPTransport(retries=0),
+            follow_redirects=False, timeout=20, event_hooks={"request": [self._guard]})
+
+    def close(self):
+        self.client.close()
+
+    def _guard(self, request):
+        prepared = self.pending
+        if (prepared is None or prepared["submitted"]
+                or request.method != prepared["method"] or str(request.url) != prepared["url"]
+                or json.loads(request.content) != prepared["payload"]):
+            raise RuntimeConfigError("configuration request is outside the admitted operation",
+                                     diagnostic_code="RUNTIME_CONFIG_REQUEST_REFUSED")
+        import math
+        now = self.clock()
+        if (type(now) not in (int, float) or not math.isfinite(now)
+                or not now < prepared["deadline"]):
+            raise RuntimeConfigError("storage release observation expired before submission",
+                                     diagnostic_code="STATE_STORE_OBSERVATION_EXPIRED")
+        prepared["submitted"] = True
+        self.attempted.append(prepared["label"])
+
+    def submit(self, method, suffix, payload, *, deadline, label):
+        if (method, suffix) not in {("POST", "variables"), ("PUT", "volumes")}:
+            raise RuntimeConfigError("configuration request is outside the admitted operation",
+                                     diagnostic_code="RUNTIME_CONFIG_REQUEST_REFUSED")
+        import math
+        now = self.clock()
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+                or type(now) not in (int, float) or not math.isfinite(now)
+                or not 0 < deadline - now <= CONFIG_SUBMISSION_SECONDS):
+            raise RuntimeConfigError("storage release observation expired before submission",
+                                     diagnostic_code="STATE_STORE_OBSERVATION_EXPIRED")
+        url = "https://huggingface.co/api/spaces/" + CANONICAL_SPACE + "/" + suffix
+        self.pending = {"method": method, "url": url, "payload": payload,
+                        "deadline": deadline, "label": label, "submitted": False}
+        try:
+            import httpx
+            remaining = max(0.001, deadline - self.clock())
+            with self.client.stream(method, url, json=payload,
+                                    headers={"Authorization": "Bearer " + self.token},
+                                    timeout=httpx.Timeout(remaining)) as response:
+                if not 200 <= response.status_code < 300:
+                    raise RuntimeError("configuration response was not successful")
+            self.acknowledged.append(label)
+        except RuntimeConfigError:
+            raise
+        except Exception:
+            raise RuntimeConfigError("configuration submission outcome is uncertain; no retry was made",
+                                     diagnostic_code="RUNTIME_CONFIG_OUTCOME_UNCERTAIN") from None
+        finally:
+            self.pending = None
+
+    def outcome(self):
+        return {"attempted": list(self.attempted), "acknowledged": list(self.acknowledged),
+                "possible_partial_configuration": bool(self.attempted),
+                "automatic_retry": False}
 
 def configure(
     *,
@@ -475,11 +796,30 @@ def configure(
     try:
         from huggingface_hub import HfApi
 
-        api = HfApi(token=token)
+        api = HfApi(endpoint='https://huggingface.co', token=token)
     except Exception:
         raise RuntimeConfigError("SETUP_REQUIRED: Space metadata client is unavailable", diagnostic_code="SPACE_CLIENT_UNAVAILABLE") from None
     prerequisites = manual_prerequisites(api, repo_id=repo_id, origin=origin, authority_get=authority_get)
     if check_only:
+        if (prerequisites["converged"] is True and prerequisites["state"] == "READY"
+                and prerequisites["credential_authority_state"] == "VERIFIED"):
+            # Installed authority alone does not prove configuration parity.
+            # A verification pass reads the full contract once and never writes.
+            try:
+                secret_names = api.get_space_secrets(repo_id=repo_id)
+                _, attempts = await_readback(
+                    api, repo_id=repo_id, bucket=bucket, secret_names=secret_names,
+                    attempts=1, delay_seconds=0,
+                )
+            except RuntimeConfigError:
+                raise
+            except Exception:
+                raise RuntimeConfigError(
+                    "SETUP_REQUIRED: runtime configuration readback is unavailable",
+                    diagnostic_code="RUNTIME_CONFIG_UNAVAILABLE",
+                ) from None
+            prerequisites = dict(prerequisites, variables_managed=sorted(RUNTIME_VARIABLES),
+                                 readback_attempts=attempts)
         return prerequisites
     # Only independently verified installed authority (live runtime key equal
     # to both pins) admits configuration; every other state stays held.
@@ -502,30 +842,46 @@ def configure(
     variables = api.get_space_variables(repo_id=repo_id)
     variable_changes = plan_variables(variables, secret_names)
 
-    if volume_change:
-        require_current_main(expected_source_sha, main_reader)
-        api.set_space_volumes(
-            repo_id=repo_id,
-            volumes=_volume_objects(desired_volumes),
-        )
-    for name, value in sorted(variable_changes.items()):
-        require_current_main(expected_source_sha, main_reader)
-        api.add_space_variable(
-            repo_id=repo_id,
-            key=name,
-            value=value,
-            description=(
-                "Protected deployment contract for persistent A11oy Series-A "
-                "and GDW runtime storage."
-            ),
-        )
-
-    observed_volumes, readback_attempts = await_readback(
-        api,
-        repo_id=repo_id,
-        bucket=bucket,
-        secret_names=secret_names,
-    )
+    guard = None
+    writer = None
+    try:
+        if volume_change or variable_changes:
+            guard = ReleasedStateGuard(api)
+            writer = RuntimeMutationClient(token)
+        if volume_change:
+            volumes = _volume_objects(desired_volumes)
+            payload = {"volumes": [volume.to_dict() for volume in volumes]}
+            require_current_main(expected_source_sha, main_reader)
+            deadline = guard.admit()
+            require_current_main(expected_source_sha, main_reader)
+            writer.submit("PUT", "volumes", payload, deadline=deadline, label="volumes")
+        for name, value in sorted(variable_changes.items()):
+            payload = {"key": name, "value": value,
+                       "description": "Protected deployment contract for persistent A11oy Series-A "
+                                      "and GDW runtime storage."}
+            require_current_main(expected_source_sha, main_reader)
+            deadline = guard.admit()
+            require_current_main(expected_source_sha, main_reader)
+            writer.submit("POST", "variables", payload, deadline=deadline, label=name)
+        observed_volumes, readback_attempts = await_readback(
+            api, repo_id=repo_id, bucket=bucket, secret_names=secret_names)
+    except RuntimeConfigError as error:
+        if writer is not None:
+            error.mutation_outcome = writer.outcome()
+        raise
+    except Exception:
+        error = RuntimeConfigError("runtime configuration readback is unavailable",
+                                   diagnostic_code="RUNTIME_CONFIG_UNAVAILABLE")
+        if writer is not None:
+            error.mutation_outcome = writer.outcome()
+        raise error from None
+    finally:
+        # Cleanup must not replace the recorded mutation outcome with an
+        # arbitrary provider/filesystem exception.
+        for resource in (writer, guard):
+            if resource is not None:
+                with contextlib.suppress(Exception):
+                    resource.close()
 
     return {
         "schema": "szl.hf-series-a-runtime-config/v1",
@@ -538,6 +894,10 @@ def configure(
         "readback_attempts": readback_attempts,
         "variables_managed": sorted(RUNTIME_VARIABLES),
         "variables_changed": sorted(variable_changes),
+        "state_store_admission": guard.summary if guard is not None else {"state": "NO_CHANGES"},
+        "runtime_boot_verified": False,
+        "storage_preservation_verified": False,
+        "mutation_deadline_scope": "REQUEST_DISPATCH_NOT_PROVIDER_EXECUTION",
         "converged": True,
         "existing_space_secret_values_read": False,
         "credential_authority_state": "VERIFIED",
@@ -597,6 +957,8 @@ def main(argv: list[str] | None = None) -> int:
                   "state": "SETUP_REQUIRED", "credential_authority_state": "UNKNOWN",
                   "converged": False, "secret_values_read": False, "secret_values_written": False,
                   "diagnostic_code": error.diagnostic_code}
+        if hasattr(error, "mutation_outcome"):
+            report["mutation_outcome"] = error.mutation_outcome
 
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:

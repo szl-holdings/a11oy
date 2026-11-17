@@ -5,12 +5,16 @@ Legacy admission additionally requires independently verified installed signing
 authority (``scripts/verify_installed_authority.py``). Managed first cutover
 requires immutable recovery admission and a verified old-source startup guard;
 its predeploy report leaves signing authority unproven until actual startup and
-native live proof. Existing Space secret values are never read.
+native live proof. Existing Space secret values are never read. Default
+check-only verifies the full nonsecret variable contract. Actual configuration
+writes use the existing Series-A release guard and no-retry mutation transport;
+a converged runtime needs neither a release observation nor a write.
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import importlib.util
 import json
@@ -133,6 +137,10 @@ class RuntimeConfigError(RuntimeError):
             "LEGACY_PRINCIPAL_CONFLICT", "PERSISTENT_STORAGE_UNAVAILABLE",
             "SPACE_CLIENT_UNAVAILABLE", "INSTALLED_AUTHORITY_UNKNOWN",
             "HF_CONTROL_CREDENTIAL_MISSING", "CHECK_MODE_MALFORMED",
+            "RUNTIME_CONFIG_DRIFT", "RUNTIME_CONFIG_UNAVAILABLE",
+            "STATE_STORE_RELEASE_REQUIRED", "STATE_STORE_RELEASE_UNVERIFIED",
+            "STATE_STORE_RELEASE_CHANGED", "STATE_STORE_OBSERVATION_EXPIRED",
+            "RUNTIME_CONFIG_REQUEST_REFUSED", "RUNTIME_CONFIG_OUTCOME_UNCERTAIN",
             "MANAGED_STORAGE_UNAVAILABLE", "MANAGED_OUTCOME_UNCERTAIN",
             "SOURCE_OWNERSHIP_UNAVAILABLE", "SOURCE_NOT_CURRENT_MAIN",
             *INSTALLED_AUTHORITY_DIAGNOSTICS,
@@ -839,8 +847,21 @@ def await_readback(
             sleep(delay_seconds)
     raise RuntimeConfigError(
         "GDW runtime readback did not converge: "
-        + ",".join(sorted(remaining))
+        + ",".join(sorted(remaining)),
+        diagnostic_code="RUNTIME_CONFIG_DRIFT",
     )
+
+
+def load_runtime_mutation_owner() -> Any:
+    """Reuse the existing release guard and bounded configuration transport."""
+    try:
+        return _load_managed_module(
+            "_gdw_release_mutation_owner",
+            Path(__file__).resolve().with_name("configure_hf_series_a_runtime.py"),
+        )
+    except Exception:
+        raise RuntimeConfigError("SETUP_REQUIRED: runtime mutation guard is unavailable",
+                                 diagnostic_code="RUNTIME_CONFIG_UNAVAILABLE") from None
 
 
 def configure(*, repo_id: str, hf_token: str, check_only: bool = False,
@@ -860,11 +881,30 @@ def configure(*, repo_id: str, hf_token: str, check_only: bool = False,
     try:
         from huggingface_hub import HfApi
 
-        api = HfApi(token=hf_token)
+        api = HfApi(endpoint="https://huggingface.co", token=hf_token)
     except Exception:
         raise RuntimeConfigError("SETUP_REQUIRED: Space metadata client is unavailable", diagnostic_code="SPACE_CLIENT_UNAVAILABLE") from None
     prerequisites = manual_prerequisites(api, repo_id=repo_id, origin=origin, authority_get=authority_get)
     if check_only:
+        if (prerequisites["converged"] is True and prerequisites["state"] == "READY"
+                and prerequisites["credential_authority_state"] == "VERIFIED"):
+            # Credential authority alone does not establish variable parity.
+            try:
+                secret_names = set(api.get_space_secrets(repo_id=repo_id))
+                desired = desired_variables()
+                attempts = await_readback(
+                    api, repo_id=repo_id, secret_names=secret_names, desired=desired,
+                    attempts=1, delay_seconds=0,
+                )
+            except RuntimeConfigError:
+                raise
+            except Exception:
+                raise RuntimeConfigError(
+                    "SETUP_REQUIRED: runtime configuration readback is unavailable",
+                    diagnostic_code="RUNTIME_CONFIG_UNAVAILABLE",
+                ) from None
+            prerequisites = dict(prerequisites, variables_managed=sorted(desired),
+                                 readback_attempts=attempts)
         return prerequisites
     if (prerequisites["converged"] is not True or prerequisites["state"] != "READY"
             or prerequisites["credential_authority_state"] != "VERIFIED"):
@@ -879,24 +919,48 @@ def configure(*, repo_id: str, hf_token: str, check_only: bool = False,
         current_secret_names,
         desired,
     )
-    secret_names = current_secret_names
-    for name, value in sorted(changes.items()):
-        require_current_main(expected_source_sha, main_reader)
-        api.add_space_variable(
-            repo_id=repo_id,
-            key=name,
-            value=value,
-            description=(
-                "Protected GDW successor runtime contract. "
-                "Bearer material is stored only in GitHub Actions."
-            ),
+    mutation_owner = None
+    guard = None
+    writer = None
+    try:
+        if changes:
+            mutation_owner = load_runtime_mutation_owner()
+            guard = mutation_owner.ReleasedStateGuard(api)
+            writer = mutation_owner.RuntimeMutationClient(hf_token)
+        for name, value in sorted(changes.items()):
+            payload = {
+                "key": name, "value": value,
+                "description": "Protected GDW successor runtime contract. "
+                               "Bearer material is stored only in GitHub Actions.",
+            }
+            require_current_main(expected_source_sha, main_reader)
+            deadline = guard.admit()
+            require_current_main(expected_source_sha, main_reader)
+            writer.submit("POST", "variables", payload, deadline=deadline, label=name)
+        attempts = await_readback(
+            api, repo_id=repo_id, secret_names=current_secret_names, desired=desired,
         )
-    attempts = await_readback(
-        api,
-        repo_id=repo_id,
-        secret_names=secret_names,
-        desired=desired,
-    )
+    except Exception as cause:
+        if isinstance(cause, RuntimeConfigError):
+            error = cause
+        elif mutation_owner is not None and isinstance(cause, mutation_owner.RuntimeConfigError):
+            error = RuntimeConfigError(
+                "SETUP_REQUIRED: guarded runtime configuration did not complete",
+                diagnostic_code=cause.diagnostic_code,
+            )
+        else:
+            error = RuntimeConfigError(
+                "SETUP_REQUIRED: runtime configuration readback is unavailable",
+                diagnostic_code="RUNTIME_CONFIG_UNAVAILABLE",
+            )
+        if writer is not None:
+            error.mutation_outcome = writer.outcome()
+        raise error from None
+    finally:
+        for resource in (writer, guard):
+            if resource is not None:
+                with contextlib.suppress(Exception):
+                    resource.close()
     return {
         "schema": "szl.hf-gdw-runtime-config/v1",
         "repo_id": repo_id,
@@ -905,6 +969,10 @@ def configure(*, repo_id: str, hf_token: str, check_only: bool = False,
         "data_volume": volume,
         "variables_managed": sorted(desired),
         "variables_changed": sorted(changes),
+        "state_store_admission": guard.summary if guard is not None else {"state": "NO_CHANGES"},
+        "runtime_boot_verified": False,
+        "storage_preservation_verified": False,
+        "mutation_deadline_scope": "REQUEST_DISPATCH_NOT_PROVIDER_EXECUTION",
         "secret_names_required": [CREDENTIAL_REGISTRY_SECRET],
         "secret_values_read": False,
         "secret_values_mutated": False,
@@ -1193,6 +1261,8 @@ def main(argv: list[str] | None = None) -> int:
                   "state": "SETUP_REQUIRED", "credential_authority_state": "UNKNOWN",
                   "converged": False, "secret_values_read": False, "secret_values_written": False,
                   "diagnostic_code": error.diagnostic_code}
+        if hasattr(error, "mutation_outcome"):
+            report["mutation_outcome"] = error.mutation_outcome
 
     encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
