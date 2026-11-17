@@ -23,7 +23,7 @@ import sqlite3
 import threading
 import time
 import uuid
-from contextlib import closing
+from contextlib import closing, contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -233,6 +233,9 @@ class ReceiptSigner:
 
 class Store:
     def __init__(self, requested_path: str | None = None) -> None:
+        self._state_store = a11oy_state_store.active()
+        if self._state_store is None and a11oy_state_store.enabled():
+            raise a11oy_state_store.StateWriteUnavailable("STATE_STORE_NOT_ACTIVATED")
         self.persistent_required = _enabled(
             "A11OY_REQUIRE_PERSISTENT_STORAGE"
         ) or durable_storage.enabled()
@@ -248,12 +251,10 @@ class Store:
         # With A11OY_STATE_STORE=v2 the live file is the state store's local
         # copy (persistence is its snapshots, not the mount); A11OY_SERIES_A_DB
         # then names only the legacy file it bootstraps from once.
-        state_path = (
-            None if requested or durable_storage.enabled()
-            else a11oy_state_store.local_path("series_a")
-        )
-        if state_path is not None:
-            state_path.parent.mkdir(parents=True, exist_ok=True)
+        if self._state_store is not None:
+            state_path = self._state_store.local_path("series_a")
+            if requested is not None and Path(requested).resolve() != state_path.resolve():
+                raise a11oy_state_store.StateWriteUnavailable("STATE_STORE_PATH_MISMATCH")
             return str(state_path)
         primary = (
             requested
@@ -299,7 +300,31 @@ class Store:
             raise RuntimeError("required persistent SQLite location is not writable")
         raise RuntimeError("no writable SQLite location")
 
-    def connect(self) -> sqlite3.Connection:
+    def write_scope(self):
+        if self._state_store is not None:
+            return self._state_store.write_scope()
+        if a11oy_state_store.active() is not None or a11oy_state_store.enabled():
+            raise a11oy_state_store.StateWriteUnavailable("STATE_STORE_OWNER_NOT_BOUND")
+        return nullcontext()
+
+    @contextmanager
+    def _managed_connect(self, *, write: bool):
+        with self._state_store.sqlite_connection("series_a", Path(self.path), write=write) as connection:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys=ON")
+            journal = f"PRAGMA journal_mode={self.journal_mode}" if write else "PRAGMA journal_mode"
+            selected = connection.execute(journal).fetchone()[0]
+            if str(selected).upper() != self.journal_mode:
+                raise RuntimeError("SQLite journal mode differs from the configured contract")
+            if write:
+                connection.execute("PRAGMA synchronous=FULL")
+            yield connection
+
+    def connect(self, *, write: bool = False):
+        if self._state_store is not None:
+            return self._managed_connect(write=write)
+        if a11oy_state_store.active() is not None or a11oy_state_store.enabled():
+            raise a11oy_state_store.StateWriteUnavailable("STATE_STORE_OWNER_NOT_BOUND")
         if durable_storage.enabled():
             return durable_storage.connect("series_a", Path(self.path))
         connection = sqlite3.connect(self.path, timeout=30)
@@ -323,7 +348,7 @@ class Store:
             if status["instance_id"] != durable_storage.require_gate().writer.head.value["snapshots"]["series_a"]["generation"]:
                 raise durable_storage.DurableStorageUnavailable("RESTORED_STORE_IDENTITY_MISMATCH")
             return
-        with self.lock, self.connect() as db:
+        with self.lock, self.connect(write=True) as db:
             db.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS snapshots(
@@ -415,12 +440,16 @@ class Store:
             "chain_head": head["receipt_hash"] if head else None,
         }
 
+    @staticmethod
+    def _append_event_in_transaction(db: sqlite3.Connection, kind: str, payload: Mapping[str, Any]) -> None:
+        db.execute(
+            "INSERT INTO events(event_id,kind,payload,created_at) VALUES(?,?,?,?)",
+            (f"evt_{uuid.uuid4().hex}", kind, json.dumps(dict(payload), sort_keys=True), _now()),
+        )
+
     def append_event(self, kind: str, payload: Mapping[str, Any]) -> None:
-        with self.lock, self.connect() as db:
-            db.execute(
-                "INSERT INTO events(event_id,kind,payload,created_at) VALUES(?,?,?,?)",
-                (f"evt_{uuid.uuid4().hex}", kind, json.dumps(dict(payload), sort_keys=True), _now()),
-            )
+        with self.lock, self.connect(write=True) as db:
+            self._append_event_in_transaction(db, kind, payload)
 
     def events_since(self, sequence: int, limit: int = 100) -> list[dict[str, Any]]:
         with self.lock, self.connect() as db:
@@ -442,17 +471,10 @@ class Store:
     def append_receipt(
         self, kind: str, payload: Mapping[str, Any], signer: ReceiptSigner
     ) -> dict[str, Any]:
-        with self.lock, self.connect() as db:
+        with self.lock, self.connect(write=True) as db:
             value = self._append_receipt_in_transaction(
                 db, kind, payload, signer
             )
-        self.append_event(
-            kind,
-            {
-                "receipt_hash": value["receipt_hash"],
-                "receipt_id": value["receipt"]["receipt_id"],
-            },
-        )
         return value
 
     @staticmethod
@@ -490,6 +512,10 @@ class Store:
                 receipt["created_at"],
             ),
         )
+        Store._append_event_in_transaction(db, kind, {
+            "receipt_hash": receipt_hash,
+            "receipt_id": receipt["receipt_id"],
+        })
         return {
             "receipt": receipt,
             "envelope": envelope,
@@ -577,7 +603,7 @@ class Store:
 
     def save_snapshot(self, manifest: Mapping[str, Any], envelope: Mapping[str, Any]) -> str:
         digest = _sha(manifest)
-        with self.lock, self.connect() as db:
+        with self.lock, self.connect(write=True) as db:
             db.execute(
                 "INSERT OR REPLACE INTO snapshots(digest,payload,envelope,observed_at,valid_until) VALUES(?,?,?,?,?)",
                 (
@@ -616,7 +642,7 @@ class Store:
 
     def save_passport(self, passport: Mapping[str, Any]) -> str:
         digest = _sha(passport)
-        with self.lock, self.connect() as db:
+        with self.lock, self.connect(write=True) as db:
             db.execute(
                 "INSERT INTO passports(digest,payload,decision,attempts,created_at) VALUES(?,?,?,?,?)",
                 (digest, json.dumps(dict(passport), sort_keys=True), passport["decision"], 0, passport["created_at"]),
@@ -641,7 +667,7 @@ class Store:
         started_at: str,
     ) -> None:
         """Consume one attempt and persist its execution intent atomically."""
-        with self.lock, self.connect() as db:
+        with self.lock, self.connect(write=True) as db:
             result = db.execute(
                 "UPDATE passports SET attempts=1 WHERE digest=? AND attempts=0", (digest,)
             )
@@ -664,7 +690,7 @@ class Store:
         The caller must acknowledge this exact row through the active v2 store
         before dispatch; committing local SQLite alone is not that authority.
         """
-        with self.lock, closing(self.connect()) as db, db:
+        with self.lock, self.connect(write=True) as db:
             db.execute("BEGIN IMMEDIATE")
             db.execute("""CREATE TABLE IF NOT EXISTS execution_observation_plans(
                 run_nonce TEXT PRIMARY KEY, source_revision TEXT NOT NULL,
@@ -701,7 +727,7 @@ class Store:
         rendered = json.dumps(dict(observation), sort_keys=True, separators=(",", ":"),
                               ensure_ascii=False, allow_nan=False)
         digest = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
-        with self.lock, closing(self.connect()) as db, db:
+        with self.lock, self.connect(write=True) as db:
             result = db.execute("""UPDATE execution_observations
                 SET state='COMPLETED',observation_json=?,observation_sha256=?
                 WHERE receipt_id=? AND state='RESERVED'""", (rendered, digest, receipt_id))
@@ -790,7 +816,7 @@ class Store:
         signer: ReceiptSigner,
     ) -> dict[str, Any]:
         """Persist the terminal outcome and close its intent in one transaction."""
-        with self.lock, self.connect() as db:
+        with self.lock, self.connect(write=True) as db:
             row = db.execute(
                 "SELECT state FROM passport_executions WHERE passport_digest=?",
                 (digest,),
@@ -815,13 +841,6 @@ class Store:
             )
             if result.rowcount != 1:
                 raise RuntimeError("execution intent changed before completion")
-        self.append_event(
-            "passport.outcome",
-            {
-                "receipt_hash": value["receipt_hash"],
-                "receipt_id": value["receipt"]["receipt_id"],
-            },
-        )
         return value
 
     def reconcile_interrupted_executions(
@@ -835,7 +854,7 @@ class Store:
         current = now or datetime.now(timezone.utc)
         completed_at = current.isoformat().replace("+00:00", "Z")
         reconciled: list[dict[str, Any]] = []
-        with self.lock, self.connect() as db:
+        with self.lock, self.connect(write=True) as db:
             rows = db.execute(
                 """SELECT passport_digest,runtime_boot_id,started_at
                    FROM passport_executions
@@ -900,14 +919,6 @@ class Store:
                         "execution intent changed during reconciliation"
                     )
                 reconciled.append(value)
-        for value in reconciled:
-            self.append_event(
-                "passport.outcome",
-                {
-                    "receipt_hash": value["receipt_hash"],
-                    "receipt_id": value["receipt"]["receipt_id"],
-                },
-            )
         return reconciled
 
     def consume_denied_attempt(
@@ -917,7 +928,7 @@ class Store:
         signer: ReceiptSigner,
     ) -> dict[str, Any]:
         """Consume the single attempt and persist its denial in one transaction."""
-        with self.lock, self.connect() as db:
+        with self.lock, self.connect(write=True) as db:
             result = db.execute(
                 "UPDATE passports SET attempts=1 WHERE digest=? AND attempts=0",
                 (digest,),
@@ -932,13 +943,6 @@ class Store:
                 payload,
                 signer,
             )
-        self.append_event(
-            "passport.execution-denied",
-            {
-                "receipt_hash": value["receipt_hash"],
-                "receipt_id": value["receipt"]["receipt_id"],
-            },
-        )
         return value
 
     def outcome_for_passport(self, digest: str) -> dict[str, Any] | None:
@@ -1356,7 +1360,10 @@ class Service:
                 return
             if delay > 0:
                 await asyncio.sleep(delay)
-            self.store.reconcile_interrupted_executions(self.signer)
+            try:
+                self.store.reconcile_interrupted_executions(self.signer)
+            except a11oy_state_store.StateWriteUnavailable:
+                return
 
     async def _refresh_loop(self) -> None:
         interval_seconds = _refresh_interval_seconds()
@@ -1367,42 +1374,40 @@ class Service:
                 await self.refresh(actor)
             except asyncio.CancelledError:
                 raise
+            except a11oy_state_store.StateWriteUnavailable:
+                return
             except Exception as exc:
-                self.store.append_event(
-                    "estate.refresh.failed",
-                    {
-                        "actor": actor,
-                        "retry_in_seconds": interval_seconds,
-                        **_safe_error(exc),
-                    },
-                )
+                try:
+                    self.store.append_event(
+                        "estate.refresh.failed",
+                        {
+                            "actor": actor,
+                            "retry_in_seconds": interval_seconds,
+                            **_safe_error(exc),
+                        },
+                    )
+                except a11oy_state_store.StateWriteUnavailable:
+                    return
             actor = "periodic"
             elapsed = max(0.0, time.monotonic() - cycle_started)
             await asyncio.sleep(_refresh_delay_seconds(interval_seconds, elapsed))
 
     async def stop(self) -> None:
-        reconciliation = self.reconciliation_task
+        tasks = set(self.execution_tasks)
+        tasks.update(task for task in (self.reconciliation_task, self.background_task)
+                     if task is not None)
+        self.execution_tasks.clear()
         self.reconciliation_task = None
-        if reconciliation is not None:
-            reconciliation.cancel()
-            try:
-                await reconciliation
-            except asyncio.CancelledError:
-                pass
-        task = self.background_task
         self.background_task = None
         self.started = False
-        if task is not None:
+        # Cancel every producer before awaiting any one of them. A previously
+        # failed reconciliation must not leave its refresh/execution siblings live.
+        for task in tasks:
             task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-        executions = list(self.execution_tasks)
-        for execution in executions:
-            execution.cancel()
-        if executions:
-            await asyncio.gather(*executions, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for result in results:
+            if isinstance(result, Exception):
+                raise result
 
     def scheduler_status(self) -> dict[str, Any]:
         task = self.background_task
@@ -1422,56 +1427,57 @@ class Service:
         *,
         governance: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        action = {
-            "type": "estate.refresh",
-            "target": "szl://estate/current",
-            "impact": "MODERATE",
-            "irreversible": False,
-        }
-        decision = dict(governance) if governance is not None else self._governance_gate(action)
-        authorization = self.store.append_receipt(
-            "estate.refresh.authorization",
-            {
-                "actor": actor,
-                "action_digest": _sha(action),
-                "decision": decision.get("decision", "DENY"),
-                "reason_codes": decision.get(
-                    "reason_codes", ["DOCTRINE_GATE_UNAVAILABLE"]
-                ),
-            },
-            self.signer,
-        )
-        if not decision.get("allowed"):
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "code": "GOVERNANCE_DENY",
+        with self.store.write_scope():
+            action = {
+                "type": "estate.refresh",
+                "target": "szl://estate/current",
+                "impact": "MODERATE",
+                "irreversible": False,
+            }
+            decision = dict(governance) if governance is not None else self._governance_gate(action)
+            authorization = self.store.append_receipt(
+                "estate.refresh.authorization",
+                {
+                    "actor": actor,
+                    "action_digest": _sha(action),
+                    "decision": decision.get("decision", "DENY"),
                     "reason_codes": decision.get(
                         "reason_codes", ["DOCTRINE_GATE_UNAVAILABLE"]
                     ),
-                    "receipt_hash": authorization["receipt_hash"],
-                    "signature_status": authorization["envelope"][
-                        "signature_status"
-                    ],
-                },
-            )
-        if self.refresh_lock.locked():
-            raise HTTPException(status_code=409, detail="estate refresh already running")
-        async with self.refresh_lock:
-            manifest = await self.collector.collect()
-            envelope = self.signer.sign(manifest)
-            digest = self.store.save_snapshot(manifest, envelope)
-            receipt = self.store.append_receipt(
-                "estate.refresh",
-                {
-                    "actor": actor,
-                    "manifest_digest": digest,
-                    "status": manifest["status"],
-                    "counts": manifest["counts"],
                 },
                 self.signer,
             )
-            return {"manifest": manifest, "envelope": envelope, "refresh_receipt": receipt}
+            if not decision.get("allowed"):
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "code": "GOVERNANCE_DENY",
+                        "reason_codes": decision.get(
+                            "reason_codes", ["DOCTRINE_GATE_UNAVAILABLE"]
+                        ),
+                        "receipt_hash": authorization["receipt_hash"],
+                        "signature_status": authorization["envelope"][
+                            "signature_status"
+                        ],
+                    },
+                )
+            if self.refresh_lock.locked():
+                raise HTTPException(status_code=409, detail="estate refresh already running")
+            async with self.refresh_lock:
+                manifest = await self.collector.collect()
+                envelope = self.signer.sign(manifest)
+                digest = self.store.save_snapshot(manifest, envelope)
+                receipt = self.store.append_receipt(
+                    "estate.refresh",
+                    {
+                        "actor": actor,
+                        "manifest_digest": digest,
+                        "status": manifest["status"],
+                        "counts": manifest["counts"],
+                    },
+                    self.signer,
+                )
+                return {"manifest": manifest, "envelope": envelope, "refresh_receipt": receipt}
 
     def latest_status(self) -> dict[str, Any]:
         latest = self.store.latest_snapshot()
@@ -1627,93 +1633,94 @@ class Service:
         return sorted(set(reasons))
 
     def evaluate_passport(self, body: Mapping[str, Any]) -> dict[str, Any]:
-        action = body.get("action")
-        if not isinstance(action, dict):
-            raise HTTPException(status_code=422, detail="action must be an object")
-        action_type = str(action.get("type") or "")
-        target = str(action.get("target") or "")
-        impact = str(action.get("impact") or "MODERATE").upper()
-        irreversible = bool(action.get("irreversible", False))
-        if action_type not in ALLOWED_ACTIONS:
-            decision = "BLOCK"
-            reasons = ["ACTION_TYPE_NOT_ALLOWLISTED"]
-        elif not target:
-            decision = "BLOCK"
-            reasons = ["TARGET_REQUIRED"]
-        elif action_type == "estate.refresh" and target != "szl://estate/current":
-            decision = "BLOCK"
-            reasons = ["TARGET_NOT_ALLOWLISTED"]
-        elif action_type == "probe.public_surface":
-            parsed_target = urlsplit(target)
-            if (
-                parsed_target.scheme != "https"
-                or parsed_target.hostname not in ALLOWED_PROBE_HOSTS
-                or parsed_target.username
-                or parsed_target.password
-            ):
+        with self.store.write_scope():
+            action = body.get("action")
+            if not isinstance(action, dict):
+                raise HTTPException(status_code=422, detail="action must be an object")
+            action_type = str(action.get("type") or "")
+            target = str(action.get("target") or "")
+            impact = str(action.get("impact") or "MODERATE").upper()
+            irreversible = bool(action.get("irreversible", False))
+            if action_type not in ALLOWED_ACTIONS:
+                decision = "BLOCK"
+                reasons = ["ACTION_TYPE_NOT_ALLOWLISTED"]
+            elif not target:
+                decision = "BLOCK"
+                reasons = ["TARGET_REQUIRED"]
+            elif action_type == "estate.refresh" and target != "szl://estate/current":
                 decision = "BLOCK"
                 reasons = ["TARGET_NOT_ALLOWLISTED"]
+            elif action_type == "probe.public_surface":
+                parsed_target = urlsplit(target)
+                if (
+                    parsed_target.scheme != "https"
+                    or parsed_target.hostname not in ALLOWED_PROBE_HOSTS
+                    or parsed_target.username
+                    or parsed_target.password
+                ):
+                    decision = "BLOCK"
+                    reasons = ["TARGET_NOT_ALLOWLISTED"]
+                elif impact in {"HIGH", "CRITICAL"} or irreversible:
+                    decision = "REQUIRE_APPROVAL"
+                    reasons = ["INDEPENDENT_APPROVAL_REQUIRED"]
+                else:
+                    decision = "ALLOW"
+                    reasons = ["BOUNDED_REVERSIBLE_ACTION"]
             elif impact in {"HIGH", "CRITICAL"} or irreversible:
                 decision = "REQUIRE_APPROVAL"
                 reasons = ["INDEPENDENT_APPROVAL_REQUIRED"]
             else:
                 decision = "ALLOW"
                 reasons = ["BOUNDED_REVERSIBLE_ACTION"]
-        elif impact in {"HIGH", "CRITICAL"} or irreversible:
-            decision = "REQUIRE_APPROVAL"
-            reasons = ["INDEPENDENT_APPROVAL_REQUIRED"]
-        else:
-            decision = "ALLOW"
-            reasons = ["BOUNDED_REVERSIBLE_ACTION"]
 
-        evidence = body.get("evidence")
-        evidence_reasons = self._fresh_evidence_reasons(evidence)
-        governance = self._governance_gate(action)
-        if evidence_reasons:
-            decision = "BLOCK"
-            reasons = sorted(set(reasons + evidence_reasons))
-        if not governance["allowed"]:
-            decision = "BLOCK"
-            reasons = sorted(set(reasons + governance["reason_codes"]))
+            evidence = body.get("evidence")
+            evidence_reasons = self._fresh_evidence_reasons(evidence)
+            governance = self._governance_gate(action)
+            if evidence_reasons:
+                decision = "BLOCK"
+                reasons = sorted(set(reasons + evidence_reasons))
+            if not governance["allowed"]:
+                decision = "BLOCK"
+                reasons = sorted(set(reasons + governance["reason_codes"]))
 
-        no_action = {
-            "scenario_id": "no-action",
-            "kind": "NO_ACTION",
-            "label": "MODELED",
-            "outcome": str(body.get("expected_if_withheld") or "current state persists"),
-        }
-        proposed = {
-            "scenario_id": "proposed-action",
-            "kind": "PROPOSED_ACTION",
-            "label": "MODELED",
-            "outcome": str(body.get("expected_if_acted") or "bounded action completes or fails closed"),
-        }
-        passport = {
-            "schema": SCHEMA_PASSPORT,
-            "passport_id": f"cap_{uuid.uuid4().hex}",
-            "created_at": _now(),
-            "source_revision": _git_revision(),
-            "subject": {
-                "principal_id": str(body.get("principal_id") or "anonymous-proposer"),
-                "workload_id": str(body.get("workload_id") or "a11oy-series-a"),
-            },
-            "action": action,
-            "action_digest": _sha(action),
-            "evidence": evidence if isinstance(evidence, list) else [],
-            "counterfactuals": [no_action, proposed],
-            "decision": decision,
-            "reason_codes": reasons,
-            "governance": governance,
-            "max_attempts": 1,
-            "private_reasoning_collected": False,
-        }
-        digest = self.store.save_passport(passport)
-        receipt = self.store.append_receipt(
-            "passport.evaluate",
-            {"passport_digest": digest, "decision": decision, "reason_codes": reasons},
-            self.signer,
-        )
-        return {"passport": passport, "passport_digest": digest, "decision_receipt": receipt}
+            no_action = {
+                "scenario_id": "no-action",
+                "kind": "NO_ACTION",
+                "label": "MODELED",
+                "outcome": str(body.get("expected_if_withheld") or "current state persists"),
+            }
+            proposed = {
+                "scenario_id": "proposed-action",
+                "kind": "PROPOSED_ACTION",
+                "label": "MODELED",
+                "outcome": str(body.get("expected_if_acted") or "bounded action completes or fails closed"),
+            }
+            passport = {
+                "schema": SCHEMA_PASSPORT,
+                "passport_id": f"cap_{uuid.uuid4().hex}",
+                "created_at": _now(),
+                "source_revision": _git_revision(),
+                "subject": {
+                    "principal_id": str(body.get("principal_id") or "anonymous-proposer"),
+                    "workload_id": str(body.get("workload_id") or "a11oy-series-a"),
+                },
+                "action": action,
+                "action_digest": _sha(action),
+                "evidence": evidence if isinstance(evidence, list) else [],
+                "counterfactuals": [no_action, proposed],
+                "decision": decision,
+                "reason_codes": reasons,
+                "governance": governance,
+                "max_attempts": 1,
+                "private_reasoning_collected": False,
+            }
+            digest = self.store.save_passport(passport)
+            receipt = self.store.append_receipt(
+                "passport.evaluate",
+                {"passport_digest": digest, "decision": decision, "reason_codes": reasons},
+                self.signer,
+            )
+            return {"passport": passport, "passport_digest": digest, "decision_receipt": receipt}
 
     async def execute(self, body: Mapping[str, Any]) -> dict[str, Any]:
         digest = str(body.get("passport_digest") or "")
@@ -1730,7 +1737,7 @@ class Service:
                     {"passport_digest": digest, "reason_codes": reasons},
                     self.signer,
                 )
-            except durable_storage.DurableStorageUnavailable:
+            except (durable_storage.DurableStorageUnavailable, a11oy_state_store.StateWriteUnavailable):
                 raise
             except RuntimeError as exc:
                 raise HTTPException(
@@ -1759,7 +1766,7 @@ class Service:
                     {"passport_digest": digest, "reason_codes": reasons},
                     self.signer,
                 )
-            except durable_storage.DurableStorageUnavailable:
+            except (durable_storage.DurableStorageUnavailable, a11oy_state_store.StateWriteUnavailable):
                 raise
             except RuntimeError as exc:
                 raise HTTPException(
@@ -1782,7 +1789,7 @@ class Service:
                 self.runtime_boot_id,
                 started,
             )
-        except durable_storage.DurableStorageUnavailable:
+        except (durable_storage.DurableStorageUnavailable, a11oy_state_store.StateWriteUnavailable):
             raise
         except RuntimeError as exc:
             raise HTTPException(
@@ -1813,40 +1820,41 @@ class Service:
         governance: Mapping[str, Any],
         started: str,
     ) -> dict[str, Any]:
-        action = passport["action"]
-        try:
-            async def run() -> dict[str, Any]:
-                if action["type"] == "estate.refresh":
-                    result = await self.refresh(
-                        str(passport["passport_id"]),
-                        governance=governance,
-                    )
-                    return {
-                        "status": "SUCCEEDED",
-                        "manifest_digest": result["manifest"]["manifest_digest"],
-                        "estate_status": result["manifest"]["status"],
-                    }
-                if action["type"] == "probe.public_surface":
-                    return await self._probe(str(action["target"]))
-                raise RuntimeError("action left allowlist after authorization")
+        with self.store.write_scope():
+            action = passport["action"]
+            try:
+                async def run() -> dict[str, Any]:
+                    if action["type"] == "estate.refresh":
+                        result = await self.refresh(
+                            str(passport["passport_id"]),
+                            governance=governance,
+                        )
+                        return {
+                            "status": "SUCCEEDED",
+                            "manifest_digest": result["manifest"]["manifest_digest"],
+                            "estate_status": result["manifest"]["status"],
+                        }
+                    if action["type"] == "probe.public_surface":
+                        return await self._probe(str(action["target"]))
+                    raise RuntimeError("action left allowlist after authorization")
 
-            outcome = await asyncio.wait_for(
-                run(), timeout=EXECUTION_TIMEOUT_SECONDS
+                outcome = await asyncio.wait_for(
+                    run(), timeout=EXECUTION_TIMEOUT_SECONDS
+                )
+            except Exception as exc:
+                outcome = {"status": "FAILED", **_safe_error(exc)}
+            outcome.update(
+                {
+                    "started_at": started,
+                    "completed_at": _now(),
+                    "attempt": 1,
+                    "max_attempts": 1,
+                    "passport_digest": digest,
+                    "governance": governance,
+                }
             )
-        except Exception as exc:
-            outcome = {"status": "FAILED", **_safe_error(exc)}
-        outcome.update(
-            {
-                "started_at": started,
-                "completed_at": _now(),
-                "attempt": 1,
-                "max_attempts": 1,
-                "passport_digest": digest,
-                "governance": governance,
-            }
-        )
-        receipt = self.store.complete_execution(digest, outcome, self.signer)
-        return {"outcome": outcome, "outcome_receipt": receipt}
+            receipt = self.store.complete_execution(digest, outcome, self.signer)
+            return {"outcome": outcome, "outcome_receipt": receipt}
 
     async def _probe(self, target: str) -> dict[str, Any]:
         parsed = urlsplit(target)
