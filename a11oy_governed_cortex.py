@@ -583,10 +583,47 @@ def _compose_messages(
 
 
 def _sanitize_output(value: Any) -> str:
-    text = str(value or "")
-    text = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.I)
-    text = re.sub(r"<analysis>[\s\S]*?</analysis>", "", text, flags=re.I)
-    text = re.sub(r"```analysis[\s\S]*?```", "", text, flags=re.I)
+    raw = str(value or "")
+    parts: list[str] = []
+    stack: list[str] = []
+    cursor = 0
+    # A stack prevents an inner closing tag from exposing an outer reasoning block.
+    for match in re.finditer(r"<(/?)(think|analysis)>|```(analysis\b)?", raw, re.I):
+        if not stack:
+            parts.append(raw[cursor : match.start()])
+        tag = match.group(2)
+        if tag:
+            if not stack or stack[-1] != "analysis_fence":
+                if match.group(1) == "/":
+                    if not stack or stack.pop() != tag.lower():
+                        raise CortexBoundaryError(
+                            "owned_model_reasoning_boundary_invalid", 502
+                        )
+                else:
+                    stack.append(tag.lower())
+        elif match.group(3):
+            if stack and stack[-1] == "analysis_fence":
+                raise CortexBoundaryError("owned_model_reasoning_boundary_invalid", 502)
+            stack.append("analysis_fence")
+        elif stack and stack[-1] == "analysis_fence":
+            line_start = raw.rfind("\n", 0, match.start()) + 1
+            line_end = raw.find("\n", match.end())
+            surrounding = raw[line_start : match.start()] + raw[
+                match.end() : len(raw) if line_end < 0 else line_end
+            ]
+            if not re.fullmatch(r"[ \t\r]*", surrounding):
+                raise CortexBoundaryError("owned_model_reasoning_boundary_invalid", 502)
+            stack.pop()
+        elif not stack:
+            parts.append(match.group(0))
+        cursor = match.end()
+    if stack:
+        raise CortexBoundaryError("owned_model_reasoning_boundary_invalid", 502)
+    parts.append(raw[cursor:])
+    text = "".join(parts)
+    # Unsupported or truncated reserved markers cannot establish a safe final boundary.
+    if re.search(r"<\s*(?:/\s*)?(?:think|analysis)\b|```[ \t]*analysis\b", text, re.I):
+        raise CortexBoundaryError("owned_model_reasoning_boundary_invalid", 502)
     text = text.replace("\x00", " ").strip()
     if not text:
         raise CortexBoundaryError("owned_model_returned_empty_output", 502)

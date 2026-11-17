@@ -5555,14 +5555,22 @@ def _frontier_liveness_signal() -> dict:
         readiness = summary["operational_readiness"]
         live = readiness["ready_tiles"]
         blocked = readiness["blocked_tiles"]
+        # By-design-never-satisfiable capabilities are reported separately by the
+        # manifest (#3654). They are neither live nor blocked, so the partition check
+        # below must count them too; a malformed report fails closed.
+        nrv = readiness.get("not_runtime_verifiable") or []
+        nrv_valid = isinstance(nrv, list) and all(
+            isinstance(row, dict) and isinstance(row.get("name"), str)
+            and bool(row["name"].strip()) for row in nrv)
         degraded = [row["name"] for row in blocked]
         # The manifest distinguishes readable sources from operating capabilities.
         # A stopped operator or MODELED tile can be reachable without being live.
         # Missing/inconsistent readiness evidence must never become an ok rollup.
         if (type(total) is not int or total < 0
                 or not isinstance(live, list) or not isinstance(blocked, list)
+                or not nrv_valid
                 or type(readiness["ready"]) is not bool
-                or total != len(live) + len(blocked)
+                or total != len(live) + len(blocked) + len(nrv)
                 or readiness["ready"] != (bool(total) and not blocked)):
             raise ValueError("frontier operational readiness evidence is inconsistent")
         degraded_n = len(blocked)
