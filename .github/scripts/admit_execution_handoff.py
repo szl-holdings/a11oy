@@ -67,17 +67,42 @@ def collector():
     return module
 
 
+@lru_cache(maxsize=1)
+def vertical_plan_policy():
+    # Reuse the canonical pure plan parser and source-approval check. Do not
+    # invent a weaker second plan schema at the workflow entrypoint.
+    spec = importlib.util.spec_from_file_location(
+        "_hf_vertical_invocation_policy", ROOT / "scripts/estate_repair_dispatch.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def validate_invocation(env):
     keys = ("VERIFY_CURRENT_DEPLOYMENT", "OPEN_DEPLOY_WINDOW", "PUBLISH_VERTICAL_FLAGSHIPS")
     require(all(env.get(key, "false") in ("true", "false") for key in keys),
             "INVALID_HANDOFF_MODE")
     verify = env.get("VERIFY_CURRENT_DEPLOYMENT", "false") == "true"
+    vertical = env.get("PUBLISH_VERTICAL_FLAGSHIPS", "false") == "true"
+    plan_text = env.get("VERTICAL_PLAN_JSON", "")
+    require(isinstance(plan_text, str), "INVALID_VERTICAL_PLAN_TYPE")
     if verify:
         require(env.get("GITHUB_EVENT_NAME") == "workflow_dispatch", "MANUAL_VERIFICATION_REQUIRED")
         require(env.get("OPEN_DEPLOY_WINDOW", "false") == "false"
-                and env.get("PUBLISH_VERTICAL_FLAGSHIPS", "false") == "false"
-                and not env.get("VERTICAL_PLAN_JSON", "").strip(),
+                and not vertical and not plan_text.strip(),
                 "VERIFICATION_MUTATION_INPUT_REFUSED")
+    elif vertical:
+        require(env.get("GITHUB_EVENT_NAME") == "workflow_dispatch",
+                "VERTICAL_MANUAL_DISPATCH_REQUIRED")
+        policy = vertical_plan_policy()
+        require(policy.plan_is_complete_and_approved(
+            policy.parse_plan(plan_text), expected_sha=env.get("GITHUB_SHA")),
+            "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED")
+    else:
+        # A plan without the publication bit is contradictory operator intent,
+        # not authority to silently change it into a product-only release.
+        require(not plan_text.strip(), "VERTICAL_PLAN_WITHOUT_REQUEST")
     return verify
 
 
