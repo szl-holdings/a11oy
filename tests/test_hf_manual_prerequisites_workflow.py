@@ -79,6 +79,8 @@ CLASSIFY_RUN = '''python -I -B .github/scripts/resume_hf_space.py
 --repo-id "$CANONICAL_SPACE"
 --output "$PREFLIGHT_REPORT"
 --github-output "$GITHUB_OUTPUT"'''
+CAPTURE_CONFIGURATION_RUN = '''python -I -B .github/scripts/await_hf_configuration_handover.py capture
+--origin "$CANONICAL_ORIGIN" --output "$CONFIG_BASELINE_REPORT"'''
 CONVERGE_RUN = r'''set -euo pipefail
 if [ "${CONVERGE:-false}" != 'true' ]; then
   echo '::notice::The canonical runtime is not serving; configuration converges against the deployed revision.'
@@ -108,6 +110,10 @@ fi
 python -I -B scripts/configure_hf_gdw_runtime.py \
   --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
   --output "$GDW_CONFIG_REPORT"
+python -I -B .github/scripts/await_hf_configuration_handover.py wait \
+  --origin "$CANONICAL_ORIGIN" --baseline "$CONFIG_BASELINE_REPORT" \
+  --report "$RUNTIME_CONFIG_REPORT" --report "$GDW_CONFIG_REPORT" \
+  --output "$CONFIG_HANDOVER_REPORT"
 echo 'converged=true' >> "$GITHUB_OUTPUT"'''
 ADMIT_RUN = r'''set -euo pipefail
 python3 -I -B scripts/hf_exact_main_ownership.py \
@@ -409,6 +415,7 @@ def assert_deploy_path_contract(source):
                  "Set up Python", "Install exact Hugging Face control client",
                  "Classify the runtime stage without restarting it",
                  "Require an open deploy window while SQLite lives on the bucket mount",
+                 "Capture the serving writer before configuration changes",
                  "Converge runtime configuration before the single deploy start",
                  "Re-admit current protected main immediately before deploy",
                  "Skip a superseded source with a notice", "Retain secret-free preflight evidence"]:
@@ -425,11 +432,14 @@ def assert_deploy_path_contract(source):
                "preflight classification must stay read-only")
     exact_step(preflight["steps"][5], {"name": names[5], "id": "window", "if": ADMITTED, "shell": "bash",
                                        "env": WINDOW_ENV, "run": WINDOW_RUN}, "deploy window")
-    exact_step(preflight["steps"][6], {"name": names[6], "id": "converge", "if": WINDOW_OPEN, "shell": "bash",
+    exact_step(preflight["steps"][6], {"name": names[6],
+                                       "if": "${{ steps.window.outputs.open == 'true' && steps.runtime.outputs.converge == 'true' }}",
+                                       "run": CAPTURE_CONFIGURATION_RUN}, "preflight configuration baseline")
+    exact_step(preflight["steps"][7], {"name": names[7], "id": "converge", "if": WINDOW_OPEN, "shell": "bash",
                                        "env": {"CONVERGE": "${{ steps.runtime.outputs.converge }}",
                                                "GITHUB_TOKEN": "${{ github.token }}"},
                                        "run": CONVERGE_RUN}, "preflight convergence")
-    exact_step(preflight["steps"][7], {"name": names[7], "id": "owner", "if": WINDOW_OPEN, "shell": "bash",
+    exact_step(preflight["steps"][8], {"name": names[8], "id": "owner", "if": WINDOW_OPEN, "shell": "bash",
                                        "env": {"GITHUB_TOKEN": "${{ github.token }}"}, "run": OWNER_RUN},
                "preflight must re-admit current main")
     window_input = workflow_document(source)["on"]["workflow_dispatch"]["inputs"].get("open_deploy_window", {})
@@ -1040,6 +1050,9 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def test_preflight_classification_and_convergence_cannot_be_weakened(self):
         cases = (
             ("python -I -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py", "preflight classification"),
+            ("await_hf_configuration_handover.py capture", "await_hf_configuration_handover.py wait", "preflight configuration baseline"),
+            ("python -I -B .github/scripts/await_hf_configuration_handover.py wait", "true", "preflight convergence"),
+            ('--baseline "$CONFIG_BASELINE_REPORT"', '--baseline /tmp/forged.json', "preflight convergence"),
             ('          python -I -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --expected-source-sha "$GITHUB_SHA" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n',
              '          true\n', "preflight convergence"),
             ('--receipt "$RUNNER_TEMP/preflight-series-config-admission.json"',
