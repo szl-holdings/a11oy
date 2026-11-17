@@ -14351,6 +14351,7 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/govern/",
                               "v1/claim-integrity/",  # EvidenceOS Claim Compiler
                               "v1/models/m1",       # M1 local-only experimental gate
+                              "v1/models/training-observations",  # Private observations never leave this process
                               "v1/verify/intoto",      # in-toto verify guide (DEV2)
                               "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
                               "v1/vqc/",               # Governed VQC (in-process; DEV1)
