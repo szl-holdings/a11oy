@@ -560,8 +560,9 @@ COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-hol
 # Command/Loop/Queue/Memory/Ledger. Not a Vite dump. Not a second flagship.
 # NEXUS analog vanity path (AO-2026-08-29-003). Same class as /five-space.
 # Not a flagship. Not a landing door. Hub Space private.
-COPY szl_lyte_lattice.py szl_kernels_organ.py ./
-COPY szl_khipu_organ.py ./
+COPY szl_lyte_lattice.py szl_kernels_organ.py szl_khipu_organ.py ./
+# Canonical read-only ORO evidence bridge and its package-owned assets.
+COPY oro/ ./oro/
 COPY szl_five_space.py ./
 COPY szl_nexus.py ./
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)

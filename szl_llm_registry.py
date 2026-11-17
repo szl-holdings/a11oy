@@ -2061,7 +2061,7 @@ def register(app: FastAPI) -> dict:
     # ── GET /api/a11oy/v1/llm/sovereign/health ────────────────────────────────
 
     @app.get("/api/a11oy/v1/llm/sovereign/health")
-    async def llm_sovereign_health() -> JSONResponse:
+    def llm_sovereign_health() -> JSONResponse:
         """Per-node sovereign-mesh reachability matrix (Wave N, Dev 3) +
         Wave-M compact contract.
 

@@ -554,8 +554,24 @@ class _KhipuDAG:
         must match canonical JSON. Legacy NaN and Infinity stay readable, and new
         writes still reject them.
         """
-        previous = None
-        for index, node in enumerate(nodes):
+        self._validate_chain(nodes, first_index=0, previous=None)
+
+    def _validate_window(self, nodes):
+        """Check this selected window, not any earlier ledger history."""
+        if not nodes:
+            return
+        first = nodes[0]
+        index, parents = first.get("index"), first.get("parents")
+        if (type(index) is not int or index < 0 or not isinstance(parents, list)
+                or len(parents) != (0 if index == 0 else 1)
+                or any(not isinstance(parent, str) or not re.fullmatch(r"[0-9a-f]{64}", parent)
+                       for parent in parents)):
+            raise ValueError("invalid retained provenance window boundary")
+        self._validate_chain(nodes, first_index=index,
+                             previous=parents[0] if parents else None)
+
+    def _validate_chain(self, nodes, *, first_index, previous):
+        for index, node in enumerate(nodes, start=first_index):
             parents = [previous] if previous is not None else []
             envelope = node["dsse"]
             body = _envelope_payload_bytes(envelope)
@@ -634,6 +650,23 @@ class _KhipuDAG:
     def recent(self, n: int = 10) -> list[dict[str, Any]]:
         with self.lock:
             return self.nodes[-n:]
+
+    def evidence_window(self, n: int = 33) -> list[dict[str, Any]]:
+        """Bounded passive inspection; never certify omitted ledger history.
+
+        Managed reads use the canonical owner's row/byte budget. The standalone
+        case slices already-retained memory without scanning or serializing it.
+        Existing managed nodes/recent calls retain full-history validation.
+        """
+        if type(n) is not int or not 1 <= n <= 33:
+            raise ValueError("invalid provenance inspection window")
+        if self.managed:
+            try:
+                return self._owner().provenance_window(self.space, n, self._validate_window)
+            except Exception as error:
+                raise _LedgerUnavailable("managed provenance window unavailable") from error
+        with self.lock:
+            return self._nodes[-n:]
 
     def by_schema(self, schema: str) -> list[dict[str, Any]]:
         """Return all retained nodes for a schema before any presentation bound."""
