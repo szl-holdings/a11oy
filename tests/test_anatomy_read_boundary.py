@@ -242,6 +242,49 @@ def test_invalid_overlay_target_is_unavailable_without_writes(
     assert overlay.stat().st_mtime_ns == before
 
 
+@pytest.mark.parametrize("nested", [False, True])
+def test_file_ancestor_reported_as_missing_cannot_reuse_empty_cached_summary(
+    overlay, monkeypatch, client, nested
+):
+    ancestor = overlay.parent / "initially-absent-parent"
+    target = ancestor / "overlay.jsonl"
+    if nested:
+        target = ancestor / "absent-child" / "overlay.jsonl"
+    monkeypatch.setenv("SZL_BRAIN_OVERLAY", str(target))
+    assert client.get("/api/a11oy/v1/anatomy/evidence").status_code == 200
+    assert not ancestor.exists()
+
+    ancestor.write_text("existing file must remain unchanged", encoding="utf-8")
+    before = ancestor.read_bytes(), ancestor.stat().st_mtime_ns
+    real_stat, real_lstat = brain.os.stat, brain.os.lstat
+    prefix = str(ancestor) + brain.os.sep
+
+    def windows_missing(real):
+        def inspect(path, *args, **kwargs):
+            if str(path).startswith(prefix):
+                raise FileNotFoundError(errno.ENOENT, "fixture Windows traversal")
+            return real(path, *args, **kwargs)
+        return inspect
+
+    # Exercise Windows' ENOENT for a non-directory ancestor on every platform.
+    with (
+        patch.object(brain.os, "stat", side_effect=windows_missing(real_stat)),
+        patch.object(brain.os, "lstat", side_effect=windows_missing(real_lstat)),
+        patch.object(brain, "_append_events", side_effect=AssertionError("GET append")),
+        patch.object(brain.os, "makedirs", side_effect=AssertionError("GET mkdir")),
+    ):
+        for leaf in ("evidence", "self-audit"):
+            response = client.get("/api/a11oy/v1/anatomy/" + leaf)
+            assert response.status_code == 503
+            out = response.json()
+            assert out.get("evidence_class", out.get("label")) == "UNAVAILABLE"
+            assert out["storage_writes"] == 0
+            assert "audit" not in out and "overlay" not in out and "chain_ok" not in out
+            assert str(target) not in response.text
+        assert client.head("/api/a11oy/v1/anatomy/evidence").status_code == 503
+    assert (ancestor.read_bytes(), ancestor.stat().st_mtime_ns) == before
+
+
 def test_inaccessible_overlay_parent_cannot_reuse_empty_cached_summary(
     overlay, client
 ):

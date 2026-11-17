@@ -392,6 +392,22 @@ def _page_html(ns: str) -> str:
   .meta {{ display:flex; flex-wrap:wrap; gap:.3rem .9rem; font-family:ui-monospace,monospace;
            font-size:.7rem; color:var(--muted); }}
   .meta b {{ color:var(--ink); }}
+  .readiness {{ border-top:1px solid var(--muted); padding-top:.6rem; min-width:0;
+    font-size:.75rem; line-height:1.5; overflow-wrap:anywhere; }}
+  .readiness-facts {{ display:grid; gap:.35rem; margin:0; }}
+  .readiness-facts > div {{ display:flex; flex-wrap:wrap; gap:.25rem .65rem;
+    justify-content:space-between; min-width:0; }}
+  .readiness-facts dt, .readiness-note {{ color:var(--muted); }}
+  .readiness-facts dd {{ margin:0; color:var(--ink); font-weight:600; }}
+  .readiness-title {{ display:block; margin:.65rem 0 .2rem; font-weight:600; }}
+  .readiness-predicate {{ margin:0; max-height:8rem; overflow:auto; padding:.25rem;
+    min-width:0; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ink); }}
+  .readiness-reasons {{ margin:.25rem 0 0; padding-left:1.25rem; min-width:0; }}
+  .readiness-reasons li {{ margin:.3rem 0; overflow-wrap:anywhere; }}
+  .readiness-reasons code {{ display:block; color:var(--muted); white-space:normal;
+    overflow-wrap:anywhere; }}
+  .readiness-note {{ margin:.4rem 0 0; }}
+  .readiness-predicate:focus-visible {{ outline:2px solid var(--indigo); outline-offset:3px; }}
   .status-line {{ font-family:ui-monospace,monospace; font-size:.74rem; color:var(--muted); margin-top:1.4rem; }}
   .status-line.err {{ color:var(--warn); }}
   :where(a,button,input):focus-visible {{ outline:2px solid var(--gold); outline-offset:3px; }}
@@ -442,21 +458,25 @@ def _page_html(ns: str) -> str:
     Λ = Conjecture 1 · sovereign=false on this surface.</span>
   </div>
 
-  <canvas id="scene"></canvas>
+  <canvas id="scene" aria-hidden="true"></canvas>
 
   <div id="wrap">
     <div class="plaque">SZL HOLDINGS / A11OY / DOCTRINE <b>V11 · LOCKED</b> / Λ = CONJECTURE 1</div>
     <h1>The whole stack, <span class="accent">honestly</span> labeled.</h1>
     <p class="sub" id="subline">Every capability we run, on one screen — live from
        <code>{manifest_ep}</code>. Each tile is tagged with how real it is and links
-       straight to the proof. Fashion lineage is a separate REPORTED contract.</p>
+       to its evidence pointers. Source availability is reported by the backend;
+       readiness includes its unmet conditions. Fashion lineage is a separate REPORTED contract.</p>
     <div id="legend">
-      <span class="lg measured">MEASURED — live, measured now</span>
+      <span class="lg measured">MEASURED — observed within stated scope</span>
       <span class="lg modeled">MODELED — derived from real data</span>
       <span class="lg roadmap">ROADMAP — named next work</span>
       <span class="lg sample">SAMPLE — illustrative only</span>
     </div>
     <div id="rollup"></div>
+    <div id="scene-status" class="status-line" role="status" aria-live="polite" hidden>
+      3D view unavailable. Data panels load independently.
+    </div>
 
     <section id="confirmation-research" aria-labelledby="confirmation-h">
       <div class="plaque">Synthetic research / RECORD</div>
@@ -561,9 +581,6 @@ def _page_html(ns: str) -> str:
     <code>{manifest_ep}</code>.</noscript>
 
 <script type="module">
-import * as THREE from 'three';
-import {{ OrbitControls }} from 'three/addons/OrbitControls.js';
-
 const MANIFEST_EP = {manifest_ep!r};
 const FASHION_EP = '/api/a11oy/v1/fashion';
 const BRAIN_STATS_EP = '/api/a11oy/v1/brain/stats';
@@ -620,85 +637,137 @@ function esc(s) {{ return String(s).replace(/[&<>"']/g, c =>
 function cls(label) {{ return LABEL_CLASS[label] || 'unavailable'; }}
 
 // ---- three.js holographic ecosystem constellation (r160, vendored, 0 CDN) ----
-const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({{ canvas, antialias:true, alpha:true }});
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-const compactCanvas = matchMedia('(max-width: 720px)');
-renderer.setPixelRatio(Math.min(devicePixelRatio, compactCanvas.matches ? 1 : 2));
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
-camera.position.set(0, 6, 60);
-const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true; controls.dampingFactor = 0.06;
-controls.enablePan = false; controls.enableZoom = false;
-controls.autoRotate = !(reducedMotion.matches || compactCanvas.matches);
-controls.autoRotateSpeed = 0.28;
+let latestConstellationTiles = [];
+let renderConstellation = null;
+let disposeConstellation = null;
 
-scene.add(new THREE.AmbientLight(0x88aacc, 0.7));
-const key = new THREE.PointLight(0xffffff, 1.1); key.position.set(40, 50, 50); scene.add(key);
-
-// A central governed-provenance core; capability tiles orbit it as labeled nodes.
-const core = new THREE.Mesh(
-  new THREE.IcosahedronGeometry(4.2, 1),
-  new THREE.MeshStandardMaterial({{ color:0x16304f, emissive:0x0a1a30,
-    roughness:0.5, metalness:0.2, wireframe:true, transparent:true, opacity:0.55 }})
-);
-scene.add(core);
-
-const nodeGroup = new THREE.Group(); scene.add(nodeGroup);
-const linkGroup = new THREE.Group(); scene.add(linkGroup);
-
-function resize() {{
-  const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h, false);
-  camera.aspect = w / h; camera.updateProjectionMatrix();
+function sceneUnavailable() {{
+  renderConstellation = null;
+  const canvas = document.getElementById('scene');
+  const notice = document.getElementById('scene-status');
+  if (canvas) canvas.hidden = true;
+  if (notice) notice.hidden = false;
+  const dispose = disposeConstellation;
+  disposeConstellation = null;
+  try {{ dispose?.(); }} catch {{}}
 }}
-addEventListener('resize', resize); resize();
 
-let animationFrame = 0;
-function renderFrame() {{
-  animationFrame = 0;
-  if (document.hidden || reducedMotion.matches || compactCanvas.matches) {{
-    renderer.render(scene, camera);
-    return;
-  }}
-  controls.update();
-  core.rotation.y += 0.0012; core.rotation.x += 0.0005;
-  renderer.render(scene, camera);
-  animationFrame = requestAnimationFrame(renderFrame);
-}}
-function applyMotionPolicy() {{
-  controls.autoRotate = !(reducedMotion.matches || compactCanvas.matches);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, compactCanvas.matches ? 1 : 2));
-  if (animationFrame) cancelAnimationFrame(animationFrame);
-  animationFrame = 0;
-  renderFrame();
-}}
-reducedMotion.addEventListener?.('change', applyMotionPolicy);
-compactCanvas.addEventListener?.('change', applyMotionPolicy);
-document.addEventListener('visibilitychange', applyMotionPolicy);
-applyMotionPolicy();
-
-// Place capability tiles evenly on a ring around the core, colored by honest label.
 function drawConstellation(tiles) {{
-  nodeGroup.clear(); linkGroup.clear();
-  const n = tiles.length || 1;
-  tiles.forEach((t, i) => {{
-    const a = (i / n) * Math.PI * 2;
-    const R = 16, y = Math.sin(a * 2) * 3;
-    const p = new THREE.Vector3(Math.cos(a) * R, y, Math.sin(a) * R);
-    const color = LABEL_COLOR[t.label] || 0x9fb1bf;
-    const mat = new THREE.MeshStandardMaterial({{
-      color, emissive:color, emissiveIntensity:0.4, roughness:0.45,
-      transparent:true, opacity:0.95 }});
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.9, 22, 22), mat);
-    m.position.copy(p); nodeGroup.add(m);
-    // spoke from the core to each capability node
-    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), p]);
-    linkGroup.add(new THREE.Line(geo,
-      new THREE.LineBasicMaterial({{ color, transparent:true, opacity:0.35 }})));
-  }});
+  latestConstellationTiles = tiles;
+  if (!renderConstellation) return;
+  try {{ renderConstellation(tiles); }} catch {{ sceneUnavailable(); }}
 }}
+
+// Optional graphics must never gate the data panels or their status messages.
+(async function initializeConstellation() {{
+  let renderer, controls, animationFrame = 0;
+  let removeListeners = () => {{}};
+  disposeConstellation = () => {{
+    if (animationFrame) cancelAnimationFrame(animationFrame);
+    animationFrame = 0;
+    removeListeners();
+    controls?.dispose();
+    renderer?.dispose();
+  }};
+  try {{
+    const [THREE, {{ OrbitControls }}] = await Promise.all([
+      import('three'),
+      import('three/addons/OrbitControls.js'),
+    ]);
+    const canvas = document.getElementById('scene');
+    renderer = new THREE.WebGLRenderer({{ canvas, antialias:true, alpha:true }});
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const compactCanvas = matchMedia('(max-width: 720px)');
+    renderer.setPixelRatio(Math.min(devicePixelRatio, compactCanvas.matches ? 1 : 2));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2000);
+    camera.position.set(0, 6, 60);
+    controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true; controls.dampingFactor = 0.06;
+    controls.enablePan = false; controls.enableZoom = false;
+    controls.autoRotate = !(reducedMotion.matches || compactCanvas.matches);
+    controls.autoRotateSpeed = 0.28;
+
+    scene.add(new THREE.AmbientLight(0x88aacc, 0.7));
+    const key = new THREE.PointLight(0xffffff, 1.1);
+    key.position.set(40, 50, 50); scene.add(key);
+    const core = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(4.2, 1),
+      new THREE.MeshStandardMaterial({{ color:0x16304f, emissive:0x0a1a30,
+        roughness:0.5, metalness:0.2, wireframe:true, transparent:true, opacity:0.55 }})
+    );
+    scene.add(core);
+    const nodeGroup = new THREE.Group(); scene.add(nodeGroup);
+    const linkGroup = new THREE.Group(); scene.add(linkGroup);
+
+    function resize() {{
+      const w = innerWidth, h = innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+    }}
+    function renderFrame() {{
+      animationFrame = 0;
+      try {{
+        if (document.hidden || reducedMotion.matches || compactCanvas.matches) {{
+          renderer.render(scene, camera);
+          return;
+        }}
+        controls.update();
+        core.rotation.y += 0.0012; core.rotation.x += 0.0005;
+        renderer.render(scene, camera);
+        animationFrame = requestAnimationFrame(renderFrame);
+      }} catch {{ sceneUnavailable(); }}
+    }}
+    function applyMotionPolicy() {{
+      controls.autoRotate = !(reducedMotion.matches || compactCanvas.matches);
+      renderer.setPixelRatio(Math.min(devicePixelRatio, compactCanvas.matches ? 1 : 2));
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      renderFrame();
+    }}
+    const guard = callback => () => {{
+      try {{ callback(); }} catch {{ sceneUnavailable(); }}
+    }};
+    const onResize = guard(resize);
+    const onMotionChange = guard(applyMotionPolicy);
+    removeListeners = () => {{
+      removeEventListener('resize', onResize);
+      reducedMotion.removeEventListener?.('change', onMotionChange);
+      compactCanvas.removeEventListener?.('change', onMotionChange);
+      document.removeEventListener('visibilitychange', onMotionChange);
+    }};
+    addEventListener('resize', onResize);
+    reducedMotion.addEventListener?.('change', onMotionChange);
+    compactCanvas.addEventListener?.('change', onMotionChange);
+    document.addEventListener('visibilitychange', onMotionChange);
+
+    renderConstellation = tiles => {{
+      nodeGroup.clear(); linkGroup.clear();
+      const n = tiles.length || 1;
+      tiles.forEach((t, i) => {{
+        const a = (i / n) * Math.PI * 2;
+        const R = 16, y = Math.sin(a * 2) * 3;
+        const p = new THREE.Vector3(Math.cos(a) * R, y, Math.sin(a) * R);
+        const color = LABEL_COLOR[t.label] || 0x9fb1bf;
+        const mat = new THREE.MeshStandardMaterial({{
+          color, emissive:color, emissiveIntensity:0.4, roughness:0.45,
+          transparent:true, opacity:0.95 }});
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.9, 22, 22), mat);
+        m.position.copy(p); nodeGroup.add(m);
+        const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), p]);
+        linkGroup.add(new THREE.Line(geo,
+          new THREE.LineBasicMaterial({{ color, transparent:true, opacity:0.35 }})));
+      }});
+      renderer.render(scene, camera);
+    }};
+    resize();
+    renderConstellation(latestConstellationTiles);
+    canvas.hidden = false;
+    document.getElementById('scene-status').hidden = true;
+    applyMotionPolicy();
+  }} catch {{ sceneUnavailable(); }}
+}})();
 
 // ---- provenance pointer renderer (links the real artifact paths) -------------
 function provHtml(prov) {{
@@ -707,8 +776,9 @@ function provHtml(prov) {{
   for (const [k, v] of Object.entries(prov)) {{
     if (v == null || v === '') continue;
     let val = esc(v);
-    // make in-app endpoint pointers clickable so a reader can go check the artifact
-    if (typeof v === 'string' && v.startsWith('/api/') && !v.includes('{{')) {{
+    // Link concrete endpoint URIs; narrative text and unresolved templates stay text.
+    if (typeof v === 'string' && v.startsWith('/api/')
+        && !/[\\s\\x00-\\x1f\\x7f{{}}]/.test(v)) {{
       val = `<a href="${{esc(v)}}">${{esc(v)}}</a>`;
     }} else if (v === '/orbital') {{
       val = `<a href="/orbital">${{esc(v)}}</a>`;
@@ -734,6 +804,68 @@ function metaHtml(t) {{
   return rows.length ? `<div class="meta">${{rows.join('')}}</div>` : '';
 }}
 
+const CAPABILITY_READINESS_SCHEMA = 'szl.frontier.capability-readiness.v1';
+function capabilityReadiness(value) {{
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || value.schema !== CAPABILITY_READINESS_SCHEMA
+      || !['READY', 'NOT_READY'].includes(value.state)
+      || typeof value.ready !== 'boolean'
+      || typeof value.source_reachable !== 'boolean'
+      || !(value.predicate === null
+        || (typeof value.predicate === 'string' && value.predicate.trim().length > 0))
+      || !Array.isArray(value.reasons)
+      || !value.reasons.every(reason => typeof reason === 'string' && reason.trim().length > 0))
+    return null;
+  // Validate the backend envelope; never infer a verdict from labels or telemetry.
+  if (value.ready !== (value.state === 'READY')
+      || (value.ready && (value.reasons.length !== 0
+        || value.predicate === null || value.source_reachable !== true))
+      || (!value.ready && value.reasons.length === 0))
+    return null;
+  return value;
+}}
+
+function readinessHtml(t) {{
+  const readiness = capabilityReadiness(t.operational_readiness);
+  const state = readiness ? readiness.state : 'UNAVAILABLE';
+  const source = readiness && readiness.source_reachable ? 'AVAILABLE' : 'UNAVAILABLE';
+  let explanation = '';
+  if (!readiness) {{
+    explanation = `<p class="readiness-note">Readiness contract missing, unsupported, or inconsistent.
+      <a href="${{esc(MANIFEST_EP)}}">Inspect the raw manifest</a>.</p>`;
+  }} else {{
+    explanation = '<span class="readiness-title">Backend readiness predicate</span>'
+      + (readiness.predicate === null
+        ? '<p class="readiness-note">UNAVAILABLE — no predicate supplied.</p>'
+        : `<div class="readiness-predicate" role="region" tabindex="0"
+            aria-label="Readiness predicate for ${{esc(t.name || 'capability')}}">${{esc(readiness.predicate)}}</div>`);
+    if (readiness.reasons.length) {{
+      explanation += '<span class="readiness-title">Unmet conditions</span>'
+        + '<ul class="readiness-reasons">' + readiness.reasons.map(reason => {{
+          const text = reason.replace(/[_-]+/g, ' ');
+          const readable = text.charAt(0).toUpperCase() + text.slice(1);
+          return `<li><span>${{esc(readable)}}</span><code>${{esc(reason)}}</code></li>`;
+        }}).join('') + '</ul>';
+    }} else {{
+      explanation += '<p class="readiness-note">No unmet conditions reported.</p>';
+    }}
+  }}
+  return `<div class="readiness" data-readiness-state="${{state}}">
+    <dl class="readiness-facts">
+      <div><dt>Source availability (reported)</dt><dd>${{source}}</dd></div>
+      <div><dt>Operational readiness</dt><dd>${{state}}</dd></div>
+    </dl>${{explanation}}
+  </div>`;
+}}
+
+function manifestTimeText(m) {{
+  const time = value => typeof value === 'string' && !Number.isNaN(Date.parse(value))
+    ? value : 'UNAVAILABLE';
+  return 'manifest composition time: ' + time(m.timestamp_utc)
+    + ' · manifest cache time: ' + time(m.cached_at)
+    + ' (not source freshness)';
+}}
+
 function tileCard(t) {{
   const label = t.label || 'SAMPLE';
   const c = cls(label);
@@ -754,7 +886,9 @@ function tileCard(t) {{
     <div class="stat">${{esc(t.status || '')}}</div>
     ${{banner}}
     ${{metaHtml(t)}}
-    <div class="prov">${{provHtml(t.provenance)}}</div>
+    ${{readinessHtml(t)}}
+    <div class="prov"><div class="lbl">Evidence pointers</div>${{provHtml(t.provenance)
+      || '<div>UNAVAILABLE — no provenance pointers supplied.</div>'}}</div>
   </div>`;
 }}
 
@@ -847,10 +981,17 @@ document.getElementById('brain-query-form').addEventListener('submit', async eve
 (async function load() {{
   try {{
     const r = await fetch(MANIFEST_EP, {{ headers:{{Accept:'application/json'}} }});
+    if (!r.ok) throw new Error('manifest HTTP ' + r.status
+      + (r.status === 402 ? ' (payment required)' : ''));
     const m = await r.json();
-    if (!r.ok || m.ok === false) throw new Error('manifest ' + r.status);
-    const tiles = m.capabilities || [];
-    const s = m.summary || {{}};
+    if (!m || typeof m !== 'object' || Array.isArray(m) || m.ok !== true
+        || !Array.isArray(m.capabilities) || !m.summary
+        || typeof m.summary !== 'object' || Array.isArray(m.summary)
+        || !Number.isSafeInteger(m.summary.tiles) || m.summary.tiles < 0
+        || m.summary.tiles !== m.capabilities.length)
+      throw new Error('invalid or unavailable capability manifest contract');
+    const tiles = m.capabilities;
+    const s = m.summary;
     const lc = s.label_counts || {{}};
     const source = s.source_reachability || {{state:'UNKNOWN'}};
     const readiness = s.operational_readiness || {{state:'UNKNOWN', ready:false, blocked_tiles:[]}};
@@ -864,7 +1005,7 @@ document.getElementById('brain-query-form').addEventListener('submit', async eve
       `<span class="chip">MEASURED <b>${{esc(lc.MEASURED || 0)}}</b></span>`,
       `<span class="chip">MODELED <b>${{esc(lc.MODELED || 0)}}</b></span>`,
       `<span class="chip">ROADMAP <b>${{esc(lc.ROADMAP || 0)}}</b></span>`,
-      `<span class="chip">source reachability <b>${{esc(source.state || 'UNKNOWN')}}</b></span>`,
+      `<span class="chip">source availability (reported) <b>${{esc(source.state || 'UNKNOWN')}}</b></span>`,
       `<span class="chip">operational readiness <b>${{esc(readiness.state || 'UNKNOWN')}}</b></span>`,
       (s.degraded_tiles && s.degraded_tiles.length)
         ? `<span class="chip">degraded: <b>${{esc(s.degraded_tiles.join(', '))}}</b></span>` : '',
@@ -876,13 +1017,15 @@ document.getElementById('brain-query-form').addEventListener('submit', async eve
     drawConstellation(tiles);
 
     const el = document.getElementById('status');
-    el.textContent = 'manifest reachable · composed from ' + esc(MANIFEST_EP) +
-      ' · ' + esc(s.tiles ?? tiles.length) + ' tiles · source=' +
-      esc(source.state || 'UNKNOWN') + ' · operational=' +
-      esc(readiness.state || 'UNKNOWN');
+    el.textContent = 'manifest reachable · composed from ' + MANIFEST_EP +
+      ' · ' + (s.tiles ?? tiles.length) + ' tiles · source availability (reported)=' +
+      (source.state || 'UNKNOWN') + ' · operational=' +
+      (readiness.state || 'UNKNOWN') + ' · ' + manifestTimeText(m);
     document.getElementById('subline').innerHTML =
-      'Every capability we run, on one screen — composed live by <code>/frontier/manifest</code>. ' +
-      'Each tile shows its <b>honest label</b> and a <b>link to the proof</b>. No label is upgraded.';
+      'Every capability we run, on one screen — composed by <code>/frontier/manifest</code>. ' +
+      'Each tile shows its <b>honest label</b>, backend readiness decision, unmet conditions, ' +
+      'and <b>evidence pointers</b>. Source availability is backend-reported, not an independent network probe. ' +
+      'Reachability alone does not establish readiness. No label is upgraded.';
   }} catch (e) {{
     fail('manifest unavailable: ' + e + ' (nothing fabricated — raw data at ' + MANIFEST_EP + ')');
   }}
@@ -901,6 +1044,57 @@ let allSurfaces = [];
 let activeSurfaceLabel = 'ALL';
 let surfaceQuery = '';
 let surfacePage = 0;
+let surfaceCatalogAvailable = false;
+document.getElementById('surface-search').disabled = true;
+document.getElementById('surface-prev').disabled = true;
+document.getElementById('surface-next').disabled = true;
+
+function surfaceManifest(value) {{
+  const record = item => item !== null && typeof item === 'object' && !Array.isArray(item);
+  const count = item => Number.isSafeInteger(item) && item >= 0;
+  const text = item => typeof item === 'string' && item.trim().length > 0;
+  const label = item => typeof item === 'string' && Object.hasOwn(SURF_CLASS, item);
+  const invalid = () => {{ throw new Error('invalid surface manifest contract'); }};
+  if (!record(value) || value.ok !== true || !Array.isArray(value.surfaces)
+      || !count(value.count) || value.count !== value.surfaces.length
+      || !record(value.summary)) return invalid();
+  const summary = value.summary;
+  if (!count(summary.count) || summary.count !== value.count
+      || !count(summary.present) || !count(summary.unavailable)
+      || !record(summary.label_counts) || summary.labels_valid !== true) return invalid();
+  const ids = new Set(), labels = new Map();
+  let present = 0, unavailable = 0;
+  for (const surface of value.surfaces) {{
+    if (!record(surface) || !text(surface.id) || !text(surface.title)
+        || !text(surface.asset) || !label(surface.label)
+        || typeof surface.present !== 'boolean'
+        || (!surface.present && surface.label !== 'UNAVAILABLE')
+        || ids.has(surface.id)) return invalid();
+    ids.add(surface.id);
+    labels.set(surface.label, (labels.get(surface.label) || 0) + 1);
+    if (surface.present) present += 1;
+    if (surface.label === 'UNAVAILABLE') unavailable += 1;
+  }}
+  if (summary.present !== present || summary.unavailable !== unavailable
+      || Object.entries(summary.label_counts).some(([key, total]) =>
+        !label(key) || !count(total) || total !== (labels.get(key) || 0))
+      || [...labels].some(([key, total]) => summary.label_counts[key] !== total)) return invalid();
+  return value;
+}}
+
+function unavailableSurfaceCatalog() {{
+  surfaceCatalogAvailable = false;
+  allSurfaces = [];
+  document.getElementById('surfaces-rollup').innerHTML =
+    '<span class="chip">Surface registry <b>UNAVAILABLE</b></span>';
+  document.getElementById('surface-filters').innerHTML = '';
+  document.getElementById('surfaces-list').innerHTML =
+    '<div class="surface-empty">Surface registry unavailable. The catalog count is unknown.</div>';
+  document.getElementById('surface-page-status').textContent = 'Catalog count unavailable';
+  document.getElementById('surface-search').disabled = true;
+  document.getElementById('surface-prev').disabled = true;
+  document.getElementById('surface-next').disabled = true;
+}}
 
 function matchingSurfaces() {{
   const needle = surfaceQuery.toLowerCase();
@@ -945,6 +1139,7 @@ function renderSurfaceTabs(labelCounts) {{
 }}
 
 function renderSurfaceCatalog() {{
+  if (!surfaceCatalogAvailable) return;
   const filtered = matchingSurfaces();
   const pageCount = Math.max(1, Math.ceil(filtered.length / SURFACE_PAGE_SIZE));
   surfacePage = Math.min(surfacePage, pageCount - 1);
@@ -987,10 +1182,15 @@ document.getElementById('surface-next').addEventListener('click', () => {{
   const statusEl = document.getElementById('surfaces-status');
   try {{
     const r = await fetch(SURFACES_EP, {{ headers:{{Accept:'application/json'}} }});
-    const m = await r.json();
-    const surfaces = m.surfaces || [];
-    const s = m.summary || {{}};
-    const lc = s.label_counts || {{}};
+    if (!r.ok) throw new Error('surface registry HTTP ' + r.status
+      + (r.status === 402 ? ' (payment required)' : ''));
+    const payload = await r.json();
+    if (payload && payload.ok === false)
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'registry source unavailable');
+    const m = surfaceManifest(payload);
+    const surfaces = m.surfaces;
+    const s = m.summary;
+    const lc = s.label_counts;
 
     // honest roll-up: true count + per-label counts, straight from the manifest
     const chips = [`<span class="chip"><b>${{esc(m.count ?? surfaces.length)}}</b> surfaces</span>`];
@@ -1003,18 +1203,16 @@ document.getElementById('surface-next').addEventListener('click', () => {{
 
     // retain every surface, then render a bounded honest page: id + title + label.
     allSurfaces = surfaces;
+    surfaceCatalogAvailable = true;
+    document.getElementById('surface-search').disabled = false;
     renderSurfaceTabs(lc);
     renderSurfaceCatalog();
 
     statusEl.className = 'status-line';
-    statusEl.textContent = (m.ok === false)
-      ? ('surface registry unavailable: ' + esc(m.error || 'unknown') + ' (nothing fabricated)')
-      : ('live · ' + esc(m.count ?? surfaces.length) + ' surfaces from ' + esc(SURFACES_EP)
-         + ' · labels_valid=' + esc(String(s.labels_valid)));
+    statusEl.textContent = 'live · ' + m.count + ' surfaces from ' + SURFACES_EP
+      + ' · labels_valid=' + String(s.labels_valid);
   }} catch (e) {{
-    allSurfaces = [];
-    renderSurfaceTabs({{}});
-    renderSurfaceCatalog();
+    unavailableSurfaceCatalog();
     statusEl.className = 'status-line err';
     statusEl.textContent = 'surfaces unavailable: ' + e + ' (nothing fabricated — raw data at ' + SURFACES_EP + ')';
   }}

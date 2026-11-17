@@ -47,6 +47,23 @@
     }
   }
 
+  function cpuPublicSources(value) {
+    const handles = value.evidence_handles, citations = value.citations;
+    const fields = ['nodeId', 'nodeKind', 'label', 'note'];
+    if (!Array.isArray(handles) || !handles.length || handles.length > 3
+        || !Array.isArray(citations) || citations.length > 3) return null;
+    if (handles.some((handle) => !handle || typeof handle !== 'object' || Array.isArray(handle)
+        || fields.some((field) => typeof handle[field] !== 'string' || handle[field].length > 16384)
+        || !handle.nodeId || handle.nodeId.length > 256)) return null;
+    const ids = new Set(handles.map((handle) => handle.nodeId));
+    if (ids.size !== handles.length || new Set(citations).size !== citations.length
+        || citations.some((id) => typeof id !== 'string' || !ids.has(id))) return null;
+    return {
+      handles: handles.map(({ nodeId, nodeKind, label, note }) => ({ nodeId, nodeKind, label, note })),
+      citations: [...citations],
+    };
+  }
+
   async function refresh() {
     el('refresh').disabled = true; ready = false; localReady = false; cpuReady = false;
     el('send').disabled = true; el('local-send').disabled = true; el('cpu-send').disabled = true;
@@ -122,6 +139,7 @@
   el('forget-key').addEventListener('click', () => { el('operator-key').value = ''; });
   el('local-forget-key').addEventListener('click', () => { el('local-operator-key').value = ''; });
   el('cpu-forget-key').addEventListener('click', () => { el('cpu-operator-key').value = ''; });
+  el('cpu-prompt').addEventListener('input', () => { el('cpu-public-ack').checked = false; });
   window.addEventListener('pagehide', () => { el('operator-key').value = ''; el('local-operator-key').value = ''; el('cpu-operator-key').value = ''; el('cpu-public-ack').checked = false; });
   el('turn-form').addEventListener('submit', async (event) => {
     event.preventDefault(); if (sending || !ready) return;
@@ -189,22 +207,44 @@
     cpuUncertain = false; cpuSending = true; el('cpu-send').disabled = true;
     el('cpu-public-ack').checked = false;
     el('cpu-answer').hidden = true; el('cpu-answer').textContent = '';
+    el('cpu-sources-panel').hidden = true; el('cpu-sources').replaceChildren(); el('cpu-citations').textContent = '';
     el('cpu-receipt-panel').hidden = true; el('cpu-receipt').textContent = '';
     el('cpu-turn-status').textContent = 'Checking operator permission and policy, then sending at most one public CPU lab request…';
     try {
       const response = await json('/api/a11oy/v1/atelier/cpu-lab/turn', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
         body: JSON.stringify({ prompt, declared: 'PUBLIC', public_share_acknowledged: true, max_output_tokens: 24 }),
-      }, 70000);
-      const { answer, ...evidence } = response.value;
-      el('cpu-receipt').textContent = JSON.stringify(evidence, null, 2);
+      }, 90000);
+      const { answer, evidence_handles, citations, ...evidence } = response.value;
+      const sources = cpuPublicSources({ evidence_handles, citations });
+      const proposal = response.ok && response.value.state === 'COMPLETED'
+        && response.value.provider_decision === 'PROPOSAL'
+        && response.value.provider_output_signature_status === 'UNSIGNED_LOCAL'
+        && response.value.grounding_required === true
+        && response.value.authority === 'NO_ACTION_AUTHORITY' && response.value.executed === false
+        && sources !== null && typeof answer === 'string' && answer.trim();
+      el('cpu-receipt').textContent = JSON.stringify(proposal
+        ? { ...evidence, evidence_handles: sources.handles, citations: sources.citations } : evidence, null, 2);
       el('cpu-receipt-panel').hidden = false;
-      if (response.ok && response.value.state === 'COMPLETED' && typeof answer === 'string' && answer.trim()) {
+      if (proposal) {
         el('cpu-answer').textContent = answer; el('cpu-answer').hidden = false;
-        el('cpu-turn-status').textContent = 'CPU lab text received. Atelier outcome is signed; the lab execution record remains UNSIGNED.';
+        for (const handle of sources.handles) {
+          const row = document.createElement('li');
+          row.textContent = `${handle.label}\n${handle.nodeKind} · ${handle.nodeId}\n${handle.note}`;
+          el('cpu-sources').append(row);
+        }
+        el('cpu-citations').textContent = `Citations returned: ${sources.citations.length ? sources.citations.join(' · ') : 'None'}`;
+        el('cpu-sources-panel').hidden = false;
+        el('cpu-turn-status').textContent = 'Source-grounded proposal received. Lab record UNSIGNED_LOCAL; no action authority. Inspect the public source handles and Atelier outcome receipt below.';
       } else {
-        cpuUncertain = response.status >= 500 || response.value.code === 'LAB_TIMEOUT';
-        el('cpu-turn-status').textContent = `No completed CPU lab answer · ${response.value.code || response.value.state || `HTTP ${response.status}`}. No automatic retry was made.`;
+        const terminal = ['ABSTAIN', 'REVIEW', 'BLOCKED', 'DENIED', 'UNAVAILABLE'].includes(response.value.state);
+        const invalidOutcome = !terminal;
+        cpuUncertain = response.status >= 500 || response.value.code === 'LAB_TIMEOUT' || invalidOutcome;
+        const state = invalidOutcome ? 'UNAVAILABLE' : response.value.state;
+        const code = invalidOutcome ? 'CPU_LAB_INVALID_OUTCOME' : (response.value.code || `HTTP ${response.status}`);
+        const reason = typeof response.value.reason_code === 'string'
+          && /^[A-Z][A-Z0-9_]{0,63}$/.test(response.value.reason_code) ? ` · ${response.value.reason_code}` : '';
+        el('cpu-turn-status').textContent = `No CPU lab proposal · ${state} · ${code}${reason}. No automatic retry was made.`;
       }
     } catch (_error) {
       cpuUncertain = true;
