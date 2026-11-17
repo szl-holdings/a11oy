@@ -70,6 +70,12 @@ Browser verification of the deployed `/frontier` observed a `WebGLRenderer` cont
 
 The implementation contract requires dynamically loaded, guarded 3D initialization with evidence bootstrap independent of that optional graphics path. Regression cases must cover both a rejected graphics import and a throwing renderer constructor: manifest, Brain, and surfaces loaders must still start, and the non-3D interface must remain usable. This note records the observed failure and the required behavior; it does not claim that a fix has been deployed or that the regression tests have passed.
 
+### Surface catalog response contract
+
+The capability and surface loaders check the HTTP status before decoding a response, retaining an explicit payment-required explanation for HTTP 402. The capability loader also requires an explicit successful envelope, a capability array, and a matching summary count. The surface loader validates its catalog before rendering. A payment-required response, other non-success response, source error, or malformed envelope is an unavailable catalog with an unknown count. It cannot become a live empty catalog. Search and pagination remain disabled until a valid catalog has loaded; error rendering clears the roll-up and filter tabs instead of showing an `ALL 0` result.
+
+A successful catalog must match the existing producer contract: `ok: true`, a surface array, safe nonnegative integer counts, complete summary fields, unique nonblank identifiers, supported labels, and boolean asset-presence observations. The summary count, label histogram, present count, and unavailable count must agree with the returned entries. A valid observed empty catalog remains distinct from an unavailable source. Valid `UNAVAILABLE` entries remain visible, including both missing assets and present assets without a recognized declaration. These are representation checks, not independent verification of source bytes, runtime capabilities, or execution authority. Existing edge authorization and payment policies remain in force.
+
 ## Anatomy transport and mesh observations
 
 The existing [Anatomy data reader](../console/anatomy-map/live-body.js) and [page consumer](../console/anatomy-map/live-body.html) now keep endpoint transport reachability distinct from declared source state and operational readiness. The legacy `live` renderer/CSS token remains compatible, but visible labels explain its transport-only meaning. These probes do not acquire a readiness verdict or invent relationships to Frontier capabilities.
