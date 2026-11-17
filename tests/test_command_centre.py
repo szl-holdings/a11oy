@@ -58,6 +58,7 @@ def test_owned_assets(client, path):
     assert response.status_code == 200
     assert response.headers['x-content-type-options'] == 'nosniff'
     assert len(response.content) > 100
+    assert response.headers['cache-control'] == 'no-store'
     assert client.head(path).status_code == 200
 
 
@@ -155,8 +156,10 @@ def test_get_does_not_call_provider_or_store_credentials():
 
 def test_css_has_existing_design_system(client):
     page = client.get('/command-centre').text
-    assert '/command-centre/szl/szl-design-system.css' in page
-    assert '/command-centre/szl/szl-console.css' in page
+    sources = centre.presentation_sources()
+    for name in ('szl-design-system.css', 'szl-console.css'):
+        digest = sources['routers/command_centre_web/szl/' + name]
+        assert '/command-centre/assets/' + digest + '/' + name in page
 
 
 def test_bundled_study_is_pinned_not_performance_evidence(client):
@@ -482,3 +485,101 @@ const proposal = {
         encoding="utf-8", capture_output=True, timeout=20, check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize('filename,suffix,media_type', [
+    ('app.js', 'app.js', 'text/javascript'),
+    ('style.css', 'style.css', 'text/css'),
+    ('szl-design-system.css', 'szl/szl-design-system.css', 'text/css'),
+    ('szl-console.css', 'szl/szl-console.css', 'text/css'),
+])
+def test_digest_assets_serve_exact_manifest_bytes(client, monkeypatch, filename, suffix, media_type):
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError('asset delivery cannot contact a provider')
+    monkeypatch.setattr(centre, 'http_json', forbidden)
+    body = (centre.ROOT / suffix).read_bytes()
+    digest = hashlib.sha256(body).hexdigest()
+    assert centre.presentation_sources()['routers/command_centre_web/' + suffix] == digest
+    path = '/command-centre/assets/' + digest + '/' + filename
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.content == body
+    assert hashlib.sha256(response.content).hexdigest() == digest
+    assert response.headers['content-type'] == media_type + '; charset=utf-8'
+    assert response.headers['x-content-type-options'] == 'nosniff'
+    assert response.headers['cache-control'] == 'public, max-age=31536000, immutable, no-transform'
+    head = client.head(path)
+    assert head.status_code == 200 and head.content == b''
+    assert head.headers['content-length'] == str(len(body))
+    assert client.post(path, json={}).status_code == 405
+
+
+def test_stale_digest_never_falls_back_to_new_asset_bytes(client, tmp_path, monkeypatch):
+    original, updated = b'original script bytes', b'changed script bytes'
+    path = tmp_path / 'app.js'
+    path.write_bytes(original)
+    monkeypatch.setattr(centre, 'ROOT', tmp_path)
+    old_url = '/command-centre/assets/' + hashlib.sha256(original).hexdigest() + '/app.js'
+    assert client.get(old_url).content == original
+    path.write_bytes(updated)
+    stale = client.get(old_url)
+    assert stale.status_code == 404
+    assert stale.json() == {'state': 'UNAVAILABLE', 'code': 'ASSET_DIGEST_MISMATCH'}
+    assert stale.headers['cache-control'] == 'no-store'
+    assert updated not in stale.content
+    assert client.head(old_url).status_code == 404
+    new_url = '/command-centre/assets/' + hashlib.sha256(updated).hexdigest() + '/app.js'
+    assert client.get(new_url).content == updated
+    assert client.get('/command-centre/app.js').content == updated
+
+
+def test_response_hash_checks_the_read_bytes_not_a_reopened_path(client, tmp_path, monkeypatch):
+    original, updated = b'bytes admitted for this response', b'changed after read'
+    path = tmp_path / 'app.js'
+    path.write_bytes(original)
+    monkeypatch.setattr(centre, 'ROOT', tmp_path)
+    read = centre._bounded_source
+    reads = []
+    def changing_source(source, limit):
+        reads.append((source, limit))
+        body = read(source, limit)
+        source.write_bytes(updated)
+        return body
+    monkeypatch.setattr(centre, '_bounded_source', changing_source)
+    url = '/command-centre/assets/' + hashlib.sha256(original).hexdigest() + '/app.js'
+    response = client.get(url)
+    assert response.status_code == 200 and response.content == original
+    assert reads == [(path, 1048576)]
+    monkeypatch.setattr(centre, '_bounded_source', read)
+    assert client.get(url).status_code == 404
+
+
+@pytest.mark.parametrize('digest,filename', [
+    ('a' * 63, 'app.js'), ('A' * 64, 'app.js'), ('g' * 64, 'app.js'),
+    ('a' * 65, 'app.js'), ('a' * 64, 'other.js'), ('a' * 64, 'index.html'),
+    ('a' * 64, 'szl/szl-console.css'), ('a' * 64, 'app.js/extra'),
+    ('a' * 64, '%2e%2e%2fapp.js'), ('a' * 64, '%5capp.js'),
+    ('a' * 64, ''), ('a' * 64, 'app.js%00'), ('a' * 64, 'APP.JS'),
+])
+def test_invalid_digest_or_filename_never_resolves_a_file(client, monkeypatch, digest, filename):
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError('invalid asset request resolved a file')
+    monkeypatch.setattr(centre, '_bounded_source', forbidden)
+    response = client.get('/command-centre/assets/' + digest + '/' + filename)
+    assert response.status_code == 404
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.json()['code'] == 'ASSET_NOT_FOUND'
+
+
+@pytest.mark.parametrize('kind', ['missing', 'directory', 'oversized'])
+def test_unavailable_digest_asset_is_bounded_uncached_and_explicit(client, tmp_path, monkeypatch, kind):
+    path = tmp_path / 'app.js'
+    if kind == 'directory':
+        path.mkdir()
+    elif kind == 'oversized':
+        path.write_bytes(b'x' * 1048577)
+    monkeypatch.setattr(centre, 'ROOT', tmp_path)
+    response = client.get('/command-centre/assets/' + 'a' * 64 + '/app.js')
+    assert response.status_code == 503
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.json() == {'state': 'UNAVAILABLE', 'code': 'ASSET_UNAVAILABLE'}
