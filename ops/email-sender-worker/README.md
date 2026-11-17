@@ -100,27 +100,36 @@ request and push that touches this directory. On a push to `main` (or a manual
 `workflow_dispatch` on `main`) the `deploy` job, gated by the
 `cloudflare-production` environment:
 
-1. checks out exactly `github.sha` and installs Wrangler 4.150.0 from the lockfile;
-2. deploys with `cloudflare/wrangler-action` pinned to commit
+1. checks out exactly `github.sha`, installs the reviewed lockfile, and verifies
+   that the installed Wrangler version matches the version passed to the deploy action;
+2. resolves a valid configured account ID or discovers exactly one account through
+   the existing token's authenticated `GET /accounts` access; zero, multiple or
+   malformed results stop before deployment;
+3. deploys with `cloudflare/wrangler-action` pinned to commit
    `9acf94ace14e7dc412b076f2c5c20b8ce93c79cd` (v3.15.0), injecting the full
    40-character SHA as the `SOURCE_REVISION` var and as the version message;
-3. fails unless `https://szl-email-sender.<account>.workers.dev/.well-known/szl-worker-revision`
+4. fails unless `https://szl-email-sender.<account>.workers.dev/.well-known/szl-worker-revision`
    reports that exact SHA with `ready: true`.
 
 `workers_dev = true` is the only public entry point (no zone route, no custom
 domain, no preview URLs). workers.dev is not behind the `a-11-oy.com` zone's
 bot settings, so the readback needs no WAF change.
 
-## Owner actions (the agent that wrote this has no Cloudflare credentials)
+## Deployment prerequisites
 
 1. GitHub → `szl-holdings/a11oy` → Settings → Environments → create
    `cloudflare-production`; add required reviewers and limit deployment
    branches to `main`.
-2. Add two environment secrets:
-   - `CLOUDFLARE_ACCOUNT_ID`: the 32-hex account ID shown in the Cloudflare dashboard.
-   - `CLOUDFLARE_API_TOKEN`: a custom API token with exactly **Account → Workers
-     Scripts → Edit** and **Account → Account Settings → Read**, account
-     resources limited to this one account, and no zone or user permissions.
+2. Provide `CLOUDFLARE_API_TOKEN` through the environment or existing repository
+   secret, with **Account → Workers Scripts → Edit** and **Account → Account
+   Settings → Read**, account resources limited to the intended account, and no
+   zone or user permissions. `CLOUDFLARE_ACCOUNT_ID` remains an optional 32-hex
+   environment secret for an explicit account selection; it is required when
+   the token can see multiple accounts. Discovery uses the documented
+   [Cloudflare List Accounts API](https://developers.cloudflare.com/api/resources/accounts/methods/list/)
+   with a bounded first page and checks any returned pagination counts. The
+   selected ID is masked before becoming a workflow output. Discovery failure
+   never changes token permissions or selects the first of several accounts.
 3. Keep the existing Worker secret `API_SECRET`, but only if it is at least 32
    characters. A shorter value makes the new code answer 503 and the deploy
    readback fail with `NOT_READY`. To rotate, generate a value (for example
@@ -136,6 +145,6 @@ bearer comparison, fail-closed configuration, and that workerd and Wrangler's
 local `send_email` simulation accept the constructed message. They do **not**
 prove delivery through Cloudflare Email Routing, DKIM/DMARC alignment at a
 receiving server, or inbox placement; no message has been sent to a real
-mailbox from this source. Until the owner completes the actions above and a
-push to `main` deploys it, the live Worker is still the broken copy described
-in "Why it was rewritten".
+mailbox from this source. A live deployment is established only by a successful
+exact-revision and readiness readback from the production workflow. That
+readback does not establish delivery to a mailbox.
