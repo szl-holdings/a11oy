@@ -838,8 +838,10 @@ REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "7590b85e303209c953e267aa5bd8b861e557e
 REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
-    ".github/scripts/admit_execution_handoff.py": "373195db13b3b4b434585deb7e3146d6ed7d81cabcc3a9691467db2ba3043312",
-    ".github/scripts/collect_execution_readiness.py": "b58e1b5b681709f2f547b64230cb5dc1133368bd51d724d0d2b87fc35468a100",
+    ".github/scripts/admit_execution_handoff.py": "679adeb336dd8b9d6261eeaff6040069de4260a282bc2a0dde03d7f202502f4b",
+    # The first source-admission gate imports this pure plan parser by a fixed path.
+    # Its complete bytes are part of the reviewed deployment helper closure.
+    "scripts/estate_repair_dispatch.py": "94bbbf48839e9d394264986255d87590e33a2b75aba3fd7d8d9a17b62e68982e",    ".github/scripts/collect_execution_readiness.py": "b58e1b5b681709f2f547b64230cb5dc1133368bd51d724d0d2b87fc35468a100",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
     "observer_adapters.py": "84b80c124c8e6e70c0292934f150873ea93340a8995795e48cab477628e90b66",
