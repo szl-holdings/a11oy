@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import sys
 from typing import Any, Callable
 
 # Honesty-label vocabulary (doctrine v11). Tests grep these exact strings.
@@ -293,8 +294,16 @@ def _tile_energy_operator() -> dict:
 
 
 def _tile_energy_ledger() -> dict:
-    import szl_energy_ledger as el
-    summ = el.handle_ledger()
+    el = sys.modules.get("szl_energy_ledger")
+    reader = getattr(el, "handle_ledger", None)
+    summ = (reader() if callable(reader) else
+            {"status": UNAVAILABLE, "error": "LEDGER_MODULE_NOT_INITIALIZED"})
+    if summ.get("status") == UNAVAILABLE:
+        return _unavailable_tile(
+            "Tamper-evident energy ledger", "energy",
+            {"endpoint": f"{_API}/energy/ledger", "kind": "initialized ledger observation"},
+            str(summ.get("error") or "ledger observation unavailable"),
+        )
     chain = summ.get("chain", {}) or {}
     persistence = summ.get("persistence", {}) or {}
     receipts = summ.get("receipts", []) or []
