@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+name: Observe Alert Relay Telemetry
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/audit-alert-relay-telemetry.yml"
+      - "scripts/audit_cloudflare_alert_relay_telemetry.py"
+      - "tests/test_cloudflare_alert_relay_telemetry.py"
+      - "docs/operations/alert-relay-telemetry-observation.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-alert-relay-telemetry.yml"
+      - "scripts/audit_cloudflare_alert_relay_telemetry.py"
+      - "tests/test_cloudflare_alert_relay_telemetry.py"
+      - "docs/operations/alert-relay-telemetry-observation.md"
+  workflow_dispatch:
+    inputs:
+      from_utc:
+        description: "Aware ISO start time; window must be at most 15 minutes"
+        required: true
+        default: "2026-11-16T22:52:20Z"
+        type: string
+      to_utc:
+        description: "Aware ISO end time after start"
+        required: true
+        default: "2026-11-16T22:54:20Z"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alert-relay-telemetry-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Prove telemetry scope and numerical output boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - name: Check out candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Run network-free boundary regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -I -B tests/test_cloudflare_alert_relay_telemetry.py -v
+          git diff --check
+
+  observe:
+    name: Read fixed relay timing aggregates
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: production
+    env:
+      AUDIT_REPORT: alert-relay-telemetry-observation.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+      - name: Check out protected event source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Verify source against protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          git fetch --no-tags --depth=256 origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main
+          git diff --exit-code "$GITHUB_SHA" refs/remotes/origin/main -- \
+            .github/workflows/audit-alert-relay-telemetry.yml \
+            scripts/audit_cloudflare_alert_relay_telemetry.py \
+            tests/test_cloudflare_alert_relay_telemetry.py \
+            docs/operations/alert-relay-telemetry-observation.md
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Observe provider timing data without persistence
+        id: observe
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TELEMETRY_FROM_UTC: ${{ inputs.from_utc }}
+          TELEMETRY_TO_UTC: ${{ inputs.to_utc }}
+        run: |
+          set +e
+          python -I -B scripts/audit_cloudflare_alert_relay_telemetry.py \
+            --from-utc "$TELEMETRY_FROM_UTC" --to-utc "$TELEMETRY_TO_UTC"
+          code=$?
+          if [ -f "$AUDIT_REPORT" ]; then
+            echo "report_written=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$code"
+      - name: Upload numerical observations
+        if: ${{ always() && steps.observe.outputs.report_written == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: alert-relay-telemetry-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.AUDIT_REPORT }}
+          if-no-files-found: error
+          retention-days: 7
