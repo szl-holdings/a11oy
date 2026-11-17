@@ -26,6 +26,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -519,6 +520,50 @@ def dot_copy_warnings(paths: tuple[str, ...]) -> list[dict[str, str]]:
             for path in sorted(normalized)]
 
 
+def immutable_verifier_limits(source_ast):
+    """Extract strictly bounded numeric verifier settings from the exact Git blob.
+
+    The namespace must run the same bounded child-verification contract as the
+    deployed source, not silently substitute an older verifier's parameters.
+    Neither function bodies nor arbitrary AST expressions are evaluated here.
+    """
+    bounds = {
+        "VERIFIER_TIMEOUT": (1, 60, int),
+        "VERIFIER_POLL": (0.01, 1, float),
+        "VERIFIER_CLEANUP_TIMEOUT": (0.1, 5, (int, float)),
+        "MAX_VERIFIER_OUTPUT": (1024, 4 * 1024 * 1024, int),
+    }
+
+    def number(node):
+        if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+            return node.value
+        if isinstance(node, ast.BinOp) and type(node.op) is ast.Mult:
+            left, right = number(node.left), number(node.right)
+            value = left * right
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ParityError("immutable runtime verifier bounds unavailable")
+            return value
+        raise ParityError("immutable runtime verifier bounds unavailable")
+
+    result = {}
+    for stmt in source_ast.body:
+        if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
+            continue
+        target = stmt.targets[0]
+        if not isinstance(target, ast.Name) or target.id not in bounds:
+            continue
+        if target.id in result:
+            raise ParityError("immutable runtime verifier bounds duplicated")
+        value = number(stmt.value)
+        lower, upper, kind = bounds[target.id]
+        if type(value) not in (kind if isinstance(kind, tuple) else (kind,)) or not lower <= value <= upper:
+            raise ParityError("immutable runtime verifier bounds invalid")
+        result[target.id] = value
+    if set(result) != set(bounds):
+        raise ParityError("immutable runtime verifier bounds incomplete")
+    return result
+
+
 def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
     """Reuse exact source validators without importing application startup code.
 
@@ -528,7 +573,8 @@ def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
     """
     namespace = {"__name__": "immutable_runtime_verification_contract",
                  "json": json, "math": math, "re": re, "os": os,
-                 "tempfile": tempfile, "Path": Path, "subprocess": subprocess,
+                 "tempfile": tempfile, "threading": threading, "time": time,
+                 "Path": Path, "subprocess": subprocess,
                  "MAX_JSON": 2 * 1024 * 1024, "MAX_FILE": 32 * 1024 * 1024,
                  "REPOSITORY": "szl-holdings/a11oy", "TARGET": "SZLHOLDINGS/a11oy",
                  "SIGNER": RUNTIME_SIGNER,
@@ -536,12 +582,16 @@ def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
                               "gdw_runtime.py", ".github/scripts/hf-sync.yml"}}
     for path, wanted in (
         ("szl_readiness_artifact.py", {"EvidenceBlocked", "require", "digest", "strict"}),
-        ("szl_runtime_identity.py", {"marker_document", "validate_binding", "verify_attestation"}),
+        ("szl_runtime_identity.py", {"marker_document", "validate_binding", "verify_attestation",
+                                      "verification_open", "stop_verifier"}),
     ):
         raw = _read_url(f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/{path}",
                         opener=opener, max_bytes=128 * 1024)
         require_blob_bytes(path, raw, tree.get(path))
-        definitions = [node for node in ast.parse(raw).body
+        parsed = ast.parse(raw)
+        if path == "szl_runtime_identity.py":
+            namespace.update(immutable_verifier_limits(parsed))
+        definitions = [node for node in parsed.body
                        if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in wanted]
         if len(definitions) != len(wanted) or {node.name for node in definitions} != wanted:
             raise ParityError("immutable runtime verification contract is incomplete")

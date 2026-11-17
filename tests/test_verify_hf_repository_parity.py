@@ -972,23 +972,71 @@ class AuthenticatedDerivedMarkerTests(unittest.TestCase):
         return io.BytesIO(self.raw)
 
     def verified_cli(self, command, **kwargs):
+        # The immutable source now launches a cancellable bounded Popen child,
+        # not subprocess.run. This fixture models its real binary file and
+        # completed process interface without skipping signature/cert checks.
         self.commands.append(command)
         self.assertEqual(command[:3], ["gh", "attestation", "verify"])
-        self.assertEqual(kwargs["timeout"], 45)
         self.assertEqual(kwargs["env"]["GH_TOKEN"], "fixture-job-read-token")
         self.assertNotIn("GITHUB_TOKEN", kwargs["env"])
         self.assertNotIn("HF_TOKEN", kwargs["env"])
+        self.assertEqual(kwargs["stdin"], MODULE.subprocess.DEVNULL)
+        self.assertEqual(kwargs["stderr"], MODULE.subprocess.DEVNULL)
+        self.assertEqual(Path(command[3]).parent, Path(kwargs["cwd"]))
         body = Path(command[3]).read_bytes()
         kwargs["stdout"].write(self.canonical([{"verificationResult": {"signature": {
             "certificate": {"runInvocationURI": self.invocation}}}}]))
-        return MODULE.subprocess.CompletedProcess(command, 0 if body == self.expected_binding else 1)
+        kwargs["stdout"].flush()
+        result = 0 if body == self.expected_binding else 1
+
+        class CompletedVerifier:
+            def poll(self):
+                return result
+
+            def terminate(self):
+                raise AssertionError("completed verifier must not be terminated")
+
+        return CompletedVerifier()
 
     def verify(self):
         with mock.patch.dict(MODULE.os.environ, {"GITHUB_TOKEN": "fixture-job-read-token"}), \
-                mock.patch.object(MODULE.subprocess, "run", side_effect=self.verified_cli):
+                mock.patch.object(MODULE.subprocess, "Popen", side_effect=self.verified_cli):
             return MODULE.verify_derived_runtime_marker(github_repo=GITHUB_REPO,
                 github_ref=self.source, hf_repo=HF_REPO, hf_ref=self.hf,
                 tree=self.tree, opener=self.opener)
+
+    def test_immutable_verifier_limits_refuse_unsafe_or_missing_numeric_source(self):
+        import ast
+        raw = self.files["szl_runtime_identity.py"].decode("utf-8")
+        limits = MODULE.immutable_verifier_limits(ast.parse(raw))
+        self.assertEqual(limits["VERIFIER_TIMEOUT"], 45)
+        self.assertEqual(limits["VERIFIER_CLEANUP_TIMEOUT"], 1)
+        self.assertEqual(limits["VERIFIER_POLL"], 0.1)
+        self.assertEqual(limits["MAX_VERIFIER_OUTPUT"], 2 * 1024 * 1024)
+        for changed in (
+            raw.replace("VERIFIER_TIMEOUT = 45", "VERIFIER_TIMEOUT = 3600"),
+            raw.replace("VERIFIER_POLL = 0.1", "VERIFIER_POLL = 0"),
+            raw.replace("VERIFIER_CLEANUP_TIMEOUT = 1", "VERIFIER_CLEANUP_TIMEOUT = 90"),
+            raw.replace("MAX_VERIFIER_OUTPUT = 2 * 1024 * 1024",
+                        "MAX_VERIFIER_OUTPUT = 1024 * 1024 * 1024"),
+            raw.replace("VERIFIER_TIMEOUT = 45", "VERIFIER_TIMEOUT = limit()"),
+            raw.replace("VERIFIER_TIMEOUT = 45", "# VERIFIER_TIMEOUT missing"),
+            raw.replace("VERIFIER_TIMEOUT = 45", "VERIFIER_TIMEOUT = 45\nVERIFIER_TIMEOUT = 45"),
+        ):
+            with self.subTest(change=changed[-80:]):
+                with self.assertRaises(MODULE.ParityError):
+                    MODULE.immutable_verifier_limits(ast.parse(changed))
+
+    def test_immutable_source_contract_includes_new_child_closure(self):
+        with mock.patch.object(MODULE.subprocess, "Popen", side_effect=self.verified_cli):
+            contract = MODULE.runtime_verification_contract(
+                github_repo=GITHUB_REPO, github_ref=self.source,
+                tree=self.tree, opener=self.opener)
+        for key in ("verification_open", "stop_verifier", "verify_attestation",
+                    "VERIFIER_TIMEOUT", "VERIFIER_POLL", "MAX_VERIFIER_OUTPUT",
+                    "VERIFIER_CLEANUP_TIMEOUT"):
+            self.assertIn(key, contract)
+        self.assertIs(contract["verify_attestation"].__globals__, contract)
 
     def test_exact_binding_is_authenticated_and_never_labeled_source_equality(self):
         proof = self.verify()
