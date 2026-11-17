@@ -39,6 +39,47 @@
     throw new Error('INVALID_RECEIPT_VALUE');
   }
 
+  function parseUniqueJSON(raw) {
+    const fail=()=>{throw new Error('RESPONSE_JSON_AMBIGUOUS');};
+    // JSON.parse establishes syntax. The bounded second pass rejects duplicate
+    // decoded member names, including escaped aliases, before interpretation.
+    const value=JSON.parse(raw); let at=0,nodes=0;
+    const space=()=>{while(at<raw.length && /[\t\n\r ]/.test(raw[at])) at++;};
+    function stringToken() {
+      const start=at++;
+      for (;;) {
+        if (at>=raw.length) fail();
+        if (raw[at]==='\\') {at+=2;continue;}
+        if (raw[at++]==='"') return raw.slice(start,at);
+      }
+    }
+    function scan(depth) {
+      if (depth>32 || ++nodes>16384) fail();
+      space(); const kind=raw[at];
+      if (kind==='"') {stringToken();return;}
+      if (kind==='{' || kind==='[') {
+        const end=kind==='{'?'}':']',keys=new Set(); at++;space();
+        if (raw[at]===end) {at++;return;}
+        for (;;) {
+          space();
+          if (kind==='{') {
+            if (raw[at]!=='"') fail();
+            const key=JSON.parse(stringToken());
+            if (keys.has(key)) fail();keys.add(key);space();
+            if (raw[at++]!==':') fail();
+          }
+          scan(depth+1);space();
+          if (raw[at]===end) {at++;return;}
+          if (raw[at++]!==',') fail();
+        }
+      }
+      const start=at;
+      while(at<raw.length && !/[\t\n\r ,}\]]/.test(raw[at])) at++;
+      if (at===start) fail();
+    }
+    scan(0);space();if(at!==raw.length) fail();
+    return value;
+  }
   async function requireBoundOutcome(value, request, context, provider, mode = null) {
     // These are response/request consistency checks, NOT independent signature
     // verification, signer admission, exactly-once execution, or model quality.
@@ -68,7 +109,7 @@
       && typeof envelope.payload === 'string' && envelope.payload.length <= 262144
       && Array.isArray(envelope.signatures) && envelope.signatures.length > 0 && envelope.signatures.length <= 16
       && envelope.signatures.every(x => typeof x.sig === 'string' && x.sig.length > 0 && x.sig.length <= 16384));
-    const embedded = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(
+    const embedded = parseUniqueJSON(new TextDecoder('utf-8', { fatal: true }).decode(
       Uint8Array.from(atob(envelope.payload), c => c.charCodeAt(0))));
     require(canonicalValue(embedded) === canonicalValue(payload));
   }
@@ -93,7 +134,7 @@
       } finally { reader.releaseLock(); }
       const body = new Uint8Array(bytes); let offset = 0;
       for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
-      const value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body));
+      const value = parseUniqueJSON(new TextDecoder('utf-8', { fatal: true }).decode(body));
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('INVALID_RESPONSE');
       return { value, status: response.status, ok: response.ok };
     } finally { clearTimeout(timer); }
