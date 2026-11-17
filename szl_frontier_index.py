@@ -66,11 +66,18 @@ from typing import Any
 # DECLARED = asserted/stated by the operator, NOT measured and NOT proven; never upgraded to
 # MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). `_primary_label` here is
 # the shared resolver the honesty wall delegates to, so this set gates that verdict too.
+# UNKNOWN is listed in the public-estate contract truthVocabulary
+# (static/shared/public-estate-contract.v1.json): evidence exists but is unverified, so it never
+# upgrades a claim (e.g. /llm/sovereign/health: node reachable, provenance unverified).
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
     "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
-    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNKNOWN", "UNAVAILABLE",
 )
+# UNKNOWN is also an ordinary English word, so it is honoured only as the whole label value,
+# never as a substring: "theorem proved; unknown" or "PRODUCTION-GRADE, risk unknown" must not
+# pass as honest because the word appears somewhere inside them.
+_WHOLE_VALUE_ONLY_LABELS = frozenset({"UNKNOWN"})
 # The self label of this ecosystem surface itself.
 MODELED = "MODELED"
 UNAVAILABLE = "UNAVAILABLE"
@@ -120,11 +127,15 @@ def _primary_label(*values: Any) -> str | None:
         up = val.upper()
         best_pos, best_tok = None, None
         for tok in HONEST_LABELS:
+            if tok in _WHOLE_VALUE_ONLY_LABELS:
+                continue
             i = up.find(tok)
             if i >= 0 and (best_pos is None or i < best_pos):
                 best_pos, best_tok = i, tok
         if best_tok:
             return best_tok
+        if up.strip() in _WHOLE_VALUE_ONLY_LABELS:
+            return up.strip()
     return None
 
 

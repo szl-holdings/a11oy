@@ -16,6 +16,9 @@ logic itself, only controlled surface inputs where a real violation cannot be fo
   6. Doctrine: locked-8 exact, adds nothing, Λ = Conjecture 1, trust 0.97 (never 100%).
   7. The honest vocabulary recognises DECLARED (asserted, not measured, never upgraded),
      so an honestly-labelled surface is SATISFIED instead of falsely flagged.
+  8. The honest vocabulary recognises UNKNOWN (public-estate contract truthVocabulary; reachable but
+     unverified), so the sovereign health surface is SATISFIED and never upgraded, while a
+     non-vocabulary label is still VIOLATED.
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
@@ -249,6 +252,147 @@ def test_widened_vocabulary_did_not_become_a_rubber_stamp():
         by = {c["invariant"]: c for c in checks}
         assert label_tok is None, f"{raw!r} must map to NO honest token, got {label_tok!r}"
         assert by["label_in_honest_vocabulary"]["status"] == hw.VIOLATED
+
+
+# --------------------------------------------------------------------------- #
+# 8. UNKNOWN is a contract honest label (reachable-but-unverified never upgrades)
+# --------------------------------------------------------------------------- #
+# The shape GET /api/a11oy/v1/llm/sovereign/health returns when a sovereign node answers its
+# model-list probe but provenance is unverified (pinned by tests/test_sovereign_backend.py).
+_SOVEREIGN_REACHABLE_UNVERIFIED = {
+    "reachable": True,
+    "endpoint_reachable": True,
+    "model": None,
+    "url": None,
+    "label": "UNKNOWN",
+    "label_basis": "Metadata reachability only; sovereign provenance not verified.",
+    "gpu_verified": False,
+    "weights_verified": False,
+    "ownership_proof": "UNAVAILABLE",
+    "model_ready": True,
+    "receipt_binding": "UNKNOWN",
+    "operational": False,
+    "state": "UNKNOWN",
+    "sovereign_status": "UNKNOWN",
+    "wired": False,
+    "live": False,
+    "honest_stub": True,
+    "conjecture_note": "Λ = Conjecture 1 — advisory, never 'green'/theorem.",
+}
+
+
+def test_unknown_label_is_in_contract_honest_vocabulary():
+    """Regression (live 2026-11-17): the sovereign health surface honestly labels a
+    reachable-but-unverified node UNKNOWN. UNKNOWN is listed in the public-estate contract
+    truthVocabulary (static/shared/public-estate-contract.v1.json), so the wall must read it
+    as SATISFIED, never as the single violation that drags the estate to VIOLATED."""
+    import json
+    import pathlib
+
+    contract = json.loads((pathlib.Path(__file__).resolve().parents[1]
+                           / "static/shared/public-estate-contract.v1.json").read_text())
+    assert "UNKNOWN" in contract["truthVocabulary"], "UNKNOWN must stay in the contract truthVocabulary"
+    assert "UNKNOWN" in hw.HONEST_LABELS
+    assert "UNKNOWN" in fi.HONEST_LABELS
+    assert fi._primary_label("UNKNOWN") == "UNKNOWN"
+    for payload in ({"label": "UNKNOWN"}, {"data_label": "UNKNOWN"},
+                    {"doctrine": {"label_top": "UNKNOWN"}}):
+        label_tok, _prov, checks = hw._eval_payload(payload)
+        assert label_tok == "UNKNOWN", f"{payload} resolved to {label_tok!r}"
+        by = {c["invariant"]: c for c in checks}
+        assert by["label_in_honest_vocabulary"]["status"] == hw.SATISFIED, payload
+
+
+def test_bogus_label_still_violates_after_unknown_is_accepted():
+    """Recognising UNKNOWN must not make the vocabulary check a rubber stamp."""
+    label_tok, _prov, checks = hw._eval_payload({"label": "TOTALLY-VERIFIED"})
+    by = {c["invariant"]: c for c in checks}
+    assert label_tok is None, f"'TOTALLY-VERIFIED' must map to no honest token, got {label_tok!r}"
+    assert by["label_in_honest_vocabulary"]["status"] == hw.VIOLATED
+
+
+def test_word_unknown_inside_free_text_is_not_the_unknown_label():
+    """UNKNOWN counts only as the whole label value. Free text that merely contains the word
+    must keep failing the vocabulary check, as it did before UNKNOWN was accepted."""
+    for raw in ("theorem proved; unknown", "PRODUCTION-GRADE, risk unknown",
+                "VERIFIED (risk unknown)", "unknown risk, ship it"):
+        assert fi._primary_label(raw) is None, raw
+        label_tok, _prov, checks = hw._eval_payload({"label": raw})
+        by = {c["invariant"]: c for c in checks}
+        assert label_tok is None, f"{raw!r} resolved to {label_tok!r}"
+        assert by["label_in_honest_vocabulary"]["status"] == hw.VIOLATED, raw
+    for raw in ("UNKNOWN", " unknown ", "Unknown"):
+        assert fi._primary_label(raw) == "UNKNOWN", raw
+
+
+def test_wall_fallback_resolver_also_treats_unknown_as_whole_value_only(monkeypatch):
+    """If szl_frontier_index cannot be imported, the wall's local fallback must apply the
+    same whole-value rule, so the fallback is never looser than the shared resolver."""
+    def _boom():
+        raise ImportError("simulated")
+    monkeypatch.setattr(hw, "_fi", _boom)
+    assert hw._extract_label({"label": "UNKNOWN"}) == ("UNKNOWN", "UNKNOWN")
+    assert hw._extract_label({"label": "risk unknown"}) == ("risk unknown", None)
+    assert hw._extract_label({"label": "MODELED, scale unknown"}) == (
+        "MODELED, scale unknown", "MODELED")
+
+
+def test_sovereign_reachable_unverified_shape_is_satisfied_and_never_upgraded():
+    label_tok, _prov, checks = hw._eval_payload(dict(_SOVEREIGN_REACHABLE_UNVERIFIED))
+    assert label_tok == "UNKNOWN", f"UNKNOWN upgraded/dropped to {label_tok!r}"
+    violated = [c for c in checks if c["status"] != hw.SATISFIED]
+    assert violated == [], f"honest reachable-unverified shape wrongly flagged: {violated}"
+
+
+def test_sovereign_reachable_unverified_aggregate_is_intact(monkeypatch):
+    monkeypatch.setattr(hw, "_surface_registry",
+                        lambda: [{"id": "sovereign", "title": "sovereign", "cat": "energy"}])
+    monkeypatch.setattr(
+        hw, "_probe_surface",
+        lambda app, sid, gp, ns, timeout=3.0: (dict(_SOVEREIGN_REACHABLE_UNVERIFIED),
+                                               "/api/a11oy/v1/llm/sovereign/health",
+                                               hw.NATIVE_OK))
+    agg = hw._build_aggregate(None, "a11oy")
+    assert agg["violations"] == []
+    assert agg["summary"]["reachable_violations"] == 0
+    assert agg["verdict"] == hw.INTACT, agg["verdict_reason"]
+    assert agg["summary"]["label_counts"] == {"UNKNOWN": 1}
+    assert agg["surfaces"][0]["label"] == "UNKNOWN"
+
+
+def test_real_sovereign_route_reachable_unverified_is_not_a_wall_violation(monkeypatch):
+    """Drive the REAL sovereign health route through the wall's REAL in-process probe, with
+    the node simulated reachable via the same seams tests/test_sovereign_backend.py uses
+    (no network). The route keeps its honest UNKNOWN label; the wall must not flag it."""
+    import szl_llm_registry as reg
+
+    model_tag = "llama3-szl-finetuned-q4"
+    private_url = "http://secret-tunnel.example.invalid:11434/v1"
+    matrix = {
+        "node_count": 1, "reachable_count": 1, "any_reachable": True,
+        "primary_base_url": private_url,
+        "selected": {"index": 0, "role": "primary"},
+        "nodes": [{"index": 0, "role": "primary", "reachable": True,
+                   "api_style": "openai /v1", "served_models": [model_tag],
+                   "base_url": private_url, "error": "HTTP_STATUS:502"}],
+        "note": private_url,
+    }
+    monkeypatch.setattr(reg, "sovereign_mesh_matrix", lambda timeout=None: matrix)
+    monkeypatch.setattr(reg, "_sovereign_env_present", lambda: True)
+    monkeypatch.setattr(reg, "_sovereign_env_used", lambda: "A11OY_BRAIN_URL")
+    monkeypatch.setattr(reg, "_sovereign_model_slug", lambda: model_tag)
+    real = [s for s in hw._surface_registry() if s.get("id") == "sovereign"]
+    assert real, "sovereign must stay in the app's own surface registry"
+    monkeypatch.setattr(hw, "_surface_registry", lambda: real)
+
+    agg = hw._build_aggregate(serve.app, "a11oy")
+    (entry,) = agg["surfaces"]
+    assert entry["status"] == hw.NATIVE_OK
+    assert entry["endpoint"] == "/api/a11oy/v1/llm/sovereign/health"
+    assert entry["label"] == "UNKNOWN", "reachable-unverified must stay UNKNOWN, never upgraded"
+    assert entry["violations"] == []
+    assert agg["violations"] == []
+    assert agg["verdict"] == hw.INTACT, agg["verdict_reason"]
 
 
 def test_lambda_negated_theorem_is_not_a_violation():

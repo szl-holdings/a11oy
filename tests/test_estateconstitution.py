@@ -118,6 +118,19 @@ def test_fabricated_out_of_vocabulary_label_violates_article_2():
     assert art2["observed"]["out_of_vocabulary"][0]["observed"] == "totally-made-up"
 
 
+def test_contract_unknown_label_from_the_wall_is_compliant_with_article_2():
+    # UNKNOWN is listed in the public-estate contract truthVocabulary and never upgrades a claim; the wall
+    # reports it verbatim for a reachable-but-unverified sovereign node. Reading it back here
+    # must not re-create the false violation one layer up.
+    surfaces = [{"id": "sovereign", "status": "NATIVE-OK", "label": "UNKNOWN"}]
+    _install(_aggregate(surfaces=surfaces))
+    rep = ec.build_report(None, "a11oy")
+    art2 = _articles(rep)[2]
+    assert art2["result"] == ec.COMPLIANT, art2
+    assert art2["observed"]["out_of_vocabulary"] == []
+    assert "UNKNOWN" in rep["honest_labels_vocabulary"]
+
+
 def test_wall_reported_label_vocabulary_violation_also_violates_article_2():
     # The wall's own label_in_honest_vocabulary violation rows are honoured verbatim — an adverse
     # row is never dropped (Λ is Conjecture 1, never a theorem).
