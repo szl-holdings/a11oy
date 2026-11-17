@@ -413,6 +413,7 @@ jobs:
           tests/test_atelier_console_lock.py
           tests/test_cpu_lab_contract.py
           test_provider_http.py
+          tests/test_cloudflare_command_centre_cache_audit.py
           tests/test_brainserve.py
           tests/test_run_local_atelier.py
           tests/test_command_centre.py
