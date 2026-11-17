@@ -201,6 +201,14 @@ checks are included in the combined result, not an additional success count.
 An independent six-request concurrency check observed ordinary responses succeed
 and slow responses time out without cross-request interruption or leaked watchdogs.
 
+Read-only deployment preparation verified all seven snapshot objects named by
+state-store epoch 276, sequence 22023. Their sizes, content hashes, SQLite integrity
+and foreign-key checks or LMDB logical digests agreed. The snapshot map was unchanged
+at readback. Provider writes, lease changes and repairs were zero. This rehearsal
+does not authorize deployment; the exact causal handover, released-object readback,
+runtime checks and canonical publisher gates remain required by
+[the handover runbook](../operations/state-store-deploy-handover.md).
+
 ## What the primary research changes
 
 These are engineering adaptations, with attribution. They do not transfer another
@@ -210,12 +218,13 @@ system's performance or proof claims to SZL.
 | --- | --- | --- |
 | [Palantir Workflow Lineage](https://www.palantir.com/docs/foundry/workflow-lineage/overview) | Make objects, actions, model lifecycle, and dependencies inspectable together. | Bind the UI result to the exact API contract, source revision, model artifact, policy decision, and receipt. Extend this join to the private model-library inventory next. |
 | [Palantir action submission criteria](https://www.palantir.com/docs/foundry/action-types/submission-criteria) | Action eligibility depends on parameters, object state, and execution context. | Keep backend admission authoritative. Recheck the live contract before dispatch and preserve the reason an action cannot proceed. |
+| [Palantir Agent Stack](https://www.palantir.com/docs/foundry/aip/agent-stack) | Sessions retain typed context and event history across participants and pauses. | Keep decision, dispatch, observed outcome and human review distinct. Extend the existing ORO/evidence structures for durable work instead of letting model prose become execution state. |
 | [NVIDIA Dynamo health checks](https://docs.nvidia.com/dynamo/latest/reference/observability/health-checks) | Frontend health, per-model readiness, and an active inference canary are different observations. | Do not infer a usable model from HTTP 200 or a discovered name. Show the scope and age of each observation. |
 | [NVIDIA Triton metrics](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/metrics.html) | Requests, inference items, and backend executions count different things. | Define units, model identity, interval, and evidence source for telemetry. Missing joules remain unavailable, not zero. |
 | [LangGraph fault tolerance](https://docs.langchain.com/oss/python/langgraph/fault-tolerance) | Retrying a node can repeat external effects; missing acknowledgment is an unknown outcome. | Preserve intent and outcome separately. Stop implicit POST replay; require reconciliation before any future automatic retry. |
 | [NVIDIA Dynamo repository](https://github.com/ai-dynamo/dynamo) | Distributed serving coordinates multiple engines and workloads; simpler deployments may need only their engine. | Measure the current two-GPU workload before adding a distributed serving platform. |
 | [DistServe, OSDI 2024](https://www.usenix.org/system/files/osdi24-zhong-yinmin.pdf) | Prefill/decode placement should be evaluated against latency constraints and communication cost. | Compare candidate deployments on SZL hardware using time to first token, output-token latency, and goodput. Published speedups are not local measurements. |
-| [Palantir DevCon 6 Agent Engine video](https://www.youtube.com/watch?v=mDGjptFvePY) | Official demonstration reference located. | A usable transcript was not retrieved. Technical conclusions above come from retrieved documentation and source, not inferred video content. |
+| [Palantir DevCon 6 Agent Engine video](https://www.youtube.com/watch?v=mDGjptFvePY) and [official companion overview](https://www.palantir.com/devcon/) | The official description identifies typed context, events and effects as state-machine primitives. | The companion text was retrieved; a complete video transcript was not. Implementation conclusions use the retrieved primary documentation and source. |
 
 ## Mathematics and authority boundaries
 
@@ -243,10 +252,12 @@ The following items remain explicit gaps or ROADMAP, not completed capabilities:
    revision, verified content manifest, artifact type, base dependency, tokenizer,
    engine configuration, and bounded inference/evaluation result. Presence alone
    cannot make the 208 repositories operational.
-2. **Cross-repository consumer migration.** The reviewed szl-serve recipe still refers
-   to the historical OpenAI route. Its qualification result must be treated as
-   divergent until it adopts the governed contract or an explicitly supported
-   engine-specific contract.
+2. **Cross-repository consumer migration.** The corresponding
+   [szl-serve repair, PR 40](https://github.com/szl-holdings/szl-serve/pull/40),
+   retires its obsolete executable CPU curl, points to the authenticated Atelier
+   boundary, and separates route declarations from artifact identity. It preserves
+   historical pins and local engine templates. Neither its metadata observation
+   nor its navigation target qualifies another deployment or the modelhost service.
 3. **Current operational evidence.** Health and model discovery do not establish
    successful inference on the two GPU services. Model or revision changes must
    invalidate old inference evidence rather than inherit a permanent green status.
