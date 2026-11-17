@@ -1,5 +1,6 @@
 {
  "files": {
+  ".github/shared-source-payloads/dsse-finite-reload-20261112-v1.json": "75bd21650b76c1329d34606aa9a4f50da3dd5928b56e30668f9e4ceae6eb9f8b",
   ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json": "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35",
   ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json": "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b",
   ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json": "fd63c97faa83ba598cba37e4c79f74c85f56676e89c11eb10084f8220e1d4462",
@@ -7,15 +8,15 @@
   "a11oy_org_rag.py": "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279",
   "szl_connectors/warehouse/warehouse_connectors.py": "2ff48cba8b038e5914caff6a2a629d17ed75561081704eb1d659fa9693fd721d",
   "szl_dsse.py": "dbe0188605d77610dee97f5b6efc069166a2a15fe46cf4f89881d4f5fa209d2f",
-  "szl_operator_auth.py": "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",
+  "szl_operator_auth.py": "f31fc4d4f960eb840583d7b32c9598d2c96319c9818acc3f39f078de8394fa8f",
   "szl_provenance.py": "eb616ad2a4acee17ae7ebe04370061ec19519d1bf68d3f70b2d00a1b4b6b859c",
   "szl_signing_state.py": "54f5baf33d5372fb149cec0e274bf7cc8bd631f68ad031f10b3c01eea83c8594",
   "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json": "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc",
   "tests/test_dsse_real_signing.py": "24bf3fbf69cee0c6ed715c036b71297c04439c7aa6822c97970a31258d91d9a8",
   "tests/test_gitleaks_archived_payload_digest.py": "8ede2847f5a77426485f88747e7ffa238c24a6c4662905433fc3695940204a4a",
-  "tests/test_replication_shared_payload.py": "c274c4a77438a4c9bed96b803bfc9d3b3fb25299b2e794342ca181051d6cb260",
+  "tests/test_replication_shared_payload.py": "c9cff5be5708f5f0325907fd12f161c62e8b37ca97f5f5f1b00ecb105bfd8e46",
   "tests/test_snowflake_sql_result_classification.py": "fdf0932898e66378e34953c1b6911eea28b4783edb988c9c9534a0668475d1a0"
  },
- "payload_id": "dsse-finite-reload-20261112-v1",
+ "payload_id": "anatomy-observation-auth-20261116-v1",
  "schema": "szl-shared-source-payload/v1"
 }

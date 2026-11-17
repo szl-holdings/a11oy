@@ -15,6 +15,7 @@ MCP_ARCHIVE = ".github/shared-source-payloads/mcp-advertised-inventory-20261016-
 RETAINED = "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
 SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json"
 PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
+DSSE = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1.json"
 ACTIVE = ".github/shared-source-payload-manifest.json"
 
 
@@ -122,21 +123,43 @@ def _assert_current_shared_payload(root):
         if relative not in {"tests/test_replication_shared_payload.py",
                             "szl_signing_state.py"}:
             assert prior["files"][relative] == expected
-    manifest = json.loads((root / ACTIVE).read_bytes())
-    assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "dsse-finite-reload-20261112-v1"
-    assert set(manifest["files"]) == set(prior["files"]) | {
+    # Preserve the exact active predecessor after paired a11oy #3593 / killinchu
+    # #627 merged the immutable request context. These are the observed merged
+    # predecessor bytes, not a claim about the original November 12 manifest.
+    dsse_raw = (root / DSSE).read_bytes()
+    assert hashlib.sha256(dsse_raw).hexdigest() == (
+        "75bd21650b76c1329d34606aa9a4f50da3dd5928b56e30668f9e4ceae6eb9f8b"
+    )
+    dsse = json.loads(dsse_raw)
+    assert dsse["schema"] == "szl-shared-source-payload/v1"
+    assert dsse["payload_id"] == "dsse-finite-reload-20261112-v1"
+    assert set(dsse["files"]) == set(prior["files"]) | {
         PROOF, "szl_dsse.py", "tests/test_dsse_real_signing.py",
     }
-    assert manifest["files"][PROOF] == hashlib.sha256(prior_raw).hexdigest()
-    # Finite emission adds the DSSE source and its tests. Provenance reload now
-    # checks stored envelope bytes, so that file moves in this generation.
-    # Every other predecessor entry stays pinned.
+    assert dsse["files"][PROOF] == hashlib.sha256(prior_raw).hexdigest()
+    # Finite emission added the DSSE source and its tests. Provenance reload
+    # changed in that generation. All other predecessor mappings stay pinned.
     for relative, expected in prior["files"].items():
         if relative not in {"tests/test_replication_shared_payload.py",
                             "szl_provenance.py"}:
+            assert dsse["files"][relative] == expected
+
+    manifest = json.loads((root / ACTIVE).read_bytes())
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "anatomy-observation-auth-20261116-v1"
+    assert set(manifest["files"]) == set(dsse["files"]) | {DSSE}
+    assert manifest["files"][DSSE] == hashlib.sha256(dsse_raw).hexdigest()
+    # Only the two operator protections and this history test move forward.
+    # Pin the reviewed auth bytes so changing source plus its manifest digest
+    # cannot silently introduce a different authorization policy.
+    assert manifest["files"]["szl_operator_auth.py"] == (
+        "f31fc4d4f960eb840583d7b32c9598d2c96319c9818acc3f39f078de8394fa8f"
+    )
+    for relative, expected in dsse["files"].items():
+        if relative not in {"szl_operator_auth.py", "tests/test_replication_shared_payload.py"}:
             assert manifest["files"][relative] == expected
-    # Verify all current bytes; predecessor receipts above stay immutable.
+    # Check current bytes only against the successor. Archived source digests
+    # remain historical observations; no predecessor is regenerated.
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected
 
@@ -150,6 +173,7 @@ def test_current_shared_payload_manifest_matches_current_peer():
 @pytest.mark.parametrize("change", [
     "source", "source_and_digest", "missing_entry", "schema", "generation",
     "security_digest", "retained_bytes", "security_bytes", "proof_bytes", "dsse_source",
+    "dsse_archive_bytes",
 ])
 def test_current_payload_rejects_tampering(tmp_path, change):
     manifest = json.loads((ROOT / ACTIVE).read_bytes())
@@ -176,6 +200,7 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         source = tmp_path / {
             "retained_bytes": RETAINED, "security_bytes": SNOWFLAKE,
             "proof_bytes": PROOF, "dsse_source": "szl_dsse.py",
+            "dsse_archive_bytes": DSSE,
         }[change]
         source.write_bytes(source.read_bytes() + b"\n")
     (tmp_path / ACTIVE).write_text(json.dumps(manifest), encoding="utf-8")

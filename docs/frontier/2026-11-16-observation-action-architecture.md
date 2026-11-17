@@ -92,7 +92,7 @@ Before comparing options, establish meter scope, sampling interval, calibration 
 
 ## Release evidence and remaining boundaries
 
-The source repair requires route tests, browser tests, and independent diff review. Production claims additionally require human-reviewed merge, the existing governed publication path, and a readback tied to the deployed source and runtime. Passing offline fixtures establishes those tested contracts only.
+The source repair requires route tests, browser tests, and independent diff review. Production claims additionally require the repository's existing review and merge gates, the existing governed publication path, and a readback tied to the deployed source and runtime. Passing offline fixtures establishes those tested contracts only.
 
 | Claim | Required witness |
 | --- | --- |
