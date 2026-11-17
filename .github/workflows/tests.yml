@@ -57,6 +57,7 @@ jobs:
           tests/test_evidence_receipt_routes.py
           tests/test_model_endpoint_credentials.py
           tests/test_collector_reason_codes.py
+          tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
         run: python -B -m unittest discover -s ops/vm-model-gateway -p 'test_*.py' -v
 
@@ -233,6 +234,8 @@ jobs:
           corepack install -g pnpm@10.33.3
       - name: Install dependencies
         run: npm ci
+      - name: Lutar evidence publication contract
+        run: npm run test:lutar-evidence
       - name: Install policy package deps (published @szl-holdings/a11oy-receipt-substrate from GHCR)
         working-directory: packages/policy
         env:
@@ -481,11 +484,11 @@ jobs:
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
           pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run operator & reason endpoint tests
-        # Scoped to this module only: it boots serve.py in-process with no network
+        # Scoped to these modules: they exercise serve.py in-process with no network
         # and guards the Task #516 governed operator/reason surface against 404
         # regressions and envelope-stripping. Other tests/ modules may need extra
         # deps and are out of scope for this guard.
-        run: pytest tests/test_operator_reason_envelope.py -q
+        run: pytest tests/test_operator_reason_envelope.py tests/test_operator_recommendation_health.py -q
 
   python-formula-registry-guard:
     name: Proof-carrying formula registry — no overclaims (pytest, offline)
