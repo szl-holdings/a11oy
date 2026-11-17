@@ -55,8 +55,9 @@ NEW_SECRET = re.compile(r"[A-Za-z0-9_-]{64}\Z")
 class RepairError(Exception):
     """Only fixed internal diagnostic codes may reach the report."""
 
-    def __init__(self, code):
+    def __init__(self, code, *, cloudflare_envelope=None):
         self.code = code
+        self.cloudflare_envelope = cloudflare_envelope
         super().__init__(code)
 
 
@@ -243,10 +244,10 @@ class Client:
         require(not 300 <= response.status < 400, "REDIRECT_REFUSED")
         return response.status, decode(response.body)
 
-    def cf_get(self, path, *, deadline=None):
+    def cf_get(self, path, *, deadline=None, phase="INITIAL"):
         status, payload = self._call("cf", "GET", path, deadline=deadline)
         require(status == 200, "CLOUDFLARE_READ_FAILED")
-        result = api_result(payload)
+        result = api_result(payload, route=cloudflare_route(path), phase=phase)
         if path.endswith("?page=1&per_page=1") and "result_info" in payload:
             info = payload["result_info"]
             require(type(info) is dict, "VERSION_PAGINATION_INVALID")
@@ -279,7 +280,7 @@ class Client:
         status, response = self._call("cf", "PUT", target + "/secrets",
                                       body=payload, deadline=deadline)
         require(status == 200, "SECRET_ACKNOWLEDGEMENT_INVALID")
-        result = api_result(response)
+        result = api_result(response, route="SECRET_UPDATE", phase="UPDATE_ACK")
         # The API may echo the submitted text. Never retain, compare, or report it.
         require(type(result) is dict and result.get("name") == "API_SECRET"
                 and result.get("type") == "secret_text", "SECRET_ACKNOWLEDGEMENT_INVALID")
@@ -287,12 +288,56 @@ class Client:
         self.acknowledged = True
 
 
-def api_result(payload):
-    require(type(payload) is dict and payload.get("success") is True,
-            "CLOUDFLARE_RESPONSE_UNSUCCESSFUL")
-    require(payload.get("errors") == [] and type(payload.get("messages", [])) is list,
-            "CLOUDFLARE_RESPONSE_INVALID")
-    require("result" in payload, "CLOUDFLARE_RESPONSE_INVALID")
+def cloudflare_route(path):
+    # _call has already admitted the complete fixed URL. Never export the path.
+    if path == "/accounts?page=1&per_page=5":
+        return "ACCOUNT_DISCOVERY"
+    if path.endswith("/workers/subdomain"):
+        return "ACCOUNT_SUBDOMAIN"
+    return {
+        "settings": "WORKER_SETTINGS",
+        "API_SECRET": "SECRET_METADATA",
+        "deployments?page=1&per_page=1": "ACTIVE_DEPLOYMENT",
+        "versions?page=1&per_page=1": "LATEST_VERSION",
+    }.get(path.rsplit("/", 1)[-1], "UNCLASSIFIED")
+
+
+def api_result(payload, *, route, phase):
+    require(route in {
+        "ACCOUNT_DISCOVERY", "ACCOUNT_SUBDOMAIN", "WORKER_SETTINGS", "SECRET_METADATA",
+        "ACTIVE_DEPLOYMENT", "LATEST_VERSION", "SECRET_UPDATE",
+    } and phase in {"INITIAL", "FINAL", "UPDATE_ACK"}, "DIAGNOSTIC_CONTEXT_INVALID")
+    is_object = type(payload) is dict
+
+    def shape(field):
+        if not is_object or field not in payload:
+            return "ABSENT"
+        value = payload[field]
+        if value is None:
+            return "NULL"
+        if type(value) is list:
+            return "NONEMPTY_LIST" if value else "EMPTY_LIST"
+        return "OTHER"
+
+    # Only fixed enums, a list length, and booleans enter the receipt. These facts
+    # belong to this exception, so parallel reads cannot overwrite its route.
+    facts = {
+        "route": route, "phase": phase, "envelope_is_object": is_object,
+        "errors_shape": shape("errors"), "messages_shape": shape("messages"),
+        "errors_count": len(payload["errors"]) if is_object
+        and type(payload.get("errors")) is list else None,
+        "result_present": is_object and "result" in payload,
+    }
+
+    def admit(condition, code):
+        if not condition:
+            raise RepairError(code, cloudflare_envelope=facts)
+
+    # Diagnostic-only change: preserve the exact original admission predicates.
+    admit(is_object and payload.get("success") is True, "CLOUDFLARE_RESPONSE_UNSUCCESSFUL")
+    admit(payload.get("errors") == [] and type(payload.get("messages", [])) is list,
+          "CLOUDFLARE_RESPONSE_INVALID")
+    admit("result" in payload, "CLOUDFLARE_RESPONSE_INVALID")
     return payload["result"]
 
 
@@ -303,7 +348,7 @@ def resolve_account(client, configured):
         return configured.lower()
     status, payload = client._call("cf", "GET", "/accounts?page=1&per_page=5")
     require(status == 200, "ACCOUNT_DISCOVERY_UNAVAILABLE")
-    accounts = api_result(payload)
+    accounts = api_result(payload, route="ACCOUNT_DISCOVERY", phase="INITIAL")
     require(type(accounts) is list and len(accounts) == 1 and type(accounts[0]) is dict,
             "SINGLE_ACCOUNT_REQUIRED")
     info = payload.get("result_info")
@@ -440,14 +485,15 @@ def validate_settings(settings, secret, subdomain, config, revision):
     require(found == expected, "BINDING_SET_MISMATCH")
 
 
-def snapshot(client, account, config, revision, expected_version_id, *, deadline=None):
+def snapshot(client, account, config, revision, expected_version_id, *, deadline=None,
+             phase="INITIAL"):
     target = "/accounts/" + account + "/workers/scripts/" + WORKER
     calls = {
-        "settings": lambda: client.cf_get(target + "/settings", deadline=deadline),
-        "secret": lambda: client.cf_get(target + "/secrets/API_SECRET", deadline=deadline),
-        "subdomain": lambda: client.cf_get("/accounts/" + account + "/workers/subdomain", deadline=deadline),
-        "deployment": lambda: client.cf_get(target + "/deployments?page=1&per_page=1", deadline=deadline),
-        "latest_version": lambda: client.cf_get(target + "/versions?page=1&per_page=1", deadline=deadline),
+        "settings": lambda: client.cf_get(target + "/settings", deadline=deadline, phase=phase),
+        "secret": lambda: client.cf_get(target + "/secrets/API_SECRET", deadline=deadline, phase=phase),
+        "subdomain": lambda: client.cf_get("/accounts/" + account + "/workers/subdomain", deadline=deadline, phase=phase),
+        "deployment": lambda: client.cf_get(target + "/deployments?page=1&per_page=1", deadline=deadline, phase=phase),
+        "latest_version": lambda: client.cf_get(target + "/versions?page=1&per_page=1", deadline=deadline, phase=phase),
         "ready": lambda: client.readiness(revision, deadline=deadline),
     }
     with ThreadPoolExecutor(max_workers=len(calls)) as pool:
@@ -521,7 +567,8 @@ def repair(client, evidence, *, root, control_source, revision, expected_version
         # One fixed window covers all final observations, the final source read,
         # evidence fsync, and dispatch. Neither a slow read nor fsync renews it.
         deadline = min(client.overall_deadline, finite_clock(client.clock) + DISPATCH_SECONDS)
-        final = snapshot(client, account, config, revision, expected_version_id, deadline=deadline)
+        final = snapshot(client, account, config, revision, expected_version_id,
+                         deadline=deadline, phase="FINAL")
         require(canonical(final) == canonical(before), "WORKER_STATE_CHANGED")
         require_current_main(client, control_source, deadline=deadline)
         require(finite_clock(client.clock) < deadline, "DISPATCH_WINDOW_EXPIRED")
@@ -543,6 +590,8 @@ def repair(client, evidence, *, root, control_source, revision, expected_version
                           candidate_authentication_verified=True)
     except RepairError as error:
         report["diagnostic_code"] = error.code
+        if error.cloudflare_envelope is not None:
+            report["cloudflare_envelope"] = error.cloudflare_envelope
         report["status"] = ("ACKNOWLEDGED_NOT_VERIFIED" if client.acknowledged
                             else "WRITE_OUTCOME_UNCERTAIN" if client.attempted else "BLOCKED")
     except Exception:

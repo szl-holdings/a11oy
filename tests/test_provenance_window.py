@@ -131,6 +131,95 @@ def test_cumulative_byte_budget_refuses_before_any_body_fetch(world, monkeypatch
     assert not any("SELECT sequence, digest, node_json, node_sha256" in q for q in queries)
 
 
+@pytest.mark.parametrize("table,column", [
+    ("provenance_heads", "digest"), ("provenance_heads", "last_index"),
+    ("provenance_nodes", "digest"), ("provenance_nodes", "node_sha256"),
+    ("provenance_nodes", "sequence"),
+])
+@pytest.mark.parametrize("storage_type", ["text", "blob"])
+def test_oversized_metadata_is_not_returned_to_python_before_refusal(world, monkeypatch, table, column, storage_type):
+    manager, dag, path, _nodes = world
+    value = "x" * (ss.MAX_PROVENANCE_WINDOW_BYTES + 1)
+    if storage_type == "blob":
+        value = value.encode("ascii")
+    with closing(sqlite3.connect(path)) as db, db:
+        # The field names are this test's closed parametrization, not user input.
+        where = "space='a11oy'" if table == "provenance_heads" else "sequence=39"
+        db.execute(f"UPDATE {table} SET {column}=? WHERE {where}", (value,))
+    before = path.read_bytes()
+    files = set(path.parent.iterdir())
+    original = sqlite3.connect
+    queries, returned_metadata = [], []
+
+    class Cursor:
+        def __init__(self, cursor, sql):
+            self.cursor, self.sql = cursor, sql
+
+        def check(self, row):
+            if row is not None and ("FROM provenance_heads" in self.sql
+                    or "octet_length(node_json)" in self.sql):
+                # Observe values at the DB/Python boundary, before the reader
+                # can reject them with its own type or digest validation.
+                assert all(value is None or type(value) is int
+                           or (isinstance(value, str) and len(value.encode("utf-8")) <= 64)
+                           for value in row), "unbounded or untyped metadata was materialized"
+                returned_metadata.append(row)
+            return row
+
+        def fetchone(self):
+            return self.check(self.cursor.fetchone())
+
+        def fetchall(self):
+            return [self.check(row) for row in self.cursor.fetchall()]
+
+        def __iter__(self):
+            return (self.check(row) for row in self.cursor)
+
+    class Connection:
+        def __init__(self, *args, **kwargs):
+            self.connection = original(*args, **kwargs)
+
+        def execute(self, sql, parameters=()):
+            queries.append(sql)
+            return Cursor(self.connection.execute(sql, parameters), sql)
+
+        def close(self):
+            self.connection.close()
+
+    monkeypatch.setattr(ss.sqlite3, "connect", Connection)
+    monkeypatch.setattr(manager, "begin_write", lambda: pytest.fail("inspection must not admit a write"))
+    monkeypatch.setattr(provenance.szl_dsse, "sign_payload",
+                        lambda *_args: pytest.fail("inspection must not sign"))
+    with pytest.raises(ss.StorageBlocked):
+        manager.provenance_window("a11oy", 33, dag._validate_window)
+    assert returned_metadata
+    assert not any("SELECT sequence, digest, node_json, node_sha256" in q for q in queries)
+    assert path.read_bytes() == before
+    assert set(path.parent.iterdir()) == files
+    assert manager.role == ss.ROLE_WRITER and manager.stores["khipu"].health == "OK"
+
+
+@pytest.mark.parametrize("table,column", [
+    ("provenance_heads", "digest"), ("provenance_nodes", "digest"),
+    ("provenance_nodes", "node_sha256"),
+])
+def test_invalid_utf8_metadata_refuses_without_loading_json_or_altering_store(world, monkeypatch, table, column):
+    manager, dag, path, _nodes = world
+    with closing(sqlite3.connect(path)) as db, db:
+        where = "space='a11oy'" if table == "provenance_heads" else "sequence=39"
+        # Invalid UTF-8 can inhabit SQLite TEXT even with the expected byte size.
+        db.execute(f"UPDATE {table} SET {column}=CAST(? AS TEXT) WHERE {where}", (b"\x80" * 64,))
+    before = path.read_bytes()
+    files = set(path.parent.iterdir())
+    queries, _connections = trace_reads(monkeypatch)
+    with pytest.raises(ss.StorageBlocked):
+        manager.provenance_window("a11oy", 33, dag._validate_window)
+    assert not any("SELECT sequence, digest, node_json, node_sha256" in q for q in queries)
+    assert path.read_bytes() == before
+    assert set(path.parent.iterdir()) == files
+    assert manager.role == ss.ROLE_WRITER and manager.stores["khipu"].health == "OK"
+
+
 def test_earlier_corruption_is_outside_window_but_full_reader_still_refuses(world):
     manager, dag, path, nodes = world
     with closing(sqlite3.connect(path)) as db, db:
@@ -249,7 +338,7 @@ def test_unavailable_metadata_size_function_refuses_inspection_without_fallback(
                         lambda *_args: pytest.fail("missing inspection capability must not sign"))
     with pytest.raises(provenance._LedgerUnavailable):
         dag.evidence_window(33)
-    assert any("octet_length(node_json)" in q for q in queries)
+    assert any("octet_length(" in q for q in queries)
     assert not any("SELECT sequence, digest, node_json, node_sha256" in q for q in queries)
     assert not any("CAST(" in q or "length(" in q.replace("octet_length(", "") for q in queries)
     assert path.read_bytes() == before
