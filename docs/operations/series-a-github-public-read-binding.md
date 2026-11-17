@@ -70,13 +70,38 @@ all of the following hold:
 - the required names are present
 - there is no public-variable collision
 - the storage and mount checks pass
+- every variable in that command's full nonsecret contract matches the Hub
+  readback, including the GDW-only quotas, retention, retry and policy settings
+
+After authority verifies, check-only performs one bounded parity attempt and
+writes nothing. Configuration drift is `RUNTIME_CONFIG_DRIFT`; an unavailable readback
+is `RUNTIME_CONFIG_UNAVAILABLE`. Installed signing authority alone does not
+establish configuration convergence.
 
 `check_hf_manual_prerequisites.py` accepts a READY report only with exit code
 0, a strict schema and the pinned fingerprints echoed back. The aggregate
 summary is `READY` only when both reports are READY and the source SHA is
 valid. A forged `PASS`, a boolean exit code, duplicate fields and oversized
-reports all stay `SETUP_REQUIRED`. Ordinary (non-check-only) configuration now
-proceeds only after the same verified result.
+reports all stay `SETUP_REQUIRED`. Ordinary (non-check-only) configuration
+proceeds only after the same verified authority result.
+
+Both configuration commands use the existing Series-A `ReleasedStateGuard`
+and `RuntimeMutationClient` for actual writes. For an enabled state store,
+each write requires matching public RELEASED status and the current private
+RELEASE head, pinned to the same release throughout the invocation. Protected
+main is rechecked before and after each release observation; dispatch retains
+the existing deadline, no-redirect and no-retry restrictions. The existing
+explicitly disabled-store path remains unchanged. These checks do not perform
+a handover or form an atomic provider transaction.
+
+A fully converged ACTIVE runtime passes without constructing the mutation
+guard or transport. A changed ACTIVE runtime is refused before a write. An
+uncertain response stops subsequent writes and retains bounded
+`mutation_outcome` metadata in the CLI report, including attempted and
+acknowledged variable names; it is never automatically retried. Successful
+configuration readback leaves `runtime_boot_verified` and
+`storage_preservation_verified` false. Those claims still require their
+separate runtime and preservation evidence.
 
 ## What this proves (measured)
 

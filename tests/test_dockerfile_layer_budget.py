@@ -81,6 +81,13 @@ EVIDENCE_GRAPH_COPY_ADDITIONS = {
 # One explicit telemetry module; prior source digests and layer budget stay fixed.
 TRACE_OBSERVATION_COPY_ADDITIONS = {"vsp_otel/trace_ir.py"}
 
+# The bounded ORO evidence package uses the layer saved by batching two
+# adjacent root COPY instructions. Every historical source digest stays intact.
+ORO_EVIDENCE_COPY_ADDITIONS = {"oro/"}
+# The governed CPU lab uses one pure contract adapter in the existing root COPY.
+# Exclude only that named addition from each frozen historical source set.
+CPU_LAB_CONTRACT_COPY_ADDITIONS = {"a11oy_cpu_lab_contract.py"}
+
 COPY_SOURCE_ALLOWLIST_COUNT = 589
 COPY_SOURCE_ALLOWLIST_SHA256 = (
     "4f4d797eac48f0cd845f4fce9869aa9a25aabc6ab321cf3dd48934be07d2c8b1"
@@ -122,6 +129,8 @@ GDW_ACQUISITION_COPY_ADDITIONS = {
 # Exact orphan-page repair addition (imported by gdw_runtime.py).
 GDW_ORPHAN_REPAIR_COPY_ADDITIONS = {"gdw_sqlite_repair.py"}
 METER_ACCESS_COPY_ADDITIONS = {"szl_meter_access.py"}
+# One pure model authentication helper shares that COPY without adding a layer.
+MODEL_ACCESS_COPY_ADDITIONS = {"szl_model_access.py"}
 RUNLOOP_JOURNEY_COPY_ADDITIONS = {"a11oy_code_runloop_journey.py"}
 ACTION_IDENTITY_COPY_ADDITIONS = {"szl_action_identity.py"}
 WAKE_ROUTE_COPY_ADDITIONS = {"szl_kernels_organ.py"}
@@ -199,6 +208,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert GDW_ACQUISITION_COPY_ADDITIONS <= copy_sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= copy_sources
     assert METER_ACCESS_COPY_ADDITIONS <= copy_sources
+    assert MODEL_ACCESS_COPY_ADDITIONS <= copy_sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= copy_sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= copy_sources
     assert WAKE_ROUTE_COPY_ADDITIONS <= copy_sources
@@ -216,12 +226,15 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= copy_sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= copy_sources
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= copy_sources
+    assert ORO_EVIDENCE_COPY_ADDITIONS <= copy_sources
+    assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | X402_ORIGIN_COPY_ADDITIONS
         | GDW_ACQUISITION_COPY_ADDITIONS
         | GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         | METER_ACCESS_COPY_ADDITIONS
+        | MODEL_ACCESS_COPY_ADDITIONS
         | RUNLOOP_JOURNEY_COPY_ADDITIONS
         | ACTION_IDENTITY_COPY_ADDITIONS
         | WAKE_ROUTE_COPY_ADDITIONS
@@ -240,6 +253,8 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | BUILD_ENV_FANOUT_COPY_ADDITIONS
         | EVIDENCE_GRAPH_COPY_ADDITIONS
         | TRACE_OBSERVATION_COPY_ADDITIONS
+        | ORO_EVIDENCE_COPY_ADDITIONS
+        | CPU_LAB_CONTRACT_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -261,6 +276,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert GDW_ACQUISITION_COPY_ADDITIONS <= sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= sources
     assert METER_ACCESS_COPY_ADDITIONS <= sources
+    assert MODEL_ACCESS_COPY_ADDITIONS <= sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= sources
     assert WAKE_ROUTE_COPY_ADDITIONS <= sources
@@ -278,11 +294,14 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= sources
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= sources
+    assert ORO_EVIDENCE_COPY_ADDITIONS <= sources
+    assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
+        - MODEL_ACCESS_COPY_ADDITIONS
         - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
         - WAKE_ROUTE_COPY_ADDITIONS
         - STATE_STORE_COPY_ADDITIONS
@@ -299,6 +318,8 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - BUILD_ENV_FANOUT_COPY_ADDITIONS
         - EVIDENCE_GRAPH_COPY_ADDITIONS
         - TRACE_OBSERVATION_COPY_ADDITIONS
+        - ORO_EVIDENCE_COPY_ADDITIONS
+        - CPU_LAB_CONTRACT_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -318,6 +339,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert GDW_ACQUISITION_COPY_ADDITIONS <= sources
     assert GDW_ORPHAN_REPAIR_COPY_ADDITIONS <= sources
     assert METER_ACCESS_COPY_ADDITIONS <= sources
+    assert MODEL_ACCESS_COPY_ADDITIONS <= sources
     assert RUNLOOP_JOURNEY_COPY_ADDITIONS <= sources
     assert ACTION_IDENTITY_COPY_ADDITIONS <= sources
     assert WAKE_ROUTE_COPY_ADDITIONS <= sources
@@ -335,11 +357,14 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert BUILD_ENV_FANOUT_COPY_ADDITIONS <= sources
     assert EVIDENCE_GRAPH_COPY_ADDITIONS <= sources
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= sources
+    assert ORO_EVIDENCE_COPY_ADDITIONS <= sources
+    assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
         - GDW_ACQUISITION_COPY_ADDITIONS - GDW_ORPHAN_REPAIR_COPY_ADDITIONS
         - METER_ACCESS_COPY_ADDITIONS - RUNLOOP_JOURNEY_COPY_ADDITIONS
+        - MODEL_ACCESS_COPY_ADDITIONS
         - ACTION_IDENTITY_COPY_ADDITIONS - RAG_REFERENCE_AUTH_COPY_ADDITIONS
         - WAKE_ROUTE_COPY_ADDITIONS
         - STATE_STORE_COPY_ADDITIONS
@@ -356,6 +381,8 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - BUILD_ENV_FANOUT_COPY_ADDITIONS
         - EVIDENCE_GRAPH_COPY_ADDITIONS
         - TRACE_OBSERVATION_COPY_ADDITIONS
+        - ORO_EVIDENCE_COPY_ADDITIONS
+        - CPU_LAB_CONTRACT_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT

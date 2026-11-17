@@ -99,10 +99,25 @@
       && payload.source_revision === context.source
       && typeof payload.decision_receipt_hash === 'string' && SHA256.test(payload.decision_receipt_hash));
     if (mode) require(payload.mode === mode && value.mode === mode && value.provider === provider);
-    if (provider === 'szl_cpu_lab') require(payload.classification === 'PUBLIC'
-      && payload.public_share_acknowledged === true
-      && payload.provider_output_signature_status === 'UNSIGNED'
-      && value.provider_output_signature_status === 'UNSIGNED');
+    if (provider === 'szl_cpu_lab') {
+      // The provider returns a grounded PROPOSAL, not an executed action.
+      // Only the Atelier statement is signed; provider output is UNSIGNED_LOCAL.
+      require(payload.classification === 'PUBLIC'
+        && payload.public_share_acknowledged === true
+        && payload.provider_decision === 'PROPOSAL'
+        && value.provider_decision === 'PROPOSAL'
+        && payload.provider_output_signature_status === 'UNSIGNED_LOCAL'
+        && value.provider_output_signature_status === 'UNSIGNED_LOCAL'
+        && payload.grounding_required === true && value.grounding_required === true
+        && payload.authority === 'NO_ACTION_AUTHORITY' && value.authority === 'NO_ACTION_AUTHORITY'
+        && payload.executed === false && value.executed === false
+        && payload.provider_outcome_uncertain === false
+        && payload.provider_output_authenticity_verified === false
+        && value.provider_output_authenticity_verified === false
+        && cpuPublicSources(value) !== null);
+      require(payload.evidence_handles_sha256 === await textHash(canonicalValue(value.evidence_handles))
+        && payload.citations_sha256 === await textHash(canonicalValue(value.citations)));
+    }
     require(payload.prompt_sha256 === await textHash(request.prompt));
     require(payload.answer_sha256 === await textHash(value.answer));
     require(envelope?.signed === true && envelope.payloadType === 'application/vnd.szl.atelier-turn+json'
@@ -166,6 +181,23 @@
       const detail = document.createElement('span'); detail.textContent = `${item.revision.slice(0, 12)} · card license: ${item.card_license_declared || 'UNAVAILABLE'} · ${item.license_decision || 'REVIEW_REQUIRED'} · inference not witnessed`;
       link.append(title, detail); target.append(link);
     }
+  }
+
+  function cpuPublicSources(value) {
+    const handles = value.evidence_handles, citations = value.citations;
+    const fields = ['nodeId', 'nodeKind', 'label', 'note'];
+    if (!Array.isArray(handles) || !handles.length || handles.length > 3
+        || !Array.isArray(citations) || citations.length > 3) return null;
+    if (handles.some((handle) => !handle || typeof handle !== 'object' || Array.isArray(handle)
+        || fields.some((field) => typeof handle[field] !== 'string' || handle[field].length > 16384)
+        || !handle.nodeId || handle.nodeId.length > 256)) return null;
+    const ids = new Set(handles.map((handle) => handle.nodeId));
+    if (ids.size !== handles.length || new Set(citations).size !== citations.length
+        || citations.some((id) => typeof id !== 'string' || !ids.has(id))) return null;
+    return {
+      handles: handles.map(({ nodeId, nodeKind, label, note }) => ({ nodeId, nodeKind, label, note })),
+      citations: [...citations],
+    };
   }
 
   async function refresh() {
@@ -327,23 +359,45 @@
     cpuUncertain = false; cpuSending = true; el('cpu-send').disabled = true;
     resetPublicConsent();
     el('cpu-answer').hidden = true; el('cpu-answer').textContent = '';
+    el('cpu-sources-panel').hidden = true; el('cpu-sources').replaceChildren(); el('cpu-citations').textContent = '';
     el('cpu-receipt-panel').hidden = true; el('cpu-receipt').textContent = '';
     el('cpu-turn-status').textContent = 'Checking operator permission and policy, then sending at most one public CPU lab request…';
     try {
       const response = await json('/api/a11oy/v1/atelier/cpu-lab/turn', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${credential}` },
         body: JSON.stringify(request),
-      }, 70000);
-      const { answer, ...evidence } = response.value;
-      el('cpu-receipt').textContent = JSON.stringify(evidence, null, 2);
+      }, 90000);
+      const { answer, evidence_handles, citations, ...evidence } = response.value;
+      const sources = cpuPublicSources({ evidence_handles, citations });
+      const proposal = response.ok && response.value.state === 'COMPLETED'
+        && response.value.provider_decision === 'PROPOSAL'
+        && response.value.provider_output_signature_status === 'UNSIGNED_LOCAL'
+        && response.value.grounding_required === true
+        && response.value.authority === 'NO_ACTION_AUTHORITY' && response.value.executed === false
+        && sources !== null && typeof answer === 'string' && answer.trim();
+      el('cpu-receipt').textContent = JSON.stringify(proposal
+        ? { ...evidence, evidence_handles: sources.handles, citations: sources.citations } : evidence, null, 2);
       el('cpu-receipt-panel').hidden = false;
-      if (response.ok && response.value.state === 'COMPLETED' && typeof answer === 'string' && answer.trim()) {
+      if (proposal) {
         await requireBoundOutcome(response.value, request, context, 'szl_cpu_lab', 'NO_PROVIDER_KEY_PUBLIC_CPU_LAB');
         el('cpu-answer').textContent = answer; el('cpu-answer').hidden = false;
-        el('cpu-turn-status').textContent = 'CPU response matched the submitted request (not any later draft). The server-reported Atelier outcome is not independently verified in this browser; the lab execution record remains UNSIGNED.';
+        for (const handle of sources.handles) {
+          const row = document.createElement('li');
+          row.textContent = `${handle.label}\n${handle.nodeKind} · ${handle.nodeId}\n${handle.note}`;
+          el('cpu-sources').append(row);
+        }
+        el('cpu-citations').textContent = `Citations returned: ${sources.citations.length ? sources.citations.join(' · ') : 'None'}`;
+        el('cpu-sources-panel').hidden = false;
+        el('cpu-turn-status').textContent = 'Source-grounded proposal matched the submitted request (not any later draft). Lab record UNSIGNED_LOCAL; no action authority. Inspect public source handles and the Atelier outcome receipt below.';
       } else {
-        cpuUncertain = response.status >= 500 || response.value.code === 'LAB_TIMEOUT';
-        el('cpu-turn-status').textContent = `No completed CPU lab answer · ${response.value.code || response.value.state || `HTTP ${response.status}`}. No automatic retry was made.`;
+        const terminal = ['ABSTAIN', 'REVIEW', 'BLOCKED', 'DENIED', 'UNAVAILABLE'].includes(response.value.state);
+        const invalidOutcome = !terminal;
+        cpuUncertain = response.status >= 500 || response.value.code === 'LAB_TIMEOUT' || invalidOutcome;
+        const state = invalidOutcome ? 'UNAVAILABLE' : response.value.state;
+        const code = invalidOutcome ? 'CPU_LAB_INVALID_OUTCOME' : (response.value.code || `HTTP ${response.status}`);
+        const reason = typeof response.value.reason_code === 'string'
+          && /^[A-Z][A-Z0-9_]{0,63}$/.test(response.value.reason_code) ? ` · ${response.value.reason_code}` : '';
+        el('cpu-turn-status').textContent = `No CPU lab proposal · ${state} · ${code}${reason}. No automatic retry was made.`;
       }
     } catch (_error) {
       cpuUncertain = true;

@@ -80,10 +80,10 @@ def source_identity(expected):
             "changed_paths": dirty, "clean_source_claimed": not dirty}
 
 
-def request_allowed(method, url, origin):
+def request_allowed(method, url, origin, allowed_paths=ALLOWED_PATHS):
     parsed = urlsplit(url)
     return (method == "GET" and f"{parsed.scheme}://{parsed.netloc}" == origin
-            and parsed.path in ALLOWED_PATHS and not parsed.query and not parsed.fragment
+            and parsed.path in allowed_paths and not parsed.query and not parsed.fragment
             and not parsed.username and not parsed.password)
 
 
@@ -125,6 +125,11 @@ def fixture_server(revision):
         input_digests = re.findall(rb'data-view-input-sha256="([0-9a-f]{64})"', expected_body)
         require(len(input_digests) == 1, "renderer input digest missing or duplicated")
         bindings = centre.presentation_sources()
+        asset_paths = {
+            centre.command_centre_view.asset_reference(bindings, name)["url"]
+            for name in centre.command_centre_view.ASSET_SOURCES
+        }
+        allowed_paths = ALLOWED_PATHS | asset_paths
         requests = []
         lock = threading.Lock()
         with TestClient(app) as client:
@@ -134,7 +139,7 @@ def fixture_server(revision):
 
                 def do_GET(self):
                     requests.append({"method": self.command, "path": self.path})
-                    if self.path not in ALLOWED_PATHS:
+                    if self.path not in allowed_paths:
                         self.send_error(404)
                         return
                     with lock:
@@ -159,6 +164,7 @@ def fixture_server(revision):
             try:
                 yield {"origin": f"http://127.0.0.1:{server.server_port}", "body": expected_body,
                        "headers": centre.PAGE_HEADERS, "bindings": bindings,
+                       "allowed_paths": allowed_paths, "asset_paths": asset_paths,
                        "renderer_input_sha256": input_digests[0].decode("ascii"),
                        "public_estate_sha256": centre.public_estate()["sha256"],
                        "surfaces": centre.SURFACES, "requests": requests, "centre": centre}
@@ -176,7 +182,7 @@ def check_presentation(page, surfaces):
         "nodes => nodes.map(n => ({href:n.getAttribute('href'), title:n.querySelector('strong').textContent, boundary:n.querySelector('span').textContent}))")
     expected = [{"href": href, "title": title, "boundary": boundary}
                 for _lane, title, href, boundary in surfaces]
-    require(len(links) == 18 and links == expected, "18 source-owned navigation links changed")
+    require(len(links) == 19 and links == expected, "19 source-owned navigation links changed")
     org_card = page.locator("#ownership-links a[href='https://huggingface.co/spaces/SZLHOLDINGS/README']")
     require(org_card.count() == 1 and "INVENTORY_ONLY" in org_card.inner_text()
             and "ORG_CARD" in org_card.inner_text(), "org-card ownership boundary missing")
@@ -227,7 +233,7 @@ def observe(browser, fixture, route, width, javascript, output):
         request = intercept.request
         record = {"method": request.method, "url": request.url, "type": request.resource_type}
         requests.append(record)
-        if not request_allowed(request.method, request.url, fixture["origin"]):
+        if not request_allowed(request.method, request.url, fixture["origin"], fixture["allowed_paths"]):
             violations.append(record)
             intercept.abort("blockedbyclient")
         else:

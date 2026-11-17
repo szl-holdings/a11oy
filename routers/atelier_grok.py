@@ -30,6 +30,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 import a11oy_vertical_feeds
+import a11oy_cpu_lab_contract as cpu_contract
 import gdw_auth
 import szl_dsse
 import szl_governance_gateway
@@ -49,17 +50,19 @@ LOCAL_MODE = "NO_KEY_LOCAL"
 LOCAL_TAGS_TIMEOUT_S = 10.0
 CPU_LAB_PROVIDER = "szl_cpu_lab"
 CPU_LAB_MODE = "NO_PROVIDER_KEY_PUBLIC_CPU_LAB"
-CPU_LAB_ORIGIN = "https://szlholdings-szl-model-inference-lab.hf.space"
+CPU_LAB_ORIGIN = cpu_contract.ORIGIN
 CPU_LAB_IDENTITY_URL = f"{CPU_LAB_ORIGIN}/api/v1/identity"
-CPU_LAB_CHAT_URL = f"{CPU_LAB_ORIGIN}/v1/chat/completions"
+CPU_LAB_CONTRACT_URL = f"{CPU_LAB_ORIGIN}/.well-known/szl-governed-inference-contract.json"
+CPU_LAB_HEALTH_URL = f"{CPU_LAB_ORIGIN}/api/v2/governed-health"
+CPU_LAB_CHAT_URL = f"{CPU_LAB_ORIGIN}/api/v3/governed-infer"
 CPU_LAB_SPACE = "SZLHOLDINGS/szl-model-inference-lab"
-CPU_LAB_MODEL_REPO = "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF"
-CPU_LAB_MODEL_REVISION = "67d60ec577730747055491640cfb91fc4a4b5d25"
-CPU_LAB_MODEL = f"{CPU_LAB_MODEL_REPO}@{CPU_LAB_MODEL_REVISION}"
-CPU_LAB_MODEL_FILE = "SZL-Khipu-1.5B-Q4_K_M.gguf"
-CPU_LAB_MODEL_SHA256 = "13c1a1993063e1dff92f7413ccf48eaca6d48efc8801ae9af35961ae3396623a"
-CPU_LAB_RELEASE_ID = "brain13-1d3960c-controller-9f227f6-atlas-d7b08cde"
-CPU_LAB_RELEASE_MANIFEST_SHA256 = "d431e003041020ff38c9de38d048b1495b037efbefcfc209a69504086c0d384b"
+CPU_LAB_MODEL_REPO = cpu_contract.MODEL_REPO
+CPU_LAB_MODEL_REVISION = cpu_contract.MODEL_REVISION
+CPU_LAB_MODEL = cpu_contract.MODEL_ID
+CPU_LAB_MODEL_FILE = cpu_contract.MODEL_FILE
+CPU_LAB_MODEL_SHA256 = cpu_contract.MODEL_SHA256
+CPU_LAB_RELEASE_ID = cpu_contract.RELEASE_ID
+CPU_LAB_RELEASE_MANIFEST_SHA256 = cpu_contract.RELEASE_MANIFEST_SHA256
 CPU_LAB_MAX_BODY_BYTES = 8192
 CPU_LAB_MAX_INPUT_CHARS = 1200
 CPU_LAB_MAX_OUTPUT_TOKENS = 32
@@ -116,7 +119,7 @@ class LocalTurnRequest(BaseModel):
 
 
 class CpuLabTurnRequest(BaseModel):
-    """Public-only, exact-text subset of the pinned CPU lab's chat contract."""
+    """Public-only, exact-text request to the pinned governed proposal service."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
     client_request_id: Optional[str] = Field(default=None, max_length=36,
@@ -149,8 +152,10 @@ class CpuLabTurnRequest(BaseModel):
 
 
 class AtelierFailure(Exception):
-    def __init__(self, code, status=503, state="UNAVAILABLE"):
+    def __init__(self, code, status=503, state="UNAVAILABLE", *, reason_code=None):
         self.code, self.status, self.state = code, status, state
+        self.reason_code = (reason_code if isinstance(reason_code, str)
+                            and re.fullmatch(r"[A-Z][A-Z0-9_]{0,79}", reason_code) else None)
         super().__init__(code)
 
 
@@ -163,6 +168,8 @@ def _digest(value):
 
 
 def _error(failure, **extra):
+    if failure.reason_code:
+        extra["reason_code"] = failure.reason_code
     return JSONResponse(
         {"state": failure.state, "code": failure.code, "retry_safe": False, **extra},
         status_code=failure.status,
@@ -407,7 +414,10 @@ def cpu_lab_health():
             "mode": CPU_LAB_MODE, "chain_scope": CHAIN_SCOPE,
             "provider_identity_verified": False,
             "ledger_durability_verified": False,
-            "output_signature_status": "UNSIGNED",
+            "output_signature_status": "UNSIGNED_LOCAL",
+            "provider_contract_schema": "szl.model-inference-lab.governed-contract/v3",
+            "grounding_required": True, "authority": "NO_ACTION_AUTHORITY",
+            "executed": False,
             "energy": {"label": "UNAVAILABLE", "joules": None}}
 
 
@@ -569,149 +579,61 @@ def _local_observed_digest(url, model):
 
 
 def _cpu_lab_identity():
-    """Observe the pinned public lab release; this is not remote attestation."""
-    try:
-        document, code = szl_provider_http.http_json(
-            CPU_LAB_IDENTITY_URL, method="GET", timeout=4.0,
-            max_response_bytes=16_384, max_redirects=0, allow_private=False,
-        )
-    except Exception:
-        raise AtelierFailure("CPU_LAB_IDENTITY_UNAVAILABLE") from None
-    if code or not isinstance(document, dict):
-        raise AtelierFailure("CPU_LAB_IDENTITY_UNAVAILABLE")
-    space, model, runtime = (document.get(key) for key in ("space", "model", "runtime"))
-    if not all(isinstance(value, dict) for value in (space, model, runtime)):
-        raise AtelierFailure("CPU_LAB_IDENTITY_MISMATCH")
-    contract = runtime.get("openai_compatible_subset")
-    if (document.get("status") != "READY"
-            or space.get("id") != CPU_LAB_SPACE
-            or space.get("release_id") != CPU_LAB_RELEASE_ID
-            or space.get("release_manifest_sha256") != CPU_LAB_RELEASE_MANIFEST_SHA256
-            or space.get("source_integrity") is not True
-            or model.get("repo") != CPU_LAB_MODEL_REPO
-            or model.get("revision") != CPU_LAB_MODEL_REVISION
-            or model.get("file") != CPU_LAB_MODEL_FILE
-            or model.get("sha256_expected") != CPU_LAB_MODEL_SHA256
-            or model.get("sha256_loaded") != CPU_LAB_MODEL_SHA256
-            or runtime.get("max_input_chars") != CPU_LAB_MAX_INPUT_CHARS
-            or runtime.get("max_formatted_prompt_tokens") != 800
-            or runtime.get("max_new_tokens") != CPU_LAB_MAX_OUTPUT_TOKENS
-            or runtime.get("max_request_body_bytes") != CPU_LAB_MAX_BODY_BYTES
-            or not isinstance(contract, dict)
-            or contract.get("chat_completions") != "POST /v1/chat/completions"
-            or contract.get("model_id") != CPU_LAB_MODEL
-            or contract.get("streaming") is not False):
-        raise AtelierFailure("CPU_LAB_IDENTITY_MISMATCH")
-    return {"model_digest_observed_before_call": model["sha256_loaded"],
-            "release_id_observed_before_call": space["release_id"],
-            "release_manifest_observed_before_call": space["release_manifest_sha256"]}
+    """Read the pinned identity, API contract and health without inference."""
+    documents = {}
+    checks = (
+        ("identity", CPU_LAB_IDENTITY_URL, cpu_contract.validate_identity),
+        ("contract", CPU_LAB_CONTRACT_URL, cpu_contract.validate_contract),
+        ("health", CPU_LAB_HEALTH_URL, cpu_contract.validate_health),
+    )
+    for kind, url, validate in checks:
+        try:
+            document, code = szl_provider_http.http_json(
+                url, method="GET", timeout=4.0,
+                max_response_bytes=16_384, max_redirects=0, allow_private=False,
+                success_status=200,
+            )
+        except Exception:
+            raise AtelierFailure(f"CPU_LAB_{kind.upper()}_UNAVAILABLE") from None
+        if code or not isinstance(document, dict):
+            raise AtelierFailure(f"CPU_LAB_{kind.upper()}_UNAVAILABLE")
+        try:
+            validate(document)
+        except cpu_contract.ContractError:
+            raise AtelierFailure(f"CPU_LAB_{kind.upper()}_MISMATCH") from None
+        documents[kind] = document
+    identity = documents["identity"]
+    return {
+        "model_digest_observed_before_call": identity["model"]["sha256_loaded"],
+        "release_id_observed_before_call": identity["space"]["release_id"],
+        "release_manifest_observed_before_call": identity["space"]["release_manifest_sha256"],
+        "provider_contract_schema": documents["contract"]["schema"],
+        "provider_contract_sha256": _cpu_lab_json_digest(documents["contract"]),
+        "provider_health_sha256": _cpu_lab_json_digest(documents["health"]),
+        "provider_source_revision_observed_before_call": documents["health"]["source_revision"],
+    }
 
 
 def _cpu_lab_json_digest(value):
-    """The lab's documented canonical JSON is UTF-8, sorted and compact."""
+    """The lab's canonical JSON is UTF-8, sorted, compact and finite."""
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
-                                     separators=(",", ":")).encode("utf-8")).hexdigest()
+                                     separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
 
 
 def _cpu_lab_request(turn):
-    messages = [{"role": "user", "content": turn.prompt}]
-    body = _canonical({"model": CPU_LAB_MODEL, "messages": messages,
-                       "max_completion_tokens": turn.max_output_tokens,
-                       "temperature": 0.0, "top_p": 1.0, "n": 1, "stream": False})
-    canonical_request = {"schema": "szl.openai-chat-request/v1",
-                         "model": CPU_LAB_MODEL, "messages": messages,
-                         "max_completion_tokens": turn.max_output_tokens,
-                         "temperature": 0.0, "top_p": 1.0, "n": 1,
-                         "stream": False, "tools": None}
-    return body, _cpu_lab_json_digest(canonical_request)
+    document = {"prompt": turn.prompt, "max_new_tokens": turn.max_output_tokens, "k": 3}
+    return _canonical(document), _cpu_lab_json_digest(document)
 
 
-def _cpu_lab_output(document, expected_request_hash):
-    """Validate the exact unsigned lab subset and return only public answer text."""
-    if (not isinstance(document, dict) or document.get("object") != "chat.completion"
-            or document.get("model") != CPU_LAB_MODEL
-            or not isinstance(document.get("id"), str)
-            or not _SAFE_PROVIDER_ID.fullmatch(document["id"])
-            or type(document.get("created")) is not int or document["created"] < 0):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    choices = document.get("choices")
-    if not isinstance(choices, list) or len(choices) != 1:
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    choice = choices[0]
-    if (not isinstance(choice, dict) or type(choice.get("index")) is not int
-            or choice["index"] != 0 or choice.get("finish_reason") != "stop"):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    message = choice.get("message")
-    if (not isinstance(message, dict) or message.get("role") != "assistant"
-            or message.get("tool_calls") or not isinstance(message.get("content"), str)):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    answer = message["content"]
-    if not answer.strip() or len(answer) > 4096:
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    usage = document.get("usage")
-    if not isinstance(usage, dict):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    prompt_tokens, completion_tokens, total_tokens = (
-        usage.get(key) for key in ("prompt_tokens", "completion_tokens", "total_tokens"))
-    if (type(prompt_tokens) is not int or not 0 <= prompt_tokens <= 800
-            or type(completion_tokens) is not int
-            or not 1 <= completion_tokens <= CPU_LAB_MAX_OUTPUT_TOKENS
-            or type(total_tokens) is not int
-            or total_tokens != prompt_tokens + completion_tokens):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    provenance = document.get("szl_provenance")
-    if not isinstance(provenance, dict):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    model, runtime, receipts, output = (
-        provenance.get(key) for key in ("model", "runtime", "receipts", "output"))
-    expected_model = {"repo": CPU_LAB_MODEL_REPO,
-                      "revision": CPU_LAB_MODEL_REVISION,
-                      "file": CPU_LAB_MODEL_FILE, "sha256": CPU_LAB_MODEL_SHA256}
-    if (provenance.get("schema") != "szl.openai-compat-provenance/v1"
-            or model != expected_model or not isinstance(runtime, dict)
-            or runtime.get("space") != CPU_LAB_SPACE
-            or runtime.get("release_id") != CPU_LAB_RELEASE_ID
-            or runtime.get("service_level") != "BEST_EFFORT_NO_SLA"
-            or not isinstance(receipts, dict)
-            or receipts.get("covers_this_output") is not False
-            or not isinstance(output, dict)
-            or output.get("signature_status") != "UNSIGNED"
-            or output.get("signature") is not None
-            or output.get("termination_reason") != "stop"):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    record = provenance.get("execution_record")
-    if not isinstance(record, dict):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    record_model = {"id": CPU_LAB_MODEL, **expected_model}
-    source, termination = record.get("source"), record.get("termination")
-    record_hash = record.get("record_sha256")
-    if (record.get("schema") != "szl.unsigned-execution-record/v1"
-            or record.get("request_id") != document["id"]
-            or record.get("created_unix") != document["created"]
-            or record.get("canonical_request_sha256") != expected_request_hash
-            or record.get("output_sha256") != hashlib.sha256(answer.encode()).hexdigest()
-            or record.get("model") != record_model
-            or not isinstance(source, dict)
-            or source.get("space_id") != CPU_LAB_SPACE
-            or source.get("release_id") != CPU_LAB_RELEASE_ID
-            or source.get("release_manifest_sha256") != CPU_LAB_RELEASE_MANIFEST_SHA256
-            or record.get("usage") != {"prompt_tokens": prompt_tokens,
-                                       "completion_tokens": completion_tokens,
-                                       "total_tokens": total_tokens}
-            or not isinstance(termination, dict)
-            or termination.get("reason") != "stop"
-            or termination.get("time_budget_reached") is not False
-            or record.get("signature_status") != "UNSIGNED"
-            or record.get("signature") is not None
-            or record.get("authenticity_not_established") is not True
-            or not isinstance(record_hash, str)
-            or not re.fullmatch(r"[0-9a-f]{64}", record_hash)
-            or record_hash != _cpu_lab_json_digest({key: value for key, value in record.items()
-                                                     if key != "record_sha256"})):
-        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502)
-    return answer, {"prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "total_tokens": total_tokens}, document["id"], record_hash
+def _cpu_lab_output(document, turn, http_status):
+    """Accept only a consistent, pinned public proposal or explicit terminal state."""
+    try:
+        return cpu_contract.validate_response(
+            document, prompt=turn.prompt, max_new_tokens=turn.max_output_tokens,
+            http_status=http_status,
+        )
+    except cpu_contract.ContractError as exc:
+        raise AtelierFailure("CPU_LAB_INVALID_RESPONSE", 502, reason_code=exc.code) from None
 
 
 def _cpu_lab_failure(code):
@@ -918,7 +840,10 @@ def _execute_cpu_lab(principal, turn):
                     "public_share_acknowledged": turn.public_share_acknowledged,
                     "max_output_tokens": turn.max_output_tokens,
                     "source_revision": revision, "continuity": CONTINUITY,
-                    "provider_output_signature_status": "UNSIGNED",
+                    "provider_output_signature_status": "UNSIGNED_LOCAL",
+                    "grounding_required": True, "authority": "NO_ACTION_AUTHORITY",
+                    "executed": False,
+                    "canonical_provider_request_sha256": canonical_request_hash,
                     "retry_safe": False}
         decision_receipt, decision_dsse = _append(
             store, principal, {**metadata, "phase": "DECISION",
@@ -941,15 +866,17 @@ def _execute_cpu_lab(principal, turn):
                 CPU_LAB_CHAT_URL, method="POST", body=body,
                 headers={"Content-Type": "application/json"}, timeout=60.0,
                 max_response_bytes=65_536, max_redirects=0, allow_private=False,
+                error_body_statuses=(409, 422, 503), success_status=200,
             )
-            if code:
+            if code and code not in {"HTTP_STATUS:409", "HTTP_STATUS:422", "HTTP_STATUS:503"}:
                 raise _cpu_lab_failure(code)
-            answer, usage, provider_id, record_hash = _cpu_lab_output(
-                document, canonical_request_hash)
+            http_status = 200 if code is None else int(code.split(":")[1])
+            result = _cpu_lab_output(document, turn, http_status)
         except AtelierFailure as failure:
             receipt, dsse = _append(store, principal, {**metadata, **observed,
                 "phase": "OUTCOME", "decision_receipt_hash": decision_receipt["digest"],
                 "state": "UNAVAILABLE", "code": failure.code,
+                "contract_reason_code": failure.reason_code,
                 "provider_outcome_uncertain": True})
             return _error(failure, request_id=request_id, receipt=receipt, dsse=dsse)
         except Exception:
@@ -959,18 +886,40 @@ def _execute_cpu_lab(principal, turn):
                 "provider_outcome_uncertain": True})
             return _error(AtelierFailure("CPU_LAB_UNAVAILABLE", 502),
                           request_id=request_id, receipt=receipt, dsse=dsse)
+        provider_decision = result["state"]
+        completed = provider_decision == "PROPOSAL"
+        state = "COMPLETED" if completed else provider_decision
+        answer = result.get("answer") if completed else None
         receipt, dsse = _append(store, principal, {**metadata, **observed,
             "phase": "OUTCOME", "decision_receipt_hash": decision_receipt["digest"],
-            "state": "COMPLETED", "answer_sha256": hashlib.sha256(answer.encode()).hexdigest(),
-            "usage": usage, "provider_response_id": provider_id,
-            "provider_unsigned_execution_record_sha256": record_hash,
+            "state": state, "provider_decision": provider_decision,
+            "answer_sha256": hashlib.sha256(answer.encode()).hexdigest() if answer else None,
+            "usage": result["usage"], "provider_response_id": result["provider_response_id"],
+            "provider_inference_receipt_sha256": result["inference_receipt_sha256"],
+            "provider_public_export_sha256": result["public_export_sha256"],
+            "evidence_handles_sha256": _cpu_lab_json_digest(result["evidence_handles"]),
+            "citations_sha256": _cpu_lab_json_digest(result["citations"]),
+            "provider_response_consistency_verified": True,
+            "provider_output_authenticity_verified": False,
+            "provider_outcome_uncertain": False,
             "latency_ms": round((time.monotonic() - started) * 1000),
             "energy": {"label": "UNAVAILABLE", "joules": None}})
-        return JSONResponse({"state": "COMPLETED", "answer": answer,
+        response = {"state": state, "provider_decision": provider_decision,
             "model": CPU_LAB_MODEL, "provider": CPU_LAB_PROVIDER, "mode": CPU_LAB_MODE,
-            "provider_output_signature_status": "UNSIGNED",
+            "provider_output_signature_status": "UNSIGNED_LOCAL",
+            "grounding_required": True, "authority": "NO_ACTION_AUTHORITY", "executed": False,
+            "provider_response_consistency_verified": True,
+            "provider_output_authenticity_verified": False,
             "request_id": request_id, "receipt": receipt, "dsse": dsse,
-            "energy": {"label": "UNAVAILABLE", "joules": None}, "retry_safe": False},
+            "energy": {"label": "UNAVAILABLE", "joules": None}, "retry_safe": False}
+        if completed:
+            response["answer"] = answer
+            response["evidence_handles"] = result["evidence_handles"]
+            response["citations"] = result["citations"]
+        else:
+            response["code"] = f"CPU_LAB_{provider_decision}"
+        return JSONResponse(response,
+            status_code={"PROPOSAL": 200, "ABSTAIN": 422, "REVIEW": 409, "BLOCKED": 503}[provider_decision],
             headers={"Cache-Control": "no-store"})
 
 

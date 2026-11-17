@@ -8,6 +8,7 @@ action access. Strings are text, never markup. Browser actions remain in the
 existing, separately source-bound JavaScript client.
 """
 
+import base64
 import hashlib
 import html
 import json
@@ -18,8 +19,36 @@ from urllib.parse import urlsplit
 
 _TAGS = frozenset("html head meta title link script body a div aside p nav main header h1 h2 h3 button section article code small span form label input textarea select option details summary pre strong ol li footer noscript dl dt dd".split())
 _VOID = frozenset({"meta", "link", "input"})
-_ATTRS = frozenset("id class lang charset name content href rel src defer type autocomplete spellcheck placeholder rows maxlength required value readonly disabled hidden selected for role".split())
+_ATTRS = frozenset("id class lang charset name content href rel src defer type autocomplete spellcheck placeholder rows maxlength required value readonly disabled hidden selected for role integrity".split())
 _ORIGINS = frozenset({"github.com", "huggingface.co", "a11oy.net", "a-11-oy.com"})
+ASSET_SOURCES = {
+    "app.js": "routers/command_centre_web/app.js",
+    "style.css": "routers/command_centre_web/style.css",
+    "szl-design-system.css": "routers/command_centre_web/szl/szl-design-system.css",
+    "szl-console.css": "routers/command_centre_web/szl/szl-console.css",
+}
+
+
+def _sri(digest):
+    return "sha256-" + base64.b64encode(bytes.fromhex(digest)).decode("ascii")
+
+
+def asset_reference(sources, filename):
+    """Bind one fixed public asset to the exact manifest digest; no I/O."""
+    if not isinstance(sources, dict) or filename not in ASSET_SOURCES:
+        raise ValueError("asset source unavailable")
+    digest = sources.get(ASSET_SOURCES[filename])
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise ValueError("asset digest unavailable")
+    return {"url": "/command-centre/assets/" + digest + "/" + filename,
+            "integrity": _sri(digest)}
+
+
+def _check_asset(url, integrity, filenames):
+    match = re.fullmatch(r"/command-centre/assets/([0-9a-f]{64})/([^/]+)", url or "")
+    if (not match or match[2] not in filenames
+            or integrity != _sri(match[1])):
+        raise ValueError("asset URL and integrity must bind the same fixed source")
 
 
 def safe_href(value):
@@ -72,21 +101,32 @@ class Element:
 def node(tag, *children, **attributes):
     if tag not in _TAGS:
         raise ValueError("unapproved element")
-    if tag == "script" and (children or attributes.get("src") != "/command-centre/app.js"):
-        raise ValueError("only the retained external action client is admitted")
-    checked = []
+    checked = {}
     for name, value in attributes.items():
         name = name.rstrip("_").replace("_", "-")
         if name not in _ATTRS and not re.fullmatch(r"(?:aria|data)-[a-z][a-z0-9-]*", name):
             raise ValueError("unapproved attribute")
+        if name in checked:
+            raise ValueError("duplicate attribute")
         if name in {"href", "src"}:
             value = safe_href(value)
-        if name == "src" and (tag != "script" or value != "/command-centre/app.js"):
+        if name == "src" and tag != "script":
             raise ValueError("unapproved script")
-        checked.append((name, value))
+        checked[name] = value
+    if tag == "link" and checked.get("rel") not in ("canonical", "stylesheet"):
+        raise ValueError("only canonical link relations are admitted")
+    if tag == "script":
+        if children or set(checked) != {"src", "integrity", "defer"} or checked["defer"] is not True:
+            raise ValueError("only the integrity-bound deferred action client is admitted")
+        _check_asset(checked["src"], checked["integrity"], {"app.js"})
+    elif tag == "link" and checked.get("rel") == "stylesheet":
+        _check_asset(checked.get("href"), checked.get("integrity"),
+                     set(ASSET_SOURCES) - {"app.js"})
+    elif "integrity" in checked:
+        raise ValueError("integrity is reserved for fixed scripts and stylesheets")
     if tag in _VOID and children:
         raise ValueError("void element cannot have children")
-    return Element(tag, children, tuple(checked))
+    return Element(tag, children, tuple(checked.items()))
 
 
 def _head(number, title, label=None):
@@ -214,16 +254,20 @@ def _local_work():
 
 def _cpu_work():
     return node("section", _head("01 · Work · public demonstration", "Try the SZL CPU lab.", "No provider API key · 32-token ceiling"),
-        node("p", "This is a separate, best-effort SZL Khipu 1.5B demonstration, not Grok and not the local Ollama model. Send ", node("strong", "public, non-sensitive text only"),
-             "; do not include personal, regulated or secret data. Atelier still requires its operator credential and policy gate, and signs its own decision and observed outcome. The lab's execution record is ", node("strong", "UNSIGNED"),
-             ", and a signed Atelier receipt does not prove the lab's answer is correct or its remote execution independently attested. The lab permits one concurrent request and may be unavailable.", class_="muted"),
+        node("p", "This best-effort public CPU demonstration returns source-grounded proposals with public source handles, or an abstention, review, or block. Send ", node("strong", "public, non-sensitive text only"),
+             "; do not include personal, regulated or secret data. Atelier requires its operator credential and policy gate, and signs its own decision and observed outcome. The lab record is ", node("strong", "UNSIGNED_LOCAL"),
+             ". A proposal has no action authority and executes no action. Grounding consistency checks do not prove the answer is factually correct or remotely attested. The lab permits one concurrent request and may be unavailable.", class_="muted"),
         node("form", *_credential("cpu-"), node("label", "Public question for the CPU lab", for_="cpu-prompt"),
              node("textarea", id="cpu-prompt", rows="4", maxlength="1200", required=True, placeholder="Ask one short public question. No sensitive information."),
              node("label", node("input", id="cpu-public-ack", type="checkbox", required=True), " I confirm this exact prompt is safe to disclose to the public SZL CPU lab. Automated checks cannot reliably detect all personal, confidential or secret data.", class_="cpu-public-ack"),
              node("div", node("label", "Fixed model", node("input", id="cpu-model", type="text", value="Not configured", readonly=True)),
                   node("label", "Classification", node("input", type="text", value="PUBLIC only", readonly=True)),
                   node("button", "Send bounded demo request", id="cpu-send", type="submit", disabled=True), class_="controls cpu-controls"), id="cpu-turn-form"),
-        *_outcome("cpu-", "No CPU lab request has been sent.", "CPU lab model answer", "Inspect Atelier outcome and unsigned lab record hash"),
+        *_outcome("cpu-", "No CPU lab request has been sent.", "CPU lab source-grounded proposal", "Inspect Atelier outcome and unsigned local lab record"),
+        node("div", node("h3", "Public source handles"),
+             node("p", "These are the lab\'s public evidence handles and returned citation identifiers. They do not establish factual correctness or action authority.", class_="fine"),
+             node("ol", id="cpu-sources"), node("p", id="cpu-citations", class_="fine"),
+             id="cpu-sources-panel", hidden=True),
         node("p", "One request, no automatic retry or tool execution. A timeout can leave the lab outcome uncertain. The upstream lab is a best-effort public demo without an SLA; ", node("a", "inspect its independent source and limits", href="https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab"), ".", class_="fine"), id="cpu-work", class_="work panel cpu-work")
 
 
@@ -247,13 +291,19 @@ def render_page(model):
     if len(encoded) > 65536:
         raise ValueError("page model exceeds bound")
     input_digest = hashlib.sha256(encoded).hexdigest()
+    presentation = model.get("presentation")
+    if not isinstance(presentation, dict):
+        raise ValueError("presentation sources unavailable")
+    assets = {name: asset_reference(presentation.get("sources"), name)
+              for name in ASSET_SOURCES}
     body = node("html", node("head", node("meta", charset="utf-8"),
         node("meta", name="viewport", content="width=device-width, initial-scale=1"),
         node("title", "SZL Atelier · Command centre"),
         node("meta", name="description", content="One product entry point for governed work, existing SZL runtime tools, canonical source and publication evidence."),
         node("link", rel="canonical", href="https://a-11-oy.com/command-centre"),
-        *(node("link", rel="stylesheet", href=path) for path in ("/command-centre/szl/szl-design-system.css", "/command-centre/szl/szl-console.css", "/command-centre/style.css")),
-        node("script", src="/command-centre/app.js", defer=True)),
+        *(node("link", rel="stylesheet", href=assets[name]["url"], integrity=assets[name]["integrity"])
+          for name in ("szl-design-system.css", "szl-console.css", "style.css")),
+        node("script", src=assets["app.js"]["url"], integrity=assets["app.js"]["integrity"], defer=True)),
         node("body", node("a", "Skip to work", href="#work", class_="skip"),
             node("div", node("aside", node("a", "SZL", node("span", "Atelier"), href="/", class_="identity"),
                 node("p", "Command centre", class_="eyebrow"),
