@@ -351,7 +351,7 @@ def register(app, ns: str = "a11oy") -> str:
     base = f"/api/{ns}/v1/frontier"
 
     @app.get(f"{base}/sovereign")
-    async def _frontier_sovereign():
+    def _frontier_sovereign():
         """Sovereign local model status, with no inference or receipt on GET."""
         return JSONResponse(handle())
 

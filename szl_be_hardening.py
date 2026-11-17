@@ -75,6 +75,7 @@ import uuid
 from collections import defaultdict, deque
 from contextlib import closing
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
 
@@ -639,9 +640,24 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     # ---- 5 + 6: trace/span middleware, JSON logs, error envelopes ---------
     @app.middleware("http")
     async def _trace_log_mw(request: "Request", call_next):
-        # Inbound trace context (W3C-ish) or generate.
-        trace_id = request.headers.get("x-trace-id") or uuid.uuid4().hex
-        span_id = uuid.uuid4().hex[:16]
+        # Adopt the established native span (VSP, or standalone Wire D).
+        # An incoming X-Trace-Id cannot override an already owned server span.
+        context = None
+        for name in ("_vsp_otel_context_reader", "_szl_wire_d_context_reader"):
+            reader = getattr(app, name, None)
+            try:
+                candidate = reader(request) if callable(reader) else None
+            except Exception:
+                candidate = None
+            if type(candidate) is MappingProxyType:
+                context = candidate
+                break
+        if context is not None:
+            trace_id, span_id = context["trace_id"], context["span_id"]
+        else:
+            # Preserve BE-only deployments' existing logging fallback.
+            trace_id = request.headers.get("x-trace-id") or uuid.uuid4().hex
+            span_id = uuid.uuid4().hex[:16]
         request.state.trace_id = trace_id
         request.state.span_id = span_id
         t0 = time.time()

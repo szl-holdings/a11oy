@@ -21,11 +21,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 try:
-    from scripts.hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme
+    from scripts.hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme, validate_url
     from scripts import hf_revision_classes as revision_classes
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme
+    from hf_public_inventory import KINDS, MAX_PAGES, MAX_ITEMS, InventoryError, REPO, public_get, next_url, reserved_readme, validate_url
     import hf_revision_classes as revision_classes
 
 
@@ -130,6 +130,45 @@ def fetch_page(url: str) -> tuple[Any, str | None]:
     return data, next_url
 
 
+def semantic_public_api_endpoint(url: str) -> str:
+    """Validate request provenance, masking only an opaque continuation value.
+
+    Keep all other URL bytes, and keep the ordered endpoint list unchanged.
+    The raw URL remains the snapshot evidence and the actual request target.
+    """
+    if (
+        not isinstance(url, str)
+        or len(url) > 16_384
+        or not re.fullmatch(r"[A-Za-z0-9._~:/?\[\]@!$&'()*+,;=%-]+", url)
+        or re.search(r"%(?![0-9A-Fa-f]{2})", url)
+    ):
+        raise InventoryError("INVALID_PUBLIC_API_ENDPOINT")
+    if url == f"https://huggingface.co/api/spaces/{ORG}/README":
+        return url
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        params = urllib.parse.parse_qsl(
+            parsed.query, keep_blank_values=True, strict_parsing=True,
+            encoding="utf-8", errors="strict",
+        )
+    except ValueError as exc:
+        raise InventoryError("INVALID_PUBLIC_API_ENDPOINT") from exc
+    kind = parsed.path.removeprefix("/api/")
+    if kind not in KINDS:
+        raise InventoryError("UNSAFE_OR_CHANGED_PAGINATION_SCOPE")
+    validate_url(url, ORG, kind)
+    prefix, _, raw_query = url.partition("?")
+    parts = raw_query.split("&")
+    for index, (name, value) in enumerate(params):
+        if name == "cursor":
+            if any(ord(char) < 33 or ord(char) > 126 for char in value):
+                raise InventoryError("INVALID_PUBLIC_API_CURSOR")
+            # Do not decode provider-internal cursor structure or rebuild the
+            # URL: either could conceal changes to request scope or syntax.
+            parts[index] = parts[index].partition("=")[0] + "=__opaque_cursor__"
+    return prefix + "?" + "&".join(parts)
+
+
 def api_items(kind: str) -> ApiItems:
     """Enumerate one public namespace without inheriting credentials or redirects."""
     if kind not in KINDS:
@@ -142,6 +181,7 @@ def api_items(kind: str) -> ApiItems:
     seen_urls: set[str] = set()
     endpoints: list[str] = []
     while url:
+        semantic_public_api_endpoint(url)
         if url in seen_urls or len(seen_urls) >= MAX_PAGES:
             raise InventoryError("PAGINATION_CYCLE_OR_BUDGET")
         seen_urls.add(url)
@@ -539,11 +579,20 @@ def semantic_manifest(
     are also excluded because Hugging Face derives them from dataset content and
     may temporarily omit them while metadata is converging. Curated tags and
     ``cardSemanticSha256`` remain in this comparison, so claim or policy drift
-    still fails closed. A write refreshes every snapshot field.
+    still fails closed. Only validated opaque pagination cursor values are
+    masked in endpoint comparison; exact request URLs remain snapshot evidence.
+    Endpoint order, count, and all other URL bytes remain significant.
+    A write refreshes every snapshot field.
     """
     if classes is None:
         classes = revision_classes.load_revision_classes()
     stable = json.loads(json.dumps(manifest))
+    if "publicApiEndpoints" in stable:
+        if not isinstance(stable["publicApiEndpoints"], list):
+            raise InventoryError("INVALID_PUBLIC_API_ENDPOINTS")
+        stable["publicApiEndpoints"] = [
+            semantic_public_api_endpoint(url) for url in stable["publicApiEndpoints"]
+        ]
     for repo_type in KINDS:
         for item in stable.get("inventory", {}).get(repo_type, []):
             # A restricted README is unobserved and a governed row is release
@@ -867,7 +916,10 @@ def check_manifest(output: Path, rename: list[str] | None, report: Path | None) 
         return done("INVALID", f"Hugging Face revision classes or coverage are invalid: {exc}")
     done = partial(done, classes=classes)
     try:
+        # Validate tracked endpoint evidence before an outage can obscure it.
+        stable_existing = semantic_manifest(existing, classes)
         live = build_manifest(observed_at=observed_at)
+        stable_live = semantic_manifest(live, classes)
         revision_classes.validate_manifest_coverage(classes, live, label="live inventory")
         validate_model_rename(live, rename)
         validate_snapshot_revisions(
@@ -884,7 +936,7 @@ def check_manifest(output: Path, rename: list[str] | None, report: Path | None) 
             traceback.print_exc()
             detail = f"{type(exc).__name__}: {exc}"
         return done("INVALID", f"Hugging Face ecosystem manifest is invalid: {output}: {detail}")
-    if semantic_manifest(existing, classes) != semantic_manifest(live, classes):
+    if stable_existing != stable_live:
         rows, top_level = changed_rows(existing, live, classes)
         return done("DRIFT", f"Hugging Face ecosystem manifest is stale: {output}", rows=rows, top_level=top_level)
     return done("CURRENT", f"Hugging Face ecosystem manifest is current: {display_path(output)}")

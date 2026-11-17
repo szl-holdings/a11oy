@@ -1,0 +1,133 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "title": "szl-ring-receipt-v1",
+ "description": "Ouroboros ring lap receipt. Extends the estate sha256-canonical-json-chain pattern. Fail-closed: closed=true requires every station to carry MEASURED evidence and every gate PASS. Absence of evidence never closes a ring.",
+ "type": "object",
+ "required": [
+  "ring_id",
+  "lap_number",
+  "ring_sha",
+  "prev_hash",
+  "chain_tip",
+  "stations",
+  "gates",
+  "honesty",
+  "closed"
+ ],
+ "properties": {
+  "ring_id": {
+   "type": "string",
+   "pattern": "^ring-v[0-9]+$"
+  },
+  "lap_number": {
+   "type": "integer",
+   "minimum": 1
+  },
+  "ring_sha": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "prev_hash": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "chain_tip": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{64}$"
+  },
+  "stations": {
+   "type": "array",
+   "minItems": 6,
+   "items": {
+    "type": "object",
+    "required": [
+     "station",
+     "evidence"
+    ],
+    "properties": {
+     "station": {
+      "enum": [
+       "CURATE",
+       "TRAIN",
+       "MEASURE",
+       "PUBLISH",
+       "SERVE",
+       "LEARN"
+      ]
+     },
+     "evidence": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "kind",
+        "uri"
+       ],
+       "properties": {
+        "kind": {
+         "enum": [
+          "MEASURED",
+          "UNKNOWN",
+          "ABSTAIN",
+          "NOT_RUN",
+          "BLOCKED"
+         ]
+        },
+        "uri": {
+         "type": "string"
+        },
+        "note": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "gates": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "gate",
+     "verdict"
+    ],
+    "properties": {
+     "gate": {
+      "type": "string"
+     },
+     "verdict": {
+      "enum": [
+       "PASS",
+       "FAIL",
+       "ABSTAIN"
+      ]
+     }
+    }
+   }
+  },
+  "honesty": {
+   "type": "object",
+   "required": [
+    "energy_measured",
+    "eval_status",
+    "cost_note"
+   ],
+   "properties": {
+    "energy_measured": {
+     "type": "boolean"
+    },
+    "eval_status": {
+     "type": "string"
+    },
+    "cost_note": {
+     "type": "string"
+    }
+   }
+  },
+  "closed": {
+   "type": "boolean"
+  }
+ }
+}
