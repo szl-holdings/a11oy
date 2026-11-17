@@ -86,7 +86,7 @@ def install_fakes(monkeypatch, helper, api):
 
     def metadata_client(*, token, endpoint=None):
         assert token == "offline-fixture"
-        assert endpoint == ("https://huggingface.co" if is_series else None)
+        assert endpoint == "https://huggingface.co"
         return api
 
     class Volume(SimpleNamespace):
@@ -105,29 +105,31 @@ def install_fakes(monkeypatch, helper, api):
         "credential_authority_state": "VERIFIED",
         "installed_authority": {"github_public_reader": {"state": "VERIFIED"}},
     })
-    if is_series:
-        import httpx
+    import httpx
 
-        state = helper.load_state_store()
-        monkeypatch.setattr(helper, "read_storage_status", lambda: {
-            "schema": state.STATUS_SCHEMA, "mode": "DISABLED",
-            "role": "DISABLED", "writable": True,
-        })
-        writer = helper.RuntimeMutationClient
+    owner = helper if is_series else helper.load_runtime_mutation_owner()
+    if not is_series:
+        monkeypatch.setattr(helper, "load_runtime_mutation_owner", lambda: owner)
+    state = owner.load_state_store()
+    monkeypatch.setattr(owner, "read_storage_status", lambda: {
+        "schema": state.STATUS_SCHEMA, "mode": "DISABLED",
+        "role": "DISABLED", "writable": True,
+    })
+    writer = owner.RuntimeMutationClient
 
-        def handle(request):
-            payload = json.loads(request.content)
-            root = "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy/"
-            if request.method == "PUT" and str(request.url) == root + "volumes":
-                api.set_space_volumes(repo_id=helper.CANONICAL_SPACE, **payload)
-            elif request.method == "POST" and str(request.url) == root + "variables":
-                api.add_space_variable(repo_id=helper.CANONICAL_SPACE, **payload)
-            else:
-                pytest.fail("unexpected configuration fixture operation")
-            return httpx.Response(200, json={})
+    def handle(request):
+        payload = json.loads(request.content)
+        root = "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy/"
+        if request.method == "PUT" and str(request.url) == root + "volumes":
+            api.set_space_volumes(repo_id=helper.CANONICAL_SPACE, **payload)
+        elif request.method == "POST" and str(request.url) == root + "variables":
+            api.add_space_variable(repo_id=helper.CANONICAL_SPACE, **payload)
+        else:
+            pytest.fail("unexpected configuration fixture operation")
+        return httpx.Response(200, json={})
 
-        monkeypatch.setattr(helper, "RuntimeMutationClient", lambda token: writer(
-            token, transport=httpx.MockTransport(handle)))
+    monkeypatch.setattr(owner, "RuntimeMutationClient", lambda token: writer(
+        token, transport=httpx.MockTransport(handle)))
 
 
 def changing_reader(values):
@@ -168,7 +170,7 @@ def test_gdw_stops_between_variable_writes(monkeypatch):
     with pytest.raises(helper.RuntimeConfigError) as caught:
         helper.configure(repo_id=helper.CANONICAL_SPACE, hf_token="offline-fixture",
                          expected_source_sha=SOURCE,
-                         main_reader=changing_reader([SOURCE, SOURCE, NEW_MAIN]))
+                         main_reader=changing_reader([SOURCE, SOURCE, SOURCE, NEW_MAIN]))
     assert caught.value.diagnostic_code == "SOURCE_NOT_CURRENT_MAIN"
     assert len(api.effects) == 1
 
@@ -195,7 +197,7 @@ def test_reader_failure_after_first_effect_is_fixed_diagnostic(monkeypatch, name
     def reader():
         nonlocal calls
         calls += 1
-        if calls == (4 if name == "series_a" else 3):
+        if calls == 4:
             raise RuntimeError("private-provider-secret-canary")
         return SOURCE
 
