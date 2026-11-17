@@ -59,6 +59,8 @@ from fastapi.responses import JSONResponse
 
 from szl_provider_http import http_json as _bounded_http_json
 from szl_operator_auth import operator_refusal
+from szl_model_access import (ModelAccessConfigurationError,
+                              model_access_catalog_request, model_access_configured)
 
 DOCTRINE = "v11"
 _KERNEL = "c7c0ba17"
@@ -706,6 +708,47 @@ def sovereign_probe(base: str = "", timeout: float | None = None) -> dict[str, A
         "probed": [],
         "note": "",
     }
+    if model_access_configured():
+        out["base_url"] = None
+        # This is the code endpoint's explicit catalog contract. Do not inherit
+        # sovereign, energy or meter credentials, nor probe another origin.
+        try:
+            if (_sovereign_env_used() not in _CODE_SOVEREIGN_ENVS
+                    or base.rstrip("/") != _sovereign_base().rstrip("/")):
+                raise ModelAccessConfigurationError("MODEL_ACCESS_CODE_ENDPOINT_REQUIRED")
+            catalog_url, headers = model_access_catalog_request(base)
+        except ModelAccessConfigurationError as exc:
+            out["probed"] = [{"ok": False, "error": str(exc)}]
+            out["note"] = "Protected model catalog configuration refused; no request was sent."
+            return out
+        out["base_url"] = catalog_url.removesuffix("/models")
+        doc, error = _bounded_http_json(
+            catalog_url, headers={"Accept": "application/json", **headers},
+            timeout=to, max_response_bytes=1_048_576, max_redirects=0,
+            allow_private=False)
+        out["probed"] = [{"url": catalog_url, "ok": False, "error": error}]
+        if error is not None:
+            out["note"] = "Protected model catalog unavailable; no alternate endpoint was tried."
+            return out
+        # Validate the whole observation before exposing any IDs. Filtering or
+        # coercing malformed rows would turn an unknown inventory into a partial
+        # or empty success. Exact IDs must survive without whitespace repair.
+        if (not isinstance(doc, dict) or not isinstance(doc.get("data"), list)
+                or not all(isinstance(row, dict)
+                           and isinstance(row.get("id"), str)
+                           and row["id"] and row["id"] == row["id"].strip()
+                           for row in doc["data"])):
+            out["probed"][0]["error"] = "MODEL_ACCESS_CATALOG_MALFORMED"
+            out["note"] = ("Protected model catalog malformed; model inventory is unknown. "
+                           "No alternate endpoint was tried.")
+            return out
+        out["models"] = [row["id"] for row in doc["data"]]
+        out["live"] = True
+        out["probed"][0]["ok"] = True
+        out["api_style"] = "openai /v1"
+        out["note"] = ("Protected model catalog observed; inference, ownership "
+                       "and production acceptance remain separate.")
+        return out
     # Wave M: we ALWAYS have a concrete base (env or the localhost /v1 default), so
     # we always reachability-probe. env_present tells the caller whether the
     # operator explicitly targeted a Tower or we fell back to the localhost default
@@ -754,6 +797,13 @@ def sovereign_generate(prompt: str, base: str = "", model: str = "",
     native /api/generate first, then OpenAI-compatible /v1/chat/completions.
     """
     base = (base or _sovereign_base())
+    if model_access_configured():
+        return {"wired": False, "live": False, "text": None, "model": model,
+                "generated": False, "inference_receipted": False,
+                "model_ready": False, "model_resolution": None, "api_style": None,
+                "base_url": None, "env_var": _SOVEREIGN_ENV,
+                "env_present": _sovereign_env_present(),
+                "note": "Protected model execution requires the bounded code-engine client."}
     requested_model = (model or _sovereign_model_slug()).strip()
     resolution = None
     if not model:

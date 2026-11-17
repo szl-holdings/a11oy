@@ -949,11 +949,18 @@ class StateStore:
                     return []
                 if tables != {"provenance_nodes", "provenance_heads"}:
                     raise StorageBlocked("PROVENANCE_SCHEMA_INCOMPLETE")
+                # Affinity does not enforce column types or lengths. Keep raw
+                # invalid metadata out of Python before its existing validation.
                 head = db.execute(
-                    "SELECT last_index, digest FROM provenance_heads WHERE space=?",
+                    "SELECT CASE WHEN typeof(last_index)='integer' THEN last_index END, "
+                    "CASE WHEN typeof(digest)='text' AND octet_length(digest)=64 "
+                    "THEN digest END FROM provenance_heads WHERE space=?",
                     (space,)).fetchone()
                 metadata = db.execute(
-                    "SELECT sequence, digest, node_sha256, octet_length(node_json) "
+                    "SELECT CASE WHEN typeof(sequence)='integer' THEN sequence END, "
+                    "CASE WHEN typeof(digest)='text' AND octet_length(digest)=64 THEN digest END, "
+                    "CASE WHEN typeof(node_sha256)='text' AND octet_length(node_sha256)=64 "
+                    "THEN node_sha256 END, octet_length(node_json) "
                     "FROM provenance_nodes WHERE space=? ORDER BY sequence DESC LIMIT ?",
                     (space, limit)).fetchall()
                 if not metadata and head is None:
@@ -2106,10 +2113,13 @@ class StateStore:
 
     def _next(self, current: dict[str, Any], current_body: bytes, **changes: Any) -> dict[str, Any]:
         value = json.loads(json.dumps(current))
+        # A request still describes the incumbent; the requester owns no lease yet.
         value.update(operation_id=uuid.uuid4().hex, sequence=current["sequence"] + 1,
                      previous_manifest_sha256=_sha256_bytes(current_body),
                      boot_id=self.boot_id if changes.get("transition") != "HANDOVER_REQUEST" else current["boot_id"],
-                     source_revision=self.source_revision or current["source_revision"])
+                     source_revision=(current["source_revision"]
+                                      if changes.get("transition") == "HANDOVER_REQUEST"
+                                      else self.source_revision or current["source_revision"]))
         value["lease"] = dict(current["lease"], renewed_at=_iso(self.clock()))
         if changes.get("transition") == "HANDOVER_REQUEST":
             value["lease"] = dict(current["lease"])

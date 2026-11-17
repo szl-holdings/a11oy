@@ -113,6 +113,12 @@ _REGISTRY = [
             default=None),
     EnvSpec("VLLM_API_KEY", SECRET, "brain", "Auth for a private vLLM endpoint.",
             default=None),
+    EnvSpec("A11OY_MODEL_CF_ACCESS_CLIENT_ID", SECRET, "brain",
+            "Dedicated model Access Client ID; requires the paired secret and origin.",
+            default=None),
+    EnvSpec("A11OY_MODEL_CF_ACCESS_CLIENT_SECRET", SECRET, "brain",
+            "Dedicated model Access Client Secret; never shared with meter credentials.",
+            default=None),
     EnvSpec("ANTHROPIC_WORKSPACE_ID", VARIABLE, "brain",
             "Claude Platform workspace id for user-scoped ANTHROPIC_API_KEY "
             "(sent as the anthropic-workspace-id header; NOT a secret — "
@@ -121,8 +127,11 @@ _REGISTRY = [
     # brain routing (VARIABLES — endpoints / model names, NOT secret)
     EnvSpec("A11OY_MODEL_BASE_URL", VARIABLE, "brain",
             "Base URL for the hosted model router.", default=None),
+    EnvSpec("A11OY_MODEL_CF_ACCESS_ORIGIN", VARIABLE, "brain",
+            "Exact HTTPS origin allowed to receive the dedicated model Access pair.",
+            default=None),
     EnvSpec("A11OY_BRAIN_URL", VARIABLE, "brain",
-            "Central Brain hub pulse URL (falls back to shipped organs).",
+            "Canonical OpenAI-compatible model base; precedes A11OY_MODEL_BASE_URL.",
             default=None),
     EnvSpec("A11OY_LOCAL_MODEL", VARIABLE, "brain",
             "Local model identifier for the sovereign path.", default=None),
@@ -321,7 +330,21 @@ def _subsystem_label(env, subsystem):
     }
     credential_unavailable = False
     configuration_incomplete = []
+    configuration_error = None
     storage_unavailable = False
+    if subsystem == "brain":
+        from szl_model_access import (ACCESS_ID_ENV, ACCESS_SECRET_ENV,
+                                      ModelAccessConfigurationError,
+                                      model_access_configured, model_access_headers)
+        if not model_access_configured(env=env):
+            missing_secrets.difference_update({ACCESS_ID_ENV, ACCESS_SECRET_ENV})
+        else:
+            endpoint = (env.get("A11OY_BRAIN_URL") or env.get("A11OY_MODEL_BASE_URL")
+                        or env.get("HF_ROUTER_BASE") or "https://router.huggingface.co/v1")
+            try:
+                model_access_headers(endpoint, env=env)
+            except ModelAccessConfigurationError as exc:
+                configuration_error = str(exc)
     for alternatives in _CREDENTIAL_ALTERNATIVES.get(subsystem, ()):
         if subsystem == "signing":
             # Presence alone is not readiness. Validate the exact inline or
@@ -389,7 +412,7 @@ def _subsystem_label(env, subsystem):
         label = UNAVAILABLE
     elif credential_unavailable or storage_unavailable:
         label = UNAVAILABLE
-    elif missing_secrets or configuration_incomplete:
+    elif missing_secrets or configuration_incomplete or configuration_error:
         label = DEGRADED
     else:
         label = LIVE
@@ -399,6 +422,7 @@ def _subsystem_label(env, subsystem):
         "missing_required": sorted(missing_required),
         "missing_secrets": sorted(missing_secrets),
         "missing_configuration": sorted(configuration_incomplete),
+        **({"configuration_error": configuration_error} if configuration_error else {}),
     }
 
 

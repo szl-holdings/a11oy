@@ -39,6 +39,9 @@ def configured(monkeypatch):
     monkeypatch.setattr(engine, "_LOCAL_MODEL_CMD", "")
     monkeypatch.delenv("A11OY_MODEL_API_KEY", raising=False)
     monkeypatch.delenv("A11OY_MODEL_ID", raising=False)
+    for name in ("A11OY_MODEL_CF_ACCESS_ORIGIN", "A11OY_MODEL_CF_ACCESS_CLIENT_ID",
+                 "A11OY_MODEL_CF_ACCESS_CLIENT_SECRET"):
+        monkeypatch.delenv(name, raising=False)
     return monkeypatch
 
 

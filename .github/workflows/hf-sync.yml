@@ -126,6 +126,8 @@ jobs:
       PREFLIGHT_REPORT: /tmp/canonical-a11oy-preflight.json
       RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
       GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
+      CONFIG_BASELINE_REPORT: /tmp/configuration-handover-baseline.json
+      CONFIG_HANDOVER_REPORT: /tmp/configuration-handover.json
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -162,9 +164,8 @@ jobs:
           "requests==2.32.5"
           "cryptography==50.0.1"
 
-      # Never restarts. A serving Space is rebuilt by the deploy commit; a
-      # paused, crashed or failed-build Space is started once by the publisher
-      # after the commit. Either way the deploy starts the new revision once.
+      # Classification never restarts. Configuration writes can restart the
+      # old revision; the barrier below settles that process before publication.
       - name: Classify the runtime stage without restarting it
         id: runtime
         if: ${{ steps.admit.outputs.publish == 'true' }}
@@ -206,6 +207,12 @@ jobs:
           echo "::error::PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED: stage=${STAGE:-UNKNOWN} protected_main=${GITHUB_SHA} live_revision=${live:-UNAVAILABLE}. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
           exit 1
 
+      - name: Capture the serving writer before configuration changes
+        if: ${{ steps.window.outputs.open == 'true' && steps.runtime.outputs.converge == 'true' }}
+        run: >-
+          python -I -B .github/scripts/await_hf_configuration_handover.py capture
+          --origin "$CANONICAL_ORIGIN" --output "$CONFIG_BASELINE_REPORT"
+
       # Idempotent: a converged Space receives no write. Convergence needs the
       # serving runtime to prove installed authority, so a paused or crashed
       # Space defers it to runtime-config against the deployed revision.
@@ -246,6 +253,10 @@ jobs:
           python -I -B scripts/configure_hf_gdw_runtime.py \
             --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
             --output "$GDW_CONFIG_REPORT"
+          python -I -B .github/scripts/await_hf_configuration_handover.py wait \
+            --origin "$CANONICAL_ORIGIN" --baseline "$CONFIG_BASELINE_REPORT" \
+            --report "$RUNTIME_CONFIG_REPORT" --report "$GDW_CONFIG_REPORT" \
+            --output "$CONFIG_HANDOVER_REPORT"
           echo 'converged=true' >> "$GITHUB_OUTPUT"
 
       - name: Re-admit current protected main immediately before deploy
@@ -274,6 +285,8 @@ jobs:
             ${{ env.PREFLIGHT_REPORT }}
             ${{ env.RUNTIME_CONFIG_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
+            ${{ env.CONFIG_BASELINE_REPORT }}
+            ${{ env.CONFIG_HANDOVER_REPORT }}
             ${{ runner.temp }}/preflight-admission.json
             ${{ runner.temp }}/preflight-series-config-admission.json
             ${{ runner.temp }}/preflight-gdw-config-admission.json
