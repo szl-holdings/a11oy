@@ -34,7 +34,25 @@ BUTTONS = ("send", "local-send", "cpu-send")
 
 
 class WitnessError(RuntimeError):
-    pass
+    def __init__(self, message, observation=None):
+        super().__init__(message)
+        self.observation = observation
+
+
+def failed_observation(route, width, javascript, errors, requests, violations):
+    """Bounded fixture diagnostics; omit URL query, fragment and user information."""
+    def request_record(value):
+        parsed = urlsplit(value.get("url", ""))
+        return {"method": str(value.get("method", ""))[:16],
+                "type": str(value.get("type", ""))[:40],
+                "host": (parsed.hostname or "")[:200], "path": parsed.path[:500]}
+    return {"route": route, "width": width, "javascript": javascript,
+            "errors": [str(error)[:1000] for error in errors[:20]],
+            "requests": [request_record(value) for value in requests[-30:]],
+            "violations": [request_record(value) for value in violations[:20]],
+            "counts": {"errors": len(errors), "requests": len(requests),
+                       "violations": len(violations)},
+            "truncated": len(errors) > 20 or len(requests) > 30 or len(violations) > 20}
 
 
 def require(condition, message):
@@ -185,6 +203,25 @@ def follow_skip_link(page, target, timeout=5000):
     expect(page).to_have_url(target, timeout=timeout)
 
 
+def reset_keyboard_origin(page):
+    """Rewind tab navigation in the same document, preserving browser errors.
+
+    A temporary body tabindex makes focus deterministic after Refresh without
+    another GET. Restore the original DOM attribute even if focus fails.
+    """
+    page.evaluate("""() => {
+        const body = document.body;
+        const prior = body.getAttribute('tabindex');
+        body.setAttribute('tabindex', '-1');
+        try { body.focus({preventScroll: true}); }
+        finally {
+            if (prior === null) body.removeAttribute('tabindex');
+            else body.setAttribute('tabindex', prior);
+        }
+        window.scrollTo({top:0,left:0,behavior:'instant'});
+    }""")
+
+
 def observe(browser, fixture, route, width, javascript, output):
     from playwright.sync_api import expect
     errors, requests, violations = [], [], []
@@ -208,7 +245,8 @@ def observe(browser, fixture, route, width, javascript, output):
     page.on("pageerror", lambda error: errors.append("page: " + str(error)))
     page.on("console", lambda message: errors.append("console: " + message.text)
             if message.type in {"error", "warning"} else None)
-    page.on("requestfailed", lambda request: errors.append("request failed: " + request.url))
+    page.on("requestfailed", lambda request: errors.append(
+        "request failed: " + urlsplit(request.url).path[:500] + "; " + str(request.failure)[:300]))
     try:
         response = page.goto(fixture["origin"] + route, wait_until="networkidle", timeout=20000)
         require(response is not None and response.status == 200, "page did not return HTTP 200")
@@ -237,8 +275,10 @@ def observe(browser, fixture, route, width, javascript, output):
             require(not any(urlsplit(item["url"]).path in API_PATHS for item in requests),
                     "JavaScript-disabled view unexpectedly requested runtime observations")
         result = check_presentation(page, fixture["surfaces"])
-        # Start keyboard traversal from the document, not the refresh button.
-        page.goto(fixture["origin"] + route, wait_until="networkidle")
+        # Exercise keyboard navigation without a second document navigation.
+        # A second page.goto cancels still-pending allowed GETs in Chromium and
+        # spuriously reports net::ERR_ABORTED as a failed request.
+        reset_keyboard_origin(page)
         page.keyboard.press("Tab")
         focused = page.evaluate("({tag:document.activeElement.tagName, href:document.activeElement.getAttribute('href'), top:document.activeElement.getBoundingClientRect().top})")
         require(focused["tag"] == "A" and focused["href"] == "#work" and focused["top"] >= 0,
@@ -249,6 +289,9 @@ def observe(browser, fixture, route, width, javascript, output):
                        "javascript": javascript, "observed_at": now(), "document_bytes": len(body),
                        "document_sha256": sha256(body), "keyboard_skip_link": focused,
                        "requests": requests, "errors": errors, "violations": violations})
+        require(sum(item["type"] == "document" and
+                    urlsplit(item["url"]).path == route for item in requests) == 1,
+                "presentation test unexpectedly navigated away and restarted GETs")
         require(not violations and not errors, "browser reported prohibited traffic or errors")
         if width in (320, 1280):
             name = route.strip("/").replace("/", "-") + f"-{width}-js-{'on' if javascript else 'off'}.png"
@@ -257,6 +300,10 @@ def observe(browser, fixture, route, width, javascript, output):
             result["screenshot"] = {"path": name, "sha256": sha256(image_path.read_bytes()),
                                     "captured_at": now(), "full_page": True}
         return result
+    except Exception as error:
+        # Retain the failing case too; a failure must not erase its own evidence.
+        detail = failed_observation(route, width, javascript, errors, requests, violations)
+        raise WitnessError(str(error), observation=detail) from error
     finally:
         context.close()
 
@@ -297,6 +344,8 @@ def witness(expected, output, require_clean=False):
         return report
     except Exception as error:
         report["failure"] = {"type": type(error).__name__, "message": str(error)[:2000]}
+        if isinstance(error, WitnessError) and error.observation is not None:
+            report["failure"]["observation"] = error.observation
         raise WitnessError(str(error)) from error
     finally:
         report["finished_at"] = now()

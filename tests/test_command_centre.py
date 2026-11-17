@@ -258,6 +258,18 @@ def test_vendor_exception_is_byte_bound_not_application_exemption():
     assert not allowlist.is_allowed('routers/command_centre_web/index.html')
 
 
+def test_browser_action_binding_contract():
+    """Execute the maintained client, not source substring claims, with fake I/O."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+    node = shutil.which("node")
+    assert node, "Node >=18 is required for the command-centre contract tests"
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run([node, "--test", "tests/command_centre_action_binding.test.mjs"],
+                            cwd=root, capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=60)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 def test_cpu_form_auth_disclosure_and_proposal_outcomes():
     """Execute the shipped frontend against explicit, adversarial API outcomes."""
@@ -267,6 +279,7 @@ def test_cpu_form_auth_disclosure_and_proposal_outcomes():
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const {createHash,webcrypto} = require('node:crypto');
 const code = fs.readFileSync(0, 'utf8');
 const elements = new Map();
 function element(id = '') {
@@ -284,14 +297,49 @@ function element(id = '') {
 const turnPath = '/api/a11oy/v1/atelier/cpu-lab/turn';
 const calls = [], windowListeners = {}, timeoutBudgets = [];
 let nextResult, allowConfirmation = true, confirmations = 0;
-const response = (value, status = 200) => ({
-  ok: status >= 200 && status < 300, status,
-  headers: { get: name => name === 'content-type' ? 'application/json' : null },
-  json: async () => value,
-});
+const response = (value, status = 200) => ({value,status});
+const digest = text => createHash('sha256').update(text).digest('hex');
+const canonical = value => {
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
+  if (value && typeof value === 'object')
+    return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
+  return JSON.stringify(value);
+};
+function makeResponse(fixture, request = null) {
+  let value = fixture.value;
+  if (request && value.state === 'COMPLETED' && typeof value.answer === 'string') {
+    const request_id = 'b9d46744-f97f-4a21-b868-4d3fa68b77d2';
+    const handles = value.evidence_handles || [];
+    const citations = value.citations || [];
+    const payload = {
+      schema:'a11oy.atelier.single-turn.receipt/v1',phase:'OUTCOME',state:'COMPLETED',
+      request_id,client_request_id:request.client_request_id,provider:'szl_cpu_lab',
+      mode:'NO_PROVIDER_KEY_PUBLIC_CPU_LAB',model:'test-owned-model',
+      source_revision:'a'.repeat(40),decision_receipt_hash:'b'.repeat(64),
+      prompt_sha256:digest(request.prompt),answer_sha256:digest(value.answer),
+      classification:'PUBLIC',public_share_acknowledged:true,
+      provider_decision:value.provider_decision,
+      provider_output_signature_status:'UNSIGNED_LOCAL',
+      grounding_required:true,authority:'NO_ACTION_AUTHORITY',executed:false,
+      provider_outcome_uncertain:false,provider_output_authenticity_verified:false,
+      evidence_handles_sha256:digest(canonical(handles)),
+      citations_sha256:digest(canonical(citations)),
+    };
+    value = {...value,model:'test-owned-model',provider:'szl_cpu_lab',
+      mode:'NO_PROVIDER_KEY_PUBLIC_CPU_LAB',request_id,retry_safe:false,
+      provider_output_authenticity_verified:false,
+      receipt:{digest:'c'.repeat(64),persisted:true,signature_verified:true,
+        chain_scope:'SINGLE_PROCESS_RETAINED_METADATA_CHAIN',payload},
+      dsse:{signed:true,payloadType:'application/vnd.szl.atelier-turn+json',
+        payload:Buffer.from(JSON.stringify(payload)).toString('base64'),
+        signatures:[{keyid:'synthetic-key',sig:'ZmFrZQ=='}]}};
+  }
+  return new Response(JSON.stringify(value),{status:fixture.status,headers:{'content-type':'application/json'}});
+}
 const health = {
   ready: true, mode: 'NO_PROVIDER_KEY_PUBLIC_CPU_LAB',
   ready_scope: 'LOCAL_PREREQUISITES_ONLY', model: 'test-owned-model', blockers: [],
+  provider:'szl_cpu_lab',source_revision:'a'.repeat(40),
 };
 const getResults = new Map([
   ['/api/a11oy/v1/command-centre/manifest', { surfaces: [] }],
@@ -313,7 +361,7 @@ const context = {
     addEventListener: (event, listener) => { windowListeners[event] = listener; },
     confirm: () => { confirmations += 1; return allowConfirmation; },
   },
-  AbortController, clearTimeout,
+  AbortController, clearTimeout, crypto:webcrypto, Response, TextEncoder, TextDecoder, Uint8Array, atob, btoa,
   setTimeout: (callback, milliseconds) => {
     timeoutBudgets.push(milliseconds);
     return setTimeout(callback, milliseconds);
@@ -325,11 +373,12 @@ const context = {
       assert.equal(url, turnPath);
       assert.equal(options.credentials, 'same-origin');
       assert.equal(options.cache, 'no-store');
-      return typeof nextResult === 'function' ? nextResult() : nextResult;
+      const fixture = await (typeof nextResult === 'function' ? nextResult(JSON.parse(options.body)) : nextResult);
+      return makeResponse(fixture,JSON.parse(options.body));
     }
     assert.ok(getResults.has(url), 'Unexpected page-load request');
     assert.equal(options.headers?.Authorization, undefined);
-    return response(getResults.get(url));
+    return makeResponse(response(getResults.get(url)));
   },
 };
 vm.runInNewContext(code, context);
@@ -340,6 +389,7 @@ function prepare() {
   element('cpu-operator-key').value = 'frontend-test-operator';
   element('cpu-prompt').value = 'Which public source supports this claim?';
   element('cpu-public-ack').checked = true;
+  element('cpu-public-ack').listeners.change();
 }
 const proposal = {
   state: 'COMPLETED', answer: '<img src=x> is inert proposal text.',
@@ -379,7 +429,10 @@ const proposal = {
   assert.ok(timeoutBudgets.at(-1) >= 3 * 4000 + 60000 + 10000,
     'Client budget must cover three preflights, inference and response grace');
   assert.equal(sent.options.headers.Authorization, 'Bearer frontend-test-operator');
-  assert.deepEqual(JSON.parse(sent.options.body), {
+  const actualBody = JSON.parse(sent.options.body);
+  assert.match(actualBody.client_request_id,/^[0-9a-f-]{36}$/);
+  delete actualBody.client_request_id;
+  assert.deepEqual(actualBody, {
     prompt: 'Which public source supports this claim?', declared: 'PUBLIC',
     public_share_acknowledged: true, max_output_tokens: 24,
   });
