@@ -9,6 +9,7 @@ stopping mechanism implemented here.
 from __future__ import annotations
 
 import base64
+import binascii
 import copy
 import hashlib
 import json
@@ -439,6 +440,22 @@ class Arrival:
         )
 
 
+def _decode_signer_base64(value: Any) -> bytes:
+    """Decode either DSSE alphabet without ignoring invalid bytes or padding."""
+    if not isinstance(value, str):
+        raise OROStateError("governed signer returned invalid DSSE encoding")
+    try:
+        decoded = base64.b64decode(value, altchars=b"-_", validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise OROStateError("governed signer returned invalid DSSE encoding") from exc
+    if value not in (
+        base64.b64encode(decoded).decode("ascii"),
+        base64.urlsafe_b64encode(decoded).decode("ascii"),
+    ):
+        raise OROStateError("governed signer returned invalid DSSE encoding")
+    return decoded
+
+
 class ReceiptSigner(Protocol):
     @property
     def identity(self) -> Mapping[str, Any]: ...
@@ -657,8 +674,22 @@ class BarrierEngine:
             }
         else:
             envelope = self._signer.sign(DSSE_PAYLOAD_TYPE, payload)
-            if not isinstance(envelope, Mapping) or not envelope.get("signatures"):
+            if not isinstance(envelope, Mapping):
+                raise OROStateError("governed signer returned invalid DSSE envelope")
+            if envelope.get("payloadType") != DSSE_PAYLOAD_TYPE:
+                raise OROStateError("governed signer returned a different DSSE payload type")
+            if _decode_signer_base64(envelope.get("payload")) != payload:
+                raise OROStateError("governed signer returned different DSSE receipt bytes")
+            signatures = envelope.get("signatures")
+            if not isinstance(signatures, list) or not signatures:
                 raise OROStateError("governed signer returned no DSSE signature")
+            for signature in signatures:
+                if not isinstance(signature, Mapping) or (
+                    "keyid" in signature and not isinstance(signature["keyid"], str)
+                ):
+                    raise OROStateError("governed signer returned invalid DSSE signature")
+                if not _decode_signer_base64(signature.get("sig")):
+                    raise OROStateError("governed signer returned an empty DSSE signature")
         return BarrierDecision(
             barrier_id=barrier_id,
             orbit_id=orbit_id,
