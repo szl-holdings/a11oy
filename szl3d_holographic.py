@@ -118,7 +118,7 @@ SURFACES: List[Dict[str, str]] = [
     {"id": "fmverif", "cat": "proof", "title": "Proof-Carrying Inference (Machine-Checkable Certificates)", "owner": "WaveF"},
     {"id": "supplychain", "cat": "proof", "title": "Model-Artifact Provenance (SLSA / in-toto / Rekor / C2PA)", "owner": "WaveF"},
     {"id": "hybridssm", "cat": "attention", "title": "HybridSSM · Attention vs State-Space vs Hybrid Frontier (synthesis)", "owner": "WaveF"},
-    {"id": "governedagent", "cat": "reasoning", "title": "Governed Agent Loop · plan→act→self-eval→gate→retry", "owner": "WaveJ-Dev5"},
+    {"id": "governedagent", "cat": "reasoning", "title": "Governed Agent Loop · request → outcome → evidence", "owner": "WaveJ-Dev5"},
     {"id": "governedrag", "cat": "reasoning", "title": "Governed RAG · Retrieval-with-Receipts", "owner": "WaveJ-Dev4"},
     {"id": "ecosystem", "cat": "defense", "flag": True, "title": "Harness · Ecosystem Status", "owner": "Wave30-Dev3"},
     {"id": "brainquery", "cat": "brain", "flag": True, "title": "Brain Query · ask the graph (retrieval)", "owner": "Wave1-Frontier"},
