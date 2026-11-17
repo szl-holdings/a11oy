@@ -55,6 +55,7 @@ MIN_SAMPLES = 3
 HEARTBEAT_ADVANCE_SECONDS = 15
 FRESH_SECONDS = 30
 BASELINE_MAX_SECONDS = 900
+STATE_RANK = {"ACTIVE": 0, "HANDOVER_REQUESTED": 1, "RELEASED": 2}
 CHILD_ENVIRONMENT = frozenset((
     "PATH", "SystemRoot", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT",
     "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP", "TMPDIR",
@@ -147,7 +148,7 @@ def private_head(sample, *, now):
             and head["epoch"] >= 1 and type(head.get("sequence")) is int and head["sequence"] >= 1
             and hex_value(head.get("writer_id"), 32) and hex_value(head.get("boot_id"), 32),
             "HEAD_IDENTITY_INVALID")
-    require(head.get("state") in ("ACTIVE", "HANDOVER", "RELEASED"), "HEAD_NOT_ACTIVE")
+    require(type(head.get("state")) is str and head["state"] in STATE_RANK, "HEAD_NOT_ACTIVE")
     claim, lease = head.get("claim"), head.get("lease")
     require(type(claim) is dict and claim.get("kind") in ("CLEAN", "UNCLEAN_HANDOVER", "FIRST_BOOT")
             and type(lease) is dict and lease.get("heartbeat_path") == HEARTBEAT_PATH
@@ -372,20 +373,26 @@ def await_writer(baseline, read, *, clock=time.monotonic, wall=time.time, sleep=
     deadline, first, previous, count = clock() + timeout, None, None, 0
     observations = []
     highest_epoch = before["epoch"]
+    highest_sequence = before["sequence"]
     epoch_owners = {before["epoch"]: (before["writer_id"], before["storage_boot_id"])}
     owner_watermarks = {
         (before["epoch"], before["writer_id"], before["storage_boot_id"]):
             (before["sequence"], before["heartbeat_at_unix"]),
     }
+    owner_states = {
+        (before["epoch"], before["writer_id"], before["storage_boot_id"]): before["state"],
+    }
 
     def report(status, **values):
         watermarks = [
             {"epoch": key[0], "writer_id": key[1], "storage_boot_id": key[2],
-             "max_sequence": marks[0], "max_heartbeat_at_unix": marks[1]}
+             "max_sequence": marks[0], "max_heartbeat_at_unix": marks[1],
+             "furthest_state": owner_states[key]}
             for key, marks in sorted(owner_watermarks.items())
         ]
         return audit(status, baseline=before, observations=list(observations),
-                     max_observed_epoch=highest_epoch, owner_watermarks=watermarks, **values)
+                     max_observed_epoch=highest_epoch, max_observed_sequence=highest_sequence,
+                     owner_watermarks=watermarks, **values)
 
     while clock() < deadline:
         try:
@@ -416,17 +423,19 @@ def await_writer(baseline, read, *, clock=time.monotonic, wall=time.time, sleep=
             # heartbeat or public-health read cannot establish a healthy sample.
             head = private_head(sample, now=wall())
             require(clock() < deadline, "CONFIG_WRITER_TIMEOUT")
-            require(head["epoch"] >= highest_epoch, "OBSERVED_EPOCH_REGRESSED")
+            previous_epoch, previous_sequence = highest_epoch, highest_sequence
             owner = (head["writer_id"], head["boot_id"])
             require(head["epoch"] not in epoch_owners
                     or epoch_owners[head["epoch"]] == owner, "LEASE_IDENTITY_CHANGED")
             watermark_key = (head["epoch"], *owner)
             marks = owner_watermarks.get(watermark_key)
+            prior_state = owner_states.get(watermark_key)
             try:
                 heartbeat_at, _age = private_heartbeat(sample, head)
             except Hold:
                 heartbeat_at = None
             highest_epoch = max(highest_epoch, head["epoch"])
+            highest_sequence = max(highest_sequence, head["sequence"])
             epoch_owners[head["epoch"]] = owner
             known_heartbeats = [value for value in
                                 (heartbeat_at, marks[1] if marks is not None else None)
@@ -435,6 +444,14 @@ def await_writer(baseline, read, *, clock=time.monotonic, wall=time.time, sleep=
                 max(head["sequence"], marks[0]) if marks is not None else head["sequence"],
                 max(known_heartbeats) if known_heartbeats else None,
             )
+            owner_states[watermark_key] = (head["state"] if prior_state is None
+                or STATE_RANK[head["state"]] >= STATE_RANK[prior_state] else prior_state)
+            require(prior_state is None or STATE_RANK[head["state"]] >= STATE_RANK[prior_state],
+                    "LEASE_STATE_REGRESSED")
+            require(head["epoch"] >= previous_epoch, "OBSERVED_EPOCH_REGRESSED")
+            require(head["epoch"] <= previous_epoch or head["sequence"] > previous_sequence,
+                    "REPLACEMENT_SEQUENCE_NOT_ADVANCED")
+            require(head["sequence"] >= previous_sequence, "OBSERVATION_REGRESSED")
             require(marks is None or (head["sequence"] >= marks[0]
                     and (heartbeat_at is None or marks[1] is None
                          or heartbeat_at >= marks[1])), "OBSERVATION_REGRESSED")
@@ -468,7 +485,8 @@ def await_writer(baseline, read, *, clock=time.monotonic, wall=time.time, sleep=
             observations.append({"status": "UNAVAILABLE", "reason": reason})
             first, previous, count = None, None, 0
             if reason in ("CONFIG_WRITER_TIMEOUT", "CONFIG_RESTART_NOT_CLEAN",
-                          "PUBLICATION_CHANGED", "LEASE_IDENTITY_CHANGED"):
+                          "PUBLICATION_CHANGED", "LEASE_IDENTITY_CHANGED",
+                          "REPLACEMENT_SEQUENCE_NOT_ADVANCED", "LEASE_STATE_REGRESSED"):
                 return report("HOLD", reason=reason)
         except Exception:
             observations.append({"status": "UNAVAILABLE", "reason": "OBSERVATION_UNAVAILABLE"})
