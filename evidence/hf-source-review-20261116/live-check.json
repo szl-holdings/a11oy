@@ -1,0 +1,25 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "check_kind": "LOCAL_NATIVE_COLLECTOR_LIVE_COMPARISON",
+  "collector_sha256": "8da3f2e58cab662480fc2174108193d57a4fd548a29c6bf0b6d5fa1e5b805b8b",
+  "completed_at": "2026-11-16T23:20:53.861521+00:00",
+  "manifest_sha256": "775f252b55116f3b3684f12e913008f1a19c131e94a52d2c3cf900239ee6dd93",
+  "native_report": {
+    "changedRows": [],
+    "changedTopLevelFields": [],
+    "exitCode": 0,
+    "manifest": "docs\\huggingface-ecosystem-manifest.json",
+    "meaning": "tracked manifest matches current public Hub evidence",
+    "reason": "Hugging Face ecosystem manifest is current: docs\\huggingface-ecosystem-manifest.json",
+    "result": "CURRENT",
+    "revisionClasses": {
+      "governedExact": 14,
+      "path": "docs/huggingface-revision-classes.v1.json",
+      "sha256": "288e053127036cda7e63f6b813d9c9febff57cb65a29661e286116d6e0ce2eb9"
+    },
+    "schema": "szl.hf-ecosystem-check/v1"
+  },
+  "production_authorization": false,
+  "schema": "szl.hf-source-live-check/v1",
+  "signature_status": "UNSIGNED"
+}
