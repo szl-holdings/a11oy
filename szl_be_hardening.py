@@ -670,11 +670,10 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
         obs_trace = None
         if _start_obs_trace is not None:
             try:
+                # The BE-only X-Trace-Id is a legacy log correlation contract.
+                # Process-local traces choose their own validated ID and never
+                # overwrite it when no native server span owns the request.
                 obs_trace = _start_obs_trace(request)
-                if obs_trace is not None and context is None:
-                    # No native owner: publish the validated process-local trace id.
-                    trace_id = obs_trace.trace_id
-                    request.state.trace_id = trace_id
             except Exception:
                 obs_trace = None
         def _finish_obs(status_code: int) -> None:
