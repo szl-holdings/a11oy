@@ -3,7 +3,7 @@
 
 This organization is the generated model, kernel, dataset, and runtime estate for [A11oy](https://a-11-oy.com). Canonical source and release evidence live in [GitHub](https://github.com/szl-holdings); public proof lives at [a11oy.net](https://a11oy.net).
 
-**Current public inventory:** 23 Spaces · 147 model repositories · 14 native kernels · 88 datasets (`2026-11-16T23:19:02Z`).
+**Current public inventory:** 23 Spaces · 147 model repositories · 14 native kernels · 88 datasets (`2026-11-17T01:16:13Z`).
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
 Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-marketing`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
@@ -19,5 +19,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 A repository card is not a production certificate. Runtime, source revision, evidence freshness, and receipt state are verified separately. Λ remains Conjecture 1 and advisory only. No public model or formula may authorize consequential action.
 
-Alignment receipt: `eb064c49d13ae10ce56235ef30b32c357f74bc60b3aa59747b6e1c2c01eb98c6`.
+Alignment receipt: `45e2e4def9b85162283d4603d83b7ce8fa6ac098551c70c591c1f7a7ea4624c4`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
