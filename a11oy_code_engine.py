@@ -1021,7 +1021,7 @@ def _model_configured() -> bool:
         return True
     try:
         _model_auth_headers()
-    except ValueError:
+    except (ValueError, ImportError):
         return False
     return True  # Configuration admission only; no endpoint reachability claim.
 
@@ -1053,16 +1053,19 @@ def _model_auth_headers():
     An absent custom key admits existing anonymous local services; a configured
     but empty or malformed key refuses dispatch instead of dropping auth.
     """
+    from szl_model_access import model_access_headers
+
     parsed, official = _model_endpoint()
+    access = model_access_headers(_MODEL_BASE_URL)
     token = _HF_TOKEN if official else os.environ.get("A11OY_MODEL_API_KEY")
     if token is None and not official:
-        return {}
+        return access
     if (not isinstance(token, str) or not 1 <= len(token) <= 4096
             or re.fullmatch(r"[A-Za-z0-9._~+/\-]+=*", token) is None):
         raise ValueError("MODEL_CREDENTIAL_INVALID")
     if parsed.scheme != "https":
         raise ValueError("MODEL_CREDENTIAL_REQUIRES_HTTPS")
-    return {"Authorization": "Bearer " + token}
+    return {"Authorization": "Bearer " + token, **access}
 
 
 def _model_selection_preflight(model_slug):
@@ -1219,6 +1222,7 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
     if execution_budget is not None:
         return _strict_hf_chat(messages, max_tokens, want_model, execution_budget)
     try:
+        from szl_model_access import model_access_configured
         configured_model = _configured_default_model()
         if want_model is None:
             want_model = configured_model
@@ -1226,7 +1230,7 @@ def _hf_chat(messages, max_tokens=512, want_model=None, *, execution_budget=None
         custom_only = any(entry.get("id") == want_model
                           and entry.get("transport") == "custom-https-only"
                           for entry in _FALLBACK_ROSTER)
-        if custom_only:
+        if custom_only or model_access_configured():
             from szl_router_client import ExecutionBudget
             budget = ExecutionBudget({"max_model_requests": 1,
                 "max_output_tokens": max_tokens, "max_elapsed_seconds": 30})

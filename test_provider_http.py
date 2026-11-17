@@ -19,6 +19,7 @@ class _Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.0"
     cross_origin_location = ""
     captured_authorization: str | None = None
+    captured_access: dict[str, str | None] = {}
 
     def log_message(self, _format: str, *_args: object) -> None:
         pass
@@ -51,6 +52,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(302, Location=self.cross_origin_location)
         elif self.path == "/capture":
             type(self).captured_authorization = self.headers.get("Authorization")
+            type(self).captured_access = {name: self.headers.get(name) for name in
+                                         ("CF-Access-Client-Id", "CF-Access-Client-Secret")}
             self._send(200, b'{"captured":true}', Content_Type="application/json")
         elif self.path == "/large":
             self._send(200, json.dumps({"value": "x" * 512}).encode())
@@ -183,6 +186,17 @@ class ProviderHTTPTests(unittest.TestCase):
         )
         self.assertEqual((doc, error), ({"captured": True}, None))
         self.assertIsNone(_Handler.captured_authorization)
+
+    def test_access_pair_is_removed_on_cross_origin_redirect(self) -> None:
+        for names in (("CF-Access-Client-Id", "CF-Access-Client-Secret"),
+                      ("cf-access-client-id", "cF-aCcEsS-cLiEnT-sEcReT")):
+            _Handler.captured_access = {name: "not-called" for name in names}
+            doc, error = provider_http.http_json(
+                self.base + "/redirect-cross-origin",
+                headers={names[0]: "fixture-client", names[1]: "fixture-secret"},
+                allow_private=True)
+            self.assertEqual((doc, error), ({"captured": True}, None))
+            self.assertTrue(all(value is None for value in _Handler.captured_access.values()))
 
     def test_response_size_and_timeout_are_bounded(self) -> None:
         for route in ("/large", "/large-without-length"):

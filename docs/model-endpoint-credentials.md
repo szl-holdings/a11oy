@@ -37,5 +37,54 @@ them in receipts. No runtime secrets are changed by this source patch.
 
 Endpoint configuration and a declared GPU label do not establish runtime
 availability, local execution, hardware identity, or model qualification.
-The paired A11oy and Killinchu engine files use the existing shared payload
-manifest for byte parity. Source parity is separate from deployed parity.
+Downstream engine copies must include their reviewed runtime dependency closure.
+Historical shared payloads do not establish current source or deployed parity.
+
+## Optional Cloudflare Access for the bounded model client
+
+The services-layer `szl_model_access.py` helper supports a separately provisioned
+model Access application using these server-side names:
+
+| Setting | Kind | Contract |
+| --- | --- | --- |
+| `A11OY_MODEL_CF_ACCESS_ORIGIN` | Variable | One exact HTTPS origin on port 443; no user information, query, fragment or non-root path |
+| `A11OY_MODEL_CF_ACCESS_CLIENT_ID` | Secret | Dedicated model service-token Client ID |
+| `A11OY_MODEL_CF_ACCESS_CLIENT_SECRET` | Secret | Its paired Client Secret |
+
+The client sends `CF-Access-Client-Id` and `CF-Access-Client-Secret` alongside the
+existing `Authorization` bearer when `A11OY_MODEL_API_KEY` is configured. It never
+uses meter credentials, a browser cookie, an inherited HF token, or the legacy
+sovereign gateway keys for this protected code-endpoint contract. Both legacy
+hexadecimal and newer `cfast_` Access secrets fit the accepted header alphabet;
+local format validation does not establish that Cloudflare accepts a credential.
+
+All three Access settings absent preserves the existing clients. Any one present
+requires complete valid configuration and an exact destination-origin match.
+An invalid or mismatched setting refuses dispatch before networking. This also
+prevents stale Access configuration from falling back to the official HF origin.
+With Access enabled, ordinary code-engine calls use the existing strict transport:
+one selected model, one request, a 30-second bound, the requested output budget,
+response identity validation, and no redirects. A caller must select a model or
+configure a valid `A11OY_MODEL_ID`; the legacy retry roster is not used.
+
+The registry observes one authenticated `/v1/models` GET for the explicitly
+selected `A11OY_BRAIN_URL` or `A11OY_MODEL_BASE_URL`. It uses the same dedicated
+model bearer, rejects redirects, and performs no generation or signing. Other
+explicit registry targets are refused while this contract is enabled. Catalog
+reachability does not establish inference, ownership, or production acceptance.
+The registry's legacy generation method refuses this protected contract; the
+older orchestration, streaming, and energy adapters remain separate and are not
+qualified by enabling these settings. In particular, the VM Bonsai gateway has
+no native embedding interface and does not accept streaming requests.
+
+Deployment and configuration remain separate work. Before activation, the
+configuration owner must verify the Access application's hostname/path and
+Service Auth policy, the designated token's authority and validity, and secure
+provisioning. Preserve the gateway's separate bearer authentication. The
+qualification owner must retain an authorized bounded inference outcome and the
+existing independently admitted execution evidence for the final source and boot.
+This source change provisions no credentials and claims no live qualification.
+
+Cloudflare's [service-token contract](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/)
+documents the two headers and Service Auth policy. The two-header mode preserves
+the model gateway's independent `Authorization` header.

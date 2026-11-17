@@ -38,7 +38,8 @@ MAX_LOCATION_BYTES = 8_192
 
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _SENSITIVE_REDIRECT_HEADERS = frozenset(
-    {"authorization", "proxy-authorization", "cookie"}
+    {"authorization", "proxy-authorization", "cookie",
+     "cf-access-client-id", "cf-access-client-secret"}
 )
 _RESERVED_REQUEST_HEADERS = frozenset(
     {"host", "content-length", "transfer-encoding", "connection"}
