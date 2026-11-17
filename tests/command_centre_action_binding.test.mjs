@@ -199,3 +199,37 @@ for (const lane of Object.keys(specs)) {
     assert.equal(h.node(specs[lane].prefix + 'answer').hidden, false);
   });
 }
+
+
+// Transport and signed-payload ambiguity must fail before answer presentation.
+for (const lane of Object.keys(specs)) {
+  for (const kind of ['top-level', 'escaped-name', 'nested-receipt', 'signature-array', 'embedded-payload']) {
+    test(`${lane}: decoded duplicate evidence ${kind} is withheld`, async () => {
+      const h = await harness({ post: async (activeLane, request) => {
+        const value = completed(activeLane, request);
+        if (kind === 'embedded-payload') {
+          const embedded = '{"phase":"DECISION",' + JSON.stringify(value.receipt.payload).slice(1);
+          value.dsse.payload = Buffer.from(embedded).toString('base64');
+        }
+        let raw = JSON.stringify(value);
+        if (kind === 'top-level') raw = '{"state":"DENIED",' + raw.slice(1);
+        if (kind === 'escaped-name') raw = '{"\\u0073tate":"DENIED",'.replace('\\\\u','\\u') + raw.slice(1);
+        if (kind === 'nested-receipt') raw = raw.replace('"persisted":true','"persisted":false,"persisted":true');
+        if (kind === 'signature-array') raw = raw.replace('"sig":"c3ludGhldGlj"','"sig":"changed","sig":"c3ludGhldGlj"');
+        return new Response(raw,{status:200,headers:{'content-type':'application/json'}});
+      }});
+      if (lane === 'cpu') await h.acknowledge();
+      await h.submit(lane);
+      assert.equal(h.posts().length,1);
+      assert.equal(h.node(specs[lane].prefix+'answer').hidden,true);
+      assert.match(h.node(specs[lane].prefix+'turn-status').textContent,/uncertain/i);
+    });
+  }
+  test(`${lane}: repeated member names in separate objects stay valid`,async()=>{
+    const h=await harness({transform:value=>({...value,untrusted_context:{one:{x:1},two:{x:2},text:'"x":1,"x":2'}})});
+    if(lane==='cpu') await h.acknowledge();
+    await h.submit(lane);
+    assert.equal(h.posts().length,1);
+    assert.equal(h.node(specs[lane].prefix+'answer').hidden,false);
+  });
+}
