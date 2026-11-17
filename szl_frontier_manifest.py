@@ -21,6 +21,9 @@ Each tile carries:
   - name, category
   - status      : human string (OK / DEGRADED / IDLE / MODELED / ROADMAP / UNAVAILABLE)
   - label       : the honesty label — MEASURED | MODELED | ROADMAP | SAMPLE
+  - operational_readiness: versioned explanation of the same decision used by the
+    summary, with its bounded predicate, reason codes, and source availability.
+    This read-only projection does not authorize execution or verify source links.
   - provenance  : a pointer to where the evidence lives (ledger chain head, the
                   /energy/provenance head hash, the Rekor/cosign verify path for the
                   signed bundle, the MODELED orbital endpoints, the live compute-pool
@@ -45,6 +48,7 @@ verified bundle or successful model inference.
 from __future__ import annotations
 
 import datetime
+import json
 from typing import Any, Callable
 
 # Honesty-label vocabulary (doctrine v11). Tests grep these exact strings.
@@ -55,6 +59,7 @@ SAMPLE = "SAMPLE"
 UNAVAILABLE = "UNAVAILABLE"
 
 _API = "/api/a11oy/v1"
+_CAPABILITY_READINESS_SCHEMA = "szl.frontier.capability-readiness.v1"
 
 # UNIVERSAL Khipu verifier (judge-facing audit layer, szl_khipu_verify). A reader
 # pastes ANY receipt digest from ANY organ and gets a COMPUTED integrity
@@ -92,7 +97,13 @@ def _tile(name: str, category: str, status: str, label: str,
 def _safe(fn: Callable[[], dict]) -> tuple[dict | None, str | None]:
     """Run a tile builder; never let one bad sub-source 500 the whole manifest."""
     try:
-        return fn(), None
+        tile = fn()
+        if not isinstance(tile, dict):
+            raise TypeError("capability source did not return an object")
+        # JSONResponse rejects non-finite values and non-JSON objects. Isolate a
+        # malformed source here so a bad measurement cannot hide sibling tiles.
+        json.dumps(tile, allow_nan=False)
+        return tile, None
     except Exception as exc:  # noqa: BLE001 — degrade the tile honestly, never the manifest
         return None, str(exc)
 
@@ -128,7 +139,9 @@ def _tile_operational_readiness(tile: dict) -> tuple[bool, list[str]]:
         if evidence.get("satisfied") is not True:
             evidence_reasons = evidence.get("reasons")
             if isinstance(evidence_reasons, list) and evidence_reasons:
-                reasons.extend(str(reason) for reason in evidence_reasons)
+                for reason in evidence_reasons:
+                    reasons.append(reason if isinstance(reason, str) and reason.strip()
+                                   else "invalid_operational_evidence_reason")
             else:
                 reasons.append("explicit_operational_evidence_not_satisfied")
 
@@ -144,14 +157,28 @@ def _tile_operational_readiness(tile: dict) -> tuple[bool, list[str]]:
         reasons.append("artifact_not_minted")
     if tile.get("on_orbit_hardware") is False:
         reasons.append("hardware_not_present")
-    if "nodes_reachable" in tile and int(tile.get("nodes_reachable") or 0) < 1:
-        reasons.append("no_nodes_reachable")
-    if "reachable_nodes" in tile and int(tile.get("reachable_nodes") or 0) < 1:
-        reasons.append("no_nodes_reachable")
-    if "chain_length" in tile and int(tile.get("chain_length") or 0) < 1:
-        reasons.append("no_chain_entries")
-    if "length" in tile and int(tile.get("length") or 0) < 1:
-        reasons.append("no_chain_entries")
+    for key, empty_reason in (
+        ("nodes_reachable", "no_nodes_reachable"),
+        ("reachable_nodes", "no_nodes_reachable"),
+        ("chain_length", "no_chain_entries"),
+        ("length", "no_chain_entries"),
+    ):
+        if key not in tile:
+            continue
+        value = tile[key]
+        try:
+            # Bad source counts block their own tile instead of losing the whole
+            # manifest. Booleans and fractional counts are not observed counts.
+            if isinstance(value, bool):
+                raise ValueError("boolean count")
+            count = 0 if value is None else int(value)
+            if isinstance(value, float) and value != count:
+                raise ValueError("fractional count")
+        except (TypeError, ValueError, OverflowError):
+            reasons.append(f"invalid_count_{key}")
+        else:
+            if count < 1:
+                reasons.append(empty_reason)
     if "links_intact" in tile and tile.get("links_intact") is not True:
         reasons.append("chain_links_not_verified")
     if "chain_ok" in tile and tile.get("chain_ok") is not True:
@@ -790,8 +817,26 @@ def _build_manifest(app=None) -> dict:
     degraded = [t["name"] for t in tiles if not t.get("ok", True)]
     reachable = [t["name"] for t in tiles if t.get("ok", True)]
     readiness_rows = []
-    for tile in tiles:
+    for index, tile in enumerate(tiles):
         ready, reasons = _tile_operational_readiness(tile)
+        evidence = tile.get("operational_evidence")
+        predicate = evidence.get("predicate") if isinstance(evidence, dict) else None
+        if not isinstance(predicate, str) or not predicate.strip():
+            predicate = None
+        # The card and the roll-up consume the same decision from this composition.
+        # Do not re-probe, infer a dependency, or turn a source link into proof.
+        # Copy the producer envelope so annotating it cannot mutate its source.
+        tiles[index] = {
+            **tile,
+            "operational_readiness": {
+                "schema": _CAPABILITY_READINESS_SCHEMA,
+                "state": "READY" if ready else "NOT_READY",
+                "ready": ready,
+                "predicate": predicate,
+                "reasons": list(reasons),
+                "source_reachable": bool(tile.get("ok", True)),
+            },
+        }
         readiness_rows.append({"name": tile["name"], "ready": ready, "reasons": reasons})
     blocked = [row for row in readiness_rows if not row["ready"]]
     all_sources_reachable = len(degraded) == 0
