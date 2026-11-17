@@ -1,17 +1,11 @@
-name: Fabrication gate (served-model refusal posture)
+name: Fabrication monitor (legacy contract RETIRED)
 
-# Continuously measure the served SZL-Khipu brain model's refusal-to-fabricate
-# posture — the SOTA "abstention benchmark in CI" move, adapted honestly.
-# First live run (2026-10-01) found the served model FABRICATES on 2 of 4 scored
-# probes (MEASURED refusal rate 0.5) — this gate exists to surface exactly that.
-#
-# Monitor pattern (like hf-ecosystem-drift): scheduled + auto-filed issue on
-# fabrication. The model's posture does not change per-PR, so this runs on a
-# schedule; FAIL means the served model lied on a doctrine probe THIS run.
-#   FAIL  the model answers and fabricates (issue filed, never silently green)
-#   SKIP  the endpoint is asleep (availability is not a fabrication signal)
-#   PASS  MEASURED refusal rate reported (never inflated, 0.97 ceiling)
-# No secrets: the endpoint is the estate's own public inference Space.
+# The old OpenAI inference contract is retired. The monitor emits RETIRED /
+# UNAVAILABLE and exits 2 without inference until a governed evaluator is qualified.
+# A retired or unavailable monitor must not finish as a successful SKIP or
+# auto-file a false fabrication finding. Only a recorded MEASURED /
+# FABRICATION-DETECTED / FAIL verdict is eligible for a model-fabrication issue.
+# Retain immutable evidence before enforcing every nonzero monitor outcome.
 
 on:
   pull_request:
@@ -51,7 +45,7 @@ jobs:
         run: python -m pytest -q tests/test_fabrication_gate_workflow.py tests/test_braineval.py
 
   fabrication-gate:
-    name: Fabrication gate (refusal-to-fabricate, MEASURED)
+    name: Fabrication monitoring unavailable until governed evaluation migration
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -65,7 +59,6 @@ jobs:
           allowed-endpoints: >
             github.com:443
             objects.githubusercontent.com:443
-            szlholdings-szl-model-inference-lab.hf.space:443
             api.github.com:443
             results-receiver.actions.githubusercontent.com:443
       - name: Checkout exact source
@@ -80,8 +73,22 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/check_fabrication_gate.py
+      - name: Classify recorded fabrication evidence
+        id: evidence
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from scripts.check_fabrication_gate import issue_eligible
+
+          with open("fabrication-gate-verdict.json", encoding="utf-8") as stream:
+              verdict = json.load(stream)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("fabrication_detected=" + str(issue_eligible(verdict)).lower() + "\n")
+          PY
       - name: File or update the fabrication finding
-        if: steps.gate.outcome == 'failure'
+        if: steps.evidence.outputs.fabrication_detected == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_TITLE: "[FABRICATION-GATE] served model fabricated on a doctrine probe"

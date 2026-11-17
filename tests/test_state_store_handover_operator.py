@@ -10,7 +10,7 @@ import pytest
 
 import a11oy_state_store as ss
 from scripts import request_state_store_handover as op
-from tests.state_store_support import FakeClock, FakeHeadBackend
+from tests.state_store_support import FakeClock, FakeHeadBackend, count, make_db, replica
 
 
 @pytest.fixture
@@ -69,6 +69,72 @@ def run(world, **overrides):
     backend, objects, _, _, records, options = world
     return op.request_handover(backend, objects, record=records.append,
                               **dict(options, **overrides))
+
+
+@pytest.mark.parametrize("incumbent_source", ["a" * 40, ""])
+def test_distinct_source_handover_preserves_owner_until_claim(tmp_path, monkeypatch, incumbent_source):
+    import lmdb
+
+    monkeypatch.setattr(ss, "_ACTIVE", None)
+    world = {"tmp": tmp_path, "objects": ss.LocalDirObjectStore(tmp_path / "bucket"),
+             "backend": FakeHeadBackend(), "clock": FakeClock()}
+
+    a = replica(world["tmp"], "a", world["objects"], world["backend"], world["clock"])
+    a.source_revision = incumbent_source
+    b = replica(world["tmp"], "b", world["objects"], world["backend"], world["clock"])
+    b.source_revision = "b" * 40
+    try:
+        a.boot()
+        for spec in ss.STORES:
+            path = a.local_path(spec.label)
+            if spec.kind == "sqlite":
+                make_db(path, 1)
+            else:
+                path.mkdir(parents=True, exist_ok=True)
+                env = lmdb.open(str(path), map_size=8 * 1024 * 1024, subdir=True)
+                try:
+                    with env.begin(write=True) as txn:
+                        txn.put(b"handover-source", spec.label.encode())
+                finally:
+                    env.close()
+        a.snapshot_once(force=True)
+        active = world["backend"].head()
+        assert set(active["snapshots"]) == {spec.label for spec in ss.STORES}
+        make_db(a.local_path("series_a"), 1, start=1)
+        a.heartbeat_once()
+        world["clock"].on_sleep.append(a.heartbeat_once)
+        b.boot()
+
+        records = [(ss.Observation(revision, body), ss.parse_head(body))
+                   for revision, body in world["backend"].commits if body is not None]
+        assert [head["transition"] for _, head in records] == [
+            "BOOTSTRAP", "SNAPSHOT", "HANDOVER_REQUEST", "RELEASE", "CLAIM"]
+        request_observed, request = records[2]
+        released_observed, released = records[3]
+        _, claimed = records[4]
+        # The unchanged operator verifier must accept the runtime's real release.
+        assert op.released_head(released_observed, request) == released
+        assert world["backend"].read_at(request_observed.revision) == ss.canonical(request)
+        assert world["backend"].read_at(released_observed.revision) == ss.canonical(released)
+        for key in ("epoch", "writer_id", "boot_id", "bucket", "source_revision",
+                    "claim", "lease", "snapshots", "history"):
+            assert request[key] == active[key]
+        assert request["handover"]["requested_by"] == b.boot_id
+        assert request["source_revision"] == released["source_revision"] == incumbent_source
+        assert released["writer_id"] == a.writer_id and released["boot_id"] == a.boot_id
+        assert claimed["source_revision"] == b.source_revision
+        assert claimed["writer_id"] == b.writer_id and claimed["boot_id"] == b.boot_id
+        assert claimed["epoch"] == released["epoch"] + 1
+        assert claimed["claim"]["kind"] == ss.CLAIM_CLEAN
+        assert claimed["snapshots"] == released["snapshots"]
+        assert set(claimed["snapshots"]) == {spec.label for spec in ss.STORES}
+        assert released["snapshots"]["series_a"] != request["snapshots"]["series_a"]
+        assert count(b.local_path("series_a")) == 2
+        assert a.role == ss.ROLE_RELEASED and not a.writable()
+        assert b.role == ss.ROLE_WRITER and b.writable()
+    finally:
+        a._close_watchers()
+        b._close_watchers()
 
 
 def test_preflight_never_submits_starts_or_claims(world, monkeypatch):
@@ -163,6 +229,22 @@ def test_wrong_release_causality_identity_or_coverage_is_hold(world, mutation):
     clock.on_sleep.append(lambda: release(backend, clock, mutation))
     assert run(world, execute=True)["status"] == "HOLD"
     assert backend.submits == 1
+
+
+def test_release_source_only_mismatch_is_identity_hold(world):
+    backend, _, clock, _, _, _ = world
+    clock.on_sleep.append(lambda: release(
+        backend, clock, lambda head: head.update(source_revision="d" * 40)))
+    report = run(world, execute=True)
+    assert report["status"] == "HOLD"
+    assert report["reason"] == "RELEASE_IDENTITY_MISMATCH"
+    assert backend.submits == 1
+    request = ss.parse_head(backend.commits[-2][1])
+    released = backend.head()
+    assert request["source_revision"] == "c" * 40
+    assert released["source_revision"] == "d" * 40
+    for key in ("epoch", "writer_id", "boot_id", "bucket", "claim", "snapshots", "history"):
+        assert released[key] == request[key]
 
 
 def test_timeout_never_forces_release_or_claim(world):

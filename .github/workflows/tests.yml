@@ -56,6 +56,9 @@ jobs:
           tests/test_evidence_graph.py tests/test_evidence_receipts.py
           tests/test_evidence_receipt_routes.py
           tests/test_model_endpoint_credentials.py
+          tests/test_energy_ledger_observation.py
+          tests/test_model_access.py test_provider_http.py
+          tests/test_model_companion_boundary.py
           tests/test_collector_reason_codes.py
           tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
@@ -336,6 +339,7 @@ jobs:
           tests/test_state_store_asgi_shutdown.py
           tests/test_state_store_handover_operator.py
           tests/test_state_store_handover.py
+          tests/test_series_a_state_store_fence.py
           tests/test_state_store_restore.py
           tests/test_current_state_snapshot_rehearsal.py
           tests/test_state_store_wiring.py
@@ -375,6 +379,7 @@ jobs:
           tests/test_sqlite_orphan_repair.py
           tests/test_sqlite_logical_fingerprint.py
           tests/test_state_store_handover.py
+          tests/test_series_a_state_store_fence.py
           tests/test_state_store_restore.py
           tests/test_state_store_wiring.py
           tests/test_gdw_durable_runtime.py
@@ -405,6 +410,11 @@ jobs:
           tests/test_atelier_grok.py
           tests/test_atelier_grok_local.py
           tests/test_atelier_grok_cpu_lab.py
+          tests/test_atelier_console_lock.py
+          tests/test_cpu_lab_contract.py
+          test_provider_http.py
+          tests/test_cloudflare_command_centre_cache_audit.py
+          tests/test_brainserve.py
           tests/test_run_local_atelier.py
           tests/test_command_centre.py
           tests/test_command_centre_view.py
@@ -484,11 +494,11 @@ jobs:
           # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
           pip install --require-hashes -r .github/requirements/ci-core.txt
       - name: Run operator & reason endpoint tests
-        # Scoped to this module only: it boots serve.py in-process with no network
+        # Scoped to these modules: they exercise serve.py in-process with no network
         # and guards the Task #516 governed operator/reason surface against 404
         # regressions and envelope-stripping. Other tests/ modules may need extra
         # deps and are out of scope for this guard.
-        run: pytest tests/test_operator_reason_envelope.py -q
+        run: pytest tests/test_operator_reason_envelope.py tests/test_operator_recommendation_health.py -q
 
   python-formula-registry-guard:
     name: Proof-carrying formula registry — no overclaims (pytest, offline)
@@ -652,6 +662,10 @@ jobs:
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"
         run: python -B -m pytest -q -p no:cacheprovider tests/test_signing_state_routes.py
+      - name: Verify fleet signing read-only routes in isolation
+        env:
+          SZL_EVIDENCE_WARM_DELAY: "3600"
+        run: python -B -m pytest -q -p no:cacheprovider tests/test_khipu_fleet_signing.py
       - name: Verify lean health signing diagnostics in isolation
         env:
           SZL_EVIDENCE_WARM_DELAY: "3600"
@@ -681,7 +695,7 @@ jobs:
         # so a future edit dropping the autostart hook or the readiness wiring becomes
         # a red CI gate instead of a silent stall. The operator unit suite also covers
         # the lung-reachability + autostart-gating + readiness logic at module level.
-        run: pytest test_szl_energy_operator.py tests/test_energy_autostart_readyz.py -q
+        run: pytest test_szl_energy_operator.py tests/test_energy_autostart_readyz.py tests/test_energy_operator_lifecycle_concurrency.py -q
 
   python-be-hardening:
     name: Backend hardening surface tests (pytest)
@@ -709,7 +723,7 @@ jobs:
         # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
         # asserts /healthz stays exempt — so a regression that throttles a health probe,
         # drops the limiter, or breaks an envelope becomes a red gate.
-        run: pytest tests/test_be_hardening.py test_backend_hardening.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
+        run: pytest tests/test_be_hardening.py test_backend_hardening.py tests/test_backend_cache_singleflight.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
 
   python-energy-egress-scrub:
     name: Energy /metrics private-address egress guard (pytest, offline)
@@ -810,6 +824,9 @@ jobs:
           tests/test_evidence_reconcile.py
           tests/test_evidence_reconcile_binding.py
           tests/test_evidence_reconcile_identity.py
+      - name: Check runtime observations without granting release approval
+        # Pure stdlib fixtures: no network requests, credentials, or production probes.
+        run: python -B -m unittest discover -s tests -p test_runtime_observation.py -v
 
   hf-single-writer-guard:
     name: canonical HF single-writer guard (stdlib, network-free)
@@ -1129,6 +1146,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node for the served JavaScript contract tests
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
       # github-owned actions only (org allowed_actions: github_owned_allowed=true,
       # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -1150,8 +1171,17 @@ jobs:
         run: >-
           pytest test_frontier_surfaces.py test_frontier_manifest.py
           tests/test_frontier_manifest_readiness.py
+          tests/test_frontier_readiness_projection.py
+          tests/test_frontier_readiness_boundary.py
+          tests/test_frontier_readiness_page.py
+          tests/test_frontier_bootstrap.py
+          tests/test_frontier_surface_loader.py
+          tests/test_frontier_responsive_page.py
+          tests/test_anatomy_readiness.py
           tests/test_provenance_receipt_write_boundary.py
           tests/test_frontier_health_rollup.py
+          tests/test_health_probe_singleflight.py
+          tests/test_read_path_event_loop_responsiveness.py
           tests/test_mcp_inventory_observation.py
           tests/test_mcp_inventory_surface.py -q
 
@@ -1208,7 +1238,9 @@ jobs:
         # and unknown-id / malformed input degrades to an honest 4xx, never a 500. A
         # future edit that regresses a frontier endpoint into the 422 / silent-degrade
         # class becomes a red gate here instead of a silent live failure.
-        run: pytest tests/test_frontier_endpoints.py -q
+        run: |
+          python3 -m pytest tests/test_offline_pytest_runner.py -q
+          python3 .github/scripts/offline_pytest.py tests/test_frontier_endpoints.py -q
 
   python-status-aggregate:
     name: Operational STATUS aggregate contract (Wave R Dev 2 — pytest, offline)
@@ -1363,6 +1395,10 @@ jobs:
         run: python3 .github/scripts/frontier_index_honesty_check.py --selftest
       - name: Prove offline transport denial and independent label comparison
         run: python3 -m pytest -q tests/test_frontier_index_honesty_network.py
+      - name: Bound catalogue caller deadlines and probe worker admission
+        run: >-
+          python3 -m pytest -q tests/test_frontier_probe_deadline.py
+          tests/test_frontier_index_cache.py tests/test_frontier_index_label_resolution.py
       - name: Offline app contract — catalog labels re-derived independently against backends
         # WAVE Q DEV 5: the Frontier Index (GET /api/a11oy/v1/frontier-index/catalog) claims,
         # per surface, the honest label its OWN backend emits — its promise is "honest by

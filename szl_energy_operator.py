@@ -1024,6 +1024,9 @@ class OperatorDaemon:
         self._lock = threading.RLock()
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._starting = False
+        self._stop_joining = False
+        self._lifecycle_generation = 0
         self._started_at: Optional[float] = None
         self._state_load_error: Optional[str] = None
         self._persistence_error: Optional[str] = None
@@ -1139,41 +1142,84 @@ class OperatorDaemon:
 
     # -- lifecycle --------------------------------------------------------
     def is_running(self) -> bool:
-        return self._thread is not None and self._thread.is_alive()
+        worker = self._thread
+        return worker is not None and worker.is_alive()
+
+    def _lifecycle_state(self, running: bool) -> str:
+        """Called while holding _lock; running is one captured thread observation."""
+        if self._stop_joining or (self._stop.is_set() and (running or self._starting)):
+            return "STOPPING"
+        if self._starting:
+            return "STARTING"
+        return "RUNNING" if running else "STOPPED"
+
+    def lifecycle_state(self) -> str:
+        with self._lock:
+            return self._lifecycle_state(self.is_running())
 
     def start(self) -> dict:
         with self._lock:
+            if self.lifecycle_state() == "STOPPING":
+                return {**self.status(), "started": False, "reason": "operator_stopping"}
             if self.is_running():
-                return self.status()
-        # Fail closed: without a reachable GPU lung the loop could only run the
-        # stub and would read as running while no GPU computes. Same stable code
-        # autostart_if_lung_reachable() reports. Probed outside the lock so
-        # status readers never wait on the network.
-        if not self.any_lung_reachable():
-            refused = self.status()
-            refused.update({"started": False, "reason": "no_lung_reachable"})
-            return refused
-        with self._lock:
-            if self.is_running():
-                return self.status()
+                return {**self.status(), "started": False, "reason": "already_running"}
+            if self._starting:
+                return {**self.status(), "started": False, "reason": "start_in_progress"}
+            self._starting = True
+            self._lifecycle_generation += 1
+            generation = self._lifecycle_generation
+            # No live worker or joining stop exists here. A stop during the
+            # probe will set this again and invalidate this start's generation.
             self._stop.clear()
+        try:
+            reachable = self.any_lung_reachable()
+        except BaseException:
+            with self._lock:
+                self._starting = False
+            raise
+        with self._lock:
+            self._starting = False
+            if generation != self._lifecycle_generation or self._stop.is_set():
+                return {**self.status(), "started": False, "reason": "start_cancelled_by_stop"}
+            if not reachable:
+                return {**self.status(), "started": False, "reason": "no_lung_reachable"}
             self._started_at = time.time()
-            self._thread = threading.Thread(target=self._run, name="szl-energy-operator",
-                                            daemon=True)
-            self._thread.start()
-        return self.status()
+            worker = threading.Thread(target=self._run, name="szl-energy-operator", daemon=True)
+            self._thread = worker
+            try:
+                worker.start()
+            except BaseException:
+                if not worker.is_alive():
+                    self._thread = None
+                raise
+            return {**self.status(), "started": True}
 
     def stop(self, join_timeout: float = 10.0) -> dict:
-        self._stop.set()
-        t = self._thread
-        if t is not None:
-            t.join(timeout=join_timeout)
         with self._lock:
-            self._thread = None
-            self._persist()
-            for k in self._node_status:
-                if self._node_status[k] == "computing":
-                    self._node_status[k] = "idle"
+            self._stop.set()
+            self._lifecycle_generation += 1
+            if self._stop_joining:
+                return self.status()
+            worker = self._thread
+            self._stop_joining = True
+        try:
+            # Never hold the state lock while a worker finishes, and never join
+            # the current worker if a subscriber requests its own shutdown.
+            if worker is not None and worker is not threading.current_thread():
+                worker.join(timeout=join_timeout)
+        finally:
+            with self._lock:
+                try:
+                    if self._thread is worker and (worker is None or not worker.is_alive()):
+                        self._thread = None
+                        self._persist()
+                        for key in self._node_status:
+                            if self._node_status[key] in ("computing", "computing (STUB)"):
+                                self._node_status[key] = "idle"
+                    # A timed-out worker remains owned and STOPPING. Neither its
+                    # stop flag nor its handle may be cleared by another start.
+                finally:
+                    self._stop_joining = False
         return self.status()
 
     def run_once(self) -> list[dict]:
@@ -1258,7 +1304,15 @@ class OperatorDaemon:
                     sleep_s = self.job_interval_s * _throttle_sleep_mult()
                 self._stop.wait(sleep_s)
         finally:
-            self._persist()
+            with self._lock:
+                # A timed-out stop leaves this worker responsible for eventual
+                # cleanup. Keep its handle until is_alive() becomes false; only
+                # the worker still owned by this daemon may clear node activity.
+                if self._thread is threading.current_thread():
+                    for key in self._node_status:
+                        if self._node_status[key] in ("computing", "computing (STUB)"):
+                            self._node_status[key] = "idle"
+                self._persist()
 
     # -- useful work + RAG write ------------------------------------------
     def _get_rag(self):
@@ -1612,6 +1666,7 @@ class OperatorDaemon:
     # -- status -----------------------------------------------------------
     def status(self) -> dict:
         with self._lock:
+            running = self.is_running()
             uptime = (time.time() - self._started_at) if self._started_at else 0.0
             computing = [_public_node(n) for n, s in self._node_status.items()
                          if s in ("computing", "computing (STUB)")]
@@ -1622,7 +1677,8 @@ class OperatorDaemon:
             return {
                 "service": "energy-operator",
                 "doctrine": DOCTRINE,
-                "running": self.is_running(),
+                "running": running,
+                "lifecycle_state": self._lifecycle_state(running),
                 "stub_mode": self._stub_mode,
                 "jobs_done": st.jobs_done,
                 "joules_measured_total": round(st.joules_measured_total, 6),
@@ -1772,30 +1828,33 @@ def autostart_if_lung_reachable() -> dict:
     if not autostart_enabled():
         return {"autostarted": False, "reason": "autostart_disabled",
                 "running": op.is_running()}
-    if op.is_running():
-        return {"autostarted": False, "reason": "already_running", "running": True}
-    if not op.any_lung_reachable():
-        # Honest idle: no lung reachable → do NOT start, do NOT fake running.
-        return {"autostarted": False, "reason": "no_lung_reachable",
-                "running": False}
-    op.start()
-    return {"autostarted": True, "reason": "lung_reachable", "running": op.is_running()}
+    result = op.start()
+    started = result["started"]
+    return {"autostarted": started,
+            "reason": "lung_reachable" if started else result["reason"],
+            "running": result["running"]}
 
 
 def readiness() -> dict:
     """Return separate capability and deployment-readiness truth.
 
-    ``ready`` describes the operator capability and is true only when the loop
-    runs. ``service_ready`` controls the host readiness contract: an explicitly
+    ``ready`` describes the operator capability and is true only while the loop
+    runs with no pending stop. ``service_ready`` controls the host contract: an explicitly
     optional, unreachable operator degrades the host without removing it from
     service. A reachable-but-stopped loop always fails readiness because that is
     the redeploy-stall failure this guard exists to catch.
     """
     op = get_operator()
-    running = op.is_running()
+    lifecycle = op.status()
+    running = lifecycle["running"]
+    stopping = lifecycle["lifecycle_state"] == "STOPPING"
     lung = op.any_lung_reachable()
     required = operator_required()
-    if running:
+    if stopping:
+        state = "stopping"
+        reason = "operator_stopping"
+        service_ready = False
+    elif running:
         state = "ready"
         reason = "ok"
         service_ready = True
@@ -1810,7 +1869,7 @@ def readiness() -> dict:
         service_ready = not required
     return {
         "service": "energy-operator",
-        "ready": running,
+        "ready": running and not stopping,
         "service_ready": service_ready,
         "required": required,
         "state": state,
@@ -1831,10 +1890,10 @@ def register(app, ns: str = "a11oy") -> dict:
 
     op = get_operator()
 
-    async def _start(request: Request):  # noqa: ANN202
+    def _start(request: Request):  # noqa: ANN202
         return JSONResponse(op.start())
 
-    async def _stop(request: Request):  # noqa: ANN202
+    def _stop(request: Request):  # noqa: ANN202
         return JSONResponse(op.stop())
 
     async def _status():  # noqa: ANN202

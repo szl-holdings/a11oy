@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Observe fixed Massed Cloudflare configuration; never modify provider state.
+"""Observe one fixed Cloudflare ingress profile; never modify provider state.
 
 The artifact is unsigned configuration evidence, not an access/security verdict.
 Cloudflare schemas:
@@ -32,6 +32,14 @@ CONFIG = f"{TUNNELS}/{TUNNEL}/configurations"
 APPS = f"{PREFIX}/access/apps"
 TOKENS = f"{PREFIX}/access/service_tokens"
 ORGANIZATION = f"{PREFIX}/access/organizations"
+PROFILES = ("massed", "windows-gateway")
+ZONE_NAME = "a-11-oy.com"
+GATEWAY_HOSTNAME = "gateway.a-11-oy.com"
+WINDOWS_TUNNEL = "4d22013d-e93b-4889-9a17-b30012cf19e9"
+GATEWAY_CNAME = f"{WINDOWS_TUNNEL}.cfargotunnel.com"
+ZONES = "/zones"
+ZONE_PAGE_SIZE = 50
+GATEWAY_MAX_REQUESTS = 8
 PAGE_SIZE = 100
 MAX_PAGES = 3
 MAX_POLICY_APPS = 6
@@ -77,6 +85,12 @@ def identifier(value):
         return parsed if value.lower() == parsed else None
     except (ValueError, AttributeError):
         return None
+
+
+def cloudflare_identifier(value):
+    if isinstance(value, str) and re.fullmatch(r"[a-fA-F0-9]{32}", value):
+        return value.lower()
+    return None
 
 
 def integer(value):
@@ -175,7 +189,12 @@ def access_options(value):
 
 
 class Client:
-    def __init__(self, token, opener=None, clock=time.monotonic):
+    def __init__(self, token, opener=None, clock=time.monotonic, profile="massed"):
+        if profile not in PROFILES:
+            raise AuditError("SCOPE_REFUSED")
+        self._profile = profile
+        self._gateway_zone = None
+        self._gateway_account = None
         self._token = token
         self._opener = opener or urllib.request.build_opener(
             urllib.request.ProxyHandler({}), NoRedirect()
@@ -185,12 +204,48 @@ class Client:
         self.calls = 0
         self._policy_apps = set()
 
+    @property
+    def profile(self):
+        return self._profile
+
+    @property
+    def gateway_dns_path(self):
+        return f"/zones/{self._gateway_zone}/dns_records" if self._gateway_zone else None
+
+    @property
+    def gateway_tunnel_path(self):
+        return (
+            f"/accounts/{self._gateway_account}/cfd_tunnel/{WINDOWS_TUNNEL}"
+            if self._gateway_account else None
+        )
+
+    def admit_gateway_zone(self, zone_id, account_id):
+        zone = cloudflare_identifier(zone_id)
+        account = cloudflare_identifier(account_id)
+        if (self._profile != "windows-gateway" or not zone or not account
+                or self._gateway_zone is not None):
+            raise AuditError("SCOPE_REFUSED")
+        self._gateway_zone = zone
+        self._gateway_account = account
+
     def admit_policy_app(self, app_id):
-        if not identifier(app_id) or len(self._policy_apps) >= MAX_POLICY_APPS:
+        if (self._profile != "massed" or not identifier(app_id)
+                or len(self._policy_apps) >= MAX_POLICY_APPS):
             raise AuditError("POLICY_SCOPE_LIMIT")
         self._policy_apps.add(app_id)
 
     def _allowed(self, path, page):
+        if self._profile == "windows-gateway":
+            if path == ZONES:
+                return type(page) is int and 1 <= page <= MAX_PAGES
+            if self._gateway_zone is None:
+                return False
+            if path == self.gateway_dns_path:
+                return type(page) is int and 1 <= page <= MAX_PAGES
+            return page is None and path in {
+                self.gateway_tunnel_path,
+                self.gateway_tunnel_path + "/configurations",
+            }
         if path in {CONFIG, ORGANIZATION}:
             return page is None
         if path in {TUNNELS, APPS, TOKENS}:
@@ -201,7 +256,8 @@ class Client:
         )
 
     def _check_budget(self):
-        if self.calls >= MAX_REQUESTS:
+        limit = min(MAX_REQUESTS, GATEWAY_MAX_REQUESTS) if self._profile == "windows-gateway" else MAX_REQUESTS
+        if self.calls >= limit:
             raise AuditError("REQUEST_LIMIT")
         if self._clock() >= self._deadline:
             raise AuditError("DEADLINE_EXCEEDED")
@@ -227,7 +283,11 @@ class Client:
         query = {}
         if page is not None:
             query = {"page": page, "per_page": PAGE_SIZE}
-        if path == TUNNELS:
+        if self._profile == "windows-gateway" and path == ZONES:
+            query.update(name=ZONE_NAME, status="active", match="all", per_page=ZONE_PAGE_SIZE)
+        elif self._profile == "windows-gateway" and path == self.gateway_dns_path:
+            query.update({"name.exact": GATEWAY_HOSTNAME, "match": "all"})
+        elif path == TUNNELS:
             query["is_deleted"] = "false"
         url = API + path + ("?" + urllib.parse.urlencode(query) if query else "")
         request = urllib.request.Request(
@@ -267,9 +327,11 @@ class Client:
             raise AuditError("NETWORK_ERROR") from None
 
 
-def collection(client, path, projector):
+def collection(client, path, projector, *, id_parser=identifier, page_size=PAGE_SIZE,
+               strict_pagination=False):
     rows = []
     seen_ids = set()
+    pagination = None
     report = {"items": [], "pages_read": 0, "complete": False}
     try:
         for page in range(1, MAX_PAGES + 1):
@@ -278,15 +340,36 @@ def collection(client, path, projector):
             info = envelope.get("result_info", {})
             if not isinstance(items, list) or any(not isinstance(x, dict) for x in items):
                 raise AuditError("INVALID_RESULT")
-            if len(items) > PAGE_SIZE or not isinstance(info, dict):
+            if len(items) > page_size or not isinstance(info, dict):
                 raise AuditError("INVALID_PAGINATION")
+            if strict_pagination:
+                for key in ("page", "per_page", "count"):
+                    if key in info and integer(info[key]) is None:
+                        raise AuditError("INVALID_PAGINATION")
+                if ("per_page" in info and info["per_page"] != page_size
+                        or "count" in info and info["count"] != len(items)):
+                    raise AuditError("INVALID_PAGINATION")
+                signature = (info.get("total_pages"), info.get("total_count"), info.get("per_page"))
+                if pagination is not None and signature != pagination:
+                    raise AuditError("INCONSISTENT_PAGINATION")
+                pagination = signature
             if "page" in info and info["page"] != page:
                 raise AuditError("INVALID_PAGINATION")
             for key in ("total_pages", "total_count"):
                 if key in info and integer(info[key]) is None:
                     raise AuditError("INVALID_PAGINATION")
+            if strict_pagination and "total_pages" in info:
+                total_pages = info["total_pages"]
+                if total_pages < page and not (page == 1 and total_pages == 0 and not items):
+                    raise AuditError("INCONSISTENT_PAGINATION")
+            if strict_pagination and "total_pages" in info and "total_count" in info:
+                count = info["total_count"]
+                expected = (count + page_size - 1) // page_size
+                allowed = {0, 1} if count == 0 else {expected}
+                if info["total_pages"] not in allowed:
+                    raise AuditError("INCONSISTENT_PAGINATION")
             for item in items:
-                item_id = identifier(item.get("id"))
+                item_id = id_parser(item.get("id"))
                 if not item_id:
                     raise AuditError("INVALID_RESOURCE_ID")
                 if item_id in seen_ids:
@@ -489,21 +572,246 @@ def audit(client):
     return report
 
 
+def gateway_report():
+    return {
+        "schema": "szl.cloudflare-gateway-binding-audit/v1",
+        "profile": "windows-gateway",
+        "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "zone_name": ZONE_NAME, "hostname": GATEWAY_HOSTNAME,
+        "target_tunnel_id": WINDOWS_TUNNEL,
+        "provider_mutations": False, "signature": "UNSIGNED",
+        "security_verdict": "NOT_EVALUATED",
+        "origin_probed": False, "windows_connector_identity": "NOT_ESTABLISHED",
+        "limits": {
+            "requests": GATEWAY_MAX_REQUESTS, "global_requests": MAX_REQUESTS,
+            "pages": MAX_PAGES, "zone_page_size": ZONE_PAGE_SIZE,
+            "dns_page_size": PAGE_SIZE, "response_bytes": MAX_BYTES,
+            "timeout_seconds": TIMEOUT, "deadline_seconds": DEADLINE_SECONDS,
+        },
+        "observations": {}, "binding": {}, "issues": [],
+    }
+
+
+def gateway_literal_text(value, limit):
+    # URL parsers remove some controls; fixed subjects must survive verbatim.
+    return (
+        isinstance(value, str) and 0 < len(value) <= limit
+        and not any(char.isspace() or ord(char) < 32 or ord(char) == 127 for char in value)
+    )
+
+
+def gateway_hostname(value, wildcard=False):
+    # One final root dot is valid DNS syntax; repeated dots are not.
+    if not gateway_literal_text(value, 253) or value.endswith(".."):
+        return None
+    return hostname(value, wildcard=wildcard)
+
+
+def gateway_zone_metadata(item):
+    account = item.get("account")
+    account_id = cloudflare_identifier(account.get("id")) if isinstance(account, dict) else None
+    if gateway_hostname(item.get("name")) != ZONE_NAME or item.get("status") != "active":
+        raise AuditError("ZONE_SCOPE_MISMATCH")
+    if not account_id:
+        raise AuditError("ZONE_ACCOUNT_ID_INVALID")
+    return {
+        "id": cloudflare_identifier(item.get("id")), "name": ZONE_NAME,
+        "status": "active", "account_id": account_id,
+    }
+
+
+def gateway_dns_metadata(item, zone_id):
+    if gateway_hostname(item.get("name")) != GATEWAY_HOSTNAME:
+        raise AuditError("DNS_NAME_SCOPE_MISMATCH")
+    if "zone_id" in item and cloudflare_identifier(item["zone_id"]) != zone_id:
+        raise AuditError("DNS_ZONE_IDENTITY_MISMATCH")
+    kind = enum(item.get("type"), {
+        "A", "AAAA", "CAA", "CERT", "CNAME", "DNSKEY", "DS", "HTTPS", "LOC",
+        "MX", "NAPTR", "NS", "OPENPGPKEY", "PTR", "SMIMEA", "SRV", "SSHFP",
+        "SVCB", "TLSA", "TXT", "URI",
+    })
+    if kind is None:
+        raise AuditError("DNS_RECORD_TYPE_UNVERIFIED")
+    content = None
+    if kind == "CNAME":
+        content = gateway_hostname(item.get("content"))
+        if content is None:
+            raise AuditError("DNS_RECORD_CONTENT_INVALID")
+    elif kind in {"A", "AAAA"}:
+        if not isinstance(item.get("content"), str):
+            raise AuditError("DNS_RECORD_CONTENT_INVALID")
+        try:
+            address = ipaddress.ip_address(item.get("content"))
+        except (ValueError, TypeError):
+            raise AuditError("DNS_RECORD_CONTENT_INVALID") from None
+        if address.version != (4 if kind == "A" else 6):
+            raise AuditError("DNS_RECORD_CONTENT_INVALID")
+        content = str(address)
+    return {
+        "id": cloudflare_identifier(item.get("id")), "name": GATEWAY_HOSTNAME,
+        "type": kind, "content": content, "content_omitted": kind not in {"A", "AAAA", "CNAME"},
+        "proxied": boolean(item.get("proxied")), "ttl": integer(item.get("ttl")),
+    }
+
+
+def gateway_tunnel_metadata(item):
+    result = tunnel_metadata(item)
+    result["account_id"] = cloudflare_identifier(item.get("account_tag"))
+    return result
+
+
+def gateway_config_metadata(item):
+    result = config_metadata(item)
+    # Expected request subjects must never stand in for returned identities.
+    result["tunnel_id"] = identifier(item.get("tunnel_id"))
+    result["account_id"] = cloudflare_identifier(item.get("account_id"))
+    return result
+
+
+def gateway_origin_matches(value):
+    if not gateway_literal_text(value, 4096) or "?" in value or "#" in value:
+        return False
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        return (
+            parsed.scheme == "http"
+            and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+            and parsed.port == 4000
+            and parsed.username is None and parsed.password is None
+            and parsed.path in {"", "/"}
+        )
+    except ValueError:
+        return False
+
+
+def gateway_ingress_binding(configuration):
+    for index, rule in enumerate(configuration["config"]["ingress"]):
+        raw_host = rule.get("hostname")
+        if raw_host is None or raw_host == "":
+            kind = "catch_all"
+        else:
+            host = gateway_hostname(raw_host, wildcard=True)
+            if host is None:
+                return {"status": "INGRESS_HOSTNAME_UNVERIFIED", "rule_index": index}
+            if host == GATEWAY_HOSTNAME:
+                kind = "exact"
+            elif host.startswith("*.") and GATEWAY_HOSTNAME.endswith(host[1:]):
+                kind = "wildcard"
+            else:
+                continue
+        observation = {
+            "rule_index": index, "match_kind": kind,
+            "origin": origin(rule.get("service")),
+        }
+        raw_path = rule.get("path")
+        if raw_path is not None and raw_path != "":
+            return {**observation, "status": "GATEWAY_PATH_RULE_UNRESOLVED"}
+        if kind != "exact":
+            return {**observation, "status": "GATEWAY_INGRESS_SHADOWED"}
+        if not gateway_origin_matches(rule.get("service")):
+            return {**observation, "status": "GATEWAY_ORIGIN_OUTSIDE_FIXED_SCOPE"}
+        return {**observation, "status": "MATCHED_CONFIGURATION_ONLY"}
+    return {"status": "GATEWAY_INGRESS_NOT_OBSERVED"}
+
+
+def audit_gateway(client):
+    if client.profile != "windows-gateway":
+        raise AuditError("SCOPE_REFUSED")
+    report = gateway_report()
+    observed, binding, issues = report["observations"], report["binding"], report["issues"]
+    observed["zone"], zones = collection(
+        client, ZONES, gateway_zone_metadata, id_parser=cloudflare_identifier,
+        page_size=ZONE_PAGE_SIZE, strict_pagination=True,
+    )
+    if not observed["zone"]["complete"]:
+        issues.append("ZONE_DISCOVERY_INCOMPLETE")
+    elif len(zones) != 1:
+        issues.append("ACTIVE_ZONE_NOT_UNIQUE" if zones else "ACTIVE_ZONE_NOT_OBSERVED")
+    if issues:
+        report.update(status="INCOMPLETE", request_count=client.calls)
+        return report
+
+    zone = observed["zone"]["items"][0]
+    client.admit_gateway_zone(zone["id"], zone["account_id"])
+    report["resolved_zone_id"] = zone["id"]
+    report["resolved_account_id"] = zone["account_id"]
+    observed["dns"], _ = collection(
+        client, client.gateway_dns_path,
+        lambda item: gateway_dns_metadata(item, zone["id"]),
+        id_parser=cloudflare_identifier, strict_pagination=True,
+    )
+    records = observed["dns"]["items"]
+    if not observed["dns"]["complete"]:
+        binding["dns"] = "DNS_READ_INCOMPLETE"
+    elif not records:
+        binding["dns"] = "GATEWAY_DNS_ABSENT"
+    elif len(records) != 1:
+        binding["dns"] = "GATEWAY_DNS_AMBIGUOUS"
+    elif records[0]["type"] != "CNAME" or records[0]["content"] != GATEWAY_CNAME:
+        binding["dns"] = "GATEWAY_DNS_TARGET_MISMATCH"
+    elif records[0]["proxied"] is not True:
+        binding["dns"] = "GATEWAY_DNS_PROXY_UNVERIFIED"
+    else:
+        binding["dns"] = "MATCHED_CONFIGURATION_ONLY"
+    if binding["dns"] != "MATCHED_CONFIGURATION_ONLY":
+        issues.append(binding["dns"])
+
+    observed["tunnel"], _ = single(client, client.gateway_tunnel_path, gateway_tunnel_metadata)
+    tunnel = observed["tunnel"].get("item", {})
+    identity_matches = (
+        observed["tunnel"]["complete"] and tunnel.get("id") == WINDOWS_TUNNEL
+        and tunnel.get("account_id") == zone["account_id"]
+    )
+    binding["tunnel"] = "MATCHED_METADATA" if identity_matches else "TUNNEL_IDENTITY_UNVERIFIED"
+    if not identity_matches:
+        issues.append(binding["tunnel"])
+        observed["configuration"] = {"status": "NOT_ATTEMPTED", "complete": False}
+    else:
+        if tunnel["status"] is None:
+            issues.append("TUNNEL_STATUS_UNVERIFIED")
+        observed["configuration"], raw_config = single(
+            client, client.gateway_tunnel_path + "/configurations", gateway_config_metadata,
+        )
+        config = observed["configuration"].get("item", {})
+        if (not observed["configuration"]["complete"]
+                or config.get("account_id") != zone["account_id"]
+                or config.get("tunnel_id") != WINDOWS_TUNNEL):
+            binding["ingress"] = {"status": "CONFIGURATION_IDENTITY_UNVERIFIED"}
+        elif "local" in {tunnel.get("config_source"), config.get("source")}:
+            binding["ingress"] = {"status": "LOCAL_CONFIGURATION_NOT_PROVIDER_AUTHORITATIVE"}
+        elif tunnel.get("config_source") != "cloudflare" or config.get("source") != "cloudflare":
+            binding["ingress"] = {"status": "CONFIGURATION_SOURCE_UNVERIFIED"}
+        else:
+            binding["ingress"] = gateway_ingress_binding(raw_config)
+        if binding["ingress"]["status"] != "MATCHED_CONFIGURATION_ONLY":
+            issues.append(binding["ingress"]["status"])
+
+    report["request_count"] = client.calls
+    report["status"] = "OBSERVED" if (
+        not issues and all(value["complete"] for value in observed.values())
+    ) else "INCOMPLETE"
+    return report
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--profile", choices=PROFILES, default="massed")
     args = parser.parse_args(argv)
     token = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip()
     report = {"schema": "szl.cloudflare-massed-ingress-audit/v1",
               "account_id": ACCOUNT, "target_tunnel_id": TUNNEL,
               "provider_mutations": False, "signature": "UNSIGNED",
               "security_verdict": "NOT_EVALUATED", "request_count": 0}
+    if args.profile == "windows-gateway":
+        report = gateway_report()
+        report["request_count"] = 0
     if not token:
         report.update(status="BLOCKED", issues=["CREDENTIAL_UNAVAILABLE"])
     else:
-        client = Client(token)
+        client = Client(token, profile=args.profile)
         try:
-            report = audit(client)
+            report = audit_gateway(client) if args.profile == "windows-gateway" else audit(client)
         except AuditError as error:
             report.update(status="INCOMPLETE", issues=[error.code])
         except Exception:
@@ -513,6 +821,9 @@ def main(argv=None):
     report["source_revision"] = revision if re.fullmatch(r"[a-f0-9]{40}", revision) else None
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     report["run_id"] = run_id if re.fullmatch(r"[0-9]{1,20}", run_id) else None
+    if args.profile == "windows-gateway":
+        attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "")
+        report["run_attempt"] = int(attempt) if re.fullmatch(r"[1-9][0-9]{0,9}", attempt) else None
     serialized = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if token:
         serialized = serialized.replace(token, "[REDACTED]")

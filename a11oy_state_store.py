@@ -50,6 +50,7 @@ are the defects that retired v1. ``source_revision`` here is informational.
 """
 
 import contextlib
+import contextvars
 import hashlib
 import json
 import math
@@ -93,6 +94,10 @@ DURABLE_V1_ENV = "GDW_DURABLE_STORAGE"
 HISTORY_DEPTH = 5
 MAX_HEAD_BYTES = 64 * 1024
 MAX_SMALL_OBJECT_BYTES = 64 * 1024
+# Passive inspection limits; existing writes and full-history readers are unchanged.
+MAX_PROVENANCE_WINDOW_NODES = 33
+MAX_PROVENANCE_WINDOW_BYTES = 1024 * 1024
+PROVENANCE_WINDOW_BUSY_TIMEOUT = 2.0
 
 MODE_DISABLED = "DISABLED"
 MODE_FENCED = "FENCED"
@@ -771,6 +776,35 @@ class StoreState:
     last_error: Optional[str] = None
 
 
+class StateWriteUnavailable(StorageBlocked):
+    """Local write admission failed; public handlers may return a retryable 503."""
+
+
+@dataclass
+class _WritePermit:
+    owner: "StateStore"
+    thread: threading.Thread
+    task: Any
+    identity: tuple[str, str, Optional[int]]
+    active: bool = True
+
+
+_WRITE_PERMIT: contextvars.ContextVar[Optional[_WritePermit]] = contextvars.ContextVar(
+    "a11oy_state_write_permit", default=None)
+
+
+def _current_task() -> Any:
+    # Passive workers can import storage after disabling sockets. Do not import
+    # asyncio/SSL here; a running task requires asyncio to be initialized already.
+    current_task = getattr(sys.modules.get("asyncio"), "current_task", None)
+    if current_task is None:
+        return None
+    try:
+        return current_task()
+    except RuntimeError:
+        return None
+
+
 class StateStore:
     def __init__(self, *, settings: Settings, objects: Any, head_backend: Any = None,
                  environ: Optional[Mapping[str, str]] = None,
@@ -882,6 +916,97 @@ class StateStore:
                 return nodes
         except (sqlite3.Error, ValueError, TypeError, KeyError) as error:
             raise StorageBlocked("PROVENANCE_READ_INVALID") from error
+
+    def provenance_window(self, space: str, limit: int, validate: Callable) -> list[dict[str, Any]]:
+        """Read a bounded tail for inspection, never certify ledger history.
+
+        The existing space/sequence index bounds both SELECTs. Plain-column
+        octet_length reads sizes from metadata without loading TEXT bodies.
+        Check cumulative sizes before body fetch, in the same read transaction.
+        If that SQL capability is absent, only this inspection fails closed.
+        No schema, journal, receipt, signature, lease or snapshot is changed.
+        """
+        if type(limit) is not int or not 1 <= limit <= MAX_PROVENANCE_WINDOW_NODES:
+            raise ValueError("invalid provenance inspection window")
+        path = self._provenance_path()
+        with open(path, "rb") as source:
+            header = source.read(20)
+        if len(header) < 20 or 2 in header[18:20]:
+            raise StorageBlocked("PROVENANCE_PASSIVE_READ_UNAVAILABLE")
+        try:
+            with contextlib.closing(sqlite3.connect(
+                    path.resolve().as_uri() + "?mode=ro", uri=True,
+                    timeout=PROVENANCE_WINDOW_BUSY_TIMEOUT)) as db:
+                db.execute("BEGIN")
+                # The byte budget and stored checksums use canonical UTF-8.
+                # Refuse only this inspection before loading another encoding.
+                if db.execute("PRAGMA encoding").fetchone() != ("UTF-8",):
+                    raise StorageBlocked("PROVENANCE_WINDOW_ENCODING_UNSUPPORTED")
+                tables = {row[0] for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name IN ('provenance_nodes', 'provenance_heads')")}
+                if not tables:
+                    return []
+                if tables != {"provenance_nodes", "provenance_heads"}:
+                    raise StorageBlocked("PROVENANCE_SCHEMA_INCOMPLETE")
+                # Affinity does not enforce column types or lengths. Keep raw
+                # invalid metadata out of Python before its existing validation.
+                head = db.execute(
+                    "SELECT CASE WHEN typeof(last_index)='integer' THEN last_index END, "
+                    "CASE WHEN typeof(digest)='text' AND octet_length(digest)=64 "
+                    "THEN digest END FROM provenance_heads WHERE space=?",
+                    (space,)).fetchone()
+                metadata = db.execute(
+                    "SELECT CASE WHEN typeof(sequence)='integer' THEN sequence END, "
+                    "CASE WHEN typeof(digest)='text' AND octet_length(digest)=64 THEN digest END, "
+                    "CASE WHEN typeof(node_sha256)='text' AND octet_length(node_sha256)=64 "
+                    "THEN node_sha256 END, octet_length(node_json) "
+                    "FROM provenance_nodes WHERE space=? ORDER BY sequence DESC LIMIT ?",
+                    (space, limit)).fetchall()
+                if not metadata and head is None:
+                    return []
+                if (head is None or type(head[0]) is not int or head[0] < 0
+                        or not isinstance(head[1], str) or not _HEX64.fullmatch(head[1])
+                        or len(metadata) != min(limit, head[0] + 1)):
+                    raise StorageBlocked("PROVENANCE_HEAD_MISMATCH")
+                encoded_bytes = 0
+                for offset, (sequence, digest, checksum, length) in enumerate(metadata):
+                    if (type(sequence) is not int or sequence != head[0] - offset
+                            or not isinstance(digest, str) or not _HEX64.fullmatch(digest)
+                            or not isinstance(checksum, str) or not _HEX64.fullmatch(checksum)
+                            or type(length) is not int or length <= 0):
+                        raise StorageBlocked("PROVENANCE_WINDOW_METADATA_INVALID")
+                    encoded_bytes += length
+                    if encoded_bytes > MAX_PROVENANCE_WINDOW_BYTES:
+                        raise StorageBlocked("PROVENANCE_WINDOW_BYTE_LIMIT")
+                if metadata[0][:2] != head:
+                    raise StorageBlocked("PROVENANCE_HEAD_MISMATCH")
+                rows = db.execute(
+                    "SELECT sequence, digest, node_json, node_sha256 "
+                    "FROM provenance_nodes WHERE space=? ORDER BY sequence DESC LIMIT ?",
+                    (space, limit)).fetchall()
+                if len(rows) != len(metadata):
+                    raise StorageBlocked("PROVENANCE_WINDOW_CHANGED")
+                nodes = []
+                for row, meta in zip(rows, metadata):
+                    sequence, digest, encoded, checksum = row
+                    if ((sequence, digest, checksum) != meta[:3]
+                            or not isinstance(encoded, str)):
+                        raise StorageBlocked("PROVENANCE_WINDOW_METADATA_INVALID")
+                    raw = encoded.encode("utf-8")
+                    if len(raw) != meta[3] or _sha256_bytes(raw) != checksum:
+                        raise StorageBlocked("PROVENANCE_NODE_CHECKSUM_MISMATCH")
+                    node = json.loads(encoded)
+                    if (not isinstance(node, dict) or type(node.get("index")) is not int
+                            or node["index"] != sequence or node.get("digest") != digest
+                            or node.get("space") != space):
+                        raise StorageBlocked("PROVENANCE_NODE_IDENTITY_MISMATCH")
+                    nodes.append(node)
+                nodes.reverse()
+                validate(nodes)
+                return nodes
+        except (sqlite3.Error, ValueError, TypeError, KeyError, RecursionError, UnicodeError) as error:
+            raise StorageBlocked("PROVENANCE_WINDOW_INVALID") from error
 
     def append_provenance_node(self, space: str, build: Callable, validate: Callable,
                                *, confirm: bool = False) -> tuple[dict[str, Any], Optional[dict]]:
@@ -995,6 +1120,127 @@ class StateStore:
         with self._inflight_cond:
             self._inflight -= 1
             self._inflight_cond.notify_all()
+
+    def _require_write_permit(self, permit: Optional[_WritePermit]) -> None:
+        # Never acquire _lock here: release holds it while waiting for this count.
+        with self._inflight_cond:
+            if (permit is None or permit.owner is not self or not permit.active
+                    or permit.thread is not threading.current_thread()
+                    or permit.task is not _current_task()
+                    or permit.identity != (self.boot_id, self.writer_id, self.epoch)):
+                raise StateWriteUnavailable("STATE_STORE_WRITE_PERMIT_INVALID")
+            if _ACTIVE is not None and _ACTIVE is not self:
+                raise StateWriteUnavailable("STATE_STORE_OWNER_CHANGED")
+            if (self.role not in (*WRITABLE_ROLES, ROLE_HANDOVER)
+                    or any(label != "gdw" for label in self.blocked_labels())):
+                raise StateWriteUnavailable(self.fence_reason())
+
+    @contextlib.contextmanager
+    def write_scope(self):
+        """Own write admission through the actual operation, including awaits.
+
+        Only the same task and thread can join its live outer scope while
+        HANDOVER drains. ContextVar inheritance into a child task or worker
+        thread grants no authority; that worker needs a new admission.
+        """
+        permit = _WRITE_PERMIT.get()
+        if (permit is not None and permit.owner is self
+                and permit.thread is threading.current_thread()
+                and permit.task is _current_task()):
+            self._require_write_permit(permit)
+            yield
+            return
+        if _ACTIVE is not None and _ACTIVE is not self:
+            raise StateWriteUnavailable("STATE_STORE_OWNER_CHANGED")
+        if not self.begin_write():
+            raise StateWriteUnavailable(self.fence_reason())
+        permit = _WritePermit(self, threading.current_thread(), _current_task(),
+                              (self.boot_id, self.writer_id, self.epoch))
+        token = _WRITE_PERMIT.set(permit)
+        try:
+            self._require_write_permit(permit)
+            yield
+        finally:
+            permit.active = False
+            try:
+                _WRITE_PERMIT.reset(token)
+            finally:
+                self.end_write()
+
+    @contextlib.contextmanager
+    def serialized_write_scope(self, *, blocking: bool = True):
+        """Take the snapshot/lease lock before acquiring write admission.
+
+        Synchronous event-loop callbacks use nonblocking admission so a busy
+        manager cannot prevent the cancellation that releases their caller.
+        """
+        if not self._lock.acquire(blocking=blocking):
+            raise StateWriteUnavailable("STATE_STORE_BUSY")
+        try:
+            with self.write_scope():
+                yield
+        finally:
+            self._lock.release()
+
+    def _sqlite_path(self, label: str, path: Path) -> tuple[Path, StoreState]:
+        state = self.stores.get(label) if isinstance(label, str) else None
+        if state is None or state.spec.kind != "sqlite":
+            raise StateWriteUnavailable("STATE_STORE_SQLITE_LABEL_INVALID")
+        try:
+            root = self.root.resolve()
+            expected = (root / state.spec.local).resolve()
+            requested = Path(path).resolve()
+            if (expected == root or not expected.is_relative_to(root)
+                    or requested != expected):
+                raise StateWriteUnavailable("STATE_STORE_SQLITE_PATH_MISMATCH")
+        except (OSError, RuntimeError, TypeError, ValueError) as error:
+            if isinstance(error, StateWriteUnavailable):
+                raise
+            raise StateWriteUnavailable("STATE_STORE_SQLITE_PATH_INVALID") from error
+        if state.health == "BLOCKED":
+            raise StateWriteUnavailable("STATE_STORE_SQLITE_BLOCKED")
+        return expected, state
+
+    @contextlib.contextmanager
+    def sqlite_connection(self, label: str, path: Path, write: bool = False):
+        """Open exactly one managed SQLite store; close before releasing admission.
+
+        Reads never create a file or change its journal mode. A fresh writer may
+        initialize an absent store, but a missing restored/snapshotted database
+        is not replaced with an empty one.
+        """
+        expected, state = self._sqlite_path(label, path)
+        with self.write_scope() if write else contextlib.nullcontext():
+            mode = "ro"
+            if write:
+                if expected.is_file():
+                    mode = "rw"
+                elif (state.origin == ORIGIN_FRESH and state.entry is None
+                      and state.captured_at is None and not expected.exists()):
+                    expected.parent.mkdir(parents=True, exist_ok=True)
+                    mode = "rwc"
+                else:
+                    raise StateWriteUnavailable("STATE_STORE_SQLITE_MISSING")
+            connection = sqlite3.connect(expected.as_uri() + "?mode=" + mode,
+                                         uri=True, timeout=30)
+            try:
+                connection.row_factory = sqlite3.Row
+                connection.execute("PRAGMA foreign_keys=ON")
+                if write:
+                    connection.execute("PRAGMA synchronous=FULL")
+                else:
+                    connection.execute("PRAGMA query_only=ON")
+                try:
+                    yield connection
+                    if write:
+                        with self._inflight_cond:
+                            self._require_write_permit(_WRITE_PERMIT.get())
+                            connection.commit()
+                except BaseException:
+                    connection.rollback()
+                    raise
+            finally:
+                connection.close()
 
     def add_quiesce_hook(self, hook: Callable[[], Any]) -> None:
         self._quiesce_hooks.append(hook)
@@ -1867,10 +2113,13 @@ class StateStore:
 
     def _next(self, current: dict[str, Any], current_body: bytes, **changes: Any) -> dict[str, Any]:
         value = json.loads(json.dumps(current))
+        # A request still describes the incumbent; the requester owns no lease yet.
         value.update(operation_id=uuid.uuid4().hex, sequence=current["sequence"] + 1,
                      previous_manifest_sha256=_sha256_bytes(current_body),
                      boot_id=self.boot_id if changes.get("transition") != "HANDOVER_REQUEST" else current["boot_id"],
-                     source_revision=self.source_revision or current["source_revision"])
+                     source_revision=(current["source_revision"]
+                                      if changes.get("transition") == "HANDOVER_REQUEST"
+                                      else self.source_revision or current["source_revision"]))
         value["lease"] = dict(current["lease"], renewed_at=_iso(self.clock()))
         if changes.get("transition") == "HANDOVER_REQUEST":
             value["lease"] = dict(current["lease"])
@@ -1933,8 +2182,10 @@ class StateStore:
 
     def _fence(self, code: str) -> None:
         self._pending_snapshot = None
-        if self.role != ROLE_FENCED:
+        with self._inflight_cond:
+            changed = self.role != ROLE_FENCED
             self.role = ROLE_FENCED
+        if changed:
             self._error(StorageBlocked(code), "lease")
             _log(f"writer FENCED ({code}); this process is read-only from now on")
 
@@ -2234,6 +2485,15 @@ def register(app: Any) -> dict[str, Any]:
     """Mount the status route and the write fence. Safe when disabled."""
     from fastapi import Request
     from fastapi.responses import JSONResponse
+
+    @app.exception_handler(StateWriteUnavailable)
+    async def a11oy_state_write_unavailable(request: Request,
+                                           error: StateWriteUnavailable) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"error": {"code": error.code, "message": "storage is read-only",
+                               "retry_after_seconds": RETRY_AFTER_SECONDS}},
+            headers={"Retry-After": str(RETRY_AFTER_SECONDS), "Cache-Control": "no-store"})
 
     @app.get("/api/a11oy/v1/storage/status")
     @app.head("/api/a11oy/v1/storage/status", include_in_schema=False)

@@ -1035,9 +1035,56 @@ async function ask_q(q){try{setOut('o-ask','asking\u2026');const d=await orgPost
   setOut('o-ask','ANSWER ('+esc(cited)+')\n'+esc(d.answer||'')+'\n\n'+(sig?sig+'\n\n':'')+JSON.stringify(d.citations||d,null,2).slice(0,1200));}catch(e){setOut('o-ask','retry: '+e.message);}}
 async function act_do(action){try{setOut('o-act','emitting\u2026');const d=await orgPost('core','/api/a11oy/v1/operator/act',{action,target:'demo-action',note:'from a11oy command platform'});
   const eh=(d.entry&&d.entry.entry_hash)||'';setOut('o-act','ACTION '+esc(action).toUpperCase()+' \u00b7 logged\nreceipt hash '+esc(eh).slice(0,20)+'\u2026 \u00b7 audit depth '+esc(d.audit_depth)+'\n\n'+JSON.stringify(d.receipt||d,null,2).slice(0,1000));}catch(e){setOut('o-act','retry: '+e.message);}}
-async function ask_recs(){try{const d=await orgGet('core','/api/a11oy/v1/operator/recommend');const cnt=d.counts||{};doughnut('ask-rec',['critical','warn','info','ok'],[cnt.critical||0,cnt.warn||0,cnt.info||0,cnt.ok||0],['#b06a5a',GOLD,TEAL,'#5a8a6e']);
-  setHTML('ask-rec-list','');(d.recommendations||[]).forEach(r=>addHTML('ask-rec-list',`<div class="row"><span class="badge ${r.severity==='critical'?'b-err':(r.severity==='warn'?'b-gold':'b-teal')}">${esc(r.severity)}</span><span>${esc(r.organ||'')}: ${esc(r.finding||'')}</span></div>`));
-  if(!(d.recommendations||[]).length)setHTML('ask-rec-list','<div class="row mono dim">no findings \u2014 all clear</div>');}catch(e){setHTML('ask-rec-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
+// Recommendations consume the same readiness report as health; GET never executes work.
+let _askRecsRequest=0;
+function askRecommendationView(d){
+  const severities=['critical','warn','info','ok'];
+  if(!d||!['REAL','DEGRADED'].includes(d.status)||typeof d.grounded!=='boolean'||
+      !['OBSERVED','DEGRADED','UNAVAILABLE'].includes(d.health_state)||
+      !Array.isArray(d.recommendations)||!d.recommendations.length||
+      !d.counts||!Array.isArray(d.citations)||!d.citations.length||
+      typeof d.observed_at!=='string'||!Number.isFinite(Date.parse(d.observed_at)))
+    throw new Error('Recommendation evidence is missing or malformed.');
+  const counts={critical:0,warn:0,info:0,ok:0};
+  d.recommendations.forEach(r=>{
+    if(!r||!severities.includes(r.severity)||typeof r.organ!=='string'||
+        typeof r.finding!=='string'||!r.finding.trim()||typeof r.remedy!=='string')
+      throw new Error('Recommendation findings are malformed.');
+    counts[r.severity]++;
+  });
+  if(severities.some(key=>!Number.isInteger(d.counts[key])||d.counts[key]!==counts[key]))
+    throw new Error('Recommendation counts do not match the findings.');
+  const readiness=d.operational_readiness, frontier=readiness&&readiness.frontier;
+  const ready=d.status==='REAL'&&d.grounded===true&&d.health_state==='OBSERVED'&&
+    d.source_http_status===200&&readiness&&readiness.ready===true&&readiness.status==='READY'&&
+    Array.isArray(readiness.service_blockers)&&readiness.service_blockers.length===0&&
+    frontier&&frontier.ready===true&&frontier.state==='READY'&&Array.isArray(frontier.blocked_tiles)&&frontier.blocked_tiles.length===0&&
+    Array.isArray(frontier.ready_tiles)&&frontier.ready_tiles.length>0&&
+    d.citations.some(c=>c&&c.endpoint==='/api/a11oy/healthz'&&c.data&&c.data.service==='a11oy'&&c.data.status==='ok'&&
+      JSON.stringify(c.data.operational_readiness)===JSON.stringify(readiness));
+  if((d.status==='REAL'&&!ready)||(counts.ok>0&&!ready)||(ready&&(counts.critical||counts.warn)))
+    throw new Error('Recommendation status contradicts its readiness evidence.');
+  return {rows:d.recommendations,counts:counts,state:ready?'READY':d.health_state==='UNAVAILABLE'?'UNAVAILABLE':'NOT_READY'};
+}
+async function ask_recs(){
+  const request=++_askRecsRequest;
+  killChart('ask-rec');
+  setHTML('ask-rec-list','<div class="row mono dim" role="status">Observing readiness\u2026</div>');
+  try{
+    const d=await orgGet('core','/api/a11oy/v1/operator/recommend');
+    if(request!==_askRecsRequest)return;
+    const view=askRecommendationView(d),cnt=view.counts;
+    const style=getComputedStyle(el('ask-rec')||document.documentElement);
+    const colors=['--chip-bad','--chip-warn','--color-text-secondary','--chip-ok'].map(token=>style.getPropertyValue(token).trim()||TEAL);
+    doughnut('ask-rec',['critical','warn','info','ok'],[cnt.critical,cnt.warn,cnt.info,cnt.ok],colors);
+    setHTML('ask-rec-list',`<div class="row mono" role="status"><strong>${esc(view.state)}</strong><span>Report observed ${esc(d.observed_at)}</span></div>`);
+    view.rows.forEach(r=>addHTML('ask-rec-list',`<div class="row"><span class="badge ${r.severity==='critical'?'b-err':(r.severity==='warn'?'b-gold':'b-teal')}">${esc(r.severity)}</span><span>${esc(r.organ)}: ${esc(r.finding)}<br><span class="dim">${esc(r.remedy)}</span></span></div>`));
+  }catch(e){
+    if(request!==_askRecsRequest)return;
+    killChart('ask-rec');
+    setHTML('ask-rec-list','<div class="row mono" role="status">UNAVAILABLE — '+esc(e.message)+'</div>');
+  }
+}
 
 // Demo / Warhacker (a11oy)
 async function wh_one(key,out){try{setOut(out,'launching\u2026');const d=await postJSON(API+'/v1/warhacker/launch/'+key,{});const o=d.organ_response||{};setOut(out,'service: '+esc(d.organ)+'  status: '+esc(o.status)+'  http: '+esc(o.http_code)+'\n'+JSON.stringify(o.json||o,null,2).slice(0,900));}catch(e){setOut(out,'retry: '+e.message);}}
