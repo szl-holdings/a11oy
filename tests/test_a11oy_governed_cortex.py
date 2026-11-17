@@ -522,6 +522,102 @@ class CortexContractTests(unittest.TestCase):
         self.assertEqual(anatomy.json()["state"], "EMPTY")
         self.assertEqual(anatomy.json()["observer_authority"], "NONE")
 
+    def test_reasoning_boundary_preserves_safe_output(self):
+        # Keep this corpus aligned with test_cloudflare_governed_inference_worker.mjs.
+        cases = [
+            ("plain answer", "Final [E0]", "Final [E0]"),
+            ("balanced think", "<think>private-a</think>\nFinal [E0]", "Final [E0]"),
+            ("balanced analysis", "<analysis>private-a</analysis>Final [E0]", "Final [E0]"),
+            ("balanced analysis fence", "```analysis\nprivate-a\n```\nFinal [E0]", "Final [E0]"),
+            ("mixed case", "<ThInK>private-a</ThInK><ANALYSIS>private-b</ANALYSIS>Final [E0]", "Final [E0]"),
+            ("nested same tags", "<think>private-a<think>private-b</think>private-c</think>Final [E0]", "Final [E0]"),
+            ("nested mixed tags", "<think>private-a<analysis>private-b</analysis>private-c</think>Final [E0]", "Final [E0]"),
+            ("multiple blocks", "First <think>private-a</think> last [E0]<analysis>private-b</analysis>", "First  last [E0]"),
+            ("ordinary code fence", "```python\nprint('ok')\n```", "```python\nprint('ok')\n```"),
+            ("unrelated tag names", "<thinker>display</thinker> <analysis_result>result</analysis_result>", "<thinker>display</thinker> <analysis_result>result</analysis_result>"),
+            ("unrelated fence language", "```analysis_json\n{}\n```", "```analysis_json\n{}\n```"),
+            ("XML text inside analysis fence", "```analysis\n<think>private-a\n```\nFinal [E0]", "Final [E0]"),
+            ("analysis fence inside think", "<think>private-a\n```analysis\nprivate-b\n```\nprivate-c</think>Final [E0]", "Final [E0]"),
+        ]
+        for name, raw, expected in cases:
+            with self.subTest(name=name):
+                self.assertEqual(cortex._sanitize_output(raw), expected)
+
+    def test_reasoning_boundary_rejects_malformed_output(self):
+        cases = [
+            ("orphan think close", "private-a</think>Final [E0]"),
+            ("orphan analysis close", "private-a</analysis>Final [E0]"),
+            ("unclosed think", "<think>private-a"),
+            ("unclosed analysis", "Final [E0]<analysis>private-a"),
+            ("truncated opening marker", "Final [E0]<think"),
+            ("truncated closing marker", "private-a</think"),
+            ("unsupported tag attributes", "<think role=\"private\">private-a</think>Final [E0]"),
+            ("unsupported tag whitespace", "< think >private-a</think>Final [E0]"),
+            ("unsupported fence whitespace", "``` analysis\nprivate-a\n```Final [E0]"),
+            ("unclosed analysis fence", "```analysis\nprivate-a"),
+            ("unclosed outer same tag", "<think>private-a<think>private-b</think>private-c"),
+            ("crossed tags", "<think>private-a<analysis>private-b</think>private-c</analysis>Final [E0]"),
+            ("reverse crossed tags", "<analysis>private-a<think>private-b</analysis>private-c</think>Final [E0]"),
+            ("nested analysis fences", "```analysis\nprivate-a```analysis\nprivate-b```\nFinal [E0]"),
+            ("extra closing tag", "<think>private-a</think>private-b</think>Final [E0]"),
+            ("code opener inside analysis fence", "```analysis\nprivate-a\n```python\nprivate-b\n```"),
+            ("inline backticks inside analysis fence", "```analysis\nprivate-a ``` private-b\n```"),
+            ("longer delimiter inside analysis fence", "```analysis\nprivate-a\n````analysis\nprivate-b\n```"),
+            ("inline closing analysis fence", "```analysis\nprivate-a```Final [E0]"),
+        ]
+        for name, raw in cases:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(
+                    cortex.CortexBoundaryError, "owned_model_reasoning_boundary_invalid"
+                ):
+                    cortex._extract_output(
+                        {"choices": [{"message": {"content": raw}}]}
+                    )
+
+    def test_reasoning_boundary_checks_before_truncation(self):
+        self.assertEqual(len(cortex._sanitize_output("x" * 24_001)), 24_000)
+        ordinary_text = "<" + " " * 16_000 + "x"
+        self.assertEqual(cortex._sanitize_output(ordinary_text), ordinary_text)
+        with self.assertRaisesRegex(
+            cortex.CortexBoundaryError, "owned_model_reasoning_boundary_invalid"
+        ):
+            cortex._sanitize_output("x" * 24_001 + "</think>")
+        for raw in [" ", "<think>private-a</think>", "```analysis\nprivate-a\n```"]:
+            with self.subTest(raw=raw):
+                with self.assertRaisesRegex(
+                    cortex.CortexBoundaryError, "owned_model_returned_empty_output"
+                ):
+                    cortex._sanitize_output(raw)
+
+    def test_malformed_model_output_is_not_delivered_or_observed(self):
+        model = types.SimpleNamespace(
+            create_chat_completion=lambda **kwargs: {
+                "choices": [{"message": {"content": "private-marker</think>Final [node-a]"}}]
+            }
+        )
+        app = FastAPI()
+        cortex.register(app)
+        with (
+            mock.patch.object(cortex, "_load_formula_authority", side_effect=fake_authority),
+            mock.patch.object(cortex, "_load_nemo", return_value=FakeNemo),
+            mock.patch.object(cortex, "_brain_evidence", return_value=fake_evidence()),
+            mock.patch.object(cortex, "_load_model", return_value=(model, fake_identity())),
+            mock.patch.object(cortex, "_citation_grammar", return_value=object()),
+        ):
+            response = TestClient(app).post(
+                "/api/v2/governed-infer",
+                json={"prompt": "Bounded request", "max_new_tokens": 32, "k": 1},
+            )
+        self.assertEqual(response.status_code, 502)
+        body = response.json()
+        self.assertEqual(body["error"], "owned_model_reasoning_boundary_invalid")
+        self.assertEqual(body["authority_state"], "NO_ACTION_AUTHORITY")
+        self.assertFalse(body["executed"])
+        self.assertNotIn("receipt", body)
+        self.assertNotIn("private-marker", response.text)
+        self.assertEqual(cortex._ANATOMY["observation_count"], 0)
+        self.assertIsNone(cortex._ANATOMY["last"])
+
     def test_model_output_tool_call_is_rejected_and_reasoning_removed(self):
         with self.assertRaisesRegex(cortex.CortexBoundaryError, "attempted_tool_call"):
             cortex._extract_output(

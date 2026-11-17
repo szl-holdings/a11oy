@@ -481,6 +481,124 @@ def finish_trace(trace: Optional[Trace] = None, record: bool = True) -> Optional
         return None
 
 
+
+def start_http_trace(request: Any) -> Optional[Trace]:
+    """Start one process-local HTTP trace without retaining a raw URL or header.
+
+    A validated W3C context identifies the trace. Opaque request ids are kept in
+    the access log only. Multiple hardening layers share one request trace.
+    """
+    try:
+        existing = getattr(request.state, "_szl_http_trace", None)
+        if existing is not None:
+            existing._http_depth += 1
+            return existing
+        candidate = getattr(request.state, "trace_id", None)
+        incoming = request.headers.get("traceparent", "")
+        try:
+            from vsp_otel.middleware import parse_traceparent
+            parsed = parse_traceparent(incoming)
+        except Exception:
+            parsed = None
+        native_owned = getattr(request.state, "_szl_native_trace_context", False) is True
+        valid_candidate = (isinstance(candidate, str)
+                           and re.fullmatch(r"[0-9a-f]{32}", candidate) is not None
+                           and candidate != "0" * 32)
+        if native_owned and valid_candidate:
+            # Never let an inbound traceparent override an authenticated native span.
+            pass
+        elif parsed:
+            candidate = parsed["trace_id"]
+        else:
+            candidate = uuid.uuid4().hex
+        method = request.method if request.method in {
+            "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE", "CONNECT"
+        } else "_OTHER"
+        tr = Trace(method, trace_id=candidate)
+        tr._http_depth = 1
+        tr._http_recorded = False
+        tr._http_method = method
+        tr._http_trace_token = _CURRENT_TRACE.set(tr)
+        tr._http_span_token = _CURRENT_SPAN.set(tr.root)
+        tr.root.set_attribute("http.request.method", method)
+        request.state._szl_http_trace = tr
+        return tr
+    except Exception:
+        return None
+
+
+def finish_http_trace(trace: Optional[Trace], request: Any, status_code: int) -> None:
+    """Record status and a registered route template; retain no parameter value.
+
+    HTTP server spans flag 5xx as errors; 4xx retain status-code evidence without
+    asserting a server error (OpenTelemetry HTTP semantic conventions).
+    """
+    try:
+        if trace is None or trace._http_recorded:
+            return
+        trace._http_depth -= 1
+        if trace._http_depth > 0:
+            return
+        route = getattr(request.scope.get("route"), "path", None)
+        template = route if isinstance(route, str) and route.startswith("/") else None
+        trace.name = f"{trace._http_method} {template}"[:128] if template else trace._http_method
+        if trace.root is not None:
+            trace.root.name = trace.name
+            if template:
+                trace.root.set_attribute("http.route", template)
+            trace.root.set_attribute("http.response.status_code", int(status_code))
+            trace.root.set_attribute("szl.timing_boundary", "middleware_response_ready")
+            if int(status_code) >= 500:
+                trace.root.set_status("ERROR")
+        trace._http_recorded = True
+        finish_trace(trace, record=True)
+    except Exception:
+        pass
+    finally:
+        if trace is not None and getattr(trace, "_http_recorded", False):
+            try:
+                _CURRENT_SPAN.reset(trace._http_span_token)
+                _CURRENT_TRACE.reset(trace._http_trace_token)
+            except Exception:
+                pass
+
+
+def telemetry_summary() -> Dict[str, Any]:
+    """Read a bounded completed-trace window; no receipt or coverage is minted."""
+    completed = [tr for tr in TRACES.all()
+                 if tr.root is not None and tr.root.ended]
+    latest = max(completed, key=lambda tr: tr.root._t_end, default=None)
+    age = max(0.0, time.perf_counter() - latest.root._t_end) if latest else None
+    max_age = 300
+    state = "UNAVAILABLE" if latest is None else ("STALE" if age > max_age else "OBSERVED")
+    revision = os.environ.get("SZL_GIT_SHA") or os.environ.get("A11OY_GIT_SHA") or ""
+    return {
+        "state": state,
+        "scope": "process-local completed trace window; resets on restart",
+        "http_duration_scope": "middleware response readiness; subsequent streamed-body delivery is not measured",
+        "observed_at": latest.started_at if latest else None,
+        "observed_at_basis": "latest completed trace start",
+        "generated_at": _now_iso(),
+        "source_revision": revision if re.fullmatch(r"[0-9a-f]{40}", revision) else None,
+        "freshness": {"state": state, "age_s": round(age, 3) if age is not None else None,
+                      "max_age_s": max_age},
+        "counts": {"trace_count": len(completed),
+                   "span_count": sum(len(tr.spans) for tr in completed),
+                   "error_trace_count": sum(tr.status() in {"ERROR", "TIMEOUT"} for tr in completed),
+                   "server_error_count": sum(
+                       isinstance(tr.root.attributes.get("http.response.status_code"), int)
+                       and 500 <= tr.root.attributes["http.response.status_code"] < 600
+                       for tr in completed)},
+        "ring": {"size": len(TRACES), "capacity": TRACES.capacity},
+        "coverage": {"state": "UNAVAILABLE", "dataset_count": None,
+                     "expected_dataset_count": None,
+                     "reason": "no dataset coverage denominator is bound"},
+        "receipt_minted": False,
+        "receipt_state": "UNAVAILABLE",
+        "export_delivery_asserted": False,
+    }
+
+
 class _SpanCtx:
     """Context manager returned by ``span()``. Times REAL wall clock, attaches to
     the active parent span, restores the parent on exit, and marks ERROR if the
@@ -755,7 +873,7 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
 
     async def _traces():  # noqa: ANN202
         ring_size = len(TRACES)
-        state = "UNAVAILABLE" if ring_size == 0 else "OBSERVED"
+        state = telemetry_summary()["state"]  # expired and unfinished spans are not live
         return JSONResponse({
             "ns": ns,
             "state": state,
@@ -763,10 +881,10 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
             "order": "slowest-first",
             "ring": {"size": ring_size, "capacity": TRACES.capacity},
             "pattern": "OpenTelemetry-style traces (our stdlib impl; no otel SDK dep)",
-            "honesty": "empty ring is UNAVAILABLE, not a live DAG of 0",
+            "honesty": "empty/unfinished ring is UNAVAILABLE; expired evidence is STALE",
             "ts": _now_iso(),
             "doctrine": dict(DOCTRINE),
-        }, status_code=200)
+        }, status_code=200, headers={"Cache-Control": "no-store"})
 
     async def _trace(trace_id: str):  # noqa: ANN202
         tr = TRACES.get(trace_id)
@@ -777,23 +895,29 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
                 "trace_id": trace_id,
                 "note": "trace not in the bounded ring (dropped as oldest, or never recorded)",
                 "ts": _now_iso(),
-            }, status_code=404)
+            }, status_code=404, headers={"Cache-Control": "no-store"})
         return JSONResponse({
             "ns": ns,
             "trace": tr.to_dict(),
             "ts": _now_iso(),
             "doctrine": dict(DOCTRINE),
-        }, status_code=200)
+        }, status_code=200, headers={"Cache-Control": "no-store"})
 
     async def _health_summary():  # noqa: ANN202
-        return JSONResponse({"ns": ns, **health_summary()}, status_code=200)
+        return JSONResponse({"ns": ns, **health_summary()}, status_code=200,
+                            headers={"Cache-Control": "no-store"})
 
     async def _workers_compute():  # noqa: ANN202
         return JSONResponse(
             {"ns": ns, **workers_compute_contract(), "doctrine": dict(DOCTRINE), "ts": _now_iso()},
-            status_code=200,
+            status_code=200, headers={"Cache-Control": "no-store"},
         )
 
+    async def _telemetry_summary():
+        return JSONResponse({"ns": ns, **telemetry_summary()},
+                            headers={"Cache-Control": "no-store"})
+
+    _add(f"/api/{ns}/v1/telemetry/summary", _telemetry_summary)
     _add(f"/api/{ns}/v1/observability/traces", _traces)
     _add(f"/api/{ns}/v1/observability/trace/{{trace_id}}", _trace)
     _add(f"/api/{ns}/v1/observability/health-summary", _health_summary)
