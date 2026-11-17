@@ -7,12 +7,16 @@ on:
     branches: [main]
     paths:
       - a11oy_governed_cortex.py
+      - serve.py
+      - szl_provenance.py
+      - szl_be_hardening.py
       - Dockerfile
       - scripts/fetch_owned_khipu_wheel.py
       - tests/test_a11oy_governed_cortex.py
       - vsp_otel/**
       - tests/test_trace_ir.py
       - tests/test_cortex_trace_observation.py
+      - tests/test_canonical_server_trace_context.py
       - tests/test_vsp_otel_packaging.py
       - tests/test_dockerfile_layer_budget.py
       - tests/test_owned_khipu_docker_contract.py
@@ -22,12 +26,16 @@ on:
     branches: [main]
     paths:
       - a11oy_governed_cortex.py
+      - serve.py
+      - szl_provenance.py
+      - szl_be_hardening.py
       - Dockerfile
       - scripts/fetch_owned_khipu_wheel.py
       - tests/test_a11oy_governed_cortex.py
       - vsp_otel/**
       - tests/test_trace_ir.py
       - tests/test_cortex_trace_observation.py
+      - tests/test_canonical_server_trace_context.py
       - tests/test_vsp_otel_packaging.py
       - tests/test_dockerfile_layer_budget.py
       - tests/test_owned_khipu_docker_contract.py
@@ -71,6 +79,7 @@ jobs:
           tests/test_a11oy_governed_cortex.py
           tests/test_trace_ir.py
           tests/test_cortex_trace_observation.py
+          tests/test_canonical_server_trace_context.py
           tests/test_vsp_otel_packaging.py
           tests/test_dockerfile_layer_budget.py
           tests/test_owned_khipu_docker_contract.py

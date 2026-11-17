@@ -4157,30 +4157,6 @@ except Exception as _otel_e:
     import sys as _otel_sys; print(f"[a11oy] OTel setup skipped: {_otel_e!r}", file=_otel_sys.stderr)
 # --- end OTel setup ---
 
-# ── ADDITIVE: vsp-otel — Verifiable Span Provenance (Yachay; Perplexity Computer Agent) ──
-# Adopts the szl-holdings/vsp-otel operational layer: W3C-traceparent propagation
-# (always, in-process) plus OTLP/gRPC span export that is GATED on the operator
-# setting OTEL_EXPORTER_OTLP_ENDPOINT. When that env var is unset there is no
-# collector to export to (prod is a single HF Space), so the tracer stays honestly
-# in-process-only — spans are NOT claimed to be exported. install() records the
-# exact exporter status on app._vsp_otel_exporter; we log it verbatim.
-# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1. ADDITIVE ONLY.
-try:
-    import vsp_otel.middleware as _vsp_otel
-    _vsp_otel.install(app)
-    app.add_api_route(
-        "/api/a11oy/v1/observability/status",
-        lambda: JSONResponse(_vsp_otel.status(app)),
-        methods=["GET"],
-        include_in_schema=False,
-    )
-    import sys as _vsp_sys
-    print(f"[a11oy] vsp-otel VSP installed: exporter={getattr(app, '_vsp_otel_exporter', 'unknown')}", file=_vsp_sys.stderr)
-except Exception as _vsp_e:
-    import sys as _vsp_sys
-    print(f"[a11oy] vsp-otel VSP skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
-# --- end vsp-otel VSP ---
-
 # Isolated build-environment health fan-out; exact targets, opt-in, no execution.
 import a11oy_build_env_fanout as _a11oy_build_env_fanout
 _a11oy_build_env_fanout.register(app)
@@ -4245,10 +4221,9 @@ except Exception as _th_e:
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
 # Sign: Yachay. Perplexity Computer Agent.
 try:
-    try:  # prefer the extracted substrate package; fall back to local vendored copy
-        from szl_substrate import szl_provenance as _prov
-    except Exception:
-        import szl_provenance as _prov
+    # The image's source-bound local implementation owns the shared trace
+    # context contract. An optional external package must not replace it.
+    import szl_provenance as _prov
     _prov_status = _prov.register_provenance(app, "a11oy")
     import sys as _sys_pv
     print(f"[a11oy] Provenance Hardening registered: {_prov_status}", file=_sys_pv.stderr)
@@ -4264,6 +4239,33 @@ _A11OY_SLSA_TEXT = (
     else "SLSA posture UNAVAILABLE; canonical provenance module did not register."
 )
 # ── end Provenance Hardening ─────────────────────────────────────────────────
+
+# Register VSP after Wire D: Starlette runs later middleware outside earlier
+# middleware. The SDK/fallback server context must exist before Wire D and BE
+# record it; both preserve their standalone behavior when VSP is unavailable.
+# ── ADDITIVE: vsp-otel — Verifiable Span Provenance (Yachay; Perplexity Computer Agent) ──
+# Adopts the szl-holdings/vsp-otel operational layer: W3C-traceparent propagation
+# (always, in-process) plus OTLP/gRPC span export that is GATED on the operator
+# setting OTEL_EXPORTER_OTLP_ENDPOINT. When that env var is unset there is no
+# collector to export to (prod is a single HF Space), so the tracer stays honestly
+# in-process-only — spans are NOT claimed to be exported. install() records the
+# exact exporter status on app._vsp_otel_exporter; we log it verbatim.
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1. ADDITIVE ONLY.
+try:
+    import vsp_otel.middleware as _vsp_otel
+    _vsp_otel.install(app)
+    app.add_api_route(
+        "/api/a11oy/v1/observability/status",
+        lambda: JSONResponse(_vsp_otel.status(app)),
+        methods=["GET"],
+        include_in_schema=False,
+    )
+    import sys as _vsp_sys
+    print(f"[a11oy] vsp-otel VSP installed: exporter={getattr(app, '_vsp_otel_exporter', 'unknown')}", file=_vsp_sys.stderr)
+except Exception as _vsp_e:
+    import sys as _vsp_sys
+    print(f"[a11oy] vsp-otel VSP skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
+# --- end vsp-otel VSP ---
 
 # ===========================================================================
 # CORS LOCKDOWN (SAFE-NOW hardening, 2026-06-18).
