@@ -227,7 +227,7 @@ export function bootTrainingObservations({
     if (disposed) return;
     const ticket = ++generation; active?.abort(); active = null; clearResults();
     $('load').disabled = false;
-    const tenant = $('tenant').value.trim(); let token = $('token').value.trim();
+    const tenant = $('tenant').value.trim(); const token = $('token').value.trim();
     $('token').value = '';
     if (!/^[\x21-\x7e]{1,256}$/.test(tenant) || !/^[\x21-\x7e]{1,8192}$/.test(token)) {
       $('status').textContent = 'Enter a tenant and operator token. No private observations are displayed.';
@@ -241,7 +241,6 @@ export function bootTrainingObservations({
         method: 'GET', credentials: 'omit', redirect: 'error', cache: 'no-store', signal: own.signal,
         headers: {Accept: 'application/json', Authorization: `Bearer ${token}`, 'X-A11oy-Tenant': tenant},
       });
-      token = '';
       const response = await pending;
       if (ticket !== generation) return;
       if (!response.ok) {
