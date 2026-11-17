@@ -1163,6 +1163,7 @@ jobs:
           tests/test_frontier_readiness_boundary.py
           tests/test_frontier_readiness_page.py
           tests/test_frontier_bootstrap.py
+          tests/test_frontier_surface_loader.py
           tests/test_frontier_responsive_page.py
           tests/test_anatomy_readiness.py
           tests/test_provenance_receipt_write_boundary.py

@@ -981,10 +981,17 @@ document.getElementById('brain-query-form').addEventListener('submit', async eve
 (async function load() {{
   try {{
     const r = await fetch(MANIFEST_EP, {{ headers:{{Accept:'application/json'}} }});
+    if (!r.ok) throw new Error('manifest HTTP ' + r.status
+      + (r.status === 402 ? ' (payment required)' : ''));
     const m = await r.json();
-    if (!r.ok || m.ok === false) throw new Error('manifest ' + r.status);
-    const tiles = m.capabilities || [];
-    const s = m.summary || {{}};
+    if (!m || typeof m !== 'object' || Array.isArray(m) || m.ok !== true
+        || !Array.isArray(m.capabilities) || !m.summary
+        || typeof m.summary !== 'object' || Array.isArray(m.summary)
+        || !Number.isSafeInteger(m.summary.tiles) || m.summary.tiles < 0
+        || m.summary.tiles !== m.capabilities.length)
+      throw new Error('invalid or unavailable capability manifest contract');
+    const tiles = m.capabilities;
+    const s = m.summary;
     const lc = s.label_counts || {{}};
     const source = s.source_reachability || {{state:'UNKNOWN'}};
     const readiness = s.operational_readiness || {{state:'UNKNOWN', ready:false, blocked_tiles:[]}};
@@ -1037,6 +1044,57 @@ let allSurfaces = [];
 let activeSurfaceLabel = 'ALL';
 let surfaceQuery = '';
 let surfacePage = 0;
+let surfaceCatalogAvailable = false;
+document.getElementById('surface-search').disabled = true;
+document.getElementById('surface-prev').disabled = true;
+document.getElementById('surface-next').disabled = true;
+
+function surfaceManifest(value) {{
+  const record = item => item !== null && typeof item === 'object' && !Array.isArray(item);
+  const count = item => Number.isSafeInteger(item) && item >= 0;
+  const text = item => typeof item === 'string' && item.trim().length > 0;
+  const label = item => typeof item === 'string' && Object.hasOwn(SURF_CLASS, item);
+  const invalid = () => {{ throw new Error('invalid surface manifest contract'); }};
+  if (!record(value) || value.ok !== true || !Array.isArray(value.surfaces)
+      || !count(value.count) || value.count !== value.surfaces.length
+      || !record(value.summary)) return invalid();
+  const summary = value.summary;
+  if (!count(summary.count) || summary.count !== value.count
+      || !count(summary.present) || !count(summary.unavailable)
+      || !record(summary.label_counts) || summary.labels_valid !== true) return invalid();
+  const ids = new Set(), labels = new Map();
+  let present = 0, unavailable = 0;
+  for (const surface of value.surfaces) {{
+    if (!record(surface) || !text(surface.id) || !text(surface.title)
+        || !text(surface.asset) || !label(surface.label)
+        || typeof surface.present !== 'boolean'
+        || (!surface.present && surface.label !== 'UNAVAILABLE')
+        || ids.has(surface.id)) return invalid();
+    ids.add(surface.id);
+    labels.set(surface.label, (labels.get(surface.label) || 0) + 1);
+    if (surface.present) present += 1;
+    if (surface.label === 'UNAVAILABLE') unavailable += 1;
+  }}
+  if (summary.present !== present || summary.unavailable !== unavailable
+      || Object.entries(summary.label_counts).some(([key, total]) =>
+        !label(key) || !count(total) || total !== (labels.get(key) || 0))
+      || [...labels].some(([key, total]) => summary.label_counts[key] !== total)) return invalid();
+  return value;
+}}
+
+function unavailableSurfaceCatalog() {{
+  surfaceCatalogAvailable = false;
+  allSurfaces = [];
+  document.getElementById('surfaces-rollup').innerHTML =
+    '<span class="chip">Surface registry <b>UNAVAILABLE</b></span>';
+  document.getElementById('surface-filters').innerHTML = '';
+  document.getElementById('surfaces-list').innerHTML =
+    '<div class="surface-empty">Surface registry unavailable. The catalog count is unknown.</div>';
+  document.getElementById('surface-page-status').textContent = 'Catalog count unavailable';
+  document.getElementById('surface-search').disabled = true;
+  document.getElementById('surface-prev').disabled = true;
+  document.getElementById('surface-next').disabled = true;
+}}
 
 function matchingSurfaces() {{
   const needle = surfaceQuery.toLowerCase();
@@ -1081,6 +1139,7 @@ function renderSurfaceTabs(labelCounts) {{
 }}
 
 function renderSurfaceCatalog() {{
+  if (!surfaceCatalogAvailable) return;
   const filtered = matchingSurfaces();
   const pageCount = Math.max(1, Math.ceil(filtered.length / SURFACE_PAGE_SIZE));
   surfacePage = Math.min(surfacePage, pageCount - 1);
@@ -1123,10 +1182,15 @@ document.getElementById('surface-next').addEventListener('click', () => {{
   const statusEl = document.getElementById('surfaces-status');
   try {{
     const r = await fetch(SURFACES_EP, {{ headers:{{Accept:'application/json'}} }});
-    const m = await r.json();
-    const surfaces = m.surfaces || [];
-    const s = m.summary || {{}};
-    const lc = s.label_counts || {{}};
+    if (!r.ok) throw new Error('surface registry HTTP ' + r.status
+      + (r.status === 402 ? ' (payment required)' : ''));
+    const payload = await r.json();
+    if (payload && payload.ok === false)
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'registry source unavailable');
+    const m = surfaceManifest(payload);
+    const surfaces = m.surfaces;
+    const s = m.summary;
+    const lc = s.label_counts;
 
     // honest roll-up: true count + per-label counts, straight from the manifest
     const chips = [`<span class="chip"><b>${{esc(m.count ?? surfaces.length)}}</b> surfaces</span>`];
@@ -1139,18 +1203,16 @@ document.getElementById('surface-next').addEventListener('click', () => {{
 
     // retain every surface, then render a bounded honest page: id + title + label.
     allSurfaces = surfaces;
+    surfaceCatalogAvailable = true;
+    document.getElementById('surface-search').disabled = false;
     renderSurfaceTabs(lc);
     renderSurfaceCatalog();
 
     statusEl.className = 'status-line';
-    statusEl.textContent = (m.ok === false)
-      ? ('surface registry unavailable: ' + esc(m.error || 'unknown') + ' (nothing fabricated)')
-      : ('live · ' + esc(m.count ?? surfaces.length) + ' surfaces from ' + esc(SURFACES_EP)
-         + ' · labels_valid=' + esc(String(s.labels_valid)));
+    statusEl.textContent = 'live · ' + m.count + ' surfaces from ' + SURFACES_EP
+      + ' · labels_valid=' + String(s.labels_valid);
   }} catch (e) {{
-    allSurfaces = [];
-    renderSurfaceTabs({{}});
-    renderSurfaceCatalog();
+    unavailableSurfaceCatalog();
     statusEl.className = 'status-line err';
     statusEl.textContent = 'surfaces unavailable: ' + e + ' (nothing fabricated — raw data at ' + SURFACES_EP + ')';
   }}

@@ -198,8 +198,10 @@ def run_page(manifest, **options):
             "/api/a11oy/v1/frontier/surfaces": {
                 "ok": True, "count": 1,
                 "surfaces": [{"id": "fixture", "title": "Fixture surface",
-                              "label": "MODELED", "asset": "/static/3d/fixture.js"}],
-                "summary": {"label_counts": {"MODELED": 1}, "labels_valid": True},
+                              "label": "MODELED", "asset": "/static/3d/fixture.js",
+                              "present": True}],
+                "summary": {"count": 1, "present": 1, "unavailable": 0,
+                            "label_counts": {"MODELED": 1}, "labels_valid": True},
             },
         },
     }
