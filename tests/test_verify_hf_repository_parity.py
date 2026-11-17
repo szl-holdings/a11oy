@@ -933,6 +933,25 @@ class DerivedDotCopyTests(unittest.TestCase):
             comparator.assert_not_called()
 
 
+class FakeVerifierProcess:
+    """Test double for the verifier child process started via Popen."""
+
+    def __init__(self, returncode):
+        self._returncode = returncode
+
+    def poll(self):
+        return self._returncode
+
+    def terminate(self):
+        pass
+
+    def kill(self):
+        pass
+
+    def wait(self, timeout=None):
+        return self._returncode
+
+
 class AuthenticatedDerivedMarkerTests(unittest.TestCase):
     """Offline signature boundary fixtures; no live attestation is claimed."""
 
@@ -971,21 +990,20 @@ class AuthenticatedDerivedMarkerTests(unittest.TestCase):
             f"https://huggingface.co/spaces/{HF_REPO}/resolve/{self.hf}/{MODULE.RUNTIME_MARKER}")
         return io.BytesIO(self.raw)
 
-    def verified_cli(self, command, **kwargs):
+    def popen(self, command, **kwargs):
         self.commands.append(command)
         self.assertEqual(command[:3], ["gh", "attestation", "verify"])
-        self.assertEqual(kwargs["timeout"], 45)
         self.assertEqual(kwargs["env"]["GH_TOKEN"], "fixture-job-read-token")
         self.assertNotIn("GITHUB_TOKEN", kwargs["env"])
         self.assertNotIn("HF_TOKEN", kwargs["env"])
         body = Path(command[3]).read_bytes()
         kwargs["stdout"].write(self.canonical([{"verificationResult": {"signature": {
             "certificate": {"runInvocationURI": self.invocation}}}}]))
-        return MODULE.subprocess.CompletedProcess(command, 0 if body == self.expected_binding else 1)
+        return FakeVerifierProcess(0 if body == self.expected_binding else 1)
 
     def verify(self):
         with mock.patch.dict(MODULE.os.environ, {"GITHUB_TOKEN": "fixture-job-read-token"}), \
-                mock.patch.object(MODULE.subprocess, "run", side_effect=self.verified_cli):
+                mock.patch.object(MODULE.subprocess, "Popen", side_effect=self.popen):
             return MODULE.verify_derived_runtime_marker(github_repo=GITHUB_REPO,
                 github_ref=self.source, hf_repo=HF_REPO, hf_ref=self.hf,
                 tree=self.tree, opener=self.opener)

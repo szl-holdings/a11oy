@@ -26,6 +26,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -519,6 +520,15 @@ def dot_copy_warnings(paths: tuple[str, ...]) -> list[dict[str, str]]:
             for path in sorted(normalized)]
 
 
+CONTRACT_CONSTANTS = {
+    # Module-level names the extracted contract functions read. They are
+    # loaded from the same blob-bound source as the functions themselves.
+    "szl_runtime_identity.py": {"VERIFIER_TIMEOUT", "VERIFIER_POLL",
+                               "MAX_VERIFIER_OUTPUT",
+                               "VERIFIER_CLEANUP_TIMEOUT"},
+}
+
+
 def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
     """Reuse exact source validators without importing application startup code.
 
@@ -529,6 +539,7 @@ def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
     namespace = {"__name__": "immutable_runtime_verification_contract",
                  "json": json, "math": math, "re": re, "os": os,
                  "tempfile": tempfile, "Path": Path, "subprocess": subprocess,
+                 "threading": threading, "time": time,
                  "MAX_JSON": 2 * 1024 * 1024, "MAX_FILE": 32 * 1024 * 1024,
                  "REPOSITORY": "szl-holdings/a11oy", "TARGET": "SZLHOLDINGS/a11oy",
                  "SIGNER": RUNTIME_SIGNER,
@@ -536,14 +547,28 @@ def runtime_verification_contract(*, github_repo, github_ref, tree, opener):
                               "gdw_runtime.py", ".github/scripts/hf-sync.yml"}}
     for path, wanted in (
         ("szl_readiness_artifact.py", {"EvidenceBlocked", "require", "digest", "strict"}),
-        ("szl_runtime_identity.py", {"marker_document", "validate_binding", "verify_attestation"}),
+        ("szl_runtime_identity.py", {"marker_document", "validate_binding",
+                              "verify_attestation", "verification_open",
+                              "stop_verifier"}),
     ):
         raw = _read_url(f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/{path}",
                         opener=opener, max_bytes=128 * 1024)
         require_blob_bytes(path, raw, tree.get(path))
+        contract_constants = CONTRACT_CONSTANTS.get(path, set())
         definitions = [node for node in ast.parse(raw).body
-                       if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in wanted]
-        if len(definitions) != len(wanted) or {node.name for node in definitions} != wanted:
+                       if (isinstance(node, (ast.FunctionDef, ast.ClassDef))
+                           and node.name in wanted)
+                       or (isinstance(node, ast.Assign)
+                           and any(isinstance(target, ast.Name)
+                                   and target.id in contract_constants
+                                   for target in node.targets))]
+        defined_names = {node.name for node in definitions
+                         if isinstance(node, (ast.FunctionDef, ast.ClassDef))}
+        assigned_names = {target.id for node in definitions
+                          if isinstance(node, ast.Assign)
+                          for target in node.targets
+                          if isinstance(target, ast.Name)}
+        if defined_names != wanted or not contract_constants <= assigned_names:
             raise ParityError("immutable runtime verification contract is incomplete")
         exec(compile(ast.Module(body=definitions, type_ignores=[]),
                      "<immutable-runtime-verification-contract>", "exec"), namespace)
