@@ -250,3 +250,21 @@ def test_browser_rejects_altered_script_and_keeps_all_send_buttons_disabled(monk
             assert any('integrity' in error.lower() for error in console_errors)
             assert all(row['method'] == 'GET' for row in fixture['requests'])
             assert not any('/atelier/' in row['path'] for row in fixture['requests'])
+
+
+def test_client_side_abort_of_allowed_local_get_is_not_an_error():
+    request = SimpleNamespace(method="GET", url=ORIGIN + "/api/build-info",
+                              failure="net::ERR_ABORTED")
+    assert witness.request_failure_is_error(request, ORIGIN) is False
+
+
+@pytest.mark.parametrize("method,url,failure", [
+    ("GET", ORIGIN + "/api/build-info", "net::ERR_CONNECTION_REFUSED"),
+    ("GET", "https://a-11-oy.com/api/build-info", "net::ERR_ABORTED"),
+    ("GET", ORIGIN + "/unknown", "net::ERR_ABORTED"),
+    ("POST", ORIGIN + "/api/build-info", "net::ERR_ABORTED"),
+    ("GET", ORIGIN + "/api/build-info", None),
+])
+def test_real_transport_errors_and_foreign_aborts_stay_errors(method, url, failure):
+    request = SimpleNamespace(method=method, url=url, failure=failure)
+    assert witness.request_failure_is_error(request, ORIGIN) is True
