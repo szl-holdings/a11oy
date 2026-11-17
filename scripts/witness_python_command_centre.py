@@ -197,6 +197,25 @@ def follow_skip_link(page, target, timeout=5000):
     expect(page).to_have_url(target, timeout=timeout)
 
 
+def reset_keyboard_origin(page):
+    """Rewind tab navigation in the same document, preserving browser errors.
+
+    A temporary body tabindex makes focus deterministic after Refresh without
+    another GET. Restore the original DOM attribute even if focus fails.
+    """
+    page.evaluate("""() => {
+        const body = document.body;
+        const prior = body.getAttribute('tabindex');
+        body.setAttribute('tabindex', '-1');
+        try { body.focus({preventScroll: true}); }
+        finally {
+            if (prior === null) body.removeAttribute('tabindex');
+            else body.setAttribute('tabindex', prior);
+        }
+        window.scrollTo({top:0,left:0,behavior:'instant'});
+    }""")
+
+
 def observe(browser, fixture, route, width, javascript, output):
     from playwright.sync_api import expect
     errors, requests, violations = [], [], []
@@ -250,8 +269,10 @@ def observe(browser, fixture, route, width, javascript, output):
             require(not any(urlsplit(item["url"]).path in API_PATHS for item in requests),
                     "JavaScript-disabled view unexpectedly requested runtime observations")
         result = check_presentation(page, fixture["surfaces"])
-        # Start keyboard traversal from the document, not the refresh button.
-        page.goto(fixture["origin"] + route, wait_until="networkidle")
+        # Exercise keyboard navigation without a second document navigation.
+        # A second page.goto cancels still-pending allowed GETs in Chromium and
+        # spuriously reports net::ERR_ABORTED as a failed request.
+        reset_keyboard_origin(page)
         page.keyboard.press("Tab")
         focused = page.evaluate("({tag:document.activeElement.tagName, href:document.activeElement.getAttribute('href'), top:document.activeElement.getBoundingClientRect().top})")
         require(focused["tag"] == "A" and focused["href"] == "#work" and focused["top"] >= 0,
@@ -262,6 +283,9 @@ def observe(browser, fixture, route, width, javascript, output):
                        "javascript": javascript, "observed_at": now(), "document_bytes": len(body),
                        "document_sha256": sha256(body), "keyboard_skip_link": focused,
                        "requests": requests, "errors": errors, "violations": violations})
+        require(sum(item["type"] == "document" and
+                    urlsplit(item["url"]).path == route for item in requests) == 1,
+                "presentation test unexpectedly navigated away and restarted GETs")
         require(not violations and not errors, "browser reported prohibited traffic or errors")
         if width in (320, 1280):
             name = route.strip("/").replace("/", "-") + f"-{width}-js-{'on' if javascript else 'off'}.png"

@@ -134,6 +134,29 @@ def test_skip_link_waits_for_navigation_but_rejects_wrong_destination(destinatio
 
 
 
+def test_keyboard_origin_reset_preserves_document_and_existing_body_tabindex():
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as playwright, playwright.chromium.launch(headless=True) as browser:
+        page = browser.new_page()
+        page.set_content("<a href='#work'>Skip</a><button id='refresh'>Refresh</button>"
+                         "<main id='work'>Work</main>")
+        page.evaluate("document.body.setAttribute('tabindex', '7')")
+        page.locator("#refresh").focus()
+        before_url = page.url
+        witness.reset_keyboard_origin(page)
+        assert page.url == before_url
+        assert page.locator("body").get_attribute("tabindex") == "7"
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.getAttribute('href')") == "#work"
+        # Missing original tabindex is also restored: no persistent DOM mutation.
+        page.evaluate("document.body.removeAttribute('tabindex')")
+        page.locator("#refresh").focus()
+        witness.reset_keyboard_origin(page)
+        assert page.locator("body").get_attribute("tabindex") is None
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.getAttribute('href')") == "#work"
+
+
 def test_failure_diagnostics_remain_bounded_and_omit_sensitive_url_parts():
     records = [{"method": "GET", "type": "fetch",
                 "url": "https://user:password@example.invalid/path?credential=secret#fragment"}] * 40
