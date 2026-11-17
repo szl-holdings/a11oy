@@ -54,6 +54,84 @@ class ExecutionHandoffTests(unittest.TestCase):
                 HANDOFF.validate_invocation({**self.env, **change})
         self.assertFalse(HANDOFF.validate_invocation({"GITHUB_EVENT_NAME": "push"}))
 
+    def test_vertical_dispatch_preflight_rejects_invalid_or_missing_plan(self):
+        source = "a" * 40
+        valid = json.dumps({"complete": True, "approved": True,
+                            "expected_source_revision": source})
+        manual = {"GITHUB_EVENT_NAME": "workflow_dispatch",
+                  "VERIFY_CURRENT_DEPLOYMENT": "false",
+                  "OPEN_DEPLOY_WINDOW": "true",
+                  "PUBLISH_VERTICAL_FLAGSHIPS": "true", "GITHUB_SHA": source}
+        cases = [
+            ({}, "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": ""}, "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": "{}"}, "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": json.dumps({"complete": True, "approved": False,
+                 "expected_source_revision": source})}, "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": json.dumps({"complete": True, "approved": True,
+                 "expected_source_revision": "b" * 40})}, "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": '{"complete":true,"complete":true,"approved":true}'},
+             "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": '{"complete":true,"approved":true,"n":NaN}'},
+             "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": " " * 70000}, "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": valid, "GITHUB_SHA": "c" * 40},
+             "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED"),
+            ({"VERTICAL_PLAN_JSON": valid, "GITHUB_EVENT_NAME": "push"},
+             "VERTICAL_MANUAL_DISPATCH_REQUIRED"),
+        ]
+        with mock.patch.object(HANDOFF, "collector") as network:
+            for delta, code in cases:
+                with self.subTest(delta=delta):
+                    with self.assertRaisesRegex(HANDOFF.HandoffBlocked, code):
+                        HANDOFF.validate_invocation({**manual, **delta})
+            network.assert_not_called()
+
+    def test_rejected_vertical_invocation_exits_before_credentials_or_provider(self):
+        source = "a" * 40
+        env = {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_SHA": source,
+               "VERIFY_CURRENT_DEPLOYMENT": "false", "OPEN_DEPLOY_WINDOW": "true",
+               "PUBLISH_VERTICAL_FLAGSHIPS": "true", "VERTICAL_PLAN_JSON": ""}
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(HANDOFF, "collector") as network, \
+                redirect_stderr(io.StringIO()) as stderr:
+            self.assertEqual(HANDOFF.main(["--validate-invocation"]), 2)
+        report = json.loads(stderr.getvalue())
+        self.assertEqual(report["stage"], "INVOCATION")
+        self.assertEqual(report["error"], "VERTICAL_PLAN_INCOMPLETE_OR_UNAPPROVED")
+        self.assertFalse(report["execution_authorized"])
+        self.assertFalse(report["provider_state_changed"])
+        network.assert_not_called()
+
+    def test_complete_exact_source_vertical_plan_admitted_without_execution(self):
+        source = "a" * 40
+        plan = json.dumps({"complete": True, "approved": True,
+                           "expected_source_revision": source})
+        env = {"GITHUB_EVENT_NAME": "workflow_dispatch",
+               "GITHUB_SHA": source, "VERIFY_CURRENT_DEPLOYMENT": "false",
+               "OPEN_DEPLOY_WINDOW": "true", "PUBLISH_VERTICAL_FLAGSHIPS": "true",
+               "VERTICAL_PLAN_JSON": plan}
+        with mock.patch.object(HANDOFF, "collector") as network, redirect_stdout(io.StringIO()) as output:
+            self.assertFalse(HANDOFF.validate_invocation(env))
+            with mock.patch.dict(os.environ, env, clear=True):
+                self.assertEqual(HANDOFF.main(["--validate-invocation"]), 0)
+            network.assert_not_called()
+        self.assertEqual(json.loads(output.getvalue()),
+                         {"invocation_valid": True, "execution_authorized": False})
+
+    def test_plan_must_not_hide_in_product_only_dispatch(self):
+        source = "a" * 40
+        valid = json.dumps({"complete": True, "approved": True,
+                            "expected_source_revision": source})
+        env = {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_SHA": source,
+               "VERIFY_CURRENT_DEPLOYMENT": "false", "OPEN_DEPLOY_WINDOW": "true",
+               "PUBLISH_VERTICAL_FLAGSHIPS": "false", "VERTICAL_PLAN_JSON": valid}
+        with self.assertRaisesRegex(HANDOFF.HandoffBlocked, "VERTICAL_PLAN_WITHOUT_REQUEST"):
+            HANDOFF.validate_invocation(env)
+        self.assertFalse(HANDOFF.validate_invocation(
+            {**env, "VERTICAL_PLAN_JSON": ""}))
+        self.assertFalse(HANDOFF.validate_invocation({"GITHUB_EVENT_NAME": "push"}))
+
     def test_each_independent_context_field_is_required_before_network(self):
         with mock.patch.object(HANDOFF, "admit") as network:
             for field in ("HF_REVISION", "BOOT_ID", "RUN_NONCE"):
