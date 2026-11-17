@@ -50,6 +50,7 @@ are the defects that retired v1. ``source_revision`` here is informational.
 """
 
 import contextlib
+import contextvars
 import hashlib
 import json
 import math
@@ -775,6 +776,35 @@ class StoreState:
     last_error: Optional[str] = None
 
 
+class StateWriteUnavailable(StorageBlocked):
+    """Local write admission failed; public handlers may return a retryable 503."""
+
+
+@dataclass
+class _WritePermit:
+    owner: "StateStore"
+    thread: threading.Thread
+    task: Any
+    identity: tuple[str, str, Optional[int]]
+    active: bool = True
+
+
+_WRITE_PERMIT: contextvars.ContextVar[Optional[_WritePermit]] = contextvars.ContextVar(
+    "a11oy_state_write_permit", default=None)
+
+
+def _current_task() -> Any:
+    # Passive workers can import storage after disabling sockets. Do not import
+    # asyncio/SSL here; a running task requires asyncio to be initialized already.
+    current_task = getattr(sys.modules.get("asyncio"), "current_task", None)
+    if current_task is None:
+        return None
+    try:
+        return current_task()
+    except RuntimeError:
+        return None
+
+
 class StateStore:
     def __init__(self, *, settings: Settings, objects: Any, head_backend: Any = None,
                  environ: Optional[Mapping[str, str]] = None,
@@ -1083,6 +1113,127 @@ class StateStore:
         with self._inflight_cond:
             self._inflight -= 1
             self._inflight_cond.notify_all()
+
+    def _require_write_permit(self, permit: Optional[_WritePermit]) -> None:
+        # Never acquire _lock here: release holds it while waiting for this count.
+        with self._inflight_cond:
+            if (permit is None or permit.owner is not self or not permit.active
+                    or permit.thread is not threading.current_thread()
+                    or permit.task is not _current_task()
+                    or permit.identity != (self.boot_id, self.writer_id, self.epoch)):
+                raise StateWriteUnavailable("STATE_STORE_WRITE_PERMIT_INVALID")
+            if _ACTIVE is not None and _ACTIVE is not self:
+                raise StateWriteUnavailable("STATE_STORE_OWNER_CHANGED")
+            if (self.role not in (*WRITABLE_ROLES, ROLE_HANDOVER)
+                    or any(label != "gdw" for label in self.blocked_labels())):
+                raise StateWriteUnavailable(self.fence_reason())
+
+    @contextlib.contextmanager
+    def write_scope(self):
+        """Own write admission through the actual operation, including awaits.
+
+        Only the same task and thread can join its live outer scope while
+        HANDOVER drains. ContextVar inheritance into a child task or worker
+        thread grants no authority; that worker needs a new admission.
+        """
+        permit = _WRITE_PERMIT.get()
+        if (permit is not None and permit.owner is self
+                and permit.thread is threading.current_thread()
+                and permit.task is _current_task()):
+            self._require_write_permit(permit)
+            yield
+            return
+        if _ACTIVE is not None and _ACTIVE is not self:
+            raise StateWriteUnavailable("STATE_STORE_OWNER_CHANGED")
+        if not self.begin_write():
+            raise StateWriteUnavailable(self.fence_reason())
+        permit = _WritePermit(self, threading.current_thread(), _current_task(),
+                              (self.boot_id, self.writer_id, self.epoch))
+        token = _WRITE_PERMIT.set(permit)
+        try:
+            self._require_write_permit(permit)
+            yield
+        finally:
+            permit.active = False
+            try:
+                _WRITE_PERMIT.reset(token)
+            finally:
+                self.end_write()
+
+    @contextlib.contextmanager
+    def serialized_write_scope(self, *, blocking: bool = True):
+        """Take the snapshot/lease lock before acquiring write admission.
+
+        Synchronous event-loop callbacks use nonblocking admission so a busy
+        manager cannot prevent the cancellation that releases their caller.
+        """
+        if not self._lock.acquire(blocking=blocking):
+            raise StateWriteUnavailable("STATE_STORE_BUSY")
+        try:
+            with self.write_scope():
+                yield
+        finally:
+            self._lock.release()
+
+    def _sqlite_path(self, label: str, path: Path) -> tuple[Path, StoreState]:
+        state = self.stores.get(label) if isinstance(label, str) else None
+        if state is None or state.spec.kind != "sqlite":
+            raise StateWriteUnavailable("STATE_STORE_SQLITE_LABEL_INVALID")
+        try:
+            root = self.root.resolve()
+            expected = (root / state.spec.local).resolve()
+            requested = Path(path).resolve()
+            if (expected == root or not expected.is_relative_to(root)
+                    or requested != expected):
+                raise StateWriteUnavailable("STATE_STORE_SQLITE_PATH_MISMATCH")
+        except (OSError, RuntimeError, TypeError, ValueError) as error:
+            if isinstance(error, StateWriteUnavailable):
+                raise
+            raise StateWriteUnavailable("STATE_STORE_SQLITE_PATH_INVALID") from error
+        if state.health == "BLOCKED":
+            raise StateWriteUnavailable("STATE_STORE_SQLITE_BLOCKED")
+        return expected, state
+
+    @contextlib.contextmanager
+    def sqlite_connection(self, label: str, path: Path, write: bool = False):
+        """Open exactly one managed SQLite store; close before releasing admission.
+
+        Reads never create a file or change its journal mode. A fresh writer may
+        initialize an absent store, but a missing restored/snapshotted database
+        is not replaced with an empty one.
+        """
+        expected, state = self._sqlite_path(label, path)
+        with self.write_scope() if write else contextlib.nullcontext():
+            mode = "ro"
+            if write:
+                if expected.is_file():
+                    mode = "rw"
+                elif (state.origin == ORIGIN_FRESH and state.entry is None
+                      and state.captured_at is None and not expected.exists()):
+                    expected.parent.mkdir(parents=True, exist_ok=True)
+                    mode = "rwc"
+                else:
+                    raise StateWriteUnavailable("STATE_STORE_SQLITE_MISSING")
+            connection = sqlite3.connect(expected.as_uri() + "?mode=" + mode,
+                                         uri=True, timeout=30)
+            try:
+                connection.row_factory = sqlite3.Row
+                connection.execute("PRAGMA foreign_keys=ON")
+                if write:
+                    connection.execute("PRAGMA synchronous=FULL")
+                else:
+                    connection.execute("PRAGMA query_only=ON")
+                try:
+                    yield connection
+                    if write:
+                        with self._inflight_cond:
+                            self._require_write_permit(_WRITE_PERMIT.get())
+                            connection.commit()
+                except BaseException:
+                    connection.rollback()
+                    raise
+            finally:
+                connection.close()
 
     def add_quiesce_hook(self, hook: Callable[[], Any]) -> None:
         self._quiesce_hooks.append(hook)
@@ -2021,8 +2172,10 @@ class StateStore:
 
     def _fence(self, code: str) -> None:
         self._pending_snapshot = None
-        if self.role != ROLE_FENCED:
+        with self._inflight_cond:
+            changed = self.role != ROLE_FENCED
             self.role = ROLE_FENCED
+        if changed:
             self._error(StorageBlocked(code), "lease")
             _log(f"writer FENCED ({code}); this process is read-only from now on")
 
@@ -2322,6 +2475,15 @@ def register(app: Any) -> dict[str, Any]:
     """Mount the status route and the write fence. Safe when disabled."""
     from fastapi import Request
     from fastapi.responses import JSONResponse
+
+    @app.exception_handler(StateWriteUnavailable)
+    async def a11oy_state_write_unavailable(request: Request,
+                                           error: StateWriteUnavailable) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"error": {"code": error.code, "message": "storage is read-only",
+                               "retry_after_seconds": RETRY_AFTER_SECONDS}},
+            headers={"Retry-After": str(RETRY_AFTER_SECONDS), "Cache-Control": "no-store"})
 
     @app.get("/api/a11oy/v1/storage/status")
     @app.head("/api/a11oy/v1/storage/status", include_in_schema=False)
