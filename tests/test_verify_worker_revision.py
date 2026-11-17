@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from datetime import datetime, timezone
 from email.message import Message
 from io import BytesIO
 from types import SimpleNamespace
@@ -113,25 +115,37 @@ def test_unset_revision_never_passes(monkeypatch) -> None:
     assert result.category == "REVISION_MISMATCH"
 
 
-def test_x402_paywall_is_named_and_not_retried(monkeypatch) -> None:
-    result, seen, sleeps = run(monkeypatch, [http_error(402, headers(payment_required="e30="))])
+@pytest.mark.parametrize("payment_required", [None, "not-base64", "e30="])
+def test_402_does_not_establish_provider_or_payment_and_is_not_retried(monkeypatch, payment_required) -> None:
+    response_headers = headers() if payment_required is None else headers(payment_required=payment_required)
+    result, seen, sleeps = run(monkeypatch, [http_error(402, response_headers)])
     assert result.category == "EDGE_PAYWALL"
-    assert "edge returned 402 (x402 paywall)" in result.detail
+    assert not result.ok and not result.retryable
+    assert "HTTP 402 Payment Required" in result.detail
+    assert "provider and payment protocol are not established" in result.detail
+    assert "Monetization Gateway" not in result.detail
+    assert "charged" not in result.detail and "exempt" not in result.detail
     assert len(seen) == 1 and sleeps == []
 
 
-def test_managed_challenge_is_named_and_not_retried(monkeypatch) -> None:
-    challenge = http_error(403, headers(cf_mitigated="challenge"), b"<html>Just a moment</html>")
-    result, seen, _ = run(monkeypatch, [challenge])
+@pytest.mark.parametrize("mitigation", ["challenge", "CHALLENGE"])
+def test_challenge_header_identifies_response_not_product_and_is_not_retried(monkeypatch, mitigation) -> None:
+    challenge = http_error(403, headers(cf_mitigated=mitigation), b"<html>Just a moment</html>")
+    result, seen, sleeps = run(monkeypatch, [challenge])
     assert result.category == "EDGE_CHALLENGE"
-    assert "managed challenge (Super Bot Fight Mode)" in result.detail
-    assert len(seen) == 1
+    assert not result.ok and not result.retryable
+    assert "cf-mitigated: challenge" in result.detail
+    assert "generating product and rule are not established" in result.detail
+    assert "Super Bot Fight Mode" not in result.detail and "skip" not in result.detail
+    assert len(seen) == 1 and sleeps == []
 
 
 def test_plain_403_and_redirects_are_terminal_status_failures(monkeypatch) -> None:
     for status in (403, 301, 302, 401):
         result, seen, _ = run(monkeypatch, [http_error(status)])
         assert result.category == "HTTP_STATUS" and f"status={status}" in result.detail
+        assert "challenge" not in result.detail and "Cloudflare" not in result.detail
+        assert not result.ok and not result.retryable
         assert len(seen) == 1
 
 
@@ -194,4 +208,43 @@ def test_main_reports_success_and_failure_with_annotations(monkeypatch, capsys) 
     assert readback.main(argv) == 1
     err = capsys.readouterr().err
     assert err.startswith("::error::szl-alert-relay on ntfy.a11oy.net did not prove the deployed revision")
-    assert "edge returned 402 (x402 paywall)" in err
+    assert "HTTP 402 Payment Required" in err
+    assert "Monetization Gateway" not in err and "exempt" not in err
+
+
+def test_failure_context_is_bounded_and_omits_query_headers_and_body(monkeypatch) -> None:
+    path = "/" + "a" * 512
+    url = "https://ntfy.a11oy.net" + path + "?token=QUERY_MUST_NOT_BE_LOGGED"
+    response_headers = headers(
+        cf_ray="9abc012345678def-IAD",
+        set_cookie="COOKIE_MUST_NOT_BE_LOGGED",
+        authorization="AUTH_MUST_NOT_BE_LOGGED",
+    )
+    install(monkeypatch, [http_error(403, response_headers, b"BODY_MUST_NOT_BE_LOGGED")])
+    result = readback.observe(url, worker="szl-alert-relay", revision=SHA, require_ready=False, timeout=1)
+    assert result.category == "HTTP_STATUS" and not result.retryable
+    context = json.loads(result.detail.split("; request=", 1)[1])
+    assert datetime.fromisoformat(context["observed_at_utc"]).tzinfo == timezone.utc
+    assert context["method"] == "GET" and context["hostname"] == "ntfy.a11oy.net"
+    assert context["path"] == "[REDACTED]"
+    assert context["path_sha256"] == hashlib.sha256(path.encode()).hexdigest()
+    assert context["cf_ray"] == "9abc012345678def-IAD"
+    assert "MUST_NOT_BE_LOGGED" not in result.detail and path[:32] not in result.detail
+
+
+@pytest.mark.parametrize("ray", ["", "not-a-ray", "a" * 1000, "9abc012345678def-IAD%0A::warning::injected"])
+def test_unrecognized_ray_header_is_not_reflected(monkeypatch, ray) -> None:
+    result, _, _ = run(monkeypatch, [http_error(403, headers(cf_ray=ray))])
+    context = json.loads(result.detail.split("; request=", 1)[1])
+    assert context["cf_ray"] is None
+    assert context["path"] == "/.well-known/szl-worker-revision"
+    assert context["path_sha256"] == hashlib.sha256(context["path"].encode()).hexdigest()
+    assert "injected" not in result.detail
+
+
+def test_main_escapes_percent_encoded_annotation_data(monkeypatch, capsys) -> None:
+    install(monkeypatch, [FakeResponse(200, payload(worker="other%0A::warning::injected"))])
+    argv = ["--url", URL, "--worker", "szl-alert-relay", "--expect-revision", SHA, "--attempts", "1"]
+    assert readback.main(argv) == 1
+    err = capsys.readouterr().err
+    assert "%250A" in err and len(err.splitlines()) == 1
