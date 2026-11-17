@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - honesty wall UNKNOWN label and console Ask & Act badge
+
+- The honesty wall no longer reports VIOLATED for a sovereign node that is
+  reachable but unverified. GET /api/a11oy/v1/llm/sovereign/health labels that
+  state UNKNOWN, which is in the public-estate contract truthVocabulary, so every
+  honest-label vocabulary copy now lists it. UNKNOWN counts only as the whole
+  label value: free text that merely contains the word stays VIOLATED.
+- Label change: the frontier-index catalog label for the router surface moves
+  from MODELED to UNKNOWN, taken from the unprobed sovereign sub-node on
+  /api/a11oy/v1/llm/router/status. This is a weaker claim, not an upgrade.
+- The console Ask & Act badge drops its LIVE token and reads GDW UNAVAILABLE,
+  EXECUTION ROADMAP, DRAFT ONLY, matching the console tab liveness check.
+
 ### Fixed - governed CPU lab operator integration
 
 - The authenticated CPU form at /command-centre#cpu-work now uses the pinned
