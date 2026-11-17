@@ -1,7 +1,8 @@
 {
  "registry": "szl-ouroboros-mesh-curriculum-registry",
- "version": "0.1",
+ "version": "0.2",
  "generated_utc": "2026-11-17T02:50:47Z",
+ "amended_utc": "2026-11-17 (v0.2: lap_1 honest TRAINED status; lap_2 doctrine-baked assignment per spec v0.2 §4.6)",
  "classification_method": "keyword-heuristic-v1 (honest: heuristic, human/owner review pending)",
  "dataset_count": 128,
  "entries": [
@@ -536,9 +537,25 @@
    "base_model": "Qwen/Qwen3-1.7B",
    "max_steps": 200,
    "save_steps": 25,
-   "adapter_out": "SZLHOLDINGS/salad-ring-v1 (private, worker-created)",
-   "salad_group": "szl-ring-v1",
-   "status": "IN_FLIGHT (started 2026-11-17; no completion claimed)"
+   "adapter_out": "SZLHOLDINGS/salad-ring-v1b (private, worker-created; salad-ring-v1 broken attempt stopped 202)",
+   "salad_group": "szl-ring-v1b (retry; original szl-ring-v1 crashed fail-closed at CUDA precheck)",
+   "status": "TRAINED (szl-ring-v1 crashed fail-closed at CUDA precheck - v2c sed bug root-caused, fleet-flagged; retry szl-ring-v1b TRAINED 200/200 in 422.6s, train_loss 1.6121, final-epoch loss 0.5342, mean_token_accuracy 0.8934, RTX 5090, energy MEASURED; ring receipt chain_tip 3538d48af4efcd23bfe43ab25c43a6c20d5db0c49abaf828b5871880454f9cbc, closed=false, doctrine_presence FAIL honest pre-amendment lap)"
+  },
+  "lap_2": {
+   "curriculum": "SZLHOLDINGS/ring-curriculum-v2",
+   "sources": [
+    "SZLHOLDINGS/ring-curriculum-v1 (156 rows, measured - ouroboros tail)",
+    "SZLHOLDINGS/doctrine-corpus-v2 (236 rows, measured - doctrine slice, satisfies spec v0.2 §4.6)",
+    "SZLHOLDINGS/lean-invariants-sft-v1 (304 rows, measured - invariants slice, satisfies spec v0.2 §4.6)",
+    "SZLHOLDINGS/szl-1-doctrine-sft (41 rows, measured - doctrine slice)"
+   ],
+   "fusion": "concatenation only, MEASURED manifest in dataset repo; measurement-honesty-v1 HONESTLY DEFERRED (datasets-lib load stall >6min, killed, noted in manifest)",
+   "base_model": "Qwen/Qwen3-1.7B",
+   "max_steps": 200,
+   "save_steps": 25,
+   "adapter_out": "SZLHOLDINGS/salad-ring-v2 (private, worker-created)",
+   "salad_group": "szl-ring-v2",
+   "status": "IN_FLIGHT (booted 2026-11-17T03:26:45Z; stop-on-receipt watcher armed; no completion claimed)"
   }
  }
 }
