@@ -1,371 +1,1025 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Publication waits for the configuration restart, never the old HTTP process."""
+"""Offline evidence/timeout regressions for the canonical configuration barrier."""
+from __future__ import annotations
 
+import ast
 import copy
-from email.message import Message
+from datetime import datetime, timezone
 import importlib.util
 import io
 import json
 from pathlib import Path
-
-import pytest
-import yaml
-
+import re
+import subprocess
+import sys
+import tempfile
+from types import ModuleType, SimpleNamespace
+import unittest
+from unittest.mock import patch
+from contextlib import contextmanager, redirect_stdout
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".github/scripts/await_hf_configuration_handover.py"
-SPEC = importlib.util.spec_from_file_location("configuration_handover", SCRIPT)
-barrier = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(barrier)
-SOURCE = "a" * 40
-OLD_BOOT = "boot_" + "1" * 32
-NEW_BOOT = "boot_" + "2" * 32
+SPEC = importlib.util.spec_from_file_location("config_writer_barrier", SCRIPT)
+M = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(M)
+SOURCE, HF = "a" * 40, "b" * 40
+WALL = 1_800_000_000.0
+STORE_KINDS = {
+    "gdw": "sqlite", "series_a": "sqlite", "khipu": "sqlite",
+    "khipu_council": "sqlite", "unay": "sqlite",
+    "khipu_lmdb": "lmdb", "khipu_repl": "lmdb",
+}
 
 
-def runtime(*, epoch=277, boot=OLD_BOOT, source=SOURCE, claim="CLEAN"):
-    kinds = {"gdw": "sqlite", "series_a": "sqlite", "khipu": "sqlite",
-             "khipu_council": "sqlite", "unay": "sqlite",
-             "khipu_lmdb": "lmdb", "khipu_repl": "lmdb"}
-    return [
-        {"build": {"revision": source}},
-        {"schema": "szl.series-a-status/v1", "source_revision": source,
-         "runtime_boot_id": boot},
-        {"schema": "szl.a11oy-storage-status/v2", "mode": "FENCED", "role": "WRITER",
-         "writable": True, "unfenced": False, "alert": False, "epoch": epoch,
-         "claim": claim, "lease": {"state": "ACTIVE", "sequence": 22035,
-                                    "heartbeat_age_s": 3.0},
-         "pending_publish": [], "last_error": None, "active_errors": {},
-         "stores": {name: {"kind": kind, "health": "OK", "blocked_code": None,
-                           "last_error_code": None, "snapshot_failures": 0,
-                           "integrity": "lmdb_read" if kind == "lmdb" else "quick_check",
-                           "sha16": "a" * 16, "last_snapshot_age_s": 20.0,
-                           "unsnapshotted_change_age_s": None}
-                    for name, kind in kinds.items()}},
-    ]
+def setUpModule():
+    # Only the unused transport imports are stubbed. The unmodified canonical
+    # validate_state_store_status body executes in every candidate observation.
+    def forbidden_transport(*_args, **_kwargs):
+        raise AssertionError("storage validation must not construct a transport")
+    requests = ModuleType("requests")
+    requests.Session = forbidden_transport
+    hub = ModuleType("huggingface_hub")
+    hub.HfApi = forbidden_transport
+    with patch.dict(sys.modules, {"requests": requests, "huggingface_hub": hub}):
+        M._relock()
 
 
 class Clock:
     def __init__(self):
-        self.now, self.sleeps = 0.0, []
-
-    def __call__(self):
-        return self.now
+        self.elapsed = 0.0
 
     def wall(self):
-        return 1000 + self.now
+        return WALL + self.elapsed
 
-    def sleep(self, duration):
-        self.sleeps.append(duration)
-        self.now += duration
+    def now(self):
+        return self.elapsed
 
-
-class Reader:
-    def __init__(self, observations, *, bracketed=True):
-        self.frames = [frame for value in observations for frame in (value, value)] \
-            if bracketed else observations
-        self.calls = []
-
-    def __call__(self, path, deadline):
-        index = len(self.calls)
-        assert path == barrier.PATHS[index % 3]
-        self.calls.append((path, deadline))
-        frame = self.frames[min(index // 3, len(self.frames) - 1)]
-        return copy.deepcopy(frame[index % 3])
+    def sleep(self, seconds):
+        self.elapsed += seconds
 
 
-def baseline(*, claim="CLEAN"):
-    clock = Clock()
-    return barrier.capture(Reader([runtime(claim=claim)]), clock=clock, wall_clock=clock.wall)
+def sample(clock, *, epoch=11, boot=2, state="ACTIVE", claim="CLEAN", beat=None):
+    storage_boot = f"{boot:032x}"
+    writer = f"{boot + 100:032x}"
+    runtime_boot = "boot_" + f"{boot + 200:032x}"
+    stamp = clock.wall() - clock.elapsed % 15 if beat is None else beat
+    provider = {"stage": "RUNNING", "runtime_sha": HF, "repository_sha": HF}
+    head = {
+        "schema": "szl.a11oy-state-head/v2", "bucket": M.BUCKET, "epoch": epoch,
+        "sequence": epoch * 100, "writer_id": writer, "boot_id": storage_boot,
+        "source_revision": SOURCE, "state": state,
+        "claim": {"kind": claim, "origins": {label: "RESTORED" for label in M.STORES}},
+        "lease": {"heartbeat_path": M.HEARTBEAT_PATH, "stale_after_seconds": 120},
+    }
+    heartbeat = {"schema": "szl.a11oy-state-heartbeat/v1", "epoch": epoch,
+                 "writer_id": writer, "boot_id": storage_boot, "at_unix": stamp,
+                 "at": datetime.fromtimestamp(stamp, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    status = {
+        "schema": "szl.a11oy-storage-status/v2", "mode": "FENCED", "unfenced": False,
+        "epoch": epoch, "claim": claim, "role": "WRITER" if state == "ACTIVE" else state,
+        "writable": state == "ACTIVE", "alert": False, "active_errors": {},
+        "pending_publish": [], "last_error": None,
+        "lease": {"state": state, "sequence": head["sequence"],
+                  "heartbeat_age_s": max(0, clock.wall() - stamp)},
+        "stores": {
+            label: {"kind": kind, "health": "OK", "origin": "RESTORED",
+                    "blocked_code": None, "last_error_code": None,
+                    "snapshot_failures": 0,
+                    "integrity": "lmdb_read" if kind == "lmdb" else "quick_check",
+                    "sha16": "a" * 16, "last_snapshot_age_s": 20.0,
+                    "unsnapshotted_change_age_s": None}
+            for label, kind in STORE_KINDS.items()
+        },
+    }
+    series = {"schema": "szl.series-a-status/v1", "source_revision": SOURCE, "runtime_boot_id": runtime_boot,
+              "runtime_source_identity": {
+                  "status": "REPORTED", "method": "GITHUB_ATTESTED_SOURCE_COPY_SET",
+                  "local_bytes_evidence": "MEASURED", "error": None,
+                  "hf_revision": HF, "source_revision": SOURCE, "runtime_boot_id": runtime_boot}}
+    return {"started_at": clock.wall(), "observed_at": clock.wall(),
+            "provider": provider, "provider_after": dict(provider),
+            "head_revision": "c" * 40, "head_revision_after": "c" * 40, "head_sha256": "d" * 64,
+            "head": head, "heartbeat": heartbeat, "storage": status, "series": series}
 
 
-def reports(*, wrote=True):
-    return [{"schema": "szl.hf-series-a-runtime-config/v1", "repo_id": barrier.SPACE,
-             "credential_authority_state": "VERIFIED",
-             "converged": True, "variables_changed": ["A11OY_STATE_PERIODIC_SECONDS"] if wrote else [],
-             "volume_changed": False},
-            {"schema": "szl.hf-gdw-runtime-config/v1", "repo_id": barrier.SPACE,
-             "credential_authority_state": "VERIFIED",
-             "converged": True, "variables_changed": []}]
+def baseline(clock, **kwargs):
+    value = M.validate_sample(sample(clock, epoch=10, boot=1, **kwargs), now=clock.wall(), capture=True)
+    return M.audit("BASELINE_OBSERVED", observation=value)
 
 
-def wait(reader, *, initial=None, configuration=None, timeout=60, clock=None):
-    clock = clock or Clock()
-    return barrier.await_handover(reader, baseline() if initial is None else initial,
-                                 reports() if configuration is None else configuration,
-                                 clock=clock, wall_clock=clock.wall, sleep=clock.sleep, timeout=timeout)
+def config(owner="series-a", *, changed=None):
+    value = {"schema": f"szl.hf-{owner}-runtime-config/v1", "repo_id": M.SPACE,
+             "converged": True, "credential_authority_state": "VERIFIED",
+             "variables_changed": [] if changed is None else changed}
+    if owner == "series-a":
+        value["volume_changed"] = False
+    return value
 
 
-def test_capture_records_existing_unclean_claim_without_reclassifying_it():
-    observed = baseline(claim="UNCLEAN_HANDOVER")
-    assert observed["storage_claim"] == "UNCLEAN_HANDOVER"
-    assert observed["storage_epoch"] == 277 and observed["runtime_boot_id"] == OLD_BOOT
-    assert observed["provider_writes_performed"] is False
-    assert observed["signature_status"] == "UNSIGNED"
+@contextmanager
+def collector_fixture(raw=None, *, change_response=None, bucket_count=1,
+                      on_chunk=None, wall=lambda: WALL):
+    """Exercise the actual collector with only its external read adapters replaced."""
+    raw = copy.deepcopy(sample(Clock()) if raw is None else raw)
+    head_bytes = json.dumps(raw["head"]).encode()
+    beat_bytes = json.dumps(raw["heartbeat"]).encode()
+    state = {"calls": [], "bucket_yields": 0, "requests": []}
+    calls = state["calls"]
+
+    class Api:
+        def space_info(self, repo):
+            calls.append("space_info")
+            assert repo == M.SPACE
+            return SimpleNamespace(sha=HF)
+
+        def get_space_runtime(self, repo):
+            calls.append("get_space_runtime")
+            assert repo == M.SPACE
+            return SimpleNamespace(stage="RUNNING", raw={"sha": HF})
+
+        def dataset_info(self, repo):
+            calls.append("dataset_info")
+            assert repo == M.DATASET
+            return SimpleNamespace(private=True, sha="c" * 40)
+
+        def get_paths_info(self, repo, paths, **options):
+            calls.append("get_paths_info")
+            assert repo == M.DATASET and paths == [M.HEAD_PATH]
+            assert options == {"repo_type": "dataset", "revision": "c" * 40}
+            return [SimpleNamespace(path=M.HEAD_PATH, size=len(head_bytes))]
+
+        def get_bucket_paths_info(self, repo, paths):
+            calls.append("get_bucket_paths_info")
+            assert repo == M.BUCKET and paths == [M.HEARTBEAT_PATH]
+            for _ in range(bucket_count):
+                state["bucket_yields"] += 1
+                yield SimpleNamespace(path=M.HEARTBEAT_PATH, size=len(beat_bytes))
+
+        def download_bucket_files(self, repo, files, **options):
+            calls.append("download_bucket_files")
+            assert repo == M.BUCKET
+            assert options == {"raise_on_missing_files": True}
+            assert len(files) == 1 and files[0][0].path == M.HEARTBEAT_PATH
+            Path(files[0][1]).write_bytes(beat_bytes)
+
+        def __getattr__(self, name):
+            raise AssertionError("unapproved provider method: " + name)
+
+    def download(repo, path, **options):
+        calls.append("hf_hub_download")
+        assert repo == M.DATASET and path == M.HEAD_PATH
+        assert options["revision"] == "c" * 40 and options["token"] == "offline-fixture"
+        assert options["endpoint"] == "https://huggingface.co"
+        target = Path(options["local_dir"]) / "head.json"
+        target.write_bytes(head_bytes)
+        return str(target)
+
+    class Response:
+        def __init__(self, value, url):
+            self.value, self.url = value, url
+            self.status_code = 200
+            self.headers = {"content-type": "application/json"}
+            self.body = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def iter_content(self, size):
+            assert size == 16 * 1024
+            if on_chunk is not None:
+                on_chunk()
+            yield json.dumps(self.value).encode() if self.body is None else self.body
+
+    class Session:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def get(self, url, **options):
+            calls.append("public_get")
+            state["requests"].append((url, options))
+            assert options["allow_redirects"] is False
+            assert options["timeout"] == 10 and options["stream"] is True
+            assert set(options["headers"]) == {"Accept", "Cache-Control"}
+            assert options["headers"]["Accept"] == "application/json"
+            assert url in (M.ORIGIN + "/api/a11oy/v1/storage/status",
+                           M.ORIGIN + "/api/a11oy/v1/series-a/status")
+            response = Response(raw["storage"] if url.endswith("/storage/status") else raw["series"], url)
+            if change_response is not None:
+                change_response(response)
+            return response
+
+    def api_factory(**options):
+        assert options == {"endpoint": "https://huggingface.co", "token": "offline-fixture"}
+        return Api()
+
+    hub = SimpleNamespace(HfApi=api_factory, hf_hub_download=download)
+    with patch.dict(sys.modules, {"huggingface_hub": hub, "requests": SimpleNamespace(Session=Session)}), \
+         patch.dict(M.os.environ, {"HF_TOKEN": "offline-fixture"}), \
+         patch.object(M.time, "time", side_effect=wall):
+        yield state
 
 
-@pytest.mark.parametrize("role,lease_state", [("RELEASED", "RELEASED"),
-                                               ("HANDING_OVER", "HANDOVER_REQUESTED")])
-def test_released_or_handing_over_baseline_is_truthful_and_no_change_does_not_wait(role, lease_state):
-    released = runtime()
-    released[2].update(role=role, writable=False)
-    released[2]["lease"].update(state=lease_state, heartbeat_age_s=240)
-    released[2]["stores"]["gdw"]["last_snapshot_age_s"] = 1800
-    clock = Clock()
-    initial = barrier.capture(Reader([released]), clock=clock, wall_clock=clock.wall)
-    result = wait(lambda *_args: pytest.fail("no-change must not poll"),
-                  initial=initial, configuration=reports(wrote=False), clock=clock)
-    assert result["state"] == "NOT_REQUIRED" and result["waited"] is False
-    assert result["baseline"]["storage_role"] == role
-    assert result["baseline"]["storage_lease_state"] == lease_state
-    assert result["baseline"]["storage_writable"] is False
+
+class WriterBarrierTests(unittest.TestCase):
+    def setUp(self):
+        network = patch("socket.socket.connect", side_effect=AssertionError("network forbidden"))
+        network.start()
+        self.addCleanup(network.stop)
+
+    def wait(self, clock, read=None, before=None, timeout=100, **kwargs):
+        return M.await_writer(before or baseline(clock), read or (lambda _budget: sample(clock)),
+                              clock=clock.now, wall=clock.wall, sleep=clock.sleep,
+                              timeout=timeout, **kwargs)
 
 
-def test_stale_baseline_does_not_prevent_configuration_repair_but_successor_must_be_healthy():
-    stale = runtime(claim="UNCLEAN_HANDOVER")
-    stale[2].update(alert=True, active_errors={"snapshot:gdw": {"code": "FAILED"}})
-    stale[2]["lease"]["heartbeat_age_s"] = 180
-    stale[2]["stores"]["gdw"]["last_snapshot_age_s"] = 1800
-    clock = Clock()
-    initial = barrier.capture(Reader([stale]), clock=clock, wall_clock=clock.wall)
-    result = wait(Reader([runtime(epoch=278, boot=NEW_BOOT)]), initial=initial, clock=clock)
-    assert result["state"] == "CONFIGURATION_HANDOVER_OBSERVED"
-    assert result["baseline"]["storage_claim"] == "UNCLEAN_HANDOVER"
-    assert result["observation"]["storage_claim"] == "CLEAN"
+
+    def test_retained_baseline_rejects_unknown_fields_without_echoing_surrogates(self):
+        for scope in ("top", "observation"):
+            with self.subTest(scope=scope), tempfile.TemporaryDirectory() as directory:
+                before = baseline(Clock())
+                target = before if scope == "top" else before["observation"]
+                target["extra"] = {"token": "harmless-token-surrogate",
+                                   "url": "https://example.invalid/private-fixture"}
+                source = Path(directory) / "baseline.json"
+                config_path, output = Path(directory) / "config.json", Path(directory) / "result.json"
+                source.write_text(json.dumps(before), encoding="utf-8")
+                config_path.write_text(json.dumps(config(changed=["A11OY_STATE_PERIODIC_SECONDS"])), encoding="utf-8")
+                printed = io.StringIO()
+                with patch.object(M, "read_sample", side_effect=AssertionError("invalid baseline must not read")), redirect_stdout(printed):
+                    code = M.main(["wait", "--origin", M.ORIGIN, "--owner", "series-a",
+                                   "--report", str(config_path), "--baseline", str(source), "--output", str(output)])
+                result = json.loads(output.read_text())
+                self.assertEqual(code, 2)
+                self.assertEqual(result["reason"], "BASELINE_INVALID")
+                rendered = output.read_text() + printed.getvalue()
+                self.assertNotIn("harmless-token-surrogate", rendered)
+                self.assertNotIn("example.invalid", rendered)
+                self.assertNotIn("extra", rendered)
+
+    def test_retained_baseline_rejects_unvalidated_known_fields(self):
+        mutations = (
+            {"owner_source_revision": "https://example.invalid/private-fixture"},
+            {"heartbeat_at_unix": "harmless-token-surrogate"},
+            {"heartbeat_at_unix": True},
+            {"heartbeat_age_seconds": "harmless-token-surrogate"},
+            {"heartbeat_age_seconds": float("nan")},
+            {"heartbeat_age_seconds": 1},
+        )
+        for change in mutations:
+            with self.subTest(change=change):
+                clock = Clock()
+                before = baseline(clock)
+                before["observation"].update(change)
+                with self.assertRaisesRegex(M.Hold, "^BASELINE_INVALID$"):
+                    self.wait(clock, before=before,
+                              read=lambda _budget: self.fail("invalid baseline must not read"))
+
+    def test_baseline_origin_exact_fields_and_authority_flags_fail_before_reads(self):
+        mutations = {
+            "foreign origin": lambda b: b.update(origin="https://example.invalid"),
+            "missing origin": lambda b: b.pop("origin"),
+            "foreign schema": lambda b: b.update(schema="unknown/v1"),
+            "unavailable observation": lambda b: b.update(status="BASELINE_UNAVAILABLE"),
+            "write admitted": lambda b: b.update(provider_writes=1),
+            "boolean write count": lambda b: b.update(provider_writes=False),
+            "floating write count": lambda b: b.update(provider_writes=0.0),
+            "signed claim": lambda b: b.update(signature="SIGNED"),
+            "snapshot authority": lambda b: b.update(snapshot_objects_verified=True),
+            "integer snapshot flag": lambda b: b.update(snapshot_objects_verified=0),
+            "execution authority": lambda b: b.update(execution_authority=True),
+            "integer execution flag": lambda b: b.update(execution_authority=0),
+            "same-process claim": lambda b: b.update(same_process_binding="ESTABLISHED"),
+            "missing owner source": lambda b: b["observation"].pop("owner_source_revision"),
+            "unknown observation field": lambda b: b["observation"].update(extra="untrusted"),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                clock, before = Clock(), baseline(Clock())
+                mutate(before)
+                with self.assertRaisesRegex(M.Hold, "^BASELINE_INVALID$"):
+                    self.wait(clock, before=before,
+                              read=lambda _budget: self.fail("invalid baseline must not read"))
+
+    def test_real_canonical_storage_validator_is_reused(self):
+        validator = M._relock().validate_state_store_status
+        self.assertEqual(Path(validator.__code__.co_filename).resolve(),
+                         (ROOT / ".github/scripts/verify_canonical_a11oy.py").resolve())
+        value = sample(Clock())["storage"]
+        self.assertEqual(validator(value), value)
+
+    def test_canonical_snapshot_integrity_and_freshness_negatives_remain_required(self):
+        mutations = {
+            "wrong store kind": lambda s: s["gdw"].update(kind="lmdb"),
+            "wrong SQLite integrity": lambda s: s["gdw"].update(integrity="lmdb_read"),
+            "wrong LMDB integrity": lambda s: s["khipu_lmdb"].update(integrity="quick_check"),
+            "missing snapshot digest": lambda s: s["gdw"].pop("sha16"),
+            "malformed snapshot digest": lambda s: s["gdw"].update(sha16="g" * 16),
+            "snapshot failure": lambda s: s["gdw"].update(snapshot_failures=1),
+            "boolean failure count": lambda s: s["gdw"].update(snapshot_failures=False),
+            "snapshot stale": lambda s: s["gdw"].update(last_snapshot_age_s=901),
+            "snapshot future": lambda s: s["gdw"].update(last_snapshot_age_s=-1),
+            "snapshot nonfinite": lambda s: s["gdw"].update(last_snapshot_age_s=float("nan")),
+            "boolean snapshot age": lambda s: s["gdw"].update(last_snapshot_age_s=True),
+            "unsnapshotted changes stale": lambda s: s["gdw"].update(unsnapshotted_change_age_s=901),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                value = sample(Clock())
+                mutate(value["storage"]["stores"])
+                with self.assertRaisesRegex(M.Hold, "^STORAGE_CONTRACT_NOT_HEALTHY$"):
+                    M.validate_sample(value, now=WALL)
+
+    def test_epoch_owner_identity_survives_an_unavailable_read(self):
+        clock = Clock()
+        def read(_budget):
+            if clock.elapsed == 10:
+                raise ConnectionError("temporary")
+            return sample(clock, boot=2 if clock.elapsed == 0 else 3)
+        result = self.wait(clock, read)
+        self.assertEqual(result["reason"], "LEASE_IDENTITY_CHANGED")
+        self.assertEqual(clock.elapsed, 20)
+
+    def test_owner_heartbeat_watermark_survives_an_unavailable_read(self):
+        clock = Clock()
+        def read(_budget):
+            if clock.elapsed == 10:
+                raise ConnectionError("temporary")
+            return sample(clock, beat=WALL - 1 if clock.elapsed == 20 else None)
+        result = self.wait(clock, read)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertEqual(clock.elapsed, 60)
+        self.assertTrue(any(o.get("reason") == "OBSERVATION_REGRESSED"
+                            for o in result["observations"]))
+
+    def test_newer_sequence_is_retained_when_the_same_sample_regresses_heartbeat(self):
+        clock = Clock()
+        def read(_budget):
+            value = sample(clock, beat=WALL - 1 if clock.elapsed == 10 else None)
+            sequence = 1106 if clock.elapsed == 10 else 1105
+            value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = sequence
+            return value
+        result = self.wait(clock, read, timeout=80)
+        self.assertEqual(result["status"], "HOLD")
+        owner = next(o for o in result["owner_watermarks"] if o["epoch"] == 11)
+        self.assertEqual(owner["max_sequence"], 1106)
+
+    def test_workflow_budgets_preserve_the_prior_allowance_and_both_complete_barriers(self):
+        source = (ROOT / ".github/workflows/hf-sync.yml").read_text(encoding="utf-8")
+        for name, minutes, previous in (("preflight", 50, 15), ("runtime-config", 55, 20)):
+            with self.subTest(job=name):
+                match = re.search(r"(?ms)^  " + re.escape(name) + r":\n.*?(?=^  [A-Za-z0-9_-]+:\n|\Z)", source)
+                self.assertIsNotNone(match)
+                job = match.group(0)
+                timeout = re.search(r"(?m)^    timeout-minutes: (\d+)$", job)
+                self.assertIsNotNone(timeout)
+                self.assertEqual(int(timeout.group(1)), minutes)
+                self.assertEqual(job.count("await_hf_configuration_handover.py capture"), 2)
+                self.assertEqual(job.count("await_hf_configuration_handover.py wait"), 2)
+                minimum = previous * 60 + 2 * (M.TIMEOUT_SECONDS + M.SAMPLE_SECONDS)
+                self.assertGreaterEqual(minutes * 60, minimum)
+
+    def test_final_sample_arriving_after_the_deadline_cannot_succeed(self):
+        clock = Clock()
+        def read(budget):
+            if clock.elapsed == 30:
+                clock.sleep(budget + 1)
+            return sample(clock)
+        result = self.wait(clock, read, timeout=35)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "CONFIG_WRITER_TIMEOUT")
+
+    def test_validation_finishing_after_the_deadline_cannot_succeed(self):
+        clock = Clock()
+        before = baseline(clock)
+        original = M.validate_sample
+        delayed = False
+        def validate(*args, **kwargs):
+            nonlocal delayed
+            if clock.elapsed == 30 and not delayed:
+                clock.sleep(6)
+                delayed = True
+            return original(*args, **kwargs)
+        with patch.object(M, "validate_sample", side_effect=validate):
+            result = self.wait(clock, before=before, timeout=35)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "CONFIG_WRITER_TIMEOUT")
+
+    def test_highest_epoch_survives_boot_streak_reset_and_unavailable_reads(self):
+        for interrupted in (False, True):
+            with self.subTest(interrupted=interrupted):
+                clock = Clock()
+                def read(_budget):
+                    if clock.elapsed == 0:
+                        return sample(clock, epoch=12, boot=3)
+                    if interrupted and clock.elapsed == 10:
+                        raise ConnectionError("temporary")
+                    return sample(clock, epoch=11, boot=2)
+                result = self.wait(clock, read, timeout=80)
+                self.assertEqual(result["status"], "HOLD")
+                self.assertEqual(result["max_observed_epoch"], 12)
+                self.assertTrue(any(o.get("reason") == "OBSERVED_EPOCH_REGRESSED"
+                                    for o in result["observations"]))
+
+    def test_private_head_epoch_survives_failed_public_observation(self):
+        mutations = {
+            "unhealthy public store": lambda value: value["storage"]["stores"]["gdw"].update(health="BLOCKED"),
+            "incomplete public source": lambda value: value["series"].pop("runtime_source_identity"),
+            "mismatched heartbeat owner": lambda value: value["heartbeat"].update(writer_id="f" * 32),
+            "private handover in progress": lambda value: value["head"].update(
+                state="HANDOVER", transition="HANDOVER_REQUEST",
+                handover={"requested_by": "e" * 32,
+                          "requested_at": datetime.fromtimestamp(WALL, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                clock = Clock()
+                def read(_budget):
+                    if clock.elapsed == 0:
+                        value = sample(clock, epoch=12, boot=3)
+                        mutate(value)
+                        return value
+                    return sample(clock, epoch=11, boot=2)
+                result = self.wait(clock, read, timeout=80)
+                self.assertEqual(result["status"], "HOLD")
+                self.assertEqual(result["max_observed_epoch"], 12)
+                self.assertTrue(any(o.get("reason") == "OBSERVED_EPOCH_REGRESSED"
+                                    for o in result["observations"]))
+
+    def test_private_owner_identity_survives_failed_public_health(self):
+        clock = Clock()
+        def read(_budget):
+            value = sample(clock, boot=2 if clock.elapsed == 0 else 3)
+            if clock.elapsed == 0:
+                value["storage"]["stores"]["gdw"]["health"] = "BLOCKED"
+            return value
+        result = self.wait(clock, read, timeout=80)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "LEASE_IDENTITY_CHANGED")
+        self.assertEqual(clock.elapsed, 10)
+
+    def test_private_sequence_survives_failed_public_health(self):
+        clock = Clock()
+        def read(_budget):
+            value = sample(clock)
+            value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = (
+                1105 if clock.elapsed == 0 else 1104)
+            if clock.elapsed == 0:
+                value["storage"]["stores"]["gdw"]["health"] = "BLOCKED"
+            return value
+        result = self.wait(clock, read, timeout=80)
+        self.assertEqual(result["status"], "HOLD")
+        owner = next(o for o in result["owner_watermarks"] if o["epoch"] == 11)
+        self.assertEqual(owner["max_sequence"], 1105)
+
+    def test_valid_private_heartbeat_survives_failed_public_health(self):
+        clock = Clock()
+        def read(_budget):
+            value = sample(clock, beat=WALL - 1 if clock.elapsed == 10 else None)
+            if clock.elapsed == 0:
+                value["storage"]["stores"]["gdw"]["health"] = "BLOCKED"
+            return value
+        result = self.wait(clock, read, timeout=80)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertTrue(any(o.get("reason") == "OBSERVATION_REGRESSED"
+                            for o in result["observations"]))
+        self.assertEqual(clock.elapsed, 50)
+
+    def test_invalid_private_heartbeat_cannot_poison_an_owner_watermark(self):
+        future = WALL + 600
+        future_stamp = datetime.fromtimestamp(future, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        mutations = {
+            "foreign owner": {"writer_id": "f" * 32, "at_unix": future, "at": future_stamp},
+            "future time": {"at_unix": future, "at": future_stamp},
+            "invalid timestamp": {"at": "private-value-not-for-report"},
+            "boolean timestamp": {"at_unix": True},
+            "nonfinite timestamp": {"at_unix": float("nan")},
+        }
+        for name, fields in mutations.items():
+            with self.subTest(name=name):
+                clock, records = Clock(), []
+                def read(_budget):
+                    value = sample(clock)
+                    if clock.elapsed == 0:
+                        value["heartbeat"].update(fields)
+                        value["storage"]["stores"]["gdw"]["health"] = "BLOCKED"
+                    return value
+                result = self.wait(clock, read, timeout=80, record=records.append)
+                first_owner = next(o for o in records[0]["owner_watermarks"] if o["epoch"] == 11)
+                self.assertIsNone(first_owner["max_heartbeat_at_unix"])
+                self.assertEqual(first_owner["max_sequence"], 1100)
+                self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+                self.assertEqual(clock.elapsed, 40)
+                self.assertNotIn("private-value", json.dumps(result))
+
+    def test_unbracketed_private_head_does_not_establish_an_epoch_watermark(self):
+        clock = Clock()
+        def read(_budget):
+            if clock.elapsed == 0:
+                value = sample(clock, epoch=12, boot=3)
+                value["head_revision_after"] = "e" * 40
+                return value
+            return sample(clock, epoch=11, boot=2)
+        result = self.wait(clock, read, timeout=80)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertEqual(result["max_observed_epoch"], 11)
+        self.assertEqual(clock.elapsed, 40)
+
+    def test_owner_head_sequence_watermark_survives_an_unavailable_read(self):
+        clock = Clock()
+        def read(_budget):
+            if clock.elapsed == 10:
+                raise ConnectionError("temporary")
+            value = sample(clock)
+            sequence = 1105 if clock.elapsed == 0 else 1104
+            value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = sequence
+            return value
+        result = self.wait(clock, read, timeout=80)
+        self.assertEqual(result["status"], "HOLD")
+        owner = next(o for o in result["owner_watermarks"] if o["epoch"] == 11)
+        self.assertEqual(owner["max_sequence"], 1105)
+
+    def test_released_higher_epoch_also_prevents_settling_a_lower_epoch(self):
+        clock = Clock()
+        result = self.wait(clock, lambda _budget: sample(
+            clock, epoch=12 if clock.elapsed == 0 else 11,
+            boot=3 if clock.elapsed == 0 else 2,
+            state="RELEASED" if clock.elapsed == 0 else "ACTIVE"), timeout=80)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["max_observed_epoch"], 12)
+
+    def test_same_writer_and_advancing_heartbeat_must_span_the_stability_window(self):
+        clock = Clock()
+        result = self.wait(clock)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertEqual(result["samples"], 4)
+        self.assertGreaterEqual(result["stable_seconds"], 30)
+        self.assertGreaterEqual(result["heartbeat_advance_seconds"], 15)
+        self.assertEqual(clock.elapsed, 30)
+        self.assertEqual(result["provider_writes"], 0)
+        self.assertFalse(result["execution_authority"])
+        self.assertFalse(result["snapshot_objects_verified"])
+        self.assertEqual(result["same_process_binding"], "NOT_ESTABLISHED")
+
+    def test_old_running_process_never_satisfies_a_configuration_restart(self):
+        clock = Clock()
+        result = self.wait(clock, lambda _budget: sample(clock, epoch=10, boot=1), timeout=25)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "CONFIG_WRITER_TIMEOUT")
+        self.assertEqual(clock.elapsed, 25)
+
+    def test_boot_or_epoch_churn_resets_the_complete_stability_window(self):
+        clock = Clock()
+        def read(_budget):
+            return sample(clock, epoch=11 if clock.elapsed < 20 else 12,
+                          boot=2 if clock.elapsed < 20 else 3)
+        result = self.wait(clock, read)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertEqual(clock.elapsed, 50)
+        self.assertEqual(result["samples"], 4)
+        self.assertEqual(result["observation"]["epoch"], 12)
+
+    def test_changed_writer_inside_the_same_epoch_holds_instead_of_resetting_green(self):
+        clock = Clock()
+        result = self.wait(clock, lambda _budget: sample(clock, boot=2 if clock.elapsed < 20 else 3))
+        self.assertEqual(result["reason"], "LEASE_IDENTITY_CHANGED")
+        self.assertEqual(clock.elapsed, 20)
+
+    def test_a_replayed_fresh_heartbeat_cannot_prove_progress(self):
+        clock = Clock()
+        result = self.wait(clock, lambda _budget: sample(clock, beat=WALL), timeout=70)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(clock.elapsed, 70)
+
+    def test_heartbeat_or_sequence_regression_restarts_observation(self):
+        for field in ("heartbeat", "sequence"):
+            with self.subTest(field=field):
+                clock = Clock()
+                def read(_budget):
+                    value = sample(clock)
+                    if clock.elapsed == 20:
+                        if field == "heartbeat":
+                            value["heartbeat"]["at_unix"] = WALL - 1
+                            value["heartbeat"]["at"] = datetime.fromtimestamp(WALL - 1, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        else:
+                            value["head"]["sequence"] -= 1
+                            value["storage"]["lease"]["sequence"] -= 1
+                    return value
+                result = self.wait(clock, read)
+                self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+                self.assertEqual(clock.elapsed, 60)
+
+    def test_partial_or_failed_observation_breaks_a_success_streak(self):
+        for kind in ("partial", "transport"):
+            with self.subTest(kind=kind):
+                clock = Clock()
+                def read(_budget):
+                    if clock.elapsed == 20:
+                        if kind == "transport":
+                            raise ConnectionError("private-token-not-for-report")
+                        value = sample(clock)
+                        del value["storage"]["stores"]["unay"]
+                        return value
+                    return sample(clock)
+                result = self.wait(clock, read)
+                self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+                self.assertEqual(clock.elapsed, 60)
+                self.assertNotIn("private-token", json.dumps(result))
+
+    def test_unclean_new_claim_stops_without_waiting_for_a_later_clean_claim(self):
+        clock = Clock()
+        result = self.wait(clock, lambda _budget: sample(
+            clock, epoch=11 if clock.elapsed == 0 else 12,
+            boot=2 if clock.elapsed == 0 else 3,
+            claim="UNCLEAN_HANDOVER" if clock.elapsed == 0 else "CLEAN"))
+        self.assertEqual(result["reason"], "CONFIG_RESTART_NOT_CLEAN")
+        self.assertEqual(clock.elapsed, 0)
 
 
-@pytest.mark.parametrize("old_state", ["RELEASED", "ACTIVE"])
-def test_old_277_process_cannot_satisfy_barrier_even_when_source_still_serves(old_state):
-    old = runtime()
-    if old_state == "RELEASED":
-        old[2].update(role="RELEASED", writable=False)
-        old[2]["lease"]["state"] = "RELEASED"
-    reader, clock = Reader([old]), Clock()
-    initial = barrier.capture(Reader([old]), clock=clock, wall_clock=clock.wall)
-    with pytest.raises(barrier.HandoverBlocked, match="CONFIGURATION_HANDOVER_NOT_OBSERVED"):
-        wait(reader, initial=initial, clock=clock, timeout=30)
-    assert clock.now == 30
-    assert reader.calls and all(path in barrier.PATHS for path, _deadline in reader.calls)
+
+    def test_new_unclean_claim_is_retained_even_while_public_startup_observation_is_partial(self):
+        clock = Clock()
+        def read(_budget):
+            value = sample(clock, claim="UNCLEAN_HANDOVER")
+            value["storage"] = {}
+            return value
+        result = self.wait(clock, read)
+        self.assertEqual(result["reason"], "CONFIG_RESTART_NOT_CLEAN")
+        self.assertEqual(result["candidate"]["epoch"], 11)
+        self.assertEqual(result["candidate"]["owner_source_revision"], SOURCE)
+        self.assertEqual(clock.elapsed, 0)
+
+    def test_changed_publication_during_rebuild_holds_before_public_routes_are_ready(self):
+        clock = Clock()
+        def read(_budget):
+            value = sample(clock)
+            value["provider"].update(repository_sha="e" * 40, stage="RUNNING_BUILDING")
+            value["storage"] = {}
+            return value
+        result = self.wait(clock, read)
+        self.assertEqual(result["reason"], "PUBLICATION_CHANGED")
+        self.assertEqual(clock.elapsed, 0)
+
+    def test_old_unclean_or_released_process_may_remain_visible_before_the_replacement(self):
+        for state in ("ACTIVE", "RELEASED"):
+            with self.subTest(state=state):
+                clock = Clock()
+                before = baseline(clock, state=state, claim="UNCLEAN_HANDOVER")
+                def read(_budget):
+                    if clock.elapsed < 20:
+                        return sample(clock, epoch=10, boot=1, state=state, claim="UNCLEAN_HANDOVER")
+                    return sample(clock)
+                result = self.wait(clock, read, before=before)
+                self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+                self.assertEqual(clock.elapsed, 50)
+                self.assertEqual(result["baseline"]["claim"], "UNCLEAN_HANDOVER")
+
+    def test_prior_unclean_history_is_retained_when_a_new_clean_writer_is_observed(self):
+        clock = Clock()
+        before = baseline(clock, claim="UNCLEAN_HANDOVER")
+        result = self.wait(clock, before=before)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertEqual(result["baseline"]["claim"], "UNCLEAN_HANDOVER")
+        self.assertEqual(result["observation"]["claim"], "CLEAN")
+        self.assertEqual(result["baseline"]["owner_source_revision"], SOURCE)
+
+    def test_verified_released_maintenance_baseline_can_wait_for_a_new_clean_writer(self):
+        clock = Clock()
+        before = baseline(clock, state="RELEASED", claim="UNCLEAN_HANDOVER", beat=WALL - 600)
+        result = self.wait(clock, before=before)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertEqual(result["baseline"]["state"], "RELEASED")
+
+    def test_publication_change_holds_without_synthesizing_a_new_expected_source(self):
+        clock = Clock()
+        def read(_budget):
+            value = sample(clock)
+            value["provider"]["runtime_sha"] = value["provider"]["repository_sha"] = "e" * 40
+            value["provider_after"] = dict(value["provider"])
+            value["series"]["runtime_source_identity"]["hf_revision"] = "e" * 40
+            return value
+        result = self.wait(clock, read)
+        self.assertEqual(result["reason"], "PUBLICATION_CHANGED")
+
+    def test_valid_foreign_source_is_terminal_even_when_other_evidence_fails(self):
+        mutations = {
+            "unhealthy public store": lambda value: value["storage"]["stores"]["gdw"].update(health="BLOCKED"),
+            "unbracketed private HEAD": lambda value: value.update(head_revision_after="e" * 40),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                clock = Clock()
+                def read(_budget):
+                    value = sample(clock)
+                    if clock.elapsed == 0:
+                        value["series"]["source_revision"] = "f" * 40
+                        value["series"]["runtime_source_identity"]["source_revision"] = "f" * 40
+                        mutate(value)
+                    return value
+                result = self.wait(clock, read, timeout=80)
+                self.assertEqual(result["status"], "HOLD")
+                self.assertEqual(result["reason"], "PUBLICATION_CHANGED")
+                self.assertEqual(clock.elapsed, 0)
+
+    def test_malformed_source_identity_cannot_change_the_expected_source(self):
+        mutations = {
+            "unavailable identity": {"status": "UNAVAILABLE"},
+            "unmeasured identity": {"local_bytes_evidence": "UNKNOWN"},
+            "unsupported method": {"method": "UNKNOWN"},
+            "foreign HF identity": {"hf_revision": "e" * 40},
+            "mismatched process boot": {"runtime_boot_id": "boot_" + "e" * 32},
+        }
+        for name, fields in mutations.items():
+            with self.subTest(name=name):
+                clock = Clock()
+                def read(_budget):
+                    value = sample(clock)
+                    if clock.elapsed == 0:
+                        value["series"]["source_revision"] = "f" * 40
+                        identity = value["series"]["runtime_source_identity"]
+                        identity["source_revision"] = "f" * 40
+                        identity.update(fields)
+                        value["storage"]["stores"]["gdw"]["health"] = "BLOCKED"
+                    return value
+                result = self.wait(clock, read, timeout=80)
+                self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+                self.assertEqual(result["baseline"]["source_revision"], SOURCE)
+                self.assertEqual(result["observation"]["source_revision"], SOURCE)
+                self.assertEqual(clock.elapsed, 40)
+
+    def test_missing_or_expired_baseline_cannot_grant_a_wait(self):
+        for mutation in (
+            lambda b: b["observation"].pop("runtime_boot_id"),
+            lambda b: b["observation"].pop("storage_boot_id"),
+            lambda b: b["observation"].update(epoch=True),
+            lambda b: b["observation"].update(observed_at=WALL - 901),
+            lambda b: b["observation"].update(observed_at=WALL + 1),
+        ):
+            clock = Clock()
+            before = baseline(clock)
+            mutation(before)
+            with self.assertRaises(M.Hold):
+                self.wait(clock, before=before, read=lambda _budget: self.fail("unexpected provider read"))
+
+    def test_timeout_budget_is_passed_to_each_bounded_sample_and_progress_is_retained(self):
+        clock, budgets, records = Clock(), [], []
+        def read(budget):
+            budgets.append(budget)
+            clock.sleep(min(12, budget))
+            raise M.Hold("SAMPLE_TIMEOUT")
+        result = self.wait(clock, read, timeout=25, record=records.append)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(clock.elapsed, 25)
+        self.assertEqual(budgets, [25, 3])
+        self.assertTrue(records)
+        self.assertEqual(records[-1]["status"], "WAITING")
+
+    def test_invalid_or_partial_samples_never_establish_writer_health(self):
+        cases = {
+            "future heartbeat": lambda s: s["heartbeat"].update(at_unix=WALL + 1),
+            "stale heartbeat": lambda s: s["heartbeat"].update(at_unix=WALL - 31),
+            "heartbeat owner": lambda s: s["heartbeat"].update(writer_id="f" * 32),
+            "heartbeat boot": lambda s: s["heartbeat"].update(boot_id="f" * 32),
+            "heartbeat epoch bool": lambda s: s["heartbeat"].update(epoch=True),
+            "nan heartbeat": lambda s: s["heartbeat"].update(at_unix=float("nan")),
+            "public heartbeat stale": lambda s: s["storage"]["lease"].update(heartbeat_age_s=31),
+            "head changed": lambda s: s.update(head_revision_after="e" * 40),
+            "head revision missing": lambda s: s.pop("head_revision"),
+            "stale body": lambda s: s.update(started_at=WALL - 20, observed_at=WALL - 20),
+            "slow sample": lambda s: s.update(started_at=WALL - 31),
+            "partial source": lambda s: s["series"].pop("runtime_source_identity"),
+            "runtime boot mix": lambda s: s["series"].update(runtime_boot_id="boot_" + "e" * 32),
+            "provider rebuild": lambda s: s["provider"].update(stage="RUNNING_BUILDING"),
+            "provider changed": lambda s: s["provider_after"].update(runtime_sha="e" * 40),
+            "handover requested": lambda s: s["head"].update(state="HANDOVER_REQUESTED"),
+            "unfenced": lambda s: s["storage"].update(mode="SNAPSHOT_ONLY_UNFENCED"),
+            "writable integer": lambda s: s["storage"].update(writable=1),
+            "role fenced": lambda s: s["storage"].update(role="FENCED"),
+            "lease epoch mix": lambda s: s["storage"].update(epoch=12),
+            "lease sequence mix": lambda s: s["storage"]["lease"].update(sequence=1099),
+            "active errors": lambda s: s["storage"].update(active_errors={"snapshot": {"code": "ERROR"}}),
+            "pending publish": lambda s: s["storage"].update(pending_publish=["gdw"]),
+            "store unknown": lambda s: s["storage"]["stores"]["gdw"].update(health="UNKNOWN"),
+            "store absent": lambda s: s["storage"]["stores"].pop("gdw"),
+            "restoration absent": lambda s: s["head"]["claim"]["origins"].pop("gdw"),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(name=name):
+                clock = Clock()
+                value = sample(clock)
+                mutate(value)
+                with self.assertRaises(M.Hold):
+                    M.validate_sample(value, now=clock.wall())
+
+    def test_only_explicit_valid_no_effect_reports_skip_provider_reads(self):
+        for owner in ("series-a", "gdw"):
+            with self.subTest(owner=owner), tempfile.TemporaryDirectory() as directory:
+                report, output = Path(directory) / "config.json", Path(directory) / "result.json"
+                report.write_text(json.dumps(config(owner)), encoding="utf-8")
+                with patch.object(M, "read_sample", side_effect=AssertionError("must not read")), redirect_stdout(io.StringIO()):
+                    code = M.main(["wait", "--origin", M.ORIGIN, "--owner", owner, "--report", str(report),
+                                   "--baseline", str(Path(directory) / "absent.json"), "--output", str(output)])
+                self.assertEqual(code, 0)
+                self.assertEqual(json.loads(output.read_text())["status"], "NO_CONFIGURATION_WRITE")
+        self.assertTrue(M.report_wrote(config(changed=["A11OY_STATE_PERIODIC_SECONDS"]), "series-a"))
+        value = config()
+        value["volume_changed"] = True
+        self.assertTrue(M.report_wrote(value, "series-a"))
+
+    def test_cli_requires_the_fixed_origin_before_capture_or_no_write(self):
+        for mode in ("capture", "wait"):
+            for origin in (None, "https://example.invalid", M.ORIGIN + "/", "http://szlholdings-a11oy.hf.space"):
+                with self.subTest(mode=mode, origin=origin), tempfile.TemporaryDirectory() as directory:
+                    output, report = Path(directory) / "result.json", Path(directory) / "config.json"
+                    report.write_text(json.dumps(config()), encoding="utf-8")
+                    args = [mode, "--output", str(output)]
+                    if origin is not None:
+                        args += ["--origin", origin]
+                    if mode == "wait":
+                        args += ["--owner", "series-a", "--report", str(report),
+                                 "--baseline", str(Path(directory) / "absent.json")]
+                    with patch.object(M, "read_sample", side_effect=AssertionError("origin must fail before read")), redirect_stdout(io.StringIO()):
+                        code = M.main(args)
+                    self.assertEqual(code, 2)
+                    self.assertEqual(json.loads(output.read_text())["reason"], "CANONICAL_ORIGIN_REQUIRED")
+
+    def test_cli_accepts_exactly_one_report_for_the_selected_owner(self):
+        for owner, count, report_owner in (("series-a", 0, "series-a"),
+                                            ("series-a", 2, "series-a"),
+                                            ("series-a", 1, "gdw"),
+                                            ("gdw", 1, "series-a")):
+            with self.subTest(owner=owner, count=count, report_owner=report_owner), tempfile.TemporaryDirectory() as directory:
+                report, output = Path(directory) / "config.json", Path(directory) / "result.json"
+                report.write_text(json.dumps(config(report_owner)), encoding="utf-8")
+                args = ["wait", "--origin", M.ORIGIN, "--owner", owner,
+                        "--baseline", str(Path(directory) / "absent.json"), "--output", str(output)]
+                for _ in range(count):
+                    args += ["--report", str(report)]
+                with patch.object(M, "read_sample", side_effect=AssertionError("invalid report must not read")), redirect_stdout(io.StringIO()):
+                    code = M.main(args)
+                self.assertEqual(code, 2)
+                self.assertEqual(json.loads(output.read_text())["reason"],
+                                 "ARGUMENTS_INVALID" if count != 1 else "CONFIG_REPORT_INVALID")
+
+    def test_malformed_owner_specific_effects_are_rejected(self):
+        oversized = config(changed=["VARIABLE_" + str(n) for n in range(257)])
+        gdw_volume = config("gdw")
+        gdw_volume["volume_changed"] = True
+        for owner, value in (("series-a", oversized), ("gdw", gdw_volume)):
+            with self.subTest(owner=owner), self.assertRaisesRegex(M.Hold, "^CONFIG_REPORT_INVALID$"):
+                M.report_wrote(value, owner)
+
+    def test_malformed_convergence_report_is_not_interpreted_as_no_write(self):
+        mutations = [
+            lambda r: r.pop("variables_changed"),
+            lambda r: r.update(variables_changed=[[]]),
+            lambda r: r.update(variables_changed=["A", "A"]),
+            lambda r: r.update(variables_changed=False),
+            lambda r: r.update(converged=1),
+            lambda r: r.update(credential_authority_state="UNKNOWN"),
+            lambda r: r.update(volume_changed=0),
+            lambda r: r.update(repo_id="other/space"),
+        ]
+        for change in mutations:
+            value = config()
+            change(value)
+            with self.assertRaises(M.Hold):
+                M.report_wrote(value, "series-a")
 
 
-def test_new_clean_278_writer_requires_three_stable_bracketed_observations():
-    reader, clock = Reader([runtime(epoch=278, boot=NEW_BOOT)]), Clock()
-    result = wait(reader, clock=clock)
-    assert result["state"] == "CONFIGURATION_HANDOVER_OBSERVED"
-    assert result["polls"] == 3 and len(reader.calls) == 18
-    assert clock.sleeps == [10, 10]
-    assert result["observation"]["storage_epoch"] == 278
-    assert result["observation"]["runtime_boot_id"] == NEW_BOOT
-    assert result["provider_writes_performed"] is False and result["publication_performed"] is False
+    def test_unavailable_baseline_is_recorded_but_only_an_actual_write_requires_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "baseline.json"
+            with patch.object(M, "read_sample", side_effect=M.Hold("SAMPLE_TIMEOUT")), redirect_stdout(io.StringIO()):
+                code = M.main(["capture", "--origin", M.ORIGIN, "--output", str(output)])
+            self.assertEqual(code, 0)
+            before = json.loads(output.read_text())
+            self.assertEqual(before["status"], "BASELINE_UNAVAILABLE")
+            with self.assertRaisesRegex(M.Hold, "^BASELINE_INVALID$"):
+                self.wait(Clock(), before=before)
+
+    def test_capture_does_not_assert_writer_health_when_observation_is_partial(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "baseline.json"
+            value = sample(Clock())
+            del value["head"]
+            with patch.object(M, "read_sample", return_value=value), patch.object(M.time, "time", return_value=WALL), redirect_stdout(io.StringIO()):
+                self.assertEqual(M.main(["capture", "--origin", M.ORIGIN, "--output", str(output)]), 0)
+            result = json.loads(output.read_text())
+            self.assertEqual(result["status"], "BASELINE_UNAVAILABLE")
+            self.assertNotIn("observation", result)
+
+    def test_child_deadline_and_provider_failure_are_sanitized(self):
+        called = []
+        def timeout(command, **kwargs):
+            called.append((command, kwargs))
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"], stderr="secret-value")
+        with patch.object(M.subprocess, "run", side_effect=timeout):
+            with self.assertRaisesRegex(M.Hold, "^SAMPLE_TIMEOUT$"):
+                M.read_sample(3)
+        self.assertEqual(called[0][1]["timeout"], 3)
+        self.assertEqual(called[0][1]["stderr"], subprocess.DEVNULL)
+        self.assertNotIn("GITHUB_TOKEN", called[0][1]["env"])
+        self.assertNotIn("GH_TOKEN", called[0][1]["env"])
+        self.assertEqual(called[0][0][1:3], ["-I", "-B"])
+        self.assertEqual(called[0][0][-1], "sample")
+        with patch.object(M.subprocess, "run", return_value=SimpleNamespace(
+                returncode=2, stdout=b"private-value")):
+            with self.assertRaisesRegex(M.Hold, "^SAMPLE_READ_UNAVAILABLE$"):
+                M.read_sample(30)
+
+    def test_child_budget_is_capped_and_invalid_budgets_do_not_spawn(self):
+        with patch.object(M.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout=b"{}")) as runner:
+            self.assertEqual(M.read_sample(900), {})
+            self.assertEqual(runner.call_args.kwargs["timeout"], M.SAMPLE_SECONDS)
+        for value in (0, -1, True, float("nan"), float("inf")):
+            with self.subTest(value=value), patch.object(M.subprocess, "run") as runner:
+                with self.assertRaisesRegex(M.Hold, "^READ_DEADLINE_EXHAUSTED$"):
+                    M.read_sample(value)
+                runner.assert_not_called()
+
+    def test_duplicate_nonfinite_and_oversized_json_fail_closed(self):
+        for raw in (b'{"x":1,"x":2}', b'{"x":NaN}', b"[]", b" " * (8 * M.MAX_BYTES + 1)):
+            with self.assertRaises(M.Hold):
+                M.strict_json(raw)
 
 
-@pytest.mark.parametrize("change", [
-    {"claim": "UNCLEAN_HANDOVER"}, {"claim": "FIRST_BOOT"},
-    {"source": "b" * 40}, {"boot": OLD_BOOT}, {"epoch": 277}, {"epoch": 276},
-])
-def test_new_process_must_be_clean_later_and_on_the_prepublication_source(change):
-    arguments = {"epoch": 278, "boot": NEW_BOOT, **change}
-    with pytest.raises(barrier.HandoverBlocked, match="CONFIGURATION_HANDOVER_NOT_OBSERVED"):
-        wait(Reader([runtime(**arguments)]), timeout=1)
+    def test_real_adapter_reads_iterable_bucket_metadata_and_never_forwards_hub_auth_to_public_gets(self):
+        with collector_fixture() as fixture:
+            observed = M.collect_sample()
+            normalized = M.validate_sample(observed, now=WALL)
+        calls = fixture["calls"]
+        self.assertEqual(normalized["epoch"], 11)
+        self.assertEqual(fixture["bucket_yields"], 1)
+        self.assertEqual(calls.count("download_bucket_files"), 1)
+        self.assertEqual(calls.count("public_get"), 2)
+        self.assertEqual(calls.count("dataset_info"), 2)
+        self.assertEqual(set(calls), {"space_info", "get_space_runtime", "dataset_info",
+                                     "get_paths_info", "get_bucket_paths_info", "hf_hub_download",
+                                     "download_bucket_files", "public_get"})
+
+    def test_public_readback_refuses_redirect_non_json_and_malformed_bodies(self):
+        cases = (
+            ("redirect status", lambda r: setattr(r, "status_code", 302), "PUBLIC_READ_UNAVAILABLE"),
+            ("foreign URL", lambda r: setattr(r, "url", "https://example.invalid/private-fixture"), "PUBLIC_REDIRECT_REFUSED"),
+            ("HTML", lambda r: r.headers.update({"content-type": "text/html"}), "PUBLIC_READ_NOT_JSON"),
+            ("missing content type", lambda r: r.headers.clear(), "PUBLIC_READ_NOT_JSON"),
+            ("oversized", lambda r: setattr(r, "body", b"x" * (2 * M.MAX_BYTES + 1)), "PUBLIC_READ_TOO_LARGE"),
+            ("malformed", lambda r: setattr(r, "body", b"private-body-surrogate"), "JSON_INVALID"),
+            ("duplicate key", lambda r: setattr(r, "body", b'{"x":1,"x":2}'), "DUPLICATE_JSON_KEY"),
+            ("nonfinite", lambda r: setattr(r, "body", b'{"x":NaN}'), "NONFINITE_JSON_VALUE"),
+        )
+        for name, mutate, reason in cases:
+            with self.subTest(name=name), collector_fixture(change_response=mutate):
+                with self.assertRaisesRegex(M.Hold, "^" + reason + "$") as caught:
+                    M.collect_sample()
+                self.assertNotIn("private-fixture", str(caught.exception))
+                self.assertNotIn("private-body-surrogate", str(caught.exception))
+
+    def test_iterable_bucket_metadata_is_bounded_and_requires_one_object(self):
+        for count in (0, 3):
+            with self.subTest(count=count), collector_fixture(bucket_count=count) as fixture:
+                with self.assertRaisesRegex(M.Hold, "^HEARTBEAT_SIZE_INVALID$"):
+                    M.collect_sample()
+                self.assertEqual(fixture["bucket_yields"], min(count, 2))
+                self.assertNotIn("download_bucket_files", fixture["calls"])
+
+    def test_slow_public_body_cannot_make_a_late_final_observation_succeed(self):
+        clock = Clock()
+        def read(_budget):
+            if clock.elapsed != 30:
+                return sample(clock)
+            with collector_fixture(sample(clock), on_chunk=lambda: clock.sleep(6), wall=clock.wall):
+                return M.collect_sample()
+        result = self.wait(clock, read, timeout=35)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "CONFIG_WRITER_TIMEOUT")
+
+    def test_released_replacement_cannot_be_reported_as_a_settled_writer(self):
+        clock = Clock()
+        result = self.wait(clock, lambda _budget: sample(clock, state="RELEASED"), timeout=35)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "CONFIG_WRITER_TIMEOUT")
+        self.assertTrue(any(value.get("reason") == "REPLACEMENT_NOT_ACTIVE"
+                            for value in result["observations"]))
+
+    def test_read_closure_contains_no_provider_mutation_or_runtime_construction(self):
+        tree = ast.parse(SCRIPT.read_text(encoding="utf-8"))
+        methods = {n.func.attr for n in ast.walk(tree)
+                   if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
+        for name in ("create_commit", "restart_space", "pause_space", "add_space_variable",
+                     "delete_space_variable", "set_space_volumes", "upload_bucket_files", "activate"):
+            self.assertNotIn(name, methods)
+        self.assertNotIn("a11oy_state_store", SCRIPT.read_text(encoding="utf-8"))
 
 
-@pytest.mark.parametrize("mutation", [
-    lambda state: state.update(mode="SNAPSHOT_ONLY_UNFENCED"),
-    lambda state: state.update(unfenced=True),
-    lambda state: state.update(writable=False),
-    lambda state: state.update(alert=True),
-    lambda state: state.update(active_errors={"snapshot:gdw": {"code": "FAILED"}}),
-    lambda state: state.pop("active_errors"),
-    lambda state: state.update(last_error={"code": "FAILED"}),
-    lambda state: state.update(pending_publish=["gdw"]),
-    lambda state: state["lease"].update(heartbeat_age_s=121),
-    lambda state: state["stores"].pop("gdw"),
-    lambda state: state["stores"]["gdw"].update(snapshot_failures=1),
-    lambda state: state["stores"]["gdw"].update(last_snapshot_age_s=901),
-])
-def test_canonical_storage_invariants_remain_required(mutation):
-    current = runtime(epoch=278, boot=NEW_BOOT)
-    mutation(current[2])
-    with pytest.raises(barrier.HandoverBlocked):
-        wait(Reader([current]), timeout=1)
-
-
-def test_epoch_or_process_bounce_resets_stable_streak():
-    second = runtime(epoch=278, boot=NEW_BOOT)
-    third = runtime(epoch=279, boot="boot_" + "3" * 32)
-    reader = Reader([second, second, third, third, third])
-    result = wait(reader)
-    assert result["polls"] == 5 and result["observation"]["storage_epoch"] == 279
-
-
-def test_identity_change_within_bracket_is_not_a_valid_observation():
-    reader = Reader([runtime(), runtime(epoch=278, boot=NEW_BOOT)], bracketed=False)
-    with pytest.raises(barrier.HandoverBlocked, match="RUNTIME_IDENTITY_CHANGED_DURING_READ"):
-        barrier.observe(reader, 30)
-
-
-def test_no_provider_change_performs_no_poll_or_sleep():
-    clock = Clock()
-    def forbidden_read(*_args):
-        pytest.fail("no-change convergence must not wait for another process")
-    result = wait(forbidden_read, configuration=reports(wrote=False), clock=clock)
-    assert result["state"] == "NOT_REQUIRED" and result["waited"] is False
-    assert result["polls"] == 0 and clock.sleeps == []
-
-
-@pytest.mark.parametrize("mutation", [
-    lambda values: values.pop(),
-    lambda values: values.append(copy.deepcopy(values[0])),
-    lambda values: values.__setitem__(1, copy.deepcopy(values[0])),
-    lambda values: values[0].update(converged=False),
-    lambda values: values[0].update(credential_authority_state="UNKNOWN"),
-    lambda values: values[0].update(repo_id="SZLHOLDINGS/other"),
-    lambda values: values[0].pop("variables_changed"),
-    lambda values: values[0].update(variables_changed=""),
-    lambda values: values[0].update(variables_changed=["PRIVATE\nDETAIL"]),
-    lambda values: values[0].pop("volume_changed"),
-    lambda values: values[0].update(volume_changed="false"),
-])
-def test_missing_or_malformed_reports_cannot_become_no_change_success(mutation):
-    values = reports(wrote=False)
-    mutation(values)
-    with pytest.raises(barrier.HandoverBlocked, match="CONFIGURATION_REPORTS_INVALID"):
-        wait(lambda *_args: pytest.fail("invalid reports must fail before GET"), configuration=values)
-
-
-@pytest.mark.parametrize("mutation", [
-    lambda value: value.pop("runtime_boot_id"),
-    lambda value: value.update(runtime_boot_id="private-provider-detail"),
-    lambda value: value.update(storage_epoch=True),
-    lambda value: value.update(source_revision="a" * 39),
-    lambda value: value.update(observed_at_unix=99),
-    lambda value: value.update(observed_at_unix=1001),
-    lambda value: value.update(origin="https://other.example"),
-])
-def test_invalid_baseline_holds_before_readback(mutation):
-    value = baseline()
-    mutation(value)
-    with pytest.raises(barrier.HandoverBlocked, match="BASELINE_"):
-        wait(lambda *_args: pytest.fail("invalid baseline must fail before GET"), initial=value)
-
-
-class Response:
-    def __init__(self, body=b'{"ok":true}', *, status=200, url=None, content_type="application/json"):
-        self.stream = io.BytesIO(body)
-        self.status = status
-        self.url = url or barrier.ORIGIN + barrier.PATHS[0]
-        self.headers = Message()
-        self.headers["Content-Type"] = content_type
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_args):
-        self.stream.close()
-
-    def geturl(self):
-        return self.url
-
-    def read1(self, size):
-        return self.stream.read1(size)
-
-
-class Opener:
-    def __init__(self, response):
-        self.response, self.calls = response, []
-
-    def open(self, request, *, timeout):
-        self.calls.append((request, timeout))
-        if isinstance(self.response, Exception):
-            raise self.response
-        return self.response
-
-
-def test_transport_has_only_fixed_origin_gets_and_no_credentials_or_redirects():
-    opener = Opener(Response())
-    transport = barrier.ReadOnlyTransport(barrier.ORIGIN, opener=opener, clock=lambda: 0)
-    assert transport(barrier.PATHS[0], 30) == {"ok": True}
-    request, timeout = opener.calls[0]
-    assert request.method == "GET" and request.full_url == barrier.ORIGIN + barrier.PATHS[0]
-    assert request.data is None and timeout == 5
-    assert set(dict(request.header_items())) == {"Accept", "Accept-encoding", "Cache-control"}
-    assert barrier._NoRedirect().redirect_request(None, None, 302, "", {}, "https://other.example") is None
-    with pytest.raises(barrier.HandoverBlocked, match="FIXED_READ_ROUTE_REQUIRED"):
-        transport("https://other.example/", 30)
-    assert len(opener.calls) == 1
-
-
-@pytest.mark.parametrize("response", [
-    Response(status=302), Response(url="https://other.example"), Response(content_type="text/html"),
-    Response(body=b'x' * (barrier.MAX_BYTES + 1)), Response(body=b'{"x":1,"x":2}'),
-    Response(body=b'{"x":NaN}'), OSError("private-provider-detail"),
-])
-def test_transport_refuses_unbounded_malformed_or_redirected_readback(response):
-    transport = barrier.ReadOnlyTransport(barrier.ORIGIN, opener=Opener(response), clock=lambda: 0)
-    with pytest.raises(barrier.HandoverBlocked) as error:
-        transport(barrier.PATHS[0], 30)
-    assert "private-provider-detail" not in str(error.value)
-
-
-def test_body_stream_cannot_extend_the_overall_observation_deadline():
-    clock = Clock()
-    response = Response()
-    original = response.read1
-    def slow_read(size):
-        clock.now += 6
-        return original(size)
-    response.read1 = slow_read
-    transport = barrier.ReadOnlyTransport(barrier.ORIGIN, opener=Opener(response), clock=clock)
-    with pytest.raises(barrier.HandoverBlocked, match="READ_DEADLINE_EXHAUSTED"):
-        transport(barrier.PATHS[0], 5)
-
-
-def test_cli_missing_baseline_returns_fixed_failed_receipt(tmp_path, capsys):
-    output = tmp_path / "result.json"
-    assert barrier.main(["wait", "--origin", barrier.ORIGIN, "--baseline",
-                         str(tmp_path / "private-provider-detail"), "--output", str(output)]) == 1
-    result = json.loads(output.read_text())
-    assert result["state"] == "BLOCKED" and result["provider_writes_performed"] is False
-    assert result["diagnostic_code"] == "LOCAL_OBSERVATION_DOCUMENT_INVALID"
-    assert "private-provider-detail" not in capsys.readouterr().out
-
-
-def test_cli_extra_baseline_field_is_rejected_without_echoing_it(tmp_path, capsys):
-    initial = baseline()
-    initial["private_extra"] = "private-baseline-sentinel"
-    source, output = tmp_path / "baseline.json", tmp_path / "result.json"
-    source.write_text(json.dumps(initial))
-    assert barrier.main(["wait", "--origin", barrier.ORIGIN, "--baseline", str(source),
-                         "--output", str(output)]) == 1
-    rendered = output.read_text() + capsys.readouterr().out
-    assert "private-baseline-sentinel" not in rendered and "private_extra" not in rendered
-    assert json.loads(output.read_text())["diagnostic_code"] == "BASELINE_INVALID"
-
-
-def test_workflow_barrier_precedes_convergence_and_fresh_publication_ownership():
-    workflow = yaml.safe_load((ROOT / ".github/workflows/hf-sync.yml").read_text())
-    steps = workflow["jobs"]["preflight"]["steps"]
-    capture_index = next(i for i, step in enumerate(steps)
-                         if "await_hf_configuration_handover.py capture" in step.get("run", ""))
-    configure_index = next(i for i, step in enumerate(steps) if step.get("id") == "converge")
-    owner_index = next(i for i, step in enumerate(steps) if step.get("id") == "owner")
-    assert capture_index < configure_index < owner_index
-    code = steps[configure_index]["run"]
-    assert code.index("configure_hf_series_a_runtime.py") < code.index("configure_hf_gdw_runtime.py")
-    assert code.index("configure_hf_gdw_runtime.py") < code.index("await_hf_configuration_handover.py wait")
-    assert code.index("await_hf_configuration_handover.py wait") < code.index("echo 'converged=true'")
-    assert "set -euo pipefail" in code and "continue-on-error" not in steps[configure_index]
-    assert "steps.window.outputs.open == 'true'" in steps[capture_index]["if"]
-    assert "steps.runtime.outputs.converge == 'true'" in steps[capture_index]["if"]
-    assert "hf_exact_main_ownership.py" in steps[owner_index]["run"]
-    assert workflow["jobs"]["deploy"]["needs"] == ["source-admission", "preflight"]
-    assert "needs.preflight.result == 'success'" in workflow["jobs"]["deploy"]["if"]
-    post = workflow["jobs"]["runtime-config"]["steps"]
-    assert any("await_hf_runtime_serving.py" in step.get("run", "") for step in post)
-
-
-def test_existing_ci_executes_the_new_tests_with_its_control_client_dependencies():
-    workflow = (ROOT / ".github/workflows/series-a-live-control-plane.yml").read_text()
-    assert ".github/requirements/ci-execution.txt" in workflow
-    assert "python -B -m pytest -q -p no:cacheprovider tests/test_hf_configuration_handover.py" in workflow
+if __name__ == "__main__":
+    unittest.main()

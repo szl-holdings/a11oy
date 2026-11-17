@@ -813,14 +813,16 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # stage without restarting it, requires an open deploy window while SQLite lives
 # on the bucket mount, re-admits current main before each configuration command,
 # and each helper re-reads exact main before each provider mutation. Any
-# configuration error fails; current main is re-admitted before deploy;
-# runtime-config re-admits current main before any deferred configuration write
+# configuration error fails; each changed configuration batch is observed with
+# the sole read-only handover helper before another batch or publication.
+# Current main is re-admitted before deploy; runtime-config repeats those
+# observations and re-admits main before any deferred configuration write
 # against the deployed revision. Every gate is an invariant (protected main, newest main
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "62c11341a70331c3ce3e585fca81371ed3510b7918ec66cebbddbf090498c03e"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "f31c0be60794030747539b9f60037698b3c26bc8930dc9d0fe1e2612c1ef9e1a"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "7564daf369a12f1be3737bab4629acc83ac078def2c32a98e03cede3616aaa97"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "97e8984ca6c46878b548d7815c52ea5b3048a81d5639964cc9e9729815653d28"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
 # package-bound Chromium revision, and gates relock on success.
@@ -847,10 +849,10 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
-    # Read-only proof of a new clean configuration writer before publication.
-    ".github/scripts/await_hf_configuration_handover.py": "4e49d195c0e7da1a7260dd4ad7ca84835c9e8d26fdf522e6928d9166e7a13852",
+    # Read-only observation after each configuration batch, including deferred writes.
+    ".github/scripts/await_hf_configuration_handover.py": "26bf70445971aab74c00123daa7612aee38187b7d2fe3265669ecda8123d1774",
     "scripts/configure_hf_series_a_runtime.py": "dc4d54b31beb794e62e66ec614bd46257353d0ecdf2645e7295655cb2d96f60c",
-    "scripts/configure_hf_gdw_runtime.py": "289c0a3d0896c3b10321e2aa3f4543188e238cf22b1b79d632c98cbf23ba0462",
+    "scripts/configure_hf_gdw_runtime.py": "43611e182618321ed70647afee9e017295a7fedc6d29446e5b209059abdc28f3",
     # Installed-authority verifier imported by both configure helpers, with
     # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
