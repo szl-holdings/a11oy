@@ -50,8 +50,14 @@ Content-Type: application/json
 | 503 | `{"error": "not_configured"}` — secret, binding, or sender unusable |
 
 `GET /.well-known/szl-worker-revision` (no auth, no secret material):
-`{"worker": "szl-email-sender", "source_revision": "<40-hex or null>", "ready": true|false}`.
-The deploy workflow reads this back.
+`{"worker": "szl-email-sender", "source_revision": "<40-hex or null>", "ready": true|false, "readiness_checks": {...}}`.
+The deploy workflow reads this back. `readiness_checks` contains four fixed
+Booleans: `secret_requirement_met`, `sender_valid`, `send_binding_callable`,
+and `email_message_available`. They apply the same configuration predicates
+used by the send path; `ready` is true only when all four are true. No secret
+value, length, digest, sender address, binding object, or error text is returned.
+These checks do not establish bearer agreement with a caller, provider
+acceptance, or delivery to a mailbox.
 
 Limits: the request body is at most 64 KiB; `to` is one bare ASCII addr-spec
 (no display name, no list, no quoted local part, no IP literal, at most 254
