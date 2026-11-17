@@ -32,6 +32,14 @@ STORE_KINDS = {
     "khipu_council": "sqlite", "unay": "sqlite",
     "khipu_lmdb": "lmdb", "khipu_repl": "lmdb",
 }
+OWNER_TREE = ast.parse((ROOT / "a11oy_state_store.py").read_text(encoding="utf-8"))
+OWNER_STATES = {
+    target.id: node.value.value
+    for node in OWNER_TREE.body if isinstance(node, ast.Assign)
+    and isinstance(node.value, ast.Constant)
+    for target in node.targets if isinstance(target, ast.Name)
+    and target.id in ("STATE_ACTIVE", "STATE_HANDOVER", "STATE_RELEASED")
+}
 
 
 def setUpModule():
@@ -435,7 +443,7 @@ class WriterBarrierTests(unittest.TestCase):
             "incomplete public source": lambda value: value["series"].pop("runtime_source_identity"),
             "mismatched heartbeat owner": lambda value: value["heartbeat"].update(writer_id="f" * 32),
             "private handover in progress": lambda value: value["head"].update(
-                state="HANDOVER", transition="HANDOVER_REQUEST",
+                state=OWNER_STATES["STATE_HANDOVER"], transition="HANDOVER_REQUEST",
                 handover={"requested_by": "e" * 32,
                           "requested_at": datetime.fromtimestamp(WALL, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}),
         }
@@ -453,6 +461,128 @@ class WriterBarrierTests(unittest.TestCase):
                 self.assertEqual(result["max_observed_epoch"], 12)
                 self.assertTrue(any(o.get("reason") == "OBSERVED_EPOCH_REGRESSED"
                                     for o in result["observations"]))
+
+    def test_private_state_contract_matches_the_canonical_owner(self):
+        self.assertEqual(set(OWNER_STATES), {"STATE_ACTIVE", "STATE_HANDOVER", "STATE_RELEASED"})
+        clock = Clock()
+        for state in OWNER_STATES.values():
+            with self.subTest(state=state):
+                value = sample(clock, state=state)
+                self.assertIs(M.private_head(value, now=clock.wall()), value["head"])
+                if state != OWNER_STATES["STATE_ACTIVE"]:
+                    with self.assertRaises(M.Hold):
+                        M.validate_sample(value, now=clock.wall())
+        for invalid in ("HANDOVER", None, [], {}, True):
+            with self.subTest(invalid=invalid), self.assertRaises(M.Hold):
+                M.private_head(sample(clock, state=invalid), now=clock.wall())
+
+    def test_new_owner_sequence_must_advance_the_global_head_sequence(self):
+        transition = next(node for node in OWNER_TREE.body
+                          if isinstance(node, ast.FunctionDef) and node.name == "validate_transition")
+        # Execute only the reviewed pure transition validator, never StateStore.
+        namespace = {**OWNER_STATES, "StorageBlocked": M.Hold}
+        module = ast.Module(body=[ast.ImportFrom(module="__future__", level=0,
+                            names=[ast.alias(name="annotations")]), transition], type_ignores=[])
+        exec(compile(ast.fix_missing_locations(module), "canonical-transition", "exec"), namespace)
+        before = {"epoch": 10, "sequence": 1000, "writer_id": "a", "state": "RELEASED", "snapshots": {}}
+        for sequence in (1, 999, 1000):
+            with self.subTest(sequence=sequence):
+                after = {"epoch": 11, "sequence": sequence, "writer_id": "b", "state": "ACTIVE",
+                         "snapshots": {}, "transition": "CLAIM"}
+                with self.assertRaises(M.Hold):
+                    namespace["validate_transition"](before, after)
+                clock = Clock()
+                def read(_budget):
+                    value = sample(clock)
+                    value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = sequence
+                    return value
+                result = self.wait(clock, read, timeout=80)
+                self.assertEqual(result["status"], "HOLD")
+                self.assertEqual(result["reason"], "REPLACEMENT_SEQUENCE_NOT_ADVANCED")
+                self.assertEqual(result["max_observed_epoch"], 11)
+                self.assertEqual(result["max_observed_sequence"], 1000)
+                self.assertEqual(clock.elapsed, 0)
+        namespace["validate_transition"](before, dict(after, sequence=1001))
+
+    def test_global_sequence_survives_failed_health_and_another_owner(self):
+        for sequence in (1100, 1150):
+            with self.subTest(sequence=sequence):
+                clock = Clock()
+                def read(_budget):
+                    first = clock.elapsed == 0
+                    value = sample(clock, epoch=11 if first else 12, boot=2 if first else 3)
+                    value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = 1150 if first else sequence
+                    if first:
+                        value["storage"]["stores"]["gdw"]["health"] = "BLOCKED"
+                    return value
+                result = self.wait(clock, read, timeout=80)
+                self.assertEqual(result["status"], "HOLD")
+                self.assertEqual(result["reason"], "REPLACEMENT_SEQUENCE_NOT_ADVANCED")
+                self.assertEqual(result["max_observed_epoch"], 12)
+                self.assertEqual(result["max_observed_sequence"], 1150)
+
+    def test_canonical_pending_handover_retains_sequence_without_claiming_health(self):
+        clock, records = Clock(), []
+        def read(_budget):
+            first = clock.elapsed == 0
+            value = sample(clock, state=OWNER_STATES["STATE_HANDOVER"] if first else "ACTIVE")
+            value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = 1105 if first else 1104
+            return value
+        result = self.wait(clock, read, timeout=80, record=records.append)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["max_observed_sequence"], 1105)
+        self.assertEqual(records[0]["max_observed_sequence"], 1105)
+        self.assertFalse(any(o.get("status") == "OBSERVED" for o in result["observations"]))
+
+    def test_global_sequence_can_advance_across_clean_owners(self):
+        clock = Clock()
+        def read(_budget):
+            first = clock.elapsed == 0
+            value = sample(clock, epoch=11 if first else 12, boot=2 if first else 3)
+            value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = 1150 if first else 1151
+            if first:
+                value["storage"]["stores"]["gdw"]["health"] = "BLOCKED"
+            return value
+        result = self.wait(clock, read, timeout=80)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertEqual(result["max_observed_epoch"], 12)
+        self.assertEqual(result["max_observed_sequence"], 1151)
+
+    def test_same_owner_cannot_move_backwards_from_handover_or_release(self):
+        for before_state, after_state in (
+                (OWNER_STATES["STATE_HANDOVER"], "ACTIVE"), ("RELEASED", "ACTIVE"),
+                ("RELEASED", OWNER_STATES["STATE_HANDOVER"])):
+            with self.subTest(before=before_state, after=after_state):
+                clock = Clock()
+                def read(_budget):
+                    first = clock.elapsed == 0
+                    value = sample(clock, state=before_state if first else after_state)
+                    value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = 1105 if first else 1106
+                    return value
+                result = self.wait(clock, read, timeout=80)
+                self.assertEqual(result["status"], "HOLD")
+                self.assertEqual(result["reason"], "LEASE_STATE_REGRESSED")
+                self.assertEqual(clock.elapsed, 10)
+                owner = next(o for o in result["owner_watermarks"] if o["epoch"] == 11)
+                self.assertEqual(owner["furthest_state"], before_state)
+                self.assertEqual(owner["max_sequence"], 1106)
+
+    def test_forward_owner_states_then_a_clean_successor_can_settle(self):
+        clock = Clock()
+        def read(_budget):
+            index = min(int(clock.elapsed // 10), 3)
+            state = ("ACTIVE", OWNER_STATES["STATE_HANDOVER"], "RELEASED", "ACTIVE")[index]
+            value = sample(clock, epoch=11 if index < 3 else 12,
+                           boot=2 if index < 3 else 3, state=state)
+            value["head"]["sequence"] = value["storage"]["lease"]["sequence"] = 1100 + index
+            return value
+        result = self.wait(clock, read, timeout=100)
+        self.assertEqual(result["status"], "WRITER_STABLE_AFTER_CONFIG")
+        self.assertEqual(clock.elapsed, 60)
+        owners = {o["epoch"]: o for o in result["owner_watermarks"]}
+        self.assertEqual(owners[11]["furthest_state"], "RELEASED")
+        self.assertEqual(owners[12]["furthest_state"], "ACTIVE")
+        self.assertEqual(result["max_observed_sequence"], 1103)
 
     def test_private_owner_identity_survives_failed_public_health(self):
         clock = Clock()
