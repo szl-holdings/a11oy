@@ -6087,8 +6087,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }
       refresh.addEventListener('click',readStatus);await readStatus();
     };
-    V.ask={title:'Ask & Act',badge:'GDW UNAVAILABLE · EXECUTION ROADMAP · NOT A LIVE CONTROL PLANE',
-      sub:'Prepare and review a local draft. Approval here does not run an action; workspace readiness is shown separately.',
+    V.ask={title:'Ask & Act',badge:'GDW UNAVAILABLE · EXECUTION ROADMAP · DRAFT ONLY, NO CONTROL PLANE',
+      sub:'Prepare and review a local draft. This is not a live control plane: approval here does not run an action; workspace readiness is shown separately.',
       render:async function(c){await window._gdwDraftPlane(c,'ask');}};
 
     /* =============== demo — ECharts state-timeline (cascade steps) =============== */
