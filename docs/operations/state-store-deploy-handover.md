@@ -46,6 +46,31 @@ change can restart the Space through the provider, so keep it inside the sole
 publisher's coordinated handover and verify the resulting source, boot and
 storage state. Independent execution admission remains separate.
 
+Before those configuration owners run, the canonical preflight now captures
+the serving source, Series-A process boot ID and fenced storage epoch through
+fixed-origin GETs. The baseline records its actual role, lease, writability and
+claim; a deliberately released or stale process is not relabelled healthy and
+does not prevent a configuration repair. After a reported configuration write,
+`.github/scripts/await_hf_configuration_handover.py` requires a different stable
+process and later **CLEAN** writer epoch serving the same prepublication source.
+Three consecutive bracketed observations must pass the existing seven-store
+validator, with a fresh active lease and no pending publication or unresolved
+errors. Only then does the workflow recheck protected-main ownership and
+publish. No-change reports skip polling. Missing or malformed observations,
+identity changes and timeout hold publication; the helper never restarts,
+releases, claims, signs or modifies provider state.
+
+The ordering gap was observed during canonical run
+[43991653922](https://github.com/szl-holdings/a11oy/actions/runs/43991653922):
+the preflight report records only the periodic-cadence variable changing. The
+immutable storage history records epoch 277 releasing, epoch 278 claiming
+cleanly on the old source, and epoch 279 taking over after a handover request
+without an intervening release. The released snapshot hashes survived unchanged.
+Interruption of the intermediate startup is a supported explanation, not a
+proved termination cause. The barrier prevents publication from interrupting
+an unobserved configuration startup; it does not certify that no acknowledged
+writes were lost, repair that historical handover, or grant execution authority.
+
 ## Admission and read-only preflight
 
 Coordinate the sole publisher and check that neither `hf-sync.yml` nor
