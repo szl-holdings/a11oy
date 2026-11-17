@@ -248,9 +248,23 @@ class ExecutionHandoffTests(unittest.TestCase):
         self.assertFalse(report["export_collected"])
         self.assertFalse(report["provider_state_changed"])
         self.assertEqual(report["source_revision"], context.source_revision)
-        with mock.patch.object(HANDOFF.collector(), "bracket", side_effect=[snapshot, {"storage_epoch": 2}]):
+        with mock.patch.object(HANDOFF.collector(), "bracket",
+                               side_effect=[snapshot, {"storage_epoch": 2}] * 5) as read:
             with self.assertRaisesRegex(HANDOFF.HandoffBlocked, "SOURCE_RUNTIME_OR_STORAGE_CHANGED"):
                 HANDOFF.admit(object(), context, pins)
+        self.assertEqual(read.call_count, 10)
+
+    def test_transient_flush_between_brackets_still_admits_stable_store(self):
+        context, pins = self.context()
+        stable = {"storage_epoch": 1, "store_ids": ["fixture"]}
+        transient = {"storage_epoch": 2, "store_ids": ["fixture"]}
+        with mock.patch.object(HANDOFF.collector(), "bracket",
+                               side_effect=[transient, stable, stable, stable]) as read:
+            report = HANDOFF.admit(object(), context, pins)
+        self.assertEqual(read.call_count, 4)
+        self.assertEqual(report["bracket"], stable)
+        self.assertFalse(report["execution_authorized"])
+        self.assertFalse(report["provider_state_changed"])
 
     def test_invalid_context_retains_fixed_reason_without_values_or_network(self):
         cases = [

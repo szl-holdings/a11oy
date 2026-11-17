@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTEXT_VARIABLES = ("A11OY_EXECUTION_HF_REVISION", "A11OY_EXECUTION_BOOT_ID",
@@ -135,21 +136,32 @@ def independent_context(source, env):
 def admit(client, context, pins):
     read = collector()
     read.gate._context(context, context.source_revision)
+    # Bounded quiescence search. The read-only readiness probe publishes
+    # governed receipts whose asynchronous flush can land between the two
+    # admission brackets. Admit only a bracket pair observed identical;
+    # after the bounded retries the estate is declared still changing and
+    # admission fail-closes with the same diagnostic (never fake readiness).
+    stable = None
     try:
-        before = read.bracket(client, context)
-        after = read.bracket(client, context)
+        for _ in range(5):
+            before = read.bracket(client, context)
+            after = read.bracket(client, context)
+            if before == after:
+                stable = before
+                break
+            time.sleep(2)
     except read.CollectionBlocked as exc:
         code = str(exc)
         raise HandoffBlocked(code if code in RUNTIME_FAILURE_CODES
                              else "EXECUTION_HANDOFF_UNAVAILABLE") from exc
-    require(before == after, "SOURCE_RUNTIME_OR_STORAGE_CHANGED")
+    require(stable is not None, "SOURCE_RUNTIME_OR_STORAGE_CHANGED")
     return {
         "schema": "szl.execution-handoff-readback/v1", "evidence_class": "MEASURED",
         "checked_at": datetime.now(timezone.utc).isoformat(), "method": "GET_ONLY",
         "source_revision": context.source_revision, "hf_revision": context.runtime_revision,
         "runtime_boot_id": context.runtime_boot_id, "run_nonce": context.run_nonce,
         "authority_pins_sha256": hashlib.sha256(read.gate.acceptance.canonical(pins)).hexdigest(),
-        "bracket": before, "execution_authorized": False, "export_collected": False,
+        "bracket": stable, "execution_authorized": False, "export_collected": False,
         "provider_state_changed": False,
     }
 
