@@ -148,6 +148,40 @@ its public export hash remained
 Replay verifies the corrected integration against observed bytes; it is not a
 second live success or evidence that the provider's unsigned assertion is authentic.
 
+### Final source-qualified live canary
+
+At **November 17, 00:20:39.789602-00:20:43.250759 UTC** (November 16 EST),
+the clean, locally signature-verified commit
+[9d74c610f3aa9a38eb94feb75b150cbd3e0cb431](https://github.com/szl-holdings/a11oy/commit/9d74c610f3aa9a38eb94feb75b150cbd3e0cb431)
+completed a fresh live call through the authenticated local Atelier route.
+
+The route returned **HTTP 200 / COMPLETED** after exactly three real metadata GETs
+and one real inference POST. The provider returned PROPOSAL with finish_reason=stop,
+493 prompt tokens and **17 completion tokens within the UI's 24-token limit**.
+Three public handles and zero explicit citations met the consumer contract.
+
+Both DECISION and OUTCOME were persisted. Their payload digests, embedded payloads,
+ephemeral ECDSA signatures, key identities, and chain links were reverified using
+the retained public verification key. The decision preceded dispatch and bound the
+actual outbound request digest. HEAD and the imported source hashes stayed unchanged
+through the run; no retry occurred.
+
+| Final live artifact | SHA-256 |
+| --- | --- |
+| Outbound request, 109 bytes | 26e7af3f31cdb25634cab1268a8149035ab64271bc0f4d01cb252c6acdcb5d07 |
+| Received response, 7,926 bytes | 0699c968010111e7ba1827b1b30bab29ed124c34b823c9f8587ddb0128b3fddf |
+| Provider inference receipt | e86ef4a1abe7f279f6b8f475151eb43bf50a14ae3423bc6fd9b541aa69fdfa02 |
+| Provider public export | e9a36115576d12ea1d2adafe0c1c754ff031428c23376a5824a409fd4237e024 |
+| Local decision | 18071eda804b6989cd26b58cdc664b2ced9a40f8ce1b8308711c0f820dbd5e08 |
+| Local completed outcome | 189aed7fe70b0ec620ed9cd50658a5fbc37f10056a456118a4ee19823dcd9550 |
+| Original validation evidence JSON | b3620c0328a3846874919b82067adc9c7f56da7f3e27fdc14cd9908cdbb46d71 |
+
+This is a successful local integration with the actual provider from the signed
+source commit. The signer was ephemeral and explicitly scoped to LOCAL_VALIDATION.
+It is not production rollout or production-signer evidence. Provider output remains
+UNSIGNED_LOCAL, proposal-only, and unauthenticated independently of those local
+observations; no model-quality or semantic-grounding guarantee follows.
+
 After rebasing onto main at ca2bd11de639ceef437f30634ebc98934d3900df, the
 combined relevant suite passed **484 tests and 54 subtests** in 56.32 seconds.
 It covered the adapter, authenticated routes, transport, shipped CPU JavaScript,
