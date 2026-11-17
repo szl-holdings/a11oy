@@ -212,8 +212,8 @@ to the evidence record and should be rendered consistently across every client.
 ## 7. Three designs to explore
 
 These are **MODELED proposals**, informed by the prior art above and the existing
-SZL architecture. No claim of unprecedented invention or demonstrated benefit is
-made. Each needs implementation, evaluation, and a useful operational outcome.
+SZL architecture. These proposals require implementation and evaluation before
+any claim about novelty or benefit.
 
 ### A. Rehearse a decision against a frozen world state
 
