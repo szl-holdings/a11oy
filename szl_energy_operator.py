@@ -884,7 +884,7 @@ def _ollama_generate(base_url: str, model: str, prompt: str,
     caller marks the node DEGRADED rather than fabricating a result."""
     import httpx
     body = {"model": model, "messages": [{"role": "user", "content": prompt}],
-            "stream": False, "max_tokens": 64}
+            "stream": False, "max_tokens": 64, "temperature": 0.7}
     headers = {"Content-Type": "application/json", "User-Agent": _PROBE_UA}
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
