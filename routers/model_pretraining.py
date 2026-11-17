@@ -281,15 +281,21 @@ def register(app: FastAPI) -> dict[str, Any]:
     files = {"/frontier-tooling/models": ("model-pretraining.html", "text/html"),
              "/frontier-tooling/models/": ("model-pretraining.html", "text/html"),
              "/frontier-tooling/models/assets/view.js": ("model-pretraining.js", "text/javascript"),
-             "/frontier-tooling/models/assets/view.css": ("model-pretraining.css", "text/css")}
+             "/frontier-tooling/models/assets/view.css": ("model-pretraining.css", "text/css"),
+             "/frontier-tooling/models/assets/training-observations.js": ("training-observations.js", "text/javascript"),
+             "/frontier-tooling/models/assets/training-observations.css": ("training-observations.css", "text/css")}
     intended = {api, *files}
     old = [r for r in app.routes if getattr(r, "path", None) in intended]
     if old:
         if (len(old) == len(intended) and {r.path for r in old} == intended
                 and all(getattr(r.endpoint, "__module__", None) == __name__
                         and r.methods == {"GET", "HEAD"} for r in old)):
+            from routers import training_observations
+            training_observations.register(app)
             return {"state": "READ_ONLY", "alreadyRegistered": True}
         raise RuntimeError("MODEL_PRETRAINING_ROUTE_COLLISION")
+    from routers import training_observations
+    training_observations.preflight(app)
 
     def send(request: Request, body: bytes, media: str, status: int = 200) -> Response:
         headers = PAGE_HEADERS if media == "text/html" else HEADERS
@@ -328,4 +334,5 @@ def register(app: FastAPI) -> dict[str, Any]:
     for i, (path, (filename, media)) in enumerate(files.items()):
         app.add_api_route(path, file_handler(filename, media), methods=["GET", "HEAD"],
                           name=f"model_pretraining_file_{i}", include_in_schema=False)
+    training_observations.register(app)
     return {"state": "READ_ONLY", "trainingAllowed": False, "routes": sorted(intended)}
