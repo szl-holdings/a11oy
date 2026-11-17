@@ -1387,9 +1387,22 @@ def test_mutation_redirect_is_not_followed():
 
 def test_mutation_volume_payload_matches_installed_sdk_contract():
     import httpx
-    from huggingface_hub import Volume
-    values = [Volume(type="bucket", source=config.CANONICAL_BUCKET, mount_path="/data", read_only=False)]
-    payload = {"volumes": [item.to_dict() for item in values]}
+    import subprocess
+
+    # Restart-proof tests install a collection-time Hub stub. Exercise the
+    # installed SDK in a fresh process without altering that suite's globals.
+    command = (
+        "import json,socket;"
+        "socket.socket.connect=lambda *a: (_ for _ in ()).throw(AssertionError('network forbidden'));"
+        "from huggingface_hub import Volume;"
+        "volume=Volume(type='bucket',source=" + repr(config.CANONICAL_BUCKET)
+        + ",mount_path='/data',read_only=False);"
+        "print(json.dumps({'volumes':[volume.to_dict()]}))"
+    )
+    result = subprocess.run([sys.executable, "-I", "-B", "-c", command],
+                            capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
     assert payload == {"volumes": [{"type": "bucket", "source": config.CANONICAL_BUCKET,
                                    "mountPath": "/data", "readOnly": False}]}
     requests = []
