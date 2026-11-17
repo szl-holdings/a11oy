@@ -338,11 +338,517 @@ class DisclosureTests(unittest.TestCase):
             self.assertNotIn(FIXTURE_TOKEN, console.getvalue() + report.read_text())
             self.assertIn("INTERNAL_ERROR", report.read_text())
 
-    def test_cli_exposes_no_scope_or_method_override(self):
+    def test_cli_exposes_no_arbitrary_target_or_method_override(self):
         with contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit) as caught:
                 audit.main(["--report", "unused.json", "--url", "https://example.invalid", "--method", "POST"])
         self.assertEqual(caught.exception.code, 2)
+
+
+
+GATEWAY_ZONE_ID = "1" * 32
+GATEWAY_ACCOUNT_ID = "2" * 32
+GATEWAY_RECORD_ID = "3" * 32
+
+
+def gateway_page(items, *, page=1, total=None, page_size=100):
+    count = len(items) if total is None else total
+    return {
+        "success": True, "result": items,
+        "result_info": {
+            "page": page, "per_page": page_size, "count": len(items),
+            "total_count": count, "total_pages": max(1, (count + page_size - 1) // page_size),
+        },
+    }
+
+
+def gateway_fixture():
+    dns = f"/zones/{GATEWAY_ZONE_ID}/dns_records"
+    tunnel = f"/accounts/{GATEWAY_ACCOUNT_ID}/cfd_tunnel/{audit.WINDOWS_TUNNEL}"
+    payloads = {
+        audit.ZONES: gateway_page([{
+            "id": GATEWAY_ZONE_ID, "name": audit.ZONE_NAME, "status": "active",
+            "account": {"id": GATEWAY_ACCOUNT_ID, "name": "reader@example.invalid"},
+            "owner": {"email": "reader@example.invalid"},
+        }], page_size=audit.ZONE_PAGE_SIZE),
+        dns: gateway_page([{
+            "id": GATEWAY_RECORD_ID, "zone_id": GATEWAY_ZONE_ID,
+            "name": audit.GATEWAY_HOSTNAME, "type": "CNAME",
+            "content": audit.GATEWAY_CNAME, "proxied": True, "ttl": 1,
+            "comment": "fixture-dns-private-comment",
+            "tags": ["fixture-dns-private-tag"],
+        }]),
+        tunnel: envelope({
+            "id": audit.WINDOWS_TUNNEL, "account_tag": GATEWAY_ACCOUNT_ID,
+            "status": "healthy", "config_src": "cloudflare",
+            "name": "reader@example.invalid", "token": "fixture-tunnel-secret",
+        }),
+        tunnel + "/configurations": envelope({
+            "account_id": GATEWAY_ACCOUNT_ID, "tunnel_id": audit.WINDOWS_TUNNEL,
+            "version": 7, "source": "cloudflare",
+            "config": {
+                "client_secret": "fixture-config-secret",
+                "ingress": [
+                    {"hostname": audit.GATEWAY_HOSTNAME, "service": "http://localhost:4000"},
+                    {"service": "http_status:404"},
+                ],
+            },
+        }),
+    }
+
+    def callback(request):
+        path = urllib.parse.urlsplit(request.full_url).path.removeprefix("/client/v4")
+        if path not in payloads:
+            raise AssertionError("Unexpected provider resource")
+        body = payloads[path]
+        return Response(body[0], body[1]) if isinstance(body, tuple) else Response(body)
+
+    return payloads, Opener(callback), dns, tunnel
+
+
+class GatewayProfileTests(unittest.TestCase):
+    def run_gateway(self, payloads=None, opener=None):
+        if opener is None:
+            payloads, opener, _, _ = gateway_fixture()
+        client = audit.Client(FIXTURE_TOKEN, opener, profile="windows-gateway")
+        return audit.audit_gateway(client), opener
+
+    def test_exact_binding_uses_resolved_account_and_four_gets(self):
+        payloads, opener, dns, tunnel = gateway_fixture()
+        result, _ = self.run_gateway(payloads, opener)
+        self.assertEqual(result["status"], "OBSERVED")
+        self.assertEqual(result["request_count"], 4)
+        self.assertEqual(result["resolved_account_id"], GATEWAY_ACCOUNT_ID)
+        self.assertNotEqual(GATEWAY_ACCOUNT_ID, audit.ACCOUNT)
+        paths = []
+        for request, timeout in opener.requests:
+            url = urllib.parse.urlsplit(request.full_url)
+            self.assertEqual((url.scheme, url.netloc), ("https", "api.cloudflare.com"))
+            self.assertEqual(request.get_method(), "GET")
+            self.assertIsNone(request.data)
+            self.assertEqual(request.get_header("Authorization"), "Bearer " + FIXTURE_TOKEN)
+            self.assertEqual(timeout, audit.TIMEOUT)
+            paths.append(url.path.removeprefix("/client/v4"))
+        self.assertEqual(paths, [audit.ZONES, dns, tunnel, tunnel + "/configurations"])
+        zone_query = urllib.parse.parse_qs(urllib.parse.urlsplit(opener.requests[0][0].full_url).query)
+        self.assertEqual(zone_query, {
+            "name": [audit.ZONE_NAME], "status": ["active"], "match": ["all"],
+            "page": ["1"], "per_page": ["50"],
+        })
+        dns_query = urllib.parse.parse_qs(urllib.parse.urlsplit(opener.requests[1][0].full_url).query)
+        self.assertEqual(dns_query, {
+            "name.exact": [audit.GATEWAY_HOSTNAME], "match": ["all"],
+            "page": ["1"], "per_page": ["100"],
+        })
+        self.assertEqual(result["binding"]["dns"], "MATCHED_CONFIGURATION_ONLY")
+        self.assertEqual(result["binding"]["ingress"]["status"], "MATCHED_CONFIGURATION_ONLY")
+        self.assertEqual(result["windows_connector_identity"], "NOT_ESTABLISHED")
+        self.assertFalse(result["origin_probed"])
+        self.assertFalse(result["provider_mutations"])
+        self.assertEqual(result["security_verdict"], "NOT_EVALUATED")
+
+    def test_empty_or_ambiguous_zone_stops_before_account_reads(self):
+        for count in (0, 2):
+            with self.subTest(count=count):
+                payloads, opener, _, _ = gateway_fixture()
+                prototype = payloads[audit.ZONES]["result"][0]
+                rows = [{**prototype, "id": f"{n + 1:032x}"} for n in range(count)]
+                payloads[audit.ZONES] = gateway_page(rows, page_size=audit.ZONE_PAGE_SIZE)
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(len(opener.requests), 1)
+                self.assertNotIn("resolved_account_id", result)
+
+    def test_zone_wrong_name_status_or_id_does_not_expand_scope(self):
+        changes = [
+            {"name": "unrelated.invalid"}, {"status": "pending"}, {"status": True},
+            {"id": APP}, {"id": "../dns_records"}, {"account": {"id": APP}},
+            {"account": []}, {"account": {"id": "2" * 31}},
+        ]
+        for change in changes:
+            with self.subTest(change=change):
+                payloads, opener, _, _ = gateway_fixture()
+                payloads[audit.ZONES]["result"][0].update(change)
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(len(opener.requests), 1)
+                self.assertNotIn("resolved_zone_id", result)
+
+    def test_zone_pagination_missing_inconsistent_or_boolean_is_not_complete(self):
+        infos = [
+            {}, {"page": True, "total_count": 1},
+            {"page": 1, "per_page": 100, "total_count": 1},
+            {"page": 1, "total_count": 1, "total_pages": 2},
+            {"page": 1, "total_count": True},
+            {"page": 1, "count": 2, "total_count": 1},
+            {"page": 1, "total_count": 10 ** 1000},
+        ]
+        for info in infos:
+            with self.subTest(info=info):
+                payloads, opener, _, _ = gateway_fixture()
+                payloads[audit.ZONES]["result_info"] = info
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(len(opener.requests), 1)
+
+    def test_duplicate_zone_ids_are_not_unique_scope(self):
+        payloads, opener, _, _ = gateway_fixture()
+        row = payloads[audit.ZONES]["result"][0]
+        payloads[audit.ZONES] = gateway_page([row, dict(row)], page_size=audit.ZONE_PAGE_SIZE)
+        result, _ = self.run_gateway(payloads, opener)
+        self.assertEqual(result["observations"]["zone"]["status"], "DUPLICATE_RESOURCE_ID")
+        self.assertEqual(len(opener.requests), 1)
+
+    def test_page_limit_stops_without_selecting_first_zone(self):
+        def callback(request):
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(request.full_url).query)
+            page = int(query["page"][0])
+            rows = [{
+                "id": f"{page * 100 + n:032x}", "name": audit.ZONE_NAME,
+                "status": "active", "account": {"id": GATEWAY_ACCOUNT_ID},
+            } for n in range(50)]
+            return Response(gateway_page(rows, page=page, total=151, page_size=50))
+        opener = Opener(callback)
+        result, _ = self.run_gateway(opener=opener)
+        self.assertEqual(result["observations"]["zone"]["status"], "PAGE_LIMIT")
+        self.assertEqual(len(opener.requests), 3)
+        self.assertNotIn("resolved_account_id", result)
+
+    def test_changing_pagination_totals_are_unresolved(self):
+        def callback(request):
+            page = int(urllib.parse.parse_qs(urllib.parse.urlsplit(request.full_url).query)["page"][0])
+            rows = [{
+                "id": f"{page * 100 + n:032x}", "name": audit.ZONE_NAME,
+                "status": "active", "account": {"id": GATEWAY_ACCOUNT_ID},
+            } for n in range(50)]
+            return Response(gateway_page(rows, page=page, total=101 if page == 1 else 102, page_size=50))
+        result, opener = self.run_gateway(opener=Opener(callback))
+        self.assertEqual(result["observations"]["zone"]["status"], "INCONSISTENT_PAGINATION")
+        self.assertEqual(len(opener.requests), 2)
+
+    def test_exact_dns_absence_mismatch_or_ambiguity_is_reported(self):
+        for change in ("absent", "duplicate_name", "wrong_target", "wrong_name", "wrong_zone", "uuid_id", "address"):
+            with self.subTest(change=change):
+                payloads, opener, dns, _ = gateway_fixture()
+                row = payloads[dns]["result"][0]
+                if change == "absent":
+                    payloads[dns] = gateway_page([])
+                elif change == "duplicate_name":
+                    payloads[dns] = gateway_page([row, {**row, "id": "4" * 32}])
+                elif change == "wrong_target":
+                    row["content"] = f"{APP}.cfargotunnel.com"
+                elif change == "wrong_name":
+                    row["name"] = "gpu.a-11-oy.com"
+                elif change == "wrong_zone":
+                    row["zone_id"] = "9" * 32
+                elif change == "uuid_id":
+                    row["id"] = APP
+                else:
+                    row.update(type="A", content="127.0.0.1")
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertNotEqual(result["binding"]["dns"], "MATCHED_CONFIGURATION_ONLY")
+                self.assertEqual(len(opener.requests), 4)
+
+    def test_dns_boolean_truthiness_and_partial_pages_never_match(self):
+        for value in (False, "true", 1, None):
+            with self.subTest(value=value):
+                payloads, opener, dns, _ = gateway_fixture()
+                payloads[dns]["result"][0]["proxied"] = value
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["binding"]["dns"], "GATEWAY_DNS_PROXY_UNVERIFIED")
+                self.assertEqual(result["status"], "INCOMPLETE")
+        payloads, opener, dns, _ = gateway_fixture()
+        payloads[dns].pop("result_info")
+        result, _ = self.run_gateway(payloads, opener)
+        self.assertEqual(result["observations"]["dns"]["status"], "PAGINATION_UNVERIFIED")
+        self.assertEqual(result["binding"]["dns"], "DNS_READ_INCOMPLETE")
+
+    def test_dns_ids_and_types_use_separate_validators(self):
+        self.assertIsNone(audit.identifier(GATEWAY_RECORD_ID))
+        self.assertEqual(audit.cloudflare_identifier(GATEWAY_RECORD_ID), GATEWAY_RECORD_ID)
+        self.assertIsNone(audit.cloudflare_identifier(APP))
+        for value in (True, 123, [], {}):
+            with self.subTest(value=value):
+                payloads, opener, dns, _ = gateway_fixture()
+                payloads[dns]["result"][0].update(type="A", content=value)
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["observations"]["dns"]["status"], "DNS_RECORD_CONTENT_INVALID")
+
+    def test_tunnel_exact_id_and_full_account_must_match_before_configuration(self):
+        for change in (
+            {"id": APP}, {"id": None}, {"account_tag": None},
+            {"account_tag": "0" * 26 + GATEWAY_ACCOUNT_ID[-6:]},
+        ):
+            with self.subTest(change=change):
+                payloads, opener, _, tunnel = gateway_fixture()
+                payloads[tunnel]["result"].update(change)
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(result["binding"]["tunnel"], "TUNNEL_IDENTITY_UNVERIFIED")
+                self.assertEqual(result["observations"]["configuration"]["status"], "NOT_ATTEMPTED")
+                self.assertEqual(len(opener.requests), 3)
+
+    def test_configuration_returns_its_own_observed_identities(self):
+        for change in (
+            {"tunnel_id": APP}, {"account_id": "0" * 26 + GATEWAY_ACCOUNT_ID[-6:]},
+            {"tunnel_id": None}, {"account_id": None},
+        ):
+            with self.subTest(change=change):
+                payloads, opener, _, tunnel = gateway_fixture()
+                payloads[tunnel + "/configurations"]["result"].update(change)
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(result["binding"]["ingress"]["status"], "CONFIGURATION_IDENTITY_UNVERIFIED")
+                self.assertNotEqual(
+                    result["observations"]["configuration"]["item"].get("tunnel_id"),
+                    audit.TUNNEL,
+                )
+
+    def test_local_or_unknown_config_source_never_proves_remote_ingress(self):
+        for detail_source, config_source in (
+            ("local", "local"), ("local", "cloudflare"), ("cloudflare", "local"),
+            (None, "cloudflare"), ("cloudflare", []),
+        ):
+            with self.subTest(detail_source=detail_source, config_source=config_source):
+                payloads, opener, _, tunnel = gateway_fixture()
+                payloads[tunnel]["result"]["config_src"] = detail_source
+                payloads[tunnel + "/configurations"]["result"]["source"] = config_source
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertNotEqual(result["binding"]["ingress"]["status"], "MATCHED_CONFIGURATION_ONLY")
+
+    def test_malformed_provider_shapes_return_incomplete_without_tracebacks(self):
+        for key, value in (("status", []), ("status", True), ("config_src", {})):
+            with self.subTest(key=key, value=value):
+                payloads, opener, _, tunnel = gateway_fixture()
+                payloads[tunnel]["result"][key] = value
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+        for value in (None, {}, [None], [{"hostname": [], "service": "http://localhost:4000"}]):
+            with self.subTest(ingress=value):
+                payloads, opener, _, tunnel = gateway_fixture()
+                payloads[tunnel + "/configurations"]["result"]["config"]["ingress"] = value
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+
+    def test_ordered_ingress_cannot_skip_shadowing_or_path_specific_rule(self):
+        first_rules = [
+            {"service": "http_status:404"},
+            {"hostname": "*.a-11-oy.com", "service": "http://localhost:4000"},
+            {"hostname": audit.GATEWAY_HOSTNAME, "path": "/private", "service": "http://localhost:4000"},
+            {"hostname": audit.GATEWAY_HOSTNAME, "path": [], "service": "http://localhost:4000"},
+        ]
+        for first in first_rules:
+            with self.subTest(first=first):
+                payloads, opener, _, tunnel = gateway_fixture()
+                payloads[tunnel + "/configurations"]["result"]["config"]["ingress"].insert(0, first)
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertNotEqual(result["binding"]["ingress"]["status"], "MATCHED_CONFIGURATION_ONLY")
+                self.assertEqual(result["binding"]["ingress"]["rule_index"], 0)
+
+    def test_unrelated_rule_and_explicit_ipv4_ipv6_preserve_observation_scope(self):
+        for service in ("http://127.0.0.1:4000", "http://[::1]:4000/", "http://localhost:4000"):
+            with self.subTest(service=service):
+                payloads, opener, _, tunnel = gateway_fixture()
+                ingress = payloads[tunnel + "/configurations"]["result"]["config"]["ingress"]
+                ingress[0]["service"] = service
+                ingress.insert(0, {"hostname": "unrelated.invalid", "service": "http://127.0.0.1:9000"})
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "OBSERVED")
+                self.assertEqual(result["binding"]["ingress"]["rule_index"], 1)
+                self.assertFalse(result["origin_probed"])
+                self.assertEqual(result["windows_connector_identity"], "NOT_ESTABLISHED")
+
+    def test_sanitized_credential_or_path_origin_cannot_become_a_positive_match(self):
+        services = [
+            "http://fixture-user:fixture-password@localhost:4000",
+            "http://@localhost:4000", "http://localhost:4000/private",
+            "http://localhost:4000/?token=fixture-query-secret",
+            "http://localhost:4000/#fixture-fragment", "http://localhost:4000/?",
+            "https://localhost:4000", "http://0.0.0.0:4000",
+            "http://localhost:4001", "http://remote.invalid:4000",
+        ]
+        for service in services:
+            with self.subTest(service=service):
+                payloads, opener, _, tunnel = gateway_fixture()
+                payloads[tunnel + "/configurations"]["result"]["config"]["ingress"][0]["service"] = service
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(result["binding"]["ingress"]["status"], "GATEWAY_ORIGIN_OUTSIDE_FIXED_SCOPE")
+                serialized = json.dumps(result)
+                for secret in ("fixture-user", "fixture-password", "fixture-query-secret", "fixture-fragment"):
+                    self.assertNotIn(secret, serialized)
+
+
+    def test_raw_origin_controls_and_whitespace_cannot_be_normalized_into_a_match(self):
+        for service in (
+            "http://local\nhost:4000", "http://local\rhost:4000",
+            "http://local\thost:4000", "\x00http://localhost:4000",
+            "\x1fhttp://localhost:4000", " http://localhost:4000",
+            "http://localhost:4000\t", "http://localhost:4000 ",
+            "http://localhost:4000\x7f", "\u00a0http://localhost:4000",
+        ):
+            with self.subTest(service=service):
+                payloads, opener, _, tunnel = gateway_fixture()
+                payloads[tunnel + "/configurations"]["result"]["config"]["ingress"][0]["service"] = service
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(
+                    result["binding"]["ingress"]["status"], "GATEWAY_ORIGIN_OUTSIDE_FIXED_SCOPE"
+                )
+
+    def test_raw_hostnames_reject_multiple_dots_and_controls_but_allow_dns_canonical_case(self):
+        for target in ("zone", "dns_name", "cname", "ingress"):
+            for suffix in ("..", "...", "\t", "\r", "\n", "\x00", " "):
+                with self.subTest(target=target, suffix=suffix):
+                    payloads, opener, dns, tunnel = gateway_fixture()
+                    row, field = {
+                        "zone": (payloads[audit.ZONES]["result"][0], "name"),
+                        "dns_name": (payloads[dns]["result"][0], "name"),
+                        "cname": (payloads[dns]["result"][0], "content"),
+                        "ingress": (
+                            payloads[tunnel + "/configurations"]["result"]["config"]["ingress"][0],
+                            "hostname",
+                        ),
+                    }[target]
+                    row[field] += suffix
+                    result, _ = self.run_gateway(payloads, opener)
+                    self.assertEqual(result["status"], "INCOMPLETE")
+                    if target == "zone":
+                        self.assertEqual(len(opener.requests), 1)
+        payloads, opener, dns, tunnel = gateway_fixture()
+        payloads[audit.ZONES]["result"][0]["name"] = audit.ZONE_NAME.upper() + "."
+        payloads[dns]["result"][0]["name"] = audit.GATEWAY_HOSTNAME.upper() + "."
+        payloads[dns]["result"][0]["content"] = audit.GATEWAY_CNAME.upper() + "."
+        payloads[tunnel + "/configurations"]["result"]["config"]["ingress"][0]["hostname"] = (
+            audit.GATEWAY_HOSTNAME.upper() + "."
+        )
+        result, _ = self.run_gateway(payloads, opener)
+        self.assertEqual(result["status"], "OBSERVED")
+
+    def test_permission_denial_retains_other_exact_observations(self):
+        for target, status in (("dns", 403), ("tunnel", 401), ("configuration", 403)):
+            with self.subTest(target=target):
+                payloads, opener, dns, tunnel = gateway_fixture()
+                path = {"dns": dns, "tunnel": tunnel, "configuration": tunnel + "/configurations"}[target]
+                payloads[path] = ({"success": False, "errors": [{"code": 10000, "message": FIXTURE_TOKEN}]}, status)
+                result, _ = self.run_gateway(payloads, opener)
+                self.assertEqual(result["status"], "INCOMPLETE")
+                self.assertEqual(result["observations"][target]["status"], "PERMISSION_DENIED")
+                self.assertTrue(result["observations"]["zone"]["complete"])
+                self.assertNotIn(FIXTURE_TOKEN, json.dumps(result))
+
+    def test_gateway_scope_requires_binding_and_rejects_other_targets(self):
+        opener = Opener(lambda request: self.fail("Unexpected network call"))
+        client = audit.Client(FIXTURE_TOKEN, opener, profile="windows-gateway")
+        dns = f"/zones/{GATEWAY_ZONE_ID}/dns_records"
+        with self.assertRaisesRegex(audit.AuditError, "SCOPE_REFUSED"):
+            client.get(dns, 1)
+        client.admit_gateway_zone(GATEWAY_ZONE_ID, GATEWAY_ACCOUNT_ID)
+        paths = [
+            audit.CONFIG, audit.TUNNELS, audit.APPS, audit.TOKENS, "/user/tokens/verify",
+            client.gateway_tunnel_path + "/token",
+            client.gateway_tunnel_path.replace(audit.WINDOWS_TUNNEL, APP),
+            dns.replace(GATEWAY_ZONE_ID, "0" * 32),
+            dns + "?name.exact=other.invalid", dns + "/../dns_records",
+            client.gateway_tunnel_path + "/configurations?redirect=https://example.invalid",
+            "https://example.invalid" + dns, "//example.invalid" + dns,
+        ]
+        for path in paths:
+            with self.subTest(path=path), self.assertRaisesRegex(audit.AuditError, "SCOPE_REFUSED"):
+                client.get(path, 1)
+        with self.assertRaisesRegex(audit.AuditError, "SCOPE_REFUSED"):
+            client.admit_gateway_zone(GATEWAY_ZONE_ID, "0" * 32)
+        with self.assertRaisesRegex(audit.AuditError, "POLICY_SCOPE_LIMIT"):
+            client.admit_policy_app(APP)
+        self.assertEqual(opener.requests, [])
+
+    def test_gateway_request_budget_is_eight_and_global_limit_still_applies(self):
+        opener = Opener(lambda request: Response(envelope({})))
+        client = audit.Client(FIXTURE_TOKEN, opener, profile="windows-gateway")
+        for _ in range(8):
+            client.get(audit.ZONES, 1)
+        with self.assertRaisesRegex(audit.AuditError, "REQUEST_LIMIT"):
+            client.get(audit.ZONES, 1)
+        self.assertEqual(len(opener.requests), 8)
+        with mock.patch.object(audit, "MAX_REQUESTS", 2):
+            other = audit.Client(FIXTURE_TOKEN, opener, profile="windows-gateway")
+            other.get(audit.ZONES, 1)
+            other.get(audit.ZONES, 1)
+            with self.assertRaisesRegex(audit.AuditError, "REQUEST_LIMIT"):
+                other.get(audit.ZONES, 1)
+
+    def test_gateway_body_redirect_and_deadline_bounds_remain_enforced(self):
+        for response, expected in (
+            (Response(b"fixture-redirect-secret", 302), "REDIRECT_REFUSED"),
+            (Response(b"x" * 65), "RESPONSE_TOO_LARGE"),
+        ):
+            with self.subTest(expected=expected):
+                opener = Opener(lambda request: response)
+                with mock.patch.object(audit, "MAX_BYTES", 64):
+                    result, _ = self.run_gateway(opener=opener)
+                self.assertEqual(result["observations"]["zone"]["status"], expected)
+                self.assertEqual(len(opener.requests), 1)
+        clock = mock.Mock(side_effect=[0, 0, audit.DEADLINE_SECONDS + 1])
+        opener = Opener(lambda request: Response(envelope({})))
+        client = audit.Client(FIXTURE_TOKEN, opener, clock=clock, profile="windows-gateway")
+        result = audit.audit_gateway(client)
+        self.assertEqual(result["observations"]["zone"]["status"], "DEADLINE_EXCEEDED")
+        self.assertEqual(len(opener.requests), 1)
+
+    def test_public_report_omits_raw_provider_values_including_txt_content(self):
+        payloads, opener, dns, _ = gateway_fixture()
+        payloads[dns]["result"][0].update(type="TXT", content="fixture-txt-secret")
+        result, _ = self.run_gateway(payloads, opener)
+        serialized = json.dumps(result)
+        for forbidden in (
+            FIXTURE_TOKEN, "reader@example.invalid", "fixture-dns-private-comment",
+            "fixture-dns-private-tag", "fixture-tunnel-secret", "fixture-config-secret",
+            "fixture-txt-secret", "Authorization", "client_secret",
+        ):
+            self.assertNotIn(forbidden, serialized)
+        self.assertTrue(result["observations"]["dns"]["items"][0]["content_omitted"])
+        self.assertEqual(result["signature"], "UNSIGNED")
+
+    def test_gateway_cli_success_failure_and_source_identity(self):
+        for absent in (False, True):
+            with self.subTest(absent=absent), tempfile.TemporaryDirectory() as directory:
+                payloads, opener, dns, _ = gateway_fixture()
+                if absent:
+                    payloads[dns] = gateway_page([])
+                client = audit.Client(FIXTURE_TOKEN, opener, profile="windows-gateway")
+                path = Path(directory) / "gateway.json"
+                env = {
+                    "CLOUDFLARE_API_TOKEN": FIXTURE_TOKEN, "GITHUB_SHA": "a" * 40,
+                    "GITHUB_RUN_ID": "12345", "GITHUB_RUN_ATTEMPT": "2",
+                }
+                with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(audit, "Client", return_value=client):
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        code = audit.main(["--profile", "windows-gateway", "--report", str(path)])
+                result = json.loads(path.read_text())
+                self.assertEqual(code, 2 if absent else 0)
+                self.assertEqual(result["source_revision"], "a" * 40)
+                self.assertEqual(result["run_id"], "12345")
+                self.assertEqual(result["run_attempt"], 2)
+                self.assertNotIn(FIXTURE_TOKEN, path.read_text())
+
+    def test_gateway_cli_missing_credential_and_invalid_profile_never_open_network(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ, {}, clear=True):
+            path = Path(directory) / "gateway.json"
+            with mock.patch.object(audit, "Client") as client, contextlib.redirect_stdout(io.StringIO()):
+                code = audit.main(["--profile", "windows-gateway", "--report", str(path)])
+            client.assert_not_called()
+            self.assertEqual(code, 2)
+            result = json.loads(path.read_text())
+            self.assertEqual(result["status"], "BLOCKED")
+            self.assertEqual(result["request_count"], 0)
+        with mock.patch.object(audit, "Client") as client, contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as error:
+                audit.main(["--profile", "arbitrary", "--report", "unused.json"])
+            self.assertEqual(error.exception.code, 2)
+            client.assert_not_called()
 
 
 if __name__ == "__main__":
