@@ -57,6 +57,10 @@ HONEST_LABELS = {
     "FOUNDER-GATED", "FOUNDER", "GATED", "AWAITING", "PENDING", "REVIEW",
     # DECLARED — asserted/stated, not measured and not proven; never upgraded to MEASURED.
     "DECLARED",
+    # UNKNOWN — public-estate contract truthVocabulary (static/shared/public-estate-contract.v1.json):
+    # evidence exists but is unverified; never upgrades a claim. /status copies catalog labels
+    # verbatim, and the catalog resolves it (e.g. an unprobed sovereign node in router status).
+    "UNKNOWN",
 }
 
 # EXACT key names we treat as the honesty-disclosure label (checked strictly against
