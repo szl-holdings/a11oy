@@ -62,6 +62,7 @@ import time
 from collections import deque
 from contextlib import suppress
 from datetime import datetime, timezone
+from types import MappingProxyType
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -653,6 +654,40 @@ def register_provenance(app, space: str) -> dict[str, Any]:
     dag = _KhipuDAG(space)
     wire_d_targets, wire_d_rejections = _wire_d_targets_from_env()
     base = f"/api/{space}"
+    context_token = object()
+
+    def context_reader(request):
+        binding = getattr(getattr(request, "state", None), "_szl_wire_d_server_context", None)
+        if (
+            type(binding) is tuple and len(binding) == 2
+            and binding[0] is context_token
+            and type(binding[1]) is MappingProxyType
+        ):
+            return binding[1]
+        return None
+
+    def context_for_helpers(request):
+        context = context_reader(request)
+        if context is not None:
+            return context
+        # Preserve standalone helper use, deriving every ID from one valid
+        # traceparent instead of combining independently mutable scalar aliases.
+        st = getattr(request, "state", None)
+        tp = getattr(st, "traceparent", None)
+        parsed = parse_traceparent(tp) if type(tp) is str else {"valid": False}
+        if not parsed["valid"]:
+            tp = new_traceparent()
+            parsed = parse_traceparent(tp)
+            tracestate = ""
+        else:
+            tracestate = getattr(st, "tracestate", "") or ""
+        return MappingProxyType({
+            "traceparent": tp,
+            "trace_id": parsed["trace_id"],
+            "span_id": parsed["parent_id"],
+            "trace_flags": parsed["flags"],
+            "tracestate": tracestate,
+        })
 
     def runtime_identity() -> dict[str, Any]:
         """Expose bounded source identity without implying image attestation."""
@@ -694,21 +729,48 @@ def register_provenance(app, space: str) -> dict[str, Any]:
     @app.middleware("http")
     async def _wire_d_mw(request: Request, call_next):  # noqa: ANN001
         incoming = request.headers.get("traceparent")
-        parsed = parse_traceparent(incoming)
         ts_in = parse_tracestate(request.headers.get("tracestate"))
-        if parsed.get("valid"):
-            trace_id = parsed["trace_id"]
-            inbound_parent = parsed["parent_id"]
-            trace_flags = parsed["flags"]
+        reader = getattr(app, "_vsp_otel_context_reader", None)
+        try:
+            native = reader(request) if callable(reader) else None
+        except Exception:
+            native = None
+        if type(native) is MappingProxyType:
+            # VSP is outermost in A11oy. Its actual SDK/fallback server span
+            # owns the identity; Wire D records that same span without minting
+            # another. Respect VSP's stricter accepted-parent/flag policy.
+            trace_id = native["trace_id"]
+            server_span = native["span_id"]
+            trace_flags = native["trace_flags"]
+            inbound_parent = native["inbound_parent"]
+            if not native["parent_accepted"]:
+                ts_in = []
         else:
-            trace_id = new_trace_id()
-            inbound_parent = None
-            trace_flags = "01"
-            ts_in = []  # invalid traceparent => discard tracestate (per spec)
-        server_span = new_span_id()  # this Space's span for THIS request (mutate parent-id)
+            # Standalone Wire D retains its existing v00 flags policy.
+            parsed = parse_traceparent(incoming)
+            if parsed.get("valid"):
+                trace_id = parsed["trace_id"]
+                inbound_parent = parsed["parent_id"]
+                trace_flags = parsed["flags"]
+            else:
+                trace_id = new_trace_id()
+                inbound_parent = None
+                trace_flags = "01"
+                ts_in = []
+            server_span = new_span_id()
         tp = f"00-{trace_id}-{server_span}-{trace_flags}"
         ts_out = mutate_tracestate(ts_in, server_span)
-        # stash for outgoing propagation + receipt stamping
+        context = MappingProxyType({
+            "traceparent": tp,
+            "trace_id": trace_id,
+            "span_id": server_span,
+            "trace_flags": trace_flags,
+            "inbound_parent": inbound_parent,
+            "parent_accepted": inbound_parent is not None,
+            "tracestate": ts_out,
+        })
+        request.state._szl_wire_d_server_context = (context_token, context)
+        # Legacy aliases stay coherent; evidence helpers read the frozen owner.
         request.state.traceparent = tp
         request.state.trace_id = trace_id
         request.state.span_id = server_span
@@ -732,15 +794,14 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         """Propagate the trace to a cross-Space call (Wire D continuity).
         Mints a fresh CHILD span for the outbound hop, preserves trace-id +
         tracestate so the receiving Space continues the same trace."""
-        st = getattr(request, "state", None)
-        trace_id = getattr(st, "trace_id", None) or new_trace_id()
+        context = context_for_helpers(request)
+        trace_id = context["trace_id"]
         child = new_span_id()
-        ts = getattr(st, "tracestate", "") or ""
-        ts_members = parse_tracestate(ts)
+        ts_members = parse_tracestate(context["tracestate"])
         ts_out = mutate_tracestate(ts_members, child)
-        trace_flags = getattr(st, "trace_flags", "01")
+        trace_flags = context["trace_flags"]
         tp = f"00-{trace_id}-{child}-{trace_flags}"
-        tstate.record_outbound(trace_id, child, getattr(st, "span_id", None) or "", target_space or "peer")
+        tstate.record_outbound(trace_id, child, context["span_id"], target_space or "peer")
         hdrs = {"traceparent": tp}
         if ts_out:
             hdrs["tracestate"] = ts_out
@@ -748,11 +809,11 @@ def register_provenance(app, space: str) -> dict[str, Any]:
 
     def receipt_trace_fields(request) -> dict[str, Any]:
         """The W3C trace fields to stamp onto a Khipu receipt (origin span)."""
-        st = getattr(request, "state", None)
+        context = context_for_helpers(request)
         return {
-            "traceparent": getattr(st, "traceparent", None) or new_traceparent(),
-            "trace_id": getattr(st, "trace_id", None),
-            "span_id": getattr(st, "span_id", None),
+            "traceparent": context["traceparent"],
+            "trace_id": context["trace_id"],
+            "span_id": context["span_id"],
             "wire_d": "LIVE",
         }
 
@@ -835,6 +896,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             ),
         }
 
+    app._szl_wire_d_context_reader = context_reader
     app.state.szl_outgoing_headers = outgoing_headers
     app.state.szl_emit_signed_receipt = emit_signed_receipt
     app.state.szl_khipu_dag = dag
@@ -917,6 +979,7 @@ def register_provenance(app, space: str) -> dict[str, Any]:
     # ---- /wires/D : trace volume + active spans ----
     @app.get(f"{base}/wires/D")
     async def wire_d_status(request: Request) -> JSONResponse:
+        context = context_for_helpers(request)
         snap = tstate.snapshot()
         cross_mesh = wire_d_status_payload()
         return JSONResponse({
@@ -927,8 +990,8 @@ def register_provenance(app, space: str) -> dict[str, Any]:
             "cross_mesh_status": cross_mesh["state"],
             "spec": "https://www.w3.org/TR/trace-context/",
             "format": "00-<32hex trace-id>-<16hex span-id>-<2hex flags>",
-            "current_request_traceparent": getattr(request.state, "traceparent", None),
-            "current_request_tracestate": getattr(request.state, "tracestate", None),
+            "current_request_traceparent": context["traceparent"],
+            "current_request_tracestate": context["tracestate"],
             **snap,
             "cross_space": cross_mesh,
             "doctrine": DOCTRINE,
