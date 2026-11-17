@@ -15,6 +15,9 @@ MCP_ARCHIVE = ".github/shared-source-payloads/mcp-advertised-inventory-20261016-
 RETAINED = "tests/fixtures/shared-source-payloads/retained-signing-ledger-20261101-v1.json"
 SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json"
 PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
+DSSE = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1.json"
+ENGINE = "a11oy_code_engine.py"
+COMPANION_TEST = "tests/test_model_companion_boundary.py"
 ACTIVE = ".github/shared-source-payload-manifest.json"
 
 
@@ -122,20 +125,42 @@ def _assert_current_shared_payload(root):
         if relative not in {"tests/test_replication_shared_payload.py",
                             "szl_signing_state.py"}:
             assert prior["files"][relative] == expected
-    manifest = json.loads((root / ACTIVE).read_bytes())
-    assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "dsse-finite-reload-20261112-v1"
-    assert set(manifest["files"]) == set(prior["files"]) | {
+    dsse_raw = (root / DSSE).read_bytes()
+    assert hashlib.sha256(dsse_raw).hexdigest() == (
+        "75bd21650b76c1329d34606aa9a4f50da3dd5928b56e30668f9e4ceae6eb9f8b"
+    )
+    dsse = json.loads(dsse_raw)
+    assert dsse["schema"] == "szl-shared-source-payload/v1"
+    assert dsse["payload_id"] == "dsse-finite-reload-20261112-v1"
+    assert set(dsse["files"]) == set(prior["files"]) | {
         PROOF, "szl_dsse.py", "tests/test_dsse_real_signing.py",
     }
-    assert manifest["files"][PROOF] == hashlib.sha256(prior_raw).hexdigest()
+    assert dsse["files"][PROOF] == hashlib.sha256(prior_raw).hexdigest()
     # Finite emission adds the DSSE source and its tests. Provenance reload now
     # checks stored envelope bytes, so that file moves in this generation.
     # Every other predecessor entry stays pinned.
     for relative, expected in prior["files"].items():
         if relative not in {"tests/test_replication_shared_payload.py",
                             "szl_provenance.py"}:
+            assert dsse["files"][relative] == expected
+
+    manifest = json.loads((root / ACTIVE).read_bytes())
+    assert manifest["schema"] == "szl-shared-source-payload/v1"
+    assert manifest["payload_id"] == "model-companion-boundary-20261117-v1"
+    assert set(manifest["files"]) == set(dsse["files"]) | {DSSE, ENGINE, COMPANION_TEST}
+    assert manifest["files"][DSSE] == hashlib.sha256(dsse_raw).hexdigest()
+    # Only this generation's history assertions change among inherited files.
+    # The reviewed shared engine refuses an unavailable optional companion;
+    # canonical Access implementation and dependencies are not shared payloads.
+    for relative, expected in dsse["files"].items():
+        if relative != "tests/test_replication_shared_payload.py":
             assert manifest["files"][relative] == expected
+    assert manifest["files"][ENGINE] == (
+        "613183938099a18c82e59941079c7824de3978c74c423df8a7a59436d0801c98"
+    )
+    assert manifest["files"][COMPANION_TEST] == (
+        "9d838b554c9e6cb54cdf1054a6b9342d4d37db8afd5b7c08263265bfe1d11b90"
+    )
     # Verify all current bytes; predecessor receipts above stay immutable.
     for relative, expected in manifest["files"].items():
         assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == expected
@@ -150,6 +175,10 @@ def test_current_shared_payload_manifest_matches_current_peer():
 @pytest.mark.parametrize("change", [
     "source", "source_and_digest", "missing_entry", "schema", "generation",
     "security_digest", "retained_bytes", "security_bytes", "proof_bytes", "dsse_source",
+    "dsse_archive_bytes", "dsse_archive_bytes_and_digest", "predecessor_generation",
+    "missing_archive_entry", "missing_engine_entry", "missing_companion_test_entry",
+    "engine_source", "engine_source_and_digest", "companion_test_source",
+    "companion_test_source_and_digest", "canonical_helper_entry", "canonical_companion_entry",
 ])
 def test_current_payload_rejects_tampering(tmp_path, change):
     manifest = json.loads((ROOT / ACTIVE).read_bytes())
@@ -168,6 +197,28 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         manifest["schema"] = "invalid"
     elif change == "generation":
         manifest["payload_id"] = "snowflake-account-host-boundary-20261102-v1"
+    elif change == "predecessor_generation":
+        manifest["payload_id"] = "dsse-finite-reload-20261112-v1"
+    elif change in {"missing_archive_entry", "missing_engine_entry", "missing_companion_test_entry"}:
+        del manifest["files"][{
+            "missing_archive_entry": DSSE, "missing_engine_entry": ENGINE,
+            "missing_companion_test_entry": COMPANION_TEST,
+        }[change]]
+    elif change in {"dsse_archive_bytes_and_digest", "engine_source_and_digest",
+                    "companion_test_source_and_digest"}:
+        relative = {
+            "dsse_archive_bytes_and_digest": DSSE, "engine_source_and_digest": ENGINE,
+            "companion_test_source_and_digest": COMPANION_TEST,
+        }[change]
+        source = tmp_path / relative
+        source.write_bytes(source.read_bytes() + b"\n")
+        manifest["files"][relative] = hashlib.sha256(source.read_bytes()).hexdigest()
+    elif change in {"canonical_helper_entry", "canonical_companion_entry"}:
+        relative = ("szl_model_access.py" if change == "canonical_helper_entry"
+                    else "szl_router_client.py")
+        source = tmp_path / relative
+        source.write_bytes(b"fixture-only forbidden payload addition\n")
+        manifest["files"][relative] = hashlib.sha256(source.read_bytes()).hexdigest()
     elif change == "security_digest":
         manifest["files"]["szl_connectors/warehouse/warehouse_connectors.py"] = (
             _retained_signing_payload(tmp_path)["files"]["szl_connectors/warehouse/warehouse_connectors.py"]
@@ -176,6 +227,8 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         source = tmp_path / {
             "retained_bytes": RETAINED, "security_bytes": SNOWFLAKE,
             "proof_bytes": PROOF, "dsse_source": "szl_dsse.py",
+            "dsse_archive_bytes": DSSE, "engine_source": ENGINE,
+            "companion_test_source": COMPANION_TEST,
         }[change]
         source.write_bytes(source.read_bytes() + b"\n")
     (tmp_path / ACTIVE).write_text(json.dumps(manifest), encoding="utf-8")

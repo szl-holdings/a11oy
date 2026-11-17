@@ -58,6 +58,7 @@ jobs:
           tests/test_model_endpoint_credentials.py
           tests/test_energy_ledger_observation.py
           tests/test_model_access.py test_provider_http.py
+          tests/test_model_companion_boundary.py
           tests/test_collector_reason_codes.py
           tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts

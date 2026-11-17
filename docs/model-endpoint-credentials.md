@@ -67,6 +67,17 @@ one selected model, one request, a 30-second bound, the requested output budget,
 response identity validation, and no redirects. A caller must select a model or
 configure a valid `A11OY_MODEL_ID`; the legacy retry roster is not used.
 
+The shared engine delegates this optional contract to the canonical application's
+existing `szl_router_client.py` companion. When every Access setting is absent,
+that delegation is not imported or called. A shared engine copy without the
+companion or its Access entry point returns `MODEL_ACCESS_CLIENT_UNAVAILABLE`
+before dispatch if any Access setting is present, including an empty value.
+The canonical helper, strict companion and their runtime dependencies are not
+added to sibling applications by the shared-source update.
+Protected failures deny governed turns without a local answer, code substitute
+or sandbox dispatch. The chat route retains the fixed refusal code; its public
+backend and model descriptions omit unvalidated protected endpoint URLs.
+
 The registry observes one authenticated `/v1/models` GET for the explicitly
 selected `A11OY_BRAIN_URL` or `A11OY_MODEL_BASE_URL`. It uses the same dedicated
 model bearer, rejects redirects, and performs no generation or signing. Other

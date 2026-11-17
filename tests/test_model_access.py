@@ -4,6 +4,7 @@
 """Protected model requests use one origin and cannot become another protocol."""
 
 import json
+import builtins
 import socket
 
 import httpx
@@ -194,6 +195,117 @@ def test_all_absent_access_ignores_unrelated_meter_credentials(isolated):
     isolated.setenv("A11OY_MODEL_API_KEY", BEARER)
     assert access.model_access_configured() is False
     assert engine._model_auth_headers() == {"Authorization": "Bearer " + BEARER}
+
+
+@pytest.mark.parametrize("missing", ["helper", "entrypoint"])
+@pytest.mark.parametrize("explicit_budget", [False, True])
+def test_canonical_incomplete_companion_refuses_before_dispatch(isolated, missing, explicit_budget):
+    import szl_router_client as companion
+    configure(isolated)
+    original = builtins.__import__
+
+    def guarded(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "szl_model_access":
+            raise ModuleNotFoundError(CLIENT_SECRET, name=name)
+        return original(name, globals, locals, fromlist, level)
+
+    if missing == "helper":
+        isolated.setattr(builtins, "__import__", guarded)
+    else:
+        isolated.delattr(companion, "model_access_auth_headers")
+    requests = model_transport(isolated)
+    budget = companion.ExecutionBudget({"max_model_requests": 1,
+        "max_output_tokens": 4, "max_elapsed_seconds": 30}) if explicit_budget else None
+    result = engine._hf_chat([{"role": "user", "content": "2 + 2"}],
+        max_tokens=4, want_model=MODEL, execution_budget=budget)
+    assert result["error"] == "MODEL_ACCESS_CLIENT_UNAVAILABLE"
+    assert result["ok"] is False and result["attempts"] == 0 and requests == []
+    assert CLIENT_SECRET not in json.dumps(result) and BEARER not in json.dumps(result)
+    if budget is not None:
+        assert budget.snapshot()["terminal"] is True
+        assert budget.snapshot()["error"] == "MODEL_ACCESS_CLIENT_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("mode", ["chat", "code", "research"])
+@pytest.mark.parametrize("failure", ["partial", "malformed-url", "http", "redirect", "local-command"])
+def test_protected_governed_failure_cannot_generate_a_local_substitute(isolated, mode, failure):
+    configure(isolated)
+    if failure == "partial":
+        isolated.delenv(access.ACCESS_ID_ENV)
+    elif failure == "malformed-url":
+        isolated.setattr(engine, "_MODEL_BASE_URL", "https://user:" + CLIENT_SECRET + "@gpu.example/v1")
+    elif failure == "local-command":
+        isolated.setattr(engine, "_LOCAL_MODEL_CMD", "fixture-local-command")
+    requests = model_transport(isolated, status=302 if failure == "redirect" else 503)
+    isolated.setattr(engine, "_resolve_harness", lambda *args: None)
+    isolated.setattr(engine, "_retrieve_with_identity", lambda *args, **kwargs: ([], {}))
+
+    def no_substitute(*args, **kwargs):
+        raise AssertionError("Protected refusal cannot select a local response or sandbox")
+
+    for name in ("_local_chat", "_local_code", "_sandbox_exec"):
+        isolated.setattr(engine, name, no_substitute)
+    result = engine.governed_turn(mode, "2 + 2", lambda _: {"signed": False},
+        "fixture", want_model=MODEL, sandbox=True, allow_exec=True)
+    assert result["decision"] == "DENY" and result["emitted"] is False
+    assert result["answer"] is result["code"] is result["research"] is None
+    assert result["inference"]["mode"] == "unavailable" and result["inference"]["error"]
+    assert len(requests) == (1 if failure in ("http", "redirect") else 0)
+    assert result["executed"] is False
+    assert CLIENT_SECRET not in json.dumps(result) and BEARER not in json.dumps(result)
+
+
+def test_protected_ordinary_model_description_matches_single_request_contract(isolated):
+    configure(isolated)
+    isolated.setenv("A11OY_MODEL_ID", "Qwen/Qwen2.5-Coder-1.5B-Instruct")
+    label = engine._backend_label()
+    assert "One bounded request; no retries or model fallback." in label["honest"]
+    assert "2x retry" not in label["honest"]
+    isolated.delenv("A11OY_MODEL_ID")
+    assert engine._backend_label()["primary_model"] is None
+
+
+@pytest.mark.parametrize("failure", ["partial", "entrypoint", "malformed-url"])
+def test_registered_chat_retains_protected_refusal_and_public_reads_redact_invalid_url(isolated, failure):
+    import szl_router_client as companion
+    from starlette.applications import Starlette
+    from starlette.testclient import TestClient
+
+    configure(isolated)
+    if failure == "partial":
+        isolated.delenv(access.ACCESS_ID_ENV)
+    elif failure == "entrypoint":
+        isolated.delattr(companion, "model_access_auth_headers")
+    else:
+        isolated.setattr(engine, "_MODEL_BASE_URL", "https://user:" + CLIENT_SECRET + "@gpu.example/v1")
+    requests = model_transport(isolated)
+    isolated.setattr(engine, "_resolve_harness", lambda *args: None)
+    isolated.setattr(engine, "_retrieve_with_identity", lambda *args, **kwargs: ([], {}))
+    signed = []
+
+    def signer(payload):
+        signed.append(payload)
+        return {"signed": False, "signatures": []}
+
+    app = Starlette()
+    engine.register(app, "fixture", signer)
+    with TestClient(app) as client:
+        response = client.post("/api/fixture/v1/code/chat", json={"prompt": "2 + 2", "model": MODEL})
+        result = response.json()
+        assert response.status_code == 200
+        assert result["configured"] is False and result["decision"] == "DENY"
+        assert result["answer"] is None and result["inference"]["attempts"] == 0
+        assert result["inference"]["error"] in {
+            "MODEL_ACCESS_CONFIGURATION_INCOMPLETE", "MODEL_ACCESS_CLIENT_UNAVAILABLE", "MODEL_ENDPOINT_INVALID"}
+        assert CLIENT_SECRET not in response.text and BEARER not in response.text
+        signed_before = len(signed)
+        for route in ("models", "capabilities"):
+            public = client.get("/api/fixture/v1/code/" + route)
+            assert public.status_code == 200
+            assert public.json()["backend"]["backend"] == "unavailable"
+            assert CLIENT_SECRET not in public.text and BEARER not in public.text
+        assert len(signed) == signed_before
+    assert requests == []
 
 
 def catalog_transport(monkeypatch, *, status=200):
