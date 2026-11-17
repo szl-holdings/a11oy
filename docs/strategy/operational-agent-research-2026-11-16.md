@@ -212,8 +212,8 @@ to the evidence record and should be rendered consistently across every client.
 ## 7. Three designs to explore
 
 These are **MODELED proposals**, informed by the prior art above and the existing
-SZL architecture. These proposals require implementation and evaluation before
-any claim about novelty or benefit.
+SZL architecture. These are unvalidated designs, not established results. Each
+needs implementation, evaluation, and a useful operational outcome.
 
 ### A. Rehearse a decision against a frozen world state
 
