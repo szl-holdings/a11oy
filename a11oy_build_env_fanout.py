@@ -5,7 +5,9 @@
 
 Services/observability only: no model invocation, signing, state mutation, or
 execution approval. An acknowledgement proves bounded health reads and trace
-continuity, not collector delivery. The independent Jaeger gate remains required.
+continuity, not collector delivery. Rejected fan-outs expose an allowlisted,
+fixed-peer-only causal failure map; this is diagnostic, not a trace receipt.
+The independent Jaeger gate remains required.
 W3C propagation follows https://opentelemetry.io/docs/languages/python/propagation/.
 """
 import asyncio
@@ -33,14 +35,31 @@ MAX_RESPONSE_BYTES = 16 * 1024
 REQUEST_TIMEOUT_SECONDS = 2.0
 TOTAL_TIMEOUT_SECONDS = 3.0
 MAX_ACTIVE_FANOUTS = 2
+# Deliberately finite diagnostic vocabulary. Neither upstream body/error text
+# nor a caller-selected host may ever reach the returned causal failure map.
+PEER_FAILURE_CODES = frozenset({
+    "PEER_STATUS_UNAVAILABLE", "PEER_JSON_REQUIRED", "PEER_BODY_LIMIT",
+    "PEER_TRACE_UNAVAILABLE", "PEER_TIMEOUT", "PEER_UNAVAILABLE",
+})
 
 
-def _response(status, *, reason=None, traceparent=None):
+def _response(status, *, reason=None, traceparent=None, peer_failures=()):
     body = {"schema": SCHEMA, "accepted": status == 200}
     if status == 200:
         body.update(traceparent=traceparent, fanout=list(FANOUT))
     else:
         body.update(reason=reason, execution_authorized=False, receipt_minted=False)
+        # Causal provenance for bounded fixed-health reads, not runtime tracing
+        # proof. Names and reasons are both compiled-in finite public values.
+        if peer_failures:
+            received = dict(peer_failures) if isinstance(peer_failures, (list, tuple)) else {}
+            failures = [
+                {"peer": name, "reason": received[name]}
+                for name in FANOUT
+                if received.get(name) in PEER_FAILURE_CODES
+            ]
+            if failures:
+                body["peer_failures"] = failures
     headers = {
         "cache-control": "private, no-store",
         "x-szl-evidence-scope": "fixed-health-readback",
@@ -172,9 +191,16 @@ def register(app):
                 ) as client:
                     async with asyncio.TaskGroup() as group:
                         tasks = [group.create_task(_probe(client, url, continuing)) for _name, url in TARGETS]
-            for task in tasks:
-                if task.result() is not None:
-                    return _response(503, reason=task.result())
+            failures = [
+                (name, task.result())
+                for (name, _url), task in zip(TARGETS, tasks)
+                if task.result() is not None
+            ]
+            if failures:
+                # Preserve the historical top-level reason while exposing the
+                # exact finite, deterministic per-peer failure class. A peer
+                # cannot influence names, error vocabulary, ordering or URLs.
+                return _response(503, reason=failures[0][1], peer_failures=failures)
             return _response(200, traceparent=incoming)
         except TimeoutError:
             return _response(504, reason="FANOUT_DEADLINE")

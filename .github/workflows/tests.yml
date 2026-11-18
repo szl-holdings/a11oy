@@ -25,6 +25,8 @@ jobs:
           python-version: "3.12"
       - name: Check source identity and historical labels offline
         run: python -B tests/test_yachay_lean_snapshot.py -v
+      - name: Reject malformed folded Python test paths before broad CI
+        run: python -B tests/test_tests_workflow_structure.py -v
 
   execution-observer:
     name: Fixed execution observations and readiness evidence
@@ -59,6 +61,7 @@ jobs:
           tests/test_energy_ledger_observation.py
           tests/test_model_access.py test_provider_http.py
           tests/test_model_companion_boundary.py
+          tests/test_model_declaration_check.py
           tests/test_collector_reason_codes.py
           tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
