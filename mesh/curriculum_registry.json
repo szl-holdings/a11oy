@@ -1,9 +1,9 @@
 {
  "registry": "szl-ouroboros-mesh-curriculum-registry",
- "version": "0.2",
+ "version": "0.3",
  "generated_utc": "2026-11-17T02:50:47Z",
- "amended_utc": "2026-11-17 (v0.2: lap_1 honest TRAINED status; lap_2 doctrine-baked assignment per spec v0.2 §4.6)",
- "classification_method": "keyword-heuristic-v1 (honest: heuristic, human/owner review pending)",
+ "amended_utc": "2026-11-18 (v0.3: owner-directed promotion pass - all 33 unmapped-quarantine datasets role-mapped on card+file+row evidence; mapping is classification, NOT training admission; doctrine presence gate v0.2 s4.6 unchanged; no quality verdicts)",
+ "classification_method": "keyword-heuristic-v1 + evidence-promotion-pass-2026-11-18 (owner-directed; per-entry evidence recorded in promotion fields)",
  "dataset_count": 128,
  "entries": [
   {
@@ -12,7 +12,12 @@
   },
   {
    "repo": "SZLHOLDINGS/thesis-v18-formal-verification",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "thesis publication assets (abstract/figures/social cards), not training rows"
+   }
   },
   {
    "repo": "SZLHOLDINGS/uds-spans-receipts",
@@ -28,31 +33,66 @@
   },
   {
    "repo": "SZLHOLDINGS/SZLHOLDINGS",
-   "role": "unmapped-quarantine"
+   "role": "govern-state",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "org profile card"
+   }
   },
   {
    "repo": "SZLHOLDINGS/why-we-lead",
-   "role": "unmapped-quarantine"
+   "role": "govern-state",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "HISTORICAL doctrine v7 snapshot card"
+   }
   },
   {
    "repo": "SZLHOLDINGS/ouroboros-arxiv-preprint",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "arxiv preprint publication assets"
+   }
   },
   {
    "repo": "SZLHOLDINGS/szl-artifacts",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "data/index.jsonl is a file index (path,size)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/anatomy-alive-harness",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "testing harness, evidence not SFT"
+   }
   },
   {
    "repo": "SZLHOLDINGS/thesis-formula-index",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "formula anchor index"
+   }
   },
   {
    "repo": "SZLHOLDINGS/lean-theorem-tree",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "theorem dependency graph"
+   }
   },
   {
    "repo": "SZLHOLDINGS/rag-corpus-v1",
@@ -60,11 +100,21 @@
   },
   {
    "repo": "SZLHOLDINGS/lean-proofs-v1",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "Lean proofs corpus (72 files)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/canonical-formulas-v1",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "formula corpus"
+   }
   },
   {
    "repo": "SZLHOLDINGS/thesis-corpus-v18",
@@ -72,7 +122,12 @@
   },
   {
    "repo": "SZLHOLDINGS/doctrine-v10-v11",
-   "role": "unmapped-quarantine"
+   "role": "govern-state",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "doctrine v10 to v11 snapshot"
+   }
   },
   {
    "repo": "SZLHOLDINGS/k-verify-benchmark-v1",
@@ -80,11 +135,21 @@
   },
   {
    "repo": "SZLHOLDINGS/yuyay-v3-axis-labels-v1",
-   "role": "unmapped-quarantine"
+   "role": "eval-bench",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "13-axis governance-gate labels (text-classification)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/uds-bundles-v1",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "zarf/cosign/slsa provenance bundles (98 files)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/readiness-runs",
@@ -100,7 +165,12 @@
   },
   {
    "repo": "SZLHOLDINGS/legacy-archive",
-   "role": "unmapped-quarantine"
+   "role": "govern-state",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "card: LEGACY ARCHIVE SLOT, not an active training corpus"
+   }
   },
   {
    "repo": "SZLHOLDINGS/szl-evidence",
@@ -124,7 +194,12 @@
   },
   {
    "repo": "SZLHOLDINGS/szl-second-brain-inrepo",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "brain-corpus.public.jsonl (public projection)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/szl-quant-sft-v1",
@@ -144,7 +219,12 @@
   },
   {
    "repo": "SZLHOLDINGS/vault-artifacts",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "soul-registry.csv artifacts"
+   }
   },
   {
    "repo": "SZLHOLDINGS/receipted-unsloth",
@@ -156,7 +236,12 @@
   },
   {
    "repo": "SZLHOLDINGS/szl-frontier-covenant",
-   "role": "unmapped-quarantine"
+   "role": "govern-state",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "frontier memory covenant v0.4"
+   }
   },
   {
    "repo": "SZLHOLDINGS/release-assets",
@@ -168,11 +253,21 @@
   },
   {
    "repo": "SZLHOLDINGS/david-leads-data",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "governed external reference data, own use-terms; NOT training"
+   }
   },
   {
    "repo": "SZLHOLDINGS/oac-clinical-transport-observability-synthetic",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "own trainer spec, Wave C train target (768 train rows)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/szl-frontier-evaluation-receipts",
@@ -180,7 +275,12 @@
   },
   {
    "repo": "SZLHOLDINGS/szl-marketing-factbase",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "live-fetched marketing factbase"
+   }
   },
   {
    "repo": "SZLHOLDINGS/szl-science-forum-corpus",
@@ -328,7 +428,12 @@
   },
   {
    "repo": "SZLHOLDINGS/formula-proving-ground",
-   "role": "unmapped-quarantine"
+   "role": "eval-bench",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "unproven-frontier atlas + model leg runs"
+   }
   },
   {
    "repo": "SZLHOLDINGS/papers-sft-v1",
@@ -340,7 +445,12 @@
   },
   {
    "repo": "SZLHOLDINGS/kamachikuna",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "doctrine corpus train.jsonl (ten laws)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/creativity-sft-v1",
@@ -348,7 +458,12 @@
   },
   {
    "repo": "SZLHOLDINGS/prime-principle",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "doctrine corpus train.jsonl (prime principle)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/brain-synthesized-corpus",
@@ -356,7 +471,12 @@
   },
   {
    "repo": "SZLHOLDINGS/puriq-market-data",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "market candles + ingest receipt; proprietary license noted; NOT training"
+   }
   },
   {
    "repo": "SZLHOLDINGS/physics-bench-micro",
@@ -372,7 +492,12 @@
   },
   {
    "repo": "SZLHOLDINGS/mesh-liveness",
-   "role": "unmapped-quarantine"
+   "role": "evidence-telemetry",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "mesh liveness/heartbeat band"
+   }
   },
   {
    "repo": "SZLHOLDINGS/quant-curriculum-v1",
@@ -380,7 +505,12 @@
   },
   {
    "repo": "SZLHOLDINGS/measurement-honesty-v1",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "card: curriculum candidate; already included in ring-curriculum-v3"
+   }
   },
   {
    "repo": "SZLHOLDINGS/szl-frontier-sft-mix-v4",
@@ -404,7 +534,12 @@
   },
   {
    "repo": "SZLHOLDINGS/szl-x402-seller-card",
-   "role": "unmapped-quarantine"
+   "role": "govern-state",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "agent-facing estate commercial descriptor"
+   }
   },
   {
    "repo": "SZLHOLDINGS/lean-math-sft-v1",
@@ -472,7 +607,12 @@
   },
   {
    "repo": "SZLHOLDINGS/absrl-doubt-claude-v1",
-   "role": "unmapped-quarantine"
+   "role": "eval-bench",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "abstention/doubt eval battery rows (question/expected_answer/determinability)"
+   }
   },
   {
    "repo": "SZLHOLDINGS/absrl-reward-pool-v2-1",
@@ -484,19 +624,39 @@
   },
   {
    "repo": "SZLHOLDINGS/vgl-repro-ga-20261116",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "VGL GA repro distill corpus"
+   }
   },
   {
    "repo": "SZLHOLDINGS/vgl-sweep-ga-20261116",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "VGL GA sweep distill corpus"
+   }
   },
   {
    "repo": "SZLHOLDINGS/vgl-repro-cd-20261116",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "VGL CD repro distill corpus"
+   }
   },
   {
    "repo": "SZLHOLDINGS/vgl-sweep-cd-20261116",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "VGL CD sweep distill corpus"
+   }
   },
   {
    "repo": "SZLHOLDINGS/lean-math-sft-v2",
@@ -508,7 +668,12 @@
   },
   {
    "repo": "SZLHOLDINGS/vgl-triang-20261116",
-   "role": "unmapped-quarantine"
+   "role": "curriculum",
+   "promotion": {
+    "date": "2026-11-18",
+    "basis": "card+file-inventory+row-peek evidence pass (owner-directed)",
+    "evidence": "VGL triangulation distill corpus"
+   }
   },
   {
    "repo": "SZLHOLDINGS/unified-corpus-v2",
@@ -520,11 +685,10 @@
   }
  ],
  "role_counts": {
-  "curriculum": 64,
-  "unmapped-quarantine": 33,
-  "evidence-telemetry": 21,
-  "govern-state": 7,
-  "eval-bench": 3
+  "curriculum": 76,
+  "evidence-telemetry": 33,
+  "govern-state": 13,
+  "eval-bench": 6
  },
  "lap_assignments": {
   "lap_1": {

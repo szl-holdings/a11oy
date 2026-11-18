@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-11-16T23:19:02Z",
+  "observedAt": "2026-11-18T05:28:05Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 147,
-      "datasets": 88,
-      "spaces": 23,
+      "models": 150,
+      "datasets": 99,
+      "spaces": 33,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -1570,6 +1570,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/governed-norm-v2-trained",
       "repoType": "model",
       "stage": "inventory",
@@ -1880,6 +1890,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/salad-khipu-scholar-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-khipu-scholar-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-blocked",
       "repoType": "model",
       "stage": "inventory",
@@ -1887,6 +1907,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl-blocked"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-cram",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-cram"
       ]
     },
     {
@@ -2372,6 +2402,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/certified-puzzles-frontier-bank-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/certified-puzzles-frontier-bank-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/clinical-abstention-corpus-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2399,6 +2439,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/clinical-abstention-sft-api-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/cram-sudoku-extreme",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/cram-sudoku-extreme"
       ]
     },
     {
@@ -2492,6 +2542,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/frontier-mix-v6-rebalanced",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/frontier-mix-v6-rebalanced"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/frontier-rewards",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/frontier-rewards"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/governed-agent-bench",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2559,6 +2629,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/kernel-receipt-regression-attn-maskmod-blockkv-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-v2-abstention-curriculum",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-v2-abstention-curriculum"
       ]
     },
     {
@@ -2649,6 +2729,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/model-bom"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/muhu-methodology-sft-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/muhu-methodology-sft-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/muhu-methodology-sft-v3",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/muhu-methodology-sft-v3"
       ]
     },
     {
@@ -2782,6 +2882,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/ring-curriculum-v3",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/ring-curriculum-v3"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-1-doctrine-sft",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2819,6 +2929,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-distill-abstention-v1-sft"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-distill-abstention-v2-sft",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-distill-abstention-v2-sft"
       ]
     },
     {
@@ -3062,6 +3182,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/vgl-sft-certified-puzzles-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/vgl-sft-certified-puzzles-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/vgl-sweep-cd-20261116",
       "repoType": "dataset",
       "stage": "inventory",
@@ -3099,6 +3229,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/why-we-lead"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/wink-observatory-data",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/wink-observatory-data"
       ]
     },
     {
@@ -3202,6 +3342,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/frontier-console",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/frontier-console"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/khipu-hologram",
       "repoType": "space",
       "stage": "inventory",
@@ -3209,6 +3359,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/khipu-hologram"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-proof-loom",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/khipu-proof-loom"
       ]
     },
     {
@@ -3264,6 +3424,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-command-center",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-command-center"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-command-lab",
       "repoType": "space",
       "stage": "inventory",
@@ -3281,6 +3451,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-cram-demo",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-cram-demo"
       ]
     },
     {
@@ -3334,6 +3514,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-muhu-frontier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-muhu-frontier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-router-control",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-router-control"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-science-gate-studio",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-science-gate-studio"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/terra",
       "repoType": "space",
       "stage": "inventory",
@@ -3344,6 +3554,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/the-grid",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/the-grid"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/truth-router",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/truth-router"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/vertical-services",
       "repoType": "space",
       "stage": "inventory",
@@ -3351,6 +3581,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/vertical-services"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/wink-observatory",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/wink-observatory"
       ]
     },
     {
