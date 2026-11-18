@@ -182,3 +182,68 @@ test("all local responses are non-cacheable and browser-readable", async (t) => 
     assert.equal(r.headers.get("access-control-allow-credentials"), null);
   }
 });
+
+import { compareUnpaidChallenge, probeLive } from "./live-witness.mjs";
+
+test("read-only witness matches source terms but never claims settlement", async (t) => {
+  blockNetwork(t);
+  const baseline = await (await worker.fetch(request(), {})).json();
+  const encoded = Buffer.from(JSON.stringify(baseline)).toString("base64");
+  assert.deepEqual(compareUnpaidChallenge(baseline, 402, encoded), {
+    state: "MATCHED_UNPAID_PROTOCOL_ONLY", reason: "SOURCE_LIVE_CHALLENGE_PARITY",
+  });
+  const calls = [];
+  const result = await probeLive(async (url, options) => {
+    calls.push({ url, options });
+    return new Response(null, { status: 402, headers: { "payment-required": encoded } });
+  });
+  assert.equal(result.state, "MATCHED_UNPAID_PROTOCOL_ONLY");
+  assert.equal(result.http_status, 402);
+  assert.match(result.source_worker_sha256, /^[a-f0-9]{64}$/);
+  assert.equal(result.payment_settlement_verified, false);
+  assert.equal(result.live_inference_verified, false);
+  assert.equal(result.deployment_source_parity_verified, false);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, URL_BASE);
+  assert.equal(calls[0].options.method, "HEAD");
+  assert.equal(calls[0].options.redirect, "manual");
+  assert.equal(calls[0].options.headers, undefined);
+});
+
+test("witness refuses price, payee, network, URL, or atomic-unit drift", async (t) => {
+  blockNetwork(t);
+  const baseline = await (await worker.fetch(request(), {})).json();
+  const edits = [
+    (x) => { x.accepts[0].amount = "20001"; },
+    (x) => { x.accepts[0].payTo = "different-payee"; },
+    (x) => { x.accepts[0].network = "eip155:1"; },
+    (x) => { x.accepts[0].asset = "different-asset"; },
+    (x) => { x.resource.url = "https://another.example/v1/chat/completions"; },
+    (x) => { x.x402Version = 1; },
+  ];
+  for (const edit of edits) {
+    const altered = structuredClone(baseline);
+    edit(altered);
+    const encoded = Buffer.from(JSON.stringify(altered)).toString("base64");
+    const decision = compareUnpaidChallenge(baseline, 402, encoded);
+    assert.equal(decision.state, "DRIFT");
+  }
+});
+
+test("witness fails closed on bad status and malformed headers", async (t) => {
+  blockNetwork(t);
+  const baseline = await (await worker.fetch(request(), {})).json();
+  for (const header of [null, "", "not-base64!!", "e30=", "eyJ4NDAyVmVyc2lvbiI6MX0="]) {
+    assert.equal(compareUnpaidChallenge(baseline, 402, header).state, "DRIFT");
+  }
+  const encoded = Buffer.from(JSON.stringify(baseline)).toString("base64");
+  assert.deepEqual(compareUnpaidChallenge(baseline, 200, encoded), {
+    state: "DRIFT", reason: "UNPAID_STATUS_NOT_402",
+  });
+  const failed = await probeLive(async () => { throw new Error("PRIVATE_ERROR"); });
+  assert.equal(failed.state, "UNAVAILABLE");
+  assert.equal(failed.reason, "NETWORK_OR_TIMEOUT");
+  assert.equal(failed.http_status, null);
+  assert.equal(failed.payment_settlement_verified, false);
+  assert.doesNotMatch(JSON.stringify(failed), /PRIVATE_ERROR/);
+});

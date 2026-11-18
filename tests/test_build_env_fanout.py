@@ -192,6 +192,64 @@ def test_transport_errors_do_not_leak_or_retry(rig, exception, reason):
     assert len(rig.calls) == 4 and "private-fixture" not in response.text
 
 
+def test_causal_failure_map_names_only_fixed_peers_and_allowlisted_reasons(rig):
+    """One failed fan-out discloses which owned organ needs repair, never logs."""
+    async def handler(request):
+        hostname = request.url.host
+        if hostname.startswith("sentra."):
+            return peer_response(status=503, data=b"PRIVATE_SENTRA_SECRET")
+        if hostname.startswith("amaru."):
+            return peer_response(headers={"content-type": "text/html"},
+                                 data=b"PRIVATE_AMARU_SECRET")
+        if hostname.startswith("killinchu."):
+            return peer_response(headers={"traceparent": "PRIVATE_TRACE"})
+        return peer_response()
+
+    rig.handler = handler
+    response = get(rig)
+    assert response.status_code == 503
+    body = response.json()
+    assert body == {
+        "schema": fanout.SCHEMA,
+        "accepted": False,
+        "reason": "PEER_STATUS_UNAVAILABLE",
+        "execution_authorized": False,
+        "receipt_minted": False,
+        "peer_failures": [
+            {"peer": "sentra", "reason": "PEER_STATUS_UNAVAILABLE"},
+            {"peer": "amaru", "reason": "PEER_JSON_REQUIRED"},
+            {"peer": "killinchu", "reason": "PEER_TRACE_UNAVAILABLE"},
+        ],
+    }
+    assert len(rig.calls) == 4
+    assert "PRIVATE" not in response.text
+    assert response.headers["x-szl-collector-delivery"] == "unverified"
+    assert response.headers["cache-control"] == "private, no-store"
+
+
+def test_causal_response_cannot_echo_unrecognized_peer_or_exception():
+    response = fanout._response(
+        503, reason="PEER_TRACE_UNAVAILABLE",
+        peer_failures=[
+            ("http://169.254.169.254/", "PEER_TRACE_UNAVAILABLE"),
+            ("sentra", "PRIVATE_TOKEN"),
+            ("rosie", "PEER_TIMEOUT"),
+        ],
+    )
+    assert response.status_code == 503
+    body = json.loads(response.body)
+    assert body["peer_failures"] == [{"peer": "rosie", "reason": "PEER_TIMEOUT"}]
+    assert "PRIVATE" not in response.body.decode()
+    assert "169.254.169.254" not in response.body.decode()
+
+
+def test_success_remains_exact_without_diagnostic_fields(rig):
+    response = get(rig)
+    assert response.status_code == 200
+    assert "peer_failures" not in response.json()
+    assert response.json()["fanout"] == list(fanout.FANOUT)
+
+
 def test_peer_cookies_cannot_cross_target_boundaries(rig):
     async def handler(_request):
         return peer_response(headers={"set-cookie": "secret=fixture; Domain=.szl.svc; Path=/"})
