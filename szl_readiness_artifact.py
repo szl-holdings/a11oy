@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from functools import lru_cache
 import hashlib
 import importlib.util
@@ -35,7 +36,45 @@ MAX_MEMBER = 1024 * 1024
 
 
 class EvidenceBlocked(RuntimeError):
-    """A fixed refusal code; response bodies, tokens and signed URLs stay private."""
+    """A fixed refusal code; only a numeric retry delay may cross the boundary."""
+
+    def __init__(self, code, *, retry_after=None):
+        super().__init__(code)
+        self.retry_after = retry_after
+
+
+def provider_retry_delay(headers, now):
+    """Retain wait instructions without retaining provider headers or bodies."""
+    def header(name):
+        value = headers.get(name, "")
+        require(type(value) is str and len(value) <= 128, "READINESS_RETRY_DELAY_INVALID")
+        return value.strip()
+
+    def http_timestamp(value):
+        parsed = parsedate_to_datetime(value)
+        if parsed.tzinfo is None:
+            raise ValueError("timezone required")
+        return parsed.timestamp()
+
+    # The provider's Date protects against a local clock ahead of its reset.
+    try:
+        now = min(now, http_timestamp(header("date")))
+    except (ValueError, TypeError, OverflowError, OSError):
+        pass
+    delays = [60.0]
+    value = header("retry-after")
+    if re.fullmatch(r"[0-9]+", value):
+        delays.append(float(value))
+    elif value:
+        try:
+            delays.append(max(0.0, http_timestamp(value) - now))
+        except (ValueError, TypeError, OverflowError, OSError):
+            pass
+    reset = header("x-ratelimit-reset")
+    if header("x-ratelimit-remaining") == "0" and re.fullmatch(r"[0-9]+", reset):
+        delays.append(max(0.0, float(reset) - now))
+    require(all(math.isfinite(delay) for delay in delays), "READINESS_RETRY_DELAY_INVALID")
+    return max(delays)
 
 
 def require(value, code):
@@ -159,10 +198,11 @@ def hosted(environ=None):
 class Transport:
     """One bounded GET-only attempt; no credentials follow object redirects."""
 
-    def __init__(self, token, stop, *, client=None, clock=time.monotonic):
+    def __init__(self, token, stop, *, client=None, clock=time.monotonic, wall_clock=time.time):
         require(type(token) is str and bool(token) and not any(c.isspace() for c in token),
                 "GITHUB_READ_CREDENTIAL_REQUIRED")
         self.token, self.stop, self.clock = token, stop, clock
+        self.wall_clock = wall_clock
         self.deadline = clock() + DEADLINE
         if client is None:
             import httpx
@@ -201,7 +241,9 @@ class Transport:
                         reason = "UNEXPECTED_RESPONSE"
                     # Fixed codes only: never expose response bodies, credentials,
                     # headers, signed object URLs or provider exception messages.
-                    raise EvidenceBlocked(stage + "_" + reason)
+                    delay = (provider_retry_delay(response.headers, self.wall_clock())
+                             if reason in ("RATE_LIMITED", "UPSTREAM_UNAVAILABLE") else None)
+                    raise EvidenceBlocked(stage + "_" + reason, retry_after=delay)
                 if redirect:
                     return response.headers.get("location", "")
                 require(response.headers.get("content-encoding", "").strip().lower() in ("", "identity"),

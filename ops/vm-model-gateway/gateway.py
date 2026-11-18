@@ -24,7 +24,7 @@ if str(REPO) not in sys.path:
 import szl_dsse  # noqa: E402 - canonical A11oy P-256 DSSE implementation
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from runtime_config import DEFAULT_TUNNEL_PORT, GATEWAY_PORT, LOOPBACK_HOST, LocalTransport
+from runtime_config import DEFAULT_TUNNEL_PORT, LOOPBACK_HOST, LocalTransport
 
 ALIAS = "prism-ml/Ternary-Bonsai-2-27B-PQ2_0"
 RAW_MODEL = "./models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf"
@@ -508,7 +508,7 @@ def main():
         raise SystemExit("persistent signer and receipts directory required")
     gateway = Gateway(key, receipt_path, upstream_port=transport.tunnel_port)
     Handler.gateway = gateway
-    with BoundedServer((LOOPBACK_HOST, GATEWAY_PORT), Handler) as server:
+    with BoundedServer((LOOPBACK_HOST, transport.gateway_port), Handler) as server:
         server.serve_forever(poll_interval=0.2)
 
 

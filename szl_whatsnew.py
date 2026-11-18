@@ -54,10 +54,12 @@ from typing import Any
 # DECLARED = asserted/stated by the operator, NOT measured and NOT proven; never upgraded to
 # MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). The feed reads each
 # surface's label VERBATIM from the catalog, so an honest DECLARED must be representable here.
+# UNKNOWN (public-estate contract truthVocabulary, static/shared/public-estate-contract.v1.json) is
+# resolvable by the catalog too, so it must be representable here for the same reason.
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
     "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
-    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNKNOWN", "UNAVAILABLE",
 )
 MODELED = "MODELED"
 LIVE = "LIVE"

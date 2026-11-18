@@ -4,7 +4,8 @@
 # Local VM model gateway
 
 This is an isolated A11oy **proposal** adapter for the already running Massed Compute
-`llama-server`. It binds `127.0.0.1:4000` and reaches only the verified SSH
+`llama-server`. It binds loopback port 4000 by default, or a separately reviewed free gateway port,
+and reaches only the verified SSH
 loopback tunnel (default `127.0.0.1:19483`). It is not a production route, an A11oy
 execution authority, a held-out evaluation, or a claim of model quality.
 
@@ -52,11 +53,15 @@ $env:SZL_VM_GATEWAY_RECEIPTS_DIR = <existing protected directory outside this re
 python -B ops/vm-model-gateway/gateway.py
 ```
 
-For direct local startup, `SZL_VM_GATEWAY_TUNNEL_PORT` can select a different
-existing private loopback tunnel. It accepts an ASCII decimal port from 1024 to
-65535, excluding the gateway port 4000. The default remains 19483. Both the
-upstream host and gateway bind stay `127.0.0.1`; no host or remote-target override
-is accepted. This direct mode does not supervise or adopt the tunnel.
+For direct local startup, `SZL_VM_GATEWAY_TUNNEL_PORT` can select an existing
+private loopback SSH forward (default 19483). The independent
+`SZL_VM_GATEWAY_PORT` selects the gateway's listener (default 4000; e.g.
+4001 only when independently measured free). Both selections are strict
+decimal ASCII in 1024-65535, distinct, and bound exclusively to loopback.
+The tunnel cannot adopt gateway default port 4000 or upstream port 8080;
+the gateway cannot adopt tunnel default 19483 or port 8080. No remote
+target or host override is possible. The direct mode does not supervise,
+adopt, or terminate a foreign listener.
 
 The signer and receipts directory are mandatory. The gateway uses the repo's
 `szl_dsse.sign_payload` and `verify_envelope` implementation. Its local audit
@@ -116,22 +121,31 @@ The native process primitives follow Microsoft's
 [process attribute contract](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute),
 and [nested Job semantics](https://learn.microsoft.com/en-us/windows/win32/procthread/nested-jobs).
 Windows 10 or newer is required.
-The supervisor reads `transport-config.json` from its private runtime directory
-before opening either credential file. A missing file retains port 19483. To
-select a separate owned local listener, the complete nonsecret file is:
+The supervisor reads `transport-config.json` in its private runtime
+directory **before opening either credential file**. A missing file retains
+the legacy tunnel 19483 and gateway 4000. The original two-field v1
+configuration is still valid. To choose two separately owned, free
+localhost listeners the complete nonsecret file is:
 
 ```json
-{"schema":"szl.vm-model-transport/v1","local_tunnel_port":19484}
+{"schema":"szl.vm-model-transport/v1","local_tunnel_port":19484,"local_gateway_port":4001}
 ```
 
-Only those two fields are accepted. Duplicate or unknown fields, malformed or
-oversize input, a symlink, a noninteger port, privileged ports, and port 4000
-refuse startup. The selected port is used for the owned SSH forward, its health
-probe, the child gateway environment, and supervisor evidence. It persists
-across scheduled restarts because the same file is read on every start.
-The supervisor does not inherit a tunnel-port choice from the task's environment.
-The remote target remains `127.0.0.1:8080` and the gateway remains
-`127.0.0.1:4000`.
+Only these three field names are accepted. The third field is optional,
+and cannot set the host, SSH target, remote port, credential source or
+execution authority. Duplicate/unknown keys, symlinks, malformed or
+oversize input, noninteger/privileged ports, reserved ports and listener
+collisions refuse startup without adopting or terminating any owner.
+The selected SSH forward, gateway bind, health check and signed supervisor
+intent all use the same reviewed configuration. The file persists across
+bounded user-scoped bootstrap retries. Native Task Scheduler retry
+**must remain disabled** to avoid multiplying the bootstrap budget.
+
+The supervisor emits a measured `four-file-sha256:` identity derived
+from exactly the four reviewed copied-source SHA-256 pins, not a fake
+GitHub commit SHA. The installer must *separately* bind those bytes to
+the protected, reviewed GitHub revision and keep production admission
+blocked until independent release-quality and model evidence exists.
 
 Source for this host service belongs to the
 `services` and `provenance` layers; these scripts are not copied into the HF image.
@@ -145,8 +159,8 @@ Source for this host service belongs to the
    designated Windows user and `SYSTEM`; verify the resulting ACLs before storing
    credentials. Keep `logs`, `operations`, and `receipts` as private subdirectories.
 2. Copy `windows-bootstrap.py` and `windows-supervisor.py` there. Populate `source/`
-   with exactly the following source files from A11oy commit
-   `c66bbeaf69e2e961a8df0d3c27e324268116b585`, preserving their relative paths:
+   with the four source files from the independently reviewed and merged
+   gateway-port source revision, preserving their relative paths:
    `ops/vm-model-gateway/gateway.py`, `ops/vm-model-gateway/runtime_config.py`,
    `szl_dsse.py`, and `szl_content_address.py`.
    Check their bytes against all four SHA-256 pins in `EXPECTED`. The supervisor
@@ -161,7 +175,7 @@ Source for this host service belongs to the
    bytes or select a target through an environment variable. Other launcher
    names, a missing sibling, or a symlink refuse startup. Before every attempt
    the bootstrap requires supervisor SHA-256
-   `d09f82606c5b2af2e9c6311ee412b8f8340172400583227bf011534a3b28e41c`.
+   `26f74a2a014b405ed97de779b1d67288693bc44bab68e48d4fccde5a015dfe62`.
    Record both installed filenames and hashes in the installation receipt.
 3. Place the reviewed host-specific OpenSSH configuration at `ssh-config`. It must
    define `szl-massed-qualification`, require host-key checking, identify only the
@@ -201,7 +215,7 @@ reviewed source and retain an installation receipt for the exact release used.
    files described above. Compare the source bytes with the hard-coded
    `EXPECTED` manifest and keep the reviewed SSH configuration pin unchanged.
    Never calculate new trust pins from arbitrary installed files.
-3. Confirm the proposed local port and 4000 are free, then place the complete
+3. Confirm the proposed tunnel and gateway listener ports are free, then place the complete
    `transport-config.json` in the private runtime directory. For the separate
    port example use 19484 only if it is free. Retain the existing directory ACLs,
    credential files, receipt chain, and task trigger/action.
@@ -210,7 +224,9 @@ reviewed source and retain an installation receipt for the exact release used.
    `upstream` in the state and receipt must agree. The old external tunnel
    must retain its own PID and listener. A conflict must stop startup without
    reading credentials or taking over the existing listener.
-5. Check local `GET /health` and unauthenticated `GET /v1/models` (401).
+5. Check both GET /health and unauthenticated GET /v1/models (401)
+   at the **selected gateway listener**, not Ollama port 4000 or
+   a public raw-engine response.
    Use an already credentialed operator client for the bounded authenticated
    model-identity check and any separately authorized inference smoke test;
    record only statuses, model identity, instance ID, and receipt references.

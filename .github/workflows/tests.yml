@@ -25,6 +25,8 @@ jobs:
           python-version: "3.12"
       - name: Check source identity and historical labels offline
         run: python -B tests/test_yachay_lean_snapshot.py -v
+      - name: Reject malformed folded Python test paths before broad CI
+        run: python -B tests/test_tests_workflow_structure.py -v
 
   execution-observer:
     name: Fixed execution observations and readiness evidence
@@ -59,6 +61,7 @@ jobs:
           tests/test_energy_ledger_observation.py
           tests/test_model_access.py test_provider_http.py
           tests/test_model_companion_boundary.py
+          tests/test_model_declaration_check.py
           tests/test_collector_reason_codes.py
           tests/test_ouroboros_passport.py tests/test_ouroboros_passport_admission.py
       - name: Verify authenticated VM model gateway contracts
@@ -723,7 +726,7 @@ jobs:
         # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
         # asserts /healthz stays exempt — so a regression that throttles a health probe,
         # drops the limiter, or breaks an envelope becomes a red gate.
-        run: pytest tests/test_be_hardening.py test_backend_hardening.py tests/test_backend_cache_singleflight.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
+        run: pytest tests/test_be_hardening.py tests/test_http_telemetry_evidence.py test_backend_hardening.py tests/test_backend_cache_singleflight.py tests/test_experimental_software_labs.py tests/test_szl_spaces_inventory.py -q
 
   python-energy-egress-scrub:
     name: Energy /metrics private-address egress guard (pytest, offline)
@@ -847,6 +850,7 @@ jobs:
           python3 scripts/test_hf_exact_main_ownership.py
           python3 tests/test_hf_sync_supersession_contract.py
           python3 tests/test_hf_manual_prerequisites_workflow.py
+          python3 tests/test_hf_configuration_handover.py
           python3 tests/test_hf_sync_no_exact_pins.py
           python3 tests/test_resume_hf_space.py
 
