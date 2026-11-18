@@ -484,7 +484,10 @@ def test_puriq_formula_routes_have_exact_owners_before_catchalls_and_return_owne
     assert formal_f1 == formal["formulas"]["F1"]
     assert numerical_f1["record_id"] != formal_f1["record_id"]
     assert 'data-registry-digest="' + formal["registry_digest"] + '"' in responses["/formulas"].text
+
+
 def test_oro_evidence_routes_are_owned_before_both_catchalls():
+    routes = list(serve.app.router.routes)
     fallbacks = [
         index for index, route in enumerate(routes)
         if getattr(route, "path", None) in (
@@ -529,3 +532,5 @@ def test_amaru_codex_mounted_paths_do_not_duplicate_api_prefix():
     with TestClient(unmounted) as client:
         assert client.get("/api/amaru/v1/papers").status_code == 200
         assert client.get("/api/amaru/v1/codex-kernel").status_code == 200
+
+
