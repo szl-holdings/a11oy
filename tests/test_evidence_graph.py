@@ -238,3 +238,78 @@ def test_serving_routes_keep_resolvable_response_annotations():
         assert "/api/a11oy/v1/evidence/query" in schema.json()["paths"]
         assert client.get("/api/a11oy/v1/evidence/graph").status_code == 200
         assert client.get("/api/a11oy/v1/evidence/query?verdict=GREEN").status_code == 400
+
+
+def test_parent_resolution_exposes_unresolved_ids_without_authority():
+    parent = make_edge("root")
+    child = make_edge("child", parents=(parent.receipt_id, "edge-missing-source"))
+    snap = graph_snapshot([child, parent], observed_at="2026-11-17T20:00:00Z")
+    resolution = snap["parent_resolution"]
+    assert resolution == {
+        "state": "INCOMPLETE_IN_VIEW", "authority": "OBSERVATION_ONLY",
+        "resolved": 1, "unresolved": 1, "denominator": 2, "ratio": 0.5,
+        "unresolved_preview": ["edge-missing-source"],
+        "preview_truncated": False, "graph_bounded": False,
+        "signatures_verified": False,
+    }
+    empty = graph_snapshot([parent], observed_at="2026-11-17T20:00:00Z")
+    assert empty["parent_resolution"]["ratio"] is None
+    assert empty["parent_resolution"]["state"] == "UNAVAILABLE"
+    assert empty["parent_resolution"]["denominator"] == 0
+    assert empty["parent_resolution"]["signatures_verified"] is False
+
+
+def test_parent_resolution_is_in_view_only_when_snapshot_is_bounded():
+    root = make_edge("root")
+    child = make_edge("child", parents=(root.receipt_id,))
+    graph = graph_snapshot([root, child], max_edges=1, observed_at="2026-11-17T20:00:00Z")
+    assert graph["bounded"] is True
+    assert graph["parent_resolution"]["graph_bounded"] is True
+    assert graph["parent_resolution"]["authority"] == "OBSERVATION_ONLY"
+    assert graph["parent_resolution"]["ratio"] in (None, 0.0, 1.0)
+
+
+def test_openlineage_static_job_event_does_not_invent_runs_or_signatures():
+    from szl_evidence_graph import (
+        OPENLINEAGE_JOB_SCHEMA, openlineage_job_event,
+    )
+    root = make_edge("root")
+    child = make_edge("child", parents=(root.receipt_id,))
+    snap = graph_snapshot([root, child], observed_at="2026-11-17T20:00:00Z")
+    event = openlineage_job_event(snap)
+    assert event["schemaURL"] == OPENLINEAGE_JOB_SCHEMA
+    assert event["eventTime"] == snap["observed_at"]
+    assert set(event) == {"eventTime", "producer", "schemaURL", "job", "inputs", "outputs"}
+    assert "run" not in event and "eventType" not in event
+    assert "facets" not in event["job"]
+    assert [row["name"] for row in event["inputs"]] == [
+        edge["receipt_id"] for edge in snap["edges"]
+    ]
+    assert event["outputs"][0]["name"] == snap["digest_sha256"]
+    assert "edge-missing" not in json.dumps(event)
+
+
+@pytest.mark.parametrize("mutation", [
+    lambda value: value.update(digest_sha256="0" * 64),
+    lambda value: value.update(edge_count=0),
+    lambda value: value["edges"][0].update(receipt_id="edge-" + "f" * 64),
+    lambda value: value.update(total_input_edges=0),
+    lambda value: value.update(bounded=True),
+    lambda value: value.update(observed_at="2026-11-17"),
+])
+def test_openlineage_static_projection_rejects_tamper_and_bad_scope(mutation):
+    from szl_evidence_graph import openlineage_job_event
+    snap = graph_snapshot([make_edge("root")], observed_at="2026-11-17T20:00:00Z")
+    mutation(snap)
+    with pytest.raises(ValueError):
+        openlineage_job_event(snap)
+
+
+def test_openlineage_projection_preserves_bounded_input_scope():
+    from szl_evidence_graph import openlineage_job_event
+    edges = [make_edge(f"n{i}") for i in range(3)]
+    snap = graph_snapshot(edges, max_edges=1, observed_at="2026-11-17T20:00:00Z")
+    event = openlineage_job_event(snap)
+    assert len(event["inputs"]) == 1
+    assert snap["total_input_edges"] == 3
+    assert len(event["outputs"]) == 1
