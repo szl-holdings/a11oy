@@ -297,3 +297,46 @@ def test_health_rechecks_app_observation_before_reusing_composition(
     assert governance["signer_health"]["signer_identity"] == info["signer_health"]["identity"]
     assert signal() == result
     assert cache.compositions == 2
+
+
+def test_by_design_tile_is_reported_outside_live_and_blocked(signal, monkeypatch):
+    orbital = tile("orbital", ready=False, label="MODELED",
+                   operational_evidence={"predicate": "on-orbit hardware reachable",
+                                         "satisfied": False,
+                                         "reasons": ["hardware_not_present"],
+                                         "runtime_satisfiable": False,
+                                         "expectation": "no on-orbit hardware by design"})
+    observed = producer(monkeypatch, tile("running"), orbital)
+    result = signal()
+
+    assert result["status"] == "ok"
+    assert result["endpoints_total"] == 3
+    assert result["endpoints_live"] == 2
+    assert result["endpoints_degraded"] == 0
+    assert result["degraded_tiles"] == []
+    assert result["operational_readiness"] == observed["summary"]["operational_readiness"]
+    nrv = result["operational_readiness"]["not_runtime_verifiable"]
+    assert [row["name"] for row in nrv] == ["orbital"]
+    assert nrv[0]["expectation"] == "no on-orbit hardware by design"
+
+
+@pytest.mark.parametrize("mutation", [
+    lambda readiness: readiness.update(not_runtime_verifiable="not-a-list"),
+    lambda readiness: readiness.update(not_runtime_verifiable=[{"name": ""}]),
+    lambda readiness: readiness.update(not_runtime_verifiable=[
+        {"name": "orbital"}, {"name": "running"}]),
+])
+def test_malformed_or_mismatched_not_runtime_verifiable_fails_closed(
+        signal, monkeypatch, mutation):
+    orbital = tile("orbital", ready=False, label="MODELED",
+                   operational_evidence={"predicate": "on-orbit hardware reachable",
+                                         "satisfied": False,
+                                         "reasons": ["hardware_not_present"],
+                                         "runtime_satisfiable": False,
+                                         "expectation": "no on-orbit hardware by design"})
+    observed = producer(monkeypatch, tile("running"), orbital)
+    mutation(observed["summary"]["operational_readiness"])
+    result = signal()
+
+    assert result["status"] == "unavailable"
+    assert result["endpoints_live"] is None

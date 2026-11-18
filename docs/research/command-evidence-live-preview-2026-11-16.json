@@ -1,0 +1,122 @@
+{
+  "kind": "candidate-ui-live-read-only-compatibility",
+  "production_deployment_verified": false,
+  "observed_at": "2026-11-16T23:38:56.357166+00:00",
+  "page_sha256": "138f81d8a07f7196095dc201b99616a259d660e224de1a52573c42df9315de08",
+  "sources": {
+    "honest": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "lambda": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "version": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "ledger": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "signing": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "mesh": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "series": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "hatun": {
+      "http": 403,
+      "state": "UNAVAILABLE",
+      "error": "HTTP_ERROR"
+    },
+    "health": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "readiness": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "build": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "evidenceGraph": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    },
+    "storage": {
+      "http": 200,
+      "state": "OBSERVED",
+      "error": null
+    }
+  },
+  "binding": {
+    "state": "SOURCE-REPORTED MATCH",
+    "detail": "Build f6e30e83343674e544af0ad83a03c058d9c9d53b \u00b7 graph f6e30e83343674e544af0ad83a03c058d9c9d53b. Separate reads; no deployment verification."
+  },
+  "graph": {
+    "ok": true,
+    "state": "OBSERVED",
+    "count": 1
+  },
+  "storage": {
+    "mode": "FENCED",
+    "role": "WRITER"
+  },
+  "viewports": [
+    {
+      "width": 1280,
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "horizontal_overflow": false
+    },
+    {
+      "width": 320,
+      "horizontal_overflow": false
+    }
+  ],
+  "inspector_no_network": true,
+  "page_errors": [],
+  "request_count": 17,
+  "get_only": true,
+  "result": "PASS",
+  "signature_status": "UNSIGNED_OBSERVATION",
+  "candidate_source_baseline": "8e31409245f6223dda6bb9784fbcbefd5f9892de",
+  "independent_review": {
+    "kind": "source_contract_review",
+    "target_page_sha256": "138f81d8a07f7196095dc201b99616a259d660e224de1a52573c42df9315de08",
+    "adverse_cases_passed": 13,
+    "formal_github_approval": false
+  },
+  "software_validation": {
+    "node_cases_passed": 35,
+    "python_cases_passed": 58,
+    "python_subtests_passed": 36,
+    "chromium_cases_passed": 6,
+    "final_css_viewport_case_passed": true,
+    "playwright_version": "1.57.0",
+    "chromium_version": "143.0.7499.4"
+  }
+}

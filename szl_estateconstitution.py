@@ -83,10 +83,13 @@ except Exception:  # pragma: no cover - numpy is a core dep in this estate
 # Honesty-label vocabulary (doctrine v11), re-stated (not imported) so a broken import can never
 # silently blank it; tests grep these exact strings. This is the ALLOWED set a surface may
 # declare — a token outside it is a fabricated label, which Article 2 forbids.
+# UNKNOWN is listed in the public-estate contract truthVocabulary
+# (static/shared/public-estate-contract.v1.json) and never upgrades a claim; the honesty wall
+# reports it verbatim (e.g. a reachable-but-unverified sovereign node), so Article 2 must too.
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
     "CONJECTURE", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY", "HONEST-STUB",
-    "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "UNSIGNED-LOCAL", "UNKNOWN", "UNAVAILABLE",
 )
 
 # This surface's own top label — a derived governance verdict, not a measurement.

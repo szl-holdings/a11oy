@@ -26,7 +26,54 @@ READ_PATHS = frozenset({
     "/api/a11oy/v1/mesh/state", "/api/a11oy/v1/series-a/status",
     "/api/hatun/evidence", "/healthz",
     "/api/a11oy/v1/readiness/tab-matrix?view=summary", "/api/build-info",
+    "/api/a11oy/v1/evidence/graph", "/api/a11oy/v1/storage/status",
 })
+
+
+def fixture_payload(path):
+    """Synthetic contract examples only; never a runtime or proof attestation."""
+    body = {"preview": "SYNTHETIC SOFTWARE QA", "status": "DEGRADED"}
+    if path.endswith("/ledger"):
+        body.update(count=0, count_scope="Synthetic returned window; not a ledger total",
+                    signature_state="UNSIGNED", chain_verified=False)
+    elif path.endswith("/lambda"):
+        body.update({"lambda": None})
+    elif path == "/healthz":
+        body.update(signer={"status": "ABSENT"})
+    elif path.endswith("/evidence/graph"):
+        body.update(schema="szl.evidence-graph/v1", state="OBSERVED",
+                    reason="SYNTHETIC SOFTWARE QA", graph={
+                        "schema": "szl.evidence-graph/v1", "edge_count": 2,
+                        "total_input_edges": 2, "bounded": False,
+                        "verdict_counts": {"OBSERVED": 2, "VERIFIED": 0,
+                                           "DEGRADED": 0, "UNAVAILABLE": 0},
+                        "digest_sha256": "0" * 64, "edges": [{
+                            "schema": "szl.evidence-edge/v1",
+                            "subject": {"kind": "artifact", "id": "software-qa-" + "a" * 64},
+                            "source_revision": None, "verdict": "OBSERVED",
+                            "authority": {"execution_authorized": False},
+                        }, {
+                            "schema": "szl.evidence-edge/v1",
+                            "subject": {"kind": "runtime", "id": "a" * 40},
+                            "source_revision": "a" * 40, "verdict": "OBSERVED",
+                            "authority": {"execution_authorized": False},
+                        }],
+                    })
+    elif path == "/api/build-info":
+        body.update(status="OBSERVED", build={
+            "state": "OBSERVED", "revision": "a" * 40,
+            "revision_source": "env:SZL_GIT_SHA",
+        })
+    elif path.endswith("/storage/status"):
+        body.update(schema="szl.a11oy-storage-status/v2", mode="FENCED",
+                    role="WRITER", writable=True, pending_publish=[],
+                    alert=True, active_errors=None, stores={
+                        "gdw": {"health": "BLOCKED", "last_snapshot_age_s": None,
+                                "unsnapshotted_change_age_s": 5},
+                        "khipu": {"health": "HEALTHY", "last_snapshot_age_s": 12,
+                                  "unsnapshotted_change_age_s": None},
+                    })
+    return body
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -68,13 +115,7 @@ class Preview(BaseHTTPRequestHandler):
             self.reply(503, b'{"error":"software_qa_unavailable_fixture"}')
             return
         if self.source == "fixture":
-            body = {"preview": "SYNTHETIC SOFTWARE QA", "status": "DEGRADED"}
-            if self.path.endswith("/ledger"):
-                body.update(count=0, signature_state="UNSIGNED", chain_verified=False)
-            elif self.path.endswith("/lambda"):
-                body.update({"lambda": None})
-            elif self.path == "/healthz":
-                body.update(signer={"status": "ABSENT"})
+            body = fixture_payload(self.path)
             self.reply(200, json.dumps(body).encode())
             return
         try:
