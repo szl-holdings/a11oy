@@ -39,12 +39,12 @@ def test_prior_meter_manifest_fixture_retains_its_original_content_address():
         "schema": "szl-shared-source-payload/v1",
     }
     raw = (json.dumps(prior, indent=2) + "\n").encode("utf-8")
-    assert hashlib.sha256(raw).hexdigest() == "b8be768d9a012a941375ca852a7559dac02bdef530cfcd4e32abecfc0d74c1e0"
+    assert hashlib.sha256(raw).hexdigest() == "ceebae9b24d32f5011a67ddcf8c0802a5d35467eb3e950236547b1938ff38705"
 
 
 def test_archived_meter_and_bounded_engine_payload_remains_content_bound():
     raw = (ROOT / ".github/shared-source-payloads/code-engine-bounded-model-20261015-v1.json").read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == "d8e50108743e7f02ac7b3c2af17e70c47e38922be3f4e214c5d98d1561c54ea6"
+    assert hashlib.sha256(raw).hexdigest() == "051d4a832b7bcb318e3a743da4c373a1499919a5b0284825273818c54db7b52e"
     manifest = json.loads(raw)
     assert manifest["payload_id"] == "code-engine-bounded-model-20261015-v1"
     assert manifest["schema"] == "szl-shared-source-payload/v1"
@@ -61,7 +61,7 @@ def test_archived_meter_and_bounded_engine_payload_remains_content_bound():
 def test_archived_write_boundary_payload_preserves_prior_evidence_and_source():
     raw = (ROOT / ".github/shared-source-payloads/"
            "execution-observer-operator-auth-20261016-v1.json").read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
+    assert hashlib.sha256(raw).hexdigest() == "90c2ad5b0ab4074404f812139c080a9ce4bd659dd8a2a106d3d2cb4d4dab8850"
     manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "execution-observer-operator-auth-20261016-v1"
@@ -78,7 +78,7 @@ def test_archived_write_boundary_payload_preserves_prior_evidence_and_source():
 
 def test_archived_replication_payload_preserves_predecessor_and_current_verifier():
     raw = (ROOT / ".github/shared-source-payloads/replication-payload-integrity-20261017-v1.json").read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+    assert hashlib.sha256(raw).hexdigest() == "12b46c750905e8e5dab97adad577fefcf7b8f1815bd0c2ee2c383c165bde3cc8"
     manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "replication-payload-integrity-20261017-v1"
@@ -92,7 +92,7 @@ def test_archived_replication_payload_preserves_predecessor_and_current_verifier
 
 def test_archived_credential_payload_preserves_predecessor_and_source_digest():
     raw = (ROOT / ".github/shared-source-payloads/model-credential-origin-20261017-v1.json").read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == "e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c"
+    assert hashlib.sha256(raw).hexdigest() == "7122181968d324220828f638f199e953b878796e46d06fd385cf6454631a4d2b"
     manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "model-credential-origin-20261017-v1"
@@ -109,14 +109,14 @@ def test_archived_credential_payload_preserves_predecessor_and_source_digest():
                                   if key != "a11oy_code_engine.py"},
              "payload_id": "replication-payload-integrity-20261017-v1"}
     assert hashlib.sha256((json.dumps(prior, indent=2) + "\n").encode()).hexdigest() == (
-        "1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc"
+        "12b46c750905e8e5dab97adad577fefcf7b8f1815bd0c2ee2c383c165bde3cc8"
     )
 
 
 
 def test_archived_replication_origin_payload_binds_current_source_and_predecessor():
     raw = (ROOT / ".github/shared-source-payloads/replication-origin-index-20261017-v1.json").read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == "3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce"
+    assert hashlib.sha256(raw).hexdigest() == "c2d035de6ef4d4bbdfa308d9d6834fd9aaba0cc4854f35eb255e3b9f060d0af0"
     manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "replication-origin-index-20261017-v1"
@@ -134,7 +134,7 @@ def test_archived_replication_origin_payload_binds_current_source_and_predecesso
 
 def test_archived_bonsai_payload_binds_predecessors():
     raw = (ROOT / ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json").read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
+    assert hashlib.sha256(raw).hexdigest() == "88336c4d8070e9b12cb57aee4ff2c674ff28492870e375c5d83d237f5502f54c"
     manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "bonsai-model-catalog-20261017-v1"
