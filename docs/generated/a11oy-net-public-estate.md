@@ -3,7 +3,7 @@
 
 This proof surface follows the A11oy public-estate contract. Product, GitHub source, Hugging Face runtime, and evidence state are distinct and must agree before a lane is called current.
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-marketing`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/frontier-console`, `SZLHOLDINGS/khipu-proof-loom`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-command-center`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-cram-demo`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-muhu-frontier`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-science-gate-studio`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/truth-router`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
 | Product body | GitHub source | Hugging Face runtime | Truth class |
 |---|---|---|---|
@@ -13,5 +13,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 | PRISM Counsel | `szl-holdings/a11oy` | `SZLHOLDINGS/counsel` | `PUBLIC_SOURCE_EVIDENCE` |
 | PURIQ Finance | `szl-holdings/puriq-live` | `SZLHOLDINGS/finance` | `PUBLIC_SOURCE_EVIDENCE` |
 
-Contract alignment SHA-256: `eb064c49d13ae10ce56235ef30b32c357f74bc60b3aa59747b6e1c2c01eb98c6`.
+Contract alignment SHA-256: `aa80dd41c3a0a1322028bb7d96f4b038fcb144c257fc2c6b78cad581624931ec`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
