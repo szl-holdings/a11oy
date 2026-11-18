@@ -357,8 +357,10 @@ test("static lineage export is a link, not an inferred successful run", async ()
   const before=h.calls.length;
   h.run('openRoom("evidence")');
   assert.match(h.elements.get("content").textContent,/Static lineage JSON/);
+  assert.match(h.elements.get("content").textContent,/Evidence gaps \(unqualified\)/);
   assert.equal(h.calls.length,before);
   assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/evidence/openlineage").length,0);
+  assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/evidence/discovery").length,0);
 });
 test("parent coverage without a denominator is explicitly unavailable", async () => {
   const h=await harness();
