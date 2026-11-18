@@ -1031,6 +1031,17 @@ try:
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[a11oy] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
 
+# Flavin-inspired quantum spin chemistry: separate, explicitly MODELED research lane.
+# Pure read-only GET; no action, inference, chemistry-device operation or receipt on GET.
+# The legacy reduced qbio compass remains unchanged and independently labeled.
+try:
+    import szl_flavin_spin_research as _szl_flavin_spin_research
+    _szl_flavin_spin_research.register(app, ns="a11oy")
+except Exception as _szl_fsr_error:  # pragma: no cover
+    print("[a11oy] flavin spin research unavailable: " +
+          type(_szl_fsr_error).__name__, file=__import__("sys").stderr)
+
+
 # -- SWEEP DEV 3: honest /status for quant, qbio, holographic (sweep-d3-status).
 # Three surfaces served a 200 PAGE but had NO backing /<surface>/status API (404).
 # szl_quant_qbio_holo wires the missing HONEST /status for each, summarizing REAL
