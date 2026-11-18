@@ -133,3 +133,28 @@ Historical payment baseline (2026-11-15): Base `eip155:8453`, USDC asset
 `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`, payee
 `0x7b133ef996852c223379d6d1245430300970291A`, amount `20000` atomic units,
 `maxTimeoutSeconds: 3600`. This is source configuration, not revenue evidence.
+
+## Read-only live challenge witness
+
+Run `node ops/x402-bazaar-worker/live-witness.mjs` from the repository root
+to compare the **unpaid** challenge at the pinned inference hostname against
+the terms declared in this source-controlled discovery Worker. The probe
+uses exactly one anonymous `HEAD` request with an 8-second timeout. It never
+submits payment signatures, wallets, inference prompts, or settlement calls.
+It requires only Node.js 22 or newer and uses no provider credentials.
+
+The JSON report includes the exact source-worker SHA-256 digest, UTC
+observation time, HTTP status, and a restricted verdict:
+`MATCHED_UNPAID_PROTOCOL_ONLY`, `DRIFT`, or `UNAVAILABLE`.
+A mismatch or unavailable response produces a nonzero exit code. Local
+regression tests are included in `worker.test.mjs` and run offline.
+
+**Limitations:** This compares the V2 version, resource URL, and exact payment
+terms; the managed Cloudflare gateway need not include discovery extensions
+or additional descriptive fields in its challenge. A matching result is
+neither proof of wallet authorization or settlement, nor proof that inference
+is served, that Bazaar has indexed the listing, or that the GitHub/HF
+runtime source is aligned. A production release still requires trusted
+gateway verification, real settlement evidence, source admission, and
+post-deploy runtime readback. Never treat the unpaid witness as a revenue
+receipt or an authorization to change the deployed configuration.
