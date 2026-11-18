@@ -510,8 +510,11 @@ def http_json(
         )
         if request_error or response is None or connection is None:
             return None, request_error or "NETWORK_FAILURE"
-        guard = connection._szl_deadline_guard
+        guard = getattr(connection, "_szl_deadline_guard", None)
         try:
+            # A malformed transport handoff must still release the connection.
+            if guard is None:
+                return None, "NETWORK_FAILURE"
             guard.check()
             status = int(response.status)
             if status in _REDIRECT_STATUSES:
@@ -564,13 +567,18 @@ def http_json(
         except (TimeoutError, socket.timeout):
             return None, "TIMEOUT"
         except Exception:
-            if guard.expired.is_set() or _remaining(deadline) <= 0:
+            if (guard is not None and guard.expired.is_set()) or _remaining(deadline) <= 0:
                 return None, "TIMEOUT"
             return None, "NETWORK_FAILURE"
         finally:
-            guard.cancel()
-            response.close()
-            connection.close()
+            try:
+                if guard is not None:
+                    guard.cancel()
+                close_response = getattr(response, "close", None)
+                if callable(close_response):
+                    close_response()
+            finally:
+                connection.close()
 
 
 __all__ = [
