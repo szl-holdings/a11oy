@@ -376,3 +376,15 @@ test("parent coverage without a denominator is explicitly unavailable", async ()
   assert.match(rendered,/Parent references UNAVAILABLE/);
   assert.match(rendered,/No parent-reference denominator/);
 });
+
+
+test("flavin spin preview is an explicitly modeled link, never a passive route probe", async () => {
+  const h=await harness();
+  const before=h.calls.length;
+  h.run('openRoom("models")');
+  const output=h.elements.get("content").textContent;
+  assert.match(output,/Flavin spin research/);
+  assert.match(output,/MODELED, not measured/);
+  assert.equal(h.calls.length,before);
+  assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/qbio/flavin-spin-research").length,0);
+});
