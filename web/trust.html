@@ -357,26 +357,31 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
     <div class="sec-label">06 — Verify a receipt yourself</div>
     <h2>Don't trust this page. Check it.</h2>
     <p class="intro">
-      The button below makes a real <code>POST /api/a11oy/v1/govern/infer</code> call, then verifies
-      the returned DSSE ECDSA-P256 signature <strong>in your browser</strong> with WebCrypto — no
-      server round-trip for the verification. It recomputes SHA-256 of the decoded payload and the
-      DSSE PAE, and checks the signature against the matching public key. A flipped byte fails.
+      Inspect one public <code>POST /api/a11oy/v1/govern/infer</code> response.
+      This route normally returns an <strong>unsigned governance receipt</strong>.
+      If a supported DSSE envelope is supplied, WebCrypto checks its exact bytes and
+      compares the signed input, policy and chain references with this response.
+      The generated answer, full chain, freshness and execution authority are not verified here.
     </p>
     <div class="verify">
       <div class="steps">
-        <b>1.</b> fetch a signed receipt &nbsp;·&nbsp; <b>2.</b> fetch the public key
-        (<a href="/cosign.pub">/cosign.pub</a> or <a href="/demo-cosign.pub">/demo-cosign.pub</a>)
-        &nbsp;·&nbsp; <b>3.</b> rebuild DSSE PAE &nbsp;·&nbsp; <b>4.</b> WebCrypto ECDSA-P256 verify
-        &nbsp;·&nbsp; <b>5.</b> recompute SHA-256 self-digest
+        <b>1.</b> inspect the returned evidence &nbsp;·&nbsp;
+        <b>2.</b> if signed, fetch the matching same-origin public key &nbsp;·&nbsp;
+        <b>3.</b> verify DSSE PAE &nbsp;·&nbsp;
+        <b>4.</b> check supported signed references.
+        A same-origin key is not an independently pinned signer identity.
       </div>
-      <button class="btn primary" id="tv-run" onclick="trustVerify()">Run inference &amp; verify receipt</button>
+      <button class="btn primary" id="tv-run" onclick="trustVerify()">Inspect inference evidence</button>
       <div id="tv-status"></div>
       <div id="tv-verdict"></div>
       <pre class="out" id="tv-out" style="display:none"></pre>
       <p class="note">
-        Offline path: save the receipt JSON, then verify with the public key and any DSSE/cosign
-        tooling — <code>cosign verify-blob --key cosign.pub --signature &lt;sig&gt; &lt;payload&gt;</code>.
-        The full multi-section flow (honest refusal, thesis) lives at <a href="/verify">/verify</a>.
+        The computed DSSE payload SHA-256 identifies those exact signed bytes.
+        Khipu's SHA3-256 payload and chain digests identify different subjects and
+        are not compared to that SHA-256 value. A matching signed reference does
+        not recompute the complete receipt chain. Use <a href="/verify">the receipt verifier</a>
+        for a separately supplied envelope and public key. This inspection makes
+        one request and never retries automatically.
       </p>
     </div>
   </div></section>
@@ -528,71 +533,202 @@ function semanticDisplayState(entries,reportedCount){
   probe('d-ledger','/api/a11oy/v1/ledger');
 })();
 
-/* ---------- verify-it-yourself: ported from /verify (WebCrypto ECDSA-P256) ---------- */
-function b64Decode(s){const bin=atob(s);const b=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return b;}
-function derToRaw(der){let i=0;if(der[i++]!==0x30)throw new Error('not DER SEQUENCE');let sl=der[i++];if(sl&0x80){const nb=sl&0x7f;sl=0;for(let b=0;b<nb;b++)sl=(sl<<8)|der[i++];}
-  function readInt(){if(der[i++]!==0x02)throw new Error('expected INTEGER');let len=der[i++];if(len&0x80){const nb=len&0x7f;len=0;for(let b=0;b<nb;b++)len=(len<<8)|der[i++];}const v=der.slice(i,i+len);i+=len;return v;}
-  const r=readInt(),s=readInt();
-  function pad32(a){let j=0;while(j<a.length-1&&a[j]===0)j++;const st=a.slice(j);const o=new Uint8Array(32);const off=32-st.length;if(off<0)throw new Error('int too long');o.set(st,off);return o;}
-  const raw=new Uint8Array(64);raw.set(pad32(r),0);raw.set(pad32(s),32);return raw;}
-function buildPAE(type,body){const enc=new TextEncoder();const t=enc.encode(type);const pre=enc.encode('DSSEv1 '+t.length+' ');const mid=enc.encode(' '+body.length+' ');
-  const buf=new Uint8Array(pre.length+t.length+mid.length+body.length);let o=0;buf.set(pre,o);o+=pre.length;buf.set(t,o);o+=t.length;buf.set(mid,o);o+=mid.length;buf.set(body,o);return buf;}
-async function sha256(buf){const h=await crypto.subtle.digest('SHA-256',buf);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
-async function importPub(pem){const b64=pem.replace('-----BEGIN PUBLIC KEY-----','').replace('-----END PUBLIC KEY-----','').replace(/\s+/g,'');const raw=b64Decode(b64);
-  return crypto.subtle.importKey('spki',raw.buffer,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);}
-
-async function trustVerify(){
-  const btn=$('tv-run');btn.disabled=true;
-  $('tv-verdict').innerHTML='';$('tv-out').style.display='none';
-  $('tv-status').textContent='Calling POST /api/a11oy/v1/govern/infer …';
-  let data;
-  try{
-    const resp=await fetch('/api/a11oy/v1/govern/infer',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({prompt:'hello',vertical:'general',declared:'PUBLIC'})});
-    data=await resp.json();
-  }catch(e){$('tv-status').textContent='Could not reach govern/infer: '+e.message+' (endpoint unreachable — not faked).';btn.disabled=false;return;}
-  $('tv-status').textContent='Verifying signature in-browser via WebCrypto …';
-  const dsse=data.dsse||{}, receipt=data.receipt||{};
-  const keyid=((dsse.signatures||[])[0]||{}).keyid||dsse.key_id||'';
-  const isDemo=keyid==='demo-signing-key';
-  const pubURL=isDemo?'/demo-cosign.pub':'/cosign.pub';
-  let pub,pem='';
-  try{const r=await fetch(pubURL);pem=await r.text();pub=await importPub(pem);}
-  catch(e){$('tv-status').textContent='Could not fetch/import '+pubURL+': '+e.message;btn.disabled=false;return;}
-  const payloadType=dsse.payloadType||'application/vnd.szl.khipu+json';
-  let body;try{body=b64Decode(dsse.payload||'');}catch(e){$('tv-status').textContent='payload decode failed: '+e.message;btn.disabled=false;return;}
-  const selfDigest=await sha256(body.buffer);
-  const pae=buildPAE(payloadType,body);
-  const paeSHA=await sha256(pae.buffer);
-  let verified=false,err='';
-  const sigs=dsse.signatures||[];
-  if(dsse.signed===false){err='UNSIGNED — private key not in this runtime; the hash-chain is still valid.';}
-  else if(!sigs.length){err='No signatures in envelope.';}
-  else{
-    try{
-      const sb=b64Decode(sigs[0].sig||'');
-      let raw=sb;if(sb[0]===0x30){try{raw=derToRaw(sb);}catch(_){}}
-      verified=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pub,raw.buffer,pae.buffer);
-      if(!verified&&sb[0]===0x30)verified=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pub,sb.buffer,pae.buffer);
-      if(!verified)err='ECDSA verification returned false.';
-    }catch(e){err='verify error: '+e.message;}
+/* ---------- verify-it-yourself: scoped governance evidence ---------- */
+const TRUST_PAYLOAD_TYPE='application/vnd.szl.khipu+json';
+const TRUST_DIGEST=/^[a-f0-9]{64}$/;
+function trustObject(value){return value!==null&&typeof value==='object'&&!Array.isArray(value);}
+function trustRequire(condition,code){if(!condition)throw new Error(code);}
+function trustKeys(value,keys){return trustObject(value)&&Object.keys(value).sort().join('|')===keys.slice().sort().join('|');}
+function b64Decode(value,maxBytes=65536){
+  trustRequire(typeof value==='string'&&value.length>0&&value.length<=Math.ceil(maxBytes/3)*4,'INVALID_BASE64_SIZE');
+  trustRequire(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value),'INVALID_BASE64');
+  const binary=atob(value);
+  trustRequire(binary.length<=maxBytes&&btoa(binary)===value,'INVALID_BASE64');
+  return Uint8Array.from(binary,char=>char.charCodeAt(0));
+}
+function derToRaw(der){
+  // P-256 DER needs only short-form lengths. Do not guess DER from raw byte 0.
+  trustRequire(der.length>=8&&der.length<=72&&der[0]===0x30&&der[1]===der.length-2,'INVALID_DER');
+  let offset=2;
+  function integer(){
+    trustRequire(der[offset++]===2,'INVALID_DER_INTEGER');
+    const size=der[offset++];
+    trustRequire(size>=1&&size<=33&&offset+size<=der.length,'INVALID_DER_INTEGER');
+    let value=der.slice(offset,offset+size);offset+=size;
+    trustRequire((value[0]&0x80)===0,'NEGATIVE_DER_INTEGER');
+    if(value.length>1&&value[0]===0){
+      trustRequire((value[1]&0x80)!==0,'NONCANONICAL_DER_INTEGER');value=value.slice(1);
+    }
+    trustRequire(value.length<=32&&value.some(byte=>byte!==0),'INVALID_DER_INTEGER');
+    const result=new Uint8Array(32);result.set(value,32-value.length);return result;
   }
-  const rDigest=receipt.payload_digest||receipt.digest||'';
-  const digestMatch=rDigest&&selfDigest===String(rDigest).substring(0,64);
-  let v='';
-  if(verified&&isDemo){v='<div class="banner ok">✓ VERIFIED — real ECDSA-P256, checked in your browser against /demo-cosign.pub<small>Clearly-labelled DEMO key. The production cosign key stays founder-gated and is never placed in this runtime.</small></div>';}
-  else if(verified){v='<div class="banner ok">✓ VERIFIED — WebCrypto ECDSA-P256 signature valid<small>keyid: '+esc(keyid)+'</small></div>';}
-  else if(dsse.signed===false){v='<div class="banner dim">⚠ UNSIGNED — '+esc(err)+'</div>';}
-  else{v='<div class="banner fail">✗ VERIFICATION FAILED — '+esc(err)+'</div>';}
-  v+='<div class="kv"><span class="k">keyid</span><span class="v">'+esc(keyid||'(none)')+'</span>'+
-     '<span class="chip '+(digestMatch?'ok':'err')+'">payload digest '+(digestMatch?'MATCH':(rDigest?'MISMATCH':'n/a'))+'</span></div>'+
-     '<div class="kv"><span class="k">sha256(payload)</span><span class="v">'+esc(selfDigest.substring(0,40))+'…</span></div>'+
-     '<div class="kv"><span class="k">sha256(PAE)</span><span class="v">'+esc(paeSHA.substring(0,40))+'…</span></div>';
-  $('tv-verdict').innerHTML=v;
-  $('tv-status').textContent='Done — verification ran entirely in your browser.';
-  $('tv-out').style.display='block';
-  $('tv-out').textContent=JSON.stringify({dsse:dsse,receipt:receipt},null,2).substring(0,4000);
-  btn.disabled=false;
+  const r=integer(),s=integer();trustRequire(offset===der.length,'TRAILING_DER_DATA');
+  const result=new Uint8Array(64);result.set(r);result.set(s,32);return result;
+}
+function buildPAE(type,body){
+  const encoder=new TextEncoder(),t=encoder.encode(type);
+  const prefix=encoder.encode('DSSEv1 '+t.length+' '),middle=encoder.encode(' '+body.length+' ');
+  const result=new Uint8Array(prefix.length+t.length+middle.length+body.length);
+  let offset=0;for(const bytes of [prefix,t,middle,body]){result.set(bytes,offset);offset+=bytes.length;}
+  return result;
+}
+async function sha256(bytes){
+  const result=await crypto.subtle.digest('SHA-256',bytes);
+  return Array.from(new Uint8Array(result),byte=>byte.toString(16).padStart(2,'0')).join('');
+}
+async function importPub(pem){
+  trustRequire(typeof pem==='string'&&pem.length<=8192,'INVALID_PUBLIC_KEY');
+  const match=pem.trim().match(/^-----BEGIN PUBLIC KEY-----\s+([A-Za-z0-9+/=\s]+)-----END PUBLIC KEY-----$/);
+  trustRequire(match,'INVALID_PUBLIC_KEY');
+  const encoded=match[1].replace(/\s/g,''),raw=b64Decode(encoded,4096);
+  const key=await crypto.subtle.importKey('spki',raw,{name:'ECDSA',namedCurve:'P-256'},true,['verify']);
+  const canonicalBytes=new Uint8Array(await crypto.subtle.exportKey('spki',key));
+  const canonical=btoa(String.fromCharCode(...canonicalBytes));
+  const normalized='-----BEGIN PUBLIC KEY-----\n'+canonical.match(/.{1,64}/g).join('\n')+'\n-----END PUBLIC KEY-----';
+  return {key,fingerprint:await sha256(new TextEncoder().encode(normalized))};
+}
+function trustGates(value){
+  if(!Array.isArray(value)||value.length>32)return null;
+  const rows=[];
+  for(const item of value){
+    if(!trustObject(item)||typeof item.gate!=='string'||!item.gate||item.gate.length>128||
+       typeof item.fired!=='boolean'||!['allow','review','deny'].includes(item.decision))return null;
+    rows.push([item.gate,item.fired,item.decision]);
+  }
+  return JSON.stringify(rows);
+}
+async function verifyTrustEvidence(data,prompt,loadPublicKey){
+  trustRequire(trustObject(data),'INVALID_INFERENCE_RESPONSE');
+  const receipt=trustObject(data.receipt)?data.receipt:{};
+  const result={
+    verdict:'UNSIGNED',signature:'UNSIGNED',key_identity:'NOT_CHECKED',
+    input_binding:'NOT_CHECKED',receipt_reference_binding:'NOT_CHECKED',policy_binding:'NOT_CHECKED',
+    chain_integrity:'NOT_CHECKED',answer_binding:'NOT_COVERED',freshness:'NOT_ESTABLISHED',
+    signer_trust:'SAME_ORIGIN_KEY_NOT_INDEPENDENTLY_PINNED',execution_authority:'NOT_ESTABLISHED',
+    server_chain_claim:typeof receipt.chain_verified==='boolean'?receipt.chain_verified:null,
+  };
+  const envelope=data.dsse;
+  if(envelope==null)return result;
+  trustRequire(trustObject(envelope),'INVALID_ENVELOPE');
+  trustRequire(envelope.signed===undefined||typeof envelope.signed==='boolean','INVALID_SIGNED_FLAG');
+  const signatures=envelope.signatures;
+  if(signatures===undefined||Array.isArray(signatures)&&signatures.length===0){
+    trustRequire(envelope.signed!==true,'MISSING_SIGNATURE');return result;
+  }
+  trustRequire(Array.isArray(signatures)&&signatures.length===1&&trustObject(signatures[0]),'INVALID_SIGNATURE_SET');
+  trustRequire(envelope.signed!==false,'CONTRADICTORY_SIGNED_FLAG');
+  trustRequire(envelope.payloadType===TRUST_PAYLOAD_TYPE,'UNSUPPORTED_PAYLOAD_TYPE');
+  const signature=signatures[0],keyid=signature.keyid;
+  trustRequire(typeof keyid==='string'&&(TRUST_DIGEST.test(keyid)||['demo-signing-key','szlholdings-cosign'].includes(keyid)),'UNSUPPORTED_KEY_ID');
+  const body=b64Decode(envelope.payload),encodedSignature=b64Decode(signature.sig,72);
+  const rawSignature=encodedSignature.length===64?encodedSignature:derToRaw(encodedSignature);
+  const path=keyid==='demo-signing-key'?'/demo-cosign.pub':'/cosign.pub';
+  const published=await importPub(await loadPublicKey(path));
+  result.keyid=keyid;result.public_key_sha256=published.fingerprint;
+  result.key_identity=keyid==='demo-signing-key'?'DEMO_ALIAS':keyid==='szlholdings-cosign'?'LEGACY_ALIAS':keyid===published.fingerprint?'MATCH':'MISMATCH';
+  result.payload_sha256=await sha256(body);
+  const signatureValid=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},published.key,rawSignature,buildPAE(envelope.payloadType,body));
+  result.signature=signatureValid?'VALID':'INVALID';
+  if(!signatureValid||result.key_identity==='MISMATCH'){result.verdict='MISMATCH';return result;}
+  const statement=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(body));
+  if(!trustObject(statement)||statement.statement_type!=='A11OY_GOVERNANCE_STATEMENT_V1'||statement.schema_version!==1){
+    result.verdict='UNSUPPORTED';
+    result.input_binding=result.receipt_reference_binding=result.policy_binding='UNSUPPORTED';
+    return result;
+  }
+  const chain=trustObject(statement.chain)?statement.chain:{};
+  const actor=trustObject(statement.actor)?statement.actor:{};
+  const statementKeys=['statement_type','schema_version','chain','actor','policy','content_digests','privacy'];
+  const shapeValid=(trustKeys(statement,statementKeys)||trustKeys(statement,[...statementKeys,'neuro_citations']))&&
+    trustKeys(chain,['organ','namespace','digest','payload_digest','action'])&&
+    trustKeys(statement.content_digests,['input_sha256','context_sha256'])&&
+    trustKeys(actor,['actor_type','owner_id','namespace','key_id','scope'])&&
+    actor.actor_type==='credential'&&actor.scope==='vertical:govern'&&actor.namespace===chain.namespace&&
+    ['owner_id','namespace','key_id'].every(key=>typeof actor[key]==='string'&&actor[key].length>0&&actor[key].length<=4096);
+  if(!shapeValid){
+    result.verdict='UNSUPPORTED';
+    result.input_binding=result.receipt_reference_binding=result.policy_binding='UNSUPPORTED';
+    return result;
+  }
+  const references=[['organ','organ'],['namespace','ns'],['action','action'],['digest','digest'],['payload_digest','payload_digest']];
+  const referenceMatch=statement.privacy==='NO_RAW_INPUT_OR_CONTEXT'&&
+    chain.organ==='vertical-general'&&chain.namespace==='a11oy'&&chain.action==='inference'&&
+    references.every(([signed,returned])=>typeof chain[signed]==='string'&&chain[signed]===receipt[returned])&&
+    TRUST_DIGEST.test(chain.digest)&&TRUST_DIGEST.test(chain.payload_digest);
+  result.receipt_reference_binding=referenceMatch?'MATCH':'MISMATCH';
+  const digests=trustObject(statement.content_digests)?statement.content_digests:{};
+  const encoder=new TextEncoder();
+  result.input_binding=typeof prompt==='string'&&
+    digests.input_sha256===await sha256(encoder.encode(prompt))&&
+    digests.context_sha256===await sha256(encoder.encode('{}'))?'MATCH':'MISMATCH';
+  const policy=trustObject(statement.policy)?statement.policy:{},governance=trustObject(data.governance)?data.governance:{};
+  const gates=trustGates(policy.gates),reportedGates=trustGates(governance.gates);
+  const policyMatch=policy.policy_id==='a11oy.vertical-govern.v1'&&policy.server_action==='inference'&&
+    policy.sensitivity==='PUBLIC'&&['allow','review','deny'].includes(policy.decision)&&policy.decision===data.decision&&
+    ['lambda','lambda_floor'].every(key=>typeof policy[key]==='number'&&Number.isFinite(policy[key])&&policy[key]>=0&&policy[key]<=1&&policy[key]===governance[key])&&
+    gates!==null&&gates===reportedGates;
+  result.policy_binding=policyMatch?'MATCH':'MISMATCH';
+  result.verdict=[result.input_binding,result.receipt_reference_binding,result.policy_binding].every(value=>value==='MATCH')?'PARTIAL':'MISMATCH';
+  return result;
+}
+async function trustRead(response,maxBytes){
+  const reader=response.body?.getReader();
+  trustRequire(reader,'RESPONSE_STREAM_UNAVAILABLE');
+  const chunks=[];let size=0;
+  try{
+    while(true){
+      const {done,value}=await reader.read();if(done)break;
+      size+=value.byteLength;trustRequire(size<=maxBytes,'RESPONSE_TOO_LARGE');chunks.push(value);
+    }
+  }catch(error){try{await reader.cancel();}catch(_){}throw error;}
+  finally{reader.releaseLock();}
+  const bytes=new Uint8Array(size);let offset=0;
+  for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+  return new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+}
+let trustBusy=false;
+async function trustVerify(){
+  if(trustBusy)return;
+  trustBusy=true;
+  const button=$('tv-run'),controller=new AbortController();
+  button.disabled=true;
+  $('tv-verdict').replaceChildren();$('tv-out').textContent='';$('tv-out').style.display='none';
+  $('tv-status').textContent='Requesting one public inference and inspecting its evidence. No automatic retry.';
+  let timer;
+  try{
+    const operation=(async()=>{
+      const response=await fetch('/api/a11oy/v1/govern/infer',{
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:'hello',vertical:'general',declared:'PUBLIC'}),
+        credentials:'omit',cache:'no-store',redirect:'error',signal:controller.signal,
+      });
+      trustRequire(response.ok,'INFERENCE_HTTP_'+response.status);
+      trustRequire(/^application\/json(?:;|$)/i.test(response.headers.get('content-type')||''),'NON_JSON_RESPONSE');
+      const data=JSON.parse(await trustRead(response,262144));
+      return verifyTrustEvidence(data,'hello',async path=>{
+        const key=await fetch(path,{credentials:'omit',cache:'no-store',redirect:'error',signal:controller.signal});
+        trustRequire(key.ok,'PUBLIC_KEY_HTTP_'+key.status);
+        return trustRead(key,8192);
+      });
+    })();
+    const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('OUTCOME_UNCERTAIN_TIMEOUT'));},45000);});
+    const result=await Promise.race([operation,deadline]);
+    const banner=document.createElement('div');
+    banner.className='banner '+(result.verdict==='MISMATCH'?'fail':'dim');
+    banner.textContent=result.verdict==='UNSIGNED'
+      ?'UNSIGNED — no verifiable DSSE signature was supplied. Chain integrity was not checked.'
+      :result.verdict==='MISMATCH'
+        ?'MISMATCH — the signature, key identity, or signed references do not agree.'
+        :result.verdict==='UNSUPPORTED'
+          ?'UNSUPPORTED — a signature verifies, but this payload has no supported statement binding.'
+          :'PARTIAL — signature and signed references agree'+(result.key_identity==='DEMO_ALIAS'?' under the DEMO key.':'.');
+    $('tv-verdict').appendChild(banner);
+    $('tv-out').textContent=JSON.stringify(result,null,2);$('tv-out').style.display='block';
+    $('tv-status').textContent='Inspection complete. This does not verify the generated answer, full chain, freshness, independent signer identity, or execution authority.';
+  }catch(error){
+    $('tv-status').textContent='Evidence unavailable ('+(error instanceof Error?error.message:'INVALID_RESPONSE')+'). The inference outcome may be unknown; no retry was made.';
+  }finally{
+    clearTimeout(timer);controller.abort();trustBusy=false;button.disabled=false;
+  }
 }
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
