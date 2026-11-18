@@ -408,8 +408,7 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None,
         # short pause between; protocol-level answers (raise_for_status)
         # are never retried: a real upstream answer is final and keeps its
         # honest label, and exhaustion still fails closed to
-        # stale/UNAVAILABLE. See issue #2951-adjacent verify evidence in the
-        # linked issue for the observed flake.
+        # stale/UNAVAILABLE. See issue #3714 for the observed flake.
         r = None
         connect_error: Optional[httpx.ConnectError] = None
         for connect_attempt in range(3):
