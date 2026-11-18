@@ -274,20 +274,23 @@ def register(app, ns: str = "amaru", api_app=None) -> dict:
     from fastapi.responses import HTMLResponse, JSONResponse
 
     target = api_app if api_app is not None else app
+    # A mounted child app already occupies /api/<ns>. Register relative paths
+    # there; root registrations retain the full external prefix.
+    api_prefix = "" if api_app is not None else f"/api/{ns}"
 
     @app.get("/papers", response_class=HTMLResponse)
     async def _papers_panel():  # noqa: ANN202
         return HTMLResponse(_papers_html(ns))
 
-    @target.get(f"/api/{ns}/v1/papers")
+    @target.get(f"{api_prefix}/v1/papers")
     async def _papers_json():  # noqa: ANN202
         return JSONResponse({"version": VERSION, "count": len(PAPERS), "papers": PAPERS})
 
-    @target.get(f"/api/{ns}/v1/codex-kernel")
+    @target.get(f"{api_prefix}/v1/codex-kernel")
     async def _codex_json():  # noqa: ANN202
         return JSONResponse({"version": VERSION, "codex_kernel": CODEX_KERNEL})
 
-    @target.get(f"/api/{ns}/v1/papers/healthz")
+    @target.get(f"{api_prefix}/v1/papers/healthz")
     async def _papers_health():  # noqa: ANN202
         return JSONResponse({"ok": True, "version": VERSION})
 
