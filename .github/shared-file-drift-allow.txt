@@ -78,10 +78,3 @@ a11oy_agent_loop.py        # KI#581 fail-closed chain_verified=False default on 
 #     byte-identical again (the guard warns stale-allow when they do).
 szl_readiness.py           # a11oy#3423 honours the warm-up delay (port of KI#601); killinchu main lacks it - reconcile when killinchu adopts
 vsp_otel/middleware.py     # a11oy#3389 binds spans to the admitted local provider; killinchu main lacks it - reconcile when killinchu adopts
-
-# --- Bounded meter clock-skew allowance (2026-11-18). szl_meter_access.py gained a
-#     15s future clock-skew tolerance; the identical change ships to BOTH repos in
-#     lockstep (a11oy#3688 + killinchu twin PR). Listed only while the two PRs land;
-#     delete this entry when both mains carry identical bytes again (the guard will
-#     also warn stale-allow).
-szl_meter_access.py        # meter clock-skew allowance lockstep sync 2026-11-18 - remove when identical on both mains
