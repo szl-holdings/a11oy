@@ -142,3 +142,37 @@ Machine clients this covers, from code. Sixteen other workflows consume
 as does this workflow's post-deploy canary. The deploy readback sends
 `GET /.well-known/szl-worker-revision` with `User-Agent:
 szl-worker-revision-readback/1`. `GET /` (ntfy's web page) stays challenged.
+
+## Measured upstream latency and the calibrated canary budget (2026-11-18)
+
+A no-credential comparison probe from the owner device (private receipt
+relay_deep_diag_receipt.json, SHA-256
+a9b88a99c2ec22bbb58f0d923abd690c51a7e0d793f543d5571ce93ef6d6cf99) measured
+the deployed relay end to end. Every relayed request through the Worker to
+https://ntfy.sh took about 19.4-19.5 seconds, while the Worker-served
+reserved path and the same requests direct from a residential network answered
+in well under a second:
+
+| Request | Path | Result | Elapsed |
+|---|---|---|---|
+| Worker-served (never relayed) | GET /.well-known/szl-worker-revision | 200, revision readback | 0.15 s |
+| Relay | GET / | 200 (ntfy.sh page) | 19.48 s |
+| Direct, same probe client | GET https://ntfy.sh/ | 200 | 0.05 s |
+| Relay | POST /diagnostic topic | 200, message accepted | 19.36 s |
+| Relay read-back | GET /diagnostic topic/json?poll=1 | 200, same message id | 19.54 s |
+| Direct read-back of derived topic | GET https://ntfy.sh/szl_.../json?poll=1 | 200 | 0.10 s |
+
+The delay is therefore spent between the Worker and ntfy.sh (upstream
+treatment of Workers egress; attribution to a specific provider mechanism is
+not established). Delivery is real and complete: the published message read
+back with the same id through the relay.
+
+Because the real delivery path needs about 19.5 s, the previous 8-second
+default canary budget could only ever observe TIMED_OUT. That is why the
+2026-11-17 post-deploy canary failed after a successful deploy and revision
+readback (run 43988371232) and issue #541 stayed open while the relay itself
+worked. Both canary invocations now pass --timeout 30, about 1.5x the
+measured steady state, still one attempt, still fail-closed, and the canary
+exit status still fails the job. If ntfy.sh Workers-egress latency grows past
+that budget the canary turns red again; the durable fix is an estate-controlled
+ntfy origin, which is an owner decision.

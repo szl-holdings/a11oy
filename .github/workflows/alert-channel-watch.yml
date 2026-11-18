@@ -127,7 +127,7 @@ jobs:
           source scripts/managed_alert_env.sh &&
           set +e
           mkdir -p evidence
-          args=(--output evidence/alert-channel-canary.json --mode "${ALERT_CHANNEL_MODE:-auto}")
+          args=(--output evidence/alert-channel-canary.json --mode "${ALERT_CHANNEL_MODE:-auto}" --timeout 30)
           if [ "${SEND}" = 'true' ]; then args+=(--send); fi
           python scripts/alert_channel_canary.py "${args[@]}"
           rc=$?
