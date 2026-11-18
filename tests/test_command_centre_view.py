@@ -2,6 +2,7 @@
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Pure renderer, immutable public projection and retained-client contracts."""
 
+import base64
 import copy
 import hashlib
 from html.parser import HTMLParser
@@ -25,6 +26,7 @@ class Page(HTMLParser):
         self.duplicates = []
         self.links = []
         self.scripts = []
+        self.stylesheets = []
         self.tags = []
         self.feed(html)
 
@@ -39,6 +41,20 @@ class Page(HTMLParser):
             self.links.append(attrs.get('href'))
         if tag == 'script':
             self.scripts.append(attrs)
+        if tag == 'link' and attrs.get('rel') == 'stylesheet':
+            self.stylesheets.append(attrs)
+
+
+def expected_asset(filename, suffix):
+    body = (centre.ROOT / suffix).read_bytes()
+    digest = hashlib.sha256(body).digest()
+    return {'url': '/command-centre/assets/' + digest.hex() + '/' + filename,
+            'integrity': 'sha256-' + base64.b64encode(digest).decode('ascii')}
+
+
+def expected_script():
+    asset = expected_asset('app.js', 'app.js')
+    return {'src': asset['url'], 'integrity': asset['integrity'], 'defer': None}
 
 
 @pytest.fixture
@@ -74,7 +90,7 @@ def test_retained_forms_client_ids_and_navigation_are_preserved():
                 assert current_attrs.get(key) == attrs.get(key)
     script = (centre.ROOT / 'app.js').read_text(encoding='utf-8')
     assert set(re.findall(r"el\('([^']+)'\)", script)) <= set(current.ids)
-    assert current.scripts == [{'src': '/command-centre/app.js', 'defer': None}]
+    assert current.scripts == [expected_script()]
     assert all('disabled' in current.ids[name][1] for name in ('send', 'local-send', 'cpu-send'))
     assert len([entry for entry in current.ids.values() if entry[0] == 'form']) == 3
 
@@ -145,7 +161,7 @@ def test_dynamic_surface_text_is_escaped():
     output = view.render_page(model).decode()
     assert '&lt;svg onload=alert(1)&gt;' in output
     assert '</a><script>bad()' not in output
-    assert Page(output).scripts == [{'src': '/command-centre/app.js', 'defer': None}]
+    assert Page(output).scripts == [expected_script()]
 
 
 @pytest.mark.parametrize('href', [
@@ -292,3 +308,123 @@ def test_render_reproducible_from_model_and_input_digest_changes():
 def test_bad_or_oversized_page_model_rejected(model):
     with pytest.raises(ValueError):
         view.render_page(model)
+
+
+def test_rendered_assets_bind_manifest_digests_and_preserve_style_order():
+    model = centre.manifest()
+    page = Page(view.render_page(model).decode())
+    expected = []
+    for filename, suffix in (
+        ('szl-design-system.css', 'szl/szl-design-system.css'),
+        ('szl-console.css', 'szl/szl-console.css'),
+        ('style.css', 'style.css'),
+    ):
+        asset = expected_asset(filename, suffix)
+        assert model['presentation']['sources']['routers/command_centre_web/' + suffix] in asset['url']
+        expected.append({'rel': 'stylesheet', 'href': asset['url'], 'integrity': asset['integrity']})
+        # Moving the stylesheet URL must not change any nested asset resolution.
+        css = (centre.ROOT / suffix).read_text(encoding='utf-8')
+        assert not re.search(r'url\s*\(|@import', css, re.IGNORECASE)
+    assert page.stylesheets == expected
+    assert page.scripts == [expected_script()]
+    assert len(page.scripts) + len(page.stylesheets) == 4
+    assert all('disabled' in page.ids[name][1] for name in ('send', 'local-send', 'cpu-send'))
+    assert all(page.ids[name][1].get('hidden') is None
+               and 'hidden' in page.ids[name][1]
+               for name in ('answer', 'local-answer', 'cpu-answer', 'cpu-sources-panel'))
+
+
+@pytest.mark.parametrize('source', [
+    'routers/command_centre_web/app.js',
+    'routers/command_centre_web/style.css',
+    'routers/command_centre_web/szl/szl-design-system.css',
+    'routers/command_centre_web/szl/szl-console.css',
+])
+@pytest.mark.parametrize('digest', [None, '', 'a' * 63, 'A' * 64, 'g' * 64, 'a' * 65, 5])
+def test_missing_or_malformed_asset_digest_fails_page_closed(client, monkeypatch, source, digest):
+    model = centre.manifest()
+    if digest is None:
+        del model['presentation']['sources'][source]
+    else:
+        model['presentation']['sources'][source] = digest
+    monkeypatch.setattr(centre, 'manifest', lambda: model)
+    for route in ('/command-centre', '/a11oy/atelier'):
+        response = client.get(route)
+        assert response.status_code == 503
+        assert response.json() == {'state': 'UNAVAILABLE', 'code': 'PAGE_SOURCE_UNAVAILABLE'}
+        assert response.headers['cache-control'] == 'no-store'
+
+
+@pytest.mark.parametrize('presentation', [None, [], {}, {'sources': None}, {'sources': []}])
+def test_missing_presentation_sources_cannot_render_an_unbound_page(presentation):
+    model = centre.manifest()
+    model['presentation'] = presentation
+    with pytest.raises(ValueError):
+        view.render_page(model)
+
+
+@pytest.mark.parametrize('change', [
+    'legacy-path', 'external', 'unknown-file', 'stylesheet-as-script',
+    'query', 'fragment', 'upper-digest', 'wrong-digest', 'missing-integrity',
+    'wrong-integrity', 'extra-integrity', 'missing-defer', 'false-defer',
+    'duplicate-src',
+])
+def test_script_validator_admits_only_matching_fixed_digest_and_sri(change):
+    asset = expected_asset('app.js', 'app.js')
+    attrs = {'src': asset['url'], 'integrity': asset['integrity'], 'defer': True}
+    if change == 'legacy-path':
+        attrs['src'] = '/command-centre/app.js'
+    elif change == 'external':
+        attrs['src'] = 'https://a-11-oy.com' + attrs['src']
+    elif change == 'unknown-file':
+        attrs['src'] = attrs['src'].replace('/app.js', '/other.js')
+    elif change == 'stylesheet-as-script':
+        attrs['src'] = attrs['src'].replace('/app.js', '/style.css')
+    elif change == 'query':
+        attrs['src'] += '?source=new'
+    elif change == 'fragment':
+        attrs['src'] += '#new'
+    elif change == 'upper-digest':
+        attrs['src'] = attrs['src'].replace(attrs['src'].split('/')[3], attrs['src'].split('/')[3].upper())
+    elif change == 'wrong-digest':
+        attrs['src'] = '/command-centre/assets/' + '0' * 64 + '/app.js'
+    elif change == 'missing-integrity':
+        del attrs['integrity']
+    elif change == 'wrong-integrity':
+        attrs['integrity'] = 'sha256-' + base64.b64encode(b'\0' * 32).decode()
+    elif change == 'extra-integrity':
+        attrs['integrity'] += ' ' + attrs['integrity']
+    elif change == 'missing-defer':
+        del attrs['defer']
+    elif change == 'false-defer':
+        attrs['defer'] = False
+    else:
+        attrs['src_'] = attrs['src']
+    with pytest.raises(ValueError):
+        view.node('script', **attrs)
+
+
+def test_stylesheet_validator_rejects_unbound_or_non_style_integrity():
+    asset = expected_asset('style.css', 'style.css')
+    assert view.node('link', rel='stylesheet', href=asset['url'],
+                     integrity=asset['integrity']).render().startswith('<link ')
+    for attrs in (
+        {'rel': 'stylesheet', 'href': asset['url']},
+        {'rel': 'stylesheet', 'href': '/command-centre/style.css', 'integrity': asset['integrity']},
+        {'rel': 'stylesheet', 'href': asset['url'].replace('/style.css', '/app.js'), 'integrity': asset['integrity']},
+        {'rel': 'canonical', 'href': '/command-centre', 'integrity': asset['integrity']},
+    ):
+        with pytest.raises(ValueError):
+            view.node('link', **attrs)
+    with pytest.raises(ValueError):
+        view.node('p', integrity=asset['integrity'])
+
+
+@pytest.mark.parametrize('relation', [
+    'STYLESHEET', 'StyleSheet', 'stylesheet preload', 'preload stylesheet',
+    ' stylesheet', 'stylesheet ', 'stylesheet\t', 'stylesheet\npreload',
+    'stylesheet stylesheet', '', None, ['stylesheet'],
+])
+def test_noncanonical_link_relations_cannot_bypass_stylesheet_integrity(relation):
+    with pytest.raises(ValueError):
+        view.node('link', rel=relation, href='/unbound.css')

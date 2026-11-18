@@ -1,0 +1,335 @@
+{
+  "_license": "SPDX-License-Identifier: Apache-2.0",
+  "_copyright": "(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "candidate_scope": {
+    "client_elapsed_limit_seconds_per_model_case": 120,
+    "client_model_request_limit": 17,
+    "client_output_token_reservation_limit": 2176,
+    "hardware_verified": false,
+    "inference_verified": false,
+    "model_id": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+    "production_default_changed": false,
+    "proof": "Catalog membership in exact source and provider GET /models listing only",
+    "remote_billing_or_cancellation_guaranteed": false,
+    "selection_state": "PROPOSED_FOR_INDEPENDENT_APPROVAL",
+    "substitutes_for_32b_production": false,
+    "suite_case_count": 8,
+    "suite_case_ids": [
+      "c-arith-1",
+      "c-arith-2",
+      "c-fact-1",
+      "c-fact-2",
+      "s-refuse-1",
+      "s-refuse-2",
+      "h-honest-1",
+      "h-honest-2"
+    ],
+    "suite_id": "core_honest_v1",
+    "suite_version": "1.0.0",
+    "top_level_post_limit": 5,
+    "weights_verified": false
+  },
+  "case_effects_for_review": {
+    "agentloop-run": "One strict chat request plus eight self-eval requests and native/composite receipts; no tools, code execution, brain context or energy allocation.",
+    "eval-run": "Up to eight strict model requests plus native signed eval receipt/forum ingestion.",
+    "operator-ask": "Reads the locked-formula declaration; its placeholder is not a native cryptographic signature.",
+    "policy-compliance": "Selects the declared local NIST record; no certification is claimed.",
+    "policy-decide": "Appends the synthetic verdict to the native policy audit ring."
+  },
+  "context_is_independent_approval": false,
+  "created_at": "2026-11-16T23:16:11.301602Z",
+  "current_publisher_observation": [
+    {
+      "conclusion": "",
+      "createdAt": "2026-11-16T23:10:04Z",
+      "databaseId": 43976858980,
+      "event": "workflow_dispatch",
+      "headSha": "f6e30e83343674e544af0ad83a03c058d9c9d53b",
+      "status": "in_progress"
+    },
+    {
+      "conclusion": "failure",
+      "createdAt": "2026-11-16T23:05:18Z",
+      "databaseId": 43976110401,
+      "event": "push",
+      "headSha": "f6e30e83343674e544af0ad83a03c058d9c9d53b",
+      "status": "completed"
+    }
+  ],
+  "exact_source_file_sha256": {
+    ".github/scripts/admit_execution_handoff.py": "5c3c9b13eb4151e9b98d279505798c9b801a0b9028a3a947e6eeb70ec90847ae",
+    "a11oy_code_engine.py": "6968839865154818babe7e85c2bf37c944b9d0e90eb6fc600bf0e6c2d25bf73e",
+    "observer_adapters.py": "84b80c124c8e6e70c0292934f150873ea93340a8995795e48cab477628e90b66",
+    "observer_runtime.py": "223c682c865206688e2d001c5b9c0aeee7807f05c28f861b3b5c51a58e632d75",
+    "serve.py": "371a14187bee0646e101ef8d1f8e2c61c91c226103da113eae38d5ac9f80ee85",
+    "szl_eval_arena.py": "88c4d938ee0d6f6b615173ec35879634b5c5f22cedba6d785c6e652ab869c4db",
+    "szl_router_client.py": "acd3e4e996cea804d3e36f567a56d55249264dc00e8383924bafc32ca166a5fb",
+    "tools/execution_acceptance.py": "85bb391bf9d8423c35cc7043be5862e13a1e8b8c0540813b0e85123f2e6504d3"
+  },
+  "execution_authorized": false,
+  "execution_state": "NOT_EXECUTED",
+  "final_runtime_context_bound": false,
+  "historical_publisher_evidence": {
+    "attempt": 1,
+    "conclusion": "failure",
+    "deployment_source_attestation_and_runtime_config": "success",
+    "execution_handoff_failure": {
+      "context_frozen": false,
+      "error": "HF_IDENTITY_MISMATCH",
+      "execution_authorized": false,
+      "export_collected": false,
+      "provider_state_changed": false,
+      "schema": "szl.execution-handoff-failure/v1",
+      "source_revision": "628b3f10de1ea9837ce5c535c4c20b722c45b320",
+      "stage": "RUNTIME_READBACK"
+    },
+    "failure_artifact_id": 14280806508,
+    "run_id": 43973325325,
+    "run_url": "https://github.com/szl-holdings/a11oy/actions/runs/43973325325"
+  },
+  "independent_configuration": {
+    "approval_key_id": "1ee69b39132b5a3830605f0c9fd4e5610c2fcb9251e5430a2214925b1e70d575",
+    "boot_matches_current": false,
+    "configured_boot_id": "boot_4b7e096adf7f46c3825b14d0dd71522f",
+    "configured_hf_revision": "7f2640df6cdf1a7f6df4c3cfc1c374d8ece87b02",
+    "distinct_role_pins": true,
+    "hf_matches_current": false,
+    "nonce_configured": true,
+    "nonce_is_hex64": true,
+    "nonce_value_retained": false,
+    "public_or_private_key_material_retained": false,
+    "runtime_key_id": "9926bf69b799ea663fc5cf5a8c5d8f594d99d7b323700d6a20b803bd4c9f4e15",
+    "variable_update_metadata": [
+      {
+        "name": "A11OY_EXECUTION_AUTHORITY_PINS_JSON",
+        "updatedAt": "2026-11-13T02:15:41Z"
+      },
+      {
+        "name": "A11OY_EXECUTION_BOOT_ID",
+        "updatedAt": "2026-11-16T20:14:52Z"
+      },
+      {
+        "name": "A11OY_EXECUTION_HF_REVISION",
+        "updatedAt": "2026-11-16T20:14:50Z"
+      },
+      {
+        "name": "A11OY_EXECUTION_NONCE",
+        "updatedAt": "2026-11-11T03:00:34Z"
+      },
+      {
+        "name": "A11OY_EXECUTION_RUN_NONCE",
+        "updatedAt": "2026-11-16T19:53:27Z"
+      }
+    ]
+  },
+  "limitations": [
+    "Current values were observed for review; they do not install independent authority.",
+    "The plan template intentionally fails admission while source/HF/boot, nonce, operator and validity fields are null.",
+    "Protected main advanced from 628b3f10 to f6e30e8334 during review. The updated model diagnostic and observed runtime are timestamped snapshots; a later restart or source change invalidates their freshness.",
+    "Runtime source drift, reboot, expiry, incomplete evidence or missing credentials require fresh admission.",
+    "The signed export requirement and all five passive NOT_PROBED rows remain unchanged.",
+    "The current operator/GPU/NVML evidence gaps remain separate production blockers."
+  ],
+  "model_diagnostic": {
+    "advertised_model_count": 1,
+    "advertised_model_ids": [
+      "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+    ],
+    "checked_at": "2026-11-16T23:15:24.986172Z",
+    "declaration_matches_listing": false,
+    "declared_model_id": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "error": "DECLARED_MODEL_NOT_LISTED",
+    "execution_authorized": false,
+    "expected_model_base_url": "https://sellers-correlation-award-textile.trycloudflare.com/v1",
+    "hardware_verified": false,
+    "inference_verified": false,
+    "method": "GET_ONLY",
+    "production_ready": false,
+    "provider_state_changed": false,
+    "schema": "szl.model-declaration-check/v1",
+    "scope": "DECLARED_MODEL_VS_PROVIDER_LISTING",
+    "source_bracket_unchanged": true,
+    "source_revision": "f6e30e83343674e544af0ad83a03c058d9c9d53b",
+    "status": "DECLARED_MODEL_NOT_LISTED",
+    "weights_verified": false
+  },
+  "observed_runtime": {
+    "build_source_revision": "f6e30e83343674e544af0ad83a03c058d9c9d53b",
+    "persistent_signer_source": "persistent:env:SZL_COSIGN_PRIVATE_PEM",
+    "protected_main": "f6e30e83343674e544af0ad83a03c058d9c9d53b",
+    "provider_repository_revision": "fdab04d593816117e8371255698819fe1a9122ab",
+    "provider_runtime_revision": "fdab04d593816117e8371255698819fe1a9122ab",
+    "runtime_boot_id": "boot_97699ef7a8014f12aedf233a33ca9f75",
+    "series_source_identity": {
+      "binding_sha256": "29982fca8e637f8b19ffd307e2c971f6dc6712b2f2f7e7dad00ff40c73447b8c",
+      "error": null,
+      "execution_authority": false,
+      "hardware_attestation": false,
+      "hf_revision": "fdab04d593816117e8371255698819fe1a9122ab",
+      "image_attestation": false,
+      "local_bytes_evidence": "MEASURED",
+      "marker_sha256": "53a65f0a01b300f559610fe5686803eeac425b81d61f8c3e4f5ff9e3b314f014",
+      "method": "GITHUB_ATTESTED_SOURCE_COPY_SET",
+      "runtime_boot_id": "boot_97699ef7a8014f12aedf233a33ca9f75",
+      "scope": "FINAL_APP_SOURCE_COPY_FILES",
+      "source_revision": "f6e30e83343674e544af0ad83a03c058d9c9d53b",
+      "status": "REPORTED"
+    },
+    "source_revision": "f6e30e83343674e544af0ad83a03c058d9c9d53b",
+    "stage": "RUNNING"
+  },
+  "publication_eligible": false,
+  "required_before_signing": [
+    "After the final deployment is stable, independently review its exact source/HF/boot publication evidence and both public-pin custodians; all plan identity fields are intentionally null here.",
+    "Approve the explicit 1.5B candidate and client resource bounds; this does not qualify or replace the declared 32B production model.",
+    "Through the existing operator and tenant credential path, obtain a fresh runtime-signed challenge for this unchanged boot.",
+    "Bind the authentic issued run_nonce and operator_reference; set policy request_id to run_nonce + ':policy-decide'.",
+    "Set authentic issued_at/expires_at inside the current fifteen-minute contract; do not reuse the stale configured nonce.",
+    "The independent approval custodian signs the exact complete plan with the already admitted approval key. This package contains no signature or key.",
+    "The authorized operator submits that approved envelope through the existing execution-observations/run route, then retains all five completed native observations.",
+    "Distribute context through independent admission and dispatch hf-sync.yml with verify_current_deployment=true, open_deploy_window=false, publish_vertical_flagships=false and empty vertical_plan_json."
+  ],
+  "review_context_matches_current": true,
+  "reviewed_source_revision": "f6e30e83343674e544af0ad83a03c058d9c9d53b",
+  "schema": "szl.execution-review-package/v1",
+  "signature_state": "UNSIGNED",
+  "unsigned_plan_template": {
+    "cases": [
+      {
+        "body": {
+          "action": {
+            "operation": "inspect-synthetic-record",
+            "record_id": "acceptance-only"
+          },
+          "agent": "execution-acceptance",
+          "request_id": null
+        },
+        "expected_status": 200,
+        "id": "policy-decide",
+        "method": "POST",
+        "path": "/api/a11oy/v1/policy/decide",
+        "readback_assertions": {
+          "/case_id": "policy-decide",
+          "/record/decision": "allow",
+          "/schema": "szl.native-execution-readback/v1"
+        },
+        "response_assertions": {
+          "/decision": "allow",
+          "/status": "REAL"
+        }
+      },
+      {
+        "body": {
+          "framework": "NIST"
+        },
+        "expected_status": 200,
+        "id": "policy-compliance",
+        "method": "POST",
+        "path": "/api/a11oy/v1/policy/compliance",
+        "readback_assertions": {
+          "/case_id": "policy-compliance",
+          "/evidence_scope": "DECLARED_LOCAL_RECORD_ONLY",
+          "/record/framework": "NIST",
+          "/schema": "szl.native-execution-readback/v1"
+        },
+        "response_assertions": {
+          "/framework": "NIST",
+          "/status": "REAL"
+        }
+      },
+      {
+        "body": {
+          "question": "Which eight formula identifiers are locked under Doctrine v11?"
+        },
+        "expected_status": 200,
+        "id": "operator-ask",
+        "method": "POST",
+        "path": "/api/a11oy/v1/operator/ask",
+        "readback_assertions": {
+          "/case_id": "operator-ask",
+          "/lean_verified": false,
+          "/record/count": 8,
+          "/record/doctrine": "v11",
+          "/schema": "szl.native-execution-readback/v1",
+          "/source": "serve._SC_PROVED_FORMULAS"
+        },
+        "response_assertions": {
+          "/grounded": true,
+          "/status": "REAL",
+          "/topic": "formulas"
+        }
+      },
+      {
+        "body": {
+          "execution_limits": {
+            "max_elapsed_seconds": 120,
+            "max_model_requests": 8,
+            "max_output_tokens": 1024
+          },
+          "execution_mode": "live",
+          "model_id": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+          "suite": "core_honest_v1"
+        },
+        "expected_status": 200,
+        "id": "eval-run",
+        "method": "POST",
+        "path": "/api/a11oy/v1/eval/run",
+        "readback_assertions": {
+          "/case_id": "eval-run",
+          "/receipt/body/model_id": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+          "/receipt/body/schema": "szl.eval_arena.receipt/v1",
+          "/schema": "szl.native-execution-readback/v1"
+        },
+        "response_assertions": {
+          "/aggregate/n_evaluated": 8,
+          "/aggregate/n_unavailable": 0,
+          "/execution_complete": true,
+          "/execution_mode": "live",
+          "/model_id": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+          "/state": "COMPLETED"
+        }
+      },
+      {
+        "body": {
+          "allocate_energy": false,
+          "consult_brain": false,
+          "eval_suite": "core_honest_v1",
+          "execution_limits": {
+            "max_elapsed_seconds": 120,
+            "max_model_requests": 9,
+            "max_output_tokens": 1152
+          },
+          "max_retries": 0,
+          "mode": "chat",
+          "model_id": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+          "sandbox": false,
+          "task": "Return the integer result of 2 + 2 without tools, code execution or external actions."
+        },
+        "expected_status": 200,
+        "id": "agentloop-run",
+        "method": "POST",
+        "path": "/api/a11oy/v1/agentloop/run",
+        "readback_assertions": {
+          "/eval_record/case_id": "eval-run",
+          "/record/case_id": "agentloop-run",
+          "/record/schema": "szl.native-execution-readback/v1"
+        },
+        "response_assertions": {
+          "/composite_receipt/body/schema": "szl.agentloop.receipt/v1",
+          "/ok": true
+        }
+      }
+    ],
+    "expires_at": null,
+    "issued_at": null,
+    "max_requests": 5,
+    "operator_reference": null,
+    "origin": "https://szlholdings-a11oy.hf.space",
+    "retries": 0,
+    "run_nonce": null,
+    "runtime_boot_id": null,
+    "runtime_revision": null,
+    "schema": "szl.execution-acceptance-plan/v1",
+    "source_revision": null
+  }
+}

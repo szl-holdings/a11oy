@@ -10,13 +10,17 @@ from urllib.request import build_opener, ProxyHandler
 urlopen=build_opener(ProxyHandler({})).open
 HOME = Path(__file__).resolve().parent
 SOURCE = HOME / "source"
-SOURCE_REVISION = "c66bbeaf69e2e961a8df0d3c27e324268116b585"
 EXPECTED = {
- "ops/vm-model-gateway/gateway.py": "43d4cf6eb2e1d52db1dad330ac1415a35756c32e186bfd2dad5fd0c58980a852",
- "ops/vm-model-gateway/runtime_config.py": "e770bebc0d02ea0ae06c4abe78ace605d0253e9a910604e0e2048eb5e6b5184a",
+ "ops/vm-model-gateway/gateway.py": "d0eda48d20813ad8a91f99168b4a9bccadf10cb34dddf77d93b64fe829af34e9",
+ "ops/vm-model-gateway/runtime_config.py": "370902b7c22fdb66f2bfed68b1991ccad82d173b1ebc553d53d020ee6bd389f3",
  "szl_dsse.py": "dbe0188605d77610dee97f5b6efc069166a2a15fe46cf4f89881d4f5fa209d2f",
  "szl_content_address.py": "211b69d47fbbddf496fcfdedb0311e6fe6b67b67428100dd27ce7ce1f7247b10",
 }
+# The release identity is the exact, measured four-file manifest digest,
+# not an invented Git commit SHA; source commit is verified at installation.
+SOURCE_REVISION = "four-file-sha256:" + hashlib.sha256(
+ json.dumps(EXPECTED, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
 for rel, expected in EXPECTED.items():
  if hashlib.sha256((SOURCE / rel).read_bytes()).hexdigest() != expected:
   raise SystemExit("Pinned source mismatch")
@@ -42,7 +46,8 @@ def seal(phase, data):
  payload = {"schema":"szl.native-vm-gateway-supervisor/v1",
   "at_utc":datetime.now(timezone.utc).isoformat(),"phase":phase,
   "previous_sha256":previous,"source_revision":SOURCE_REVISION,
-  "source_hashes":EXPECTED,"source_revision_evidence":"DECLARED",
+  "source_hashes":EXPECTED,"source_revision_evidence":"MEASURED_PINNED_FOUR_FILE_MANIFEST",
+  "source_revision_kind":"FOUR_FILE_SHA256",
   "measured_source_scope":"FOUR_PINNED_COPIED_FILES","independent_witness":False,**data}
  env = szl_dsse.sign_payload(payload,"application/vnd.szl.gateway-supervisor+json")
  assert szl_dsse.verify_envelope(env)["verified"]
@@ -54,7 +59,7 @@ def seal(phase, data):
   f.write(raw); f.flush(); os.fsync(f.fileno())
  previous=hashlib.sha256(raw).hexdigest()
 seal("intent",{"effect":"Start pinned SSH tunnel and authenticated proposal gateway",
- "bind":"127.0.0.1:4000","upstream":transport.upstream,"production_acceptance":"BLOCKED"})
+ "bind":transport.gateway_bind,"upstream":transport.upstream,"production_acceptance":"BLOCKED"})
 env={k:os.environ[k] for k in ("SystemRoot","WINDIR","PATH","TEMP","TMP","LOCALAPPDATA","APPDATA","USERPROFILE","USERNAME","USERDOMAIN","HOMEDRIVE","HOMEPATH","SystemDrive","COMSPEC","PATHEXT","ProgramData") if k in os.environ}
 class BasicLimits(ctypes.Structure):
  _fields_=[("ProcessTime",ctypes.c_int64),("JobTime",ctypes.c_int64),("Flags",wintypes.DWORD),("MinWS",ctypes.c_size_t),("MaxWS",ctypes.c_size_t),("ActiveLimit",wintypes.DWORD),("Affinity",ctypes.c_size_t),("Priority",wintypes.DWORD),("Scheduling",wintypes.DWORD)]
@@ -105,14 +110,14 @@ try:
  while True:
   if gateway.poll() is not None: raise RuntimeError("Gateway exited before readiness")
   try:
-   with urlopen("http://127.0.0.1:4000/health",timeout=1) as r:
+   with urlopen(transport.gateway_health_url,timeout=1) as r:
     health=json.load(r)
     if r.status==200 and health.get("instance_id"): break
   except Exception: pass
   if time.monotonic()>deadline: raise RuntimeError("Gateway health deadline")
   time.sleep(.5)
  state={"at_utc":datetime.now(timezone.utc).isoformat(),"ssh_pid":ssh.pid,
-  "gateway_pid":gateway.pid,"instance_id":health["instance_id"],"upstream":transport.upstream,
+  "gateway_pid":gateway.pid,"instance_id":health["instance_id"],"gateway_bind":transport.gateway_bind,"upstream":transport.upstream,
   "source_revision":SOURCE_REVISION,
   "evidence_class":"MEASURED","production_acceptance":"BLOCKED",
   "liveness_requires_fresh_probe":True,"state":"STARTED"}

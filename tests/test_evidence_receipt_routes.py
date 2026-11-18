@@ -186,3 +186,40 @@ def test_timestamp_overflow_degrades_catalog_without_aborting_registration(tmp_p
         assert result["runtime_identity_state"] == "OBSERVED"
         assert result["receipt_bundle"]["state"] == "UNAVAILABLE"
         assert result["receipt_bundle"]["reason"] == "RECEIPT_BUNDLE_INVALID"
+
+
+def test_static_lineage_route_is_read_only_and_never_admits_execution(tmp_path):
+    path = tmp_path / "receipts.json"
+    fixture_bundle(path)
+    app = FastAPI()
+    register(app, receipt_bundle_path=path)
+    path.unlink()
+    with TestClient(app) as client:
+        schema = client.get("/openapi.json").json()
+        assert "/api/a11oy/v1/evidence/openlineage" in schema["paths"]
+        for _ in range(2):
+            result = client.get("/api/a11oy/v1/evidence/openlineage")
+            assert result.status_code == 200
+            assert result.headers["cache-control"] == "no-store"
+            event = result.json()
+            assert event["schemaURL"].endswith("#/$defs/JobEvent")
+            assert "run" not in event and "eventType" not in event
+            assert event["job"]["name"] == "observed_graph_snapshot_projection"
+            assert len(event["inputs"]) == 1
+            assert len(event["outputs"]) == 1
+            assert "DO_NOT_EXPORT" not in result.text
+    assert not path.exists()
+
+
+def test_static_lineage_rejects_absent_or_invalid_catalog(tmp_path, monkeypatch):
+    path = tmp_path / "missing.json"
+    monkeypatch.setenv("SZL_GIT_SHA", "a" * 40)
+    app = FastAPI()
+    register(app, receipt_bundle_path=path)
+    with TestClient(app) as client:
+        result = client.get("/api/a11oy/v1/evidence/openlineage")
+        assert result.status_code == 503
+        assert result.json() == {
+            "state": "UNAVAILABLE", "reason": "RECEIPT_BUNDLE_UNAVAILABLE",
+        }
+        assert result.headers["cache-control"] == "no-store"
