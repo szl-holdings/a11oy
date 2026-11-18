@@ -400,8 +400,34 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None,
 
     result: Optional[dict[str, Any]] = None
     try:
-        with _client(headers) as cl:
-            r = cl.get(url)
+        # Bounded same-budget connect-phase retry (fail-closed unchanged):
+        # the NYC HPD live source intermittently fails TLS handshake setup
+        # (httpx.ConnectTimeout, a subclass of httpx.ConnectError) inside
+        # the unchanged 4s per-call transport budget, flaking a live
+        # re-grade into UNAVAILABLE. At most 3 connect attempts with a
+        # short pause between; protocol-level answers (raise_for_status)
+        # are never retried: a real upstream answer is final and keeps its
+        # honest label, and exhaustion still fails closed to
+        # stale/UNAVAILABLE. See issue #2951-adjacent verify evidence in the
+        # linked issue for the observed flake.
+        r = None
+        connect_error: Optional[httpx.ConnectError] = None
+        for connect_attempt in range(3):
+            try:
+                with _client(headers) as cl:
+                    r = cl.get(url)
+                connect_error = None
+                break
+            except httpx.ConnectError as exc:
+                connect_error = exc
+                if connect_attempt < 2:
+                    time.sleep(0.5)
+        if r is None:
+            if connect_error is not None:
+                raise connect_error
+            raise RuntimeError(
+                "connect-phase retry exhausted without a transport exception"
+            )
         r.raise_for_status()
         try:
             data = r.json()
