@@ -390,7 +390,7 @@ class WriterBarrierTests(unittest.TestCase):
                 timeout = re.search(r"(?m)^    timeout-minutes: (\d+)$", job)
                 self.assertIsNotNone(timeout)
                 self.assertEqual(int(timeout.group(1)), minutes)
-                self.assertEqual(job.count("await_hf_configuration_handover.py capture"), 2)
+                self.assertEqual(job.count("await_hf_configuration_handover.py capture"), 3 if name == "preflight" else 2)
                 self.assertEqual(job.count("await_hf_configuration_handover.py wait"), 2)
                 minimum = previous * 60 + 2 * (M.TIMEOUT_SECONDS + M.SAMPLE_SECONDS)
                 self.assertGreaterEqual(minutes * 60, minimum)
