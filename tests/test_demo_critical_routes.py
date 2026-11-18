@@ -448,3 +448,30 @@ def test_oro_evidence_routes_are_owned_before_both_catchalls():
         index, route = readers[0]
         assert route.endpoint.__module__ == "oro.evidence_api"
         assert index < min(fallbacks)
+
+def test_amaru_codex_mounted_paths_do_not_duplicate_api_prefix():
+    """Source-owned Amaru child routes must resolve at their advertised URLs."""
+    import runpy
+    from pathlib import Path
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    source = Path(__file__).resolve().parents[1] / "organs" / "amaru" / "szl_papers_codex.py"
+    register = runpy.run_path(str(source))["register"]
+    root, child = FastAPI(), FastAPI()
+    root.mount("/api/amaru", child)
+    register(root, ns="amaru", api_app=child)
+    with TestClient(root) as client:
+        for path in ("/papers", "/api/amaru/v1/papers", "/api/amaru/v1/codex-kernel",
+                     "/api/amaru/v1/papers/healthz"):
+            assert client.get(path).status_code == 200
+        for path in ("/api/amaru/api/amaru/v1/papers",
+                     "/api/amaru/api/amaru/v1/codex-kernel",
+                     "/api/amaru/api/amaru/v1/papers/healthz"):
+            assert client.get(path).status_code == 404
+
+    unmounted = FastAPI()
+    register(unmounted, ns="amaru")
+    with TestClient(unmounted) as client:
+        assert client.get("/api/amaru/v1/papers").status_code == 200
+        assert client.get("/api/amaru/v1/codex-kernel").status_code == 200
