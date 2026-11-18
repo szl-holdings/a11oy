@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-11-16T23:11:16.035154+00:00",
+  "generated_at": "2026-11-18T05:39:48.254218+00:00",
   "inventory_source": {
-    "model_ids_sha256": "8ffc9e43a19fa4c9eab2eed765f72a26e9e7f4039f6e3ab7b9855351a56826e8",
+    "model_ids_sha256": "1eff88d013d32a9c77ae34a33518a9e11b0a0bc29bad92495347225945e8a404",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -29,7 +29,7 @@
         "capture_sha256": "2a3adccb2dc1882b710fe30ace5b6aa67aa4e7b7c93e062f9cf687308d6d9ae4",
         "error": null,
         "hub_revision": "a299baf19dc03927da3ad42cc976a7e28fb9d71f",
-        "observed_at": "2026-11-16T23:11:04.235389+00:00",
+        "observed_at": "2026-11-18T05:39:42.223517+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/A11OY-MINI?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -56,7 +56,7 @@
         "capture_sha256": "7558b10da8924ad045ffa7ead6547f13dd03f97ce096b368054c8e471407d914",
         "error": null,
         "hub_revision": "9213fd4ea17361ffcaa6b28bf3218920f9e0db62",
-        "observed_at": "2026-11-16T23:11:12.339837+00:00",
+        "observed_at": "2026-11-18T05:39:42.192468+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -98,7 +98,7 @@
         "capture_sha256": "382f1be081d0737c104a435a4e52bca14a5dff2f1660db9631115d8ba5df8f8c",
         "error": null,
         "hub_revision": "dacf7efd388784e5ca4781541617e2faa9308a4b",
-        "observed_at": "2026-11-16T23:11:04.283049+00:00",
+        "observed_at": "2026-11-18T05:39:42.224520+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -125,7 +125,7 @@
         "capture_sha256": "7207dbfd61f369f5de2d6f5930983a8d181ba9e17a9f20282791fe8497073e8d",
         "error": null,
         "hub_revision": "dfc405fc0b90d9e0f070b365aaeba0346cabca95",
-        "observed_at": "2026-11-16T23:11:04.242967+00:00",
+        "observed_at": "2026-11-18T05:39:42.223517+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -152,7 +152,7 @@
         "capture_sha256": "726d7a3d3e3878a5ae30ad6dc85797cf41def5b7012d57ab47b027e0690a3d74",
         "error": null,
         "hub_revision": "cfa50a3e80d0bd0a7b5f7c5584d71a52c6904f2d",
-        "observed_at": "2026-11-16T23:11:04.346818+00:00",
+        "observed_at": "2026-11-18T05:39:42.327062+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KILLINCHU-EYE?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -179,7 +179,7 @@
         "capture_sha256": "38b75def57e228ed2e1b6210ac725768d5aa26b936a2301c496d7cd367c541bd",
         "error": null,
         "hub_revision": "2e589d41faae7c56513ce59bf13e211d450486b8",
-        "observed_at": "2026-11-16T23:11:04.393836+00:00",
+        "observed_at": "2026-11-18T05:39:42.344351+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/MiniEmbed-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -206,7 +206,7 @@
         "capture_sha256": "50daa12e4711c76a8643eb194babf219bb9835ef12a2804606a52eed7c72e268",
         "error": null,
         "hub_revision": "4b073a176712eaedc76d266b63724902e16b8fa8",
-        "observed_at": "2026-11-16T23:11:04.368737+00:00",
+        "observed_at": "2026-11-18T05:39:42.344351+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Moons-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -233,7 +233,7 @@
         "capture_sha256": "bfe1f8291656258503f07bbb9520edff529ecdde1452393f08c1d277287030ef",
         "error": null,
         "hub_revision": "89432644e5ff1e64e35e8fe809587319b81e7e02",
-        "observed_at": "2026-11-16T23:11:04.440373+00:00",
+        "observed_at": "2026-11-18T05:39:42.345130+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -260,7 +260,7 @@
         "capture_sha256": "ca5d592534a0a2432806d1d168d4b7c5aff1b79fb8c7ab90b7a1f4cf947b03e5",
         "error": null,
         "hub_revision": "faf8f8df972dc2ba98f2ae606032e99aa797440b",
-        "observed_at": "2026-11-16T23:11:04.463561+00:00",
+        "observed_at": "2026-11-18T05:39:42.435710+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ReceiptAgent-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -287,7 +287,7 @@
         "capture_sha256": "0f30ab427df38f0ddbc23df6360459bf51bc7390029f117a767ff0e55c776889",
         "error": null,
         "hub_revision": "e3606c990ced50c3f4ed1264d19a70512cf06040",
-        "observed_at": "2026-11-16T23:11:04.478421+00:00",
+        "observed_at": "2026-11-18T05:39:42.451747+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -314,7 +314,7 @@
         "capture_sha256": "99941ce32344b199b34760ee0972f76bd61385d4beacb17f391fef24442718f7",
         "error": null,
         "hub_revision": "9f432894f63d6cff18db291643537907972b4250",
-        "observed_at": "2026-11-16T23:11:04.537001+00:00",
+        "observed_at": "2026-11-18T05:39:42.451747+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -341,7 +341,7 @@
         "capture_sha256": "787535d6ccae38ab096c74c28f72b87b50829993a5f208c1e9e7e7b6b99b8367",
         "error": null,
         "hub_revision": "aa357f2a7849bc5f42991d7382f3ae2cffadca53",
-        "observed_at": "2026-11-16T23:11:04.564907+00:00",
+        "observed_at": "2026-11-18T05:39:42.451747+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -383,7 +383,7 @@
         "capture_sha256": "7fc875d44cf549b4f137058a53c8c1d92abed12405330a32808622df444c7224",
         "error": null,
         "hub_revision": "2577acee55b41bd76a70a42418dee59ba68dbfcc",
-        "observed_at": "2026-11-16T23:11:04.564907+00:00",
+        "observed_at": "2026-11-18T05:39:42.542652+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -410,7 +410,7 @@
         "capture_sha256": "1636a7629351ebf9cd01f5bf0d73f95525e58ce2b161c4652aadad6869666520",
         "error": null,
         "hub_revision": "ce34422817e772cdc1f0fe81a68937e215221859",
-        "observed_at": "2026-11-16T23:11:04.642053+00:00",
+        "observed_at": "2026-11-18T05:39:42.559180+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -437,7 +437,7 @@
         "capture_sha256": "e76322033f579db8fe9bdc77bc25e62cb50b4d3b2db9eba6e0e4f754f3f1bdf3",
         "error": null,
         "hub_revision": "b7d6790d12f0d42e4aa00fdc23460c04ff20c94f",
-        "observed_at": "2026-11-16T23:11:04.668572+00:00",
+        "observed_at": "2026-11-18T05:39:42.561192+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -464,7 +464,7 @@
         "capture_sha256": "7f346d5fafa9cc2260c404805d49b3c4543a78032dd7463b416c28937408984b",
         "error": null,
         "hub_revision": "c3a6ccf6b243aa0c84d85f49931268f313c4ec83",
-        "observed_at": "2026-11-16T23:11:04.668572+00:00",
+        "observed_at": "2026-11-18T05:39:42.561192+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -491,7 +491,7 @@
         "capture_sha256": "9d0e4f5aaf53303e3e64e476697fab523722e625a28edba5c0d367f4493625cb",
         "error": null,
         "hub_revision": "94a70d088dc632af9e14134dd2e09bdf673e17a8",
-        "observed_at": "2026-11-16T23:11:04.755616+00:00",
+        "observed_at": "2026-11-18T05:39:42.748345+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -518,7 +518,7 @@
         "capture_sha256": "0bed3392d71d66f954910ffa02326d57b549c72422b2d23f3bab29fd3240b2a0",
         "error": null,
         "hub_revision": "27474937bf4a6177cdf9a8164c0019f98a9a95fc",
-        "observed_at": "2026-11-16T23:11:04.801099+00:00",
+        "observed_at": "2026-11-18T05:39:42.795430+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -560,7 +560,7 @@
         "capture_sha256": "89c015942445042ed0f13abfa3cb150b25d33cdf2d623103598625bd6e9961ca",
         "error": null,
         "hub_revision": "12e28525f077fc55a48c60d5ea3a1a4604945661",
-        "observed_at": "2026-11-16T23:11:04.777943+00:00",
+        "observed_at": "2026-11-18T05:39:42.682267+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-GGUF?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -587,7 +587,7 @@
         "capture_sha256": "b56663d24b09a2bd21779ceaa62b5574e9e7c3c09db1809db8eafb33403b4b65",
         "error": null,
         "hub_revision": "47d47df3dfcb6ddcf3eb1a40380db226d657c31d",
-        "observed_at": "2026-11-16T23:11:04.849094+00:00",
+        "observed_at": "2026-11-18T05:39:42.662616+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-abstain?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -614,7 +614,7 @@
         "capture_sha256": "b4c7e57a31e303771a32c90045e176832ae31446b559cfbb12d177f8d26d53df",
         "error": null,
         "hub_revision": "982009faaded95b71eaa85b4ff0de76790824ef8",
-        "observed_at": "2026-11-16T23:11:04.871289+00:00",
+        "observed_at": "2026-11-18T05:39:42.747345+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-abstain-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -641,7 +641,7 @@
         "capture_sha256": "1150e5a12c00744dd423bd1609682cebd17644053d8a4c084c189e6c9dbf89cb",
         "error": null,
         "hub_revision": "b15400d36692eebada23b5b80aff7c1c840c4afb",
-        "observed_at": "2026-11-16T23:11:04.871289+00:00",
+        "observed_at": "2026-11-18T05:39:42.746343+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -668,7 +668,7 @@
         "capture_sha256": "aaf619575c7827000c7b25cda1b49b58e7ae10f5ab56abbcbd45531fcfe2496c",
         "error": null,
         "hub_revision": "8771511f091e7e6c3ce4f6a80b063dad5ac9a4c8",
-        "observed_at": "2026-11-16T23:11:04.989324+00:00",
+        "observed_at": "2026-11-18T05:39:42.897610+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -695,7 +695,7 @@
         "capture_sha256": "9e7896a22588b1b89040a140e20abacaba2b2e82c9e7951e40f4a2750113f8d1",
         "error": null,
         "hub_revision": "9db6d7fa3cf63de597824f973f19baebe51e9117",
-        "observed_at": "2026-11-16T23:11:04.989324+00:00",
+        "observed_at": "2026-11-18T05:39:42.896270+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -722,7 +722,7 @@
         "capture_sha256": "2214062dd0290a5a061654f30b6af0b2246020e22b43507a440a67b3ea861e75",
         "error": null,
         "hub_revision": "340ee53005c8e40532de97576df83bbcacb561d6",
-        "observed_at": "2026-11-16T23:11:04.971058+00:00",
+        "observed_at": "2026-11-18T05:39:42.877520+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -749,7 +749,7 @@
         "capture_sha256": "41e7f718fab043013e1f0dbcbb93e5e291f837f7b3ecf00d7295dec26651ea14",
         "error": null,
         "hub_revision": "a302b62e7ee73990170229e0264559f3e51a2f00",
-        "observed_at": "2026-11-16T23:11:05.072781+00:00",
+        "observed_at": "2026-11-18T05:39:42.896270+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -776,7 +776,7 @@
         "capture_sha256": "9d3891ca77b9f5620fef7778d9b5380603d39adb8cf81ac54d8c55e2e7635b49",
         "error": null,
         "hub_revision": "05657f8fe5b63ebb58b4931baac445013e55776e",
-        "observed_at": "2026-11-16T23:11:05.096997+00:00",
+        "observed_at": "2026-11-18T05:39:43.009413+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -803,7 +803,7 @@
         "capture_sha256": "d06cfc009bd905e7ca4ab37ece34e3271ed20b7d4ddfb2219e186decc975dd34",
         "error": null,
         "hub_revision": "9cbd5527d7f3ca4d41883fddbd814377d53b3c75",
-        "observed_at": "2026-11-16T23:11:05.095982+00:00",
+        "observed_at": "2026-11-18T05:39:43.029923+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -830,7 +830,7 @@
         "capture_sha256": "937ccf3f4f695d821952cb0ba27c3d20e212b53962bf01e875e3fac83ae84fcf",
         "error": null,
         "hub_revision": "272514fd62729db94dc4fb66052753c7ab6397d7",
-        "observed_at": "2026-11-16T23:11:13.184873+00:00",
+        "observed_at": "2026-11-18T05:39:43.027882+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -857,7 +857,7 @@
         "capture_sha256": "02c5567ca74beb39ff76e90e4b693fbf6cf15b89a613b75dedb915351eaeabac",
         "error": null,
         "hub_revision": "5ec45d7976f836f1fd04a02b6a742f61e0bb3d40",
-        "observed_at": "2026-11-16T23:11:05.190136+00:00",
+        "observed_at": "2026-11-18T05:39:43.029923+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -884,7 +884,7 @@
         "capture_sha256": "6b0a7afe0b6d02be5c4f6f3b4111a27096f513ea0743420c1dadf9c0a86358c8",
         "error": null,
         "hub_revision": "d20544d382156f8f1afb6208448648e9e481a6e6",
-        "observed_at": "2026-11-16T23:11:05.190136+00:00",
+        "observed_at": "2026-11-18T05:39:43.128317+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -911,7 +911,7 @@
         "capture_sha256": "0e2bb64ae0c9f5c6c103426013fe92c28ae798fa5ce2e1ab0a3641fe8461b68c",
         "error": null,
         "hub_revision": "058a617209921299f9934a4863f88553a0eb029d",
-        "observed_at": "2026-11-16T23:11:05.287609+00:00",
+        "observed_at": "2026-11-18T05:39:43.147226+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -938,7 +938,7 @@
         "capture_sha256": "4650c424f91ef62e29d180ee65bee26a7470db810ed3503ac758d9765f4ad360",
         "error": null,
         "hub_revision": "e70f844eb4ea5c8b82739d2aa19e8554d7b26f30",
-        "observed_at": "2026-11-16T23:11:05.311133+00:00",
+        "observed_at": "2026-11-18T05:39:43.146187+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/TinyKhipu-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -965,7 +965,7 @@
         "capture_sha256": "b6abe45b9816126042a8dca9cd9bbba3b8762c1c9afa262a624be9e198ca508f",
         "error": null,
         "hub_revision": "93b928922004415c9157b59fb09b085ef9346377",
-        "observed_at": "2026-11-16T23:11:05.386522+00:00",
+        "observed_at": "2026-11-18T05:39:43.146187+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1007,7 +1007,7 @@
         "capture_sha256": "8a77cc70651c73ef07667168bd7c3da67307a74a8f3abaf1ecb94c9b0089bc1a",
         "error": null,
         "hub_revision": "fc49c614594ba59abd8d422e86fb8e92cec55607",
-        "observed_at": "2026-11-16T23:11:05.398582+00:00",
+        "observed_at": "2026-11-18T05:39:43.231268+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1034,7 +1034,7 @@
         "capture_sha256": "84a41e7297bb4c1eec59452a64278ece85b167cbe10d947e2d2113fa2c3b8eca",
         "error": null,
         "hub_revision": "44615abd7388a608837a7c178044a3255f822040",
-        "observed_at": "2026-11-16T23:11:05.483518+00:00",
+        "observed_at": "2026-11-18T05:39:43.264256+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1061,7 +1061,7 @@
         "capture_sha256": "53a57ac0c9b8b0045172f64da1b77c9aee94debb1f17ebc0d635d85751eea606",
         "error": null,
         "hub_revision": "c48f0ade85cf1c3619af58fbcc4c7201ce855de5",
-        "observed_at": "2026-11-16T23:11:05.505835+00:00",
+        "observed_at": "2026-11-18T05:39:43.251324+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/YARQA-ATTN?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1088,7 +1088,7 @@
         "capture_sha256": "3bc8d491fdde01a3920935e07b959c1c76b4d898383b44c59da6029aa41d3c73",
         "error": null,
         "hub_revision": "e18fd511b9944be3c70d8d67efb7b27e91935c3c",
-        "observed_at": "2026-11-16T23:11:05.614293+00:00",
+        "observed_at": "2026-11-18T05:39:43.272160+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-code-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1115,7 +1115,7 @@
         "capture_sha256": "79acff0a8b890df3755037cd5e0044142ba494d8f48fd134280560012782dbda",
         "error": null,
         "hub_revision": "4f117f77cb410c55785f9ebb3956eae73b938e61",
-        "observed_at": "2026-11-16T23:11:05.586626+00:00",
+        "observed_at": "2026-11-18T05:39:43.327219+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1142,7 +1142,7 @@
         "capture_sha256": "b425bcd5ee866e34134aa2d3f682f05458fc6695cea299f3852eb34a8df924e4",
         "error": null,
         "hub_revision": "48241a20b45565512dceeaa22a998bead2d5372c",
-        "observed_at": "2026-11-16T23:11:05.684156+00:00",
+        "observed_at": "2026-11-18T05:39:43.350771+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1169,7 +1169,7 @@
         "capture_sha256": "906c5d425d3def5c43622ab3f52237d42d9ccdfba67bfae479a8597ad640e3bf",
         "error": null,
         "hub_revision": "8934164c409963c34378d1222f756a0e8915d624",
-        "observed_at": "2026-11-16T23:11:05.711607+00:00",
+        "observed_at": "2026-11-18T05:39:43.367899+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-doctrine-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1196,7 +1196,7 @@
         "capture_sha256": "dd55899812d09fd412559a115a545b3ae3dd0b08195e1ad2c6e24ceae12272ca",
         "error": null,
         "hub_revision": "2529583af903b08e95d5913fa9a7b83afcdc9ec2",
-        "observed_at": "2026-11-16T23:11:05.788190+00:00",
+        "observed_at": "2026-11-18T05:39:43.367899+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-v2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1223,7 +1223,7 @@
         "capture_sha256": "6106d3c8a3ecbc257bb20e9fa2dec8266bab5446b0dd11e8236eedbb43598f37",
         "error": null,
         "hub_revision": "0f3d9eab5b9e6cc9e606bc8323539452ef99efc3",
-        "observed_at": "2026-11-16T23:11:05.810218+00:00",
+        "observed_at": "2026-11-18T05:39:43.427938+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/acoustic-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1250,7 +1250,7 @@
         "capture_sha256": "8fef86a6455a7881059574b41d811c4f0f22ca50e2963e5de8fa6e1b474a2755",
         "error": null,
         "hub_revision": "77ea553c507e38faa3b6bfb7faa540eb57d0c91f",
-        "observed_at": "2026-11-16T23:11:05.868141+00:00",
+        "observed_at": "2026-11-18T05:39:43.445781+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/acoustic-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1277,7 +1277,7 @@
         "capture_sha256": "e5ec9579968bbb26fc4b3ffd1e0112c3319cb173c92cf684df3972dfca9b5f76",
         "error": null,
         "hub_revision": "e86a0f83d683828ce6ab2d2cb67ee9afc7eb1926",
-        "observed_at": "2026-11-16T23:11:05.917426+00:00",
+        "observed_at": "2026-11-18T05:39:43.445781+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ancient-math-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1304,7 +1304,7 @@
         "capture_sha256": "315db69661efe4aa0135a0a2c90a0963c7cab11ec94eb972779c6935a19c5f70",
         "error": null,
         "hub_revision": "2e9095b6c9634b9da3fd4424d9a4ef0fa47bd584",
-        "observed_at": "2026-11-16T23:11:05.944241+00:00",
+        "observed_at": "2026-11-18T05:39:43.472210+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ancient-math-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1331,7 +1331,7 @@
         "capture_sha256": "918fffaa84138b8526291816c56faf5daa9ccc6e82acb67f3922f6f3aa7d36f1",
         "error": null,
         "hub_revision": "78047dc39ff06763e2f726d96dd59bd39bca8110",
-        "observed_at": "2026-11-16T23:11:06.012592+00:00",
+        "observed_at": "2026-11-18T05:39:43.534386+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1373,7 +1373,7 @@
         "capture_sha256": "aaf8d25aa6097e1e27b959ed9f4a0c7e9f097d8fa48626b2ba2a80f764dd6ed3",
         "error": null,
         "hub_revision": "a708d82ade069dc9b2da792b7ac91cb2f78c193e",
-        "observed_at": "2026-11-16T23:11:06.038188+00:00",
+        "observed_at": "2026-11-18T05:39:43.551951+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1400,7 +1400,7 @@
         "capture_sha256": "4cf775239640fa426d3e6b5e57c3b040c53aadcc5e1db13c9a167010eeb1e679",
         "error": null,
         "hub_revision": "2ffdc70a9225e8a7b124953859dfbe8a9074d5aa",
-        "observed_at": "2026-11-16T23:11:06.101451+00:00",
+        "observed_at": "2026-11-18T05:39:43.552954+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1427,7 +1427,7 @@
         "capture_sha256": "a02e7ec7f0b698d09771eb05e2fff1cce7453ab271e95d3c38b3fcd761551c4c",
         "error": null,
         "hub_revision": "6212cf87d7d35a39db68eee3cc07b5178a2a0838",
-        "observed_at": "2026-11-16T23:11:06.128077+00:00",
+        "observed_at": "2026-11-18T05:39:43.552954+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1454,7 +1454,7 @@
         "capture_sha256": "216e684448b59c87f60b2f1bebd918d6f0564616cda3656fe4346c73294bca1c",
         "error": null,
         "hub_revision": "3454b7153b6481e7b9738182a7a846e985376212",
-        "observed_at": "2026-11-16T23:11:06.183710+00:00",
+        "observed_at": "2026-11-18T05:39:43.632938+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1481,7 +1481,7 @@
         "capture_sha256": "c2574dbf8eb8f82a387298691703b52eace2b94d87e1b48af9a8e76934acbb68",
         "error": null,
         "hub_revision": "a0ec863bac888f50ebaf59a1c71b2adfe2d4cccb",
-        "observed_at": "2026-11-16T23:11:06.231964+00:00",
+        "observed_at": "2026-11-18T05:39:43.651462+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1508,7 +1508,7 @@
         "capture_sha256": "e081008b4143310bec549ad57d82c70e8bb55f31eda5f6f33ca91edd56ba88a7",
         "error": null,
         "hub_revision": "4595035443ce31f58c636aba3af6bdfaf8079c14",
-        "observed_at": "2026-11-16T23:11:06.256836+00:00",
+        "observed_at": "2026-11-18T05:39:43.651462+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1535,7 +1535,7 @@
         "capture_sha256": "fc0eeeebbf4c1495125f65bc9b2eee2cf47760d557dea7b6c3dfa89897172dc1",
         "error": null,
         "hub_revision": "4bcb4c0baeb2b5f07968d8793b537465fea9fde8",
-        "observed_at": "2026-11-16T23:11:06.325308+00:00",
+        "observed_at": "2026-11-18T05:39:43.651462+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1562,7 +1562,7 @@
         "capture_sha256": "200ea6098f5c4abae7e4dbb4044d07f44f2465ab6a8d253f0d1d86ad621aaba2",
         "error": null,
         "hub_revision": "89c5c22c56d42790313b696cfd2e4b3648c4e30a",
-        "observed_at": "2026-11-16T23:11:06.326334+00:00",
+        "observed_at": "2026-11-18T05:39:43.746259+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1604,7 +1604,7 @@
         "capture_sha256": "ecf2144537652aee210c7e56a1bc2ffa8758122a87ecf90649ce2591da7a9a69",
         "error": null,
         "hub_revision": "08c36c86c361315854739debd5be7881066aeab1",
-        "observed_at": "2026-11-16T23:11:06.415398+00:00",
+        "observed_at": "2026-11-18T05:39:43.777001+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1646,7 +1646,7 @@
         "capture_sha256": "634c6d99e29b59d26145a6cae854bd3bbd965bfb12b2475f7a1640c68ccf93d1",
         "error": null,
         "hub_revision": "4a05cd6c9daa3783063865a612ee1ab8961dd276",
-        "observed_at": "2026-11-16T23:11:06.442795+00:00",
+        "observed_at": "2026-11-18T05:39:43.777001+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1673,7 +1673,7 @@
         "capture_sha256": "5ffbd5c4259aa9ced15429cabd2e1b80932f4bcc140132760041895d81c0a84f",
         "error": null,
         "hub_revision": "7036e94c58781b1af56ce1a293609b629b9b8c18",
-        "observed_at": "2026-11-16T23:11:06.506103+00:00",
+        "observed_at": "2026-11-18T05:39:43.746259+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1700,7 +1700,7 @@
         "capture_sha256": "544bafd823d09c2e74ac95c2b6e6038d3c5c16db23194b8e19e997950f33cdfe",
         "error": null,
         "hub_revision": "cf84cc0c709b7ab57c9a0140d1da9a3a74a00f50",
-        "observed_at": "2026-11-16T23:11:06.531749+00:00",
+        "observed_at": "2026-11-18T05:39:43.853279+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1727,7 +1727,7 @@
         "capture_sha256": "342b1f048f075c9a3135fd969c8602ef3909b4d1fb3a2f1cf0419a782d80f7e1",
         "error": null,
         "hub_revision": "b30937d2975657c7e444fc84f553ec6dfc969a7d",
-        "observed_at": "2026-11-16T23:11:06.596226+00:00",
+        "observed_at": "2026-11-18T05:39:43.870473+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1754,7 +1754,7 @@
         "capture_sha256": "df909a513c83be8fbf0287767846fa1c8173f56ecd4280ccbe2e08c9977e83ba",
         "error": null,
         "hub_revision": "487314e86bbc50806fa3f17a950122d98d0950c8",
-        "observed_at": "2026-11-16T23:11:06.645563+00:00",
+        "observed_at": "2026-11-18T05:39:43.872230+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1781,7 +1781,7 @@
         "capture_sha256": "aef7e92dc146116efab23681692ca5c2a769231d600f2dccfdff65184cb1cf2b",
         "error": null,
         "hub_revision": "39b6d0b79f49e45a784b3c5271ab956ba641f1c5",
-        "observed_at": "2026-11-16T23:11:06.666077+00:00",
+        "observed_at": "2026-11-18T05:39:43.872602+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1823,7 +1823,7 @@
         "capture_sha256": "98f74197d9445dbcf7459fe188c99841a8732e8acb84d87a07c53560b6a3aab8",
         "error": null,
         "hub_revision": "d60ba31632b24341f42dc016dc2de1af3a557e1b",
-        "observed_at": "2026-11-16T23:11:06.729128+00:00",
+        "observed_at": "2026-11-18T05:39:43.966438+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1850,7 +1850,7 @@
         "capture_sha256": "e955fcc55ff57c3bf39047238b4a97d7a33215cbdccb4556f6f897d597ebb722",
         "error": null,
         "hub_revision": "fb66bed0f2e5a19981f63834ed78bb9c23e44f23",
-        "observed_at": "2026-11-16T23:11:06.750913+00:00",
+        "observed_at": "2026-11-18T05:39:43.989382+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1877,7 +1877,7 @@
         "capture_sha256": "cf0ba47eff00169f1c501cf14b7fad8b58aac4100e78874073850dade8729d81",
         "error": null,
         "hub_revision": "21de3e33b72ef83b06abaaa5e6cc144523708cfe",
-        "observed_at": "2026-11-16T23:11:06.805261+00:00",
+        "observed_at": "2026-11-18T05:39:43.989382+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1904,7 +1904,7 @@
         "capture_sha256": "30491cd59f85254672235cb219d385dddf84783bef8cf400411020234e81edb8",
         "error": null,
         "hub_revision": "7e93db0e8b49fa1435e756ee54f9424895e1edf5",
-        "observed_at": "2026-11-16T23:11:06.827153+00:00",
+        "observed_at": "2026-11-18T05:39:43.988877+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1931,7 +1931,7 @@
         "capture_sha256": "3bb884079b72392faa2c90c851f10fa169fa283c91cf718ba82faae790c8a185",
         "error": null,
         "hub_revision": "ec72d36e068a9321e0492e34fe63dafb2d75a95a",
-        "observed_at": "2026-11-16T23:11:06.921129+00:00",
+        "observed_at": "2026-11-18T05:39:44.087185+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1958,7 +1958,7 @@
         "capture_sha256": "182ee060e81e71bce3c40fb3c9800cf9ae4f87439bea88ad6cc99a6b2ab0c751",
         "error": null,
         "hub_revision": "53136c1881449743f6ed359350130e1b3e540cd4",
-        "observed_at": "2026-11-16T23:11:06.895635+00:00",
+        "observed_at": "2026-11-18T05:39:44.106622+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1985,7 +1985,7 @@
         "capture_sha256": "679fc5dc0850eee35e292a9fc1496c0c70cd6f5d17fe6134a59e7000f7092d6b",
         "error": null,
         "hub_revision": "49d2c8dbb16b2ffe3f7cb2c5c5f796d73d14e68f",
-        "observed_at": "2026-11-16T23:11:06.991483+00:00",
+        "observed_at": "2026-11-18T05:39:44.106622+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2012,7 +2012,7 @@
         "capture_sha256": "f00fb392e486a6f2b6fa0ac9c946cff0ca78fa617a0c7a5c49e7dddfe009190a",
         "error": null,
         "hub_revision": "16b324fb03f8c941833713e8956a01764249246a",
-        "observed_at": "2026-11-16T23:11:07.023980+00:00",
+        "observed_at": "2026-11-18T05:39:44.135826+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/code-master-v3-fresh?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2039,7 +2039,7 @@
         "capture_sha256": "fe12697e6ce584c1a1d146a042211ff49d71e3bde86a1e20a2b23b224f704d28",
         "error": null,
         "hub_revision": "61968f9935ec45d2232e447b5be3abfe41d528d0",
-        "observed_at": "2026-11-16T23:11:07.121895+00:00",
+        "observed_at": "2026-11-18T05:39:44.188861+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/creativity-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2066,7 +2066,7 @@
         "capture_sha256": "e8d5b18123c6e74a6219859117e92e5e7e31948b4e3525710747c06ed6597383",
         "error": null,
         "hub_revision": "33dbfe0875f64e1de2b342ec00cd9095da201b1a",
-        "observed_at": "2026-11-16T23:11:07.091877+00:00",
+        "observed_at": "2026-11-18T05:39:44.208867+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2093,7 +2093,7 @@
         "capture_sha256": "2579e1b780a49ac3fc1231aadcf5fb71878ccc21171a1fa779f601e603c3c5ce",
         "error": null,
         "hub_revision": "640062012ff0d003c74239911272d58d752ac820",
-        "observed_at": "2026-11-16T23:11:07.190677+00:00",
+        "observed_at": "2026-11-18T05:39:44.208867+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2120,7 +2120,7 @@
         "capture_sha256": "76e2e947ad79713de8d4b377bfa879ea34dd8675ad06911c3e4a872126434cee",
         "error": null,
         "hub_revision": "d083b634305aceff70e897a3b0cdfc3a53a2c3db",
-        "observed_at": "2026-11-16T23:11:07.205141+00:00",
+        "observed_at": "2026-11-18T05:39:44.247712+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-r2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2147,7 +2147,7 @@
         "capture_sha256": "e8320679fff2a24399e0def0aa7a1b456298f1a3c9feb1b1745da937d955b224",
         "error": null,
         "hub_revision": "21004dde395f1e1bb65525dcf5cdd9700ccf31f8",
-        "observed_at": "2026-11-16T23:11:07.281233+00:00",
+        "observed_at": "2026-11-18T05:39:44.293389+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2174,7 +2174,7 @@
         "capture_sha256": "260f309501718466a94d2bac6597b34e2cbbe28efee3103d8e4e3725b3c7dfec",
         "error": null,
         "hub_revision": "dea76faf366498b50869183f9e47f45ded4f2caf",
-        "observed_at": "2026-11-16T23:11:07.305135+00:00",
+        "observed_at": "2026-11-18T05:39:44.327354+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine1-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2201,7 +2201,7 @@
         "capture_sha256": "4d4185a1abc4b0dc8cc1f5aac99491748a8b9bdcef75e9d97f5bc252d78a50cc",
         "error": null,
         "hub_revision": "138fb644ca8ca0f6c0f6bee170d4ecc51adee7db",
-        "observed_at": "2026-11-16T23:11:07.375776+00:00",
+        "observed_at": "2026-11-18T05:39:44.325339+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2228,7 +2228,7 @@
         "capture_sha256": "87feb8ac4ffbfd07173e6e7c676588cc549d80e68beeabb8bab3d3f7a7a40e60",
         "error": null,
         "hub_revision": "5b7d921368ffc7088bb3a1958932ced30603faab",
-        "observed_at": "2026-11-16T23:11:07.420640+00:00",
+        "observed_at": "2026-11-18T05:39:44.327354+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-v3?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2255,7 +2255,7 @@
         "capture_sha256": "7986c9334eefb52baa4a6a4e7f496b5a26df078e375de8b4390c7dcfb55b4629",
         "error": null,
         "hub_revision": "8f2cdb414e1afe11de0b9ddd1de91b37ae33fc28",
-        "observed_at": "2026-11-16T23:11:07.485133+00:00",
+        "observed_at": "2026-11-18T05:39:44.414229+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2282,9 +2282,36 @@
         "capture_sha256": "d345246a817ac507ca7988b90a0d807fcd55f3a1cfe83a3be40246a4b32a1319",
         "error": null,
         "hub_revision": "7747ab5bd17316ef9b76d9a5aefbc976d6fed590",
-        "observed_at": "2026-11-16T23:11:07.545792+00:00",
+        "observed_at": "2026-11-18T05:39:44.435160+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "af0d82d9691e4677e711fff91d8bd0280f38e83c",
+        "observed_at": "2026-11-18T05:39:42.048623+00:00",
+        "qualification_note": "Exact public revision af0d82d9691e4677e711fff91d8bd0280f38e83c contains phase-0 and phase-1 full fine-tune artifacts with config.json and model.safetensors weights; the README at this revision still states that no phase artifacts have been published, pre-dating these uploads. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate/blob/af0d82d9691e4677e711fff91d8bd0280f38e83c/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "808542bc822640be89b0308035dcd507d8270df0b82e62abce14b8ea8f977382",
+        "error": null,
+        "hub_revision": "af0d82d9691e4677e711fff91d8bd0280f38e83c",
+        "observed_at": "2026-11-18T05:39:44.485690+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -2309,7 +2336,7 @@
         "capture_sha256": "c0e140bfe194b8cace7081781823167e510ec0e443c4a2785b2800ce72c85c0f",
         "error": null,
         "hub_revision": "fc78aaa174b0082099b9f31a0a9529747b2fe7b7",
-        "observed_at": "2026-11-16T23:11:07.574052+00:00",
+        "observed_at": "2026-11-18T05:39:44.435160+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/governed-norm-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2336,7 +2363,7 @@
         "capture_sha256": "e7ad86d47e1eba59b9a86cf12c7dd2120b4302106c4a5c720b54cefd2fd3fc1b",
         "error": null,
         "hub_revision": "e1e8d36362cf9dd323ece49ee37861fd5313fbbc",
-        "observed_at": "2026-11-16T23:11:07.678908+00:00",
+        "observed_at": "2026-11-18T05:39:44.536592+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2363,7 +2390,7 @@
         "capture_sha256": "105061398965ec566789462fb70044f171f242cd00395fccef969eed339edc9d",
         "error": null,
         "hub_revision": "f6227dd1d55a3068ad094389ef418bb0cbeebb79",
-        "observed_at": "2026-11-16T23:11:07.648738+00:00",
+        "observed_at": "2026-11-18T05:39:44.566716+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2390,7 +2417,7 @@
         "capture_sha256": "3d0244a6ad695a7035490b171a9ee41094ea1a16b76caffa7798c2595d179487",
         "error": null,
         "hub_revision": "11c733276c6ecfa717a0969541b4e58161108a60",
-        "observed_at": "2026-11-16T23:11:07.738222+00:00",
+        "observed_at": "2026-11-18T05:39:44.565207+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2417,7 +2444,7 @@
         "capture_sha256": "dfa9c6ff5eadbe77da0ad180ca942ed53cd9f5c719fa70edbe8c3f528e727c75",
         "error": null,
         "hub_revision": "4a3e07a056882fbabab0b560ff477b506eb0bcb4",
-        "observed_at": "2026-11-16T23:11:07.755797+00:00",
+        "observed_at": "2026-11-18T05:39:44.566716+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2444,7 +2471,7 @@
         "capture_sha256": "d003105afa443f2475f425693089f2bb3c1e9177bd2540f1d50d230701a59d1d",
         "error": null,
         "hub_revision": "da947462ada2e594eaf037965546caf12443cbbd",
-        "observed_at": "2026-11-16T23:11:07.994200+00:00",
+        "observed_at": "2026-11-18T05:39:44.661441+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2471,7 +2498,7 @@
         "capture_sha256": "c18b80c1a591880a2f44af2cb5b43cb61023297374c58dc3c0a0ff691741be85",
         "error": null,
         "hub_revision": "22e6dd84892ca534ef8661c1f9c0500c6160349e",
-        "observed_at": "2026-11-16T23:11:07.850251+00:00",
+        "observed_at": "2026-11-18T05:39:44.689842+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2513,7 +2540,7 @@
         "capture_sha256": "69d18505e1014325ea4b38ede0de23e55fd7f096dd7cc2972306a973099c5126",
         "error": null,
         "hub_revision": "6c0aa95e35e907b46975dee835041897ec4c1881",
-        "observed_at": "2026-11-16T23:11:07.933269+00:00",
+        "observed_at": "2026-11-18T05:39:44.689521+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2540,7 +2567,7 @@
         "capture_sha256": "fd4854e27edcb5b87f3f3b35ce4cb22905f9756e35ece23a25a6b2b80273ddb7",
         "error": null,
         "hub_revision": "b68de63a1519bacf6607f28e2dd92cea0771b553",
-        "observed_at": "2026-11-16T23:11:16.035154+00:00",
+        "observed_at": "2026-11-18T05:39:44.742954+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2567,7 +2594,7 @@
         "capture_sha256": "17f262b056884c64a4232f8de54291271998e2f3463036341aa49b21ed50963e",
         "error": null,
         "hub_revision": "1d9c6c6d5ac5c9c1c4d066c58a63adb9b38dacd0",
-        "observed_at": "2026-11-16T23:11:08.066458+00:00",
+        "observed_at": "2026-11-18T05:39:44.761584+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2594,7 +2621,7 @@
         "capture_sha256": "bac562a2d0c016e00d33c284fa1a9b127ef89c35c5e855859bb5251bb7bc2fc5",
         "error": null,
         "hub_revision": "9ed4920433ba4cbb07d653c1ed7c92b0754d0452",
-        "observed_at": "2026-11-16T23:11:08.141337+00:00",
+        "observed_at": "2026-11-18T05:39:44.793400+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/lean-inv-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2621,7 +2648,7 @@
         "capture_sha256": "bd7501d624230df8f59d3552db19dcbbae63a2de7b07ed1352a13c56204b7b93",
         "error": null,
         "hub_revision": "09c46375f34828c7c7c3eb41a7b65bde8c4a1395",
-        "observed_at": "2026-11-16T23:11:08.216268+00:00",
+        "observed_at": "2026-11-18T05:39:44.857372+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/lean-invariants-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2648,7 +2675,7 @@
         "capture_sha256": "7d3dd5d4d2ae50e5e31c84b2022125a9f4503e43b18c070d49941f1932095714",
         "error": null,
         "hub_revision": "0eabed41bae5221fb0f3ac732d242666b987b837",
-        "observed_at": "2026-11-16T23:11:08.304214+00:00",
+        "observed_at": "2026-11-18T05:39:44.893758+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/measurement-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2675,7 +2702,7 @@
         "capture_sha256": "d5cb2b06c1b6ebed0f2fbfa2f83c20a479eec3e66f9d0c153e3693c32f8a6539",
         "error": null,
         "hub_revision": "e266f8310ecf8eab6ed398779c615ac173909e6c",
-        "observed_at": "2026-11-16T23:11:08.380399+00:00",
+        "observed_at": "2026-11-18T05:39:44.995495+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2702,7 +2729,7 @@
         "capture_sha256": "a9ef203cef1248697ff66e465ba8ea7d0b2b30fb25aa4dbb811e2b8fe15f1aa5",
         "error": null,
         "hub_revision": "d8eac46b159b3ecbb13f1ff39b07eca0a835bf0c",
-        "observed_at": "2026-11-16T23:11:08.456108+00:00",
+        "observed_at": "2026-11-18T05:39:45.028734+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2729,7 +2756,7 @@
         "capture_sha256": "02d49b6c0278adcf874c6c69c581be3d5588b3e7122bc8f5c097ee99fd7922c2",
         "error": null,
         "hub_revision": "d45d7bd93e3ecd17f7efa67f500a61885f964b1b",
-        "observed_at": "2026-11-16T23:11:08.524256+00:00",
+        "observed_at": "2026-11-18T05:39:45.028734+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-ops-health-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2756,7 +2783,7 @@
         "capture_sha256": "5d136b4042859f4bbf3ba961c7caedbb673d47196066464e7dfbf5da527e10a3",
         "error": null,
         "hub_revision": "5bd9e7ddbdc48b0ed72bce10c918f84f3505fb0e",
-        "observed_at": "2026-11-16T23:11:08.634191+00:00",
+        "observed_at": "2026-11-18T05:39:45.028734+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-system-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2783,7 +2810,7 @@
         "capture_sha256": "3644f8e9ad55fc9f66f30c627ada7f84e7fbd62afcb7fda1578618bc8cb26653",
         "error": null,
         "hub_revision": "7b3fea6c0a309f1ccc4f1703a9939b99edc13ca3",
-        "observed_at": "2026-11-16T23:11:08.722249+00:00",
+        "observed_at": "2026-11-18T05:39:45.245046+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2810,7 +2837,7 @@
         "capture_sha256": "5e47da784f0c199d2f3323481072d2a653482fd91002855517da636203ee834b",
         "error": null,
         "hub_revision": "56c6e113c72ff134418fe27dd06420e6aaa76ad8",
-        "observed_at": "2026-11-16T23:11:08.817029+00:00",
+        "observed_at": "2026-11-18T05:39:45.295938+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2837,7 +2864,7 @@
         "capture_sha256": "5353982f60a39689d2326dc36fc772ad9eecaa4ba32e0c25b9c28fa5dd2278dd",
         "error": null,
         "hub_revision": "011a312f7dcc65a905e8d66d53a43d002396585a",
-        "observed_at": "2026-11-16T23:11:08.888456+00:00",
+        "observed_at": "2026-11-18T05:39:45.276565+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/papers-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2864,7 +2891,7 @@
         "capture_sha256": "e32fe0ea3375a8b3dd80734557518027114d3f2d82e1f2861f8fdf231a7547c6",
         "error": null,
         "hub_revision": "3074dff5225b0b0e36ba79f8b50963642d988396",
-        "observed_at": "2026-11-16T23:11:08.964492+00:00",
+        "observed_at": "2026-11-18T05:39:45.277691+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/physics-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2891,7 +2918,7 @@
         "capture_sha256": "1a0a9d637c0c05e8360e8c10a4822028f0ee6930d349699dbb5e45c3e2442626",
         "error": null,
         "hub_revision": "cd3e7b1596967638c3138e3a96288d192b6aced0",
-        "observed_at": "2026-11-16T23:11:09.037950+00:00",
+        "observed_at": "2026-11-18T05:39:45.606037+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/qantu?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2918,7 +2945,7 @@
         "capture_sha256": "2a78a18ffe12927aa197911a874fdfd8c09adb766db42db1663407d6eb0aef17",
         "error": null,
         "hub_revision": "8d9ac9209c5b97b59d49abb16d6b3e4e99adb52b",
-        "observed_at": "2026-11-16T23:11:09.116220+00:00",
+        "observed_at": "2026-11-18T05:39:45.603322+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-1.7b-500step-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2945,7 +2972,7 @@
         "capture_sha256": "c5d6ecb4821394c226ef765f7601dd0cdc330129aa85c28ddbc178eae9118ac7",
         "error": null,
         "hub_revision": "2a882bac0a6ab708b86229498545dd353dfbc689",
-        "observed_at": "2026-11-16T23:11:09.206319+00:00",
+        "observed_at": "2026-11-18T05:39:45.523906+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-4b-500step-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2972,7 +2999,7 @@
         "capture_sha256": "3a42faa5a67844903210bb68f067fd2038cedec76b29ab8201cd916404728abf",
         "error": null,
         "hub_revision": "dfe5355813f1afa263a5fb8cc419b98ac5751eff",
-        "observed_at": "2026-11-16T23:11:09.288540+00:00",
+        "observed_at": "2026-11-18T05:39:45.605647+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-4b-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2999,7 +3026,7 @@
         "capture_sha256": "215f77c2d03715c62bb88569e925c1cf01b4211853aa51e4424a5dbccdaf701c",
         "error": null,
         "hub_revision": "f973bd75d79de61cb041b060366f279befe9b07b",
-        "observed_at": "2026-11-16T23:11:09.385750+00:00",
+        "observed_at": "2026-11-18T05:39:45.818542+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3026,7 +3053,7 @@
         "capture_sha256": "d80f678079c968abc7f83a41d976269a83a85f3e7158518cb44539bf8fbebb82",
         "error": null,
         "hub_revision": "accbb4b210980a3899212d30dc1f959eb32ef6b6",
-        "observed_at": "2026-11-16T23:11:09.464407+00:00",
+        "observed_at": "2026-11-18T05:39:45.871770+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/qwen2.5-0.5b-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3053,7 +3080,7 @@
         "capture_sha256": "7627d9170f137e2a7cbe7e46479405469ae86a2531dcc9acd0437099832bce8a",
         "error": null,
         "hub_revision": "e61b126bc0d9b8c8c1774a6dcf34aff1b2ae273b",
-        "observed_at": "2026-11-16T23:11:09.540934+00:00",
+        "observed_at": "2026-11-18T05:39:45.871253+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/reasoning-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3080,7 +3107,7 @@
         "capture_sha256": "aecae13d5b6df656af22de17e7e70787ca66ad6477b0451c173a0a87c3082cb1",
         "error": null,
         "hub_revision": "e270183c5c8bbe1cc8fffc6b4eac9c6221f1d9af",
-        "observed_at": "2026-11-16T23:11:09.614799+00:00",
+        "observed_at": "2026-11-18T05:39:45.870416+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3107,7 +3134,7 @@
         "capture_sha256": "c3e22fd7f5edd3fb11e6354fa5b88b14eea879ba5e43da2d7d36e31a56d1ae58",
         "error": null,
         "hub_revision": "ce0611e13e2cd7435ae38e7f5563f803442462e3",
-        "observed_at": "2026-11-16T23:11:09.688528+00:00",
+        "observed_at": "2026-11-18T05:39:46.040570+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3134,9 +3161,36 @@
         "capture_sha256": "d8961e9059482f32539fe77837a7b2f9e0983f2d4b82891d8b87ad6eb20ced3b",
         "error": null,
         "hub_revision": "9075b3f42daa2481a583d93111a362f7a1e9bf9f",
-        "observed_at": "2026-11-16T23:11:09.751458+00:00",
+        "observed_at": "2026-11-18T05:39:46.072275+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-v3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "b976db65d127e50075c6c7aa645b3880e3e32e61",
+        "observed_at": "2026-11-18T05:39:42.048623+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/salad-khipu-scholar-v1/blob/b976db65d127e50075c6c7aa645b3880e3e32e61/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/salad-khipu-scholar-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "1c5fae046f5382f9eaa28a0f0bd3f85409df32a135bd16f76dc3f5c5dcdef27d",
+        "error": null,
+        "hub_revision": "b976db65d127e50075c6c7aa645b3880e3e32e61",
+        "observed_at": "2026-11-18T05:39:46.072275+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/salad-khipu-scholar-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -3161,9 +3215,36 @@
         "capture_sha256": "44e9f720faa41e2dbefb2303df805d8f0129d070e9da415b54440f846fa2b8d0",
         "error": null,
         "hub_revision": "413f3a7a70492bae04f3994a73cb4e3b1abba94c",
-        "observed_at": "2026-11-16T23:11:09.826225+00:00",
+        "observed_at": "2026-11-18T05:39:46.081588+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-blocked?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "numpy_model_bundle",
+        "hub_revision": "056498d0ff9a04afeec5e26c171811ba58116447",
+        "observed_at": "2026-11-18T05:39:42.048623+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this NumPy artifact bundle (100-epoch and grid-2 refit energy models published as .npz files with receipted evaluation results present in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-cram/blob/056498d0ff9a04afeec5e26c171811ba58116447/README.md",
+        "suggested_route": "Use the source-controlled NumPy/CPU model API or its Space; requires a custom inference handler rather than generic text generation."
+      },
+      "id": "SZLHOLDINGS/szl-cram",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "c5235e911e609bd8641774cf33ddf06bb2bbc316d9321f5a57428e16180d5dca",
+        "error": null,
+        "hub_revision": "056498d0ff9a04afeec5e26c171811ba58116447",
+        "observed_at": "2026-11-18T05:39:46.316375+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-cram?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -3188,7 +3269,7 @@
         "capture_sha256": "490abc9c4132c2cece7dcb9856a3fdb656d4e707a750a9cdf495fa3484c03534",
         "error": null,
         "hub_revision": "edd7659c637bebb75193b320009486b11ec9c602",
-        "observed_at": "2026-11-16T23:11:09.898287+00:00",
+        "observed_at": "2026-11-18T05:39:46.317023+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-formulas?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3215,7 +3296,7 @@
         "capture_sha256": "b803ea37e0fb94172a2dffd94c0ff969ac69ac51d5eb15c7749b4a8cb9bf638a",
         "error": null,
         "hub_revision": "d2b7cb8fc23bc0fbdce7775c9495070c41ab36fe",
-        "observed_at": "2026-11-16T23:11:09.966778+00:00",
+        "observed_at": "2026-11-18T05:39:46.275681+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-governed-norm?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3257,7 +3338,7 @@
         "capture_sha256": "606cc95042c306390cb813da89a7177a6bf5bc33b1f1feee532093f956f01142",
         "error": null,
         "hub_revision": "5f7982b031ad96bcab043f8070a09478e3295292",
-        "observed_at": "2026-11-16T23:11:10.039198+00:00",
+        "observed_at": "2026-11-18T05:39:46.369915+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-govsign?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3284,7 +3365,7 @@
         "capture_sha256": "0854615ba3f34142ede2a575789b30ee5cc0707a7f09ed9a4c48b0b69ffe9203",
         "error": null,
         "hub_revision": "c337a6ae566535baac95c4dd23f441b0372bda19",
-        "observed_at": "2026-11-16T23:11:10.111905+00:00",
+        "observed_at": "2026-11-18T05:39:46.441510+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-invariants?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3311,7 +3392,7 @@
         "capture_sha256": "4217e985a994b404eb9d39fb6d9c24eacec99e204d742fdc71798540116e4a47",
         "error": null,
         "hub_revision": "7f16c6f7abf3b5cf7bc6ceba17a3fef98e5cbce2",
-        "observed_at": "2026-11-16T23:11:10.193732+00:00",
+        "observed_at": "2026-11-18T05:39:46.509822+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-kernels?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3350,10 +3431,10 @@
       "id": "SZLHOLDINGS/szl-khipu",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "c189015227c070eba3bd9f73b027b896bd5d1b82d30d1f9f57f85c3e08ec6cf8",
+        "capture_sha256": "bfa6f35c6c529f2d5886063001ecb85f48cf0387d9b1dc7a042beb2fd06454d7",
         "error": null,
-        "hub_revision": "947221769d16363cf8936488c5c59068df2826a6",
-        "observed_at": "2026-11-16T23:11:10.273575+00:00",
+        "hub_revision": "c4031086bd7472e5266df03cf0fbfaeae283b3e7",
+        "observed_at": "2026-11-18T05:39:46.501285+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-khipu?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3380,7 +3461,7 @@
         "capture_sha256": "a6dfafb69565dec147e3c89a5988b57d21608cc80bc4d32694c8382c13c69be5",
         "error": null,
         "hub_revision": "613c4a3e28c72c182399b888ffca6693fab3dc8e",
-        "observed_at": "2026-11-16T23:11:10.340644+00:00",
+        "observed_at": "2026-11-18T05:39:46.606061+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-lambda-gate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3407,7 +3488,7 @@
         "capture_sha256": "733ec74eec8af2baf4e328be9b7d28e4d61c1e8d8f3785517a3d5f3aa878d483",
         "error": null,
         "hub_revision": "130cce3ae8c7a047b065749c2604aa37e751c041",
-        "observed_at": "2026-11-16T23:11:10.418280+00:00",
+        "observed_at": "2026-11-18T05:39:46.700974+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-nemo?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3449,7 +3530,7 @@
         "capture_sha256": "3caa14605bdaae3f376b27239e6961b410cac6e8a0357b6e77a3cd8d757e1a18",
         "error": null,
         "hub_revision": "88f23c6dcaef96636dafa6b3505fe2736369c324",
-        "observed_at": "2026-11-16T23:11:10.487353+00:00",
+        "observed_at": "2026-11-18T05:39:46.747660+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-ouroboros?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3476,7 +3557,7 @@
         "capture_sha256": "22e4a5a9c284b16ad6002054bca0aa26baabe02c5e99da5422b24bc9206069d2",
         "error": null,
         "hub_revision": "f348b17f8baf33f086513d640a2abcf3dda9de91",
-        "observed_at": "2026-11-16T23:11:10.561187+00:00",
+        "observed_at": "2026-11-18T05:39:46.738902+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-provctl?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3503,7 +3584,7 @@
         "capture_sha256": "7dd87fa9911e25dbe29af4f05f2fbc6393ffdf4c64b4b3dfafa01295aab232d0",
         "error": null,
         "hub_revision": "e9b35aadc1fd0e4fed72d406b46387bc10c61b6e",
-        "observed_at": "2026-11-16T23:11:10.660358+00:00",
+        "observed_at": "2026-11-18T05:39:46.756282+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-0.8b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3530,7 +3611,7 @@
         "capture_sha256": "2727de7da59479bca6387d3b1a6e4be7eebc9fac0c5fdfe73fb1e503f01fc0dc",
         "error": null,
         "hub_revision": "ee54feb8c1d98c0c1964a96b24906a3d5d31fd06",
-        "observed_at": "2026-11-16T23:11:10.732318+00:00",
+        "observed_at": "2026-11-18T05:39:47.055954+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3557,7 +3638,7 @@
         "capture_sha256": "77816dbc68870d10fb599ef75366dd3664202585755e560e4918773f648d4c44",
         "error": null,
         "hub_revision": "9d0a72f25bde5848e0a7bab49481a32d5d93d3a7",
-        "observed_at": "2026-11-16T23:11:10.794308+00:00",
+        "observed_at": "2026-11-18T05:39:46.997631+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3584,7 +3665,7 @@
         "capture_sha256": "87f25d041ebadfb509bd2e45aad9fe1ec603ff4610c3df7f0d18286ad54a2aac",
         "error": null,
         "hub_revision": "e3b157365473c4022e14ee6fcd27e9b67467cd47",
-        "observed_at": "2026-11-16T23:11:10.864303+00:00",
+        "observed_at": "2026-11-18T05:39:47.056494+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3611,7 +3692,7 @@
         "capture_sha256": "27999a188251569ae326c93b2a31c069a7818a0ba2b914c40b130b08b43224ee",
         "error": null,
         "hub_revision": "60d3d5eeff7e1e8505f3df8177d35fada13d79e5",
-        "observed_at": "2026-11-16T23:11:10.933268+00:00",
+        "observed_at": "2026-11-18T05:39:47.047857+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3638,7 +3719,7 @@
         "capture_sha256": "073ee383402802b4c8a5568e2d50a6fa12234abd527a467044c999d06508118f",
         "error": null,
         "hub_revision": "6841fd4748ccdf0547c9834fb942dbaab10be80b",
-        "observed_at": "2026-11-16T23:11:11.000164+00:00",
+        "observed_at": "2026-11-18T05:39:47.237432+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3665,7 +3746,7 @@
         "capture_sha256": "ab00751f6959a22fb56304f2b8ef45a60a42c91fa8df1bef0387fc5b59582c5e",
         "error": null,
         "hub_revision": "0851106ef0204f6d256abaf9e1539c7a5742d7dd",
-        "observed_at": "2026-11-16T23:11:11.072349+00:00",
+        "observed_at": "2026-11-18T05:39:47.310507+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3692,7 +3773,7 @@
         "capture_sha256": "9c92c9846e238dcffcb881f213ea9e7c95ed8fcf9bad4db2211855418c2d52b7",
         "error": null,
         "hub_revision": "19f86aec2a65eb549d464615cffce9cb049d5c33",
-        "observed_at": "2026-11-16T23:11:11.148416+00:00",
+        "observed_at": "2026-11-18T05:39:47.311508+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3734,7 +3815,7 @@
         "capture_sha256": "dd82a7679c94e8632fa966cfa34c442e152b440eed311ff8956aba6b1ecd0ea2",
         "error": null,
         "hub_revision": "64cfc66fd0bc4c18a4d73ad137a9909757ad1ed6",
-        "observed_at": "2026-11-16T23:11:11.224849+00:00",
+        "observed_at": "2026-11-18T05:39:47.414353+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3761,7 +3842,7 @@
         "capture_sha256": "da1d8b3ba2a77713baa403781820d9baaa7b3cc43248c791b6f41ed325c2e741",
         "error": null,
         "hub_revision": "aa3e937e991af2513f9f77f28aeab4f220622785",
-        "observed_at": "2026-11-16T23:11:11.288825+00:00",
+        "observed_at": "2026-11-18T05:39:47.509295+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3788,7 +3869,7 @@
         "capture_sha256": "74f0960fe4bb6f1ec9a0bd74a48cefb480a1e1ead6746e493f408fb5522d1080",
         "error": null,
         "hub_revision": "1832170755896e102488d898abf18e9d548bef64",
-        "observed_at": "2026-11-16T23:11:11.396089+00:00",
+        "observed_at": "2026-11-18T05:39:47.556129+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3830,7 +3911,7 @@
         "capture_sha256": "9a09249d0b5377d291502b126fb8d9dee43119d933c05ececc0749b4c2618b77",
         "error": null,
         "hub_revision": "6da2c566ff46678d00feb9797349cc3f79c11dbc",
-        "observed_at": "2026-11-16T23:11:11.480325+00:00",
+        "observed_at": "2026-11-18T05:39:47.556129+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3857,7 +3938,7 @@
         "capture_sha256": "fec262007d17093f0292048994f869505e64051e81848b699da8ccbd5fd6225a",
         "error": null,
         "hub_revision": "e649b96a3a3cd771235d01f313edd36ef0f5b2ca",
-        "observed_at": "2026-11-16T23:11:11.606059+00:00",
+        "observed_at": "2026-11-18T05:39:47.658091+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3884,7 +3965,7 @@
         "capture_sha256": "8aa48bf03a99561d6709f8aed2659b0449764309695cbaebdf009618e1e1f064",
         "error": null,
         "hub_revision": "a96f8a74be390738cd1ec922ca239ec3ac6f7a6f",
-        "observed_at": "2026-11-16T23:11:11.687901+00:00",
+        "observed_at": "2026-11-18T05:39:47.738961+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3911,7 +3992,7 @@
         "capture_sha256": "9c5d4c1e6ba889fcf0e75fe2bc948adb8c25c58b0e0335e2197f52265c501088",
         "error": null,
         "hub_revision": "e191493995bb3ded53fbcbd508ce56a42d35e553",
-        "observed_at": "2026-11-16T23:11:11.871868+00:00",
+        "observed_at": "2026-11-18T05:39:47.813681+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3938,7 +4019,7 @@
         "capture_sha256": "2a46bb31ea7b2d72450339098b9502b926d06601f4e2b10c5f1e1976cce95db0",
         "error": null,
         "hub_revision": "61b9b7ee810973e1a060956bd3dd6d40cbd98544",
-        "observed_at": "2026-11-16T23:11:11.987719+00:00",
+        "observed_at": "2026-11-18T05:39:47.809681+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3965,7 +4046,7 @@
         "capture_sha256": "13df9b1ac48a225cea13add158b973f359102b2c2a53c24a6243e4cf1f47056b",
         "error": null,
         "hub_revision": "2b92afee75c37f1d209caad258e53cda3e6d091d",
-        "observed_at": "2026-11-16T23:11:12.078471+00:00",
+        "observed_at": "2026-11-18T05:39:47.869879+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3992,7 +4073,7 @@
         "capture_sha256": "63eb750838d533b4da1199194b880f4eee79bc58a199e5ca2385b3c8e4eb077d",
         "error": null,
         "hub_revision": "a36ddfa63b26ade1858af78b1ea942fba07b05b6",
-        "observed_at": "2026-11-16T23:11:12.304547+00:00",
+        "observed_at": "2026-11-18T05:39:47.958091+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl1-experimental-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -4019,7 +4100,7 @@
         "capture_sha256": "acffb7e6017f4d814a228ac11515d14f64328713393d22361691c39446ad5f3d",
         "error": null,
         "hub_revision": "fff3d37ed54fcb631f9fea6ecbecb6c228fa9b12",
-        "observed_at": "2026-11-16T23:11:12.436561+00:00",
+        "observed_at": "2026-11-18T05:39:48.014736+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/tinku?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -4046,7 +4127,7 @@
         "capture_sha256": "551c3f4462d8f6d601743143a020efe4bfac31cc3632dd8b330296e32cf81e59",
         "error": null,
         "hub_revision": "0be7119daa7d1219628006418fec8a48a0f8891b",
-        "observed_at": "2026-11-16T23:11:12.616847+00:00",
+        "observed_at": "2026-11-18T05:39:48.116817+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/triage-0.8b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -4073,7 +4154,7 @@
         "capture_sha256": "de6330600496b36248ed380d5d9388526e246df4cac184b24b8628af149656ee",
         "error": null,
         "hub_revision": "ee4be42003d241e62fb23bd5089a730acfbb33d2",
-        "observed_at": "2026-11-16T23:11:12.511172+00:00",
+        "observed_at": "2026-11-18T05:39:48.006657+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/triage-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -4100,7 +4181,7 @@
         "capture_sha256": "cffdecfa44c117ea5d1e69d719fd794a70be9846da49fdd1e425aad2836b8a5d",
         "error": null,
         "hub_revision": "54716cf3e06a4305eb193e93e7f496a3d70bde06",
-        "observed_at": "2026-11-16T23:11:12.579689+00:00",
+        "observed_at": "2026-11-18T05:39:48.224400+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/waman?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -4127,7 +4208,7 @@
         "capture_sha256": "0be45dbdf461e714422e4e0d20429ff4a6b4d7d0d09ae78445cfb0e18c7393df",
         "error": null,
         "hub_revision": "a416bf0761b0adec4c32cdaf225531dc8fdfee71",
-        "observed_at": "2026-11-16T23:11:12.687487+00:00",
+        "observed_at": "2026-11-18T05:39:48.224400+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -4154,7 +4235,7 @@
         "capture_sha256": "03e1b74684f1420b0e3bcba9790c66031611526ca4b97b77c0093ef4a079adba",
         "error": null,
         "hub_revision": "9e2fd5f59fbf01baefd9706c057cf89f57a862ed",
-        "observed_at": "2026-11-16T23:11:12.714827+00:00",
+        "observed_at": "2026-11-18T05:39:48.237916+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -4181,7 +4262,7 @@
         "capture_sha256": "fb5194ca935ea527fc7219645fb18886558d0ef8ff876d7da992aad50fc93520",
         "error": null,
         "hub_revision": "ac45d9ae34b22419f4c7841b320531f6c75b1adf",
-        "observed_at": "2026-11-16T23:11:12.759542+00:00",
+        "observed_at": "2026-11-18T05:39:48.252693+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
