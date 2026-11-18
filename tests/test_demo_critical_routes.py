@@ -37,6 +37,8 @@ import serve  # noqa: E402
 # /api/a11oy/v1/compute-pool — see szl_backend_hardening.register(); either satisfies
 # the substring match.)
 DEMO_CRITICAL_ROUTES = [
+    "/oro/evidence",                            # existing owner pointers; no standalone ORO runtime
+    "/api/a11oy/v1/oro/evidence",               # bounded read-only evidence, no sign on GET
     "/anatomy-v6",                              # read-only A11oy evidence view, not Anatomy v7 replacement
     "/api/a11oy/v1/anatomy/evidence",          # summary-only overlay replay, no mint on GET
     "/api/a11oy/v1/anatomy/self-audit",        # demotion preview, never an overlay write
@@ -111,6 +113,7 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/nexus/status",              # honest BIND status — never fabricated LIVE
     "/.well-known/source.json",                # product source declaration (UNSIGNED-honest)
     "/api/a11oy/v1/storage/status",            # ADR-0001 state store mode/lease/snapshot ages (no paths)
+    "/api/a11oy/v1/qbio/flavin-spin-research",  # bounded MODELED radical-pair research, no action/signing
 ]
 
 
@@ -408,12 +411,24 @@ def test_command_centre_survives_real_product_middleware():
     assert script.status_code == 200
     assert 'reasoning_effort' in script.text
     assert 'No automatic retry' in script.text
+    import hashlib
+    from routers.command_centre import presentation_sources
+    digest = presentation_sources()['routers/command_centre_web/app.js']
+    bound = client.get('/command-centre/assets/' + digest + '/app.js')
+    assert bound.status_code == 200
+    assert bound.content == script.content
+    assert hashlib.sha256(bound.content).hexdigest() == digest
+    assert bound.headers['cache-control'] == 'public, max-age=31536000, immutable, no-transform'
+    missing = client.get('/command-centre/assets/' + '0' * 64 + '/app.js')
+    assert missing.status_code == 404
+    assert missing.json()['code'] == 'ASSET_DIGEST_MISMATCH'
 
 
 def test_command_centre_and_turn_keep_owning_handlers_before_catchalls():
     routes = list(serve.app.router.routes)
     catchall = next(i for i, route in enumerate(routes) if getattr(route, 'path', None) == '/{full_path:path}')
     for path, owner in (('/command-centre', 'routers.command_centre'),
+                        ('/command-centre/assets/{digest}/{filename:path}', 'routers.command_centre'),
                         ('/api/a11oy/v1/command-centre/study', 'routers.command_centre'),
                         ('/api/a11oy/v1/atelier/turn', 'routers.atelier_grok')):
         index, route = next((i, r) for i, r in enumerate(routes) if getattr(r, 'path', None) == path)
@@ -469,3 +484,48 @@ def test_puriq_formula_routes_have_exact_owners_before_catchalls_and_return_owne
     assert formal_f1 == formal["formulas"]["F1"]
     assert numerical_f1["record_id"] != formal_f1["record_id"]
     assert 'data-registry-digest="' + formal["registry_digest"] + '"' in responses["/formulas"].text
+def test_oro_evidence_routes_are_owned_before_both_catchalls():
+    fallbacks = [
+        index for index, route in enumerate(routes)
+        if getattr(route, "path", None) in (
+            "/api/a11oy/{path:path}", "/{full_path:path}"
+        )
+    ]
+    assert fallbacks, "canonical application fallback routes not found"
+    for path in ("/oro/evidence", "/api/a11oy/v1/oro/evidence"):
+        readers = [
+            (index, route) for index, route in enumerate(routes)
+            if getattr(route, "path", None) == path
+            and getattr(route, "methods", set()) == {"GET", "HEAD"}
+        ]
+        assert len(readers) == 1
+        index, route = readers[0]
+        assert route.endpoint.__module__ == "oro.evidence_api"
+        assert index < min(fallbacks)
+
+def test_amaru_codex_mounted_paths_do_not_duplicate_api_prefix():
+    """Source-owned Amaru child routes must resolve at their advertised URLs."""
+    import runpy
+    from pathlib import Path
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    source = Path(__file__).resolve().parents[1] / "organs" / "amaru" / "szl_papers_codex.py"
+    register = runpy.run_path(str(source))["register"]
+    root, child = FastAPI(), FastAPI()
+    root.mount("/api/amaru", child)
+    register(root, ns="amaru", api_app=child)
+    with TestClient(root) as client:
+        for path in ("/papers", "/api/amaru/v1/papers", "/api/amaru/v1/codex-kernel",
+                     "/api/amaru/v1/papers/healthz"):
+            assert client.get(path).status_code == 200
+        for path in ("/api/amaru/api/amaru/v1/papers",
+                     "/api/amaru/api/amaru/v1/codex-kernel",
+                     "/api/amaru/api/amaru/v1/papers/healthz"):
+            assert client.get(path).status_code == 404
+
+    unmounted = FastAPI()
+    register(unmounted, ns="amaru")
+    with TestClient(unmounted) as client:
+        assert client.get("/api/amaru/v1/papers").status_code == 200
+        assert client.get("/api/amaru/v1/codex-kernel").status_code == 200

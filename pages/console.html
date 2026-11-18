@@ -49,6 +49,8 @@
 <script defer src="/static/shared/szl_codename_sanitizer.js"></script>
 <link rel="stylesheet" href="/assets/szl/szl-design-system.css"/>
 <link rel="stylesheet" href="/assets/szl/szl-console.css"/>
+<link rel="stylesheet" href="/assets/szl-governed-proposal.css"/>
+<script defer src="/assets/szl-governed-proposal.js"></script>
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
@@ -6079,7 +6081,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           var ready=d.write_ready===true&&d.governance_ready===true&&d.write_blockers.length===0;
           readiness.textContent=ready?'WRITE READINESS REPORTED':'GDW UNAVAILABLE';
           var owner=c.closest('#content');
-          if(owner&&owner.querySelector('.view-badge'))owner.querySelector('.view-badge').textContent=ready?'LOCAL DRAFT · EXECUTION ROADMAP':'GDW UNAVAILABLE · EXECUTION ROADMAP';
+          if(owner&&owner.querySelector('.view-badge'))owner.querySelector('.view-badge').textContent=ready?'LOCAL DRAFT · EXECUTION ROADMAP · NOT A LIVE CONTROL PLANE':'GDW UNAVAILABLE · EXECUTION ROADMAP · NOT A LIVE CONTROL PLANE';
           note.textContent=ready?'The runtime reports write readiness. This editor still submits no operational action.':'The runtime has not reported complete write readiness. Local drafting remains available.';
           raw.textContent=JSON.stringify(d,null,2);
         }catch(e){readiness.textContent='GDW UNAVAILABLE';note.textContent='Workspace status unavailable. Local drafting remains available.';raw.textContent=e.message;}
@@ -6087,9 +6089,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }
       refresh.addEventListener('click',readStatus);await readStatus();
     };
-    V.ask={title:'Ask & Act',badge:'GDW UNAVAILABLE · EXECUTION ROADMAP',
-      sub:'Prepare and review a local draft. Approval here does not run an action; workspace readiness is shown separately.',
-      render:async function(c){await window._gdwDraftPlane(c,'ask');}};
+    V.ask={title:'Ask & Act',badge:'GDW UNAVAILABLE · EXECUTION ROADMAP · DRAFT ONLY, NO CONTROL PLANE',
+      sub:'Prepare and review a local draft. This is not a live control plane: approval here does not run an action; workspace readiness is shown separately.',
+      render:async function(c){
+        if(!c.isConnected)return;
+        if(window.SZLGovernedProposal) window.SZLGovernedProposal.mount(c);
+        else {var unavailable=document.createElement('p');unavailable.textContent='Model proposals are unavailable in this session. Reload to check availability.';c.appendChild(unavailable);}
+        var draft=document.createElement('div');c.appendChild(draft);
+        await window._gdwDraftPlane(draft,'ask');
+      }};
 
     /* =============== demo — ECharts state-timeline (cascade steps) =============== */
     V.demo={title:'Run a Demo',badge:'STATE TIMELINE \u00b7 P1 LAUNCH CASCADE',sub:'The single launch point for the Warhacker problems, shown as a state timeline: each launch is a scripted step cascade (request \u2192 score \u2192 gate \u2192 seal \u2192 receipt) with real per-step state. Launch any problem and its real decision + signed receipt lands. Plot lib not vendored \u2014 implemented with ECharts custom-series to keep the NOTICE unchanged.',
@@ -16432,7 +16440,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
     ["Operate", [
       ["launcher","\u25a6","App Launcher"],
-      ["ask","\u2726","Ask & Act"],
+      ["ask","\u2726","Ask & Act (demo)"],
       ["demo","\u229e","Run a Demo"],
       ["decision","\u25c8","Governed Decision"]
     ]],
@@ -17572,44 +17580,14 @@ window.a11oyInvestor = (function(){
 </script>
 
 <script>
-/* try-khipu-panel — additive, Command-Center-ONLY "Try Khipu" panel.
-   Doctrine v11. Adds NO nav entry (the generated tab contract is untouched) and no
-   new view key: it wraps V.command.render and appends itself to the Command
-   Center body only. Deep links (?view=) are honored so it never mounts on a
-   non-command surface (e.g. Investor View).
-
-   Wire: GET /api/a11oy/v1/khipu/status  (pin + honesty, never signs)
-         POST /api/a11oy/v1/khipu/chat   (same-origin CPU-lab proxy)
-   Honesty rules enforced here:
-     - lab_status is shown verbatim: READY / FAILED / UNAVAILABLE (probe did not
-       resolve THIS request). Never a fabricated READY.
-     - elapsed_ms renders only with explicit MEASURED proxy-wall evidence.
-       Token counts render only with the lab's explicit REPORTED label.
-     - signature state and record_sha256 are upstream-reported fields only.
-       Receipt proof remains UNAVAILABLE without payload, key, and chain verification.
-     - the pinned GGUF digest is a SNAPSHOT (pin), GPU inference is ROADMAP.
-       Energy-attested run evidence is read from the status API and otherwise
-       remains UNAVAILABLE; the browser owns no numeric fallback.
-     - the inference lab is a CPU inference lab: not a trainer, not Serve Studio,
-       and Ask & Act is not a live control plane.
-     - the proxy authenticates to the lab with the dummy Bearer not-a-secret;
-       no user or repo token is ever put in the browser.
-     - Λ = Conjecture 1 (advisory, gray) — never a theorem, never green.
+/* try-khipu-panel — the console opens the authenticated Atelier CPU form.
+   Keep this navigation read-only: credentials, exact-prompt acknowledgement,
+   policy checks and outcome evidence belong to the single Atelier flow.
 */
 (function(){
   'use strict';
-  var STATUS_URL='/api/a11oy/v1/khipu/status';
-  var CHAT_URL='/api/a11oy/v1/khipu/chat';
-  var LOCKED_LAB_V1='https://szlholdings-szl-model-inference-lab.hf.space/v1';
   var HOST_ID='tk-panel-host';
 
-  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(ch){
-    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]; }); }
-  function E(id){ return document.getElementById(id); }
-  function H(id,html){ var n=E(id); if(n) n.innerHTML=html; }
-
-  /* 1396 owns ?view= deep links (Investor View). Read the query param FIRST,
-     then the hash, so this panel mounts on the Command Center only. */
   function currentView(){
     var q='';
     try{ q=new URLSearchParams(window.location.search||'').get('view')||''; }catch(e){ q=''; }
@@ -17619,202 +17597,46 @@ window.a11oyInvestor = (function(){
     return 'command';
   }
 
-  function tone(state){
-    if(state==='READY') return 'tk-ok';
-    if(state==='FAILED'||state==='UNAVAILABLE'||state==='UNKNOWN') return 'tk-warn';
-    return 'tk-dim';
-  }
-  function chip(text,state,title){
-    return '<span class="tk-chip '+tone(state||text)+'"'+(title?' title="'+esc(title)+'"':'')+'>'+esc(text)+'</span>';
-  }
-
   function shell(){
-    return ''
-      +'<style>'
-      +'#'+HOST_ID+'{margin-top:1.1rem;border:1px solid rgba(201,183,135,.34);border-radius:10px;'
-      +'background:rgba(12,16,18,.45);padding:.95rem 1rem 1.05rem}'
-      +'#'+HOST_ID+' h2{margin:0 0 .15rem;font-size:15px;letter-spacing:.02em;color:var(--cream,#e8e2d4)}'
-      +'#'+HOST_ID+' .tk-sub{margin:.1rem 0 .75rem;font-size:11.5px;line-height:1.65;color:var(--paragraph,#a8a294)}'
-      +'#'+HOST_ID+' .tk-chip{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;'
-      +'font-size:10px;letter-spacing:.06em;padding:.1rem .38rem;border-radius:4px;margin:0 .25rem .25rem 0;'
-      +'border:1px solid rgba(201,183,135,.4);color:#c9b787}'
-      +'#'+HOST_ID+' .tk-ok{border-color:rgba(95,179,163,.55);color:#5fb3a3}'
-      +'#'+HOST_ID+' .tk-warn{border-color:rgba(201,183,135,.65);color:#c9b787}'
-      +'#'+HOST_ID+' .tk-dim{border-color:rgba(160,160,160,.35);color:#9a958a}'
-      +'#'+HOST_ID+' .tk-grid{display:grid;gap:.5rem;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin:.5rem 0}'
-      +'#'+HOST_ID+' .tk-cell{border:1px solid rgba(255,255,255,.07);border-radius:7px;padding:.45rem .55rem}'
-      +'#'+HOST_ID+' .tk-k{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.09em;color:#8f8a7e}'
-      +'#'+HOST_ID+' .tk-v{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#e8e2d4;word-break:break-all}'
-      +'#'+HOST_ID+' textarea{width:100%;box-sizing:border-box;min-height:62px;background:rgba(0,0,0,.35);'
-      +'color:#e8e2d4;border:1px solid rgba(255,255,255,.13);border-radius:7px;padding:.45rem .55rem;font-size:12.5px}'
-      +'#'+HOST_ID+' button{margin-top:.45rem;background:rgba(95,179,163,.16);color:#cfe9e2;'
-      +'border:1px solid rgba(95,179,163,.5);border-radius:7px;padding:.35rem .8rem;font-size:12px;cursor:pointer}'
-      +'#'+HOST_ID+' button[disabled]{opacity:.55;cursor:progress}'
-      +'#'+HOST_ID+' .tk-note{font-family:ui-monospace,Menlo,monospace;font-size:10px;line-height:1.7;color:#8f8a7e;margin-top:.55rem}'
-      +'#'+HOST_ID+' pre{white-space:pre-wrap;font-size:12px;line-height:1.6;color:#e8e2d4;margin:.4rem 0 0}'
-      +'</style>'
-      +'<h2>Try Khipu <span id="tk-state">'+chip('UNAVAILABLE','UNAVAILABLE')+'</span></h2>'
-      +'<p class="tk-sub">A same-origin proxy to the pinned CPU inference lab '
-      +'(<code>'+esc(LOCKED_LAB_V1)+'</code>). This is an inference lab: '
-      +'<b>not a trainer</b>, <b>not Serve Studio</b>, and Ask &amp; Act on this console is '
-      +'<b>not a live control plane</b>. Prompts go to '
-      +'<code>'+esc(CHAT_URL)+'</code>; posture comes from <code>'+esc(STATUS_URL)+'</code>. '
-      +'Throughput is not reported — we display only what the proxy measures and the lab explicitly reports.</p>'
-      +'<div class="tk-grid" id="tk-pin"></div>'
-      +'<label class="tk-k" for="tk-prompt">PROMPT · CLAMPED SERVER-SIDE (max_tokens 32 · temperature 0)</label>'
-      +'<textarea id="tk-prompt" placeholder="What is a khipu receipt?"></textarea>'
-      +'<div><button type="button" id="tk-run">&#9654; Ask the lab</button></div>'
-      +'<div id="tk-out"></div>'
-      +'<p class="tk-note" id="tk-honesty"></p>';
+    return '<div class="card" id="try-khipu-panel">'
+      +'<div class="card-h"><h2 class="card-t">Try Khipu in Atelier</h2>'
+      +'<span class="card-ep">Public CPU demonstration</span></div>'
+      +'<p>The CPU lab requires an operator credential, acknowledgement that the exact prompt is public, and a policy decision before one request can run.</p>'
+      +'<p><a class="btn" href="/command-centre#cpu-work">Open the governed CPU lab</a></p>'
+      +'<p class="mono dim">The lab returns a source-grounded proposal, an abstention, a review, or a block. Proposals have NO_ACTION_AUTHORITY and execute no action. The lab record is UNSIGNED_LOCAL; inspect the separate Atelier outcome receipt in the form.</p>'
+      +'<p class="mono dim">This panel only opens the form. No prompt is collected or sent here. Energy evidence remains UNAVAILABLE without a measured exporter delta. \u039b = Conjecture 1.</p>'
+      +'<p class="mono dim">The CPU lab is not a trainer and not Serve Studio. Ask &amp; Act is not a live control plane.</p>'
+      +'</div>';
   }
 
-  function renderPin(d){
-    var pin=(d&&d.pin)||{}, hon=(d&&d.honesty)||{}, doc=(d&&d.doctrine)||{};
-    var rawStatus=d&&d.lab_status;
-    var st=(rawStatus==='READY'||rawStatus==='FAILED'||rawStatus==='UNAVAILABLE')?rawStatus:'UNAVAILABLE';
-    var energyRuns='UNAVAILABLE';
-    var lockedIds=Array.isArray(doc.locked_formula_ids)?doc.locked_formula_ids:[];
-    var canonicalLockedIds=['F1','F4','F7','F11','F12','F18','F19','F22'];
-    var idsCanonical=canonicalLockedIds.every(function(id){ return lockedIds.indexOf(id)!==-1; });
-    var doctrineValid=doc.version==='v11'&&doc.state==='LOCKED'&&doc.locked_formula_count===8&&lockedIds.length===8&&
-      (new Set(lockedIds)).size===8&&lockedIds.every(function(id){ return typeof id==='string'; })&&idsCanonical;
-    var lockedCount=doctrineValid?String(doc.locked_formula_count):'UNAVAILABLE';
-    H('tk-state',chip(st,st,'lab posture read from '+STATUS_URL+' this request'));
-    var cells=[
-      ['LAB POSTURE',chip(st,st)+' '+chip(st==='READY'?'probe resolved':'no live probe','')],
-      ['PINNED GGUF sha256','<span class="tk-v">'+esc(pin.gguf_sha256||'UNKNOWN')+'</span> '+chip('SNAPSHOT','SNAPSHOT')],
-      ['GPU INFERENCE ENDPOINT',chip(pin.gpu_inference_endpoint||'ROADMAP','ROADMAP')+' '+chip('CPU lab only today','')],
-      ['ENERGY ATTESTED RUNS','<span class="tk-v">'+esc(energyRuns)+'</span> '+chip('UNAVAILABLE','UNAVAILABLE')],
-      ['LOCKED LAB v1','<span class="tk-v">'+esc(pin.locked_lab_v1||LOCKED_LAB_V1)+'</span>'],
-      ['DOCTRINE','<span class="tk-v">locked formulas '+esc(lockedCount)+' &middot; \u039b='+esc(doc.lambda||'Conjecture 1')+'</span> '+chip('Conjecture 1','')]
-    ];
-    H('tk-pin',cells.map(function(c){
-      return '<div class="tk-cell"><div class="tk-k">'+esc(c[0])+'</div><div>'+c[1]+'</div></div>';
-    }).join(''));
-    H('tk-honesty','Lab role: '+esc(hon.forge_lab||pin.forge_lab_role||'CPU inference lab \u2014 not a trainer, not Serve Studio')
-      +'<br>Ask &amp; Act: '+esc(hon.ask_and_act||'not a live control plane')
-      +'<br>Auth: the proxy calls the lab with the dummy header <code>Bearer not-a-secret</code>; no repo or user token reaches the browser.'
-      +'<br>Throughput: not derived. Usage and elapsed render only with explicit REPORTED / MEASURED API evidence.');
-  }
-
-  function renderUnavailable(msg){
-    H('tk-state',chip('UNAVAILABLE','UNAVAILABLE','status probe did not resolve this request'));
-    H('tk-pin','<div class="tk-cell"><div class="tk-k">LAB POSTURE</div><div>'
-      +chip('UNAVAILABLE','UNAVAILABLE')+'<div class="tk-v">'+esc(msg||'status probe did not resolve')
-      +'</div></div></div>'
-      +'<div class="tk-cell"><div class="tk-k">LOCKED LAB v1</div><div class="tk-v">'+esc(LOCKED_LAB_V1)+'</div></div>'
-      +'<div class="tk-cell"><div class="tk-k">PINNED GGUF sha256</div><div>'+chip('SNAPSHOT','SNAPSHOT')
-      +' '+chip('UNKNOWN','UNKNOWN')+'</div></div>'
-      +'<div class="tk-cell"><div class="tk-k">GPU INFERENCE ENDPOINT</div><div>'+chip('ROADMAP','ROADMAP')+'</div></div>'
-      +'<div class="tk-cell"><div class="tk-k">ENERGY ATTESTED RUNS</div><div class="tk-v">UNAVAILABLE</div></div>');
-    H('tk-honesty','Lab role: CPU inference lab \u2014 not a trainer, not Serve Studio.'
-      +'<br>Ask &amp; Act: not a live control plane.'
-      +'<br>Auth: dummy header <code>Bearer not-a-secret</code> is used server-side only.'
-      +'<br>Throughput: not reported. \u039b = Conjecture 1 (advisory, never a theorem).');
-  }
-
-  async function loadStatus(){
-    try{
-      var r=await fetch(STATUS_URL,{headers:{accept:'application/json'}});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      var statusPayload=await r.json();
-      if(!statusPayload||typeof statusPayload!=='object'||Array.isArray(statusPayload)) throw new Error('malformed status response');
-      renderPin(statusPayload);
-    }catch(e){ renderUnavailable(String(e&&e.message||e)); }
-  }
-
-  async function ask(){
-    var btn=E('tk-run'); var ta=E('tk-prompt');
-    var prompt=((ta&&ta.value)||'').trim();
-    if(!prompt){ H('tk-out','<p class="tk-note">Enter a prompt \u2014 the proxy rejects an empty body (422), it does not invent one.</p>'); return; }
-    if(btn){ btn.disabled=true; btn.textContent='asking the lab\u2026'; }
-    H('tk-out','<p class="tk-note">POST '+esc(CHAT_URL)+' \u2014 waiting on the CPU lab\u2026</p>');
-    try{
-      var r=await fetch(CHAT_URL,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},
-        body:JSON.stringify({prompt:prompt,max_tokens:32,temperature:0})});
-      var d={}; try{ d=await r.json(); }catch(e){ d={}; }
-      if(!d||typeof d!=='object'||Array.isArray(d)) d={};
-      var rawStatus=d.lab_status;
-      var st=(rawStatus==='READY'||rawStatus==='FAILED'||rawStatus==='UNAVAILABLE')?rawStatus:(r.ok?'UNAVAILABLE':'FAILED');
-      var responseOK=r.ok&&d.ok===true&&st==='READY';
-      var reportedSig=(responseOK&&(d.signature==='SIGNED'||d.signature==='UNSIGNED'))?d.signature:'UNAVAILABLE';
-      var sig=reportedSig==='UNSIGNED'?'UNSIGNED':'UNAVAILABLE';
-      var recordReported=responseOK&&typeof d.record_sha256==='string'&&/^[0-9a-f]{64}$/i.test(d.record_sha256);
-      var rec=recordReported?d.record_sha256:'UNAVAILABLE';
-      var recordLabel=recordReported?'REPORTED':'UNAVAILABLE';
-      var usage=(d.usage&&typeof d.usage==='object'&&!Array.isArray(d.usage))?d.usage:{};
-      function validTokenCount(v){ return typeof v==='number'&&Number.isFinite(v)&&v>=0&&Number.isInteger(v); }
-      var usageAvailable=responseOK&&d.usage_label==='REPORTED'&&validTokenCount(usage.prompt_tokens)&&
-        validTokenCount(usage.completion_tokens)&&validTokenCount(usage.total_tokens);
-      var usageLabel=usageAvailable?'REPORTED':'UNAVAILABLE';
-      var elapsedMeasured=responseOK&&d.elapsed_ms_label==='MEASURED'&&d.elapsed_ms_source==='PROXY_WALL'&&
-        typeof d.elapsed_ms==='number'&&Number.isFinite(d.elapsed_ms)&&d.elapsed_ms>=0;
-      var elapsedLabel=elapsedMeasured?'MEASURED':'UNAVAILABLE';
-      var el=elapsedMeasured?d.elapsed_ms+' ms':'UNAVAILABLE';
-      var body=(responseOK&&typeof d.text==='string'&&d.text)?('<pre>'+esc(d.text)+'</pre>')
-        :('<p class="tk-note">No completion returned \u2014 shown honestly as '+esc(st)+', nothing fabricated.'
-          +(d.error?(' Lab detail: '+esc(String(d.error).slice(0,200))):'')+'</p>');
-      H('tk-out',body
-        +'<div class="tk-grid">'
-        +'<div class="tk-cell"><div class="tk-k">LAB RESULT</div><div>'+chip(st,st)+' '+chip(responseOK?'ok':'no completion','')+'</div></div>'
-        +'<div class="tk-cell"><div class="tk-k">SIGNATURE</div><div>'+chip(sig,'UNAVAILABLE')
-        +'<div class="tk-v">'+(sig==='UNSIGNED'?'upstream reports UNSIGNED; receipt verification remains unavailable':'no verified signature evidence returned')+'</div></div></div>'
-        +'<div class="tk-cell"><div class="tk-k">RECORD HASH FIELD</div><div class="tk-v">'+esc(rec)+'</div>'
-        +'<div>'+chip(recordLabel,recordLabel,'upstream-reported and format-checked only; not cryptographically verified')+'</div></div>'
-        +'<div class="tk-cell"><div class="tk-k">ELAPSED</div><div class="tk-v">'+esc(el)+'</div>'
-        +'<div>'+chip(elapsedMeasured?'MEASURED ELAPSED':'ELAPSED UNAVAILABLE',elapsedLabel,'proxy wall clock for this request')
-        +chip('RECEIPT UNAVAILABLE','UNAVAILABLE','no payload, verification key, or chain proof is available to this proxy')+'</div></div>'
-        +'<div class="tk-cell"><div class="tk-k">USAGE (LAB-REPORTED)</div><div class="tk-v">prompt '
-        +esc(usageAvailable?usage.prompt_tokens:'\u2014')+' &middot; completion '
-        +esc(usageAvailable?usage.completion_tokens:'\u2014')+' &middot; total '
-        +esc(usageAvailable?usage.total_tokens:'\u2014')+'</div><div>'
-        +chip(usageLabel,usageLabel)+chip('no throughput number derived','')+'</div></div>'
-        +'<div class="tk-cell"><div class="tk-k">\u039b</div><div>'+chip((d.honesty&&d.honesty.lambda)||'Conjecture 1','')
-        +'<div class="tk-v">advisory \u2014 gray, never green, never a theorem</div></div></div>'
-        +'</div>');
-    }catch(e){
-      H('tk-out','<p class="tk-note">'+chip('UNAVAILABLE','UNAVAILABLE')+' request did not resolve: '
-        +esc(String(e&&e.message||e))+' \u2014 no answer, no signature, no record_sha256 fabricated.</p>');
-    }
-    if(btn){ btn.disabled=false; btn.innerHTML='&#9654; Ask the lab'; }
-    loadStatus();
-  }
-
-  /* Mount into the Command Center body only. */
   function mount(host){
-    if(!host) return;
-    if(currentView()!=='command') return;
-    if(host.querySelector('#'+HOST_ID)) return;
-    var sec=document.createElement('section');
-    sec.id=HOST_ID;
-    sec.setAttribute('data-surface','dark');
-    sec.setAttribute('aria-label','Try Khipu');
-    sec.innerHTML=shell();
-    host.appendChild(sec);
-    var btn=E('tk-run'); if(btn) btn.addEventListener('click',ask);
-    loadStatus();
+    if(!host || currentView()!=='command' || host.querySelector('#'+HOST_ID)) return;
+    var section=document.createElement('section');
+    section.id=HOST_ID;
+    section.setAttribute('data-surface','dark');
+    section.setAttribute('aria-label','Try Khipu in Atelier');
+    section.innerHTML=shell();
+    host.appendChild(section);
   }
 
   function wrap(){
     var V=window.VIEWS;
     if(!V||!V.command||typeof V.command.render!=='function') return false;
     if(V.command.__tryKhipuWrapped) return true;
-    var prev=V.command.render;
-    V.command.render=async function(c){
-      try{ await prev.call(this,c); }catch(e){ /* upstream render owns its own honesty */ }
-      try{ mount(c); }catch(e){}
-      return undefined;
+    var previous=V.command.render;
+    V.command.render=async function(host){
+      try{ await previous.call(this,host); }catch(e){ /* The existing view owns its failure state. */ }
+      mount(host);
     };
     V.command.__tryKhipuWrapped=true;
-    /* Command Center may already be painted (first load) — mount once now. */
-    try{ if(currentView()==='command') mount(document.getElementById('vbody')); }catch(e){}
+    if(currentView()==='command') mount(document.getElementById('vbody'));
     return true;
   }
 
-  var tries=0;
-  var iv=setInterval(function(){ tries++; if(wrap()||tries>200) clearInterval(iv); },100);
-  if(document.readyState!=='loading'){ wrap(); }
-  else { document.addEventListener('DOMContentLoaded',function(){ wrap(); }); }
+  var attempts=0;
+  var timer=setInterval(function(){ attempts++; if(wrap()||attempts>200) clearInterval(timer); },100);
+  if(document.readyState!=='loading') wrap();
+  else document.addEventListener('DOMContentLoaded',wrap);
 })();
 /* end try-khipu-panel */
 </script>

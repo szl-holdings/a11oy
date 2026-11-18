@@ -1,0 +1,1101 @@
+{
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "deployment_authority": false,
+  "model_rows": [
+    {
+      "after_tree": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 11358
+        },
+        {
+          "blob_id": "41e476699c82c48a6f46674a51d8eba8fbc62b47",
+          "lfs": null,
+          "path": "PROMOTION_READINESS_AUDIT.json",
+          "size": 16478
+        },
+        {
+          "blob_id": "d8b4b6a2e0b39a221a13377847b5754fe684859b",
+          "lfs": null,
+          "path": "README.md",
+          "size": 5173
+        },
+        {
+          "blob_id": "422df3133b04fb05cb2e039d58ed37feca833605",
+          "lfs": null,
+          "path": "SZL_ESTATE_MANAGED.json",
+          "size": 693
+        },
+        {
+          "blob_id": "51eed4427294f266f7e5960ae82b1eb27aaba74d",
+          "lfs": null,
+          "path": "adapter/README.md",
+          "size": 5252
+        },
+        {
+          "blob_id": "cc95e3ab87a880ca9b1c72f440c0e4b5440e5b49",
+          "lfs": null,
+          "path": "adapter/adapter_config.json",
+          "size": 1302
+        },
+        {
+          "blob_id": "0cb49f48902ad765f489fd45b21cc186afca93ad",
+          "lfs": {
+            "pointer_size": 134,
+            "sha256": "706aff139489d62cb1ac221c0f92a1a8595cd6a42032c542efe8028684e57cf2",
+            "size": 147770496
+          },
+          "path": "adapter/adapter_model.safetensors",
+          "size": 147770496
+        },
+        {
+          "blob_id": "0b061f7713d47f4f8c819e48bd7e6c328195bfc5",
+          "lfs": null,
+          "path": "bom/model-bom.cdx.json",
+          "size": 7015
+        },
+        {
+          "blob_id": "9840d40f49842423ad9d3c92bbedac488564c088",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 2561
+        },
+        {
+          "blob_id": "8e6225ec48fb9ae0169b89eac1d42f2a5b5474b6",
+          "lfs": null,
+          "path": "config.json",
+          "size": 1643
+        },
+        {
+          "blob_id": "380df800183f7f15fad4e90c333569d3dece04dc",
+          "lfs": null,
+          "path": "eval_receipt.signed.json",
+          "size": 2788
+        },
+        {
+          "blob_id": "82ca3814da7e7349d09c77d93eafe37b77105da5",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 252
+        },
+        {
+          "blob_id": "1a6ef2a0a8e2281b4d543060f9df5f766d6ee764",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "a797592fb35c32cc6ebf5739c0a1d9312123300acaf09987d207d86196bc6e7d",
+            "size": 3087467144
+          },
+          "path": "model.safetensors",
+          "size": 3087467144
+        },
+        {
+          "blob_id": "2f555637d88534305ec846a4102f65ce35fea78d",
+          "lfs": null,
+          "path": "owner_pubkey.json",
+          "size": 144
+        },
+        {
+          "blob_id": "c9a63e1fb0d49fd39463d14650b7489fa38a7553",
+          "lfs": null,
+          "path": "publication.json",
+          "size": 6275
+        },
+        {
+          "blob_id": "00db5a7f765e8dca49c4ffad0f0725ca4c26f120",
+          "lfs": null,
+          "path": "receiptagent.schema.json",
+          "size": 3977
+        },
+        {
+          "blob_id": "d73428d91463b495bc017fb6a2fb3a656646482b",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "6b4360dd6a184650ffc48056c2569bc603f896c5adfe94b10f1c79f809638aa5",
+            "size": 11422166
+          },
+          "path": "tokenizer.json",
+          "size": 11422166
+        },
+        {
+          "blob_id": "5ed51702c01bac3f955bb72cafeba92a7427e829",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 7225
+        },
+        {
+          "blob_id": "0c03f078d9c829c108e48e35e6df1f31ca72866c",
+          "lfs": null,
+          "path": "training_receipt.signed.json",
+          "size": 2646
+        }
+      ],
+      "after_tree_sha256": "f5c46dc908a366bcb5a6f072a3bccf6d6c1c003c0c0b58e501ffaba99f886d9f",
+      "before_tree": [
+        {
+          "blob_id": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1570
+        },
+        {
+          "blob_id": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 11358
+        },
+        {
+          "blob_id": "41e476699c82c48a6f46674a51d8eba8fbc62b47",
+          "lfs": null,
+          "path": "PROMOTION_READINESS_AUDIT.json",
+          "size": 16478
+        },
+        {
+          "blob_id": "31a28a5a691773c5cb0f5b22c4a5c52e32e2bc9c",
+          "lfs": null,
+          "path": "README.md",
+          "size": 3817
+        },
+        {
+          "blob_id": "422df3133b04fb05cb2e039d58ed37feca833605",
+          "lfs": null,
+          "path": "SZL_ESTATE_MANAGED.json",
+          "size": 693
+        },
+        {
+          "blob_id": "51eed4427294f266f7e5960ae82b1eb27aaba74d",
+          "lfs": null,
+          "path": "adapter/README.md",
+          "size": 5252
+        },
+        {
+          "blob_id": "cc95e3ab87a880ca9b1c72f440c0e4b5440e5b49",
+          "lfs": null,
+          "path": "adapter/adapter_config.json",
+          "size": 1302
+        },
+        {
+          "blob_id": "0cb49f48902ad765f489fd45b21cc186afca93ad",
+          "lfs": {
+            "pointer_size": 134,
+            "sha256": "706aff139489d62cb1ac221c0f92a1a8595cd6a42032c542efe8028684e57cf2",
+            "size": 147770496
+          },
+          "path": "adapter/adapter_model.safetensors",
+          "size": 147770496
+        },
+        {
+          "blob_id": "0b061f7713d47f4f8c819e48bd7e6c328195bfc5",
+          "lfs": null,
+          "path": "bom/model-bom.cdx.json",
+          "size": 7015
+        },
+        {
+          "blob_id": "9840d40f49842423ad9d3c92bbedac488564c088",
+          "lfs": null,
+          "path": "chat_template.jinja",
+          "size": 2561
+        },
+        {
+          "blob_id": "8e6225ec48fb9ae0169b89eac1d42f2a5b5474b6",
+          "lfs": null,
+          "path": "config.json",
+          "size": 1643
+        },
+        {
+          "blob_id": "380df800183f7f15fad4e90c333569d3dece04dc",
+          "lfs": null,
+          "path": "eval_receipt.signed.json",
+          "size": 2788
+        },
+        {
+          "blob_id": "82ca3814da7e7349d09c77d93eafe37b77105da5",
+          "lfs": null,
+          "path": "generation_config.json",
+          "size": 252
+        },
+        {
+          "blob_id": "1a6ef2a0a8e2281b4d543060f9df5f766d6ee764",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "a797592fb35c32cc6ebf5739c0a1d9312123300acaf09987d207d86196bc6e7d",
+            "size": 3087467144
+          },
+          "path": "model.safetensors",
+          "size": 3087467144
+        },
+        {
+          "blob_id": "2f555637d88534305ec846a4102f65ce35fea78d",
+          "lfs": null,
+          "path": "owner_pubkey.json",
+          "size": 144
+        },
+        {
+          "blob_id": "86cbc2ee467008a99a76a1b17e7ad9fd041cee99",
+          "lfs": null,
+          "path": "publication.json",
+          "size": 6275
+        },
+        {
+          "blob_id": "00db5a7f765e8dca49c4ffad0f0725ca4c26f120",
+          "lfs": null,
+          "path": "receiptagent.schema.json",
+          "size": 3977
+        },
+        {
+          "blob_id": "d73428d91463b495bc017fb6a2fb3a656646482b",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "6b4360dd6a184650ffc48056c2569bc603f896c5adfe94b10f1c79f809638aa5",
+            "size": 11422166
+          },
+          "path": "tokenizer.json",
+          "size": 11422166
+        },
+        {
+          "blob_id": "5ed51702c01bac3f955bb72cafeba92a7427e829",
+          "lfs": null,
+          "path": "tokenizer_config.json",
+          "size": 7225
+        },
+        {
+          "blob_id": "0c03f078d9c829c108e48e35e6df1f31ca72866c",
+          "lfs": null,
+          "path": "training_receipt.signed.json",
+          "size": 2646
+        }
+      ],
+      "before_tree_sha256": "1bda7f9fabc7c8bb4da0dfca11f8f7961a1bd471541a68ace8743cd561808b4b",
+      "candidate_revision": "aa357f2a7849bc5f42991d7382f3ae2cffadca53",
+      "changes": [
+        {
+          "after": {
+            "blob_id": "d8b4b6a2e0b39a221a13377847b5754fe684859b",
+            "lfs": null,
+            "size": 5173
+          },
+          "before": {
+            "blob_id": "31a28a5a691773c5cb0f5b22c4a5c52e32e2bc9c",
+            "lfs": null,
+            "size": 3817
+          },
+          "path": "README.md"
+        },
+        {
+          "after": {
+            "blob_id": "c9a63e1fb0d49fd39463d14650b7489fa38a7553",
+            "lfs": null,
+            "size": 6275
+          },
+          "before": {
+            "blob_id": "86cbc2ee467008a99a76a1b17e7ad9fd041cee99",
+            "lfs": null,
+            "size": 6275
+          },
+          "path": "publication.json"
+        }
+      ],
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "latest_revision": "aa357f2a7849bc5f42991d7382f3ae2cffadca53",
+      "new_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent/revision/aa357f2a7849bc5f42991d7382f3ae2cffadca53?blobs=true",
+      "new_count": 20,
+      "new_metadata": {
+        "card": {
+          "library_name": "transformers",
+          "license": "apache-2.0",
+          "tags": [
+            "governed-ai",
+            "szl-holdings",
+            "doctrine-v11",
+            "receipt",
+            "signed"
+          ]
+        },
+        "disabled": false,
+        "gated": "auto",
+        "private": false
+      },
+      "new_revision": "aa357f2a7849bc5f42991d7382f3ae2cffadca53",
+      "old_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent/revision/d3c0b7e7a3a7242e6cd279bcd8e0bc67c16d7ce2?blobs=true",
+      "old_count": 20,
+      "old_metadata": {
+        "card": {
+          "library_name": "transformers",
+          "license": "apache-2.0",
+          "tags": [
+            "governed-ai",
+            "szl-holdings",
+            "doctrine-v11",
+            "receipt",
+            "signed"
+          ]
+        },
+        "disabled": false,
+        "gated": "auto",
+        "private": false
+      },
+      "old_revision": "d3c0b7e7a3a7242e6cd279bcd8e0bc67c16d7ce2",
+      "same_as_candidate_and_latest": true,
+      "tree_digest_encoding": "SHA256_UTF8_JSON_SORT_KEYS_COMPACT_ENSURE_ASCII_FALSE_SORTED_PATH_SIZE_BLOB_ID_LFS",
+      "unchanged_lfs": [
+        {
+          "blob_id": "0cb49f48902ad765f489fd45b21cc186afca93ad",
+          "lfs": {
+            "pointer_size": 134,
+            "sha256": "706aff139489d62cb1ac221c0f92a1a8595cd6a42032c542efe8028684e57cf2",
+            "size": 147770496
+          },
+          "path": "adapter/adapter_model.safetensors",
+          "size": 147770496
+        },
+        {
+          "blob_id": "1a6ef2a0a8e2281b4d543060f9df5f766d6ee764",
+          "lfs": {
+            "pointer_size": 135,
+            "sha256": "a797592fb35c32cc6ebf5739c0a1d9312123300acaf09987d207d86196bc6e7d",
+            "size": 3087467144
+          },
+          "path": "model.safetensors",
+          "size": 3087467144
+        },
+        {
+          "blob_id": "d73428d91463b495bc017fb6a2fb3a656646482b",
+          "lfs": {
+            "pointer_size": 133,
+            "sha256": "6b4360dd6a184650ffc48056c2569bc603f896c5adfe94b10f1c79f809638aa5",
+            "size": 11422166
+          },
+          "path": "tokenizer.json",
+          "size": 11422166
+        }
+      ]
+    },
+    {
+      "after_tree": [
+        {
+          "blob_id": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1519
+        },
+        {
+          "blob_id": "66169a9534894b4df1c33bcf26d0573d0e746362",
+          "lfs": null,
+          "path": ".gitignore",
+          "size": 320
+        },
+        {
+          "blob_id": "f0bdcb8584d3eee01c9f0a772fd77fcf86b0ee3a",
+          "lfs": null,
+          "path": ".zenodo.json",
+          "size": 911
+        },
+        {
+          "blob_id": "2632b001e806eeca445554c929f76bf80f56167f",
+          "lfs": null,
+          "path": "CITATION.cff",
+          "size": 1001
+        },
+        {
+          "blob_id": "bb847479aa7f36c62e092fe878c3e3e9ff6d7163",
+          "lfs": null,
+          "path": "CODEOWNERS",
+          "size": 52
+        },
+        {
+          "blob_id": "f02122ea79cbad4d0137dfd71c7fba654ec1233e",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 809
+        },
+        {
+          "blob_id": "2ea7d42acfdab252311aa94d49f721859523160d",
+          "lfs": null,
+          "path": "MODEL_PROVENANCE.json",
+          "size": 5287
+        },
+        {
+          "blob_id": "543cdc9e8801530210ec79aa14ea4b042b9abfcb",
+          "lfs": null,
+          "path": "MODEL_PROVENANCE_CORRECTION.2026-09-24.json",
+          "size": 1790
+        },
+        {
+          "blob_id": "dcc34ca77f4001a1ac298cb9a4b973b3ae78db3c",
+          "lfs": null,
+          "path": "PROMOTION_READINESS_AUDIT.json",
+          "size": 14030
+        },
+        {
+          "blob_id": "d69a943320c8d132369066865eca1b644cea10dd",
+          "lfs": null,
+          "path": "README.md",
+          "size": 1316
+        },
+        {
+          "blob_id": "56ecd5e7a97e4a02cdd62d040c5338d35b54d3d8",
+          "lfs": null,
+          "path": "SECURITY.md",
+          "size": 1260
+        },
+        {
+          "blob_id": "fa908d71d407db0106043a34fff1b70bee1edb8d",
+          "lfs": null,
+          "path": "SOURCE_CPU_TESTS.2026-09-24.json",
+          "size": 3522
+        },
+        {
+          "blob_id": "4c22fc3c1c387b9a11e60435f7c77b46f09193e1",
+          "lfs": null,
+          "path": "SZL_ESTATE_MANAGED.json",
+          "size": 681
+        },
+        {
+          "blob_id": "f424fff38526fbad220903ad33d9760677aa69df",
+          "lfs": null,
+          "path": "TRAINING_RECEIPT.json",
+          "size": 2572
+        },
+        {
+          "blob_id": "5457ad59cc8534415e988f59d0737bf06407ca6a",
+          "lfs": null,
+          "path": "bom/model-bom.cdx.json",
+          "size": 7492
+        },
+        {
+          "blob_id": "3a697919f940eddae92364f3ca29c3e7f9c114c1",
+          "lfs": null,
+          "path": "build.toml",
+          "size": 61
+        },
+        {
+          "blob_id": "74452a718eac56749c63be01ba6faf1d571ff4ea",
+          "lfs": null,
+          "path": "docs/distribution-methodology.md",
+          "size": 5041
+        },
+        {
+          "blob_id": "1f436504cf4f99d17e48e3d8fe996b96b9f0bce0",
+          "lfs": null,
+          "path": "evidence/source-cpu-tests/2026-09-24/github-lambda-folded-baseline.log",
+          "size": 181
+        },
+        {
+          "blob_id": "512cf7f34ebaaa147f2cfd13fd06745f3418fbd1",
+          "lfs": null,
+          "path": "evidence/source-cpu-tests/2026-09-24/github-lambda-folded-baseline.xml",
+          "size": 15127
+        },
+        {
+          "blob_id": "e477158f5e795e47cd87e9f373d29dbbe69861f0",
+          "lfs": null,
+          "path": "evidence/source-cpu-tests/2026-09-24/github-lambda-msvc.log",
+          "size": 111
+        },
+        {
+          "blob_id": "821e9f24140f27e5d7f08a2805b1631e67bb4841",
+          "lfs": null,
+          "path": "evidence/source-cpu-tests/2026-09-24/github-lambda-msvc.xml",
+          "size": 6412
+        },
+        {
+          "blob_id": "91f3364627ce3033ffe3d0e2a7274f277d74dbd3",
+          "lfs": null,
+          "path": "flake.nix",
+          "size": 287
+        },
+        {
+          "blob_id": "e902d3b3b92f4ca212b03defe388dcb3b67e83f5",
+          "lfs": null,
+          "path": "frontier/TYPESAFE_JEV_AND_GM_ADMIT.md",
+          "size": 2820
+        },
+        {
+          "blob_id": "a0538af9ea46733405c20b0238a8bffc7fa7c1ff",
+          "lfs": null,
+          "path": "frontier/compile_matrix.json",
+          "size": 793
+        },
+        {
+          "blob_id": "4057d73f47d358f47bace41bfa6d173ab00c4b5f",
+          "lfs": null,
+          "path": "frontier/model_admit_contract.v1.json",
+          "size": 1166
+        },
+        {
+          "blob_id": "62cd4fcd9548141147b9eb79fc8a369581d489c2",
+          "lfs": null,
+          "path": "pyproject.toml",
+          "size": 1369
+        },
+        {
+          "blob_id": "07114c88668300766ebadfab4a4102812eed8358",
+          "lfs": null,
+          "path": "receipts/receipt_visual.svg",
+          "size": 1258
+        },
+        {
+          "blob_id": "8396d8bee64f8aa4431e215dba203eae25225fc2",
+          "lfs": null,
+          "path": "reference/szl_lambda_v1.py",
+          "size": 7724
+        },
+        {
+          "blob_id": "d99cc31298b8fad424d6783bdd2295ca9d7adab2",
+          "lfs": null,
+          "path": "spec/lambda_v1_vectors.json",
+          "size": 35430
+        },
+        {
+          "blob_id": "57c12a3c9233a4a1fe788e9cb2329e941f4e6be5",
+          "lfs": null,
+          "path": "spec/szl.lambda.v1.json",
+          "size": 4569
+        },
+        {
+          "blob_id": "861d16a06e68aae8ef5cc18038daa532acf726e3",
+          "lfs": null,
+          "path": "szl-lambda-gate-sbom-2.spdx.json",
+          "size": 51116
+        },
+        {
+          "blob_id": "2930735015be1f845d11835b0d76f4544a83f570",
+          "lfs": null,
+          "path": "szl-lambda-gate-sbom.cyclonedx.json",
+          "size": 32183
+        }
+      ],
+      "after_tree_sha256": "79c0a6233aae6db39b8f74f658cc33a8e357456bba06bd189047d935f6a86feb",
+      "before_tree": [
+        {
+          "blob_id": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1519
+        },
+        {
+          "blob_id": "66169a9534894b4df1c33bcf26d0573d0e746362",
+          "lfs": null,
+          "path": ".gitignore",
+          "size": 320
+        },
+        {
+          "blob_id": "f0bdcb8584d3eee01c9f0a772fd77fcf86b0ee3a",
+          "lfs": null,
+          "path": ".zenodo.json",
+          "size": 911
+        },
+        {
+          "blob_id": "2632b001e806eeca445554c929f76bf80f56167f",
+          "lfs": null,
+          "path": "CITATION.cff",
+          "size": 1001
+        },
+        {
+          "blob_id": "bb847479aa7f36c62e092fe878c3e3e9ff6d7163",
+          "lfs": null,
+          "path": "CODEOWNERS",
+          "size": 52
+        },
+        {
+          "blob_id": "f02122ea79cbad4d0137dfd71c7fba654ec1233e",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 809
+        },
+        {
+          "blob_id": "2ea7d42acfdab252311aa94d49f721859523160d",
+          "lfs": null,
+          "path": "MODEL_PROVENANCE.json",
+          "size": 5287
+        },
+        {
+          "blob_id": "543cdc9e8801530210ec79aa14ea4b042b9abfcb",
+          "lfs": null,
+          "path": "MODEL_PROVENANCE_CORRECTION.2026-09-24.json",
+          "size": 1790
+        },
+        {
+          "blob_id": "dcc34ca77f4001a1ac298cb9a4b973b3ae78db3c",
+          "lfs": null,
+          "path": "PROMOTION_READINESS_AUDIT.json",
+          "size": 14030
+        },
+        {
+          "blob_id": "1bdf22cb97d692a64874065ac80ee1bdd0960ebc",
+          "lfs": null,
+          "path": "README.md",
+          "size": 2961
+        },
+        {
+          "blob_id": "56ecd5e7a97e4a02cdd62d040c5338d35b54d3d8",
+          "lfs": null,
+          "path": "SECURITY.md",
+          "size": 1260
+        },
+        {
+          "blob_id": "fa908d71d407db0106043a34fff1b70bee1edb8d",
+          "lfs": null,
+          "path": "SOURCE_CPU_TESTS.2026-09-24.json",
+          "size": 3522
+        },
+        {
+          "blob_id": "4c22fc3c1c387b9a11e60435f7c77b46f09193e1",
+          "lfs": null,
+          "path": "SZL_ESTATE_MANAGED.json",
+          "size": 681
+        },
+        {
+          "blob_id": "f424fff38526fbad220903ad33d9760677aa69df",
+          "lfs": null,
+          "path": "TRAINING_RECEIPT.json",
+          "size": 2572
+        },
+        {
+          "blob_id": "5457ad59cc8534415e988f59d0737bf06407ca6a",
+          "lfs": null,
+          "path": "bom/model-bom.cdx.json",
+          "size": 7492
+        },
+        {
+          "blob_id": "3a697919f940eddae92364f3ca29c3e7f9c114c1",
+          "lfs": null,
+          "path": "build.toml",
+          "size": 61
+        },
+        {
+          "blob_id": "74452a718eac56749c63be01ba6faf1d571ff4ea",
+          "lfs": null,
+          "path": "docs/distribution-methodology.md",
+          "size": 5041
+        },
+        {
+          "blob_id": "1f436504cf4f99d17e48e3d8fe996b96b9f0bce0",
+          "lfs": null,
+          "path": "evidence/source-cpu-tests/2026-09-24/github-lambda-folded-baseline.log",
+          "size": 181
+        },
+        {
+          "blob_id": "512cf7f34ebaaa147f2cfd13fd06745f3418fbd1",
+          "lfs": null,
+          "path": "evidence/source-cpu-tests/2026-09-24/github-lambda-folded-baseline.xml",
+          "size": 15127
+        },
+        {
+          "blob_id": "e477158f5e795e47cd87e9f373d29dbbe69861f0",
+          "lfs": null,
+          "path": "evidence/source-cpu-tests/2026-09-24/github-lambda-msvc.log",
+          "size": 111
+        },
+        {
+          "blob_id": "821e9f24140f27e5d7f08a2805b1631e67bb4841",
+          "lfs": null,
+          "path": "evidence/source-cpu-tests/2026-09-24/github-lambda-msvc.xml",
+          "size": 6412
+        },
+        {
+          "blob_id": "91f3364627ce3033ffe3d0e2a7274f277d74dbd3",
+          "lfs": null,
+          "path": "flake.nix",
+          "size": 287
+        },
+        {
+          "blob_id": "e902d3b3b92f4ca212b03defe388dcb3b67e83f5",
+          "lfs": null,
+          "path": "frontier/TYPESAFE_JEV_AND_GM_ADMIT.md",
+          "size": 2820
+        },
+        {
+          "blob_id": "a0538af9ea46733405c20b0238a8bffc7fa7c1ff",
+          "lfs": null,
+          "path": "frontier/compile_matrix.json",
+          "size": 793
+        },
+        {
+          "blob_id": "4057d73f47d358f47bace41bfa6d173ab00c4b5f",
+          "lfs": null,
+          "path": "frontier/model_admit_contract.v1.json",
+          "size": 1166
+        },
+        {
+          "blob_id": "62cd4fcd9548141147b9eb79fc8a369581d489c2",
+          "lfs": null,
+          "path": "pyproject.toml",
+          "size": 1369
+        },
+        {
+          "blob_id": "07114c88668300766ebadfab4a4102812eed8358",
+          "lfs": null,
+          "path": "receipts/receipt_visual.svg",
+          "size": 1258
+        },
+        {
+          "blob_id": "8396d8bee64f8aa4431e215dba203eae25225fc2",
+          "lfs": null,
+          "path": "reference/szl_lambda_v1.py",
+          "size": 7724
+        },
+        {
+          "blob_id": "d99cc31298b8fad424d6783bdd2295ca9d7adab2",
+          "lfs": null,
+          "path": "spec/lambda_v1_vectors.json",
+          "size": 35430
+        },
+        {
+          "blob_id": "57c12a3c9233a4a1fe788e9cb2329e941f4e6be5",
+          "lfs": null,
+          "path": "spec/szl.lambda.v1.json",
+          "size": 4569
+        },
+        {
+          "blob_id": "861d16a06e68aae8ef5cc18038daa532acf726e3",
+          "lfs": null,
+          "path": "szl-lambda-gate-sbom-2.spdx.json",
+          "size": 51116
+        },
+        {
+          "blob_id": "2930735015be1f845d11835b0d76f4544a83f570",
+          "lfs": null,
+          "path": "szl-lambda-gate-sbom.cyclonedx.json",
+          "size": 32183
+        }
+      ],
+      "before_tree_sha256": "2b2056665feabf9603063fae04933124276a50e9247f62f24346ff6a7b642d94",
+      "candidate_revision": "613c4a3e28c72c182399b888ffca6693fab3dc8e",
+      "changes": [
+        {
+          "after": {
+            "blob_id": "d69a943320c8d132369066865eca1b644cea10dd",
+            "lfs": null,
+            "size": 1316
+          },
+          "before": {
+            "blob_id": "1bdf22cb97d692a64874065ac80ee1bdd0960ebc",
+            "lfs": null,
+            "size": 2961
+          },
+          "path": "README.md"
+        }
+      ],
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "latest_revision": "613c4a3e28c72c182399b888ffca6693fab3dc8e",
+      "new_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-lambda-gate/revision/613c4a3e28c72c182399b888ffca6693fab3dc8e?blobs=true",
+      "new_count": 32,
+      "new_metadata": {
+        "card": {
+          "license": "apache-2.0",
+          "tags": [
+            "szl-holdings"
+          ]
+        },
+        "disabled": false,
+        "gated": "manual",
+        "private": false
+      },
+      "new_revision": "613c4a3e28c72c182399b888ffca6693fab3dc8e",
+      "old_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-lambda-gate/revision/083d760878a3bd2e77cff5ab5c3c348327b0de47?blobs=true",
+      "old_count": 32,
+      "old_metadata": {
+        "card": {
+          "library_name": "kernels",
+          "license": "apache-2.0",
+          "tags": [
+            "governed-ai",
+            "szl-holdings",
+            "doctrine-v11",
+            "kernel",
+            "hub"
+          ]
+        },
+        "disabled": false,
+        "gated": "manual",
+        "private": false
+      },
+      "old_revision": "083d760878a3bd2e77cff5ab5c3c348327b0de47",
+      "same_as_candidate_and_latest": true,
+      "tree_digest_encoding": "SHA256_UTF8_JSON_SORT_KEYS_COMPACT_ENSURE_ASCII_FALSE_SORTED_PATH_SIZE_BLOB_ID_LFS",
+      "unchanged_lfs": []
+    },
+    {
+      "after_tree": [
+        {
+          "blob_id": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1519
+        },
+        {
+          "blob_id": "b55db244707b565b6211b794eecd7b3b677adb9e",
+          "lfs": null,
+          "path": "BASE_MODEL_MANIFEST.json",
+          "size": 1601
+        },
+        {
+          "blob_id": "5672bc42bb469240a59dc4d8f2afd03be63a1a49",
+          "lfs": null,
+          "path": "BENCH.laptop-blackwell.json",
+          "size": 6395
+        },
+        {
+          "blob_id": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 11358
+        },
+        {
+          "blob_id": "563683f65a282d38e2a0a22527204f6619b0d179",
+          "lfs": null,
+          "path": "Modelfile",
+          "size": 1137
+        },
+        {
+          "blob_id": "08208349fe6c23a05a06d9f20a80cbc9ca0daad5",
+          "lfs": null,
+          "path": "OPERATIONAL.json",
+          "size": 2060
+        },
+        {
+          "blob_id": "f7394ecd63975a39c87f93d24ce62765d2cec6cf",
+          "lfs": null,
+          "path": "PROMOTION_READINESS_AUDIT.json",
+          "size": 11560
+        },
+        {
+          "blob_id": "d38a27f2e4f10dc3c3d450fc2c5326b3396ae8b6",
+          "lfs": null,
+          "path": "README.md",
+          "size": 7904
+        },
+        {
+          "blob_id": "7bca667118d84589163ac9f1dfecf55c4c75842f",
+          "lfs": null,
+          "path": "SZL_ESTATE_MANAGED.json",
+          "size": 674
+        },
+        {
+          "blob_id": "f2a4ecf3a74b38d3521beb873c78d86121decbf5",
+          "lfs": null,
+          "path": "TRAINING_RECEIPT.json",
+          "size": 3078
+        },
+        {
+          "blob_id": "c26f8693f9dd05f1eb79a301f5e5a16da32508b9",
+          "lfs": null,
+          "path": "bom/model-bom.cdx.json",
+          "size": 5358
+        },
+        {
+          "blob_id": "4a2ffe24514f124ffb1311b3f790fa9b185fb664",
+          "lfs": null,
+          "path": "card/holo-banner.svg",
+          "size": 2471
+        },
+        {
+          "blob_id": "7feb7be38225df3d691149c31c749f5759fda433",
+          "lfs": null,
+          "path": "ollama_probe.laptop.json",
+          "size": 532
+        },
+        {
+          "blob_id": "fb8f22ecd904902f04155aa6b62ca9239df61562",
+          "lfs": null,
+          "path": "receipts/receipt_visual.svg",
+          "size": 1254
+        },
+        {
+          "blob_id": "537f6c2bd0bccf32d3ddc6e8ee55c1636cfc6686",
+          "lfs": null,
+          "path": "scripts/eval.py",
+          "size": 1553
+        },
+        {
+          "blob_id": "6aba08450e49e31dd51d3fa7aff8d168dffe46a1",
+          "lfs": null,
+          "path": "scripts/forge.py",
+          "size": 20557
+        },
+        {
+          "blob_id": "b5224d366f5841cc815d00f77797b155d23ab88d",
+          "lfs": null,
+          "path": "szl_nemo/rules.py",
+          "size": 2997
+        }
+      ],
+      "after_tree_sha256": "646658af4093bf7dab7e48222350361672192013d2e60d30d59aee901c076126",
+      "before_tree": [
+        {
+          "blob_id": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+          "lfs": null,
+          "path": ".gitattributes",
+          "size": 1519
+        },
+        {
+          "blob_id": "b55db244707b565b6211b794eecd7b3b677adb9e",
+          "lfs": null,
+          "path": "BASE_MODEL_MANIFEST.json",
+          "size": 1601
+        },
+        {
+          "blob_id": "5672bc42bb469240a59dc4d8f2afd03be63a1a49",
+          "lfs": null,
+          "path": "BENCH.laptop-blackwell.json",
+          "size": 6395
+        },
+        {
+          "blob_id": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "lfs": null,
+          "path": "LICENSE",
+          "size": 11358
+        },
+        {
+          "blob_id": "563683f65a282d38e2a0a22527204f6619b0d179",
+          "lfs": null,
+          "path": "Modelfile",
+          "size": 1137
+        },
+        {
+          "blob_id": "08208349fe6c23a05a06d9f20a80cbc9ca0daad5",
+          "lfs": null,
+          "path": "OPERATIONAL.json",
+          "size": 2060
+        },
+        {
+          "blob_id": "f7394ecd63975a39c87f93d24ce62765d2cec6cf",
+          "lfs": null,
+          "path": "PROMOTION_READINESS_AUDIT.json",
+          "size": 11560
+        },
+        {
+          "blob_id": "980234a614263e5f08ca6831ad1bc16c13df2eac",
+          "lfs": null,
+          "path": "README.md",
+          "size": 6465
+        },
+        {
+          "blob_id": "7bca667118d84589163ac9f1dfecf55c4c75842f",
+          "lfs": null,
+          "path": "SZL_ESTATE_MANAGED.json",
+          "size": 674
+        },
+        {
+          "blob_id": "f2a4ecf3a74b38d3521beb873c78d86121decbf5",
+          "lfs": null,
+          "path": "TRAINING_RECEIPT.json",
+          "size": 3078
+        },
+        {
+          "blob_id": "c26f8693f9dd05f1eb79a301f5e5a16da32508b9",
+          "lfs": null,
+          "path": "bom/model-bom.cdx.json",
+          "size": 5358
+        },
+        {
+          "blob_id": "4a2ffe24514f124ffb1311b3f790fa9b185fb664",
+          "lfs": null,
+          "path": "card/holo-banner.svg",
+          "size": 2471
+        },
+        {
+          "blob_id": "7feb7be38225df3d691149c31c749f5759fda433",
+          "lfs": null,
+          "path": "ollama_probe.laptop.json",
+          "size": 532
+        },
+        {
+          "blob_id": "fb8f22ecd904902f04155aa6b62ca9239df61562",
+          "lfs": null,
+          "path": "receipts/receipt_visual.svg",
+          "size": 1254
+        },
+        {
+          "blob_id": "537f6c2bd0bccf32d3ddc6e8ee55c1636cfc6686",
+          "lfs": null,
+          "path": "scripts/eval.py",
+          "size": 1553
+        },
+        {
+          "blob_id": "6aba08450e49e31dd51d3fa7aff8d168dffe46a1",
+          "lfs": null,
+          "path": "scripts/forge.py",
+          "size": 20557
+        },
+        {
+          "blob_id": "b5224d366f5841cc815d00f77797b155d23ab88d",
+          "lfs": null,
+          "path": "szl_nemo/rules.py",
+          "size": 2997
+        }
+      ],
+      "before_tree_sha256": "0ef7d29f7cd1e959dd6c78d450284eccc8f6676f374e47a7c2aaf58a577939d1",
+      "candidate_revision": "130cce3ae8c7a047b065749c2604aa37e751c041",
+      "changes": [
+        {
+          "after": {
+            "blob_id": "d38a27f2e4f10dc3c3d450fc2c5326b3396ae8b6",
+            "lfs": null,
+            "size": 7904
+          },
+          "before": {
+            "blob_id": "980234a614263e5f08ca6831ad1bc16c13df2eac",
+            "lfs": null,
+            "size": 6465
+          },
+          "path": "README.md"
+        }
+      ],
+      "id": "SZLHOLDINGS/szl-nemo",
+      "latest_revision": "130cce3ae8c7a047b065749c2604aa37e751c041",
+      "new_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-nemo/revision/130cce3ae8c7a047b065749c2604aa37e751c041?blobs=true",
+      "new_count": 17,
+      "new_metadata": {
+        "card": {
+          "license": "apache-2.0",
+          "tags": [
+            "software",
+            "recipe-conformance",
+            "historical",
+            "szl-holdings",
+            "not-a-checkpoint"
+          ]
+        },
+        "disabled": false,
+        "gated": false,
+        "private": false
+      },
+      "new_revision": "130cce3ae8c7a047b065749c2604aa37e751c041",
+      "old_api_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-nemo/revision/37890b4504cdb11590f7a9fb9ee5054261206e30?blobs=true",
+      "old_count": 17,
+      "old_metadata": {
+        "card": {
+          "license": "apache-2.0",
+          "tags": [
+            "software",
+            "recipe-conformance",
+            "historical",
+            "szl-holdings",
+            "not-a-checkpoint"
+          ]
+        },
+        "disabled": false,
+        "gated": false,
+        "private": false
+      },
+      "old_revision": "37890b4504cdb11590f7a9fb9ee5054261206e30",
+      "same_as_candidate_and_latest": true,
+      "tree_digest_encoding": "SHA256_UTF8_JSON_SORT_KEYS_COMPACT_ENSURE_ASCII_FALSE_SORTED_PATH_SIZE_BLOB_ID_LFS",
+      "unchanged_lfs": []
+    }
+  ],
+  "observed_at": "2026-11-16T23:02:19.882821+00:00",
+  "promotion_authority": false,
+  "schema": "szl.governed-hf-public-tree-review/v1",
+  "scope": "ANONYMOUS_PUBLIC_METADATA_ONLY_NO_WEIGHT_DOWNLOAD_OR_INFERENCE",
+  "source_revision": "628b3f10de1ea9837ce5c535c4c20b722c45b320"
+}

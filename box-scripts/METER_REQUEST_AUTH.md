@@ -61,7 +61,7 @@ server audience, client ID, decimal epoch nanoseconds, and 128-bit lower-case he
 The client sends the signature, never the key. This is request authentication, not a
 governance signature or a receipt minted on a GET.
 
-Server/client clocks must be synchronized. Future timestamps, requests predating this
+Server/client clocks must be synchronized. Timestamps further than 15 seconds into this server process's future, requests predating this
 server process, and requests older than 30 seconds deny. A bounded atomic cache accepts
 each client/nonce once; it denies at capacity instead of evicting live entries. Clock
 rollback denies. Restart rejects prior-process requests even though the replay cache

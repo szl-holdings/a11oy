@@ -159,8 +159,9 @@ def main():
             expected_scripts = InlineScripts((ROOT / "pages/command-v2.html").read_text(encoding="utf-8")).scripts
             live_scripts = InlineScripts(response.text()).scripts
             assert expected_scripts and all(script in live_scripts for script in expected_scripts), "LIVE_SCRIPT_DIFFERS_FROM_CHECKOUT"
-            expect(page.locator('.source-state[data-state="OBSERVED"]')).to_have_count(11, timeout=15000)
-            report["eleven_observations_visible"] = True
+            expect(page.locator('.source-state[data-state="OBSERVED"]')).to_have_count(len(READ_PATHS), timeout=15000)
+            report["observations_visible"] = True
+            report["observed_source_count"] = len(READ_PATHS)
 
             for width, height in ((1280, 800), (390, 844), (320, 740)):
                 page.set_viewport_size({"width": width, "height": height})
@@ -168,7 +169,7 @@ def main():
                 assert page.locator(".brand img").evaluate("image => image.complete && image.naturalWidth > 0"), "BRAND_ASSET_NOT_RENDERED"
                 page.screenshot(path=str(args.output / f"live-command-{width}.png"))
                 request_count = len(requests)
-                page.get_by_role("button", name="Inspect Receipts source", exact=True).click()
+                page.get_by_role("button", name="Inspect Recent receipts source", exact=True).click()
                 dialog = page.locator("#source-inspector")
                 expect(dialog).to_be_visible()
                 assert not dialog.evaluate("node => node.scrollWidth > node.clientWidth"), "INSPECTOR_OVERFLOW"
@@ -177,7 +178,7 @@ def main():
                 assert len(requests) == request_count, "INSPECTION_STARTED_A_REQUEST"
                 page.screenshot(path=str(args.output / f"live-inspector-{width}.png"))
                 page.keyboard.press("Escape")
-                expect(page.get_by_role("button", name="Inspect Receipts source", exact=True)).to_be_focused()
+                expect(page.get_by_role("button", name="Inspect Recent receipts source", exact=True)).to_be_focused()
                 report["viewports"].append({"width": width, "height": height, "layout_and_inspection": "PASS"})
 
             page.get_by_role("button", name="Open command palette", exact=True).click()

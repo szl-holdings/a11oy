@@ -398,7 +398,20 @@ def second_brain_binding(
     profile_runtime = (
         (backend.get("forge_profiles") or {}).get("profiles") or {}
     ).get("BrainNavigator-v1") or {}
-    exact_tag_observed = bool(profile_runtime.get("available"))
+    exact_tag_observed = profile_runtime.get("available") is True
+    unavailable_states = {
+        "MODEL_TAG_MISSING": "UNAVAILABLE_MODEL_TAG_MISSING",
+        "MODEL_CATALOG_UNAUTHORIZED": "UNAVAILABLE_MODEL_CATALOG_UNAUTHORIZED",
+        "MODEL_CATALOG_MALFORMED": "UNAVAILABLE_MODEL_CATALOG_MALFORMED",
+        "MODEL_CATALOG_UNAVAILABLE": "UNAVAILABLE_MODEL_CATALOG_UNAVAILABLE",
+        "LOCAL_ENDPOINT_UNAVAILABLE": "UNAVAILABLE_LOCAL_MODEL_ENDPOINT",
+    }
+    observed_state = profile_runtime.get("state")
+    availability_state = (
+        "EXACT_TAG_OBSERVED_ARTIFACT_UNBOUND" if exact_tag_observed
+        else observed_state if isinstance(observed_state, str)
+        and observed_state in unavailable_states else "MODEL_CATALOG_UNAVAILABLE"
+    )
     index_ready = bool(rag.get("built"))
     ready = exact_tag_observed and index_ready
     if ready:
@@ -406,7 +419,7 @@ def second_brain_binding(
     elif not exact_tag_observed and not index_ready:
         state = "UNAVAILABLE_MODEL_AND_INDEX"
     elif not exact_tag_observed:
-        state = "UNAVAILABLE_MODEL_TAG_MISSING"
+        state = unavailable_states[availability_state]
     else:
         state = "UNAVAILABLE_INDEX_NOT_BUILT"
     return {
@@ -423,6 +436,7 @@ def second_brain_binding(
             "expected_model": profile_runtime.get("expected_model", "khipu:latest"),
             "served_model": profile_runtime.get("served_model"),
             "exact_tag_observed": exact_tag_observed,
+            "availability_state": availability_state,
             "artifact_binding": "UNBOUND",
             "turn_level_attestation_required": True,
         },

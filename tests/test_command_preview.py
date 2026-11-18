@@ -74,7 +74,7 @@ class PreviewTests(unittest.TestCase):
                 self.assertEqual(self.request("POST", path)[0], 405)
 
     def test_live_proxy_only_has_the_existing_read_paths(self):
-        self.assertEqual(len(READ_PATHS), 11)
+        self.assertEqual(len(READ_PATHS), 13)
         self.assertNotIn("/api/a11oy/v1/kernel/probe", READ_PATHS)
         self.assertTrue(all(path.startswith("/") and not path.startswith("//") for path in READ_PATHS))
 

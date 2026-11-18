@@ -215,7 +215,7 @@ def test_pinned_key_without_registry_name_is_blocking():
 
 
 def test_verified_gdw_check_only_cli_exits_zero(monkeypatch, tmp_path):
-    api = MetadataOnlyApi()
+    api = ConvergedRuntimeApi()
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
     monkeypatch.setattr(verifier, "default_get", pinned_get)
     monkeypatch.setenv("HF_TOKEN", "synthetic-hf-control")
@@ -223,6 +223,8 @@ def test_verified_gdw_check_only_cli_exits_zero(monkeypatch, tmp_path):
     assert config.main(["--check-only", "--output", str(output)]) == 0
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["state"] == "READY" and report["credential_authority_state"] == "VERIFIED"
+    assert report["variables_managed"] == sorted(config.STATIC_VARIABLES)
+    assert report["readback_attempts"] == 1 and api.writes == []
 
 
 @pytest.mark.parametrize("secret_names,variable_names", [
@@ -1011,3 +1013,327 @@ def test_native_configuration_worker_inherits_only_two_existing_control_credenti
                "check_only": False, "deadline": deadline}
     assert config.managed_worker_call(request, deadline=deadline) == {"credential_scope": "CONTROL_AND_MAIN_READ"}
     assert len(calls) == 1
+
+
+
+class ConvergedRuntimeApi(MetadataOnlyApi):
+    def __init__(self):
+        super().__init__()
+        self.variables = {name: SimpleNamespace(value=value)
+                          for name, value in config.STATIC_VARIABLES.items()}
+
+
+def install_runtime_api(monkeypatch, api):
+    def client(**kwargs):
+        assert kwargs == {"endpoint": "https://huggingface.co", "token": "synthetic-hf-control"}
+        return api
+    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=client))
+    return {"repo_id": config.CANONICAL_SPACE, "hf_token": "synthetic-hf-control",
+            "authority_get": pinned_get, "expected_source_sha": "a" * 40,
+            "main_reader": lambda: "a" * 40}
+
+
+def install_gdw_release_transport(monkeypatch, api, *, handler=None):
+    import httpx
+    # Reuse the owner's complete seven-store release fixture. The admitted
+    # guard and transport below are its real production classes, not stubs.
+    path = SCRIPT.with_name("test_configure_hf_series_a_runtime.py")
+    spec = importlib.util.spec_from_file_location("_gdw_release_test_fixtures", path)
+    fixtures = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fixtures)
+    owner = fixtures.config
+    fixture = fixtures.ReleasedFixture(api)
+    guard = fixture.guard()
+    real_writer = owner.RuntimeMutationClient
+    kwargs = install_runtime_api(monkeypatch, api)
+    monkeypatch.setattr(config, "load_runtime_mutation_owner", lambda: owner)
+    monkeypatch.setattr(owner, "ReleasedStateGuard", lambda observed_api: guard
+                        if observed_api is api else pytest.fail("wrong metadata owner"))
+    requests, writers = [], []
+
+    def dispatch(request):
+        assert request.method == "POST"
+        assert str(request.url) == "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy/variables"
+        requests.append(request)
+        if handler is not None:
+            return handler(request, fixture)
+        payload = json.loads(request.content)
+        assert set(payload) == {"key", "value", "description"}
+        assert payload["key"] in config.STATIC_VARIABLES
+        api.variables[payload["key"]] = SimpleNamespace(value=payload["value"])
+        api.writes.append((payload["key"], payload["value"]))
+        return httpx.Response(200, json={})
+
+    def writer_factory(token):
+        writer = real_writer(token, transport=httpx.MockTransport(dispatch),
+                             clock=lambda: fixture.clock)
+        writers.append(writer)
+        return writer
+    monkeypatch.setattr(owner, "RuntimeMutationClient", writer_factory)
+    return kwargs, fixture, guard, requests, writers
+
+
+@pytest.mark.parametrize("name", sorted(config.STATIC_VARIABLES))
+def test_verified_check_only_rejects_each_missing_gdw_variable_without_writes(monkeypatch, name):
+    api = ConvergedRuntimeApi()
+    del api.variables[name]
+    kwargs = install_runtime_api(monkeypatch, api)
+    monkeypatch.setattr(config, "load_runtime_mutation_owner",
+                        lambda: pytest.fail("check-only created a mutation owner"))
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs, check_only=True)
+    assert error.value.diagnostic_code == "RUNTIME_CONFIG_DRIFT"
+    assert name in str(error.value)
+    assert [kind for kind, _ in api.reads].count("variables") == 2
+    assert api.writes == [] and api.value_reads == []
+
+
+@pytest.mark.parametrize("name", [
+    "GDW_OWNER_MAX_ACTIVE_SESSIONS", "GDW_RETENTION_SECONDS", "GDW_TOMBSTONE_SECONDS",
+    "GDW_EFFECT_MAX_ATTEMPTS", "GDW_EFFECT_BACKOFF_SECONDS", "GDW_POLICY_ORIGIN",
+])
+def test_check_only_verifies_gdw_contract_beyond_series_a_subset(monkeypatch, name):
+    api = ConvergedRuntimeApi()
+    api.variables[name] = SimpleNamespace(value="synthetic-private-drift")
+    kwargs = install_runtime_api(monkeypatch, api)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs, check_only=True)
+    assert error.value.diagnostic_code == "RUNTIME_CONFIG_DRIFT"
+    assert "synthetic-private-drift" not in str(error.value)
+    assert api.writes == [] and api.value_reads == []
+
+
+def test_check_only_readback_failure_is_sanitized(monkeypatch):
+    api = ConvergedRuntimeApi()
+    kwargs = install_runtime_api(monkeypatch, api)
+    read = api.get_space_variables
+    calls = []
+    def unavailable(**arguments):
+        calls.append(True)
+        if len(calls) == 2:
+            raise OSError("synthetic-provider-private-detail")
+        return read(**arguments)
+    monkeypatch.setattr(api, "get_space_variables", unavailable)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs, check_only=True)
+    assert error.value.diagnostic_code == "RUNTIME_CONFIG_UNAVAILABLE"
+    assert "synthetic-provider-private-detail" not in str(error.value)
+    assert len(calls) == 2 and api.writes == []
+
+
+@pytest.mark.parametrize("check_only", [False, True])
+@pytest.mark.parametrize("barrier", ["secret-collision", "durable-storage", "export-mode"])
+def test_full_parity_preserves_secret_and_legacy_barriers(monkeypatch, check_only, barrier):
+    api = ConvergedRuntimeApi()
+    if barrier == "secret-collision":
+        api.secrets = NamesOnlyMetadata(
+            [config.CREDENTIAL_REGISTRY_SECRET, SIGNING_SECRET, "GDW_POLICY_ORIGIN"], api.value_reads)
+    elif barrier == "durable-storage":
+        api.variables["GDW_DURABLE_STORAGE"] = SimpleNamespace(value="private-dataset-v1")
+    else:
+        api.variables["GDW_PROOF_EXPORT_MODE"] = SimpleNamespace(value="durable-private-dataset-v1")
+    kwargs = install_runtime_api(monkeypatch, api)
+    monkeypatch.setattr(config, "load_runtime_mutation_owner",
+                        lambda: pytest.fail("blocked planning created a mutation owner"))
+    with pytest.raises(config.RuntimeConfigError):
+        config.configure(**kwargs, check_only=check_only)
+    assert api.writes == [] and api.value_reads == []
+
+
+def test_runtime_mutation_loader_reuses_exact_existing_owner():
+    owner = config.load_runtime_mutation_owner()
+    assert Path(owner.__file__).resolve() == SCRIPT.with_name("configure_hf_series_a_runtime.py").resolve()
+    assert owner.CANONICAL_SPACE == config.CANONICAL_SPACE
+    assert callable(owner.ReleasedStateGuard) and callable(owner.RuntimeMutationClient)
+
+
+
+@pytest.mark.parametrize("check_only", [False, True])
+def test_converged_active_runtime_needs_no_release_or_mutation(monkeypatch, check_only):
+    api = ConvergedRuntimeApi()
+    kwargs, fixture, _guard, requests, writers = install_gdw_release_transport(monkeypatch, api)
+    fixture.status.update(role="WRITER", writable=True, lease={"state": "ACTIVE", "sequence": 43})
+    monkeypatch.setattr(config, "load_runtime_mutation_owner",
+                        lambda: pytest.fail("converged ACTIVE runtime constructed a mutation owner"))
+    report = config.configure(**kwargs, check_only=check_only)
+    assert report["converged"] is True
+    assert report["variables_managed"] == sorted(config.STATIC_VARIABLES)
+    assert report["readback_attempts"] == 1
+    if not check_only:
+        assert report["state_store_admission"] == {"state": "NO_CHANGES"}
+        assert report["variables_changed"] == []
+    assert requests == writers == api.writes == []
+    assert fixture.reads == 0 and api.value_reads == []
+
+
+def test_active_runtime_drift_cannot_dispatch_a_configuration_write(monkeypatch):
+    api = ConvergedRuntimeApi()
+    api.variables["GDW_POLICY_ORIGIN"] = SimpleNamespace(value="drift")
+    kwargs, fixture, _guard, requests, writers = install_gdw_release_transport(monkeypatch, api)
+    fixture.status.update(role="WRITER", writable=True, lease={"state": "ACTIVE", "sequence": 43})
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs)
+    assert error.value.diagnostic_code == "STATE_STORE_RELEASE_REQUIRED"
+    assert error.value.mutation_outcome == {
+        "attempted": [], "acknowledged": [], "possible_partial_configuration": False,
+        "automatic_retry": False,
+    }
+    assert requests == api.writes == []
+    assert fixture.reads == 0 and writers[0].client.is_closed
+
+
+def test_released_runtime_uses_shared_transport_and_preserves_honest_scope(monkeypatch):
+    api = ConvergedRuntimeApi()
+    api.variables["GDW_POLICY_ORIGIN"] = SimpleNamespace(value="drift")
+    kwargs, fixture, guard, requests, writers = install_gdw_release_transport(monkeypatch, api)
+    report = config.configure(**kwargs)
+    assert api.writes == [("GDW_POLICY_ORIGIN", "http://127.0.0.1:7860")]
+    assert len(requests) == 1 and fixture.reads == 2
+    assert writers[0].attempted == writers[0].acknowledged == ["GDW_POLICY_ORIGIN"]
+    assert report["state_store_admission"] == guard.summary
+    assert report["runtime_boot_verified"] is False
+    assert report["storage_preservation_verified"] is False
+    assert report["mutation_deadline_scope"] == "REQUEST_DISPATCH_NOT_PROVIDER_EXECUTION"
+    assert report["variables_changed"] == ["GDW_POLICY_ORIGIN"]
+    assert report["converged"] is True and writers[0].client.is_closed
+    assert api.value_reads == []
+
+
+@pytest.mark.parametrize("successor,diagnostic", [
+    ("public-active", "STATE_STORE_RELEASE_REQUIRED"),
+    ("private-active", "STATE_STORE_RELEASE_UNVERIFIED"),
+    ("different-release", "STATE_STORE_RELEASE_CHANGED"),
+])
+def test_each_actual_write_rechecks_the_same_release(monkeypatch, successor, diagnostic):
+    import httpx
+    api = ConvergedRuntimeApi()
+    for name in ("GDW_EFFECT_MAX_ATTEMPTS", "GDW_POLICY_ORIGIN"):
+        api.variables[name] = SimpleNamespace(value="drift")
+    def handler(request, fixture):
+        payload = json.loads(request.content)
+        api.variables[payload["key"]] = SimpleNamespace(value=payload["value"])
+        api.writes.append((payload["key"], payload["value"]))
+        if successor == "public-active":
+            fixture.status.update(role="WRITER", writable=True,
+                                  lease={"state": "ACTIVE", "sequence": 44})
+        elif successor == "private-active":
+            fixture.head.update(state="ACTIVE", transition="SNAPSHOT")
+        else:
+            fixture.revision = "2" * 40
+        return httpx.Response(200, json={})
+    kwargs, _fixture, _guard, requests, writers = install_gdw_release_transport(
+        monkeypatch, api, handler=handler)
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs)
+    assert error.value.diagnostic_code == diagnostic
+    assert len(requests) == 1
+    assert api.writes == [("GDW_EFFECT_MAX_ATTEMPTS", "20")]
+    assert error.value.mutation_outcome == {
+        "attempted": ["GDW_EFFECT_MAX_ATTEMPTS"], "acknowledged": ["GDW_EFFECT_MAX_ATTEMPTS"],
+        "possible_partial_configuration": True, "automatic_retry": False,
+    }
+    assert writers[0].client.is_closed
+
+
+@pytest.mark.parametrize("change_at", [3, 4, 5])
+def test_protected_main_still_brackets_each_release_admission(monkeypatch, change_at):
+    api = ConvergedRuntimeApi()
+    for name in ("GDW_EFFECT_MAX_ATTEMPTS", "GDW_POLICY_ORIGIN"):
+        api.variables[name] = SimpleNamespace(value="drift")
+    kwargs, _fixture, _guard, requests, writers = install_gdw_release_transport(monkeypatch, api)
+    calls = []
+    def main_reader():
+        calls.append(True)
+        return "a" * 40 if len(calls) < change_at else "b" * 40
+    kwargs["main_reader"] = main_reader
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs)
+    assert error.value.diagnostic_code == "SOURCE_NOT_CURRENT_MAIN"
+    expected = [] if change_at == 3 else ["GDW_EFFECT_MAX_ATTEMPTS"]
+    assert writers[0].attempted == writers[0].acknowledged == expected
+    assert len(requests) == len(expected)
+    assert error.value.mutation_outcome["acknowledged"] == expected
+    assert writers[0].client.is_closed
+
+
+def test_final_main_read_cannot_extend_release_submission_deadline(monkeypatch):
+    api = ConvergedRuntimeApi()
+    api.variables["GDW_POLICY_ORIGIN"] = SimpleNamespace(value="drift")
+    kwargs, fixture, _guard, requests, writers = install_gdw_release_transport(monkeypatch, api)
+    calls = []
+    def main_reader():
+        calls.append(True)
+        if len(calls) == 3:
+            fixture.clock += 6
+        return "a" * 40
+    kwargs["main_reader"] = main_reader
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs)
+    assert error.value.diagnostic_code == "STATE_STORE_OBSERVATION_EXPIRED"
+    assert error.value.mutation_outcome["attempted"] == []
+    assert requests == [] and writers[0].client.is_closed
+
+
+def test_uncertain_dispatch_is_not_retried_and_survives_cli_cleanup(monkeypatch, tmp_path, capsys):
+    import httpx
+    api = ConvergedRuntimeApi()
+    for name in ("GDW_EFFECT_MAX_ATTEMPTS", "GDW_POLICY_ORIGIN"):
+        api.variables[name] = SimpleNamespace(value="drift")
+    def handler(request, _fixture):
+        raise httpx.ReadTimeout("synthetic-provider-private-detail", request=request)
+    _kwargs, _fixture, guard, requests, writers = install_gdw_release_transport(
+        monkeypatch, api, handler=handler)
+    monkeypatch.setattr(verifier, "default_get", pinned_get)
+    monkeypatch.setattr(config, "require_current_main", lambda *_args: None)
+    monkeypatch.setattr(guard, "close",
+                        lambda: (_ for _ in ()).throw(OSError("synthetic-cleanup-private-detail")))
+    monkeypatch.setenv("HF_TOKEN", "synthetic-hf-control")
+    output = tmp_path / "uncertain-gdw.json"
+    assert config.main(["--expected-source-sha", "a" * 40, "--output", str(output)]) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["diagnostic_code"] == "RUNTIME_CONFIG_OUTCOME_UNCERTAIN"
+    assert report["mutation_outcome"] == {
+        "attempted": ["GDW_EFFECT_MAX_ATTEMPTS"], "acknowledged": [],
+        "possible_partial_configuration": True, "automatic_retry": False,
+    }
+    stdout = capsys.readouterr().out
+    assert json.loads(stdout) == report
+    for private in ("synthetic-provider-private-detail", "synthetic-cleanup-private-detail",
+                    "synthetic-hf-control"):
+        assert private not in stdout
+    assert len(requests) == 1 and api.writes == []
+    assert writers[0].client.is_closed
+
+
+def test_acknowledged_write_without_readback_remains_drift(monkeypatch):
+    import httpx
+    api = ConvergedRuntimeApi()
+    api.variables["GDW_POLICY_ORIGIN"] = SimpleNamespace(value="drift")
+    kwargs, _fixture, _guard, requests, writers = install_gdw_release_transport(
+        monkeypatch, api, handler=lambda _request, _fixture: httpx.Response(200, json={}))
+    readback = config.await_readback
+    monkeypatch.setattr(config, "await_readback",
+                        lambda *args, **kwargs: readback(*args, **kwargs, attempts=1, delay_seconds=0))
+    with pytest.raises(config.RuntimeConfigError) as error:
+        config.configure(**kwargs)
+    assert error.value.diagnostic_code == "RUNTIME_CONFIG_DRIFT"
+    assert error.value.mutation_outcome["acknowledged"] == ["GDW_POLICY_ORIGIN"]
+    assert len(requests) == 1 and writers[0].client.is_closed
+
+
+def test_check_only_cli_reports_gdw_only_drift_without_secret_values(monkeypatch, tmp_path, capsys):
+    api = ConvergedRuntimeApi()
+    api.variables["GDW_POLICY_ORIGIN"] = SimpleNamespace(value="synthetic-private-drift")
+    install_runtime_api(monkeypatch, api)
+    monkeypatch.setattr(verifier, "default_get", pinned_get)
+    monkeypatch.setenv("HF_TOKEN", "synthetic-hf-control")
+    output = tmp_path / "gdw-drift.json"
+    assert config.main(["--check-only", "--output", str(output)]) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["diagnostic_code"] == "RUNTIME_CONFIG_DRIFT"
+    assert report["state"] == "SETUP_REQUIRED" and report["converged"] is False
+    assert "mutation_outcome" not in report
+    stdout = capsys.readouterr().out
+    assert json.loads(stdout) == report
+    assert "synthetic-private-drift" not in stdout and "synthetic-hf-control" not in stdout
+    assert api.writes == [] and api.value_reads == []

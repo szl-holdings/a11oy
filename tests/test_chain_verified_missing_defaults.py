@@ -152,25 +152,22 @@ def test_span_fallback_does_not_treat_a_missing_flag_as_verified():
     assert all(span["chain_verified"] is False for span in body["spans"])
 
 
-def test_anatomy_span_fallback_does_not_treat_a_missing_flag_as_verified():
-    sys.modules["szl_observability"] = types.ModuleType("szl_observability")
+def test_anatomy_span_fallback_does_not_treat_a_missing_flag_as_verified(monkeypatch):
+    # Public anatomy reads must neither create a DAG nor promote a receipt flag
+    # into verified tracing. Only the already-loaded trace summary is readable.
+    monkeypatch.setitem(sys.modules, "szl_observability", types.ModuleType("szl_observability"))
 
     class _Khipu:
         def get_dag(self, org, ns):
-            return _Dag({"action": "op", "digest": "abcdef123456", "seq": 1, "ts": 1})
+            raise AssertionError("a public trace read must not create a DAG")
 
-    anatomy._KHIPU = _Khipu()
-    missing = anatomy.spans_recent()
-    assert missing["spans"]
-    assert all(span["ok"] is False for span in missing["spans"])
-
-    class _Verified:
-        def get_dag(self, org, ns):
-            return _Dag({
-                "action": "op", "digest": "abcdef123456", "seq": 1, "ts": 1,
-                "chain_verified": True,
-            })
-
-    anatomy._KHIPU = _Verified()
-    verified = anatomy.spans_recent()
-    assert all(span["ok"] is True for span in verified["spans"])
+    monkeypatch.setattr(anatomy, "_KHIPU", _Khipu())
+    unavailable = anatomy.spans_recent()
+    assert unavailable["state"] == "UNAVAILABLE"
+    assert unavailable["reason"] == "TRACE_COLLECTOR_UNAVAILABLE"
+    assert unavailable["data"] is None
+    assert unavailable["chain_verified"] is False
+    assert unavailable["signature_verified"] is False
+    assert unavailable["signature_verification"] == "NOT_PERFORMED"
+    assert unavailable["execution_authorized"] is False
+    assert unavailable["receipt_minted_on_get"] is False

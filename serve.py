@@ -604,6 +604,22 @@ except Exception as _gdw_frontier_error:  # pragma: no cover - fail one surface 
     }
 
 
+# Provenance layer: ORO inspects existing canonical owners at request time.
+# Importing the standalone oro.api would construct a separate store and signer;
+# this registrar exposes only bounded public evidence and no mutation routes.
+try:
+    from oro.evidence_api import register as _register_oro_evidence
+
+    _ORO_EVIDENCE_STATUS = _register_oro_evidence(app)
+except Exception as _oro_evidence_error:  # pragma: no cover - isolated surface failure
+    _ORO_EVIDENCE_STATUS = {
+        "ok": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_oro_evidence_error).__name__,
+        "routes": [],
+    }
+
+
 # Services layer: the public Steward namespace is reserved before either
 # catch-all. Its pinned package may be unavailable or stale, but its reader
 # still rejects non-GET requests rather than forwarding them to the proxy.
@@ -1014,6 +1030,17 @@ try:
     print("[a11oy] Quantum-Bio Λ-v5 registered: /api/a11oy/v1/qbio/*", file=__import__("sys").stderr)
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[a11oy] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
+
+# Flavin-inspired quantum spin chemistry: separate, explicitly MODELED research lane.
+# Pure read-only GET; no action, inference, chemistry-device operation or receipt on GET.
+# The legacy reduced qbio compass remains unchanged and independently labeled.
+try:
+    import szl_flavin_spin_research as _szl_flavin_spin_research
+    _szl_flavin_spin_research.register(app, ns="a11oy")
+except Exception as _szl_fsr_error:  # pragma: no cover
+    print("[a11oy] flavin spin research unavailable: " +
+          type(_szl_fsr_error).__name__, file=__import__("sys").stderr)
+
 
 # -- SWEEP DEV 3: honest /status for quant, qbio, holographic (sweep-d3-status).
 # Three surfaces served a 200 PAGE but had NO backing /<surface>/status API (404).
@@ -5242,12 +5269,19 @@ async def shutdown() -> None:
         if _http_client:
             await _http_client.aclose()
     finally:
-        # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
-        # gdw_runtime finally may never run, so await the final snapshot and
-        # lease release here, while the process is still alive.
-        import a11oy_state_store
+        try:
+            # This hook is registered before the Series-A shutdown handler.
+            # Stop its producers before the final snapshot and lease release.
+            service = getattr(app.state, "szl_series_a_service", None)
+            if service is not None:
+                await service.stop()
+        finally:
+            # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
+            # gdw_runtime finally may never run, so await storage finalization
+            # even when a producer's cleanup reports an error.
+            import a11oy_state_store
 
-        await asyncio.to_thread(a11oy_state_store.shutdown)
+            await asyncio.to_thread(a11oy_state_store.shutdown)
 
 
 # ---------------------------------------------------------------------------
@@ -5428,6 +5462,7 @@ def _preflight_signal() -> dict:
 # ---------------------------------------------------------------------------
 
 import time as _hz_time
+import threading as _hz_threading
 _A11OY_START_TIME = _hz_time.time()
 # Last-known dependency (Node :8081) ping, cached so /healthz stays dependency-light
 # and NEVER 5xx; any failure degrades honestly instead of faking green (Doctrine v11).
@@ -5470,18 +5505,13 @@ def _ledger_storage_signal(ttl: float = 15.0) -> dict:
     if ca is not None and (now - ca) < ttl:
         return _LEDGER_STORAGE_CACHE.get("value", {})
     try:
-        import szl_energy_ledger as _szl_el_health
-        # probe=False: don't do a write-probe on the hot health path; use the store's
-        # tracked state (dir-ok + last write status), which is already honest.
-        led = _szl_el_health.get_ledger()
-        try:
-            val = led.storage_health()
-            # If the durable store is present, refresh its status WITHOUT a write-probe.
-            if getattr(led, "_store", None) is not None:
-                val = led._store.status(probe=False)
-                val["backend"] = "durable-rotating-jsonl"
-        except Exception:
-            val = _szl_el_health.ledger_storage_health()
+        # Observe only the writer-initialized ledger. The accessor never creates a
+        # store, recovers a generation, or performs a filesystem write probe. Even
+        # module import belongs to startup: its path selection may write-probe.
+        _szl_el_health = sys.modules.get("szl_energy_ledger")
+        if _szl_el_health is None:
+            raise RuntimeError("LEDGER_MODULE_NOT_INITIALIZED")
+        val = _szl_el_health.ledger_storage_health()
     except Exception as exc:
         val = {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}",
                "bounded": None}
@@ -5536,14 +5566,22 @@ def _frontier_liveness_signal() -> dict:
         readiness = summary["operational_readiness"]
         live = readiness["ready_tiles"]
         blocked = readiness["blocked_tiles"]
+        # By-design-never-satisfiable capabilities are reported separately by the
+        # manifest (#3654). They are neither live nor blocked, so the partition check
+        # below must count them too; a malformed report fails closed.
+        nrv = readiness.get("not_runtime_verifiable") or []
+        nrv_valid = isinstance(nrv, list) and all(
+            isinstance(row, dict) and isinstance(row.get("name"), str)
+            and bool(row["name"].strip()) for row in nrv)
         degraded = [row["name"] for row in blocked]
         # The manifest distinguishes readable sources from operating capabilities.
         # A stopped operator or MODELED tile can be reachable without being live.
         # Missing/inconsistent readiness evidence must never become an ok rollup.
         if (type(total) is not int or total < 0
                 or not isinstance(live, list) or not isinstance(blocked, list)
+                or not nrv_valid
                 or type(readiness["ready"]) is not bool
-                or total != len(live) + len(blocked)
+                or total != len(live) + len(blocked) + len(nrv)
                 or readiness["ready"] != (bool(total) and not blocked)):
             raise ValueError("frontier operational readiness evidence is inconsistent")
         degraded_n = len(blocked)
@@ -5572,21 +5610,24 @@ def _frontier_liveness_signal() -> dict:
 # NEVER fakes a reachable node. A tunnel may answer from cloud, but reachability
 # does not verify an owned GPU, weights, or the doctrine wrapper.
 _SOVEREIGN_HZ_CACHE: dict = {}
+_SOVEREIGN_HZ_LOCK = _hz_threading.Lock()
 
 
 def _sovereign_health_signal(ttl: float = 30.0) -> dict:
-    now = _hz_time.time()
-    ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
-    if ca is not None and (now - ca) < ttl:
-        return _SOVEREIGN_HZ_CACHE.get("value", {})
-    try:
-        import szl_sovereign_panel as _szl_sov_hz
-        val = _szl_sov_hz.rollup_signal()
-    except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
-        val = {"reachable": False, "model": "szl-sovereign-local",
-               "label": "UNAVAILABLE", "error": type(exc).__name__}
-    _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
-    return val
+    # One refresh for this cache key, including the fail-closed error result.
+    with _SOVEREIGN_HZ_LOCK:
+        now = _hz_time.time()
+        ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
+        if ca is not None and (now - ca) < ttl:
+            return _SOVEREIGN_HZ_CACHE.get("value", {})
+        try:
+            import szl_sovereign_panel as _szl_sov_hz
+            val = _szl_sov_hz.rollup_signal()
+        except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
+            val = {"reachable": False, "model": "szl-sovereign-local",
+                   "label": "UNAVAILABLE", "error": type(exc).__name__}
+        _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
+        return val
 
 
 # Wave O / Dev 5: compact Brain rollup for /healthz. Reads the Brain command layer
@@ -5614,6 +5655,7 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
 
 @app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
+    from starlette.concurrency import run_in_threadpool
     from szl_brain import mcp_inventory_snapshot
     _mcp_inventory = mcp_inventory_snapshot("a11oy")
     # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
@@ -5623,8 +5665,9 @@ async def healthz() -> JSONResponse:
     _ca = dep.get("checked_at")
     _storage = _ledger_storage_signal()
     _signer = _signer_availability_signal()
-    _frontier = _frontier_liveness_signal()
-    _sovereign = _sovereign_health_signal()
+    # These cached rollups may perform bounded synchronous probes on a miss.
+    _frontier = await run_in_threadpool(_frontier_liveness_signal)
+    _sovereign = await run_in_threadpool(_sovereign_health_signal)
     _brain = _brain_health_signal()
     _preflight = _preflight_signal()
     # Source/image identity is diagnostic evidence, never an attestation.  The
@@ -5803,7 +5846,8 @@ async def preflight_status() -> JSONResponse:
 
 
 @app.api_route("/api/a11oy/readyz", methods=["GET", "HEAD"])
-async def readyz() -> JSONResponse:
+def readyz() -> JSONResponse:
+    # Synchronous lung probes run in FastAPI's worker pool, not the ASGI loop.
     # Keep service readiness separate from optional capability readiness. A public
     # CPU-only surface may serve in a truthful degraded state, while a deployment
     # that declares the operator required must fail closed. A reachable lung with
@@ -10912,12 +10956,10 @@ async def _stop_a11oy_signing_state():
 
 # KHIPU FLEET CONTRACT (platform readiness-reliability executor): the fleet
 # probes {base}/healthz, {base}/khipu/sign, {base}/khipu/verify, {base}/metrics.
-# The estate signing surfaces live at /api/a11oy/v1/* — these ROOT routes are
-# the fleet-contract aliases and perform the REAL sign/verify work with the
-# loaded production key on every request (the same backend as the capability
-# self-test; no stub, no fabricated 200). Fail-closed: key not loaded or
-# fingerprint-mismatched -> HTTP 503 with the honest reason, so the readiness
-# receipt records a real fault instead of a fake green.
+# Fleet GET/HEAD probes project lifecycle-owned signing evidence without
+# signing or refreshing it. They require fresh, boot-bound and key-matched
+# capability evidence; missing or expired evidence returns HTTP 503.
+# Actual receipt signing and verification remain on their existing POST paths.
 def _khipu_fleet_signer_ready() -> tuple[object, str | None]:
     """(private key, verification fingerprint) when the loaded signer is real."""
     if _A11OY_PRIV is None or not _A11OY_PUB_PEM:
@@ -10949,7 +10991,29 @@ def _khipu_fleet_receipt(verification: str) -> dict:
     }
 
 
-@app.api_route("/khipu/sign", methods=["GET", "POST"])
+def _khipu_fleet_signing_observation(operation: str) -> JSONResponse:
+    from szl_signing_state import read_state
+
+    state = read_state(app)
+    ready = state["signing_ready"] is True
+    return JSONResponse({
+        "schema": f"szl.khipu-fleet-{operation}/v1",
+        "status": "READY" if ready else "UNAVAILABLE",
+        "scope": "PROCESS_LOCAL_SIGNING_CAPABILITY",
+        "receipt_minted": False,
+        "sign_on_read": False,
+        "receipt_verification": "NOT_EVALUATED",
+        "operation_method": "POST",
+        "signing_state": state,
+    }, status_code=200 if ready else 503, headers={"Cache-Control": "no-store"})
+
+
+@app.api_route("/khipu/sign", methods=["GET", "HEAD"])
+async def khipu_fleet_sign_status() -> JSONResponse:
+    return _khipu_fleet_signing_observation("sign")
+
+
+@app.post("/khipu/sign")
 async def khipu_fleet_sign() -> JSONResponse:
     priv, verification = _khipu_fleet_signer_ready()
     if priv is None:
@@ -10973,7 +11037,12 @@ async def khipu_fleet_sign() -> JSONResponse:
                          "verified": True})
 
 
-@app.api_route("/khipu/verify", methods=["GET", "POST"])
+@app.api_route("/khipu/verify", methods=["GET", "HEAD"])
+async def khipu_fleet_verify_status() -> JSONResponse:
+    return _khipu_fleet_signing_observation("verify")
+
+
+@app.post("/khipu/verify")
 async def khipu_fleet_verify(request: "Request" = None) -> JSONResponse:
     priv, verification = _khipu_fleet_signer_ready()
     if priv is None:

@@ -7,6 +7,7 @@ import {
   extractModelText,
   handleRequest,
   normalizeInferenceRequest,
+  observeSecondBrain,
   sanitizeModelOutput,
   sha256Hex,
   verifyDoctrine,
@@ -114,6 +115,228 @@ test("model response extraction supports chat and strips reasoning blocks", () =
     sanitizeModelOutput("<think>secret reasoning</think>\nFinal [E0]"),
     "Final [E0]",
   );
+});
+
+// Keep this corpus aligned with test_a11oy_governed_cortex.py.
+for (const [name, raw, expected] of [
+  [
+    "plain answer",
+    "Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "balanced think",
+    "<think>private-a</think>\nFinal [E0]",
+    "Final [E0]"
+  ],
+  [
+    "balanced analysis",
+    "<analysis>private-a</analysis>Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "balanced analysis fence",
+    "```analysis\nprivate-a\n```\nFinal [E0]",
+    "Final [E0]"
+  ],
+  [
+    "mixed case",
+    "<ThInK>private-a</ThInK><ANALYSIS>private-b</ANALYSIS>Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "nested same tags",
+    "<think>private-a<think>private-b</think>private-c</think>Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "nested mixed tags",
+    "<think>private-a<analysis>private-b</analysis>private-c</think>Final [E0]",
+    "Final [E0]"
+  ],
+  [
+    "multiple blocks",
+    "First <think>private-a</think> last [E0]<analysis>private-b</analysis>",
+    "First  last [E0]"
+  ],
+  [
+    "ordinary code fence",
+    "```python\nprint('ok')\n```",
+    "```python\nprint('ok')\n```"
+  ],
+  [
+    "unrelated tag names",
+    "<thinker>display</thinker> <analysis_result>result</analysis_result>",
+    "<thinker>display</thinker> <analysis_result>result</analysis_result>"
+  ],
+  [
+    "unrelated fence language",
+    "```analysis_json\n{}\n```",
+    "```analysis_json\n{}\n```"
+  ],
+  [
+    "XML text inside analysis fence",
+    "```analysis\n<think>private-a\n```\nFinal [E0]",
+    "Final [E0]"
+  ],
+  [
+    "analysis fence inside think",
+    "<think>private-a\n```analysis\nprivate-b\n```\nprivate-c</think>Final [E0]",
+    "Final [E0]"
+  ]
+]) {
+  test(`reasoning boundary preserves safe output: ${name}`, () => {
+    assert.equal(sanitizeModelOutput(raw), expected);
+  });
+}
+
+for (const [name, raw] of [
+  [
+    "orphan think close",
+    "private-a</think>Final [E0]"
+  ],
+  [
+    "orphan analysis close",
+    "private-a</analysis>Final [E0]"
+  ],
+  [
+    "unclosed think",
+    "<think>private-a"
+  ],
+  [
+    "unclosed analysis",
+    "Final [E0]<analysis>private-a"
+  ],
+  [
+    "truncated opening marker",
+    "Final [E0]<think"
+  ],
+  [
+    "truncated closing marker",
+    "private-a</think"
+  ],
+  [
+    "unsupported tag attributes",
+    "<think role=\"private\">private-a</think>Final [E0]"
+  ],
+  [
+    "unsupported tag whitespace",
+    "< think >private-a</think>Final [E0]"
+  ],
+  [
+    "unsupported fence whitespace",
+    "``` analysis\nprivate-a\n```Final [E0]"
+  ],
+  [
+    "unclosed analysis fence",
+    "```analysis\nprivate-a"
+  ],
+  [
+    "unclosed outer same tag",
+    "<think>private-a<think>private-b</think>private-c"
+  ],
+  [
+    "crossed tags",
+    "<think>private-a<analysis>private-b</think>private-c</analysis>Final [E0]"
+  ],
+  [
+    "reverse crossed tags",
+    "<analysis>private-a<think>private-b</analysis>private-c</think>Final [E0]"
+  ],
+  [
+    "nested analysis fences",
+    "```analysis\nprivate-a```analysis\nprivate-b```\nFinal [E0]"
+  ],
+  [
+    "extra closing tag",
+    "<think>private-a</think>private-b</think>Final [E0]"
+  ],
+  [
+    "code opener inside analysis fence",
+    "```analysis\nprivate-a\n```python\nprivate-b\n```"
+  ],
+  [
+    "inline backticks inside analysis fence",
+    "```analysis\nprivate-a ``` private-b\n```"
+  ],
+  [
+    "longer delimiter inside analysis fence",
+    "```analysis\nprivate-a\n````analysis\nprivate-b\n```"
+  ],
+  [
+    "inline closing analysis fence",
+    "```analysis\nprivate-a```Final [E0]"
+  ]
+]) {
+  test(`reasoning boundary rejects malformed output: ${name}`, () => {
+    assert.throws(
+      () => sanitizeModelOutput(raw),
+      /model_reasoning_boundary_invalid/,
+    );
+  });
+}
+
+test("reasoning boundary checks the entire output before truncation", () => {
+  assert.equal(sanitizeModelOutput("x".repeat(24_001)).length, 24_000);
+  const ordinaryText = "<" + " ".repeat(16_000) + "x";
+  assert.equal(sanitizeModelOutput(ordinaryText), ordinaryText);
+  assert.throws(
+    () => sanitizeModelOutput("x".repeat(24_001) + "</think>"),
+    /model_reasoning_boundary_invalid/,
+  );
+  for (const raw of [" ", "<think>private-a</think>", "```analysis\nprivate-a\n```"]) {
+    assert.throws(() => sanitizeModelOutput(raw), /empty_model_output/);
+  }
+});
+
+test("malformed candidate output fails closed without a receipt or response text", async () => {
+  const response = await handleRequest(
+    request("/api/v2/governed-infer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "Bounded request", effort: "fast" }),
+    }),
+    {
+      SZL_SOURCE_REVISION: REVISION,
+      AI: { run: async () => ({ response: "private-marker</think>Final [E0]" }) },
+    },
+    evidenceFetch,
+  );
+  assert.equal(response.status, 502);
+  const body = await response.json();
+  assert.equal(body.error, "all_model_candidates_failed");
+  assert.equal(body.authority_state, "NO_ACTION_AUTHORITY");
+  assert.equal(body.executed, false);
+  assert.equal(body.receipt, undefined);
+  assert.equal(JSON.stringify(body).includes("private-marker"), false);
+});
+
+test("malformed candidate output can fall back to a clean candidate", async () => {
+  let calls = 0;
+  const response = await handleRequest(
+    request("/api/v2/governed-infer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "Bounded request", effort: "fast" }),
+    }),
+    {
+      SZL_SOURCE_REVISION: REVISION,
+      AI: {
+        run: async () => ({
+          response: ++calls === 1
+            ? "private-marker</think>Final [E0]"
+            : "Clean final [E0]",
+        }),
+      },
+    },
+    evidenceFetch,
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(calls, 2);
+  assert.equal(body.model.fallback_count, 1);
+  assert.equal(body.output, "Clean final [E0]");
+  assert.equal(JSON.stringify(body).includes("private-marker"), false);
 });
 
 test("contract keeps external runtime, owned artifact, and action authority distinct", () => {
@@ -355,4 +578,244 @@ test("Anatomy last endpoint refuses to fabricate durable observation", async () 
     persistence: "NONE",
     last: null,
   });
+});
+
+const COMPOUND_BRAIN = {
+  schema: "szl.khipu.compound-second-brain.v1",
+  state: "UNAVAILABLE_MODEL_TAG_MISSING",
+  ready_for_grounded_navigation: false,
+  profile: {
+    profile_id: "BrainNavigator-v1",
+    expected_model: "khipu:latest",
+    served_model: null,
+    exact_tag_observed: false,
+    artifact_binding: "UNBOUND",
+  },
+  memory: {
+    built: true,
+    document_count: 55,
+    corpus_chunk_count: 484,
+    brain_handle_count: 9465,
+    integrity_state: "VERIFIED_AT_PUBLISH",
+    training_authority_rows: 0,
+  },
+};
+
+test("canonical Second Brain counts remain independent of missing model readiness", () => {
+  const observed = observeSecondBrain(COMPOUND_BRAIN);
+  assert.equal(observed.state, "UNAVAILABLE_MODEL_TAG_MISSING");
+  assert.equal(observed.ready_for_grounded_navigation, false);
+  assert.equal(observed.public_chunk_count, null);
+  assert.equal(observed.memory_observation.status, "OBSERVED_INDEX_METADATA");
+  assert.equal(observed.memory_observation.document_count, 55);
+  assert.equal(observed.memory_observation.corpus_chunk_count, 484);
+  assert.equal(observed.memory_observation.brain_handle_count, 9465);
+  assert.equal(observed.memory_observation.training_authority, "NONE");
+  assert.equal(observed.model_binding.expected_model, "khipu:latest");
+  assert.equal(observed.model_binding.served_model, null);
+  assert.equal(observed.model_binding.exact_tag_observed, false);
+  assert.equal(observed.content_access, "HANDLES_ONLY");
+});
+
+test("Second Brain metadata allowlist never forwards private graph or content", () => {
+  const secret = "PRIVATE_CONTENT_SENTINEL";
+  const observed = observeSecondBrain({
+    ...COMPOUND_BRAIN,
+    token: secret,
+    body: secret,
+    graph: { nodes: [secret] },
+    memory: {
+      ...COMPOUND_BRAIN.memory,
+      content: secret,
+      db_path: secret,
+      documents: [secret],
+      graph: [secret],
+      training_authority_rows: 500,
+    },
+    profile: { ...COMPOUND_BRAIN.profile, token: secret },
+  });
+  assert.equal(JSON.stringify(observed).includes(secret), false);
+  assert.equal(observed.memory_observation.training_authority, "NONE");
+  assert.equal(observed.memory_observation.raw_content_included, false);
+  assert.equal(observed.private_graph_present, false);
+});
+
+test("count validation rejects malformed data and preserves measured zero", () => {
+  for (const invalid of [true, "7", -1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    const observed = observeSecondBrain({
+      ...COMPOUND_BRAIN,
+      memory: {
+        ...COMPOUND_BRAIN.memory,
+        document_count: invalid,
+        corpus_chunk_count: invalid,
+        brain_handle_count: invalid,
+      },
+      public_chunk_count: invalid,
+    });
+    assert.equal(observed.memory_observation.document_count, null);
+    assert.equal(observed.memory_observation.corpus_chunk_count, null);
+    assert.equal(observed.memory_observation.brain_handle_count, null);
+    assert.equal(observed.public_chunk_count, null);
+  }
+  const zero = observeSecondBrain({
+    ...COMPOUND_BRAIN,
+    memory: { ...COMPOUND_BRAIN.memory, corpus_chunk_count: 0 },
+    public_chunk_count: 0,
+  });
+  assert.equal(zero.memory_observation.corpus_chunk_count, 0);
+  assert.equal(zero.public_chunk_count, 0);
+});
+
+test("unsupported or unbuilt memory cannot supply grounding or index evidence", () => {
+  const unknown = observeSecondBrain({
+    ...COMPOUND_BRAIN,
+    schema: "unrelated/private/v1",
+    ready_for_grounded_navigation: true,
+  });
+  assert.equal(unknown.state, "UNAVAILABLE_SCHEMA");
+  assert.equal(unknown.ready_for_grounded_navigation, false);
+  assert.equal(unknown.memory_observation.document_count, null);
+  assert.equal(unknown.model_binding.expected_model, null);
+  const unbuilt = observeSecondBrain({
+    ...COMPOUND_BRAIN,
+    memory: { ...COMPOUND_BRAIN.memory, built: false },
+  });
+  assert.equal(unbuilt.memory_observation.status, "UNAVAILABLE");
+  assert.equal(unbuilt.memory_observation.corpus_chunk_count, null);
+  assert.equal(observeSecondBrain(null).ready_for_grounded_navigation, false);
+  const legacy = observeSecondBrain({ ...BRAIN, corpus_n: 999 });
+  assert.equal(legacy.public_chunk_count, 0);
+  const ambiguousLegacy = observeSecondBrain({ ...BRAIN, public_chunk_count: undefined, corpus_n: 999 });
+  assert.equal(ambiguousLegacy.public_chunk_count, null);
+});
+
+test("contract publishes server input bounds and distinct identity semantics", () => {
+  const contract = buildContract(REVISION);
+  assert.equal(contract.input_limits.prompt_chars, 12000);
+  assert.equal(contract.input_limits.evidence_items, 8);
+  assert.deepEqual(contract.input_limits.max_new_tokens, { minimum: 16, default: 256, maximum: 768 });
+  assert.equal(contract.observability.attempt_id, "SERVER_GENERATED_UUID_PER_INFERENCE_POST");
+  assert.equal(contract.observability.attempt_id_in_receipt_digest, false);
+  assert.equal(contract.observability.durable_trace_storage, false);
+  assert.equal(contract.runtime.finetune.eval_status, "NOT_RUN");
+});
+
+test("identical requests get distinct attempt IDs without changing deterministic receipts", async () => {
+  const env = {
+    SZL_SOURCE_REVISION: REVISION,
+    AI: { run: async () => ({ response: "Bounded output [E0]." }) },
+  };
+  const make = () => request("/api/v2/governed-infer", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ prompt: "identical input", effort: "lora" }),
+  });
+  const firstResponse = await handleRequest(make(), env, evidenceFetch);
+  const secondResponse = await handleRequest(make(), env, evidenceFetch);
+  const first = await firstResponse.json();
+  const second = await secondResponse.json();
+  assert.equal(firstResponse.status, 200);
+  assert.match(first.attempt_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.notEqual(first.attempt_id, second.attempt_id);
+  assert.equal(firstResponse.headers.get("x-szl-attempt-id"), first.attempt_id);
+  assert.equal(first.anatomy_observation.event.attempt_id, first.attempt_id);
+  assert.equal(second.anatomy_observation.event.attempt_id, second.attempt_id);
+  assert.equal(first.request_id, second.request_id);
+  assert.equal(first.receipt.receipt_sha256, second.receipt.receipt_sha256);
+  assert.equal("attempt_id" in first.receipt.payload, false);
+  assert.equal(first.receipt.signature.status, "UNSIGNED_EDGE");
+});
+
+test("failed inference attempts have identity but never call the model", async () => {
+  let calls = 0;
+  const response = await handleRequest(request("/api/v2/governed-infer", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ prompt: "hello", attempt_id: "client-spoofed" }),
+  }), {
+    SZL_SOURCE_REVISION: REVISION,
+    AI: { run: async () => { calls += 1; return {}; } },
+  }, evidenceFetch);
+  const body = await response.json();
+  assert.equal(response.status, 400);
+  assert.equal(body.error, "unsupported_input_field");
+  assert.notEqual(body.attempt_id, "client-spoofed");
+  assert.equal(response.headers.get("x-szl-attempt-id"), body.attempt_id);
+  assert.equal(body.executed, false);
+  assert.equal(calls, 0);
+});
+
+test("canonical nested metadata reaches health and bounded model evidence without contents", async () => {
+  let input;
+  const fetchCanonical = (url) => String(url).endsWith("/ayllu/second-brain")
+    ? Promise.resolve(Response.json(COMPOUND_BRAIN))
+    : evidenceFetch(url);
+  const env = {
+    SZL_SOURCE_REVISION: REVISION,
+    AI: { run: async (_model, options) => { input = options; return { response: "Index available; model unavailable [E1]." }; } },
+  };
+  const healthResponse = await handleRequest(request("/api/v2/governed-health"), env, fetchCanonical);
+  const healthBody = await healthResponse.json();
+  assert.equal(healthBody.second_brain.memory_observation.corpus_chunk_count, 484);
+  assert.equal(healthBody.second_brain.ready_for_grounded_navigation, false);
+  const response = await handleRequest(request("/api/v2/governed-infer", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ prompt: "Summarize the observed index." }),
+  }), env, fetchCanonical);
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.second_brain.memory_observation.brain_handle_count, 9465);
+  assert.match(input.messages[1].content, /corpus_chunk_count=484/);
+  assert.match(input.messages[1].content, /Counts do not grant content access/);
+  assert.equal(body.honesty.action_authority, false);
+  assert.equal(body.receipt.signature.status, "UNSIGNED_EDGE");
+});
+
+test("canonical readiness fails closed when index or exact model observation contradicts it", () => {
+  const ready = {
+    ...COMPOUND_BRAIN,
+    ready_for_grounded_navigation: true,
+    memory: { ...COMPOUND_BRAIN.memory, built: true },
+    profile: { ...COMPOUND_BRAIN.profile, exact_tag_observed: true },
+  };
+  assert.equal(observeSecondBrain(ready).state, "READY");
+  assert.equal(observeSecondBrain(ready).ready_for_grounded_navigation, true);
+  for (const inconsistent of [
+    { ...ready, memory: { ...ready.memory, built: false } },
+    { ...ready, memory: undefined },
+    { ...ready, profile: { ...ready.profile, exact_tag_observed: false } },
+    { ...ready, profile: undefined },
+    { ...ready, ready_for_grounded_navigation: false, state: "READY" },
+  ]) {
+    const observed = observeSecondBrain(inconsistent);
+    assert.equal(observed.state, "UNAVAILABLE_INCONSISTENT_READINESS");
+    assert.equal(observed.ready_for_grounded_navigation, false);
+  }
+  const legacy = observeSecondBrain({
+    schema: "szl.khipu-second-brain-runtime/v1",
+    ready_for_grounded_navigation: true,
+  });
+  assert.equal(legacy.state, "READY");
+});
+
+test("each model receives its documented token-bound field and no unsupported alias", async () => {
+  for (const effort of ["fast", "frontier", "lora"]) {
+    for (const maxNewTokens of [16, 128, 768]) {
+      let observed;
+      const response = await handleRequest(request("/api/v2/governed-infer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: "Bounded proposal", effort, max_new_tokens: maxNewTokens }),
+      }), {
+        SZL_SOURCE_REVISION: REVISION,
+        AI: { run: async (_model, options) => { observed = options; return { response: "Proposal [E0]." }; } },
+      }, evidenceFetch);
+      assert.equal(response.status, 200);
+      const expected = effort === "lora" ? "max_tokens" : "max_completion_tokens";
+      const unsupported = effort === "lora" ? "max_completion_tokens" : "max_tokens";
+      assert.equal(observed[expected], maxNewTokens);
+      assert.equal(unsupported in observed, false);
+      assert.equal(observed.raw, undefined);
+    }
+  }
 });

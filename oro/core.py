@@ -9,6 +9,7 @@ stopping mechanism implemented here.
 from __future__ import annotations
 
 import base64
+import binascii
 import copy
 import hashlib
 import json
@@ -111,6 +112,32 @@ def _sha256(name: str, value: Any) -> str:
     except ValueError as exc:
         raise OROContractError(f"{name} is not hexadecimal") from exc
     return text.lower()
+
+
+def barrier_content_hash(orbit_id: str, participants: Sequence[Mapping[str, Any]]) -> str:
+    """Hash content identity, not delivery chronology or barrier generation.
+
+    Payload-owned observation times remain inside arrival_digest. The transport
+    received_at remains available to TTL/invariant checks and durable arrivals.
+    """
+    orbit_id = _nonempty("orbit_id", orbit_id)
+    if not isinstance(participants, (list, tuple)) or not participants:
+        raise OROContractError("barrier content requires participant pointers")
+    pointers = []
+    for item in participants:
+        if not isinstance(item, Mapping) or set(item) != {"participant_id", "arrival_digest"}:
+            raise OROContractError("barrier content pointer is malformed")
+        pointers.append({
+            "participant_id": _nonempty("participant_id", item["participant_id"]),
+            "arrival_digest": _sha256("arrival_digest", item["arrival_digest"]),
+        })
+    if len({item["participant_id"] for item in pointers}) != len(pointers):
+        raise OROContractError("barrier content participant IDs must be unique")
+    return semantic_hash({
+        "schema": "szl.oro-barrier-content/v1",
+        "orbit_id": orbit_id,
+        "participants": sorted(pointers, key=lambda item: item["participant_id"]),
+    })
 
 
 @dataclass(frozen=True)
@@ -413,6 +440,22 @@ class Arrival:
         )
 
 
+def _decode_signer_base64(value: Any) -> bytes:
+    """Decode either DSSE alphabet without ignoring invalid bytes or padding."""
+    if not isinstance(value, str):
+        raise OROStateError("governed signer returned invalid DSSE encoding")
+    try:
+        decoded = base64.b64decode(value, altchars=b"-_", validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise OROStateError("governed signer returned invalid DSSE encoding") from exc
+    if value not in (
+        base64.b64encode(decoded).decode("ascii"),
+        base64.urlsafe_b64encode(decoded).decode("ascii"),
+    ):
+        raise OROStateError("governed signer returned invalid DSSE encoding")
+    return decoded
+
+
 class ReceiptSigner(Protocol):
     @property
     def identity(self) -> Mapping[str, Any]: ...
@@ -566,7 +609,10 @@ class BarrierEngine:
                 for arrival in unique
             ],
         }
-        digest = semantic_hash(merged_payload)
+        digest = barrier_content_hash(orbit_id, [
+            {"participant_id": arrival.participant_id, "arrival_digest": arrival.digest}
+            for arrival in unique
+        ])
         if seen_semantic_hash(digest):
             invariant_results: tuple[Mapping[str, Any], ...] = ()
             decision = "REFUSE"
@@ -628,8 +674,22 @@ class BarrierEngine:
             }
         else:
             envelope = self._signer.sign(DSSE_PAYLOAD_TYPE, payload)
-            if not isinstance(envelope, Mapping) or not envelope.get("signatures"):
+            if not isinstance(envelope, Mapping):
+                raise OROStateError("governed signer returned invalid DSSE envelope")
+            if envelope.get("payloadType") != DSSE_PAYLOAD_TYPE:
+                raise OROStateError("governed signer returned a different DSSE payload type")
+            if _decode_signer_base64(envelope.get("payload")) != payload:
+                raise OROStateError("governed signer returned different DSSE receipt bytes")
+            signatures = envelope.get("signatures")
+            if not isinstance(signatures, list) or not signatures:
                 raise OROStateError("governed signer returned no DSSE signature")
+            for signature in signatures:
+                if not isinstance(signature, Mapping) or (
+                    "keyid" in signature and not isinstance(signature["keyid"], str)
+                ):
+                    raise OROStateError("governed signer returned invalid DSSE signature")
+                if not _decode_signer_base64(signature.get("sig")):
+                    raise OROStateError("governed signer returned an empty DSSE signature")
         return BarrierDecision(
             barrier_id=barrier_id,
             orbit_id=orbit_id,
