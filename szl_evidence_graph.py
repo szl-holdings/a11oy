@@ -506,4 +506,30 @@ def register(
             )
         return JSONResponse(projected, headers={"Cache-Control": "no-store"})
 
+    @app.get(base + "/discovery")
+    async def evidence_discovery(
+        limit: int = Query(_MAX_EDGES, ge=1, le=_MAX_EDGES),
+    ) -> JSONResponse:
+        # Do not quietly plan over missing, invalid or truncated evidence.
+        current = current_snapshot(limit)
+        if current["receipt_bundle"]["state"] != "OBSERVED":
+            return JSONResponse(
+                {"state": "UNAVAILABLE", "reason": "RECEIPT_BUNDLE_UNAVAILABLE"},
+                status_code=503, headers={"Cache-Control": "no-store"},
+            )
+        try:
+            from szl_evidence_discovery import discovery_gaps
+            brief = discovery_gaps(current["graph"])
+        except (ImportError, ValueError, TypeError):
+            return JSONResponse(
+                {"state": "UNAVAILABLE", "reason": "DISCOVERY_PROJECTION_INVALID"},
+                status_code=503, headers={"Cache-Control": "no-store"},
+            )
+        return JSONResponse(
+            {**brief, "runtime_identity_state": current["runtime_identity_state"],
+             "receipt_bundle_state": current["receipt_bundle"]["state"]},
+            status_code=503 if brief["state"] == "UNAVAILABLE" else 200,
+            headers={"Cache-Control": "no-store"},
+        )
+
     return base + "/graph", base + "/query"
