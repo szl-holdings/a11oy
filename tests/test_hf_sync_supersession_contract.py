@@ -642,7 +642,7 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
                      "Re-admit current protected main immediately before deploy"):
             self.assertIn(opened, step_block(job, name), name)
 
-    def test_deploy_window_is_closed_by_default_until_durable_storage(self) -> None:
+    def test_deploy_window_requires_paused_manual_or_clean_fenced_storage(self) -> None:
         job = job_block(self.workflow, "Classify the canonical runtime and converge configuration before deploy")
         window = step_block(job, "Require an open deploy window while SQLite lives on the bucket mount")
         self.assertIn("id: window", window)
@@ -651,6 +651,11 @@ class HFSyncSupersessionContractTests(unittest.TestCase):
         # Closed window may skip only when live build-info equals protected main.
         self.assertIn("echo 'open=false' >> \"$GITHUB_OUTPUT\"", window)
         self.assertIn("PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED", window)
+        self.assertIn("await_hf_configuration_handover.py capture", window)
+        self.assertIn("admit_hf_fenced_runtime.py", window)
+        self.assertLess(window.index("await_hf_configuration_handover.py capture"),
+                        window.index("admit_hf_fenced_runtime.py"))
+        self.assertIn('--expected-live-sha "$live"', window)
         self.assertIn("::error::", window)
         self.assertIn("/api/build-info", window)
         dispatch = workflow_document(self.workflow)["on"]["workflow_dispatch"]["inputs"]
