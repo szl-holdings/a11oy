@@ -1,0 +1,4 @@
+# Dedicated Linux CPython 3.12 x86_64 scientific test wheel.
+# SHA-256 obtained from the public PyPI 2.5.2 JSON distribution metadata.
+--only-binary=:all:
+numpy==2.5.2 --hash=sha256:3cdec01fa790a186d430433fdd4d4ffb70eed6f0eeb4bf05c8dbe2dce0a9bcb8
