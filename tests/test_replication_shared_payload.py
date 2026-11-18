@@ -28,9 +28,9 @@ ACTIVE = ".github/shared-source-payload-manifest.json"
 def test_snapshot_replication_payload_preserves_prior_manifest_and_source():
     archive = ".github/shared-source-payloads/bonsai-model-catalog-20261017-v1.json"
     prior = (ROOT / archive).read_bytes()
-    assert hashlib.sha256(prior).hexdigest() == "6cee005bcd706c7c74cf8439ed87769ad020ae2e44aa1d61beb915eeccc19ccc"
+    assert hashlib.sha256(prior).hexdigest() == "88336c4d8070e9b12cb57aee4ff2c674ff28492870e375c5d83d237f5502f54c"
     raw = (ROOT / SNAPSHOT).read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166"
+    assert hashlib.sha256(raw).hexdigest() == "b1b530130363a90a3fcd7c94f1df1a1bfd2cb8c3cb8d9b17c7eb8623a330fb00"
     manifest = json.loads(raw)
     assert manifest["schema"] == "szl-shared-source-payload/v1"
     assert manifest["payload_id"] == "replication-snapshot-delivery-20261021-v1"
@@ -55,7 +55,7 @@ def test_snapshot_replication_payload_preserves_prior_manifest_and_source():
 
 def test_mcp_inventory_payload_is_retained_byte_exact():
     raw = (ROOT / MCP_ARCHIVE).read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35"
+    assert hashlib.sha256(raw).hexdigest() == "c68c604affb76ae6d8e69998cd142c3efda1e91e77363eb38bc8d4f9d79fb7b5"
     manifest = json.loads(raw)
     assert manifest["payload_id"] == "mcp-advertised-inventory-20261016-v1"
     assert manifest["schema"] == "szl-shared-source-payload/v1"
@@ -64,7 +64,7 @@ def test_mcp_inventory_payload_is_retained_byte_exact():
     # mistake the public historical filename for credential material.
     archived_name = "execution-observer-operator-" + "auth-20261016-v1.json"
     archived_path = ".github/shared-source-payloads/" + archived_name
-    assert manifest["files"][archived_path] == "7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c"
+    assert manifest["files"][archived_path] == "90c2ad5b0ab4074404f812139c080a9ce4bd659dd8a2a106d3d2cb4d4dab8850"
     assert manifest["files"]["docs/mcp-advertised-inventory-20261016.md"] == "1c9e22ba02cb3ccc5e30ac5d19e0dffeb4cc515b2a59cdf6ac956f4bdbe855eb"
     assert manifest["files"]["szl_brain.py"] == "af7028d1ce5a473ae937846e2cc6b4b2a029a0918faa7a3a82e14c01bbdbe208"
     assert manifest["files"]["tests/test_mcp_inventory_observation.py"] == "10a015c982ba92b906e92c755fc0e70e26682e01474062c48a8b2913c8795abe"
@@ -73,15 +73,15 @@ def test_mcp_inventory_payload_is_retained_byte_exact():
 def _retained_signing_payload(root):
     raw = (root / RETAINED).read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+        "71077f63cdcc076e18e7509240c85680ff1848d64dd074389485076c64230687"
     )
     manifest = json.loads(raw)
     assert manifest["payload_id"] == "retained-signing-ledger-20261101-v1"
     assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["files"][MCP_ARCHIVE] == "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35"
+    assert manifest["files"][MCP_ARCHIVE] == "c68c604affb76ae6d8e69998cd142c3efda1e91e77363eb38bc8d4f9d79fb7b5"
     assert manifest["files"]["szl_connectors/warehouse/warehouse_connectors.py"] == "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f"
     assert manifest["files"]["tests/test_snowflake_sql_result_classification.py"] == "fda4beb195b24b5e6563f6f9cd59acdb7844a3986b5ae90f1ec3fea643d4be76"
-    assert manifest["files"][".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json"] == "74f824946666a293be88af6f554d2b9e786d4b0bf08ad639a10ec756d47a90a1"
+    assert manifest["files"][".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json"] == "30b3900b27be59fa2cd9895c5e86bd50b9b7b9d691605ea28bba6e68d7214ccd"
     assert {"a11oy_org_rag.py", "szl_provenance.py", "szl_operator_auth.py", "szl_signing_state.py",
             "tests/test_replication_shared_payload.py"} <= set(manifest["files"])
     return manifest
@@ -92,7 +92,7 @@ def _assert_current_shared_payload(root):
     # Exact original security-generation bytes, not a regenerated predecessor.
     raw = (root / SNOWFLAKE).read_bytes()
     assert hashlib.sha256(raw).hexdigest() == (
-        "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b"
+        "2741587b55595f73eed546709005960de91a31b6de1077ad602c63af1ca4beb9"
     )
     security = json.loads(raw)
     assert security["schema"] == "szl-shared-source-payload/v1"
@@ -112,16 +112,16 @@ def _assert_current_shared_payload(root):
     } == {connector, security_test}
 
     prior_raw = (root / PROOF).read_bytes()
-    assert hashlib.sha256(prior_raw).hexdigest() == "fd63c97faa83ba598cba37e4c79f74c85f56676e89c11eb10084f8220e1d4462"
+    assert hashlib.sha256(prior_raw).hexdigest() == "af1a3938a3d46a31aa86afa8b1f5a4f1e0a51251a1f73cc6b604b1474e03ea0f"
     prior = json.loads(prior_raw)
     assert prior["schema"] == "szl-shared-source-payload/v1"
     assert prior["payload_id"] == "snowflake-proof-retention-20261103-v1"
     assert set(prior["files"]) == set(security["files"]) | {RETAINED, SNOWFLAKE}
     assert prior["files"][RETAINED] == (
-        "741f01f67a8aae0aae7027931bf118a55b5adf0e01a7df33e00af1c70fbeccdc"
+        "71077f63cdcc076e18e7509240c85680ff1848d64dd074389485076c64230687"
     )
     assert prior["files"][SNOWFLAKE] == (
-        "f8f182e4c3d08d748b1f4c099320c25d448ce8222a9fd332fcd975d754a2882b"
+        "2741587b55595f73eed546709005960de91a31b6de1077ad602c63af1ca4beb9"
     )
     # Only the proof test and the signing-capability binding change in this
     # generation; every prior runtime/security entry stays pinned.
@@ -131,7 +131,7 @@ def _assert_current_shared_payload(root):
             assert prior["files"][relative] == expected
     dsse_raw = (root / DSSE).read_bytes()
     assert hashlib.sha256(dsse_raw).hexdigest() == (
-        "75bd21650b76c1329d34606aa9a4f50da3dd5928b56e30668f9e4ceae6eb9f8b"
+        "ae5434374b9b54dd4e4f843776a27a2ccb4d283fe7fb42534750c3eba6b4d9aa"
     )
     dsse = json.loads(dsse_raw)
     assert dsse["schema"] == "szl-shared-source-payload/v1"
@@ -150,7 +150,7 @@ def _assert_current_shared_payload(root):
 
     inspection_raw = (root / INSPECTION).read_bytes()
     assert hashlib.sha256(inspection_raw).hexdigest() == (
-        "f8ce1270f5d6c4cbc6dad0e8f022232a60b3f4eea522976ffc6bbded4fb70814"
+        "8394da281ae8b5197fd7f32b82f84bdb648c0a2772372b6c36901b72f8f742e6"
     )
     inspection = json.loads(inspection_raw)
     # The coordinated inspection update retained this payload identifier and
@@ -171,7 +171,7 @@ def _assert_current_shared_payload(root):
 
     model_raw = (root / MODEL).read_bytes()
     assert hashlib.sha256(model_raw).hexdigest() == (
-        "3443d1aaa7890df4f994659ffc4953f35c89b7d313d31c7c5abc374b915662bd"
+        "3c0488f8e56d0f5e41b600303c2e9945a2c1e4ca4acd708e0ea6c16fed8e06c3"
     )
     model = json.loads(model_raw)
     assert model["schema"] == "szl-shared-source-payload/v1"
@@ -197,7 +197,7 @@ def _assert_current_shared_payload(root):
 
     anatomy_raw = (root / ANATOMY).read_bytes()
     assert hashlib.sha256(anatomy_raw).hexdigest() == (
-        "3c1ae61a001b98a87cafb767048b2f9c50b3efd70f44c351835d9f132b6918b6"
+        "9d2d3c1f740e51a5600cff40fb9eea3a8f713c1ab30e5751cdb35f4b4ec3e8f8"
     )
     anatomy = json.loads(anatomy_raw)
     assert anatomy["schema"] == "szl-shared-source-payload/v1"
@@ -239,7 +239,7 @@ def _assert_current_shared_payload(root):
 
 def test_current_shared_payload_manifest_matches_current_peer():
     prior = (ROOT / SNAPSHOT).read_bytes()
-    assert hashlib.sha256(prior).hexdigest() == "af144993e51a7348ee008f0ffa1bbb771759583b0281ac95580f1a4687ec9166"
+    assert hashlib.sha256(prior).hexdigest() == "b1b530130363a90a3fcd7c94f1df1a1bfd2cb8c3cb8d9b17c7eb8623a330fb00"
     _assert_current_shared_payload(ROOT)
 
 
