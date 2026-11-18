@@ -69,10 +69,15 @@ for _p in (os.getcwd(), _REPO_ROOT):
 # DECLARED = asserted/stated by the operator, NOT measured and NOT proven; never upgraded to
 # MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). It stays outside
 # _BANNED_LABELS, so a surface still cannot use it to dress up a measurement as a green claim.
+# UNKNOWN is listed in the public-estate contract truthVocabulary
+# (static/shared/public-estate-contract.v1.json): evidence exists but is unverified, so it never
+# upgrades a claim. The catalog can now resolve it, so this independent copy must recognise it,
+# but only as an entire label value: it is an ordinary English word, so "risk unknown" inside
+# free text is not an honest label.
 HONEST_VOCAB = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
     "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
-    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNKNOWN", "UNAVAILABLE",
 )
 NATIVE = "a11oy-native"
 CATALOG_PATH = "/api/a11oy/v1/frontier-index/catalog"
@@ -149,11 +154,15 @@ def independent_label(payload) -> str | None:
         up = text.upper()
         best_pos, best_tok = None, None
         for tok in HONEST_VOCAB:
+            if tok == "UNKNOWN":
+                continue
             i = up.find(tok)
             if i >= 0 and (best_pos is None or i < best_pos):
                 best_pos, best_tok = i, tok
         if best_tok:
             return best_tok
+        if up.strip() == "UNKNOWN":
+            return "UNKNOWN"
     return None
 
 
@@ -379,6 +388,8 @@ def _selftest() -> int:
         "/toy/measured": {"label": "MEASURED"},
         "/toy/live": {"label": "LIVE"},
         "/toy/sample": {"label": "SAMPLE"},
+        "/toy/unknown": {"label": "UNKNOWN", "operational": False},
+        "/toy/risk-unknown": {"label": "PRODUCTION-GRADE, risk unknown"},
     }
 
     def toy_probe(ep):
@@ -448,6 +459,9 @@ def _selftest() -> int:
         (6, "LIVE", "/toy/live", False),
         (7, "LIVE", "/toy/sample", True),
         (8, "SAMPLE", "/toy/live", True),
+        # Contract UNKNOWN (reachable, unverified) is honest; claiming more is drift.
+        (9, "UNKNOWN", "/toy/unknown", False),
+        (10, "MEASURED", "/toy/unknown", True),
     ):
         vio = find_violations(catalog_with(claim, endpoint), toy_probe)
         accepted = any("DRIFT" in item for item in vio) if expected_drift else not vio
@@ -457,10 +471,18 @@ def _selftest() -> int:
             print(f"  [{number}] FAIL: exact label contract changed: {vio}")
             failures += 1
 
+    # 11) the word "unknown" inside free text is not the UNKNOWN label -> MUST flag
+    vio = find_violations(catalog_with("UNKNOWN", "/toy/risk-unknown"), toy_probe)
+    if any("NO honest label" in x for x in vio):
+        print("  [11] free-text 'risk unknown' is not the UNKNOWN label, REJECTED  OK")
+    else:
+        print(f"  [11] FAIL: free-text 'unknown' accepted as the UNKNOWN label: {vio}")
+        failures += 1
+
     if failures:
         print(f"\nSELFTEST FAILED: {failures} negative-control case(s) not caught")
         return 1
-    print("\nselftest ok: the honesty checker passed all 8 positive/negative controls")
+    print("\nselftest ok: the honesty checker passed all 11 positive/negative controls")
     return 0
 
 
