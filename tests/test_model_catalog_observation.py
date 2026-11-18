@@ -225,15 +225,28 @@ def test_authenticated_catalog_refuses_redirect_without_contacting_destination(p
     def request_once(_target, **kwargs):
         requested.append(kwargs)
         response = SimpleNamespace(
-            status=302, getheader=lambda _name: "https://other-provider.invalid/models")
+            status=302, getheader=lambda _name: "https://other-provider.invalid/models",
+            close=lambda: None)
         connection = SimpleNamespace(close=lambda: closed.append(True))
+        # The real _request_once hands over every connection with its deadline
+        # guard attached; without one, http_json never reaches the redirect check.
+        connection._szl_deadline_guard = provider_http._SocketDeadline(
+            None, kwargs["deadline"])
         return response, connection, None
 
-    monkeypatch.setattr(provider_http, "http_json", REAL_HTTP_JSON)
+    reasons = []
+
+    def observed_http_json(*args, **kwargs):
+        result = REAL_HTTP_JSON(*args, **kwargs)
+        reasons.append(result[1])
+        return result
+
+    monkeypatch.setattr(provider_http, "http_json", observed_http_json)
     monkeypatch.setattr(provider_http, "_validate_target", validate)
     monkeypatch.setattr(provider_http, "_request_once", request_once)
     attestation = orchestrator.attest_local_model("BrainNavigator-v1")
     assert attestation["state"] == "MODEL_CATALOG_UNAVAILABLE"
+    assert reasons == ["REDIRECT_LIMIT_EXCEEDED"]
     assert validated == [BASE + "/models"]
     assert len(requested) == len(closed) == 1
     assert requested[0]["headers"]["Authorization"] == provider["authorization"]
