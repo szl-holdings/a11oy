@@ -821,7 +821,7 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "7564daf369a12f1be3737bab4629acc83ac078def2c32a98e03cede3616aaa97"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "d19f07f7363e3424dc91b16b3e088265b822bbee6a3eca58251de2aac8415cb4"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "97e8984ca6c46878b548d7815c52ea5b3048a81d5639964cc9e9729815653d28"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
@@ -853,6 +853,8 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     # Read-only observation after each configuration batch, including deferred writes.
     ".github/scripts/await_hf_configuration_handover.py": "cc6e383934e2a681daf529690f9d14cad84bd4bc191e94fe428aea3ff4c739a1",
+    # Zero-write post-cutover release admission, bound to private HEAD and canonical store health.
+    ".github/scripts/admit_hf_fenced_runtime.py": "7936e60da45121f94c2c43f8d30aebcd238b6c31eaf9f571f7110aac0cd538e5",
     "scripts/configure_hf_series_a_runtime.py": "dc4d54b31beb794e62e66ec614bd46257353d0ecdf2645e7295655cb2d96f60c",
     "scripts/configure_hf_gdw_runtime.py": "43611e182618321ed70647afee9e017295a7fedc6d29446e5b209059abdc28f3",
     # Installed-authority verifier imported by both configure helpers, with
