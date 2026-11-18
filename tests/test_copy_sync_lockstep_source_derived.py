@@ -5,9 +5,9 @@ from __future__ import annotations
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 
 import importlib.util
+import hashlib
 import contextlib
 import io
-import json
 import pathlib
 import re
 import shlex
@@ -53,6 +53,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ".github/scripts/resume_hf_space.py",
             ".github/scripts/await_hf_runtime_serving.py",
             ".github/scripts/await_hf_configuration_handover.py",
+            ".github/scripts/admit_hf_fenced_runtime.py",
             "scripts/configure_hf_series_a_runtime.py",
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",
@@ -69,6 +70,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ".github/scripts/verify_canonical_a11oy.py",
             ".github/scripts/collect_execution_readiness.py",
             ".github/scripts/admit_execution_handoff.py",
+            "scripts/estate_repair_dispatch.py",
             ".github/scripts/materialize_execution_authority_pins.py",
             "szl_execution_readiness.py",
             "observer_adapters.py",
@@ -176,6 +178,18 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             inputs.setdefault("ownership_helper", self.ownership)
         inputs.setdefault("deploy_helpers", self.deploy_helpers)
         return CHECKER.has_source_derived_deploy_contract(workflow, **inputs)
+
+    def test_vertical_plan_policy_is_independently_pinned_with_handoff(self) -> None:
+        helper = "scripts/estate_repair_dispatch.py"
+        self.assertIn(helper, self.deploy_helpers)
+        self.assertIn(helper, CHECKER.REVIEWED_DEPLOY_HELPERS_SHA256)
+        digest = hashlib.sha256(self.deploy_helpers[helper].replace(b"\r\n", b"\n")).hexdigest()
+        self.assertEqual(digest, CHECKER.REVIEWED_DEPLOY_HELPERS_SHA256[helper])
+        changed = dict(self.deploy_helpers)
+        changed[helper] += b"\n# altered plan policy\n"
+        self.assertFalse(self.strict_contract(self.reviewed_workflow,
+                                             deploy_helpers=changed))
+        self.assertTrue(self.strict_contract(self.reviewed_workflow))
 
     def test_reviewed_workflow_is_recognized(self) -> None:
         self.assertTrue(self.strict_contract(self.reviewed_workflow))

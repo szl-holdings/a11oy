@@ -821,7 +821,7 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "7564daf369a12f1be3737bab4629acc83ac078def2c32a98e03cede3616aaa97"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "d19f07f7363e3424dc91b16b3e088265b822bbee6a3eca58251de2aac8415cb4"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "97e8984ca6c46878b548d7815c52ea5b3048a81d5639964cc9e9729815653d28"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
@@ -838,8 +838,10 @@ REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "7590b85e303209c953e267aa5bd8b861e557e
 REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
-    ".github/scripts/admit_execution_handoff.py": "5c3c9b13eb4151e9b98d279505798c9b801a0b9028a3a947e6eeb70ec90847ae",
-    ".github/scripts/collect_execution_readiness.py": "2b3c908690606ea782c76da1fadd7c2e3337bcf57ab4514bb9f5832c38d2dc61",
+    ".github/scripts/admit_execution_handoff.py": "679adeb336dd8b9d6261eeaff6040069de4260a282bc2a0dde03d7f202502f4b",
+    # The first source-admission gate imports this pure plan parser by a fixed path.
+    # Its complete bytes are part of the reviewed deployment helper closure.
+    "scripts/estate_repair_dispatch.py": "94bbbf48839e9d394264986255d87590e33a2b75aba3fd7d8d9a17b62e68982e",    ".github/scripts/collect_execution_readiness.py": "b58e1b5b681709f2f547b64230cb5dc1133368bd51d724d0d2b87fc35468a100",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
     "observer_adapters.py": "84b80c124c8e6e70c0292934f150873ea93340a8995795e48cab477628e90b66",
@@ -851,6 +853,8 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
     # Read-only observation after each configuration batch, including deferred writes.
     ".github/scripts/await_hf_configuration_handover.py": "cc6e383934e2a681daf529690f9d14cad84bd4bc191e94fe428aea3ff4c739a1",
+    # Zero-write post-cutover release admission, bound to private HEAD and canonical store health.
+    ".github/scripts/admit_hf_fenced_runtime.py": "7936e60da45121f94c2c43f8d30aebcd238b6c31eaf9f571f7110aac0cd538e5",
     "scripts/configure_hf_series_a_runtime.py": "dc4d54b31beb794e62e66ec614bd46257353d0ecdf2645e7295655cb2d96f60c",
     "scripts/configure_hf_gdw_runtime.py": "43611e182618321ed70647afee9e017295a7fedc6d29446e5b209059abdc28f3",
     # Installed-authority verifier imported by both configure helpers, with

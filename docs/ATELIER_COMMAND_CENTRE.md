@@ -453,3 +453,46 @@ verification and persistent outcome receipt. Close deployment only after the
 publisher attests the exact merged source and HF bytes, followed by live probes of
 the product and proof surfaces. Neither navigation, HTTP 200, a model ranking nor
 a RUNNING Space closes those gates.
+
+
+## Request-bound browser outcomes
+
+The three existing turn request models accept an optional lowercase UUID-v4
+`client_request_id`. The command centre generates a fresh ID for each submitted
+snapshot; old API callers may omit it. The backend retains a supplied ID in both
+signed DECISION and OUTCOME metadata, without forwarding it to the model provider.
+This is a correlation binding, not an authorization grant, idempotency key, or
+exactly-once guarantee. Reusing the ID can still cause another request; ambiguous
+outcomes must not be automatically retried.
+
+CPU-lab consent is held only in page memory and binds the exact acknowledged
+prompt. Editing the prompt revokes it, and a submit-time equality check catches
+programmatic draft changes that do not emit input events. Submission and pagehide
+clear this consent. It is an additional UI safety measure, not comprehensive DLP
+or a security boundary against malicious same-origin code.
+
+A successful HTTP response is no longer enough to display an answer. The browser
+requires a completed outcome whose correlation ID, request ID, prompt/answer
+hashes, provider, model, declared source, decision reference, receipt flags and
+DSSE payload agree with the submitted snapshot. Inconsistent or missing evidence
+withholds the answer and leaves the outcome uncertain. Browser response bodies
+are bounded to 1 MiB, and redirects are refused. CPU execution records retain the
+UNSIGNED disclosure.
+
+The page explicitly distinguishes server-reported signature verification from
+independent verification in the browser. It does not verify a DSSE signature with
+an independently admitted key, prove source bytes, re-prove ledger durability,
+or establish model quality. Process source labels remain declarations. Hash
+comparisons and correlation IDs must not be promoted into ORO semantic progress.
+
+The client and API change must be published together through the existing sole
+publisher. A new browser talking to an old API is expected to fail closed on the
+unknown request field rather than silently drop the correlation requirement.
+The local JavaScript contract tests run from `tests/test_command_centre.py` using
+Node >=18 and synthetic transport/DOM fixtures. Real backend signing tests use
+fresh ephemeral test keys and temporary ledgers. Neither category is a live
+provider or production release receipt.
+
+See [Evidence-bound action architecture](EVIDENCE_BOUND_ACTION_ARCHITECTURE.md)
+for the researched design basis, implemented scope, and separately labeled
+counterfactual-evidence roadmap.

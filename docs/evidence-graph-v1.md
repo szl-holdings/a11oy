@@ -47,10 +47,17 @@ verifier must do so before a consumer relies on them.
 
 ## Read-only API
 
-The server registers two routes when the module is available:
+The server registers read-only routes when the module is available:
 
 - `GET /api/a11oy/v1/evidence/graph?limit=256`
 - `GET /api/a11oy/v1/evidence/query?verdict=OBSERVED&invariant_id=freshness`
+- `GET /api/a11oy/v1/evidence/openlineage` — static JobEvent metadata, not a run
+- `GET /api/a11oy/v1/evidence/discovery` — bounded, non-authorizing gap projection
+
+The discovery route never assigns model qualification from an observer label,
+including `VERIFIED`, and never submits experiments or infers a current
+model or runtime from a historical receipt. See [Proof-to-Discovery v1](PROOF_TO_DISCOVERY_V1.md)
+for the separate modeled experiment-value calculation and missing admission gates.
 
 The response identifies whether the graph is bounded, the number of input and
 included edges, dangling parent references, verdict counts, invariant counts,

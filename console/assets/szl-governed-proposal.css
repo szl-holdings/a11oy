@@ -1,0 +1,66 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+ * KANCHAY semantic tokens. */
+.gp-card {
+  margin-block: 2rem; padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid var(--border); border-top: 2px solid var(--border);
+  border-radius: 12px; background: var(--surface); color: var(--text);
+  font-family: var(--font-body); min-width: 0;
+}
+.gp-card h2 { margin: 0 0 .65rem; font-size: 1.35rem; color: var(--text); }
+.gp-card h3 { margin: 0 0 1rem; font-size: 1.1rem; color: var(--text); }
+.gp-card p { line-height: 1.6; }
+.gp-description, .gp-note { color: var(--text-sub); }
+.gp-note { font-size: .875rem; }
+.gp-boundary { color: var(--text-sub); font-size: .875rem; line-height: 1.6; }
+.gp-status {
+  padding: .8rem 1rem; border: 1px solid var(--border);
+  background: var(--surface-alt); color: var(--text);
+  font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere;
+}
+.gp-form { display: grid; gap: 1rem; margin-top: 1.25rem; }
+.gp-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(12rem, .5fr); gap: 1rem; }
+.gp-field { display: grid; align-content: start; gap: .45rem; min-width: 0; }
+.gp-field label { font-weight: 600; font-size: .9rem; color: var(--text); }
+.gp-card textarea, .gp-card input, .gp-card select {
+  box-sizing: border-box; width: 100%; min-width: 0;
+  padding: .75rem; border: 1px solid var(--control-edge); border-radius: 6px;
+  color: var(--text); background: var(--bg); font: inherit; line-height: 1.5;
+}
+.gp-card textarea { resize: vertical; }
+.gp-card button, .gp-card summary { min-height: 44px; }
+.gp-card button {
+  padding: .65rem 1rem; border-radius: 6px; font: inherit; font-size: .875rem;
+  font-weight: 600; cursor: pointer; line-height: 1.45; white-space: normal;
+}
+.gp-card .gp-primary { color: var(--action-ink); background: var(--action-bg); border: 1px solid var(--action-bg); }
+.gp-card .gp-primary:hover:not(:disabled) { background: var(--action-hover-bg); }
+.gp-card .gp-secondary { color: var(--text); background: var(--surface-alt); border: 1px solid var(--control-edge); }
+.gp-card .gp-secondary:hover:not(:disabled) { background: var(--surface-raised); }
+.gp-card button:disabled, .gp-card input:disabled, .gp-card select:disabled, .gp-card textarea:disabled { opacity: .6; cursor: not-allowed; }
+.gp-card :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.gp-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.gp-details { margin-block: .8rem; min-width: 0; }
+.gp-details > summary { display: list-item; cursor: pointer; padding-block: .65rem; color: var(--text); font-weight: 600; }
+.gp-facts { display: grid; grid-template-columns: minmax(10rem, .4fr) minmax(0, 1fr); gap: .65rem 1.25rem; margin-block: 1rem; }
+.gp-facts dt { color: var(--text-sub); font-size: .85rem; }
+.gp-facts dd { margin: 0; font-family: var(--font-mono); font-size: .8rem; overflow-wrap: anywhere; }
+.gp-evidence-item { min-width: 0; display: grid; gap: .75rem; border: 1px solid var(--border); padding: 1rem; margin-block: 1rem; border-radius: 6px; }
+.gp-evidence-item legend { color: var(--text-sub); padding-inline: .35rem; }
+.gp-evidence-item button { justify-self: start; }
+.gp-result { margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+.gp-result[hidden] { display: none; }
+.gp-output, .gp-json {
+  display: block; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere;
+  overflow: auto; padding: 1rem; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.gp-output { font: inherit; line-height: 1.7; }
+.gp-json { font: .8rem/1.6 var(--font-mono); max-height: 24rem; }
+.gp-card .gp-link { color: var(--link); text-decoration: underline; text-underline-offset: .2em; }
+@media (max-width: 640px) {
+  .gp-controls, .gp-facts { grid-template-columns: minmax(0, 1fr); }
+  .gp-facts { gap: .35rem; }
+  .gp-facts dd { margin-bottom: .7rem; }
+  .gp-actions button { flex: 1 1 12rem; }
+}

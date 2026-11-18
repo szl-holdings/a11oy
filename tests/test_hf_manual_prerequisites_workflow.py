@@ -167,6 +167,21 @@ if [ -n "$live" ] && [ "$live" = "$GITHUB_SHA" ]; then
   echo 'open=false' >> "$GITHUB_OUTPUT"
   exit 0
 fi
+if [ "${STAGE:-}" = 'RUNNING' ] && [ -n "$live" ]; then
+  # A paused or operator-approved window remains valid. Automatic releases
+  # instead require independently measured post-cutover fencing and clean HEAD.
+  python -I -B .github/scripts/await_hf_configuration_handover.py capture \
+    --origin "$CANONICAL_ORIGIN" \
+    --output "$RUNNER_TEMP/fenced-admission-baseline.json"
+  python -I -B .github/scripts/admit_hf_fenced_runtime.py \
+    --origin "$CANONICAL_ORIGIN" \
+    --expected-live-sha "$live" \
+    --baseline "$RUNNER_TEMP/fenced-admission-baseline.json" \
+    --output "$RUNNER_TEMP/fenced-admission.json" \
+    --github-output "$GITHUB_OUTPUT"
+  echo "::notice::Previously cut-over CLEAN/FENCED writer independently admitted."
+  exit 0
+fi
 echo "::error::PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED: stage=${STAGE:-UNKNOWN} protected_main=${GITHUB_SHA} live_revision=${live:-UNAVAILABLE}. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
 exit 1'''
 WINDOW_ENV = {"STAGE": "${{ steps.runtime.outputs.stage }}",
@@ -496,7 +511,9 @@ def assert_deploy_path_contract(source):
             "${{ runner.temp }}/preflight-admission.json",
             "${{ runner.temp }}/preflight-series-config-admission.json",
             "${{ runner.temp }}/preflight-gdw-config-admission.json",
-            "${{ runner.temp }}/preflight-source-admission.json"):
+            "${{ runner.temp }}/preflight-source-admission.json",
+                "${{ runner.temp }}/fenced-admission-baseline.json",
+                "${{ runner.temp }}/fenced-admission.json"):
         raise WorkflowContractError("preflight configuration artifact allowlist")
     window_input = workflow_document(source)["on"]["workflow_dispatch"]["inputs"].get("open_deploy_window", {})
     if window_input.get("type") != "boolean" or window_input.get("default") is not False:
@@ -945,7 +962,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def test_each_configuration_owner_keeps_its_own_barrier_and_artifacts(self):
         for job_id in CONFIGURATION_JOB_MINUTES:
             block = re.search(r"(?ms)^  " + re.escape(job_id) + r":\n.*?(?=^  [A-Za-z0-9_-]+:|\Z)", self.source).group(0)
-            self.assertEqual(block.count("await_hf_configuration_handover.py capture"), 2)
+            self.assertEqual(block.count("await_hf_configuration_handover.py capture"), 3 if job_id == "preflight" else 2)
             self.assertEqual(block.count("await_hf_configuration_handover.py wait"), 2)
             for before, after in (
                     ("--owner series-a", "--owner gdw"),
@@ -1186,7 +1203,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
     def test_preflight_classification_and_convergence_cannot_be_weakened(self):
         cases = (
             ("python -I -B .github/scripts/resume_hf_space.py", "python -B .github/scripts/resume_hf_space.py", "preflight classification"),
-            ("await_hf_configuration_handover.py capture", "await_hf_configuration_handover.py wait", "preflight configuration baseline"),
+            ("await_hf_configuration_handover.py capture", "await_hf_configuration_handover.py wait", "deploy window"),
             ("python -I -B .github/scripts/await_hf_configuration_handover.py wait", "true", "preflight convergence"),
             ('--baseline "$SERIES_BASELINE_REPORT"', '--baseline /tmp/forged.json', "preflight convergence"),
             ('          python -I -B scripts/configure_hf_series_a_runtime.py \\\n            --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \\\n            --expected-source-sha "$GITHUB_SHA" \\\n            --output "$RUNTIME_CONFIG_REPORT"\n',

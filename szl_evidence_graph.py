@@ -223,13 +223,15 @@ def graph_snapshot(
     input produce the same digest.  Bounding is explicit in the response and
     never presented as a complete ledger.
     """
-    if not isinstance(max_edges, int) or not 1 <= max_edges <= _MAX_EDGES:
+    if type(max_edges) is not int or not 1 <= max_edges <= _MAX_EDGES:
         raise ValueError(f"max_edges must be between 1 and {_MAX_EDGES}")
     normalized = _coerce_edges(edges)
     ordered = sorted({edge.receipt_id: edge for edge in normalized}.values(), key=lambda e: e.receipt_id)
     bounded = ordered[:max_edges]
     included_ids = {edge.receipt_id for edge in bounded}
     parent_ids = {parent for edge in bounded for parent in edge.parents}
+    unresolved_ids = sorted(parent_ids - included_ids)
+    resolved_count = len(parent_ids & included_ids)
     verdict_counts = {name: 0 for name in sorted(VERDICTS)}
     invariant_counts: dict[str, int] = {}
     for edge in bounded:
@@ -245,7 +247,20 @@ def graph_snapshot(
         "edge_count": len(bounded),
         "total_input_edges": len(ordered),
         "receipt_head": bounded[-1].receipt_id if bounded else None,
-        "dangling_parent_count": len(parent_ids - included_ids),
+        "dangling_parent_count": len(unresolved_ids),
+        "parent_resolution": {
+            "state": ("UNAVAILABLE" if not parent_ids else
+                      "INCOMPLETE_IN_VIEW" if unresolved_ids else "RESOLVED_IN_VIEW"),
+            "authority": "OBSERVATION_ONLY",
+            "resolved": resolved_count,
+            "unresolved": len(unresolved_ids),
+            "denominator": len(parent_ids),
+            "ratio": (resolved_count / len(parent_ids)) if parent_ids else None,
+            "unresolved_preview": unresolved_ids[:16],
+            "preview_truncated": len(unresolved_ids) > 16,
+            "graph_bounded": len(ordered) > len(bounded),
+            "signatures_verified": False,
+        },
         "verdict_counts": verdict_counts,
         "invariant_counts": dict(sorted(invariant_counts.items())),
         "digest_sha256": digest,
@@ -287,6 +302,69 @@ def query_snapshot(
         "invariant_id": invariant_id,
     }
     return result
+
+
+
+# OpenLineage v2.0.2: a JobEvent is static metadata; a RunEvent would claim
+# execution, which this read-only view has neither performed nor observed.
+OPENLINEAGE_JOB_SCHEMA = "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/JobEvent"
+OPENLINEAGE_PRODUCER = "https://github.com/szl-holdings/a11oy"
+
+
+def openlineage_job_event(snapshot: Mapping[str, Any]) -> dict[str, Any]:
+    """Project one bounded CEG snapshot as non-executing static lineage metadata.
+
+    This does not emit an event, validate upstream authenticity, mint a receipt,
+    or establish that any model or deployment is operational. Parent edges that
+    are outside a bounded view are not declared as consumed datasets.
+    """
+    if not isinstance(snapshot, Mapping) or snapshot.get("schema") != GRAPH_SCHEMA:
+        raise ValueError("unsupported graph for static lineage")
+    rows = snapshot.get("edges")
+    limit = snapshot.get("max_edges")
+    total = snapshot.get("total_input_edges")
+    bounded = snapshot.get("bounded")
+    if (type(rows) is not list or type(limit) is not int
+            or not 1 <= limit <= _MAX_EDGES or len(rows) > limit
+            or type(total) is not int or total < len(rows)
+            or type(bounded) is not bool or bounded != (total > len(rows))
+            or type(snapshot.get("edge_count")) is not int
+            or snapshot["edge_count"] != len(rows)):
+        raise ValueError("graph coverage does not match static lineage")
+    edges = [EvidenceEdge.from_dict(item) for item in rows]
+    canonical_rows = [edge.as_dict() for edge in edges]
+    if (rows != canonical_rows
+            or len({edge.receipt_id for edge in edges}) != len(edges)
+            or [edge.receipt_id for edge in edges] != sorted(edge.receipt_id for edge in edges)
+            or snapshot.get("digest_sha256") != sha256_hex({
+                "schema": GRAPH_SCHEMA, "edges": canonical_rows,
+            })):
+        raise ValueError("graph digest or edge identity differs")
+    observed_at = snapshot.get("observed_at")
+    if (type(observed_at) is not str or re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|\+00:00)",
+            observed_at) is None):
+        raise ValueError("graph observation time is not UTC")
+    try:
+        observed_time = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError("graph observation time is invalid") from None
+    if observed_time.utcoffset() != timezone.utc.utcoffset(observed_time):
+        raise ValueError("graph observation time is not UTC")
+    digest = snapshot["digest_sha256"]
+    return {
+        "eventTime": observed_at,
+        "producer": OPENLINEAGE_PRODUCER,
+        "schemaURL": OPENLINEAGE_JOB_SCHEMA,
+        "job": {"namespace": "urn:szl:a11oy:evidence", "name": "observed_graph_snapshot_projection"},
+        "inputs": [
+            {"namespace": "urn:szl:a11oy:evidence-edge", "name": edge.receipt_id}
+            for edge in edges
+        ],
+        "outputs": [
+            {"namespace": "urn:szl:a11oy:evidence-graph", "name": digest}
+        ],
+    }
 
 
 def environment_snapshot(*, max_edges: int = _MAX_EDGES) -> dict[str, Any]:
@@ -407,5 +485,51 @@ def register(
         except ValueError as exc:
             return JSONResponse({"schema": GRAPH_SCHEMA, "state": "UNAVAILABLE", "reason": str(exc)}, status_code=400)
         return JSONResponse({**current, "graph": selected}, headers={"Cache-Control": "no-store"})
+
+    @app.get(base + "/openlineage")
+    async def evidence_openlineage(
+        limit: int = Query(_MAX_EDGES, ge=1, le=_MAX_EDGES),
+    ) -> JSONResponse:
+        current = current_snapshot(limit)
+        # A missing historical bundle is not a successful lineage extraction.
+        if current["receipt_bundle"]["state"] != "OBSERVED":
+            return JSONResponse(
+                {"state": "UNAVAILABLE", "reason": "RECEIPT_BUNDLE_UNAVAILABLE"},
+                status_code=503, headers={"Cache-Control": "no-store"},
+            )
+        try:
+            projected = openlineage_job_event(current["graph"])
+        except ValueError:
+            return JSONResponse(
+                {"state": "UNAVAILABLE", "reason": "GRAPH_PROJECTION_INVALID"},
+                status_code=503, headers={"Cache-Control": "no-store"},
+            )
+        return JSONResponse(projected, headers={"Cache-Control": "no-store"})
+
+    @app.get(base + "/discovery")
+    async def evidence_discovery(
+        limit: int = Query(_MAX_EDGES, ge=1, le=_MAX_EDGES),
+    ) -> JSONResponse:
+        # Do not quietly plan over missing, invalid or truncated evidence.
+        current = current_snapshot(limit)
+        if current["receipt_bundle"]["state"] != "OBSERVED":
+            return JSONResponse(
+                {"state": "UNAVAILABLE", "reason": "RECEIPT_BUNDLE_UNAVAILABLE"},
+                status_code=503, headers={"Cache-Control": "no-store"},
+            )
+        try:
+            from szl_evidence_discovery import discovery_gaps
+            brief = discovery_gaps(current["graph"])
+        except (ImportError, ValueError, TypeError):
+            return JSONResponse(
+                {"state": "UNAVAILABLE", "reason": "DISCOVERY_PROJECTION_INVALID"},
+                status_code=503, headers={"Cache-Control": "no-store"},
+            )
+        return JSONResponse(
+            {**brief, "runtime_identity_state": current["runtime_identity_state"],
+             "receipt_bundle_state": current["receipt_bundle"]["state"]},
+            status_code=503 if brief["state"] == "UNAVAILABLE" else 200,
+            headers={"Cache-Control": "no-store"},
+        )
 
     return base + "/graph", base + "/query"

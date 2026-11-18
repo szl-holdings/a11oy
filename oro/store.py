@@ -13,12 +13,15 @@ from .core import (
     BarrierDecision,
     OROContractError,
     OROStateError,
+    barrier_content_hash,
     canonical_json,
     receipt_digest,
     utc_now,
 )
 
 SCHEMA_VERSION = 1
+MAX_SEMANTIC_HISTORY_BARRIERS = 4096
+MAX_SEMANTIC_HISTORY_BYTES = 16 * 1024 * 1024
 
 
 class OROStore:
@@ -367,12 +370,61 @@ class OROStore:
         return [self._decode(row, "current_rank_json") or {} for row in rows]
 
     def seen_semantic_hash(self, orbit_id: str, digest: str) -> bool:
+        """Recognize content from committed receipts, including pre-upgrade hashes.
+
+        This bounded read-only projection never rewrites old receipts, signatures,
+        or indexes. It checks local content integrity, not signature trust or source
+        admission. Missing/corrupt/over-budget history cannot become "not seen".
+        """
         with self._lock:
             row = self.connection.execute(
                 "SELECT 1 FROM semantic_hashes WHERE orbit_id=? AND semantic_hash=?",
                 (orbit_id, digest),
             ).fetchone()
-        return row is not None
+            if row is not None:
+                return True
+            history = self.connection.execute(
+                """SELECT b.barrier_id, b.generation, b.semantic_hash, b.receipt_digest,
+                          length(CAST(r.body_json AS BLOB)) AS body_bytes
+                   FROM barriers b LEFT JOIN receipts r
+                     ON r.receipt_digest=b.receipt_digest AND r.barrier_id=b.barrier_id
+                   WHERE b.orbit_id=? ORDER BY b.generation, b.barrier_id LIMIT ?""",
+                (orbit_id, MAX_SEMANTIC_HISTORY_BARRIERS + 1),
+            ).fetchall()
+            if len(history) > MAX_SEMANTIC_HISTORY_BARRIERS:
+                raise OROStateError("semantic history exceeds barrier read budget")
+            if any(item["body_bytes"] is None or item["body_bytes"] < 1 for item in history):
+                raise OROStateError("semantic history has a missing receipt")
+            if sum(item["body_bytes"] for item in history) > MAX_SEMANTIC_HISTORY_BYTES:
+                raise OROStateError("semantic history exceeds receipt byte budget")
+            for item in history:
+                stored = self.connection.execute(
+                    "SELECT body_json FROM receipts WHERE receipt_digest=? AND barrier_id=?",
+                    (item["receipt_digest"], item["barrier_id"]),
+                ).fetchone()
+                try:
+                    raw = stored["body_json"]
+                    body = json.loads(raw)
+                    if not isinstance(body, dict) or canonical_json(body).decode("utf-8") != raw:
+                        raise OROContractError("noncanonical receipt")
+                    saved_digest = body.pop("receipt_digest")
+                    if (
+                        saved_digest != item["receipt_digest"]
+                        or receipt_digest(body) != saved_digest
+                        or body.get("orbit_id") != orbit_id
+                        or body.get("barrier_id") != item["barrier_id"]
+                        or type(body.get("generation")) is not int
+                        or body["generation"] != item["generation"]
+                        or body.get("semantic_hash") != item["semantic_hash"]
+                        or body.get("schema") != "szl.oro-barrier-receipt/v1"
+                    ):
+                        raise OROContractError("receipt binding differs")
+                    projected = barrier_content_hash(orbit_id, body["participants"])
+                except (ValueError, KeyError, TypeError) as exc:
+                    raise OROStateError("semantic history receipt integrity unavailable") from exc
+                if projected == digest:
+                    return True
+        return False
 
     def persist_barrier(
         self,

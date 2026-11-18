@@ -76,7 +76,8 @@ BUILD_ENV_FANOUT_COPY_ADDITIONS = {"a11oy_build_env_fanout.py"}
 # batched into the existing root COPY. Historical source digests and the layer
 # ceiling remain unchanged; only these exact additions are excluded below.
 EVIDENCE_GRAPH_COPY_ADDITIONS = {
-    "szl_evidence_graph.py", "szl_evidence_receipts.py", "evidence_graph_receipts.json",
+    "szl_evidence_graph.py", "szl_evidence_discovery.py",
+    "szl_evidence_receipts.py", "evidence_graph_receipts.json",
 }
 # One explicit telemetry module; prior source digests and layer budget stay fixed.
 TRACE_OBSERVATION_COPY_ADDITIONS = {"vsp_otel/trace_ir.py"}
@@ -87,6 +88,9 @@ ORO_EVIDENCE_COPY_ADDITIONS = {"oro/"}
 # The governed CPU lab uses one pure contract adapter in the existing root COPY.
 # Exclude only that named addition from each frozen historical source set.
 CPU_LAB_CONTRACT_COPY_ADDITIONS = {"a11oy_cpu_lab_contract.py"}
+# One bounded numerical research kernel is batched beside the existing qbio
+# module. Freeze every historical source digest by excluding this exact source.
+FLAVIN_SPIN_COPY_ADDITIONS = {"szl_flavin_spin_research.py"}
 
 COPY_SOURCE_ALLOWLIST_COUNT = 589
 COPY_SOURCE_ALLOWLIST_SHA256 = (
@@ -228,6 +232,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= copy_sources
     assert ORO_EVIDENCE_COPY_ADDITIONS <= copy_sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= copy_sources
+    assert FLAVIN_SPIN_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | X402_ORIGIN_COPY_ADDITIONS
@@ -255,6 +260,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | TRACE_OBSERVATION_COPY_ADDITIONS
         | ORO_EVIDENCE_COPY_ADDITIONS
         | CPU_LAB_CONTRACT_COPY_ADDITIONS
+        | FLAVIN_SPIN_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -296,6 +302,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= sources
     assert ORO_EVIDENCE_COPY_ADDITIONS <= sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
+    assert FLAVIN_SPIN_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -320,6 +327,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - TRACE_OBSERVATION_COPY_ADDITIONS
         - ORO_EVIDENCE_COPY_ADDITIONS
         - CPU_LAB_CONTRACT_COPY_ADDITIONS
+        - FLAVIN_SPIN_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -359,6 +367,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert TRACE_OBSERVATION_COPY_ADDITIONS <= sources
     assert ORO_EVIDENCE_COPY_ADDITIONS <= sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
+    assert FLAVIN_SPIN_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -383,6 +392,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - TRACE_OBSERVATION_COPY_ADDITIONS
         - ORO_EVIDENCE_COPY_ADDITIONS
         - CPU_LAB_CONTRACT_COPY_ADDITIONS
+        - FLAVIN_SPIN_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
@@ -439,4 +449,13 @@ def test_build_env_fanout_is_batched_once_with_the_existing_origin_module() -> N
             and "a11oy_build_env_fanout.py" in _copy_sources(instruction)]
     assert len(rows) == 1
     assert "a11oy_x402_admission.py" in _copy_sources(rows[0])
+    assert shlex.split(rows[0])[-1] == "./"
+
+
+def test_flavin_spin_research_is_batched_once_without_new_runtime_layer() -> None:
+    rows = [instruction for _line, instruction in _logical_instructions()
+            if instruction.upper().startswith("COPY ")
+            and FLAVIN_SPIN_COPY_ADDITIONS & set(_copy_sources(instruction))]
+    assert len(rows) == 1
+    assert "szl_quantum_bio.py" in _copy_sources(rows[0])
     assert shlex.split(rows[0])[-1] == "./"
