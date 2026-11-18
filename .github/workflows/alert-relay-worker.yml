@@ -234,6 +234,7 @@ jobs:
           python scripts/alert_channel_canary.py \
             --output evidence/alert-channel-post-deploy.json \
             --mode ntfy \
+            --timeout 30 \
             --send
       - name: Upload secret-free delivery evidence
         if: always()
