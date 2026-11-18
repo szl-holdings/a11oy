@@ -128,9 +128,9 @@ four existing allowlisted differences and zero blocking differences.
 --expected-manifest-sha256=<active-manifest-sha256>` binds the paired payload, including both predecessor archives. The model
 credential archive is byte-exact at
 `.github/shared-source-payloads/model-credential-origin-20261017-v1.json`,
-SHA256 `e0aefafd777d957b4bebee9a438dfea023f00fb6be5cb2863c255c4540c7b71c`. The preceding integrity manifest is preserved byte-exact at
+SHA256 `7122181968d324220828f638f199e953b878796e46d06fd385cf6454631a4d2b`. The preceding integrity manifest is preserved byte-exact at
 `.github/shared-source-payloads/replication-payload-integrity-20261017-v1.json`,
-SHA256 `1b8a4693d35e342ef47088d9fbebad580d05b8425cf9f3f90d32f0c00466c1cc`.
+SHA256 `12b46c750905e8e5dab97adad577fefcf7b8f1815bd0c2ee2c383c165bde3cc8`.
 Historical source hashes remain historical; current-source checks are separate.
 
 The new archive keeps a public authentication-related source digest that the
@@ -164,7 +164,7 @@ live replication, hardware readiness or AGI is made.
 The final consumer pin is protected Platform `9d685a683984b7a0595a2a85bed930f961b94a53`.
 The endpoint-bound model credential release is preserved byte-exact, including
 its tests and predecessor archive. The active seven-file shared payload SHA256 is
-`3df663c60fc5f332174c83e4cec5e28831ec9b1c670e86bf13058f0fdebc3cce`.
+`c2d035de6ef4d4bbdfa308d9d6834fd9aaba0cc4854f35eb255e3b9f060d0af0`.
 
 MEASURED local Windows Python 3.12 rerun with pytest plugin autoload disabled,
 no bytecode/cache writes, a fresh explicit basetemp, and verified Gitleaks8.21.2:
