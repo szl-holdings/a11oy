@@ -163,21 +163,15 @@ def _local_endpoint_reachable(base: str, timeout: float = 2.0) -> bool:
 
     HONESTY GATE: setting A11OY_MODEL_BASE_URL is an INTENT, not proof the GPU is
     actually serving. We only claim sovereign:true when the endpoint's OpenAI-
-    compatible /models actually returns bounded JSON. If it's set but unreachable
+    compatible /models returns a valid bounded catalog with the same credentials
+    as the completion path. If it's set but unreachable
     (e.g. a tailnet endpoint the Space can't reach), we honestly report a router
     fallback instead of a false sovereign banner. The probe uses the same pinned,
-    redirect-revalidating SSRF guard as model identity reads. NOTE: this reflects
+    SSRF guard as model identity reads; metadata redirects are refused. This reflects
     ENDPOINT liveness; the chat-serving path
     wiring to this endpoint is tracked separately (see #324)."""
-    try:
-        payload = _endpoint_json(
-            base.rstrip("/") + "/models",
-            timeout=timeout,
-            allow_private=True,
-        )
-        return isinstance(payload, dict)
-    except Exception:  # noqa: BLE001 - any failure => not reachable, stay honest
-        return False
+    state, _models = _local_model_catalog_observation(base, timeout=timeout)
+    return state == "MODEL_CATALOG_OBSERVED"
 
 
 def _sovereign_inference_state() -> dict:
@@ -275,11 +269,10 @@ def _map_model_for_local(model: str) -> str:
     return A11OY_LOCAL_MODEL_MAP.get("default", model)
 
 
-# Forge profiles are runtime intents, not claims that five separately-trained
-# adapters exist.  Two exact tags are real on the current sovereign runtime
-# (ReceiptAgent and Khipu); the remaining roles intentionally share szl1 until
-# separately-qualified weights and receipts exist.  Read overrides at call time
-# so an operator can change a loaded tag without rebuilding the service.
+# Forge profiles declare runtime intents, not observed tags or separately-trained
+# adapters. ReceiptAgent and Khipu have distinct default tags; other roles share
+# szl1 until separately-qualified weights and receipts exist. Read overrides at
+# call time; only a fresh catalog observation can establish an exact served tag.
 _FORGE_PROFILE_DEFAULTS = {
     "ReceiptAgent-v1": "receiptagent:latest",
     "BrainNavigator-v1": "khipu:latest",
@@ -318,8 +311,16 @@ def forge_profile_model_map() -> dict[str, str]:
     return out
 
 
+class _ProviderDocumentError(RuntimeError):
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__("provider document unavailable")
+
+
 def _endpoint_json(url: str, *, body: dict[str, Any] | None = None,
-                   timeout: float = 2.0, allow_private: bool = False) -> dict[str, Any]:
+                   timeout: float = 2.0, allow_private: bool = False,
+                   headers: dict[str, str] | None = None,
+                   max_redirects: int = 2) -> dict[str, Any]:
     """Fetch a bounded provider document through the shared SSRF guard.
 
     Private/loopback access is never inferred from the URL.  Callers must grant
@@ -339,30 +340,68 @@ def _endpoint_json(url: str, *, body: dict[str, Any] | None = None,
         url,
         method="POST" if encoded is not None else "GET",
         body=encoded,
+        headers=headers,
         timeout=timeout,
         max_response_bytes=4 * 1024 * 1024,
-        max_redirects=2,
+        max_redirects=max_redirects,
         allow_private=allow_private,
     )
     if error:
-        raise RuntimeError(f"PROVIDER_HTTP:{error}")
+        raise _ProviderDocumentError(error)
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _served_model_ids(base: str, timeout: float = 2.0) -> list[str]:
+def _local_metadata_headers(base: str) -> dict[str, str]:
+    from urllib.parse import urlsplit
+
+    configured = _sovereign_base_url().rstrip("/")
+    hostname = (urlsplit(configured).hostname or "").encode("idna").decode("ascii")
+    if (not configured or base.rstrip("/") != configured
+            or "router.huggingface.co" in configured
+            or hostname.rstrip(".").lower() == "router.huggingface.co"):
+        raise _ProviderDocumentError("LOCAL_BASE_UNAVAILABLE")
+    return _inference_headers(is_local=True)
+
+
+def _local_model_catalog_observation(
+    base: str, timeout: float = 2.0,
+) -> tuple[str, list[str] | None]:
+    """Observe only the configured provider; failure is never an empty inventory."""
     try:
+        headers = _local_metadata_headers(base)
         payload = _endpoint_json(
-            base.rstrip("/") + "/models", timeout=timeout, allow_private=True)
+            base.rstrip("/") + "/models", timeout=timeout, allow_private=True,
+            headers=headers, max_redirects=0)
+    except _ProviderDocumentError as exc:
+        if exc.code == "LOCAL_BASE_UNAVAILABLE":
+            return "LOCAL_ENDPOINT_UNAVAILABLE", None
+        if exc.code in {"HTTP_STATUS:401", "HTTP_STATUS:403"}:
+            return "MODEL_CATALOG_UNAUTHORIZED", None
+        if exc.code == "INVALID_JSON":
+            return "MODEL_CATALOG_MALFORMED", None
+        return "MODEL_CATALOG_UNAVAILABLE", None
     except Exception:
-        return []
-    rows = payload.get("data") or payload.get("models") or []
-    out: list[str] = []
-    if isinstance(rows, list):
-        for row in rows:
-            value = row.get("id") if isinstance(row, dict) else row
-            if isinstance(value, str) and value.strip():
-                out.append(value.strip())
-    return sorted(set(out), key=str.lower)
+        return "MODEL_CATALOG_UNAVAILABLE", None
+
+    if not isinstance(payload, dict):
+        return "MODEL_CATALOG_MALFORMED", None
+    rows = payload.get("data") if "data" in payload else payload.get("models")
+    if not isinstance(rows, list):
+        return "MODEL_CATALOG_MALFORMED", None
+    models: list[str] = []
+    for row in rows:
+        value = row.get("id") if isinstance(row, dict) else row
+        if not isinstance(value, str) or not value.strip():
+            return "MODEL_CATALOG_MALFORMED", None
+        # Whitespace and case remain identity bytes; do not repair provider tags.
+        models.append(value)
+    return "MODEL_CATALOG_OBSERVED", sorted(set(models))
+
+
+def _served_model_ids(base: str, timeout: float = 2.0) -> list[str]:
+    """Compatibility projection; status callers retain the observation state."""
+    _state, models = _local_model_catalog_observation(base, timeout=timeout)
+    return models if models is not None else []
 
 
 def _model_origin(base: str) -> str:
@@ -383,27 +422,29 @@ def attest_local_model(profile_id: str, *, timeout: float = 2.0) -> dict[str, An
     """
     models = forge_profile_model_map()
     expected = models.get(profile_id)
-    base, is_local = _serving_base()
+    base = _sovereign_base_url().rstrip("/")
+    catalog_state, served = _local_model_catalog_observation(base, timeout=timeout)
     result: dict[str, Any] = {
         "schema": "szl.forge.local-model-attestation/v1",
         "profile_id": profile_id,
         "expected_model": expected,
-        "base_url": base,
-        "local_endpoint": bool(is_local),
+        "base_url": base if catalog_state == "MODEL_CATALOG_OBSERVED" else HF_ROUTER_BASE,
+        "local_endpoint": catalog_state == "MODEL_CATALOG_OBSERVED",
+        "catalog_state": catalog_state,
+        "catalog_scope": "CONFIGURED_LOCAL_PROVIDER",
+        "served_model_count": len(served) if served is not None else None,
         "observed_at_unix": int(time.time()),
         "artifact_binding": "UNBOUND",
     }
     if not expected:
         result.update({"state": "UNKNOWN_PROFILE", "available": False})
         return result
-    if not is_local:
-        result.update({"state": "LOCAL_ENDPOINT_UNAVAILABLE", "available": False})
+    if served is None:
+        result.update({"state": catalog_state, "available": False})
         return result
-    served = _served_model_ids(base, timeout=timeout)
     # Model identifiers are cryptographic identity inputs, not display labels.
     # Case-folding here would let a differently named tag impersonate a profile.
     exact = expected if expected in served else None
-    result["served_model_count"] = len(served)
     result["served_models_sha256"] = hashlib.sha256(
         json.dumps(served, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     ).hexdigest()
@@ -411,7 +452,7 @@ def attest_local_model(profile_id: str, *, timeout: float = 2.0) -> dict[str, An
         result.update({
             "state": "MODEL_TAG_MISSING",
             "available": False,
-            "honesty": "endpoint is live but the exact profile tag is absent",
+            "honesty": "valid catalog observed; the exact profile tag is absent",
         })
         return result
 
@@ -421,9 +462,16 @@ def attest_local_model(profile_id: str, *, timeout: float = 2.0) -> dict[str, An
         "served_model": exact,
     })
     try:
+        from urllib.parse import urlsplit
+
+        parts = urlsplit(base)
+        if (parts.path.rstrip("/") not in {"", "/v1"}
+                or parts.query or parts.fragment):
+            raise _ProviderDocumentError("OLLAMA_METADATA_PATH_UNAVAILABLE")
         show = _endpoint_json(
             _model_origin(base) + "/api/show", body={"model": exact},
-            timeout=timeout, allow_private=True)
+            timeout=timeout, allow_private=True,
+            headers=_local_metadata_headers(base), max_redirects=0)
         details = show.get("details") if isinstance(show.get("details"), dict) else {}
         modelfile = str(show.get("modelfile") or "")
         layer_digests = sorted(set(
@@ -460,7 +508,8 @@ def attest_local_model(profile_id: str, *, timeout: float = 2.0) -> dict[str, An
         try:
             tags = _endpoint_json(
                 _model_origin(base) + "/api/tags", timeout=timeout,
-                allow_private=True)
+                allow_private=True, headers=_local_metadata_headers(base),
+                max_redirects=0)
             rows = tags.get("models") if isinstance(tags.get("models"), list) else []
             tag_row = next((row for row in rows if isinstance(row, dict) and (
                 row.get("name") == exact or row.get("model") == exact)), None)
@@ -494,9 +543,9 @@ def attest_local_model(profile_id: str, *, timeout: float = 2.0) -> dict[str, An
 
 def forge_profile_runtime_status() -> dict[str, Any]:
     """Shallow exact-tag inventory for status/UI surfaces (one /models read)."""
-    base, is_local = _serving_base()
-    served = _served_model_ids(base) if is_local else []
-    exact_served = set(served)
+    base = _sovereign_base_url().rstrip("/")
+    catalog_state, served = _local_model_catalog_observation(base)
+    exact_served = set(served or [])
     profiles = {}
     for profile, tag in forge_profile_model_map().items():
         actual = tag if tag in exact_served else None
@@ -505,16 +554,19 @@ def forge_profile_runtime_status() -> dict[str, Any]:
             "available": actual is not None,
             "served_model": actual,
             "state": ("EXACT_TAG_OBSERVED_ARTIFACT_UNBOUND" if actual is not None
-                      else "MODEL_TAG_MISSING" if is_local
-                      else "LOCAL_ENDPOINT_UNAVAILABLE"),
+                      else "MODEL_TAG_MISSING" if served is not None
+                      else catalog_state),
+            "catalog_state": catalog_state,
             "separate_profile_weights_claimed": profile in {
                 "ReceiptAgent-v1", "BrainNavigator-v1"},
         }
     return {
         "schema": "szl.forge.profile-runtime-status/v1",
-        "local_endpoint": bool(is_local),
-        "base_url": base,
-        "served_model_count": len(served),
+        "base_url": base if catalog_state == "MODEL_CATALOG_OBSERVED" else HF_ROUTER_BASE,
+        "local_endpoint": catalog_state == "MODEL_CATALOG_OBSERVED",
+        "catalog_state": catalog_state,
+        "catalog_scope": "CONFIGURED_LOCAL_PROVIDER",
+        "served_model_count": len(served) if served is not None else None,
         "profiles": profiles,
         "honesty": ("exact tag observation is not release-artifact identity; turn-level "
                     "attestation remains authoritative"),
