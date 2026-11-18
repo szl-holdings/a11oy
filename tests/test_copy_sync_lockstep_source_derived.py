@@ -53,6 +53,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ".github/scripts/resume_hf_space.py",
             ".github/scripts/await_hf_runtime_serving.py",
             ".github/scripts/await_hf_configuration_handover.py",
+            ".github/scripts/admit_hf_fenced_runtime.py",
             "scripts/configure_hf_series_a_runtime.py",
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",
