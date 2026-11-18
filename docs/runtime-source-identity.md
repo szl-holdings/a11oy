@@ -32,9 +32,17 @@ effective rules is a publication error, not an admissible partial identity.
 
 At process construction the verifier captures the selector bytes, source SHA,
 boot ID, copied workflow pin, and actual source-file hashes. The application
-lifespan starts one background verification window of five minutes. It reads
-the exact run attempt, validates the artifact metadata and bounded ZIP, and
-uses the installed GitHub CLI to verify the artifact attestation. Verification
+lifespan starts one background verification worker. Ordinary publication
+races retain the five-minute window. Only explicit GitHub/artifact rate-limit
+refusals can extend recovery to a fixed 65 minutes from the original startup,
+with at most 16 rate-limited attempts. The worker honors valid Retry-After and
+rate-limit-reset timing; otherwise delays start at 60 seconds and double to
+300 seconds. A server delay beyond the remaining budget leaves the boot
+blocked without retrying early. Authentication, access, signature, selector,
+and source failures never inherit this extension; local drift stays poisoned.
+A successful identity still latches once, and GETs cannot start or extend
+recovery. The worker reads the exact run attempt, validates the artifact
+metadata and bounded ZIP, and uses the installed GitHub CLI to verify the artifact attestation. Verification
 requires the canonical reusable workflow, exact pinned publisher SHA, source
 SHA, main ref, GitHub OIDC issuer, hosted runner, and certificate invocation
 URI for the same run and attempt. Artifact metadata or a predicate alone is
@@ -90,3 +98,8 @@ after first verification, startup retries, and GET side-effect boundaries.
 
 Prior art: [GitHub artifact attestation verification](https://cli.github.com/manual/gh_attestation_verify)
 and [Sigstore certificate verification output](https://github.com/sigstore/sigstore-go/blob/main/docs/verification.md).
+
+Rate-limit recovery follows [GitHub REST API timing guidance](https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api#handle-rate-limit-errors-appropriately).
+Only a derived numeric delay leaves the transport; raw response headers,
+bodies, signed URLs, and credentials remain private. This startup recovery
+does not change the independent readiness cache's scheduler or authorize effects.

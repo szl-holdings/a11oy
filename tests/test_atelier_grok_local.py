@@ -466,3 +466,51 @@ def test_local_routes_precede_catchall_and_register_once(configured):
     assert paths.index(f"{atelier.PREFIX}/local/turn") < paths.index("/{path:path}")
     assert atelier.register(configured["app"])["state"] == "ALREADY_REGISTERED"
     assert len(configured["app"].router.routes) == len(paths)
+
+
+# Correlation is a signed request binding, never an authorization/idempotency key.
+@pytest.mark.parametrize("correlation", [
+    "b9d46744-f97f-4a21-b868-4d3fa68b77d2",
+    "17a4193b-5c78-4abd-9c5f-45767a25cbd7",
+])
+def test_client_request_identity_is_signed_on_both_phases(configured, correlation):
+    response = post(configured, client_request_id=correlation)
+    assert response.status_code == 200, response.text
+    result = response.json()
+    retained = records(configured)
+    assert [r["payload"]["phase"] for r in retained] == ["DECISION", "OUTCOME"]
+    assert all(r["payload"]["client_request_id"] == correlation for r in retained)
+    assert result["receipt"]["payload"]["client_request_id"] == correlation
+    for row in retained:
+        assert atelier.szl_dsse.verify_envelope(row["dsse"])["verified"] is True
+        assert json.loads(base64.b64decode(row["dsse"]["payload"])) == row["payload"]
+    assert sum(call[1].get("method") == "POST" for call in configured["calls"]) == 1
+    assert "client_request_id" not in repr(configured["calls"])
+    assert correlation not in repr(configured["calls"])
+
+
+@pytest.mark.parametrize("correlation", [
+    True, 1, "", "not-a-uuid", "00000000-0000-0000-0000-000000000000",
+    "b9d46744-f97f-4a21-b868-4d3fa68b77d2\n",
+    "b9d46744-f97f-1a21-b868-4d3fa68b77d2",
+])
+def test_client_request_identity_rejects_invalid_before_effects(configured, correlation):
+    response = post(configured, client_request_id=correlation)
+    assert response.status_code == 422, response.text
+    assert configured["calls"] == []
+    assert not configured["ledger"].exists()
+
+
+def test_client_request_identity_legacy_omission_stays_compatible(configured):
+    response = post(configured)
+    assert response.status_code == 200, response.text
+    assert all("client_request_id" not in row["payload"] for row in records(configured))
+
+
+def test_client_request_identity_is_not_a_deduplication_promise(configured):
+    correlation = "b9d46744-f97f-4a21-b868-4d3fa68b77d2"
+    first = post(configured, client_request_id=correlation)
+    second = post(configured, client_request_id=correlation)
+    assert first.status_code == second.status_code == 200
+    assert first.json()["request_id"] != second.json()["request_id"]
+    assert sum(call[1].get("method") == "POST" for call in configured["calls"]) == 2

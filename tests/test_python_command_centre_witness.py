@@ -133,9 +133,64 @@ def test_skip_link_waits_for_navigation_but_rejects_wrong_destination(destinatio
             assert page.url == "about:blank#wrong"
 
 
+
+def test_keyboard_origin_reset_preserves_document_and_existing_body_tabindex():
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as playwright, playwright.chromium.launch(headless=True) as browser:
+        page = browser.new_page()
+        page.set_content("<a href='#work'>Skip</a><button id='refresh'>Refresh</button>"
+                         "<main id='work'>Work</main>")
+        page.evaluate("document.body.setAttribute('tabindex', '7')")
+        page.locator("#refresh").focus()
+        before_url = page.url
+        witness.reset_keyboard_origin(page)
+        assert page.url == before_url
+        assert page.locator("body").get_attribute("tabindex") == "7"
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.getAttribute('href')") == "#work"
+        # Missing original tabindex is also restored: no persistent DOM mutation.
+        page.evaluate("document.body.removeAttribute('tabindex')")
+        page.locator("#refresh").focus()
+        witness.reset_keyboard_origin(page)
+        assert page.locator("body").get_attribute("tabindex") is None
+        page.keyboard.press("Tab")
+        assert page.evaluate("document.activeElement.getAttribute('href')") == "#work"
+
+
+def test_failure_diagnostics_remain_bounded_and_omit_sensitive_url_parts():
+    records = [{"method": "GET", "type": "fetch",
+                "url": "https://user:password@example.invalid/path?credential=secret#fragment"}] * 40
+    evidence = witness.failed_observation("/command-centre", 320, True,
+                                          ["fixture-error" * 100] * 25, records, records)
+    assert len(evidence["errors"]) == 20
+    assert len(evidence["errors"][0]) <= 1000
+    assert len(evidence["requests"]) == 30
+    assert len(evidence["violations"]) == 20
+    assert evidence["counts"] == {"errors": 25, "requests": 40, "violations": 40}
+    assert evidence["truncated"] is True
+    assert evidence["requests"][0] == {"method": "GET", "type": "fetch",
+                                      "host": "example.invalid", "path": "/path"}
+
+
+def test_browser_errors_are_retained_without_waiving_the_gate(tmp_path):
+    from playwright.sync_api import sync_playwright
+    with witness.fixture_server(REVISION) as fixture, sync_playwright() as playwright:
+        with playwright.chromium.launch(headless=True) as browser:
+            def context_with_error(**kwargs):
+                context = browser.new_context(**kwargs)
+                context.add_init_script("console.error('SYNTHETIC_EXPECTED_BROWSER_FAILURE')")
+                return context
+            with pytest.raises(witness.WitnessError, match="browser reported") as raised:
+                witness.observe(SimpleNamespace(new_context=context_with_error), fixture,
+                                "/command-centre", 320, True, tmp_path)
+    evidence = raised.value.observation
+    assert evidence["javascript"] is True and evidence["width"] == 320
+    assert any("SYNTHETIC_EXPECTED_BROWSER_FAILURE" in item for item in evidence["errors"])
+    assert evidence["counts"]["errors"] > 0
+    assert evidence["violations"] == []
+
 def test_fixture_allows_only_its_exact_digest_assets():
     import hashlib
-    from routers import command_centre as centre
     from routers import command_centre_view as view
     with witness.fixture_server(REVISION) as fixture:
         assert len(fixture['asset_paths']) == 4
@@ -195,3 +250,21 @@ def test_browser_rejects_altered_script_and_keeps_all_send_buttons_disabled(monk
             assert any('integrity' in error.lower() for error in console_errors)
             assert all(row['method'] == 'GET' for row in fixture['requests'])
             assert not any('/atelier/' in row['path'] for row in fixture['requests'])
+
+
+def test_client_side_abort_of_allowed_local_get_is_not_an_error():
+    request = SimpleNamespace(method="GET", url=ORIGIN + "/api/build-info",
+                              failure="net::ERR_ABORTED")
+    assert witness.request_failure_is_error(request, ORIGIN) is False
+
+
+@pytest.mark.parametrize("method,url,failure", [
+    ("GET", ORIGIN + "/api/build-info", "net::ERR_CONNECTION_REFUSED"),
+    ("GET", "https://a-11-oy.com/api/build-info", "net::ERR_ABORTED"),
+    ("GET", ORIGIN + "/unknown", "net::ERR_ABORTED"),
+    ("POST", ORIGIN + "/api/build-info", "net::ERR_ABORTED"),
+    ("GET", ORIGIN + "/api/build-info", None),
+])
+def test_real_transport_errors_and_foreign_aborts_stay_errors(method, url, failure):
+    request = SimpleNamespace(method=method, url=url, failure=failure)
+    assert witness.request_failure_is_error(request, ORIGIN) is True

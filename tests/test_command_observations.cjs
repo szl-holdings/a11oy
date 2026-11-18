@@ -350,3 +350,27 @@ test("array and object storage labels cannot masquerade as reported strings", as
     assert.match(text,/gdw · UNAVAILABLE/);
   }
 });
+
+
+test("static lineage export is a link, not an inferred successful run", async () => {
+  const h=await harness();
+  const before=h.calls.length;
+  h.run('openRoom("evidence")');
+  assert.match(h.elements.get("content").textContent,/Static lineage JSON/);
+  assert.equal(h.calls.length,before);
+  assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/evidence/openlineage").length,0);
+});
+test("parent coverage without a denominator is explicitly unavailable", async () => {
+  const h=await harness();
+  const b=graphFixture();
+  b.graph.parent_resolution={
+    state:"UNAVAILABLE", authority:"OBSERVATION_ONLY",resolved:0,unresolved:0,
+    denominator:0,ratio:null,unresolved_preview:[],preview_truncated:false,
+    graph_bounded:false,signatures_verified:false
+  };
+  setSource(h,"evidenceGraph",b);
+  h.run('openRoom("evidence")');
+  const rendered=h.elements.get("content").textContent;
+  assert.match(rendered,/Parent references UNAVAILABLE/);
+  assert.match(rendered,/No parent-reference denominator/);
+});
