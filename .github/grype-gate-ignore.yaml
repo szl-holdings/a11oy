@@ -1,0 +1,31 @@
+# Grype gate allowlist - evidence-linked and TEMPORARY by construction.
+# Loaded by the grype-gate job in .github/workflows/trivy.yml via the
+# scan-action config input. tests/test_grype_gate_contract.py enforces:
+#   (1) every ignore entry is package-scoped and carries a reason;
+#   (2) the review-by window below has not elapsed - a lapsed window turns
+#       CI red until a human re-reviews (fail-closed, never a silent
+#       permanent blanket ignore).
+# review-by: 2026-12-18
+
+ignore:
+  # step-security/harden-runner GHSA-g85v-wf27-67xc (command injection in
+  # setup.ts/arc-runner.ts; published 2024-11-18; affected < v2.10.2;
+  # patched v2.10.2). Every workflow in this repo pins harden-runner at
+  # revision 1d88384fd173af6ecb012dfd0264a306b711241a, annotated v2.22.4,
+  # which is above the patched version, so the usage is NOT affected. Grype
+  # cannot resolve a sha revision to a tag/version and therefore reports the
+  # advisory against every sha-pinned use. Scoped to this package only.
+  - vulnerability: GHSA-g85v-wf27-67xc
+    package:
+      name: step-security/harden-runner
+    reason: "pinned v2.22.4 >= patched v2.10.2; grype cannot resolve the sha ref to a version (false positive)"
+
+  # picomatch GHSA-fc5q-39xc-vjpf (CVE-2026-112366 ReDoS), WITHDRAWN by the
+  # GitHub Advisory Database on 2026-11-18 as disputed upstream
+  # (micromatch/picomatch#235: not a security issue). Grype DB snapshots
+  # built before the withdrawal still carry the record. Scoped to this
+  # package only; drop this entry once fresh DB builds no longer report it.
+  - vulnerability: GHSA-fc5q-39xc-vjpf
+    package:
+      name: picomatch
+    reason: "advisory withdrawn 2026-11-18 (disputed upstream); grype DB snapshot predates the withdrawal"
