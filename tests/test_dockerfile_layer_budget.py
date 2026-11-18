@@ -76,7 +76,8 @@ BUILD_ENV_FANOUT_COPY_ADDITIONS = {"a11oy_build_env_fanout.py"}
 # batched into the existing root COPY. Historical source digests and the layer
 # ceiling remain unchanged; only these exact additions are excluded below.
 EVIDENCE_GRAPH_COPY_ADDITIONS = {
-    "szl_evidence_graph.py", "szl_evidence_receipts.py", "evidence_graph_receipts.json",
+    "szl_evidence_graph.py", "szl_evidence_discovery.py",
+    "szl_evidence_receipts.py", "evidence_graph_receipts.json",
 }
 # One explicit telemetry module; prior source digests and layer budget stay fixed.
 TRACE_OBSERVATION_COPY_ADDITIONS = {"vsp_otel/trace_ir.py"}
