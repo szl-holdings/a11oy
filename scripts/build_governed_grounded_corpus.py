@@ -143,7 +143,7 @@ def norm_ws(text):
 
 
 def first_sentences(body, lo=120, hi=600):
-    """Leading whole sentences of the first prose paragraph, or None.
+    """The first whole sentences of the first prose paragraph, or None.
 
     One paragraph only, so the extract is contiguous in the context (modulo whitespace).
     """
