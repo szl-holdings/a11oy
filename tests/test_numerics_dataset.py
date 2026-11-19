@@ -186,16 +186,21 @@ def test_formula_curriculum_accounts_for_all_ids_without_proof_uplift():
     assert curriculum["schema"] == dataset.CURRICULUM_SCHEMA
     assert curriculum["counts"]["expected"] == 23
     assert curriculum["counts"]["eligible"] + curriculum["counts"]["quarantined"] == 23
-    assert curriculum["formula_contract"]["locked_proven_ids"] == [
-        "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
-    ]
+    assert curriculum["formula_contract"]["formula_namespace"] == "puriq.numeric-demo.v1"
+    assert curriculum["formula_contract"]["locked_proven_ids"] == []
+    assert curriculum["formula_contract"]["formal_binding"] == "UNKNOWN_NOT_ASSERTED"
+    assert curriculum["counts"]["training_eligible"] == 0
+    assert curriculum["formal_registry"]["state"] == "AVAILABLE"
+    assert curriculum["formal_registry"]["locked_proven_count"] == 8
     by_id = {item["formula_id"]: item for item in curriculum["eligible"]}
     assert set(by_id) == {f"F{index}" for index in range(1, 24)}
-    assert {item["formula_id"] for item in curriculum["eligible"] if item["proof_status"] == "PROVED"} == {
-        "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
-    }
-    assert by_id["F23"]["proof_status"] == "CONJECTURE_1"
-    assert by_id["F23"]["claim_scope"] == "CONJECTURE_1_OPEN_NOT_A_THEOREM"
+    assert all(item["proof_status"] == "UNVERIFIED" for item in curriculum["eligible"])
+    assert all(item["lean_name"] is None and item["locked"] is False for item in curriculum["eligible"])
+    assert all(item["training_eligible"] is False and item["can_authorize_action"] is False for item in curriculum["eligible"])
+    assert all(item["split"] == "holdout" for item in curriculum["eligible"])
+    assert by_id["F23"]["claim_scope"] == "NUMERIC_DEMONSTRATION_NO_FORMAL_BINDING"
+    assert by_id["F1"]["record_id"] == "puriq.numeric-demo.v1:F1"
+    assert by_id["F1"]["name"] != curriculum["formal_registry"]["formulas"]["F1"]["name"]
     assert all(item["proof_receipt_sha256"] is None for item in curriculum["eligible"])
     assert all(item["refutation_receipt_sha256"] is None for item in curriculum["eligible"])
     assert all(item["proof_uplift"] == item["trust_uplift"] == 0 for item in curriculum["eligible"])
@@ -203,3 +208,34 @@ def test_formula_curriculum_accounts_for_all_ids_without_proof_uplift():
     for item in curriculum["eligible"]:
         family_splits.setdefault(item["source_family"], set()).add(item["split"])
     assert all(len(splits) == 1 for splits in family_splits.values())
+
+
+@pytest.mark.parametrize("change", [
+    {"proof_status": "PROVED", "locked": True},
+    {"can_authorize_action": True},
+    {"formula_namespace": "lutar-lean.formal-f-id.v2"},
+])
+def test_numeric_curriculum_quarantines_attempted_proof_transfer(monkeypatch, change):
+    metadata = dataset._puriq.numeric_demo_metadata()
+    metadata["F1"].update(change)
+    monkeypatch.setattr(dataset._puriq, "numeric_demo_metadata", lambda: metadata)
+    curriculum = dataset.formula_curriculum()
+    assert "F1" not in {row["formula_id"] for row in curriculum["eligible"]}
+    refused = next(row for row in curriculum["quarantined"] if row["formula_id"] == "F1")
+    assert refused["training_eligible"] is False
+    assert refused["can_authorize_action"] is False
+    assert curriculum["counts"]["training_eligible"] == 0
+
+
+def test_numeric_curriculum_does_not_cache_positive_formal_evidence(monkeypatch):
+    assert dataset.formula_curriculum()["formal_registry"]["state"] == "AVAILABLE"
+    monkeypatch.setattr(dataset._puriq, "formal_registry_snapshot", lambda: {
+        "state": "UNAVAILABLE", "formulas": {}, "registry_digest": None,
+        "signature_status": "UNKNOWN", "locked_proven_count": None,
+        "locked_proven_ids": [], "kernel_mapping": "UNKNOWN_NOT_ASSERTED",
+        "execution_authority": False,
+    })
+    reread = dataset.formula_curriculum()
+    assert reread["formal_registry"]["state"] == "UNAVAILABLE"
+    assert reread["formal_registry"]["locked_proven_count"] is None
+    assert all(row["proof_status"] == "UNVERIFIED" and row["locked"] is False for row in reread["eligible"])

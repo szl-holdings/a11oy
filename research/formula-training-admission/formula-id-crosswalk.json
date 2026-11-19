@@ -1,5 +1,5 @@
 {
-  "crosswalk_receipt_sha256": "6da2819f3195e08f82290a6006cc92f914fada1510ee105d8eeb864564862b52",
+  "crosswalk_receipt_sha256": "de7ab64c8efa05c7649ce8a8e43e0a54eb6858dcf624eb1a48fcdb0601f2bc79",
   "namespace_policy": {
     "default_proof_transfer_allowed": false,
     "formula_ids_are_namespace_scoped": true,
@@ -705,7 +705,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F1",
-      "brain_node_sha256": "bb9b8bc3822256a7239b26a9ab9d6643990312b3af059db4b316d771f8e7801b",
+      "brain_node_sha256": "03380a8a0bcbb043067fd21750834819f719870334b20ed2a190c31749e4ee4e",
       "canonical_name": "Euler-Khipu DAG Identity",
       "claim_sha256": "d8e7376895168d4d25fbe9dcb5a66ae5961f32a3e06c351b8e75ad31ff4c009f",
       "declared_lean_name": "wellFormed_iff",
@@ -714,7 +714,7 @@
       "executable": true,
       "formula_id": "F1",
       "formula_namespace": "puriq-runtime-registry",
-      "historical_m1_status": "KERNEL_ACCEPTED",
+      "historical_m1_status": "OPEN",
       "proof_transfer_allowed": false,
       "record_id": "puriq-runtime-registry:F1",
       "resolved_status": "CONDITIONAL",
@@ -739,7 +739,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F10",
-      "brain_node_sha256": "e1f41cc25322f6a4b2bfe79428ad72f78a848eac7f02b33a79d4b32889f56a3d",
+      "brain_node_sha256": "892083f6129e804c7055772ba0d3fe6d2bf1dd0a1c1fa844a6ffa7bc473e13dd",
       "canonical_name": "Baudhayana Orthogonality Bound",
       "claim_sha256": "ada64ce8cbcade1fa019d98116d11f932bb4d86d0692a0bd6ba4485c95a8e7d7",
       "declared_lean_name": "baudhayana_iterate",
@@ -773,7 +773,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F11",
-      "brain_node_sha256": "1342a38677353f097f8a579ffb0da32923bc263aa80aad57b1e0076cde83d8df",
+      "brain_node_sha256": "e8129a25c319bba7670e8a36ce7acc5d18b7cf6bd265ad28e01bfd7f769762bf",
       "canonical_name": "Frustum A-Shrink Law",
       "claim_sha256": "713a46711597f60e4f58b0f2bc6bc4abdb5fd9315ed902f1181a88cdbb5f34bb",
       "declared_lean_name": "frustum_degenerates_to_pyramid",
@@ -782,7 +782,7 @@
       "executable": true,
       "formula_id": "F11",
       "formula_namespace": "puriq-runtime-registry",
-      "historical_m1_status": "KERNEL_ACCEPTED",
+      "historical_m1_status": "OPEN",
       "proof_transfer_allowed": false,
       "record_id": "puriq-runtime-registry:F11",
       "resolved_status": "CONDITIONAL",
@@ -807,7 +807,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F12",
-      "brain_node_sha256": "c15d47fb2186bce65e88628e484fcc58109288a2c7ec746f873f7186fe16ed8b",
+      "brain_node_sha256": "1f101b7c81c421f8444132d71af2b80c11b3a0f01fb9975fbfbf4a250f5b3682",
       "canonical_name": "CRT-Hukulla Schedule",
       "claim_sha256": "b711a4a6c30dc94ab1ab47e80a927442d06340c7b826a45f6435b26ef2caa785",
       "declared_lean_name": "crt_collision_period",
@@ -816,7 +816,7 @@
       "executable": true,
       "formula_id": "F12",
       "formula_namespace": "puriq-runtime-registry",
-      "historical_m1_status": "KERNEL_ACCEPTED",
+      "historical_m1_status": "OPEN",
       "proof_transfer_allowed": false,
       "record_id": "puriq-runtime-registry:F12",
       "resolved_status": "CONDITIONAL",
@@ -841,7 +841,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F13",
-      "brain_node_sha256": "9483160d39680eb4b49c0f3dc8559bb4ffbeafa26dcbef6ef4ab11d431486323",
+      "brain_node_sha256": "a7e91f948641fcafa8918829a9cc28d35f85edf1dd6af594b537783df2b00d7c",
       "canonical_name": "Gauss-Bonnet Spine Curvature",
       "claim_sha256": "dbeeb94777178e0ce993901fab1d038367aebb0ce610b68fd0835f2bb022607a",
       "declared_lean_name": "curvatureConsistent",
@@ -875,7 +875,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F14",
-      "brain_node_sha256": "2cd89515c93f8e2b8f3d7e3016dc347921e3714c5924ce668c130de12715167c",
+      "brain_node_sha256": "5d54d55f308f2f2f7277e3d10697e68d8be7f3bb7230f8e80cb64bca38e8456e",
       "canonical_name": "Ramanujan A-Partition Bound",
       "claim_sha256": "47be4703f824f1044c1c2ca8a55d6853492e46564e1e7dc45f48dd70cb1dc7b0",
       "declared_lean_name": "hardyRamanujan",
@@ -909,7 +909,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F15",
-      "brain_node_sha256": "07f125dd73bc5375fa1418bb79dc3a8fc9aa0ca9ad81a32a351049e540545f9a",
+      "brain_node_sha256": "1ea0d1a35f903484748bb0a10c478d374203de5721da3b4d40db38823c11f7cf",
       "canonical_name": "Grothendieck Organ Functor",
       "claim_sha256": "f95bf172acba1031a78cfce5857406ed83ab005aeef049463c6f765e77380117",
       "declared_lean_name": "organ_comp_assoc",
@@ -943,7 +943,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F16",
-      "brain_node_sha256": "f0b3418b880d6f2684486aa1fb56152f59c37c06b44296162021a6f8b00624e3",
+      "brain_node_sha256": "1c5f807296fe2cc867a701ce1b524ab38b54a33ccf8124ac3cd0e05aba5206f4",
       "canonical_name": "von-Neumann-Hukulla Minimax",
       "claim_sha256": "31c723e08600eaff88059f001e9b8d489b12b4eef5f676ba60246cc630c4a3b4",
       "declared_lean_name": "minimax_exists",
@@ -977,7 +977,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F17",
-      "brain_node_sha256": "151d95caf36cc5dac5b6a3f0c1dd9e141d8cb3a9d770483cb3ede18325f30061",
+      "brain_node_sha256": "98718ecae69bdd72f6d6ca8ae9b10398c7bb1a55dd47ae68f046556b6f75f98f",
       "canonical_name": "Shannon-Kallpa Capacity",
       "claim_sha256": "d73cfc04e46f0bf97b3b9ec3067813865d0d18a38254b4a83de166c37c31a02f",
       "declared_lean_name": "entropy_nonneg",
@@ -1011,7 +1011,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F18",
-      "brain_node_sha256": "8c2bc8bfd9074662a1579128f042e223ba87892ffe6c665bef0eb379912cd1e4",
+      "brain_node_sha256": "3c0b60456be4d1ee411a2eb159e66ba323b069b5203a072508065dadcabef848",
       "canonical_name": "Kolmogorov A-Description Cap",
       "claim_sha256": "af310dcf9ab7efa285dedfd3a8ea4898e9c7c8be67ddb1a0dadd9c174f9499ac",
       "declared_lean_name": "actions_bounded_by_K",
@@ -1020,7 +1020,7 @@
       "executable": true,
       "formula_id": "F18",
       "formula_namespace": "puriq-runtime-registry",
-      "historical_m1_status": "KERNEL_ACCEPTED",
+      "historical_m1_status": "OPEN",
       "proof_transfer_allowed": false,
       "record_id": "puriq-runtime-registry:F18",
       "resolved_status": "CONDITIONAL",
@@ -1045,7 +1045,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F19",
-      "brain_node_sha256": "74fa831bdd64acc89c6a89118b137c6c8f7a5d5067cc2e65a4a3f2794448db6e",
+      "brain_node_sha256": "0835238fa8b4290904f774b5eba5eaf73edf2c9fefa6de52bab2843a6bdabacb",
       "canonical_name": "Turing-Fuel Halting Safety",
       "claim_sha256": "f36e17cd575947cc4058ca07a3cdd98bf21663e2a9b8c67456ca9fbc47115df4",
       "declared_lean_name": "fuel_total",
@@ -1054,7 +1054,7 @@
       "executable": true,
       "formula_id": "F19",
       "formula_namespace": "puriq-runtime-registry",
-      "historical_m1_status": "KERNEL_ACCEPTED",
+      "historical_m1_status": "OPEN",
       "proof_transfer_allowed": false,
       "record_id": "puriq-runtime-registry:F19",
       "resolved_status": "CONDITIONAL",
@@ -1079,7 +1079,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F2",
-      "brain_node_sha256": "3f9d48ec2840369a32a8574b2d28a9e31bb07c5ca964b7f6d0d3eb15c2397dba",
+      "brain_node_sha256": "6eeb74142aee48b7460dce29530904e19489feafd4c64a90deba28a3bd86c447",
       "canonical_name": "Egyptian-Kallpa Allocation",
       "claim_sha256": "4720a1447075da74a5f563534048c75bf7d5a8bdaf13423314c8c6b1d4ed4a25",
       "declared_lean_name": "egyptian_sum_eq",
@@ -1113,7 +1113,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F20",
-      "brain_node_sha256": "9462058c66c67deeed1505a3b072e81a0734f2ef109c2773a4b7c40955df2777",
+      "brain_node_sha256": "555909ebaeb13fe7ee1fae4b23ace976b4012d8eeed36690dd1b883d644697d9",
       "canonical_name": "Schrodinger Action Superposition",
       "claim_sha256": "6333de1ea100e18f0be72609ec934b70b50a15aaef8feefa033cda0782f954a0",
       "declared_lean_name": "superposition_normalized",
@@ -1147,7 +1147,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F21",
-      "brain_node_sha256": "9152ef3a0851e9965dc7752c32f2cb24ab2346500dbf286b589973818d3ce1a3",
+      "brain_node_sha256": "b51d4ccec6f8925406aa4235d98ac3e935da151738a3633b20353ae328acd477",
       "canonical_name": "Dirac-Commit Projection",
       "claim_sha256": "41ee3577506bd4936914b81f80eb8efca9e3db385813a2d63aa19069d4c6b087",
       "declared_lean_name": "projections_sum_one",
@@ -1181,7 +1181,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F22",
-      "brain_node_sha256": "50c0df91d3c5749bc41827bab6463e732d4ebdb26f4455f1897231b355b1246a",
+      "brain_node_sha256": "7320b63a06f9075cd79105d0af42c954ecd6193f16208f04944fffcf490c58a2",
       "canonical_name": "Feynman-Puriq Path Integral",
       "claim_sha256": "495ce6dbfc1d61f415c033fae18323d95ee19b48282cc8c877cd9cd3ece1edec",
       "declared_lean_name": "f22_khipu_emit_monotone",
@@ -1190,7 +1190,7 @@
       "executable": true,
       "formula_id": "F22",
       "formula_namespace": "puriq-runtime-registry",
-      "historical_m1_status": "KERNEL_ACCEPTED",
+      "historical_m1_status": "OPEN",
       "proof_transfer_allowed": false,
       "record_id": "puriq-runtime-registry:F22",
       "resolved_status": "CONDITIONAL",
@@ -1215,7 +1215,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F23",
-      "brain_node_sha256": "60e9ca1aab9a6ef0f503c8a270259c9eb589356f501d14d34c62a4391da518a4",
+      "brain_node_sha256": "5e7f6fccd5068527b5da16875bd075bf1c718a1dfe8dd2258cbd5b7676233e00",
       "canonical_name": "Bekenstein A-Cap",
       "claim_sha256": "501b9a119e7a44877006b8a4d3557a096ac289eba0a899ef306bae04d51b3fee",
       "declared_lean_name": "actionSpaceBounded",
@@ -1249,7 +1249,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F3",
-      "brain_node_sha256": "66827f7a2418dbb39031416a758dfae77e94d1e63aeadd9961c83e367d8ce703",
+      "brain_node_sha256": "ad72c374776873621c7439b0a9a767d9e3cb9e366b0a66c5a2f036e82c640957",
       "canonical_name": "Noether-Khipu Conservation",
       "claim_sha256": "ac359a5bb034e3a1e67d4bf3529ffdfb1c3bae89617325424b2c73e0fb9e6139",
       "declared_lean_name": "noether_conservation",
@@ -1283,7 +1283,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F4",
-      "brain_node_sha256": "3fd8fb77ddd0f1f7a7124094cfb0131569d16b2fe805afbb6ca8af7b7ff2f603",
+      "brain_node_sha256": "2f881562f716ee591be3b10e84c7516dafa98c8cab6dbb1d62d6023036764381",
       "canonical_name": "Gauss-Yuyay Aggregation",
       "claim_sha256": "f20a4ac398a8f5ed3ab8c8cd3c6753d96f8a7314ae6d3522fd9d0d9a1ce7a970",
       "declared_lean_name": "f4_khipu_dag_acyclic_preserved",
@@ -1292,7 +1292,7 @@
       "executable": true,
       "formula_id": "F4",
       "formula_namespace": "puriq-runtime-registry",
-      "historical_m1_status": "KERNEL_ACCEPTED",
+      "historical_m1_status": "OPEN",
       "proof_transfer_allowed": false,
       "record_id": "puriq-runtime-registry:F4",
       "resolved_status": "CONDITIONAL",
@@ -1317,7 +1317,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F5",
-      "brain_node_sha256": "ae3bc2e48b45ca4cf7d4fc6e6476509199cd34898e36ba4e6ffcdc726307328d",
+      "brain_node_sha256": "85ecfdaec85a179413c856e4b57a71e6f2411214bc33ed25fb12678b42aab75d",
       "canonical_name": "Euler-Lagrange Agency",
       "claim_sha256": "b6b875b171762b09fe5104ea4c5f4a4988502bcb7f0ce74cd0ec79d4c05d438e",
       "declared_lean_name": "isStationary",
@@ -1351,7 +1351,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F6",
-      "brain_node_sha256": "e95812caf7d6bccb426a8817dcd7e6e3e02a025c5cc32f683fe66db65b785d45",
+      "brain_node_sha256": "75a1e481021fefb00e6bd94d33152b265fad4d1337676d23078dc2d25d916fb8",
       "canonical_name": "Newton Risk-Velocity Tripwire",
       "claim_sha256": "ccc0da6d20403bf7b39f504e7786405929b65df006facd2cbf47f411ce13f3ea",
       "declared_lean_name": "velocity_tripwire_sound",
@@ -1385,7 +1385,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F7",
-      "brain_node_sha256": "4974772446fe6023451ca111e9b413a342ef935e4bdac3825bc2363d9be5e6c7",
+      "brain_node_sha256": "0c7a59047c6ed5549f58306d80f6e9d0a280b7ee37b772703eab914baa8c3203",
       "canonical_name": "Inverse-Square/Zeta Provenance",
       "claim_sha256": "5cd3d0fa971a0280e8f2c8ae59aa012e0617eb2b87e83f35de71f0482184ba58",
       "declared_lean_name": "f7_chaski_fifo_order",
@@ -1394,7 +1394,7 @@
       "executable": true,
       "formula_id": "F7",
       "formula_namespace": "puriq-runtime-registry",
-      "historical_m1_status": "KERNEL_ACCEPTED",
+      "historical_m1_status": "OPEN",
       "proof_transfer_allowed": false,
       "record_id": "puriq-runtime-registry:F7",
       "resolved_status": "CONDITIONAL",
@@ -1419,7 +1419,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F8",
-      "brain_node_sha256": "d8723cf2847a0dfa482c87c792938b7854966daeba30fa1adaaef0c8504858df",
+      "brain_node_sha256": "98206de5ad65a670f6e89346a24089cf36d55c8a75db375e72771ed4eaabcfc9",
       "canonical_name": "Newton-Parsimony Pick",
       "claim_sha256": "91a7ad49ab70101036b99c67e7fcd8f8a1465eedad3376e27ea15965b951e060",
       "declared_lean_name": "parsimony_minimal",
@@ -1453,7 +1453,7 @@
     {
       "admission_decision": "HOLDOUT_NAMESPACE_DISAMBIGUATION",
       "brain_node_id": "formula:F9",
-      "brain_node_sha256": "ba912f93fa6ac4a9c668f3f08bfc5cde3d1d8928e8b3977a703560fae3d40cbb",
+      "brain_node_sha256": "dca54122ae1ad1f136dd34194123a69cfa4fa6595cdf1b0373481066e8804ea3",
       "canonical_name": "Sulba Yuyay Mass-Conservation",
       "claim_sha256": "2aa49202a2fecc9f9f222ada8ad27a7946b8f35c6fa8a9c6f2729a651d19ec40",
       "declared_lean_name": "yuyay_mass_conserved",
