@@ -146,17 +146,90 @@ def test_verify_manifest_detects_drift_against_tree(tmp_path):
     assert "BUNDLE_HASH_MISMATCH" in codes
 
 
+def _comparison_fixture():
+    def supplied(value):
+        return {"state": "SUPPLIED", "value": value}
+
+    manifest = {
+        "git": {"commit": SHA_A},
+        "frontend": {"bundle_sha256": "a" * 64},
+        "api_contract": {"sha256": "b" * 64},
+        "model": {"revision": supplied(SHA_B)},
+        "deployment": {"id": supplied("deploy-001")},
+        "rollback": {"target": supplied(SHA_B)},
+    }
+    observed = {
+        "revision": SHA_A,
+        "frontend_bundle_sha256": "a" * 64,
+        "api_contract_sha256": "b" * 64,
+        "model_revision": SHA_B,
+        "deployment_id": "deploy-001",
+        "rollback_target": SHA_B,
+    }
+    return manifest, observed
+
+
 def test_publication_lag_is_reported_when_runtime_revision_differs_from_manifest():
     import szl_release_manifest as rm
 
-    manifest = {"git": {"commit": SHA_A}}
-    findings = rm.compare_runtime(manifest, {"revision": SHA_B})
+    manifest, observed = _comparison_fixture()
+    assert rm.compare_runtime(manifest, observed) == []
+    findings = rm.compare_runtime(manifest, {**observed, "revision": SHA_B})
     assert [f["code"] for f in findings] == ["PUBLICATION_LAG"]
-    assert rm.compare_runtime(manifest, {"revision": SHA_A}) == []
-    # an unknown runtime revision is not a match
-    assert [f["code"] for f in rm.compare_runtime(manifest, {"revision": None})] == [
-        "RUNTIME_REVISION_UNKNOWN"
+    findings = rm.compare_runtime(manifest, {**observed, "revision": None})
+    assert [f["code"] for f in findings] == ["RUNTIME_REVISION_UNKNOWN"]
+
+
+def test_runtime_comparator_revision_only_holds():
+    import szl_release_manifest as rm
+
+    manifest, _ = _comparison_fixture()
+    assert [f["code"] for f in rm.compare_runtime(manifest, {"revision": SHA_A})] == [
+        "RUNTIME_FRONTEND_BUNDLE_UNKNOWN",
+        "RUNTIME_API_CONTRACT_UNKNOWN",
+        "RUNTIME_MODEL_REVISION_UNKNOWN",
+        "RUNTIME_DEPLOYMENT_ID_UNKNOWN",
+        "RUNTIME_ROLLBACK_TARGET_UNKNOWN",
     ]
+
+
+def test_runtime_comparator_rejects_each_mismatch():
+    import szl_release_manifest as rm
+
+    manifest, observed = _comparison_fixture()
+    for key, wrong, code in (
+        ("frontend_bundle_sha256", "c" * 64, "FRONTEND_BUNDLE_MISMATCH"),
+        ("api_contract_sha256", "c" * 64, "API_CONTRACT_MISMATCH"),
+        ("model_revision", SHA_A, "MODEL_REVISION_MISMATCH"),
+        ("deployment_id", "deploy-002", "DEPLOYMENT_ID_MISMATCH"),
+        ("rollback_target", SHA_A, "ROLLBACK_TARGET_MISMATCH"),
+    ):
+        assert [f["code"] for f in rm.compare_runtime(manifest, {**observed, key: wrong})] == [code]
+
+
+def test_runtime_comparator_rejects_unknown_malformed_and_untrusted_values():
+    import szl_release_manifest as rm
+
+    manifest, observed = _comparison_fixture()
+    manifest["model"]["revision"]["state"] = "UNKNOWN"
+    findings = rm.compare_runtime(manifest, {**observed, "api_contract_sha256": "not-a-digest"})
+    assert [f["code"] for f in findings] == [
+        "RUNTIME_API_CONTRACT_UNKNOWN", "MANIFEST_MODEL_REVISION_UNKNOWN",
+    ]
+    assert findings[0]["observed"] is None
+    for invalid in (None, {}, 5, "UNKNOWN", " " + SHA_A):
+        assert rm.compare_runtime(manifest, {**observed, "revision": invalid})[0]["code"] == (
+            "RUNTIME_REVISION_UNKNOWN"
+        )
+    supplied = {"state": "SUPPLIED", "value": "UNKNOWN"}
+    good_manifest, good_observed = _comparison_fixture()
+    good_manifest["deployment"]["id"] = supplied
+    assert [f["code"] for f in rm.compare_runtime(
+        good_manifest, {**good_observed, "deployment_id": "UNKNOWN"}
+    )] == ["MANIFEST_DEPLOYMENT_ID_UNKNOWN", "RUNTIME_DEPLOYMENT_ID_UNKNOWN"]
+    findings = rm.compare_runtime({}, observed)
+    assert len(findings) == 6
+    assert all(f["code"].startswith("MANIFEST_") for f in findings)
 
 
 def _client(monkeypatch, env: dict[str, str]):
