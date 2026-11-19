@@ -2,8 +2,13 @@ name: Lockfile Registry Check
 
 # Fails fast on the PR/push that introduces a lockfile referencing a
 # Replit-internal registry host (e.g. package-firewall.replit.local). Such hosts
-# do not resolve on GitHub runners and break npm/pnpm install. The shared check
-# lives in szl-holdings/.github; the org-wide scheduled sweep is the catch-all.
+# do not resolve on GitHub runners and break npm/pnpm install.
+#
+# INLINED from szl-holdings/.github/.github/workflows/reusable-lockfile-registry-check.yml@79cb06b
+# (scan logic byte-identical): the cross-repo reusable call created no check
+# run anywhere in the org, so the ruleset-required check
+# "lockfiles / No lockfile references a Replit-internal registry host" never
+# reported and ruleset-gated PRs blocked. Inline job reports the same name.
 on:
   push:
     branches: [main]
@@ -16,4 +21,53 @@ permissions:
 
 jobs:
   lockfiles:
-    uses: szl-holdings/.github/.github/workflows/reusable-lockfile-registry-check.yml@79cb06b79d6a3156a5796948295617ff6b207683  # main
+    name: lockfiles / No lockfile references a Replit-internal registry host
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Grep committed lockfiles for *.replit.local hosts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find . \
+            -path ./node_modules -prune -o \
+            -path ./.git -prune -o \
+            -type f \( \
+              -name package-lock.json -o \
+              -name npm-shrinkwrap.json -o \
+              -name pnpm-lock.yaml -o \
+              -name yarn.lock \
+            \) -print | sed 's#^\./##' | sort)
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No lockfiles found to scan."
+            exit 0
+          fi
+
+          echo "Scanning ${#files[@]} lockfile(s):"
+          printf '  - %s\n' "${files[@]}"
+
+          pattern='[A-Za-z0-9_.-]+\.replit\.local'
+          found=0
+          for f in "${files[@]}"; do
+            if hits="$(grep -Eo "$pattern" "$f" | sort -u)"; [ -n "$hits" ]; then
+              found=1
+              joined="$(echo "$hits" | paste -sd', ' -)"
+              echo "::error file=${f}::References Replit-internal registry host(s): ${joined}. These do not resolve on GitHub runners and break npm/pnpm install. Rewrite to https://registry.npmjs.org/ (integrity sha unchanged)."
+            fi
+          done
+
+          if [ "$found" -ne 0 ]; then
+            echo "::error::One or more lockfiles reference a Replit-internal (*.replit.local) registry host."
+            exit 1
+          fi
+
+          echo "No lockfile references a Replit-internal registry host."
