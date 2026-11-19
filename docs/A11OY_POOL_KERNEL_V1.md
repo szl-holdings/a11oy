@@ -138,5 +138,11 @@ side by side with the ingestion surface.
   later promotes the node. Accepted receipts are stored byte-exact and
   atomically, and the receipt directory is pruned so only the newest
   contract-bounded set survives.
+- Freshness is enforced at ingest as well as on read. A receipt whose
+  `observed_at` is more than 30 s ahead of the Space clock, or older than the
+  freshness window (`A11OY_POOL_RECEIPT_MAX_AGE_S`, default 300 s), is refused
+  with `422 receipt outside freshness window` and is not stored; the minter
+  reports the refusal and exits non-zero. On read, a future-dated receipt
+  already on disk never outranks a current one for the same node.
 - Minter cadence must be at most half the freshness window (default 120 s for
   a 300 s window) so a single missed cycle cannot make the node appear stale.

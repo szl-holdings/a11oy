@@ -18,6 +18,8 @@ with fail-closed semantics end to end:
     mismatched                                    -> 503, nothing accepted;
   * signature/schema invalid (reuse of the contract verifier — single source
     of verification truth)                        -> 422, nothing stored;
+  * observed_at more than the contract's future skew ahead of, or more than
+    the freshness window behind, this server's clock -> 422, nothing stored;
   * A11OY_COMPUTE_POOL_RECEIPT_DIR not a safe directory -> 503.
 
 Accepted, verified envelopes are stored atomically (tmp + os.replace) under a
@@ -40,6 +42,7 @@ import os
 import re
 import stat
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -193,6 +196,16 @@ async def _ingest(request: Request) -> JSONResponse:  # noqa: ANN401
     payload = pool_contract._verify_pool_envelope(envelope, verifier)
     if payload is None:
         return _json_error(422, "envelope failed pool verification (signature or payload contract)")
+    # A receipt the contract would never treat as fresh must not be stored:
+    # a future-dated one would outlive every correct receipt in the prune order.
+    observed = pool_contract._iso(payload.get("observed_at"))
+    max_age_s = pool_contract._freshness_seconds()
+    future_skew_s = pool_contract._RECEIPT_FUTURE_SKEW_S
+    age = (datetime.now(timezone.utc) - observed).total_seconds() if observed else None
+    if age is None or age < -future_skew_s or age > max_age_s:
+        return _json_error(
+            422, "receipt outside freshness window", max_age_s=max_age_s, future_skew_s=future_skew_s
+        )
     root = _safe_receipt_root()
     if root is None:
         return _json_error(503, "receipt directory not configured or unsafe")

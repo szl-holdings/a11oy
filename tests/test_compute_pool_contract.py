@@ -44,8 +44,8 @@ def _payload(now: datetime, *, serving: bool = False) -> dict:
     }
 
 
-def _write_signed(tmp_path, monkeypatch, payload: dict) -> None:
-    private = ec.generate_private_key(ec.SECP256R1())
+def _write_signed(tmp_path, monkeypatch, payload: dict, filename: str = "receipt.dsse.json", private=None):
+    private = private or ec.generate_private_key(ec.SECP256R1())
     public_pem = private.public_key().public_bytes(
         serialization.Encoding.PEM,
         serialization.PublicFormat.SubjectPublicKeyInfo,
@@ -70,7 +70,8 @@ def _write_signed(tmp_path, monkeypatch, payload: dict) -> None:
             "sig": base64.b64encode(signature).decode("ascii"),
         }],
     }
-    (tmp_path / "receipt.dsse.json").write_text(json.dumps(envelope), encoding="utf-8")
+    (tmp_path / filename).write_text(json.dumps(envelope), encoding="utf-8")
+    return private
 
 
 def test_reachability_alone_is_never_ready(monkeypatch):
@@ -101,6 +102,26 @@ def test_stale_signed_receipt_only_proves_discovery(tmp_path, monkeypatch):
     result = contract.build_compute_pool_contract(_pool(), now)
     assert result["nodes"][0]["state"] == "DISCOVERED"
     assert result["nodes"][0]["ready"] is False
+
+
+def test_future_dated_receipt_does_not_mask_fresh_one(tmp_path, monkeypatch):
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    fresh = _payload(now, serving=True)
+    private = _write_signed(tmp_path, monkeypatch, fresh, "a-fresh.dsse.json")
+    _write_signed(tmp_path, monkeypatch, _payload(now + timedelta(hours=1), serving=True), "b-future.dsse.json", private)
+    node = contract.build_compute_pool_contract(_pool(), now)["nodes"][0]
+    assert node["state"] == "SERVING"
+    assert node["ready"] is True
+    assert node["inference_receipt"]["observed_at"] == fresh["observed_at"]
+
+
+def test_future_dated_receipt_alone_only_proves_discovery(tmp_path, monkeypatch):
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    _write_signed(tmp_path, monkeypatch, _payload(now + timedelta(hours=1), serving=True))
+    node = contract.build_compute_pool_contract(_pool(), now)["nodes"][0]
+    assert node["state"] == "DISCOVERED"
+    assert node["ready"] is False
+    assert node["inference_receipt"]["reason"] == "verified receipt is stale or future-dated"
 
 
 def test_unsigned_or_content_bearing_receipt_cannot_promote(tmp_path, monkeypatch):

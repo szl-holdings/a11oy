@@ -37,6 +37,7 @@ _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _MAX_RECEIPTS = 128
 _MAX_RECEIPT_BYTES = 256 * 1024
 _POOL_KEY_ID = "a11oy-pool-attester-v1"
+_RECEIPT_FUTURE_SKEW_S = 30
 _POOL_ISSUER = "a11oy-pool-attester"
 _POOL_AUDIENCE = "a11oy-compute-pool"
 _POOL_PREDICATE = "szl.compute-pool.inference-qualification/v1"
@@ -311,7 +312,7 @@ def _verify_pool_envelope(envelope: object, public_key: Any) -> Optional[Dict[st
     return payload if _valid_receipt_payload(payload) else None
 
 
-def _verified_receipts() -> Dict[str, Dict[str, Any]]:
+def _verified_receipts(now: datetime) -> Dict[str, Dict[str, Any]]:
     verifier = _pool_verifier()
     if verifier is None:
         return {}
@@ -329,6 +330,10 @@ def _verified_receipts() -> Dict[str, Dict[str, Any]]:
         return {}
 
     accepted: Dict[str, Dict[str, Any]] = {}
+    # A future-dated receipt must never outrank a current one for the same
+    # node; it is kept only as a last resort so the node still reports
+    # DISCOVERED with the stale-or-future-dated reason.
+    future_only: Dict[str, Dict[str, Any]] = {}
     for candidate in candidates:
         raw = _read_regular_file(candidate, resolved_root)
         if raw is None:
@@ -343,13 +348,20 @@ def _verified_receipts() -> Dict[str, Dict[str, Any]]:
         record = dict(payload)
         record["receipt_sha256"] = hashlib.sha256(raw).hexdigest()
         node_id = record["node_id"]
-        prior = accepted.get(node_id)
-        rank = (_iso(record["observed_at"]), record["receipt_sha256"])
+        observed = _iso(record["observed_at"])
+        if observed is None:
+            continue
+        future = (observed - now).total_seconds() > _RECEIPT_FUTURE_SKEW_S
+        bucket = future_only if future else accepted
+        prior = bucket.get(node_id)
+        rank = (observed, record["receipt_sha256"])
         prior_rank = (
             _iso(prior["observed_at"]), prior["receipt_sha256"]
         ) if prior else None
-        if prior is None or (rank[0] is not None and prior_rank is not None and rank > prior_rank):
-            accepted[node_id] = record
+        if prior is None or (prior_rank is not None and rank > prior_rank):
+            bucket[node_id] = record
+    for node_id, record in future_only.items():
+        accepted.setdefault(node_id, record)
     return accepted
 
 
@@ -364,7 +376,7 @@ def _receipt_summary(receipt: Optional[Dict[str, Any]], now: datetime, max_age_s
         )
     observed = _iso(receipt["observed_at"])
     age = (now - observed).total_seconds() if observed else float("inf")
-    fresh = -30 <= age <= max_age_s
+    fresh = -_RECEIPT_FUTURE_SKEW_S <= age <= max_age_s
     return ReceiptSummary(
         evidence_class=EvidenceClass.MEASURED,
         verified=True,
@@ -382,7 +394,7 @@ def build_compute_pool_contract(pool: Optional[Dict[str, Any]] = None, now: Opti
     pool = pool if pool is not None else szl_backend_hardening.probe_fabric_pool()
     generated = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     max_age = _freshness_seconds()
-    receipts = _verified_receipts()
+    receipts = _verified_receipts(generated)
     nodes: List[PoolNode] = []
     seen_node_ids: set[str] = set()
 

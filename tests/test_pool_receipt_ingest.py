@@ -4,7 +4,7 @@ import base64
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -208,3 +208,40 @@ def test_storage_is_pruned_to_the_contract_selection_window(client, trust_root):
     names = [item.name for item in root.glob("*.dsse.json")]
     assert len(names) == contract._MAX_RECEIPTS
     assert all(ingest._RECEIPT_NAME_RE.match(name) for name in names)
+
+
+def test_future_dated_receipt_is_refused_without_storage(client, trust_root):
+    private, root = trust_root
+    raw = _envelope(private, _payload(datetime.now(timezone.utc) + timedelta(hours=1)))
+    response = _post(client, raw)
+    assert response.status_code == 422
+    assert response.json()["error"] == "receipt outside freshness window"
+    assert list(root.iterdir()) == []
+
+
+def test_stale_receipt_is_refused_without_storage(client, trust_root):
+    private, root = trust_root
+    max_age = contract._freshness_seconds()
+    raw = _envelope(private, _payload(datetime.now(timezone.utc) - timedelta(seconds=max_age + 60)))
+    response = _post(client, raw)
+    assert response.status_code == 422
+    assert response.json()["error"] == "receipt outside freshness window"
+    assert list(root.iterdir()) == []
+
+
+@pytest.mark.parametrize("offset_s", [10, -(contract._freshness_seconds() - 30)])
+def test_receipt_inside_freshness_window_is_accepted(client, trust_root, offset_s):
+    private, root = trust_root
+    raw = _envelope(private, _payload(datetime.now(timezone.utc) + timedelta(seconds=offset_s)))
+    assert _post(client, raw).status_code == 202
+    assert len(list(root.glob("*.dsse.json"))) == 1
+
+
+def test_refused_freshness_post_leaves_stored_receipt_untouched(client, trust_root):
+    private, root = trust_root
+    good = _envelope(private, _payload(datetime.now(timezone.utc)))
+    stored = root / _post(client, good).json()["stored_as"]
+    future = _envelope(private, _payload(datetime.now(timezone.utc) + timedelta(hours=1)))
+    assert _post(client, future).status_code == 422
+    assert [item.name for item in root.iterdir()] == [stored.name]
+    assert stored.read_bytes() == good
