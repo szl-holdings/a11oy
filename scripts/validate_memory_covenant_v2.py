@@ -69,8 +69,8 @@ ROLE_ATTRIBUTES = (
 # never a superuser, and PostgreSQL rejects any ALTER ROLE that names the
 # superuser attribute unless the caller is one, even to clear it.
 ROLE_CONVERGENCE_STEPS = (
+    ("rolsuper", "NOSUPERUSER", False),
     ("rolcreatedb", "NOCREATEDB", False),
-    ("rolcreaterole", "NOCREATEROLE", False),
     ("rolcanlogin", "NOLOGIN", False),
     ("rolreplication", "NOREPLICATION", False),
     ("rolinherit", "INHERIT", True),
@@ -81,6 +81,207 @@ OUTBOUND_CONVERGENCE_MESSAGE = (
 )
 INBOUND_CONVERGENCE_MESSAGE = (
     "capability-role delegation survived the sweep; another grantor holds it"
+)
+SET_SURVIVOR_MESSAGE = (
+    "a swept capability-role delegate keeps SET or INHERIT through another grant"
+)
+ATTRIBUTE_CONVERGENCE_MESSAGE = "a capability role attribute did not converge"
+CONVERGENCE_MESSAGES = (
+    OUTBOUND_CONVERGENCE_MESSAGE,
+    INBOUND_CONVERGENCE_MESSAGE,
+    SET_SURVIVOR_MESSAGE,
+    ATTRIBUTE_CONVERGENCE_MESSAGE,
+)
+ROW_SECURITY_PRECONDITION_MESSAGE = (
+    "the migration principal must bypass row security to check existing rows"
+)
+SCHEMA_OWNER_PRECONDITION_MESSAGE = "the migration principal must own schema public"
+
+# Security-critical statements are pinned whole. Substring tokens let an extra
+# predicate (for example a name-pattern exemption) slip into a WHERE clause
+# while every token still matches; a pinned statement changes only together
+# with this validator, in the same reviewed diff. Comments and whitespace are
+# normalized before comparison.
+PINNED_PRINCIPAL_PRECONDITION = """
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS principal
+         WHERE principal.rolname = CURRENT_USER
+           AND (principal.rolsuper OR principal.rolbypassrls)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'the migration principal must bypass row security to check existing rows';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS principal
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.nspname = 'public'
+         WHERE principal.rolname = CURRENT_USER
+           AND (principal.rolsuper
+                OR pg_catalog.pg_has_role(CURRENT_USER, namespace.nspowner, 'USAGE'))
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'the migration principal must own schema public';
+    END IF;
+END;
+$$;
+"""
+PINNED_TRANSACTION_PREAMBLE = """
+BEGIN;
+SET LOCAL search_path = pg_catalog, pg_temp;
+"""
+PINNED_ROLE_CONVERGENCE = """
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '{role}') THEN
+        CREATE ROLE {role}
+          NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN
+          NOREPLICATION INHERIT NOBYPASSRLS;
+    ELSE
+        IF EXISTS (
+            SELECT 1
+              FROM pg_catalog.pg_roles AS role
+             WHERE role.rolname = '{role}'
+               AND role.rolsuper
+        ) AND NOT EXISTS (
+            SELECT 1
+              FROM pg_catalog.pg_roles AS principal
+             WHERE principal.rolname = CURRENT_USER
+               AND principal.rolsuper
+        ) THEN
+            RAISE EXCEPTION USING ERRCODE = '42501',
+              MESSAGE = '{role} holds an attribute this migration principal cannot clear';
+        END IF;
+        ALTER ROLE {role} NOCREATEROLE;
+        SELECT role.rolsuper, role.rolcreatedb, role.rolcanlogin,
+               role.rolreplication, role.rolinherit, role.rolbypassrls
+          INTO observed
+          FROM pg_catalog.pg_roles AS role
+         WHERE role.rolname = '{role}';
+        IF observed.rolsuper THEN ALTER ROLE {role} NOSUPERUSER; END IF;
+        IF observed.rolcreatedb THEN ALTER ROLE {role} NOCREATEDB; END IF;
+        IF observed.rolcanlogin THEN ALTER ROLE {role} NOLOGIN; END IF;
+        IF observed.rolreplication THEN ALTER ROLE {role} NOREPLICATION; END IF;
+        IF NOT observed.rolinherit THEN ALTER ROLE {role} INHERIT; END IF;
+        IF observed.rolbypassrls THEN ALTER ROLE {role} NOBYPASSRLS; END IF;
+    END IF;
+"""
+PINNED_OUTBOUND_SWEEP = """
+    FOR membership IN
+        SELECT DISTINCT parent.rolname AS parent_role,
+                        child.rolname AS capability_role
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS parent ON parent.oid = edge.roleid
+          JOIN pg_catalog.pg_roles AS child ON child.oid = edge.member
+         WHERE child.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+    LOOP
+        EXECUTE pg_catalog.format(
+            'REVOKE %I FROM %I CASCADE',
+            membership.parent_role,
+            membership.capability_role
+        );
+    END LOOP;
+"""
+PINNED_INBOUND_SWEEP = """
+    FOR membership IN
+        SELECT DISTINCT parent.rolname AS capability_role,
+                        member.rolname AS member_role
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS parent ON parent.oid = edge.roleid
+          JOIN pg_catalog.pg_roles AS member ON member.oid = edge.member
+         WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND edge.admin_option
+           AND member.rolname <> CURRENT_USER
+    LOOP
+        EXECUTE pg_catalog.format(
+            'REVOKE ADMIN OPTION FOR %I FROM %I CASCADE',
+            membership.capability_role,
+            membership.member_role
+        );
+        EXECUTE pg_catalog.format(
+            'GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE',
+            membership.capability_role,
+            membership.member_role
+        );
+    END LOOP;
+"""
+PINNED_CONVERGENCE_ASSERTIONS = """
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS capability ON capability.oid = edge.member
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a capability role still belongs to a parent role this principal could not revoke';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS capability ON capability.oid = edge.roleid
+          JOIN pg_catalog.pg_roles AS holder ON holder.oid = edge.member
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND edge.admin_option
+           AND holder.rolname <> CURRENT_USER
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'capability-role delegation survived the sweep; another grantor holds it';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_auth_members AS swept
+          JOIN pg_catalog.pg_auth_members AS other
+            ON other.roleid = swept.roleid
+           AND other.member = swept.member
+          JOIN pg_catalog.pg_roles AS capability ON capability.oid = swept.roleid
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND NOT swept.admin_option
+           AND NOT swept.inherit_option
+           AND NOT swept.set_option
+           AND (other.inherit_option OR other.set_option)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a swept capability-role delegate keeps SET or INHERIT through another grant';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS capability
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND (capability.rolsuper OR capability.rolcreatedb
+                OR capability.rolcreaterole OR capability.rolcanlogin
+                OR capability.rolreplication OR NOT capability.rolinherit
+                OR capability.rolbypassrls)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a capability role attribute did not converge';
+    END IF;
+END;
+$$;
+"""
+PINNED_ACCEPTANCE_ADMIN_EXEMPTION = """
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS edge
+         WHERE edge.roleid IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+           AND edge.admin_option
+           AND edge.member <> (
+               SELECT relation.relowner
+                 FROM pg_catalog.pg_class AS relation
+                WHERE relation.oid = 'public.memory_records'::pg_catalog.regclass
+           )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability membership retained ADMIN OPTION';
+    END IF;
+"""
+ROLE_ATTRIBUTE_COLUMN = re.compile(
+    r"\brol(?:super|createdb|createrole|canlogin|replication|inherit|bypassrls)\b",
+    re.IGNORECASE,
 )
 
 
@@ -132,6 +333,14 @@ def _require_count(
 def _require_token(token: str, text: str, label: str, errors: list[str]) -> None:
     if token.upper() not in text.upper():
         errors.append(f"missing {label}")
+
+
+def _require_pinned(
+    pinned_sql: str, normalized_sql: str, expected: int, label: str, errors: list[str]
+) -> None:
+    actual = normalized_sql.count(_normalize(pinned_sql))
+    if actual != expected:
+        errors.append(f"{label}: expected {expected} exact copy, found {actual}")
 
 
 def _statements(normalized_sql: str) -> Iterable[str]:
@@ -658,25 +867,43 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
             )
         _require_count(
             r"\bSELECT\s+role\.rolsuper\s*,\s*role\.rolcreatedb\s*,\s*"
-            r"role\.rolcreaterole\s*,\s*role\.rolcanlogin\s*,\s*"
-            r"role\.rolreplication\s*,\s*role\.rolinherit\s*,\s*"
-            r"role\.rolbypassrls\s+INTO\s+observed\s+FROM\s+"
-            r"pg_catalog\.pg_roles\s+AS\s+role\s+WHERE\s+"
+            r"role\.rolcanlogin\s*,\s*role\.rolreplication\s*,\s*"
+            r"role\.rolinherit\s*,\s*role\.rolbypassrls\s+INTO\s+observed\s+"
+            r"FROM\s+pg_catalog\.pg_roles\s+AS\s+role\s+WHERE\s+"
             rf"role\.rolname\s*=\s*'{role}'\s*;",
             sql,
             1,
             f"{label} catalog read of current attributes for {role}",
             errors,
         )
+        # Rewriting the role row first holds it until COMMIT; a concurrent
+        # ALTER ROLE then waits and fails instead of landing after the read.
         _require_count(
-            r"\bIF\s+observed\.rolsuper\s+THEN\s+IF\s*\(\s*SELECT\s+"
-            r"principal\.rolsuper\s+FROM\s+pg_catalog\.pg_roles\s+AS\s+"
-            r"principal\s+WHERE\s+principal\.rolname\s*=\s*CURRENT_USER\s*\)\s+"
-            rf"THEN\s+ALTER\s+ROLE\s+{role}\s+NOSUPERUSER\s*;\s+ELSE\s+"
-            r"RAISE\s+EXCEPTION\s+USING\s+ERRCODE\s*=\s*'42501'",
+            rf"\bALTER\s+ROLE\s+{role}\s+NOCREATEROLE\s*;\s*SELECT\s+role\.rolsuper\b",
+            sql,
+            1,
+            f"{label} catalog row lock before reading attributes of {role}",
+            errors,
+        )
+        _require_count(
+            r"\bIF\s+EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+pg_catalog\.pg_roles\s+AS\s+"
+            rf"role\s+WHERE\s+role\.rolname\s*=\s*'{role}'\s+AND\s+role\.rolsuper\s*\)\s+"
+            r"AND\s+NOT\s+EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+pg_catalog\.pg_roles\s+AS\s+"
+            r"principal\s+WHERE\s+principal\.rolname\s*=\s*CURRENT_USER\s+AND\s+"
+            r"principal\.rolsuper\s*\)\s+THEN\s+RAISE\s+EXCEPTION\s+USING\s+"
+            rf"ERRCODE\s*=\s*'42501'\s*,\s*MESSAGE\s*=\s*'{role} holds an attribute "
+            r"this migration principal cannot clear'\s*;\s*END\s+IF\s*;\s*"
+            rf"ALTER\s+ROLE\s+{role}\s+NOCREATEROLE\s*;",
             sql,
             1,
             f"{label} fail-closed superuser-attribute convergence for {role}",
+            errors,
+        )
+        _require_pinned(
+            PINNED_ROLE_CONVERGENCE.format(role=role),
+            sql,
+            1,
+            f"{label} pinned attribute convergence for {role}",
             errors,
         )
         for column, clause, negated in ROLE_CONVERGENCE_STEPS:
@@ -735,7 +962,7 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
             "REVOKE ADMIN OPTION FOR %I FROM %I CASCADE"
         ),
         "delegated inbound inherit disable": (
-            "GRANT %I TO %I WITH INHERIT FALSE, ADMIN FALSE"
+            "GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE"
         ),
         "provider-owner ADMIN retention limited to the migration principal": (
             "AND edge.admin_option AND member.rolname <> CURRENT_USER LOOP"
@@ -773,7 +1000,10 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
     # A principal that is not a superuser can revoke only grants it made; any
     # other grantor's membership survives with a WARNING. The sweeps must be
     # proven, fail closed, after they run.
-    for message in (OUTBOUND_CONVERGENCE_MESSAGE, INBOUND_CONVERGENCE_MESSAGE):
+    for message in CONVERGENCE_MESSAGES + (
+        ROW_SECURITY_PRECONDITION_MESSAGE,
+        SCHEMA_OWNER_PRECONDITION_MESSAGE,
+    ):
         _require_count(
             r"\bRAISE\s+EXCEPTION\s+USING\s+ERRCODE\s*=\s*'42501'\s*,\s*"
             rf"MESSAGE\s*=\s*'{re.escape(message)}'",
@@ -783,12 +1013,70 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
             errors,
         )
     sweep_position = sql.upper().find("REVOKE ADMIN OPTION FOR %I FROM %I CASCADE")
-    for message in (OUTBOUND_CONVERGENCE_MESSAGE, INBOUND_CONVERGENCE_MESSAGE):
+    for message in CONVERGENCE_MESSAGES:
         assertion_position = sql.upper().find(message.upper())
         if sweep_position >= 0 and 0 <= assertion_position < sweep_position:
             errors.append(
                 f"{label} membership convergence assertions must follow both sweeps"
             )
+
+    # The principal must see every row before any preflight or foreign-key
+    # validation runs under FORCE RLS, and must own schema public so the schema
+    # sweep cannot degrade to warnings. Both checks open the transaction.
+    if not sql.startswith(
+        _normalize(PINNED_TRANSACTION_PREAMBLE + PINNED_PRINCIPAL_PRECONDITION)
+    ):
+        errors.append(
+            f"{label} must open with the pinned migration-principal precondition"
+        )
+    _require_pinned(
+        PINNED_PRINCIPAL_PRECONDITION,
+        sql,
+        1,
+        f"{label} pinned migration-principal precondition",
+        errors,
+    )
+    for pinned, name in (
+        (PINNED_OUTBOUND_SWEEP, "outbound membership sweep"),
+        (PINNED_INBOUND_SWEEP, "inbound delegation sweep"),
+        (PINNED_CONVERGENCE_ASSERTIONS, "membership and attribute convergence assertions"),
+    ):
+        _require_pinned(pinned, sql, 1, f"{label} pinned {name}", errors)
+    if sql.find(_normalize(PINNED_CONVERGENCE_ASSERTIONS)) < sql.find(
+        _normalize(PINNED_INBOUND_SWEEP)
+    ):
+        errors.append(
+            f"{label} membership convergence assertions must follow both sweeps"
+        )
+
+    # Outside the pinned statements, nothing may read, assign or reuse role
+    # attributes, and nothing may alter a capability role. One assignment to
+    # the observed record, or a reordered ALTER ROLE ... NOSUPERUSER, would
+    # otherwise pass every token check.
+    remainder = sql
+    for pinned in (
+        PINNED_PRINCIPAL_PRECONDITION,
+        PINNED_ROLE_CONVERGENCE.format(role="a11oy_memory_app"),
+        PINNED_ROLE_CONVERGENCE.format(role="a11oy_memory_worker"),
+        PINNED_CONVERGENCE_ASSERTIONS,
+    ):
+        remainder = remainder.replace(_normalize(pinned), " ")
+    if ROLE_ATTRIBUTE_COLUMN.search(remainder):
+        errors.append(
+            f"{label} role-attribute columns appear outside the pinned statements"
+        )
+    if re.search(r"\bobserved\s*(?:\.|:=|=)|\bINTO\s+observed\b", remainder, re.IGNORECASE):
+        errors.append(
+            f"{label} the observed attribute record is used outside the pinned statements"
+        )
+    if re.search(
+        r"\bALTER\s+(?:ROLE|USER)\s+\"?(?:a11oy_memory_app|a11oy_memory_worker)\b",
+        remainder,
+        re.IGNORECASE,
+    ):
+        errors.append(
+            f"{label} capability roles are altered outside the pinned convergence"
+        )
     for table in ALL_COVENANT_TABLES:
         if sql.count(f"'{table}'") < 1:
             errors.append(f"{label} table ACL sweep omits {table}")
@@ -1016,7 +1304,12 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
             "printf '%s\\n' 'SET ROLE a11oy_memory_stale_owner;'"
         ),
         "untrusted binding-row rejection": (
-            "pre-existing memory_context_bindings rows lack durable write provenance"
+            "pre-existing memory_context_bindings rows lack durable write provenance' \\\n"
+            "            evidence/memory-covenant-v2/untrusted-binding-provenance.log"
+        ),
+        "stale owner refused by the row-security precondition": (
+            "grep -F 'the migration principal must bypass row security to check existing rows' \\\n"
+            "            evidence/memory-covenant-v2/untrusted-binding-preflight.log"
         ),
         "rejected-preflight RLS rollback assertion": (
             'test "$binding_rls_state" = "true:true"'
@@ -1126,6 +1419,38 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "provider-owner acceptance evidence": (
             "provider-owner-acceptance.log"
         ),
+        "run-unique hostile delegate": (
+            'hostile_delegate="a11oy_hostile_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"'
+        ),
+        "run-unique hostile delegate keeps neither ADMIN, INHERIT nor SET": (
+            'test "$hostile_delegate_swept_count" = "2"'
+        ),
+        "provider-owner refusal marker": (
+            "=== provider-owner convergence and fail-closed refusals ==="
+        ),
+        "provider-owner clearable attribute seed": (
+            "ALTER ROLE a11oy_memory_app LOGIN CREATEDB CREATEROLE NOINHERIT BYPASSRLS"
+        ),
+        "provider-owner attribute convergence assertion": (
+            'test "$provider_attribute_deviation_count" = "0"'
+        ),
+        "provider-owner run-unique delegate is swept": (
+            'test "$owner_delegate_swept_count" = "1"'
+        ),
+        "expected refusals must fail the migration": (
+            'if apply_as "$principal" "$migration" > "$out" 2>&1; then'
+        ),
+        "superuser-attribute refusal": (
+            "'a11oy_memory_worker holds an attribute this migration principal cannot clear'"
+        ),
+        "foreign-grantor delegation refusal": f"'{INBOUND_CONVERGENCE_MESSAGE}'",
+        "outbound membership refusal": f"'{OUTBOUND_CONVERGENCE_MESSAGE}'",
+        "swept-delegate SET or INHERIT refusal": f"'{SET_SURVIVOR_MESSAGE}'",
+        "row-security bypass precondition refusal": f"'{ROW_SECURITY_PRECONDITION_MESSAGE}'",
+        "schema-ownership precondition refusal": f"'{SCHEMA_OWNER_PRECONDITION_MESSAGE}'",
+        "refusals roll back and the owner re-applies": (
+            "--- every refusal rolled back; the owner re-applies cleanly ---"
+        ),
     }
     for label, token in required.items():
         _require_token(token, text, f"workflow {label}", errors)
@@ -1188,15 +1513,22 @@ def _validate_acceptance(text: str, errors: list[str]) -> None:
             "acceptance inbound ADMIN OPTION absence assertion",
         ),
         (
-            "AND edge.admin_option AND edge.member <> ( SELECT relation.relowner "
-            "FROM pg_catalog.pg_class AS relation WHERE relation.oid = "
-            "'public.memory_records'::pg_catalog.regclass ) ) THEN RAISE EXCEPTION "
-            "'Memory Covenant capability membership retained ADMIN OPTION'",
-            "acceptance ADMIN OPTION exemption limited to the covenant owner",
-        ),
-        (
             "Seeded inbound capability membership was not preserved",
             "acceptance inbound capability membership preservation assertion",
+        ),
+        (
+            "AND edge.member = 'a11oy_memory_stale_grantee'::regrole "
+            "AND NOT edge.admin_option AND NOT edge.inherit_option "
+            "AND NOT edge.set_option",
+            "acceptance swept delegate keeps neither INHERIT nor SET",
+        ),
+        (
+            "A swept capability-role delegate keeps SET or INHERIT through another grant",
+            "acceptance swept-delegate SET or INHERIT survivor assertion",
+        ),
+        (
+            "A tenant/domain receipt reference does not resolve",
+            "acceptance tenant/domain receipt row validity assertion",
         ),
         (
             "observed_triggers IS DISTINCT FROM expected_triggers",
@@ -1228,6 +1560,13 @@ def _validate_acceptance(text: str, errors: list[str]) -> None:
         ),
     ):
         _require_token(token, sql, label, errors)
+    _require_pinned(
+        PINNED_ACCEPTANCE_ADMIN_EXEMPTION,
+        sql,
+        1,
+        "acceptance ADMIN OPTION exemption limited to the covenant owner",
+        errors,
+    )
     _require_count(
         r"WHEN\s+SQLSTATE\s+'55000'",
         sql,

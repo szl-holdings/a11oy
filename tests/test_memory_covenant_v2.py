@@ -324,7 +324,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.CORRECTIVE_MIGRATION
             self.replace_once(
                 path,
-                "GRANT %I TO %I WITH INHERIT FALSE, ADMIN FALSE",
+                "GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE",
                 "GRANT %I TO %I WITH INHERIT TRUE, ADMIN TRUE",
             )
             self.assert_contract_error(root, "delegated inbound inherit disable")
@@ -706,7 +706,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(
                 path,
                 "RAISE EXCEPTION USING ERRCODE = '42501',\n"
-                "                  MESSAGE = 'a11oy_memory_app holds an attribute this "
+                "              MESSAGE = 'a11oy_memory_app holds an attribute this "
                 "migration principal cannot clear';",
                 "NULL;",
             )
@@ -786,6 +786,222 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
                 "CREATE ROLE a11oy_memory_provider_owner LOGIN SUPERUSER",
             )
             self.assert_contract_error(root, "non-superuser provider owner fixture")
+
+    # Review findings on the provider-owner change. Each test is one concrete
+    # edit that previously passed every static gate.
+
+    def test_attribute_read_without_row_lock_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(path, "        ALTER ROLE a11oy_memory_app NOCREATEROLE;\n", "")
+            self.assert_contract_error(
+                root, "catalog row lock before reading attributes of a11oy_memory_app"
+            )
+
+    def test_observed_record_assignment_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "         WHERE role.rolname = 'a11oy_memory_app';\n"
+                "        -- Name only the attributes that deviate.\n",
+                "         WHERE role.rolname = 'a11oy_memory_app';\n"
+                "        observed.rolbypassrls := observed.rolbypassrls AND observed.rolsuper;\n"
+                "        -- Name only the attributes that deviate.\n",
+            )
+            self.assert_contract_error(
+                root, "pinned attribute convergence for a11oy_memory_app"
+            )
+
+    def test_sweep_name_pattern_exemption_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "         WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')\n"
+                "           AND edge.admin_option\n",
+                "         WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')\n"
+                "           AND member.rolname NOT LIKE 'a11oy\\_memory\\_ops%'\n"
+                "           AND edge.admin_option\n",
+            )
+            self.assert_contract_error(root, "pinned inbound delegation sweep")
+
+    def test_assertion_name_pattern_exemption_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "           AND holder.rolname <> CURRENT_USER\n",
+                "           AND holder.rolname <> CURRENT_USER\n"
+                "           AND holder.rolname NOT LIKE 'a11oy\\_memory\\_ops%'\n",
+            )
+            self.assert_contract_error(
+                root, "pinned membership and attribute convergence assertions"
+            )
+
+    def test_acceptance_name_pattern_exemption_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "           AND edge.admin_option\n           AND edge.member <> (\n",
+                "           AND pg_get_userbyid(edge.member) NOT LIKE 'a11oy\\_memory\\_ops%'\n"
+                "           AND edge.admin_option\n           AND edge.member <> (\n",
+            )
+            self.assert_contract_error(root, "exemption limited to the covenant owner")
+
+    def test_reordered_superuser_alter_outside_convergence_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "-- Capability roles must not inherit or SET ROLE into any historical parent.\n",
+                "ALTER ROLE a11oy_memory_worker WITH NOLOGIN NOSUPERUSER;\n\n"
+                "-- Capability roles must not inherit or SET ROLE into any historical parent.\n",
+            )
+            self.assert_contract_error(
+                root, "capability roles are altered outside the pinned convergence"
+            )
+
+    def test_alter_user_form_outside_convergence_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "-- Capability roles must not inherit or SET ROLE into any historical parent.\n",
+                "ALTER USER a11oy_memory_app NOSUPERUSER;\n\n"
+                "-- Capability roles must not inherit or SET ROLE into any historical parent.\n",
+            )
+            self.assert_contract_error(
+                root, "capability roles are altered outside the pinned convergence"
+            )
+
+    def test_swept_delegate_set_option_retention_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "'GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE',",
+                "'GRANT %I TO %I WITH INHERIT FALSE, ADMIN FALSE',",
+            )
+            self.assert_contract_error(root, "pinned inbound delegation sweep")
+
+    def test_set_survivor_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "a swept capability-role delegate keeps SET or INHERIT through another grant",
+                "a swept capability-role delegate state unchecked",
+            )
+            self.assert_contract_error(
+                root, "fail-closed convergence assertion (a swept capability-role"
+            )
+
+    def test_attribute_convergence_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "                OR capability.rolbypassrls)\n",
+                "                OR FALSE)\n",
+            )
+            self.assert_contract_error(
+                root, "pinned membership and attribute convergence assertions"
+            )
+
+    def test_row_security_precondition_weakening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "           AND (principal.rolsuper OR principal.rolbypassrls)\n",
+                "           AND (principal.rolsuper OR TRUE)\n",
+            )
+            self.assert_contract_error(root, "pinned migration-principal precondition")
+
+    def test_principal_precondition_must_open_the_transaction(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "SET LOCAL search_path = pg_catalog, pg_temp;\n",
+                "SET LOCAL search_path = pg_catalog, pg_temp;\nSELECT 1;\n",
+            )
+            self.assert_contract_error(
+                root, "must open with the pinned migration-principal precondition"
+            )
+
+    def test_acceptance_receipt_row_validity_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "A tenant/domain receipt reference does not resolve",
+                "tenant/domain receipt rows unchecked",
+            )
+            self.assert_contract_error(
+                root, "acceptance tenant/domain receipt row validity assertion"
+            )
+
+    def test_acceptance_set_survivor_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "A swept capability-role delegate keeps SET or INHERIT through another grant",
+                "swept delegate state unchecked",
+            )
+            self.assert_contract_error(
+                root, "acceptance swept-delegate SET or INHERIT survivor assertion"
+            )
+
+    def test_workflow_without_provider_refusals_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "=== provider-owner convergence and fail-closed refusals ===",
+                "=== provider-owner smoke ===",
+            )
+            self.assert_contract_error(root, "provider-owner refusal marker")
+
+    def test_workflow_refusal_that_tolerates_success_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                'if apply_as "$principal" "$migration" > "$out" 2>&1; then',
+                "if false; then",
+            )
+            self.assert_contract_error(root, "expected refusals must fail the migration")
+
+    def test_workflow_fixed_name_hostile_delegate_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                'hostile_delegate="a11oy_hostile_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"',
+                'hostile_delegate="a11oy_hostile_delegate_fixed"',
+            )
+            self.assert_contract_error(root, "run-unique hostile delegate")
 
 
 if __name__ == "__main__":

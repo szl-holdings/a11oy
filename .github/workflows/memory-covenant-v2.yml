@@ -164,6 +164,14 @@ jobs:
           apply_migration migrations/20260811_memory_covenant_v2_security_hardening.sql
 
           echo '=== seed legacy/stale security state ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          # A delegate whose name is not known in advance: an exemption keyed
+          # to a fixture name cannot let this one keep ADMIN, INHERIT or SET.
+          hostile_delegate="a11oy_hostile_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE ${hostile_delegate} NOLOGIN" \
+            -c "GRANT a11oy_memory_app, a11oy_memory_worker TO ${hostile_delegate} WITH ADMIN OPTION" \
+            | tee -a evidence/memory-covenant-v2/migration-apply.log
           docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
             <<'SQL' | tee -a evidence/memory-covenant-v2/migration-apply.log
@@ -373,8 +381,25 @@ jobs:
           binding_status=$?
           set -e
           test "$binding_status" -ne 0
-          grep -F 'pre-existing memory_context_bindings rows lack durable write provenance' \
+          # The stale owner cannot bypass row security, so the migration refuses
+          # it before any check could run against rows its policy hides.
+          grep -F 'the migration principal must bypass row security to check existing rows' \
             evidence/memory-covenant-v2/untrusted-binding-preflight.log
+          # A principal that sees every row reaches the provenance preflight,
+          # which refuses the planted rows.
+          set +e
+          docker exec -i \
+            -e PGPASSWORD=postgres \
+            -e PGOPTIONS='-c search_path=memory_attacker,public' \
+            "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < migrations/20260820_memory_covenant_v2_postmerge_hardening.sql \
+            > evidence/memory-covenant-v2/untrusted-binding-provenance.log 2>&1
+          binding_status=$?
+          set -e
+          test "$binding_status" -ne 0
+          grep -F 'pre-existing memory_context_bindings rows lack durable write provenance' \
+            evidence/memory-covenant-v2/untrusted-binding-provenance.log
           binding_rls_state="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -XqAt -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
             -c "SELECT relrowsecurity::text || ':' || relforcerowsecurity::text FROM pg_catalog.pg_class WHERE oid = 'public.memory_context_bindings'::pg_catalog.regclass")"
@@ -431,8 +456,12 @@ jobs:
             evidence/memory-covenant-v2/corrective-only-acceptance.log
           inbound_membership_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
-            -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid IN ('a11oy_memory_app'::regrole, 'a11oy_memory_worker'::regrole) AND member = 'a11oy_memory_stale_grantee'::regrole AND NOT admin_option")"
+            -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid IN ('a11oy_memory_app'::regrole, 'a11oy_memory_worker'::regrole) AND member = 'a11oy_memory_stale_grantee'::regrole AND NOT admin_option AND NOT inherit_option AND NOT set_option")"
           test "$inbound_membership_count" = "2"
+          hostile_delegate_swept_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid IN ('a11oy_memory_app'::regrole, 'a11oy_memory_worker'::regrole) AND member = '${hostile_delegate}'::regrole AND NOT admin_option AND NOT inherit_option AND NOT set_option")"
+          test "$hostile_delegate_swept_count" = "2"
 
           echo '=== prove revoked binding grant lacks durable provenance ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
           docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
@@ -720,6 +749,112 @@ jobs:
           VALUES ('a11oy_memory_provider_runtime'::regrole, 'provider-tenant', 'provider-domain');
           ROLLBACK;
           SQL
+
+      - name: Prove provider-owner convergence and fail-closed refusals
+        shell: bash
+        run: |
+          set -euo pipefail
+          ev=evidence/memory-covenant-v2-provider-owner
+          log="$ev/provider-owner-refusals.log"
+          hardening=migrations/20260811_memory_covenant_v2_security_hardening.sql
+          corrective=migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
+          echo '=== provider-owner convergence and fail-closed refusals ===' | tee "$log"
+          as_postgres() {
+            docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+              psql -X -U postgres -d memory_covenant_provider -v ON_ERROR_STOP=1 "$@"
+          }
+          as_owner() {
+            docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+              psql -X -U a11oy_memory_provider_owner -d memory_covenant_provider -v ON_ERROR_STOP=1 "$@"
+          }
+          apply_as() {
+            docker exec -i \
+              -e PGPASSWORD=postgres \
+              -e PGOPTIONS='-c search_path=memory_attacker,public' \
+              "$PG_CONTAINER" \
+              psql -X -U "$1" -d memory_covenant_provider -v ON_ERROR_STOP=1 < "$2"
+          }
+          expect_refusal() {
+            local principal="$1" migration="$2" message="$3" out="$4"
+            if apply_as "$principal" "$migration" > "$out" 2>&1; then
+              echo "expected a refusal that did not happen: ${message}" | tee -a "$log"
+              exit 1
+            fi
+            grep -F "$message" "$out" | tee -a "$log"
+          }
+
+          echo '--- attributes and delegations the owner can clear converge ---' | tee -a "$log"
+          as_postgres \
+            -c 'ALTER ROLE a11oy_memory_app LOGIN CREATEDB CREATEROLE NOINHERIT BYPASSRLS' \
+            -c 'ALTER ROLE a11oy_memory_worker LOGIN CREATEROLE' | tee -a "$log"
+          owner_delegate="a11oy_owner_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"
+          as_owner \
+            -c "CREATE ROLE ${owner_delegate} NOLOGIN" \
+            -c "GRANT a11oy_memory_worker TO ${owner_delegate} WITH ADMIN OPTION" | tee -a "$log"
+          apply_as a11oy_memory_provider_owner "$hardening" | tee -a "$log"
+          apply_as a11oy_memory_provider_owner "$corrective" | tee -a "$log"
+          provider_attribute_deviation_count="$(as_postgres -qAt \
+            -c "SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker') AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolcanlogin OR rolreplication OR NOT rolinherit OR rolbypassrls)")"
+          test "$provider_attribute_deviation_count" = "0"
+          owner_delegate_swept_count="$(as_postgres -qAt \
+            -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid = 'a11oy_memory_worker'::regrole AND member = '${owner_delegate}'::regrole AND NOT admin_option AND NOT inherit_option AND NOT set_option")"
+          test "$owner_delegate_swept_count" = "1"
+
+          echo '--- states this principal cannot clear abort the migration ---' | tee -a "$log"
+          as_postgres -c 'ALTER ROLE a11oy_memory_worker SUPERUSER' | tee -a "$log"
+          expect_refusal a11oy_memory_provider_owner "$hardening" \
+            'a11oy_memory_worker holds an attribute this migration principal cannot clear' \
+            "$ev/refusal-superuser-attribute.log"
+          as_postgres -c 'ALTER ROLE a11oy_memory_worker NOSUPERUSER' | tee -a "$log"
+
+          foreign_delegate="a11oy_foreign_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"
+          as_postgres \
+            -c "CREATE ROLE ${foreign_delegate} NOLOGIN" \
+            -c "GRANT a11oy_memory_app TO ${foreign_delegate} WITH ADMIN OPTION" | tee -a "$log"
+          expect_refusal a11oy_memory_provider_owner "$hardening" \
+            'capability-role delegation survived the sweep; another grantor holds it' \
+            "$ev/refusal-foreign-delegation.log"
+          as_postgres -c "DROP ROLE ${foreign_delegate}" | tee -a "$log"
+
+          as_owner -c 'CREATE ROLE a11oy_memory_owner_parent NOLOGIN' | tee -a "$log"
+          as_postgres -c 'GRANT a11oy_memory_owner_parent TO a11oy_memory_app' | tee -a "$log"
+          expect_refusal a11oy_memory_provider_owner "$hardening" \
+            'a capability role still belongs to a parent role this principal could not revoke' \
+            "$ev/refusal-outbound-membership.log"
+          as_postgres -c 'DROP ROLE a11oy_memory_owner_parent' | tee -a "$log"
+
+          signature_delegate="a11oy_signature_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"
+          as_postgres \
+            -c "CREATE ROLE ${signature_delegate} NOLOGIN" \
+            -c "GRANT a11oy_memory_worker TO ${signature_delegate} WITH INHERIT FALSE, SET FALSE, ADMIN FALSE" \
+            | tee -a "$log"
+          as_owner -c "GRANT a11oy_memory_worker TO ${signature_delegate} WITH INHERIT FALSE, SET TRUE" | tee -a "$log"
+          expect_refusal a11oy_memory_provider_owner "$hardening" \
+            'a swept capability-role delegate keeps SET or INHERIT through another grant' \
+            "$ev/refusal-set-survivor.log"
+          as_postgres -c "DROP ROLE ${signature_delegate}" | tee -a "$log"
+
+          echo '--- principals that cannot see every row or do not own schema public ---' | tee -a "$log"
+          as_postgres \
+            -c 'CREATE ROLE a11oy_memory_unbypassed_principal LOGIN NOSUPERUSER CREATEDB CREATEROLE NOBYPASSRLS' \
+            -c 'CREATE ROLE a11oy_memory_foreign_principal LOGIN NOSUPERUSER CREATEROLE BYPASSRLS' \
+            | tee -a "$log"
+          for migration in "$hardening" "$corrective"; do
+            name="$(basename "$migration" .sql)"
+            expect_refusal a11oy_memory_unbypassed_principal "$migration" \
+              'the migration principal must bypass row security to check existing rows' \
+              "$ev/refusal-row-security-${name}.log"
+            expect_refusal a11oy_memory_foreign_principal "$migration" \
+              'the migration principal must own schema public' \
+              "$ev/refusal-schema-owner-${name}.log"
+          done
+          as_postgres \
+            -c 'DROP ROLE a11oy_memory_unbypassed_principal' \
+            -c 'DROP ROLE a11oy_memory_foreign_principal' | tee -a "$log"
+
+          echo '--- every refusal rolled back; the owner re-applies cleanly ---' | tee -a "$log"
+          apply_as a11oy_memory_provider_owner "$hardening" | tee -a "$log"
+          apply_as a11oy_memory_provider_owner "$corrective" | tee -a "$log"
 
       - name: Execute rollback-only acceptance against the provider-owned database
         shell: bash
