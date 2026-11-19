@@ -61,6 +61,28 @@ The same change removes the unconditional `sovereign_ownership_not_verified` rea
 
 Consumers that partition tiles must account for `not_runtime_verifiable`; the healthz liveness signal's consistency check does. A missing, malformed, or count-mismatched `not_runtime_verifiable` value fails closed: the rollup reports unavailable rather than ok.
 
+## Energy readiness: the bounded-window scope
+
+Before this change, two runtime-satisfiable tiles could never become ready, whatever ran on the live Space:
+
+- The Energy operator predicate required `measured_jobs >= 1`. The operator increments that billable counter only for exclusively attributed job energy, and no NVML host window can establish exclusivity, so the counter is always zero.
+- The Energy provenance chain predicate was hard-coded unsatisfied, and nothing appended to the chain in production.
+
+Both tiles are rescoped to the runtime-verifiable subset, following the pattern of the compute-fabric change above. The part a runtime cannot verify stays visible as its own field and is never presented as met.
+
+| Tile | Predicate now | Reported, never promoted |
+| --- | --- | --- |
+| Energy operator | `running=true` + a configured GPU node answered its latest sweep probe + a job this process was bracketed by a verified NVML counter window no older than `window_max_age_s` | `joules_measured_label`, `joules_measured_reason`: billable per-job energy, unavailable without exclusive attribution. `joules_measured_total` is shown only when that label is MEASURED |
+| Energy provenance chain | non-empty chain + computed chain verification + at least one hash-bound MEASURED bounded-window entry | a numeric `joules_est` stays SAMPLE/ESTIMATE; an operator entry makes no estimate (`null`, UNAVAILABLE) |
+
+A verified window means fresh before and after counter samples on the same GPU UUID and continuity epoch that bracket the job interval. The delta includes host work outside the job, so it is labelled MEASURED only within the `BOUNDED_METER_WINDOW` scope (`measurement_scope` on both tiles) and is never billed. The operator tile's label is MEASURED only while the latest window is younger than `A11OY_ENERGY_WINDOW_MAX_AGE_S` (default 900 s, clamped to 60 s .. 1 day): a meter that goes quiet turns the tile UNAVAILABLE with `measured_energy_window_stale`. A window count without a positive total fails closed (`invalid_window_joules_total`), as does a missing, malformed or contradictory billable label.
+
+The provenance chain gains a v2 entry (`szl.energy-provenance.entry/v2`) that binds `schema`, `measurement_label`, `measurement_scope`, `window_joules_measured`, `source`, `source_seq` and `node` into its receipt hash, so promoting a SAMPLE entry after append breaks verification. A v1 entry keeps its historical encoding and never counts, and nothing counts as measured, on the tile or the public read, while any part of the chain fails verification. The operator's completed-job stream is the chain's only production writer: one entry per job the operator dispatched to one of its configured GPU nodes, under the public node name, with no GPU UUID, counter evidence, receipt id or private host. Stub jobs and external submissions (for example governed CPU code cells) are not recorded, `append_receipt()` writes SAMPLE entries only, and a read never appends. The process chain keeps at most `SZL_ENERGY_PROVENANCE_MAX_ENTRIES` entries (default 2000, at most 10000). Every evicted entry is checked the way `verify()` would check it, so tampering stays detected after eviction, and the retention anchor is the last evicted entry's receipt hash. The public read reuses its summary for at most 5 s while the chain is unchanged.
+
+Both counts are process-local and restart at zero, like the other tiles' evidence. The operator also reports `lung_probe` per node (bounded reason codes under public names) and retries its lung-gated autostart every `A11OY_ENERGY_AUTOSTART_RETRY_S` seconds (default 300, `0` disables); an operator's explicit stop holds the retry off until the next explicit start or a process restart, and the hold is checked inside the start transition so a stop that races the retry still wins. The app's shutdown hook stops the retry thread, waiting at most 5 s in total (including for the operator lock, so a slow persist cannot hang shutdown). A retry still probing a lung when it is stopped finishes that probe but cannot start the loop on its own; until it returns, another start in the same process answers `start_in_progress` and is decided by that probe's result.
+
+This change does not alter the governance or composite tiles. Each still needs a real operator-authorized governed write in the current process: a restraint evaluation (`POST /api/a11oy/v1/restraint/evaluate`) and a composite receipt (`POST /api/a11oy/v1/provenance/receipt`). A manifest read never performs either.
+
 ## Frontend responsibilities
 
 The UI consumes the supplied decision. It validates the contract's representation rather than recalculating a capability's predicate.

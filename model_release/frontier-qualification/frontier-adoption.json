@@ -12,8 +12,8 @@
     "zero_download_policy": "ZERO_DOWNLOADS_ALONE_NEVER_AUTHORIZES_DELETE_OR_ARCHIVE"
   },
   "brain_model_truth": {
-    "raw_nodes_observed": 9475,
-    "raw_nodes_available_to_retrieval_and_evaluation": 9475,
+    "raw_nodes_observed": 9484,
+    "raw_nodes_available_to_retrieval_and_evaluation": 9484,
     "raw_nodes_admitted_to_gradients": 0,
     "current_weight_model": "SZLHOLDINGS/SZL-Khipu-1.5B",
     "current_weight_model_relation": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT",
@@ -23,7 +23,8 @@
       "Keep canonical Brain content outside weights and retrieve it through a provenance-bound hybrid index; train only the navigation, abstention, citation, and tool-use behavior that passes rights and contamination gates.",
       "Demonstrate statistically meaningful gains on a frozen independent BrainQrels split with per-case receipts, confidence intervals, zero invented node identifiers, and materially improved abstention.",
       "Bind the exact base, adapter, data split, trainer, runtime, evaluation, license review, and human release decision in a signed candidate receipt before any v2 promotion."
-    ]
+    ],
+    "raw_observation_scope": "CURRENT_VERSIONED_GRAPH_NOT_MODEL_EVALUATION"
   },
   "flagship_strategy": {
     "primary_model": "SZLHOLDINGS/SZL-Khipu-1.5B",
