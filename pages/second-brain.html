@@ -138,7 +138,8 @@ function paintMembrane(box, membrane){
     "Retrieval: "+evidence.index_state+"; model: "+evidence.model_state+
     "; grounded turn: "+evidence.grounded_state+
     "; capability: "+evidence.capability_state+
-    ". This screen does not independently certify inference, signing, or production.";
+    ". This screen does not independently certify inference, signing, or production."+
+    (canvasAvailable?"":" Canvas unavailable; text evidence remains readable.");
   window.__probe={
     locked_formula_count:count,
     locked_formula_ids:ids,
@@ -213,6 +214,7 @@ async function retrieve(){
 }
 document.getElementById("go").addEventListener("click",retrieve);
 const c=document.getElementById("brain"),x=c.getContext("2d");
+const canvasAvailable=Boolean(x);
 const reduceMotion=typeof window.matchMedia==="function"&&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let t=0;
@@ -232,7 +234,6 @@ function draw(){
   if(!reduceMotion)requestAnimationFrame(draw);
 }
 if(x)draw();
-else document.getElementById("runtime-status").textContent+=" Canvas unavailable; text evidence remains readable.";
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
