@@ -18,30 +18,66 @@
     "external_mutations"
   ],
   "properties": {
-    "$schema": {"const": "./frontier-adoption.schema.json"},
-    "schema_version": {"const": "szl.frontier-adoption.v1"},
-    "as_of": {"type": "string", "format": "date"},
-    "status": {"const": "GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION"},
-    "evidence_policy": {"$ref": "#/$defs/evidencePolicy"},
-    "brain_model_truth": {"$ref": "#/$defs/brainTruth"},
-    "flagship_strategy": {"$ref": "#/$defs/flagshipStrategy"},
-    "github_estate_strategy": {"$ref": "#/$defs/githubEstateStrategy"},
+    "$schema": {
+      "const": "./frontier-adoption.schema.json"
+    },
+    "schema_version": {
+      "const": "szl.frontier-adoption.v1"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "const": "GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION"
+    },
+    "evidence_policy": {
+      "$ref": "#/$defs/evidencePolicy"
+    },
+    "brain_model_truth": {
+      "$ref": "#/$defs/brainTruth"
+    },
+    "flagship_strategy": {
+      "$ref": "#/$defs/flagshipStrategy"
+    },
+    "github_estate_strategy": {
+      "$ref": "#/$defs/githubEstateStrategy"
+    },
     "candidates": {
       "type": "array",
       "minItems": 11,
-      "items": {"$ref": "#/$defs/candidate"}
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
     },
-    "hf_estate": {"$ref": "#/$defs/hfEstate"},
-    "external_mutations": {"$ref": "#/$defs/externalMutations"}
+    "hf_estate": {
+      "$ref": "#/$defs/hfEstate"
+    },
+    "external_mutations": {
+      "$ref": "#/$defs/externalMutations"
+    }
   },
   "$defs": {
-    "sha40": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "httpsUrl": {"type": "string", "format": "uri", "pattern": "^https://"},
+    "sha40": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
     "nonEmptyStrings": {
       "type": "array",
       "minItems": 1,
-      "items": {"type": "string", "minLength": 1}
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "evidencePolicy": {
       "type": "object",
@@ -55,12 +91,24 @@
         "zero_download_policy"
       ],
       "properties": {
-        "upstream_facts": {"const": "PRIMARY_REPORTED_NOT_LOCAL_MEASUREMENT"},
-        "local_measurements_present": {"const": false},
-        "download_performed_by_this_contract": {"const": false},
-        "promotion_authority": {"const": false},
-        "unknown_repository_policy": {"const": "DENY"},
-        "zero_download_policy": {"const": "ZERO_DOWNLOADS_ALONE_NEVER_AUTHORIZES_DELETE_OR_ARCHIVE"}
+        "upstream_facts": {
+          "const": "PRIMARY_REPORTED_NOT_LOCAL_MEASUREMENT"
+        },
+        "local_measurements_present": {
+          "const": false
+        },
+        "download_performed_by_this_contract": {
+          "const": false
+        },
+        "promotion_authority": {
+          "const": false
+        },
+        "unknown_repository_policy": {
+          "const": "DENY"
+        },
+        "zero_download_policy": {
+          "const": "ZERO_DOWNLOADS_ALONE_NEVER_AUTHORIZES_DELETE_OR_ARCHIVE"
+        }
       }
     },
     "brainTruth": {
@@ -73,20 +121,34 @@
         "current_weight_model",
         "current_weight_model_relation",
         "current_release_limit",
-        "next_release_predicate"
+        "next_release_predicate",
+        "raw_observation_scope"
       ],
       "properties": {
-        "raw_nodes_observed": {"const": 9475},
-        "raw_nodes_available_to_retrieval_and_evaluation": {"const": 9475},
-        "raw_nodes_admitted_to_gradients": {"const": 0},
-        "current_weight_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B"},
+        "raw_nodes_observed": {
+          "const": 9484
+        },
+        "raw_nodes_available_to_retrieval_and_evaluation": {
+          "const": 9484
+        },
+        "raw_nodes_admitted_to_gradients": {
+          "const": 0
+        },
+        "current_weight_model": {
+          "const": "SZLHOLDINGS/SZL-Khipu-1.5B"
+        },
         "current_weight_model_relation": {
           "const": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT"
         },
         "current_release_limit": {
           "const": "OWNER_EVALUATED_2_OF_6_ABSTENTION_CORRECT_AND_SIGNED_RECEIPT_ARTIFACT_BINDING_CONFLICT_BLOCK_AUTONOMOUS_HIGH_STAKES_OR_PROMOTION"
         },
-        "next_release_predicate": {"$ref": "#/$defs/nonEmptyStrings"}
+        "next_release_predicate": {
+          "$ref": "#/$defs/nonEmptyStrings"
+        },
+        "raw_observation_scope": {
+          "const": "CURRENT_VERSIONED_GRAPH_NOT_MODEL_EVALUATION"
+        }
       }
     },
     "flagshipStrategy": {
@@ -101,32 +163,64 @@
         "strategy"
       ],
       "properties": {
-        "primary_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B"},
-        "distribution_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF"},
-        "specialist_candidate": {"const": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent"},
-        "unification_mode": {"const": "ONE_PRODUCT_FAMILY_ROUTER_COLLECTION_AND_SHARED_EVALS"},
-        "tensor_merge_authorized": {"const": false},
-        "strategy": {"$ref": "#/$defs/nonEmptyStrings"}
+        "primary_model": {
+          "const": "SZLHOLDINGS/SZL-Khipu-1.5B"
+        },
+        "distribution_model": {
+          "const": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF"
+        },
+        "specialist_candidate": {
+          "const": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent"
+        },
+        "unification_mode": {
+          "const": "ONE_PRODUCT_FAMILY_ROUTER_COLLECTION_AND_SHARED_EVALS"
+        },
+        "tensor_merge_authorized": {
+          "const": false
+        },
+        "strategy": {
+          "$ref": "#/$defs/nonEmptyStrings"
+        }
       }
     },
     "githubEstateLayer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["layer", "canonical_repositories", "responsibility", "assertion_basis"],
+      "required": [
+        "layer",
+        "canonical_repositories",
+        "responsibility",
+        "assertion_basis"
+      ],
       "properties": {
-        "layer": {"type": "string", "minLength": 1},
+        "layer": {
+          "type": "string",
+          "minLength": 1
+        },
         "canonical_repositories": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"}
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]+$"
+          }
         },
-        "responsibility": {"type": "string", "minLength": 1},
-        "assertion_basis": {"type": "string", "minLength": 1},
+        "responsibility": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assertion_basis": {
+          "type": "string",
+          "minLength": 1
+        },
         "in_repository_artifacts": {
           "type": "array",
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -152,13 +246,30 @@
         "known_alignment_gaps"
       ],
       "properties": {
-        "source_reported_repository_count": {"const": 54},
-        "attachment_entries_observed": {"type": "integer", "minimum": 1, "maximum": 54},
-        "inventory_complete": {"const": false},
-        "public_github_repositories_observed": {"const": 50},
-        "public_archived_observed": {"const": 9},
-        "public_readback_as_of": {"type": "string", "format": "date"},
-        "public_readback_source": {"$ref": "#/$defs/httpsUrl"},
+        "source_reported_repository_count": {
+          "const": 54
+        },
+        "attachment_entries_observed": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 54
+        },
+        "inventory_complete": {
+          "const": false
+        },
+        "public_github_repositories_observed": {
+          "const": 50
+        },
+        "public_archived_observed": {
+          "const": 9
+        },
+        "public_readback_as_of": {
+          "type": "string",
+          "format": "date"
+        },
+        "public_readback_source": {
+          "$ref": "#/$defs/httpsUrl"
+        },
         "reconciliation_state": {
           "const": "SOURCE_REPORT_54_PUBLIC_READBACK_50_ATTACHMENT_TRUNCATED_REVIEW_REQUIRED"
         },
@@ -166,19 +277,30 @@
           "type": "array",
           "minItems": 3,
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "publicly_observed_outside_attachment": {
           "type": "array",
           "minItems": 5,
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "canonical_flow": {"type": "string", "minLength": 1},
+        "canonical_flow": {
+          "type": "string",
+          "minLength": 1
+        },
         "layers": {
           "type": "array",
           "minItems": 8,
-          "items": {"$ref": "#/$defs/githubEstateLayer"}
+          "items": {
+            "$ref": "#/$defs/githubEstateLayer"
+          }
         },
         "code_to_weight_policy": {
           "const": "CODE_REPOSITORIES_ARE_SERVICES_LIBRARIES_OR_EVIDENCE_NOT_MODEL_WEIGHTS"
@@ -189,17 +311,31 @@
         "archive_policy": {
           "const": "ARCHIVE_ONLY_AFTER_REPLACEMENT_REDIRECT_HEALTH_AND_PROVENANCE_VERIFICATION"
         },
-        "known_alignment_gaps": {"$ref": "#/$defs/nonEmptyStrings"}
+        "known_alignment_gaps": {
+          "$ref": "#/$defs/nonEmptyStrings"
+        }
       }
     },
     "artifact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["filename", "bytes", "sha256"],
+      "required": [
+        "filename",
+        "bytes",
+        "sha256"
+      ],
       "properties": {
-        "filename": {"type": "string", "minLength": 1},
-        "bytes": {"type": "integer", "minimum": 1},
-        "sha256": {"$ref": "#/$defs/sha256"}
+        "filename": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
       }
     },
     "upstream": {
@@ -215,27 +351,60 @@
         "artifact_inventory"
       ],
       "properties": {
-        "repository_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"},
-        "revision": {"$ref": "#/$defs/sha40"},
-        "model_card_url": {"$ref": "#/$defs/httpsUrl"},
-        "license_expression": {"type": "string", "minLength": 1},
-        "license_kind": {
-          "enum": ["OPEN_SOURCE_REPORTED", "CUSTOM_RESTRICTED", "MIXED_CODE_AND_WEIGHT_LICENSES"]
+        "repository_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
         },
-        "license_evidence_url": {"$ref": "#/$defs/httpsUrl"},
+        "revision": {
+          "$ref": "#/$defs/sha40"
+        },
+        "model_card_url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "license_expression": {
+          "type": "string",
+          "minLength": 1
+        },
+        "license_kind": {
+          "enum": [
+            "OPEN_SOURCE_REPORTED",
+            "CUSTOM_RESTRICTED",
+            "MIXED_CODE_AND_WEIGHT_LICENSES"
+          ]
+        },
+        "license_evidence_url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
         "artifact_inventory": {
           "type": "array",
-          "items": {"$ref": "#/$defs/artifact"}
+          "items": {
+            "$ref": "#/$defs/artifact"
+          }
         }
       }
     },
     "runtime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["repository_url", "revision", "custom_code_policy"],
+      "required": [
+        "repository_url",
+        "revision",
+        "custom_code_policy"
+      ],
       "properties": {
-        "repository_url": {"$ref": "#/$defs/httpsUrl"},
-        "revision": {"anyOf": [{"$ref": "#/$defs/sha40"}, {"const": "MODEL_CARD_ONLY"}]},
+        "repository_url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha40"
+            },
+            {
+              "const": "MODEL_CARD_ONLY"
+            }
+          ]
+        },
         "custom_code_policy": {
           "enum": [
             "PIN_HASH_REVIEW_AND_RUN_OFFLINE",
@@ -266,8 +435,18 @@
         "sources"
       ],
       "properties": {
-        "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
-        "priority": {"enum": ["P0", "P1", "P2", "P3"]},
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "P3"
+          ]
+        },
         "decision": {
           "enum": [
             "LOCAL_QUALIFY",
@@ -287,8 +466,12 @@
             "METHOD_REFERENCE"
           ]
         },
-        "upstream": {"$ref": "#/$defs/upstream"},
-        "runtime": {"$ref": "#/$defs/runtime"},
+        "upstream": {
+          "$ref": "#/$defs/upstream"
+        },
+        "runtime": {
+          "$ref": "#/$defs/runtime"
+        },
         "local_state": {
           "enum": [
             "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
@@ -301,7 +484,14 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"enum": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED", "ADOPT_METHOD"]}
+          "items": {
+            "enum": [
+              "READ_METADATA",
+              "DOWNLOAD_PINNED",
+              "EVALUATE_SANDBOXED",
+              "ADOPT_METHOD"
+            ]
+          }
         },
         "prohibited_operations": {
           "type": "array",
@@ -322,18 +512,50 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "DOWNLOAD_PINNED": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-            "EVALUATE_SANDBOXED": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-            "ADOPT_METHOD": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+            "DOWNLOAD_PINNED": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "EVALUATE_SANDBOXED": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "ADOPT_METHOD": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         },
-        "adoption_plan": {"$ref": "#/$defs/nonEmptyStrings"},
-        "hard_blockers": {"$ref": "#/$defs/nonEmptyStrings"},
-        "non_claims": {"$ref": "#/$defs/nonEmptyStrings"},
+        "adoption_plan": {
+          "$ref": "#/$defs/nonEmptyStrings"
+        },
+        "hard_blockers": {
+          "$ref": "#/$defs/nonEmptyStrings"
+        },
+        "non_claims": {
+          "$ref": "#/$defs/nonEmptyStrings"
+        },
         "sources": {
           "type": "array",
           "minItems": 1,
-          "items": {"$ref": "#/$defs/httpsUrl"}
+          "items": {
+            "$ref": "#/$defs/httpsUrl"
+          }
         }
       }
     },
@@ -351,8 +573,13 @@
         "delete_authorized"
       ],
       "properties": {
-        "repository_id": {"type": "string", "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"},
-        "observed_revision": {"$ref": "#/$defs/sha40"},
+        "repository_id": {
+          "type": "string",
+          "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"
+        },
+        "observed_revision": {
+          "$ref": "#/$defs/sha40"
+        },
         "artifact_class": {
           "enum": [
             "ADAPTER_PLUS_MERGED",
@@ -362,7 +589,9 @@
             "CODE_ONLY"
           ]
         },
-        "weight_bearing": {"type": "boolean"},
+        "weight_bearing": {
+          "type": "boolean"
+        },
         "strategy": {
           "enum": [
             "KEEP_FLAGSHIP_REPRO_TRUST_REVIEW_REQUIRED",
@@ -376,44 +605,88 @@
             "HOLD_DUPLICATE_IDENTITY_RECONCILIATION"
           ]
         },
-        "canonical_family": {"type": "string", "minLength": 1},
+        "canonical_family": {
+          "type": "string",
+          "minLength": 1
+        },
         "identity_state": {
-          "enum": ["UNIQUE_BY_AUDIT", "DUPLICATE_BYTES_CONFLICT", "CODE_ONLY"]
+          "enum": [
+            "UNIQUE_BY_AUDIT",
+            "DUPLICATE_BYTES_CONFLICT",
+            "CODE_ONLY"
+          ]
         },
         "content_equivalent_to": {
           "type": "string",
           "pattern": "^SZLHOLDINGS/[A-Za-z0-9._-]+$"
         },
-        "delete_authorized": {"const": false}
+        "delete_authorized": {
+          "const": false
+        }
       }
     },
     "hfEstate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["organization", "metadata_state", "live_counts_embedded", "repositories", "archive_predicate"],
+      "required": [
+        "organization",
+        "metadata_state",
+        "live_counts_embedded",
+        "repositories",
+        "archive_predicate"
+      ],
       "properties": {
-        "organization": {"const": "SZLHOLDINGS"},
-        "metadata_state": {"const": "PINNED_CLASSIFICATION_LIVE_COUNTS_FETCHED_AT_RUNTIME"},
-        "live_counts_embedded": {"const": false},
+        "organization": {
+          "const": "SZLHOLDINGS"
+        },
+        "metadata_state": {
+          "const": "PINNED_CLASSIFICATION_LIVE_COUNTS_FETCHED_AT_RUNTIME"
+        },
+        "live_counts_embedded": {
+          "const": false
+        },
         "repositories": {
           "type": "array",
           "minItems": 15,
-          "items": {"$ref": "#/$defs/estateRepo"}
+          "items": {
+            "$ref": "#/$defs/estateRepo"
+          }
         },
-        "archive_predicate": {"$ref": "#/$defs/nonEmptyStrings"}
+        "archive_predicate": {
+          "$ref": "#/$defs/nonEmptyStrings"
+        }
       }
     },
     "externalMutations": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["weights_downloaded", "model_trained", "hub_repository_deleted", "hub_repository_archived", "hub_repository_mutated", "model_promoted"],
+      "required": [
+        "weights_downloaded",
+        "model_trained",
+        "hub_repository_deleted",
+        "hub_repository_archived",
+        "hub_repository_mutated",
+        "model_promoted"
+      ],
       "properties": {
-        "weights_downloaded": {"const": false},
-        "model_trained": {"const": false},
-        "hub_repository_deleted": {"const": false},
-        "hub_repository_archived": {"const": false},
-        "hub_repository_mutated": {"const": false},
-        "model_promoted": {"const": false}
+        "weights_downloaded": {
+          "const": false
+        },
+        "model_trained": {
+          "const": false
+        },
+        "hub_repository_deleted": {
+          "const": false
+        },
+        "hub_repository_archived": {
+          "const": false
+        },
+        "hub_repository_mutated": {
+          "const": false
+        },
+        "model_promoted": {
+          "const": false
+        }
       }
     }
   }

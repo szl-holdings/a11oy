@@ -99,9 +99,12 @@ def test_registry_is_strict_draft_2020_12_valid() -> None:
 
 
 def test_brain_and_flagship_truth_are_explicit() -> None:
+    from a11oy_brain_graph import get_brain_graph
+
     registry = _load(REGISTRY_PATH)
     brain = registry["brain_model_truth"]
-    assert brain["raw_nodes_observed"] == 9475
+    assert brain["raw_nodes_observed"] == len(get_brain_graph(refresh=True)["nodes"])
+    assert brain["raw_observation_scope"] == "CURRENT_VERSIONED_GRAPH_NOT_MODEL_EVALUATION"
     assert brain["raw_nodes_admitted_to_gradients"] == 0
     assert brain["current_weight_model"] == "SZLHOLDINGS/SZL-Khipu-1.5B"
     assert brain["current_weight_model_relation"] == (

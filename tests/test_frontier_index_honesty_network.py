@@ -138,3 +138,80 @@ def test_network_policy_never_excuses_independently_observed_label_drift(claimed
 
 def test_all_existing_and_new_negative_controls_still_pass():
     assert _checker()._selftest() == 0
+
+
+# --- Bounded route-probe contracts (rebuilt from #3557; adapted to the pooled probe design) ---
+
+def test_route_probe_timeout_returns_before_the_handler_finishes():
+    """Timeout returns None near the deadline; abandoned work is never the caller's wait.
+
+    The probe pool owns long-lived lazy daemon workers, so this test asserts only
+    what the contract guarantees: the caller comes back None well before the
+    blocked handler finishes, the submitted handler is observed to start (not
+    assumed to have started before the deadline), and a released pool stops
+    promptly through its own bounded shutdown.
+    """
+    import threading
+    import time
+    from types import SimpleNamespace
+    import starlette.requests  # noqa: F401  Wires the lazy import inside _invoke_route.
+    import szl_frontier_index as frontier
+
+    release = threading.Event()
+    entered = threading.Event()
+
+    def blocked():
+        entered.set()
+        release.wait(1)
+        return {"label": "SAMPLE"}
+
+    pool = frontier._RouteProbePool()
+    previous = frontier._PROBE_POOL
+    frontier._PROBE_POOL = pool
+    try:
+        started = time.monotonic()
+        result = frontier._invoke_route(object(), SimpleNamespace(endpoint=blocked), "/probe", 0.03)
+        elapsed = time.monotonic() - started
+        # The caller is released near the 30 ms deadline, not after the blocked work.
+        assert result is None
+        assert elapsed < 0.9, "caller waited for the abandoned handler to finish"
+        # Lazy pool start may begin the handler only after the deadline: observe it.
+        assert entered.wait(timeout=2.0), "submitted handler never started"
+        # Pool doctrine: release synthetic blocking work, then bounded shutdown.
+        release.set()
+        assert pool.shutdown(timeout=2.0), "released pool did not stop promptly"
+    finally:
+        release.set()
+        pool.shutdown(timeout=2.0)
+        frontier._PROBE_POOL = previous
+
+
+def test_route_probe_async_handler_keeps_request_and_label_contract():
+    import asyncio
+    import inspect
+    from types import SimpleNamespace
+    import szl_frontier_index as frontier
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+    app = object()
+    async def endpoint(request: Request):
+        await asyncio.sleep(0)
+        assert request.app is app and request.url.path == "/async"
+        return JSONResponse({"evidence": {"data_label": "SAMPLE"}, "label": "LIVE"})
+    assert inspect.iscoroutinefunction(endpoint)
+    route = SimpleNamespace(endpoint=endpoint)
+    payload = frontier._invoke_route(app, route, "/async", 1)
+    assert payload == {"evidence": {"data_label": "SAMPLE"}, "label": "LIVE"}
+    assert frontier._extract_label(payload) == "SAMPLE"
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf"), 1e300, "invalid"])
+def test_route_probe_invalid_deadline_does_not_start_work(timeout):
+    calls = []
+    from types import SimpleNamespace
+    import szl_frontier_index as frontier
+    def endpoint():
+        calls.append(True)
+        return {"label": "SAMPLE"}
+    assert frontier._invoke_route(object(), SimpleNamespace(endpoint=endpoint), "/probe", timeout) is None
+    assert calls == []
