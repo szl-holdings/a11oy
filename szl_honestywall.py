@@ -61,10 +61,17 @@ from typing import Any
 # DECLARED = asserted/stated by the operator, NOT measured and NOT proven; it is never upgraded to
 # MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). It is an honest weak claim
 # in the same spirit as MODELED / ROADMAP, so its absence here flagged honest surfaces as liars.
+# UNKNOWN is listed in the public-estate contract truthVocabulary
+# (static/shared/public-estate-contract.v1.json). It is a weak honest token that never upgrades a
+# claim, and it counts only as the whole label value (see
+# szl_frontier_index._WHOLE_VALUE_ONLY_LABELS), never as a word inside free text. A surface
+# declares it when evidence exists but is unverified (e.g. /llm/sovereign/health: node reachable,
+# provenance unverified). That is distinct from the wall's own per-surface reachability status
+# UNKNOWN below (the wall could not read the manifest).
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
     "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
-    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNKNOWN", "UNAVAILABLE",
 )
 
 # This surface's own top label — a derived aggregate digest, not a measurement.
@@ -219,10 +226,12 @@ def _extract_label(payload: dict) -> tuple[str | None, str | None]:
             up = raw.upper()
             best_pos, best = None, None
             for t in HONEST_LABELS:
+                if t == "UNKNOWN":
+                    continue
                 i = up.find(t)
                 if i >= 0 and (best_pos is None or i < best_pos):
                     best_pos, best = i, t
-            tok = best
+            tok = best or ("UNKNOWN" if up.strip() == "UNKNOWN" else None)
     return raw, tok
 
 

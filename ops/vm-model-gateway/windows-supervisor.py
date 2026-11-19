@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """Native Windows supervisor for the pinned proposal gateway and SSH transport."""
-import hashlib, json, os, socket, subprocess, sys, time, ctypes
+import hashlib, json, os, subprocess, sys, time, ctypes
 from ctypes import wintypes
 from pathlib import Path
 from datetime import datetime, timezone
@@ -11,20 +11,25 @@ urlopen=build_opener(ProxyHandler({})).open
 HOME = Path(__file__).resolve().parent
 SOURCE = HOME / "source"
 EXPECTED = {
- "ops/vm-model-gateway/gateway.py": "8b58af49453a5482586438d375e726bf0852adaeb5580147b0553c259878d080",
- "szl_dsse.py": "e095670051088929365f3eb4c76716122148d8f6b898db52f0e27867c221608c",
+ "ops/vm-model-gateway/gateway.py": "d0eda48d20813ad8a91f99168b4a9bccadf10cb34dddf77d93b64fe829af34e9",
+ "ops/vm-model-gateway/runtime_config.py": "370902b7c22fdb66f2bfed68b1991ccad82d173b1ebc553d53d020ee6bd389f3",
+ "szl_dsse.py": "dbe0188605d77610dee97f5b6efc069166a2a15fe46cf4f89881d4f5fa209d2f",
  "szl_content_address.py": "211b69d47fbbddf496fcfdedb0311e6fe6b67b67428100dd27ce7ce1f7247b10",
 }
+# The release identity is the exact, measured four-file manifest digest,
+# not an invented Git commit SHA; source commit is verified at installation.
+SOURCE_REVISION = "four-file-sha256:" + hashlib.sha256(
+ json.dumps(EXPECTED, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
 for rel, expected in EXPECTED.items():
  if hashlib.sha256((SOURCE / rel).read_bytes()).hexdigest() != expected:
   raise SystemExit("Pinned source mismatch")
 if hashlib.sha256((HOME / "ssh-config").read_bytes()).hexdigest() != "bc209019d9db2cbc56f1efbf55dfbc3b1aded51defcc60b3e5a88660dd8b96e8":
  raise SystemExit("Pinned SSH configuration mismatch")
-for port in (4000,19483):
- with socket.socket() as s:
-  s.settimeout(1)
-  if s.connect_ex(("127.0.0.1",port)) == 0:
-   raise SystemExit("Existing listener preserved; startup refused")
+sys.path.insert(0,str(SOURCE / "ops" / "vm-model-gateway"))
+from runtime_config import LocalTransport
+transport = LocalTransport.from_file(HOME / "transport-config.json")
+transport.require_free_ports()
 key = (HOME / "gateway-bearer.key").read_text(encoding="ascii").strip()
 pem = (HOME / "gateway-audit-p256.pem").read_text(encoding="ascii")
 if len(key) < 32 or any(c.isspace() for c in key):
@@ -40,9 +45,10 @@ def seal(phase, data):
  global previous
  payload = {"schema":"szl.native-vm-gateway-supervisor/v1",
   "at_utc":datetime.now(timezone.utc).isoformat(),"phase":phase,
-  "previous_sha256":previous,"source_revision":"548ae61181d55ca72d9d7151c16e97b382277dae",
-  "source_hashes":EXPECTED,"source_revision_evidence":"DECLARED",
-  "measured_source_scope":"THREE_PINNED_COPIED_FILES","independent_witness":False,**data}
+  "previous_sha256":previous,"source_revision":SOURCE_REVISION,
+  "source_hashes":EXPECTED,"source_revision_evidence":"MEASURED_PINNED_FOUR_FILE_MANIFEST",
+  "source_revision_kind":"FOUR_FILE_SHA256",
+  "measured_source_scope":"FOUR_PINNED_COPIED_FILES","independent_witness":False,**data}
  env = szl_dsse.sign_payload(payload,"application/vnd.szl.gateway-supervisor+json")
  assert szl_dsse.verify_envelope(env)["verified"]
  env["honesty"]="REPORTED: local audit signature; no independent approval"
@@ -53,7 +59,7 @@ def seal(phase, data):
   f.write(raw); f.flush(); os.fsync(f.fileno())
  previous=hashlib.sha256(raw).hexdigest()
 seal("intent",{"effect":"Start pinned SSH tunnel and authenticated proposal gateway",
- "bind":"127.0.0.1:4000","upstream":"127.0.0.1:19483","production_acceptance":"BLOCKED"})
+ "bind":transport.gateway_bind,"upstream":transport.upstream,"production_acceptance":"BLOCKED"})
 env={k:os.environ[k] for k in ("SystemRoot","WINDIR","PATH","TEMP","TMP","LOCALAPPDATA","APPDATA","USERPROFILE","USERNAME","USERDOMAIN","HOMEDRIVE","HOMEPATH","SystemDrive","COMSPEC","PATHEXT","ProgramData") if k in os.environ}
 class BasicLimits(ctypes.Structure):
  _fields_=[("ProcessTime",ctypes.c_int64),("JobTime",ctypes.c_int64),("Flags",wintypes.DWORD),("MinWS",ctypes.c_size_t),("MaxWS",ctypes.c_size_t),("ActiveLimit",wintypes.DWORD),("Affinity",ctypes.c_size_t),("Priority",wintypes.DWORD),("Scheduling",wintypes.DWORD)]
@@ -87,32 +93,32 @@ def start(label,argv,child_env):
 try:
  ssh=start("ssh",[r"C:\Program Files\OpenSSH\ssh.exe","-F",str(HOME/"ssh-config"),
   "-o","ClearAllForwardings=no","-o","ExitOnForwardFailure=yes","-N","-L",
-  "127.0.0.1:19483:127.0.0.1:8080","szl-massed-qualification"],env)
+  transport.ssh_forward,"szl-massed-qualification"],env)
  deadline=time.monotonic()+15
  while True:
   if ssh.poll() is not None: raise RuntimeError("SSH exited before readiness: "+str(ssh.returncode))
   try:
-   with urlopen("http://127.0.0.1:19483/health",timeout=1) as r:
+   with urlopen(transport.health_url,timeout=1) as r:
     if r.status==200: break
   except Exception: pass
   if time.monotonic()>deadline: raise RuntimeError("SSH health deadline")
   time.sleep(.5)
- gateway_env={**env,"SZL_LITELLM_KEY":key,"SZL_COSIGN_PRIVATE_PEM":pem,
+ gateway_env={**env,**transport.gateway_environment,"SZL_LITELLM_KEY":key,"SZL_COSIGN_PRIVATE_PEM":pem,
   "SZL_VM_GATEWAY_RECEIPTS_DIR":str(HOME/"receipts"),"PYTHONNOUSERSITE":"1","PYTHONDONTWRITEBYTECODE":"1"}
  gateway=start("gateway",[sys.executable,"-I","-B","-u",str(SOURCE/"ops/vm-model-gateway/gateway.py")],gateway_env)
  deadline=time.monotonic()+10
  while True:
   if gateway.poll() is not None: raise RuntimeError("Gateway exited before readiness")
   try:
-   with urlopen("http://127.0.0.1:4000/health",timeout=1) as r:
+   with urlopen(transport.gateway_health_url,timeout=1) as r:
     health=json.load(r)
     if r.status==200 and health.get("instance_id"): break
   except Exception: pass
   if time.monotonic()>deadline: raise RuntimeError("Gateway health deadline")
   time.sleep(.5)
  state={"at_utc":datetime.now(timezone.utc).isoformat(),"ssh_pid":ssh.pid,
-  "gateway_pid":gateway.pid,"instance_id":health["instance_id"],
-  "source_revision":"548ae61181d55ca72d9d7151c16e97b382277dae",
+  "gateway_pid":gateway.pid,"instance_id":health["instance_id"],"gateway_bind":transport.gateway_bind,"upstream":transport.upstream,
+  "source_revision":SOURCE_REVISION,
   "evidence_class":"MEASURED","production_acceptance":"BLOCKED",
   "liveness_requires_fresh_probe":True,"state":"STARTED"}
  (HOME/"current-processes.json").write_text(json.dumps(state,indent=2))

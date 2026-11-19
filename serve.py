@@ -604,6 +604,22 @@ except Exception as _gdw_frontier_error:  # pragma: no cover - fail one surface 
     }
 
 
+# Provenance layer: ORO inspects existing canonical owners at request time.
+# Importing the standalone oro.api would construct a separate store and signer;
+# this registrar exposes only bounded public evidence and no mutation routes.
+try:
+    from oro.evidence_api import register as _register_oro_evidence
+
+    _ORO_EVIDENCE_STATUS = _register_oro_evidence(app)
+except Exception as _oro_evidence_error:  # pragma: no cover - isolated surface failure
+    _ORO_EVIDENCE_STATUS = {
+        "ok": False,
+        "state": "UNAVAILABLE",
+        "reason": type(_oro_evidence_error).__name__,
+        "routes": [],
+    }
+
+
 # Services layer: the public Steward namespace is reserved before either
 # catch-all. Its pinned package may be unavailable or stale, but its reader
 # still rejects non-GET requests rather than forwarding them to the proxy.
@@ -885,6 +901,21 @@ except Exception as _szl_pool_contract_error:  # pragma: no cover
         f"[a11oy] compute-pool/v1 contract NOT registered: {_szl_pool_contract_error!r}; legacy routes unaffected",
         file=__import__("sys").stderr,
     )
+
+# Pool inference-receipt ingestion (szl_pool_receipt_ingest): the authorized
+# transport for pool-attester DSSE receipts into the running Space.  The minter
+# lives on the sovereign laptop; without this guarded registration its receipts
+# have nowhere fail-closed to land and the contract can never promote a node
+# above REACHABLE.  Same fail-closed style as the contract registration above.
+try:
+    import szl_pool_receipt_ingest as _szl_pool_receipt_ingest
+    _szl_pool_ingest_paths = _szl_pool_receipt_ingest.register(app, ns="a11oy")
+    print(f"[a11oy] compute-pool receipt ingestion registered: {_szl_pool_ingest_paths}", file=__import__("sys").stderr)
+except Exception as _szl_pool_ingest_error:  # pragma: no cover
+    print(
+        f"[a11oy] compute-pool receipt ingestion NOT registered: {_szl_pool_ingest_error!r}; contract read paths unaffected",
+        file=__import__("sys").stderr,
+    )
 # ── Backend hardening (devJ) — szl_backend_hardening ── end
 
 # ── Observability / distributed tracing (devN) — szl_observability ──
@@ -1014,6 +1045,17 @@ try:
     print("[a11oy] Quantum-Bio Λ-v5 registered: /api/a11oy/v1/qbio/*", file=__import__("sys").stderr)
 except Exception as _szl_qb_e:  # pragma: no cover
     print(f"[a11oy] Quantum-Bio Λ-v5 NOT registered: {_szl_qb_e!r}", file=__import__("sys").stderr)
+
+# Flavin-inspired quantum spin chemistry: separate, explicitly MODELED research lane.
+# Pure read-only GET; no action, inference, chemistry-device operation or receipt on GET.
+# The legacy reduced qbio compass remains unchanged and independently labeled.
+try:
+    import szl_flavin_spin_research as _szl_flavin_spin_research
+    _szl_flavin_spin_research.register(app, ns="a11oy")
+except Exception as _szl_fsr_error:  # pragma: no cover
+    print("[a11oy] flavin spin research unavailable: " +
+          type(_szl_fsr_error).__name__, file=__import__("sys").stderr)
+
 
 # -- SWEEP DEV 3: honest /status for quant, qbio, holographic (sweep-d3-status).
 # Three surfaces served a 200 PAGE but had NO backing /<surface>/status API (404).
@@ -4157,30 +4199,6 @@ except Exception as _otel_e:
     import sys as _otel_sys; print(f"[a11oy] OTel setup skipped: {_otel_e!r}", file=_otel_sys.stderr)
 # --- end OTel setup ---
 
-# ── ADDITIVE: vsp-otel — Verifiable Span Provenance (Yachay; Perplexity Computer Agent) ──
-# Adopts the szl-holdings/vsp-otel operational layer: W3C-traceparent propagation
-# (always, in-process) plus OTLP/gRPC span export that is GATED on the operator
-# setting OTEL_EXPORTER_OTLP_ENDPOINT. When that env var is unset there is no
-# collector to export to (prod is a single HF Space), so the tracer stays honestly
-# in-process-only — spans are NOT claimed to be exported. install() records the
-# exact exporter status on app._vsp_otel_exporter; we log it verbatim.
-# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1. ADDITIVE ONLY.
-try:
-    import vsp_otel.middleware as _vsp_otel
-    _vsp_otel.install(app)
-    app.add_api_route(
-        "/api/a11oy/v1/observability/status",
-        lambda: JSONResponse(_vsp_otel.status(app)),
-        methods=["GET"],
-        include_in_schema=False,
-    )
-    import sys as _vsp_sys
-    print(f"[a11oy] vsp-otel VSP installed: exporter={getattr(app, '_vsp_otel_exporter', 'unknown')}", file=_vsp_sys.stderr)
-except Exception as _vsp_e:
-    import sys as _vsp_sys
-    print(f"[a11oy] vsp-otel VSP skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
-# --- end vsp-otel VSP ---
-
 # Isolated build-environment health fan-out; exact targets, opt-in, no execution.
 import a11oy_build_env_fanout as _a11oy_build_env_fanout
 _a11oy_build_env_fanout.register(app)
@@ -4245,10 +4263,9 @@ except Exception as _th_e:
 # when the SZL_COSIGN_PRIVATE_PEM runtime secret is present (else honestly UNSIGNED).
 # Sign: Yachay. Perplexity Computer Agent.
 try:
-    try:  # prefer the extracted substrate package; fall back to local vendored copy
-        from szl_substrate import szl_provenance as _prov
-    except Exception:
-        import szl_provenance as _prov
+    # The image's source-bound local implementation owns the shared trace
+    # context contract. An optional external package must not replace it.
+    import szl_provenance as _prov
     _prov_status = _prov.register_provenance(app, "a11oy")
     import sys as _sys_pv
     print(f"[a11oy] Provenance Hardening registered: {_prov_status}", file=_sys_pv.stderr)
@@ -4264,6 +4281,33 @@ _A11OY_SLSA_TEXT = (
     else "SLSA posture UNAVAILABLE; canonical provenance module did not register."
 )
 # ── end Provenance Hardening ─────────────────────────────────────────────────
+
+# Register VSP after Wire D: Starlette runs later middleware outside earlier
+# middleware. The SDK/fallback server context must exist before Wire D and BE
+# record it; both preserve their standalone behavior when VSP is unavailable.
+# ── ADDITIVE: vsp-otel — Verifiable Span Provenance (Yachay; Perplexity Computer Agent) ──
+# Adopts the szl-holdings/vsp-otel operational layer: W3C-traceparent propagation
+# (always, in-process) plus OTLP/gRPC span export that is GATED on the operator
+# setting OTEL_EXPORTER_OTLP_ENDPOINT. When that env var is unset there is no
+# collector to export to (prod is a single HF Space), so the tracer stays honestly
+# in-process-only — spans are NOT claimed to be exported. install() records the
+# exact exporter status on app._vsp_otel_exporter; we log it verbatim.
+# Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1. ADDITIVE ONLY.
+try:
+    import vsp_otel.middleware as _vsp_otel
+    _vsp_otel.install(app)
+    app.add_api_route(
+        "/api/a11oy/v1/observability/status",
+        lambda: JSONResponse(_vsp_otel.status(app)),
+        methods=["GET"],
+        include_in_schema=False,
+    )
+    import sys as _vsp_sys
+    print(f"[a11oy] vsp-otel VSP installed: exporter={getattr(app, '_vsp_otel_exporter', 'unknown')}", file=_vsp_sys.stderr)
+except Exception as _vsp_e:
+    import sys as _vsp_sys
+    print(f"[a11oy] vsp-otel VSP skipped: {_vsp_e!r}", file=_vsp_sys.stderr)
+# --- end vsp-otel VSP ---
 
 # ===========================================================================
 # CORS LOCKDOWN (SAFE-NOW hardening, 2026-06-18).
@@ -5240,12 +5284,19 @@ async def shutdown() -> None:
         if _http_client:
             await _http_client.aclose()
     finally:
-        # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
-        # gdw_runtime finally may never run, so await the final snapshot and
-        # lease release here, while the process is still alive.
-        import a11oy_state_store
+        try:
+            # This hook is registered before the Series-A shutdown handler.
+            # Stop its producers before the final snapshot and lease release.
+            service = getattr(app.state, "szl_series_a_service", None)
+            if service is not None:
+                await service.stop()
+        finally:
+            # Uvicorn re-raises SIGTERM after lifespan shutdown. The outer
+            # gdw_runtime finally may never run, so await storage finalization
+            # even when a producer's cleanup reports an error.
+            import a11oy_state_store
 
-        await asyncio.to_thread(a11oy_state_store.shutdown)
+            await asyncio.to_thread(a11oy_state_store.shutdown)
 
 
 # ---------------------------------------------------------------------------
@@ -5426,6 +5477,7 @@ def _preflight_signal() -> dict:
 # ---------------------------------------------------------------------------
 
 import time as _hz_time
+import threading as _hz_threading
 _A11OY_START_TIME = _hz_time.time()
 # Last-known dependency (Node :8081) ping, cached so /healthz stays dependency-light
 # and NEVER 5xx; any failure degrades honestly instead of faking green (Doctrine v11).
@@ -5468,18 +5520,13 @@ def _ledger_storage_signal(ttl: float = 15.0) -> dict:
     if ca is not None and (now - ca) < ttl:
         return _LEDGER_STORAGE_CACHE.get("value", {})
     try:
-        import szl_energy_ledger as _szl_el_health
-        # probe=False: don't do a write-probe on the hot health path; use the store's
-        # tracked state (dir-ok + last write status), which is already honest.
-        led = _szl_el_health.get_ledger()
-        try:
-            val = led.storage_health()
-            # If the durable store is present, refresh its status WITHOUT a write-probe.
-            if getattr(led, "_store", None) is not None:
-                val = led._store.status(probe=False)
-                val["backend"] = "durable-rotating-jsonl"
-        except Exception:
-            val = _szl_el_health.ledger_storage_health()
+        # Observe only the writer-initialized ledger. The accessor never creates a
+        # store, recovers a generation, or performs a filesystem write probe. Even
+        # module import belongs to startup: its path selection may write-probe.
+        _szl_el_health = sys.modules.get("szl_energy_ledger")
+        if _szl_el_health is None:
+            raise RuntimeError("LEDGER_MODULE_NOT_INITIALIZED")
+        val = _szl_el_health.ledger_storage_health()
     except Exception as exc:
         val = {"status": "unavailable", "error": f"{type(exc).__name__}: {exc}",
                "bounded": None}
@@ -5534,14 +5581,22 @@ def _frontier_liveness_signal() -> dict:
         readiness = summary["operational_readiness"]
         live = readiness["ready_tiles"]
         blocked = readiness["blocked_tiles"]
+        # By-design-never-satisfiable capabilities are reported separately by the
+        # manifest (#3654). They are neither live nor blocked, so the partition check
+        # below must count them too; a malformed report fails closed.
+        nrv = readiness.get("not_runtime_verifiable") or []
+        nrv_valid = isinstance(nrv, list) and all(
+            isinstance(row, dict) and isinstance(row.get("name"), str)
+            and bool(row["name"].strip()) for row in nrv)
         degraded = [row["name"] for row in blocked]
         # The manifest distinguishes readable sources from operating capabilities.
         # A stopped operator or MODELED tile can be reachable without being live.
         # Missing/inconsistent readiness evidence must never become an ok rollup.
         if (type(total) is not int or total < 0
                 or not isinstance(live, list) or not isinstance(blocked, list)
+                or not nrv_valid
                 or type(readiness["ready"]) is not bool
-                or total != len(live) + len(blocked)
+                or total != len(live) + len(blocked) + len(nrv)
                 or readiness["ready"] != (bool(total) and not blocked)):
             raise ValueError("frontier operational readiness evidence is inconsistent")
         degraded_n = len(blocked)
@@ -5570,21 +5625,24 @@ def _frontier_liveness_signal() -> dict:
 # NEVER fakes a reachable node. A tunnel may answer from cloud, but reachability
 # does not verify an owned GPU, weights, or the doctrine wrapper.
 _SOVEREIGN_HZ_CACHE: dict = {}
+_SOVEREIGN_HZ_LOCK = _hz_threading.Lock()
 
 
 def _sovereign_health_signal(ttl: float = 30.0) -> dict:
-    now = _hz_time.time()
-    ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
-    if ca is not None and (now - ca) < ttl:
-        return _SOVEREIGN_HZ_CACHE.get("value", {})
-    try:
-        import szl_sovereign_panel as _szl_sov_hz
-        val = _szl_sov_hz.rollup_signal()
-    except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
-        val = {"reachable": False, "model": "szl-sovereign-local",
-               "label": "UNAVAILABLE", "error": type(exc).__name__}
-    _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
-    return val
+    # One refresh for this cache key, including the fail-closed error result.
+    with _SOVEREIGN_HZ_LOCK:
+        now = _hz_time.time()
+        ca = _SOVEREIGN_HZ_CACHE.get("checked_at")
+        if ca is not None and (now - ca) < ttl:
+            return _SOVEREIGN_HZ_CACHE.get("value", {})
+        try:
+            import szl_sovereign_panel as _szl_sov_hz
+            val = _szl_sov_hz.rollup_signal()
+        except Exception as exc:  # pragma: no cover — never block healthz; honest UNAVAILABLE
+            val = {"reachable": False, "model": "szl-sovereign-local",
+                   "label": "UNAVAILABLE", "error": type(exc).__name__}
+        _SOVEREIGN_HZ_CACHE.update({"checked_at": now, "value": val})
+        return val
 
 
 # Wave O / Dev 5: compact Brain rollup for /healthz. Reads the Brain command layer
@@ -5612,6 +5670,7 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
 
 @app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
+    from starlette.concurrency import run_in_threadpool
     from szl_brain import mcp_inventory_snapshot
     _mcp_inventory = mcp_inventory_snapshot("a11oy")
     # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
@@ -5621,8 +5680,9 @@ async def healthz() -> JSONResponse:
     _ca = dep.get("checked_at")
     _storage = _ledger_storage_signal()
     _signer = _signer_availability_signal()
-    _frontier = _frontier_liveness_signal()
-    _sovereign = _sovereign_health_signal()
+    # These cached rollups may perform bounded synchronous probes on a miss.
+    _frontier = await run_in_threadpool(_frontier_liveness_signal)
+    _sovereign = await run_in_threadpool(_sovereign_health_signal)
     _brain = _brain_health_signal()
     _preflight = _preflight_signal()
     # Source/image identity is diagnostic evidence, never an attestation.  The
@@ -5801,7 +5861,8 @@ async def preflight_status() -> JSONResponse:
 
 
 @app.api_route("/api/a11oy/readyz", methods=["GET", "HEAD"])
-async def readyz() -> JSONResponse:
+def readyz() -> JSONResponse:
+    # Synchronous lung probes run in FastAPI's worker pool, not the ASGI loop.
     # Keep service readiness separate from optional capability readiness. A public
     # CPU-only surface may serve in a truthful degraded state, while a deployment
     # that declares the operator required must fail closed. A reachable lung with
@@ -9225,7 +9286,101 @@ try:
                 "honesty": ("Action recorded in a SHA-256 hash-chained audit ring + receipt. Ring is in-process "
                             "(resets on restart). No arbitrary code executed.")}
 
-    _SC_RECOMMEND = {'recommendations': [{'severity': 'ok', 'organ': 'a11oy', 'finding': 'Platform consolidated: the Policy/Safety, Reasoning and Operator capabilities are all served in-process by a11oy. No external services required.', 'remedy': 'None — nominal. All decision, compliance and operator data is native to a11oy.'}], 'counts': {'critical': 0, 'warn': 0, 'info': 0, 'ok': 1}, 'citations': [{'endpoint': '/api/a11oy/healthz (self-contained platform health)', 'data': {'a11oy': {'ok': True}}}], 'honesty': "Recommendations are derived from a11oy's own consolidated state — no synthetic alerts and no fabricated probes. Every capability is folded into a11oy itself."}
+    def _sc_recommend(health_report=None, http_status=None):
+        """Project the existing health contract without admitting or executing work."""
+        observed = (isinstance(health_report, dict)
+                    and health_report.get("service") == "a11oy"
+                    and health_report.get("status") in ("ok", "degraded")
+                    and http_status in (200, 503))
+        rows = []
+
+        def finding(severity, organ, detail, remedy):
+            rows.append({"severity": severity, "organ": organ,
+                         "finding": detail, "remedy": remedy})
+
+        def strings(value):
+            return (isinstance(value, list)
+                    and all(isinstance(item, str) and item.strip() for item in value))
+
+        readiness = health_report.get("operational_readiness") if observed else None
+        readiness = readiness if isinstance(readiness, dict) else None
+        ready = False
+        if not observed:
+            finding("warn", "a11oy", "Health evidence is UNAVAILABLE; readiness cannot be confirmed.",
+                    "Restore /api/a11oy/healthz and refresh the observation.")
+        else:
+            degraded = health_report.get("degraded_reasons", [])
+            blockers = readiness.get("service_blockers") if readiness else None
+            service_reasons = list(dict.fromkeys(
+                (degraded if strings(degraded) else [])
+                + (blockers if strings(blockers) else [])))
+            if health_report["status"] != "ok" and not service_reasons:
+                service_reasons.append("service_status_degraded")
+            if http_status != 200:
+                service_reasons.append("health_http_" + str(http_status))
+            for reason in service_reasons:
+                finding("critical", "a11oy", reason,
+                        "Resolve this service blocker and re-observe /api/a11oy/healthz.")
+
+            frontier = readiness.get("frontier") if readiness else None
+            frontier = frontier if isinstance(frontier, dict) else {}
+            live = frontier.get("ready_tiles")
+            blocked = frontier.get("blocked_tiles")
+            valid_rows = (isinstance(blocked, list) and all(
+                isinstance(row, dict) and isinstance(row.get("name"), str)
+                and bool(row["name"].strip()) and strings(row.get("reasons"))
+                and bool(row["reasons"]) for row in blocked))
+            if isinstance(blocked, list):
+                for row in blocked:
+                    if not isinstance(row, dict) or not isinstance(row.get("name"), str):
+                        continue
+                    reasons = row.get("reasons")
+                    detail = "; ".join(reasons) if strings(reasons) and reasons else "operational evidence missing"
+                    finding("warn", row["name"], detail,
+                            "Supply and verify the missing operational evidence, then refresh readiness.")
+            consistent = False
+            if (readiness is not None and strings(degraded) and strings(blockers)
+                    and strings(live) and valid_rows
+                    and type(readiness.get("ready")) is bool
+                    and type(frontier.get("ready")) is bool):
+                names = live + [row["name"] for row in blocked]
+                frontier_ready = bool(names) and not blocked
+                expected_ready = (frontier_ready and health_report["status"] == "ok"
+                                  and not degraded and not blockers)
+                consistent = (bool(names) and len(names) == len(set(names))
+                              and frontier["ready"] == frontier_ready
+                              and frontier.get("state") == ("READY" if frontier_ready else "NOT_READY")
+                              and readiness["ready"] == expected_ready
+                              and readiness.get("status") == ("READY" if expected_ready else "NOT_READY")
+                              and set(blockers) == set(degraded))
+                ready = consistent and expected_ready and http_status == 200
+            if not consistent:
+                finding("warn", "a11oy", "Operational readiness evidence is missing or inconsistent.",
+                        "Restore the canonical readiness report; service reachability alone cannot establish readiness.")
+            if ready:
+                finding("ok", "a11oy", "The observed health rollup reports ready service and frontier capabilities.",
+                        "Continue observing the source evidence; this report does not authorize an action.")
+
+        return {
+            "status": "REAL" if ready else "DEGRADED",
+            "health_state": "OBSERVED" if ready else "DEGRADED" if observed else "UNAVAILABLE",
+            "grounded": observed, "observed_at": _sc_now(),
+            "source_http_status": http_status, "operational_readiness": readiness,
+            "recommendations": rows,
+            "counts": {severity: sum(row["severity"] == severity for row in rows)
+                       for severity in ("critical", "warn", "info", "ok")},
+            "citations": [{"endpoint": "/api/a11oy/healthz",
+                           "data": health_report if observed else {"state": "UNAVAILABLE"}}],
+            "honesty": ("Recommendations project the current health rollup and preserve its blockers. "
+                        "They do not independently verify source evidence, grant admission, or mint receipts."),
+        }
+
+    async def _sc_operator_recommendations():
+        try:
+            response = await healthz()
+            return _sc_recommend(_sc_json.loads(response.body), response.status_code)
+        except Exception:
+            return _sc_recommend()
 
     async def _sc_body(request):
         try:
@@ -9313,7 +9468,7 @@ try:
         return _SCJSON(_sc_act((body or {}).get("action", ""), (body or {}).get("target", ""), (body or {}).get("note", "")))
 
     async def _sc_rosie_recommend():
-        return _SCJSON(_SC_RECOMMEND)
+        return _SCJSON(await _sc_operator_recommendations(), headers={"Cache-Control": "no-store"})
 
     async def _sc_rosie_ledger():
         return _SCJSON(_SC_BUNDLE["ledger"])
@@ -9454,7 +9609,8 @@ try:
 
     @app.get("/api/a11oy/v1/operator/recommend")
     async def _sc_cap_recommend():
-        return _SCJSON(gov_envelope(_SC_RECOMMEND, status="REAL"))
+        report = await _sc_operator_recommendations()
+        return _SCJSON(gov_envelope(report, status=report["status"]), headers={"Cache-Control": "no-store"})
 
     @app.get("/api/a11oy/v1/operator/ledger")
     async def _sc_cap_ledger():
@@ -9587,7 +9743,7 @@ try:
         _cites = [{"endpoint": c["endpoint"], "data": {"status": c["status"], "checked_at": _now}} for c in caps]
         return _SCJSON(gov_envelope(summary, status=("REAL" if _deg == 0 else "DEGRADED"), citations=_cites))
 
-    def _sc_command_loop(body):
+    def _sc_command_loop(body, recommendation_report=None):
         body = body or {}
         command = str(body.get("command") or body.get("intent") or "").strip()
         target = str(body.get("target") or "").strip()
@@ -9606,8 +9762,10 @@ try:
         stg("Signal", "REAL", "Operator intent received.", {"command": command, "target": target})
         topic = _sc_classify(command)
         stg("Context", "REAL", "Classified intent + read live platform context.", {"topic": topic})
-        stg("Recommend", "REAL", "Platform recommendation read from consolidated state.",
-            _SC_RECOMMEND.get("recommendations"))
+        recommendation_report = recommendation_report or _sc_recommend()
+        stg("Recommend", recommendation_report["status"], "Recommendation derived from observed health evidence.",
+            recommendation_report["recommendations"])
+        stages[-1]["evidence"] = recommendation_report
         stg("Simulate", "DEGRADED", "No real action simulator wired in this runtime \u2014 not faked.")
         verdict = _sc_build_verdict({"agent": operator,
                                      "action": {"command": command, "target": target},
@@ -9653,7 +9811,8 @@ try:
         rejected = _sc_rejected(body)
         if rejected is not None:
             return rejected
-        res = _sc_command_loop(body)
+        recommendations = await _sc_operator_recommendations()
+        res = _sc_command_loop(body, recommendation_report=recommendations)
         ran = bool((res.get("stages") or [{}])[0].get("status") == "REAL")
         cites = [{"endpoint": "/api/a11oy/v2/operator/command-log", "data": {"chained": True}},
                  {"endpoint": "/api/a11oy/v1/policy/decide", "data": {"governed": True}}]
@@ -10812,12 +10971,10 @@ async def _stop_a11oy_signing_state():
 
 # KHIPU FLEET CONTRACT (platform readiness-reliability executor): the fleet
 # probes {base}/healthz, {base}/khipu/sign, {base}/khipu/verify, {base}/metrics.
-# The estate signing surfaces live at /api/a11oy/v1/* — these ROOT routes are
-# the fleet-contract aliases and perform the REAL sign/verify work with the
-# loaded production key on every request (the same backend as the capability
-# self-test; no stub, no fabricated 200). Fail-closed: key not loaded or
-# fingerprint-mismatched -> HTTP 503 with the honest reason, so the readiness
-# receipt records a real fault instead of a fake green.
+# Fleet GET/HEAD probes project lifecycle-owned signing evidence without
+# signing or refreshing it. They require fresh, boot-bound and key-matched
+# capability evidence; missing or expired evidence returns HTTP 503.
+# Actual receipt signing and verification remain on their existing POST paths.
 def _khipu_fleet_signer_ready() -> tuple[object, str | None]:
     """(private key, verification fingerprint) when the loaded signer is real."""
     if _A11OY_PRIV is None or not _A11OY_PUB_PEM:
@@ -10849,7 +11006,29 @@ def _khipu_fleet_receipt(verification: str) -> dict:
     }
 
 
-@app.api_route("/khipu/sign", methods=["GET", "POST"])
+def _khipu_fleet_signing_observation(operation: str) -> JSONResponse:
+    from szl_signing_state import read_state
+
+    state = read_state(app)
+    ready = state["signing_ready"] is True
+    return JSONResponse({
+        "schema": f"szl.khipu-fleet-{operation}/v1",
+        "status": "READY" if ready else "UNAVAILABLE",
+        "scope": "PROCESS_LOCAL_SIGNING_CAPABILITY",
+        "receipt_minted": False,
+        "sign_on_read": False,
+        "receipt_verification": "NOT_EVALUATED",
+        "operation_method": "POST",
+        "signing_state": state,
+    }, status_code=200 if ready else 503, headers={"Cache-Control": "no-store"})
+
+
+@app.api_route("/khipu/sign", methods=["GET", "HEAD"])
+async def khipu_fleet_sign_status() -> JSONResponse:
+    return _khipu_fleet_signing_observation("sign")
+
+
+@app.post("/khipu/sign")
 async def khipu_fleet_sign() -> JSONResponse:
     priv, verification = _khipu_fleet_signer_ready()
     if priv is None:
@@ -10873,7 +11052,12 @@ async def khipu_fleet_sign() -> JSONResponse:
                          "verified": True})
 
 
-@app.api_route("/khipu/verify", methods=["GET", "POST"])
+@app.api_route("/khipu/verify", methods=["GET", "HEAD"])
+async def khipu_fleet_verify_status() -> JSONResponse:
+    return _khipu_fleet_signing_observation("verify")
+
+
+@app.post("/khipu/verify")
 async def khipu_fleet_verify(request: "Request" = None) -> JSONResponse:
     priv, verification = _khipu_fleet_signer_ready()
     if priv is None:
@@ -14251,6 +14435,7 @@ _LOCAL_ONLY_A11OY_PREFIXES = ("v1/warhacker/", "v1/observability/", "v1/sec/",
                               "v1/govern/",
                               "v1/claim-integrity/",  # EvidenceOS Claim Compiler
                               "v1/models/m1",       # M1 local-only experimental gate
+                              "v1/models/training-observations",  # Private observations never leave this process
                               "v1/verify/intoto",      # in-toto verify guide (DEV2)
                               "v1/khipu/intoto/",      # in-toto receipt views (DEV2)
                               "v1/vqc/",               # Governed VQC (in-process; DEV1)

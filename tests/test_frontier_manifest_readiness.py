@@ -329,7 +329,10 @@ def test_sovereign_socket_is_transport_evidence_only(monkeypatch):
     assert tile["ownership_verified"] is False
     assert ready is False
     assert "no_sovereign_gpu_reachable" not in reasons
-    assert "sovereign_ownership_not_verified" in reasons
+    # Ownership stays documented (never verified by a transport probe); since
+    # #3654 it is not a runtime blocker, so it must not appear in reasons.
+    assert "sovereign_ownership_not_verified" not in reasons
+    assert tile["operational_evidence"].get("runtime_satisfiable") is not False
     assert "model_inference_not_verified_by_transport_probe" in reasons
 
 
@@ -438,7 +441,7 @@ def test_verified_inference_receipt_on_reachable_rented_gpu_clears_only_inferenc
     assert tile["rented_gpu_reachable"] == 1
     assert tile["ownership_verified"] is False
     assert "no_sovereign_gpu_reachable" in reasons
-    assert "sovereign_ownership_not_verified" in reasons
+    assert "sovereign_ownership_not_verified" not in reasons
     assert ready is False
 
 
@@ -473,7 +476,8 @@ def test_rented_gpu_marked_sovereign_never_counts_as_sovereign(monkeypatch):
 
     assert tile["sovereign_gpu_reachable"] == 0
     assert "no_sovereign_gpu_reachable" in reasons
-    assert "sovereign_ownership_not_verified" in reasons
+    assert "sovereign_ownership_not_verified" not in reasons
+    assert tile["ownership_verified"] is False
 
 
 def test_importable_uds_source_does_not_establish_signed_bundle(monkeypatch):
@@ -526,7 +530,7 @@ def test_reachable_uds_references_do_not_upgrade_runtime_evidence(monkeypatch):
 def test_frontier_page_renders_both_contracts_without_legacy_live_inference():
     html = page._page_html("a11oy")
 
-    assert "source reachability" in html
+    assert "source availability (reported)" in html
     assert "operational readiness" in html
     assert "all sources live:" not in html
     assert "all_sources_live=" not in html
@@ -645,6 +649,8 @@ def _operator_status(**overrides):
         "stub_mode": False,
         "jobs_done": 4,
         "joules_measured_total": 0.0,
+        "joules_measured_label": manifest.UNAVAILABLE,
+        "joules_measured_reason": "NO_VERIFIED_NVML_COUNTER_WINDOW",
         "measured_jobs": 0,
         "node_status": {"rtx": "computing"},
     }
@@ -677,11 +683,145 @@ def test_running_operator_with_a_gpu_needs_a_measured_job(monkeypatch):
     ready, reasons = manifest._tile_operational_readiness(tile)
 
     assert ready is False
-    assert reasons == ["no_measured_jobs"]
+    assert reasons == [
+        "no_measured_jobs", "measured_energy_evidence_unavailable",
+        "label_unavailable_is_not_operational_evidence",
+    ]
     assert tile["gpu_nodes_reachable"] == 1
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "NO_VERIFIED_NVML_COUNTER_WINDOW"
 
     monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
-        measured_jobs=1, joules_measured_total=2.5))
+        measured_jobs=1, joules_measured_total=2.5,
+        joules_measured_label=manifest.MEASURED, joules_measured_reason=None))
     measured = manifest._tile_energy_operator()
 
+    assert measured["label"] == manifest.MEASURED
+    assert measured["joules_measured_label"] == manifest.MEASURED
+    assert measured["joules_measured_total"] == 2.5
+    assert measured["joules_measured_reason"] is None
     assert manifest._tile_operational_readiness(measured) == (True, [])
+
+
+def test_by_design_tiles_are_reported_not_blocking():
+    summary = manifest._build_manifest()["summary"]
+    readiness = summary["operational_readiness"]
+    nrv = {row["name"]: row for row in readiness["not_runtime_verifiable"]}
+    blocked = {row["name"] for row in readiness["blocked_tiles"]}
+    ready = set(readiness["ready_tiles"])
+
+    assert "Orbital compute tier" in nrv
+    assert "Signed UDS bundle" in nrv
+    assert "Orbital compute tier" not in blocked
+    assert "Signed UDS bundle" not in blocked
+    assert "Orbital compute tier" not in ready
+    assert "Signed UDS bundle" not in ready
+    assert (len(ready) + len(blocked) + len(nrv)) == summary["tiles"]
+    for row in readiness["not_runtime_verifiable"]:
+        assert row["expectation"], "a by-design tile must report its expectation"
+
+
+def test_sovereign_gpu_with_verified_inference_is_ready_without_ownership_proof(
+        tmp_path, monkeypatch):
+    import szl_backend_hardening as bh
+
+    pool = {
+        "scope": "TRANSPORT_REACHABILITY",
+        "cached_at": "2026-11-17T00:00:00Z",
+        "nodes": [{"name": "sovereign-node", "kind": "gpu", "reachable": True,
+                   "sovereign": True, "probe_kind": "TCP_CONNECT",
+                   "endpoint": "configured sovereign GPU endpoint (registry config)",
+                   "inference_verified": False, "ownership_verified": False}],
+        "counts": {"nodes_total": 1, "nodes_reachable": 1,
+                   "gpu_nodes_reachable": 1, "sovereign_gpu_nodes_reachable": 1,
+                   "inference_verified_nodes": 0},
+    }
+    monkeypatch.setattr(bh, "probe_fabric_pool", lambda: pool)
+    _write_pool_receipt(tmp_path, monkeypatch, node_id="sovereign-node")
+
+    tile = manifest._tile_compute_fabric()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["inference_verified"] is True
+    assert tile["sovereign_gpu_reachable"] == 1
+    assert tile["counts_consistent"] is True
+    # Ownership stays documented, never verified by the probe, and is not a blocker.
+    assert tile["ownership_verified"] is False
+    assert "sovereign_ownership_not_verified" not in reasons
+    assert reasons == []
+    assert ready is True
+
+
+@pytest.mark.parametrize("measured_jobs", [0, 1])
+def test_operator_preserves_unavailable_measurement_evidence(monkeypatch, measured_jobs):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        running=False, node_status={"rtx": "idle"},
+        measured_jobs=measured_jobs,
+        joules_measured_reason="NO_VERIFIED_NVML_COUNTER_WINDOW",
+    ))
+
+    tile = manifest._tile_energy_operator()
+
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "NO_VERIFIED_NVML_COUNTER_WINDOW"
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert manifest._tile_operational_readiness(tile)[0] is False
+
+
+@pytest.mark.parametrize("source_label", [None, "", "UNKNOWN", "measured", {}])
+def test_operator_missing_or_invalid_measurement_label_fails_closed(monkeypatch, source_label):
+    import szl_energy_operator as eo
+
+    source = _operator_status(
+        measured_jobs=1, joules_measured_total=2.5,
+        joules_measured_label=source_label, joules_measured_reason=None,
+    )
+    if source_label is None:
+        source.pop("joules_measured_label")
+    monkeypatch.setattr(eo, "handle_status", lambda: source)
+
+    tile = manifest._tile_energy_operator()
+
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "MEASUREMENT_LABEL_UNAVAILABLE"
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert manifest._tile_operational_readiness(tile)[0] is False
+
+
+def test_operator_measured_label_without_a_measured_job_fails_closed(monkeypatch):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        joules_measured_label=manifest.MEASURED, joules_measured_reason=None,
+    ))
+
+    tile = manifest._tile_energy_operator()
+
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "NO_VERIFIED_NVML_COUNTER_WINDOW"
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert manifest._tile_operational_readiness(tile)[0] is False
+
+
+@pytest.mark.parametrize("source_label", [manifest.SAMPLE, manifest.MODELED, manifest.ROADMAP])
+def test_operator_preserves_non_measured_source_labels_without_readiness(monkeypatch, source_label):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        measured_jobs=1, joules_measured_total=2.5,
+        joules_measured_label=source_label, joules_measured_reason="SOURCE_NOT_MEASURED",
+    ))
+
+    tile = manifest._tile_energy_operator()
+
+    assert tile["label"] == source_label
+    assert tile["joules_measured_label"] == source_label
+    assert tile["joules_measured_reason"] == "SOURCE_NOT_MEASURED"
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert manifest._tile_operational_readiness(tile)[0] is False

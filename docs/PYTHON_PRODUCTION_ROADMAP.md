@@ -24,6 +24,33 @@ blocked and upstream-reported complete work. Its completion evidence remains
 server acceptance, independently verified inference or permission to execute.
 See [completion regressions](../tests/test_agentloop_completion_evidence.py).
 
+The served /holographic#governedagent client uses that completion contract.
+Its one-request operator credential and configured tenant go only to the existing
+same-origin agent-loop POST as Authorization and X-A11oy-Tenant headers.
+The password field is cleared on submission, validation refusal, page exit and
+unmount; no browser storage, URL credential or second-approver collection is added.
+Request inputs remain fixed while a request is pending. Changing them afterward
+clears the prior result, receipt and step display without erasing an uncertain
+execution outcome. The server still owns authorization and tenant admission. The client sends
+sandbox:false, disables optional brain/energy side work, and requests zero
+orchestration retries. This does not bound provider-internal retries or prove
+total cost enforcement. It requires an explicit configured model and evaluation
+suite; it does not infer model qualification from availability.
+
+A transport failure, redirect, malformed response or inconsistent completion
+evidence is UNKNOWN, with no automatic retry. A later explicit request after an
+unknown outcome needs acknowledgement that prior execution may have occurred.
+HTTP success and ok:true alone never become completed work; the view preserves
+OBSERVED_COMPLETE as upstream-reported and unverified, alongside the separate
+receipt-verification and model-qualification limits. Unmount aborts the browser
+request and discards a late response; it does not claim to cancel remote execution.
+The [client contract tests](../tests/test_governed_agent_client.cjs) execute the
+served source with isolated request/response fixtures and no provider effects.
+
+The [operational agent research](strategy/operational-agent-research-2026-11-16.md)
+records the public prior art, this contract repair, the remaining canonical
+frontend/runtime integration work, and explicitly MODELED next designs.
+
 ## One product, explicit source owners
 
 | Component | Retained authority | Planned integration boundary |

@@ -839,15 +839,33 @@ _PROBE_UA = os.environ.get(
     "Mozilla/5.0 (compatible; szl-energy-operator/1.0; +https://a-11-oy.com)")
 
 
+def _with_model_access_headers(headers: dict, url: str) -> dict:
+    """Merge the opt-in CF Access pair when the request targets the declared
+    model origin (szl_model_access). A public origin behind Cloudflare Access
+    answers anonymous calls with a login redirect, so without this merge a
+    tunnel-fronted sovereign node is falsely DEGRADED no matter how reachable
+    it is. Scope is exact: the pair is sent ONLY for the declared origin; a
+    tailnet node is not behind that gate and never receives these
+    credentials. A partially configured pair raises instead of silently
+    sending an anonymous request (fail closed at the caller, honestly)."""
+    from szl_model_access import model_access_headers_for_origin
+    merged = dict(headers)
+    merged.update(model_access_headers_for_origin(url))
+    return merged
+
+
 def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
     """Read-only liveness on the configured inference base, using its GPU bearer.
 
     Only a successful response qualifies. Auth refusals and redirects fail closed;
-    a public root must not hide a protected /models refusal. Never raises.
-    Timeout defaults to SZL_GPU_PROBE_TIMEOUT (_PROBE_TIMEOUT_S) so tunneled nodes
-    are not falsely DEGRADED; pass an explicit value to override."""
+    a public root must not hide a protected /models refusal. Never raises. A
+    partially configured CF Access pair also fails closed here: an Access-gated
+    origin must never be called anonymously just to look reachable. Timeout
+    defaults to SZL_GPU_PROBE_TIMEOUT (_PROBE_TIMEOUT_S) so tunneled nodes are
+    not falsely DEGRADED; pass an explicit value to override."""
     import urllib.error as _e
     import urllib.request as _u
+    from szl_model_access import ModelAccessConfigurationError
 
     class _NoRedirect(_u.HTTPRedirectHandler):
         def redirect_request(self, request, fp, code, msg, headers, newurl):
@@ -859,11 +877,16 @@ def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
         headers["Authorization"] = f"Bearer {gpu_token}"
+    root = base_url.rstrip("/")
+    try:
+        headers = _with_model_access_headers(headers, root)
+    except ModelAccessConfigurationError:
+        return False
     for path in ("/models", ""):
         try:
             # Only the configured base receives the existing inference credential;
             # no redirect may carry it to a different endpoint.
-            req = _u.Request(base_url.rstrip("/") + path, method="GET",
+            req = _u.Request(root + path, method="GET",
                              headers=headers)
             with _u.build_opener(_NoRedirect()).open(req, timeout=timeout) as r:  # noqa: S310
                 if 200 <= getattr(r, "status", r.getcode()) < 300:
@@ -884,13 +907,15 @@ def _ollama_generate(base_url: str, model: str, prompt: str,
     caller marks the node DEGRADED rather than fabricating a result."""
     import httpx
     body = {"model": model, "messages": [{"role": "user", "content": prompt}],
-            "stream": False, "max_tokens": 64}
+            "stream": False, "max_tokens": 64, "temperature": 0.7}
     headers = {"Content-Type": "application/json", "User-Agent": _PROBE_UA}
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
         headers["Authorization"] = f"Bearer {gpu_token}"
+    endpoint = f"{base_url.rstrip('/')}/chat/completions"
+    headers = _with_model_access_headers(headers, endpoint)
     with httpx.Client(timeout=timeout) as client:
-        resp = client.post(f"{base_url.rstrip('/')}/chat/completions",
+        resp = client.post(endpoint,
                            headers=headers, json=body)
         resp.raise_for_status()
         data = resp.json()
@@ -915,8 +940,10 @@ def _ollama_embed(base_url: str, model: str, text: str,
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
         headers["Authorization"] = f"Bearer {gpu_token}"
+    endpoint = f"{root}/api/embeddings"
+    headers = _with_model_access_headers(headers, endpoint)
     with httpx.Client(timeout=timeout) as client:
-        resp = client.post(f"{root}/api/embeddings",
+        resp = client.post(endpoint,
                            headers=headers, json={"model": model, "prompt": text})
         resp.raise_for_status()
         data = resp.json()
@@ -1024,6 +1051,9 @@ class OperatorDaemon:
         self._lock = threading.RLock()
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._starting = False
+        self._stop_joining = False
+        self._lifecycle_generation = 0
         self._started_at: Optional[float] = None
         self._state_load_error: Optional[str] = None
         self._persistence_error: Optional[str] = None
@@ -1139,41 +1169,84 @@ class OperatorDaemon:
 
     # -- lifecycle --------------------------------------------------------
     def is_running(self) -> bool:
-        return self._thread is not None and self._thread.is_alive()
+        worker = self._thread
+        return worker is not None and worker.is_alive()
+
+    def _lifecycle_state(self, running: bool) -> str:
+        """Called while holding _lock; running is one captured thread observation."""
+        if self._stop_joining or (self._stop.is_set() and (running or self._starting)):
+            return "STOPPING"
+        if self._starting:
+            return "STARTING"
+        return "RUNNING" if running else "STOPPED"
+
+    def lifecycle_state(self) -> str:
+        with self._lock:
+            return self._lifecycle_state(self.is_running())
 
     def start(self) -> dict:
         with self._lock:
+            if self.lifecycle_state() == "STOPPING":
+                return {**self.status(), "started": False, "reason": "operator_stopping"}
             if self.is_running():
-                return self.status()
-        # Fail closed: without a reachable GPU lung the loop could only run the
-        # stub and would read as running while no GPU computes. Same stable code
-        # autostart_if_lung_reachable() reports. Probed outside the lock so
-        # status readers never wait on the network.
-        if not self.any_lung_reachable():
-            refused = self.status()
-            refused.update({"started": False, "reason": "no_lung_reachable"})
-            return refused
-        with self._lock:
-            if self.is_running():
-                return self.status()
+                return {**self.status(), "started": False, "reason": "already_running"}
+            if self._starting:
+                return {**self.status(), "started": False, "reason": "start_in_progress"}
+            self._starting = True
+            self._lifecycle_generation += 1
+            generation = self._lifecycle_generation
+            # No live worker or joining stop exists here. A stop during the
+            # probe will set this again and invalidate this start's generation.
             self._stop.clear()
+        try:
+            reachable = self.any_lung_reachable()
+        except BaseException:
+            with self._lock:
+                self._starting = False
+            raise
+        with self._lock:
+            self._starting = False
+            if generation != self._lifecycle_generation or self._stop.is_set():
+                return {**self.status(), "started": False, "reason": "start_cancelled_by_stop"}
+            if not reachable:
+                return {**self.status(), "started": False, "reason": "no_lung_reachable"}
             self._started_at = time.time()
-            self._thread = threading.Thread(target=self._run, name="szl-energy-operator",
-                                            daemon=True)
-            self._thread.start()
-        return self.status()
+            worker = threading.Thread(target=self._run, name="szl-energy-operator", daemon=True)
+            self._thread = worker
+            try:
+                worker.start()
+            except BaseException:
+                if not worker.is_alive():
+                    self._thread = None
+                raise
+            return {**self.status(), "started": True}
 
     def stop(self, join_timeout: float = 10.0) -> dict:
-        self._stop.set()
-        t = self._thread
-        if t is not None:
-            t.join(timeout=join_timeout)
         with self._lock:
-            self._thread = None
-            self._persist()
-            for k in self._node_status:
-                if self._node_status[k] == "computing":
-                    self._node_status[k] = "idle"
+            self._stop.set()
+            self._lifecycle_generation += 1
+            if self._stop_joining:
+                return self.status()
+            worker = self._thread
+            self._stop_joining = True
+        try:
+            # Never hold the state lock while a worker finishes, and never join
+            # the current worker if a subscriber requests its own shutdown.
+            if worker is not None and worker is not threading.current_thread():
+                worker.join(timeout=join_timeout)
+        finally:
+            with self._lock:
+                try:
+                    if self._thread is worker and (worker is None or not worker.is_alive()):
+                        self._thread = None
+                        self._persist()
+                        for key in self._node_status:
+                            if self._node_status[key] in ("computing", "computing (STUB)"):
+                                self._node_status[key] = "idle"
+                    # A timed-out worker remains owned and STOPPING. Neither its
+                    # stop flag nor its handle may be cleared by another start.
+                finally:
+                    self._stop_joining = False
         return self.status()
 
     def run_once(self) -> list[dict]:
@@ -1258,7 +1331,15 @@ class OperatorDaemon:
                     sleep_s = self.job_interval_s * _throttle_sleep_mult()
                 self._stop.wait(sleep_s)
         finally:
-            self._persist()
+            with self._lock:
+                # A timed-out stop leaves this worker responsible for eventual
+                # cleanup. Keep its handle until is_alive() becomes false; only
+                # the worker still owned by this daemon may clear node activity.
+                if self._thread is threading.current_thread():
+                    for key in self._node_status:
+                        if self._node_status[key] in ("computing", "computing (STUB)"):
+                            self._node_status[key] = "idle"
+                self._persist()
 
     # -- useful work + RAG write ------------------------------------------
     def _get_rag(self):
@@ -1612,6 +1693,7 @@ class OperatorDaemon:
     # -- status -----------------------------------------------------------
     def status(self) -> dict:
         with self._lock:
+            running = self.is_running()
             uptime = (time.time() - self._started_at) if self._started_at else 0.0
             computing = [_public_node(n) for n, s in self._node_status.items()
                          if s in ("computing", "computing (STUB)")]
@@ -1622,7 +1704,8 @@ class OperatorDaemon:
             return {
                 "service": "energy-operator",
                 "doctrine": DOCTRINE,
-                "running": self.is_running(),
+                "running": running,
+                "lifecycle_state": self._lifecycle_state(running),
                 "stub_mode": self._stub_mode,
                 "jobs_done": st.jobs_done,
                 "joules_measured_total": round(st.joules_measured_total, 6),
@@ -1772,30 +1855,33 @@ def autostart_if_lung_reachable() -> dict:
     if not autostart_enabled():
         return {"autostarted": False, "reason": "autostart_disabled",
                 "running": op.is_running()}
-    if op.is_running():
-        return {"autostarted": False, "reason": "already_running", "running": True}
-    if not op.any_lung_reachable():
-        # Honest idle: no lung reachable → do NOT start, do NOT fake running.
-        return {"autostarted": False, "reason": "no_lung_reachable",
-                "running": False}
-    op.start()
-    return {"autostarted": True, "reason": "lung_reachable", "running": op.is_running()}
+    result = op.start()
+    started = result["started"]
+    return {"autostarted": started,
+            "reason": "lung_reachable" if started else result["reason"],
+            "running": result["running"]}
 
 
 def readiness() -> dict:
     """Return separate capability and deployment-readiness truth.
 
-    ``ready`` describes the operator capability and is true only when the loop
-    runs. ``service_ready`` controls the host readiness contract: an explicitly
+    ``ready`` describes the operator capability and is true only while the loop
+    runs with no pending stop. ``service_ready`` controls the host contract: an explicitly
     optional, unreachable operator degrades the host without removing it from
     service. A reachable-but-stopped loop always fails readiness because that is
     the redeploy-stall failure this guard exists to catch.
     """
     op = get_operator()
-    running = op.is_running()
+    lifecycle = op.status()
+    running = lifecycle["running"]
+    stopping = lifecycle["lifecycle_state"] == "STOPPING"
     lung = op.any_lung_reachable()
     required = operator_required()
-    if running:
+    if stopping:
+        state = "stopping"
+        reason = "operator_stopping"
+        service_ready = False
+    elif running:
         state = "ready"
         reason = "ok"
         service_ready = True
@@ -1810,7 +1896,7 @@ def readiness() -> dict:
         service_ready = not required
     return {
         "service": "energy-operator",
-        "ready": running,
+        "ready": running and not stopping,
         "service_ready": service_ready,
         "required": required,
         "state": state,
@@ -1831,10 +1917,10 @@ def register(app, ns: str = "a11oy") -> dict:
 
     op = get_operator()
 
-    async def _start(request: Request):  # noqa: ANN202
+    def _start(request: Request):  # noqa: ANN202
         return JSONResponse(op.start())
 
-    async def _stop(request: Request):  # noqa: ANN202
+    def _stop(request: Request):  # noqa: ANN202
         return JSONResponse(op.stop())
 
     async def _status():  # noqa: ANN202

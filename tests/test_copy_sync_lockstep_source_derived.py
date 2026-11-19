@@ -5,9 +5,9 @@ from __future__ import annotations
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 
 import importlib.util
+import hashlib
 import contextlib
 import io
-import json
 import pathlib
 import re
 import shlex
@@ -52,6 +52,8 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         cls.deploy_helpers = {path: (ROOT / path).read_bytes() for path in (
             ".github/scripts/resume_hf_space.py",
             ".github/scripts/await_hf_runtime_serving.py",
+            ".github/scripts/await_hf_configuration_handover.py",
+            ".github/scripts/admit_hf_fenced_runtime.py",
             "scripts/configure_hf_series_a_runtime.py",
             "scripts/configure_hf_gdw_runtime.py",
             "scripts/verify_installed_authority.py",
@@ -68,6 +70,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ".github/scripts/verify_canonical_a11oy.py",
             ".github/scripts/collect_execution_readiness.py",
             ".github/scripts/admit_execution_handoff.py",
+            "scripts/estate_repair_dispatch.py",
             ".github/scripts/materialize_execution_authority_pins.py",
             "szl_execution_readiness.py",
             "observer_adapters.py",
@@ -175,6 +178,18 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             inputs.setdefault("ownership_helper", self.ownership)
         inputs.setdefault("deploy_helpers", self.deploy_helpers)
         return CHECKER.has_source_derived_deploy_contract(workflow, **inputs)
+
+    def test_vertical_plan_policy_is_independently_pinned_with_handoff(self) -> None:
+        helper = "scripts/estate_repair_dispatch.py"
+        self.assertIn(helper, self.deploy_helpers)
+        self.assertIn(helper, CHECKER.REVIEWED_DEPLOY_HELPERS_SHA256)
+        digest = hashlib.sha256(self.deploy_helpers[helper].replace(b"\r\n", b"\n")).hexdigest()
+        self.assertEqual(digest, CHECKER.REVIEWED_DEPLOY_HELPERS_SHA256[helper])
+        changed = dict(self.deploy_helpers)
+        changed[helper] += b"\n# altered plan policy\n"
+        self.assertFalse(self.strict_contract(self.reviewed_workflow,
+                                             deploy_helpers=changed))
+        self.assertTrue(self.strict_contract(self.reviewed_workflow))
 
     def test_reviewed_workflow_is_recognized(self) -> None:
         self.assertTrue(self.strict_contract(self.reviewed_workflow))
@@ -336,6 +351,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
         job = self.fixture_job("preflight")
         mutations = (
             ("    needs: source-admission\n", "    needs: []\n"),
+            ("    timeout-minutes: 50\n", "    timeout-minutes: 15\n"),
             ("needs.source-admission.outputs.publish == 'true'", "true"),
             ("needs.source-admission.result == 'success' && ", "github.run_attempt == 1 && needs.source-admission.result == 'success' && "),
             ("    runs-on:", "    continue-on-error: true\n    runs-on:"),
@@ -357,6 +373,14 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ("      restart_required: ${{ steps.runtime.outputs.restart_required }}", "      restart_required: 'true'"),
             ('"huggingface_hub==1.31.0"', '"huggingface_hub"'),
             ("          persist-credentials: false\n", "          persist-credentials: true\n"),
+            ("await_hf_configuration_handover.py capture", "await_hf_configuration_handover.py wait"),
+            ("await_hf_configuration_handover.py wait", "await_hf_configuration_handover.py capture"),
+            ("--owner series-a", "--owner gdw"),
+            ('--report "$RUNTIME_CONFIG_REPORT"', '--report "$RUNTIME_CONFIG_REPORT" --report "$GDW_CONFIG_REPORT"'),
+            ('--baseline "$SERIES_BASELINE_REPORT"', '--baseline "$GDW_BASELINE_REPORT"'),
+            ('--output "$GDW_HANDOVER_REPORT"', '--output "$GDW_HANDOVER_REPORT" || true'),
+            ("            ${{ env.SERIES_HANDOVER_REPORT }}\n", ""),
+            ("            ${{ env.GDW_BASELINE_REPORT }}\n", ""),
         )
         for before, after in mutations:
             with self.subTest(after=after):
@@ -367,7 +391,10 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
     def test_runtime_config_cannot_gain_a_restart_proof_or_skip_verification(self) -> None:
         job = self.fixture_job("runtime-config")
         mutations = (
+            ("    name: Verify or converge deployed runtime configuration\n",
+             "    name: Verify the deployed runtime configuration without restarting it\n"),
             ("    needs: [preflight, deploy]\n", "    needs: deploy\n"),
+            ("    timeout-minutes: 55\n", "    timeout-minutes: 20\n"),
             ("    needs: [preflight, deploy]\n", "    needs: [preflight, deploy]\n    if: ${{ always() }}\n"),
             ("mode=(--check-only)", "mode=(--check-only --skip-authority)"),
             ("set -euo pipefail", "set +e"),
@@ -378,6 +405,14 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             ("python -I -B .github/scripts/await_hf_runtime_serving.py", "true"),
             ("python -I -B .github/scripts/await_hf_runtime_serving.py",
              "python -B .github/scripts/await_hf_runtime_serving.py"),
+            ("await_hf_configuration_handover.py capture", "await_hf_configuration_handover.py wait"),
+            ("await_hf_configuration_handover.py wait", "await_hf_configuration_handover.py capture"),
+            ("--owner series-a", "--owner gdw"),
+            ('--report "$RUNTIME_CONFIG_REPORT"', '--report "$RUNTIME_CONFIG_REPORT" --report "$GDW_CONFIG_REPORT"'),
+            ('--baseline "$GDW_BASELINE_REPORT"', '--baseline "$SERIES_BASELINE_REPORT"'),
+            ('--output "$GDW_HANDOVER_REPORT"', '--output "$GDW_HANDOVER_REPORT" || true'),
+            ("            ${{ env.SERIES_BASELINE_REPORT }}\n", ""),
+            ("            ${{ env.GDW_HANDOVER_REPORT }}\n", ""),
         )
         for before, after in mutations:
             with self.subTest(after=after):

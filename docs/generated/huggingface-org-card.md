@@ -3,9 +3,9 @@
 
 This organization is the generated model, kernel, dataset, and runtime estate for [A11oy](https://a-11-oy.com). Canonical source and release evidence live in [GitHub](https://github.com/szl-holdings); public proof lives at [a11oy.net](https://a11oy.net).
 
-**Current public inventory:** 34 Spaces · 131 model repositories · 14 native kernels · 71 datasets (`2026-11-15T06:33:28Z`).
+**Current public inventory:** 33 Spaces · 150 model repositories · 14 native kernels · 99 datasets (`2026-11-18T05:28:05Z`).
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/estate-gardener`, `SZLHOLDINGS/eternal-auditor`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/oac-system-health-lab`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-chief-engineer`, `SZLHOLDINGS/szl-cyber-shield`, `SZLHOLDINGS/szl-dream-architect`, `SZLHOLDINGS/szl-energy-ledger`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-infra-warden`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-marketing-1-1`, `SZLHOLDINGS/szl-provenance-pitch`, `SZLHOLDINGS/szl-research-council`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/frontier-console`, `SZLHOLDINGS/khipu-proof-loom`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-command-center`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-cram-demo`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-muhu-frontier`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-science-gate-studio`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/truth-router`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
 ## Product bodies
 
@@ -19,5 +19,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 A repository card is not a production certificate. Runtime, source revision, evidence freshness, and receipt state are verified separately. Λ remains Conjecture 1 and advisory only. No public model or formula may authorize consequential action.
 
-Alignment receipt: `0cd1a4a24d0d5bbed0d9ea4c17e1a31fd57c8eb800cff754b1dce1663fddd080`.
+Alignment receipt: `aa80dd41c3a0a1322028bb7d96f4b038fcb144c257fc2c6b78cad581624931ec`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->

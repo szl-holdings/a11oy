@@ -1,7 +1,7 @@
 {
   "files": {
-    ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json": "ff0c640228245f8901400a32af012594f4804bc328a95bfc438be9b801d52f35",
-    ".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json": "74f824946666a293be88af6f554d2b9e786d4b0bf08ad639a10ec756d47a90a1",
+    ".github/shared-source-payloads/mcp-advertised-inventory-20261016-v1.json": "c68c604affb76ae6d8e69998cd142c3efda1e91e77363eb38bc8d4f9d79fb7b5",
+    ".github/shared-source-payloads/snowflake-sql-result-classification-20261028-v1.json": "30b3900b27be59fa2cd9895c5e86bd50b9b7b9d691605ea28bba6e68d7214ccd",
     "a11oy_org_rag.py": "5e4c159160256455977491186c22cbd5ef5abf855591b66cd95cdc5181461279",
     "szl_connectors/warehouse/warehouse_connectors.py": "22b9ffb388199cd63ec51536aac22fe2a2722323dd10c35d8440c2c23085288f",
     "szl_operator_auth.py": "8fb3c267382de78b4b99b8f63b44aa1963b0b4c70b5835a93f070552f1aefcb0",

@@ -1,0 +1,126 @@
+{
+  "schema": "szl.anatomy.offline-validation/v1",
+  "spdx_license_identifier": "Apache-2.0",
+  "copyright": "2026 Lutar, Stephen P. - SZL Holdings",
+  "scope": "OFFLINE_SOURCE_AND_BROWSER_CONTRACT",
+  "result": "PASSED",
+  "production_readiness_claimed": false,
+  "execution_authorized": false,
+  "signature_verification": "NOT_PERFORMED",
+  "measured_joules": null,
+  "reviewed_base_commit": "2204f596d17a854fba12cd204ab86019bc2e0712",
+  "integrated_main_commit": "e782b24e50c26447a77b8d45ed16f99fc35a6a67",
+  "binding": "file SHA-256; no runtime identity or image attestation",
+  "source_files": {
+    "szl_anatomy_3d.py": "e1c562c63ce0a3d53008912887954215e014974e419f38ac78484ae447d89f56",
+    "szl_operator_auth.py": "f31fc4d4f960eb840583d7b32c9598d2c96319c9818acc3f39f078de8394fa8f",
+    "tests/test_anatomy_3d_observation_contract.py": "43c2a39d3f7e3c03367fe7d275a4d869ef673cff8c6bd6ec75e36a4ac0a1baa4",
+    "tests/test_anatomy_3d_browser_contract.py": "639d1e63b5d6e40153aa038fa6729b51774e05f2bf7b76e6aeff11238789d063",
+    "tests/test_chain_verified_missing_defaults.py": "96153ffb48aa1a1a377f520172f33c1a79bf53d0437561fd29a4845898707f43",
+    "tests/test_brain_reranker.py": "99d25a0dc19ef9ce5ec31f972357f6f95524fdcfaff09500c8d4dee3cc5ba0d8"
+  },
+  "backend": {
+    "tests": 74,
+    "failures": 0,
+    "reported_duration_seconds": 2.51,
+    "actual_source_compatibility_cases": 2,
+    "evidence": "native focused pytest output on the authorized device"
+  },
+  "browser": {
+    "tests": 107,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "junit_duration_seconds": 88.229,
+    "started_at": "2026-11-16T19:20:38.430689-05:00",
+    "engine": "Playwright-managed Chromium",
+    "browser_version": "156.0.8078.4",
+    "playwright_version": "1.64.0",
+    "vendor_revision": "128",
+    "vendor_sha256": "521c5b5716a83cdd8eeed7aa861d7ff2c5e1ed65e3f83a11a4b4752e276aa284",
+    "intercepted_requests": 632,
+    "request_methods": [
+      "GET"
+    ],
+    "unexpected_requests": 0,
+    "page_javascript_errors": 0,
+    "screenshots": [
+      {
+        "name": "body-3d-narrow-layout.png",
+        "sha256": "a0ced32069cfe1b0df2e0c2ced58e4b423c98581765c016ccd8a32081a43499c"
+      },
+      {
+        "name": "body-3d-passive-render.png",
+        "sha256": "61532cd8a52df26b0a96c4bdb750a1bc43ed8febd59e7312f57766a1bee9b245"
+      },
+      {
+        "name": "immune-3d-narrow-layout.png",
+        "sha256": "2e9f6596678960d8beec1eafeb2a054517cb6caf318f19ecfa039c95a98ba43c"
+      },
+      {
+        "name": "immune-3d-passive-render.png",
+        "sha256": "da8a5d16bf2a5a5d8eaa94291b4698d5e9ac00c56e7dae55f3bd9e7f206a2e92"
+      },
+      {
+        "name": "khipu-chain-3d-narrow-layout.png",
+        "sha256": "d911a81e7c2a64712c88382f22c9a9889a724301d81bfd07cf50ce6e750098f7"
+      },
+      {
+        "name": "khipu-chain-3d-passive-render.png",
+        "sha256": "b6ff78ad721b8df1564a2750e36d8f878316ec72c0421e52814141416183240f"
+      },
+      {
+        "name": "lambda-spine-3d-narrow-layout.png",
+        "sha256": "505469a96b0f8ee5420c3a7ddab90dcd715e3eab7816dd46d9a87c50aeffc837"
+      },
+      {
+        "name": "lambda-spine-3d-passive-render.png",
+        "sha256": "e1f656801ba3fe01ce1cdb5d59012bb97bffcc5ce3fe09d754f8b824bd645f6c"
+      },
+      {
+        "name": "nervous-3d-narrow-layout.png",
+        "sha256": "a71e2ee0927ab93f766209eff921cf694062ef72195f46f358b23c0bd6bd47ea"
+      },
+      {
+        "name": "nervous-3d-passive-render.png",
+        "sha256": "49837ba464d4a31bec664362adf0832df17e52a3734613755039c9c45f51d419"
+      },
+      {
+        "name": "wires-3d-max-routes-layout.png",
+        "sha256": "e4a7cd4e6bf03db988bc17d80d64970caa0a8afb2290fe7464cbfb33d9fa49ba"
+      },
+      {
+        "name": "wires-3d-narrow-layout.png",
+        "sha256": "80e963224c12a06a7b01e77bba344e8ae285c370e5ee8662a97cbbb6e5bbf0f7"
+      },
+      {
+        "name": "wires-3d-passive-render.png",
+        "sha256": "7b4261757bcece54d8369c17395e6629f50e659b504cc09ceae1769916402358"
+      },
+      {
+        "name": "yuyay-13-narrow-layout.png",
+        "sha256": "c3efab6706014cf228224afa1f57320b903aa61e4b3f270ba8a1bb83b7930a4f"
+      },
+      {
+        "name": "yuyay-13-passive-render.png",
+        "sha256": "b8a2b42f86a8720f807d85bed35afa9ad73ff4e3dca382ba13da117fcc58aff5"
+      }
+    ],
+    "raw_report_sha256": "2bbc57784295ad696cb1ba7975fcac7df7ddac21514d58aea1b8d021bdeb4b2b",
+    "junit_sha256": "9f4c72048e81dbbfdd934173aef9940423c51612fc7233cdca646bc29889259e"
+  },
+  "additional_checks": [
+    "independent AST/source review",
+    "existing source-wiring test extracted without project-module startup",
+    "runtime COPY required-source and destination negative controls",
+    "workflow YAML and exact source-wiring step",
+    "git diff --check"
+  ],
+  "limits": [
+    "Fixtures and isolated definitions do not establish production readiness.",
+    "Read projections deliberately leave source revision and boot binding null.",
+    "Hash linkage does not establish DSSE verification.",
+    "Historical Lean snapshot counts were not revalidated.",
+    "Native CI must report its own exact commit and browser results."
+  ]
+}

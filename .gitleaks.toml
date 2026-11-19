@@ -150,7 +150,7 @@ paths = [
   '''(^|[\\/])\.github[\\/]shared-source-payload-manifest\.json$''',
   '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]code-engine-bounded-model-20261015-v1\.json$''',
 ]
-regexes = ['''^\s*"szl_meter_access\.py"\s*:\s*"e28179c88e3b41ab6ea58364ba3229246ef43c9137473fdd52fbff83f7bb8ec4",?\s*$''']
+regexes = ['''^\s*"szl_meter_access\.py"\s*:\s*"9dafe5a73055bce5f6e08b37feeb4d17d01e925e6056aa8b4bbed6ccb490ba9a",?\s*$''']
 
 # Forward-ported from current protected main: the execution observer row is an
 # immutable public source digest, not secret material. Keep the exemption exact
@@ -167,4 +167,4 @@ paths = [
   '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]replication-snapshot-delivery-20261021-v1\.json$''',
   '''(^|[\\/])\.github[\\/]shared-source-payloads[\\/]mcp-advertised-inventory-20261016-v1\.json$''',
 ]
-regexes = ['''^\s*"\.github/shared-source-payloads/execution-observer-operator-auth-20261016-v1\.json"\s*:\s*"7dbf4ab396a4add29d22e7870951198accb3833f7feb32e8eebf6b7906ce8f1c",?\s*$''']
+regexes = ['''^\s*"\.github/shared-source-payloads/execution-observer-operator-auth-20261016-v1\.json"\s*:\s*"90c2ad5b0ab4074404f812139c080a9ce4bd659dd8a2a106d3d2cb4d4dab8850",?\s*$''']

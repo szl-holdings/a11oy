@@ -359,6 +359,71 @@ def test_transport_errors_never_disclose_exception_text(exception, reason, artif
         transport.close()
 
 
+@pytest.mark.parametrize("headers,now,delay", [
+    ({"retry-after": "600"}, 1000, 600),
+    ({"retry-after": "Thu, 01 Jan 1970 00:26:40 GMT"}, 1000, 600),
+    ({"date": "Thu, 01 Jan 1970 00:16:40 GMT", "x-ratelimit-remaining": "0",
+      "x-ratelimit-reset": "1600"}, 2000, 600),
+    ({"retry-after": "300", "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1900"}, 1000, 900),
+    ({"x-ratelimit-remaining": "1", "x-ratelimit-reset": "1900"}, 1000, 60),
+    ({"retry-after": "NaN", "date": "sensitive invalid header"}, 1000, 60),
+    ({"retry-after": "-1"}, 1000, 60),
+    ({}, 1000, 60),
+])
+def test_real_transport_retains_only_numeric_provider_retry_delay(headers, now, delay):
+    class NeverRead(httpx.SyncByteStream):
+        def __iter__(self):
+            pytest.fail("rate-limit response body was read")
+            yield b"private response"
+    transport = subject.Transport("fixture-secret", threading.Event(), wall_clock=lambda: now,
+        client=httpx.Client(transport=httpx.MockTransport(lambda request:
+            httpx.Response(429, headers=headers, stream=NeverRead()))))
+    try:
+        with pytest.raises(subject.EvidenceBlocked) as error:
+            transport.json("/branches/main")
+        assert str(error.value) == "GITHUB_READ_RATE_LIMITED"
+        assert error.value.retry_after == delay
+        assert vars(error.value) == {"retry_after": float(delay)}
+        assert error.value.__context__ is None
+    finally:
+        transport.close()
+
+
+@pytest.mark.parametrize("status,reason", [(429, "RATE_LIMITED"), (503, "UPSTREAM_UNAVAILABLE")])
+def test_retry_delay_crosses_signed_object_boundary_without_credentials(status, reason):
+    seen = []
+    def respond(request):
+        seen.append(request)
+        if request.url.host == "api.github.com":
+            return httpx.Response(302, headers={"location": "https://fixture.blob.core.windows.net/a?sig=private"})
+        return httpx.Response(status, headers={"retry-after": "600"})
+    transport = subject.Transport("fixture-secret", threading.Event(),
+        client=httpx.Client(transport=httpx.MockTransport(respond)))
+    try:
+        with pytest.raises(subject.EvidenceBlocked) as error:
+            transport.archive(9)
+        assert str(error.value) == "ARTIFACT_DOWNLOAD_" + reason
+        assert vars(error.value) == {"retry_after": 600.0}
+        assert "authorization" not in seen[1].headers
+        assert all(request.method == "GET" for request in seen)
+    finally:
+        transport.close()
+
+
+@pytest.mark.parametrize("header", ["retry-after", "date", "x-ratelimit-reset"])
+def test_oversized_retry_metadata_is_a_fixed_terminal_refusal(header):
+    transport = subject.Transport("fixture-secret", threading.Event(),
+        client=httpx.Client(transport=httpx.MockTransport(lambda request:
+            httpx.Response(429, headers={header: "9" * 129}))))
+    try:
+        with pytest.raises(subject.EvidenceBlocked) as error:
+            transport.json("/branches/main")
+        assert str(error.value) == "READINESS_RETRY_DELAY_INVALID"
+        assert vars(error.value) == {"retry_after": None}
+    finally:
+        transport.close()
+
+
 def test_no_credential_fails_without_constructing_http_client(monkeypatch):
     monkeypatch.setattr(httpx, "Client", lambda *a, **k: pytest.fail("network client created"))
     reader = subject.Reader(environ={"SPACE_ID": ENV["SPACE_ID"], "SZL_GIT_SHA": SOURCE})
@@ -537,3 +602,44 @@ def test_all_three_jobs_and_their_dependency_order_are_required(combined,mutatio
     else:fake.relock_job["started_at"]=stamp(fake.now-timedelta(seconds=6))
     with pytest.raises(subject.EvidenceBlocked,match="READINESS_JOB_"):
         observe(fake)
+
+
+@pytest.mark.parametrize("headers,expected", [
+    ({"retry-after": "90"}, 90),
+    ({"retry-after": "Thu, 01 Jan 1970 00:31:40 GMT"}, 900),
+    ({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "4600"}, 3600),
+    ({"retry-after": "90", "x-ratelimit-remaining": "0", "x-ratelimit-reset": "4600"}, 3600),
+    ({"retry-after": "4000", "x-ratelimit-remaining": "0", "x-ratelimit-reset": "4600"}, 4000),
+    ({"retry-after": "90", "x-ratelimit-remaining": "1", "x-ratelimit-reset": "4600"}, 90),
+    ({"date": "Thu, 01 Jan 1970 00:15:00 GMT", "x-ratelimit-remaining": "0",
+      "x-ratelimit-reset": "4600"}, 3700),
+    ({"date": "invalid-private-header", "retry-after": "90"}, 90),
+    ({"retry-after": "0", "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1"}, 60),
+    ({"retry-after": "Thu, 01 Jan 1970 00:31:40"}, 60),
+])
+# Oversized (>128-char) retry metadata is NOT an infinite wait here: main's #3647
+# contract refuses it terminally as READINESS_RETRY_DELAY_INVALID, which
+# test_oversized_retry_metadata_is_a_fixed_terminal_refusal below already proves.
+def test_rate_limit_preserves_only_numeric_wait_instructions(headers, expected):
+    class NeverRead(httpx.SyncByteStream):
+        def __iter__(self):
+            pytest.fail("rate-limit response body was read")
+            yield b"private response"
+    transport = subject.Transport("fixture-secret", threading.Event(), wall_clock=lambda: 1000,
+        client=httpx.Client(transport=httpx.MockTransport(lambda request:
+            httpx.Response(429, headers=headers, stream=NeverRead()))))
+    try:
+        with pytest.raises(subject.EvidenceBlocked) as failure:
+            transport.json("/branches/main")
+        assert str(failure.value) == "GITHUB_READ_RATE_LIMITED"
+        assert failure.value.retry_after == expected
+        assert set(vars(failure.value)) == {"retry_after"}
+    finally:
+        transport.close()
+
+
+@pytest.mark.parametrize("value", ["NaN", "inf", "-1", "1.5", "private-invalid", ""])
+@pytest.mark.parametrize("field", ["retry-after", "x-ratelimit-reset"])
+def test_malformed_retry_hints_use_minimum_secondary_limit_wait(field, value):
+    headers = httpx.Headers({field: value, "x-ratelimit-remaining": "0"})
+    assert subject.provider_retry_delay(headers, 1000) == 60

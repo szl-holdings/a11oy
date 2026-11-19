@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-11-15T06:19:57.597674+00:00",
+  "generated_at": "2026-11-18T05:39:48.254218+00:00",
   "inventory_source": {
-    "model_ids_sha256": "b5229fa862f9d7f248c2a8801144b505c7166bdeb7ebe87d29ae9dac1913a95b",
+    "model_ids_sha256": "1eff88d013d32a9c77ae34a33518a9e11b0a0bc29bad92495347225945e8a404",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -26,10 +26,10 @@
       "id": "SZLHOLDINGS/A11OY-MINI",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "1347e0ca8162dc981c9f8bd921e5d2a6da0a28369515a51bd58f8bd03cd1e053",
+        "capture_sha256": "2a3adccb2dc1882b710fe30ace5b6aa67aa4e7b7c93e062f9cf687308d6d9ae4",
         "error": null,
-        "hub_revision": "7ea56236ea7988b3915b5ef07548cb2c3930a3cf",
-        "observed_at": "2026-10-04T16:22:20.567960+00:00",
+        "hub_revision": "a299baf19dc03927da3ad42cc976a7e28fb9d71f",
+        "observed_at": "2026-11-18T05:39:42.223517+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/A11OY-MINI?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -53,10 +53,10 @@
       "id": "SZLHOLDINGS/KHIPU-R2",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "ff3d20343ee85d1d35a8847c9d6cbf7bd23b57b6a79f9f554ca855b1750c97da",
+        "capture_sha256": "7558b10da8924ad045ffa7ead6547f13dd03f97ce096b368054c8e471407d914",
         "error": null,
-        "hub_revision": "e4c5d6c00876ae02b78bfd720560a31b91ad1b76",
-        "observed_at": "2026-10-04T16:22:20.606778+00:00",
+        "hub_revision": "9213fd4ea17361ffcaa6b28bf3218920f9e0db62",
+        "observed_at": "2026-11-18T05:39:42.192468+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -95,10 +95,10 @@
       "id": "SZLHOLDINGS/KHIPU-R2-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "bf0b4b06d71e240d85f3a3d60587376de179bbe98d8151fecc75e9ead73aa794",
+        "capture_sha256": "382f1be081d0737c104a435a4e52bca14a5dff2f1660db9631115d8ba5df8f8c",
         "error": null,
-        "hub_revision": "79c0efc23dbdb7f0a394125f811d0a3bb602b36f",
-        "observed_at": "2026-11-07T10:52:22.846520+00:00",
+        "hub_revision": "dacf7efd388784e5ca4781541617e2faa9308a4b",
+        "observed_at": "2026-11-18T05:39:42.224520+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -122,10 +122,10 @@
       "id": "SZLHOLDINGS/KHIPU-R2-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "ac1a223327a411cc753b52a3ff904cb3f3a2cb0ac8ebbbdb053905a426bf5625",
+        "capture_sha256": "7207dbfd61f369f5de2d6f5930983a8d181ba9e17a9f20282791fe8497073e8d",
         "error": null,
-        "hub_revision": "ec55c4cbd36243371ecffaeb85e762f0ed2c7f3c",
-        "observed_at": "2026-11-15T06:19:56.524556+00:00",
+        "hub_revision": "dfc405fc0b90d9e0f070b365aaeba0346cabca95",
+        "observed_at": "2026-11-18T05:39:42.223517+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KHIPU-R2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -152,7 +152,7 @@
         "capture_sha256": "726d7a3d3e3878a5ae30ad6dc85797cf41def5b7012d57ab47b027e0690a3d74",
         "error": null,
         "hub_revision": "cfa50a3e80d0bd0a7b5f7c5584d71a52c6904f2d",
-        "observed_at": "2026-11-15T02:41:46.295961+00:00",
+        "observed_at": "2026-11-18T05:39:42.327062+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/KILLINCHU-EYE?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -176,10 +176,10 @@
       "id": "SZLHOLDINGS/MiniEmbed-Nano",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "1ff23f5fbcef46c95d80808ae0619c057c9576dc4274c04721d1e2ff29ac2198",
+        "capture_sha256": "38b75def57e228ed2e1b6210ac725768d5aa26b936a2301c496d7cd367c541bd",
         "error": null,
-        "hub_revision": "70557d12b91ca556939e559e540b70fb3c2c9e5b",
-        "observed_at": "2026-10-04T16:22:20.621148+00:00",
+        "hub_revision": "2e589d41faae7c56513ce59bf13e211d450486b8",
+        "observed_at": "2026-11-18T05:39:42.344351+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/MiniEmbed-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -203,12 +203,39 @@
       "id": "SZLHOLDINGS/Moons-Nano",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "46000a760070a5177b0d02dbf1e37591502546fdb9cb94175ab9c33611d25287",
+        "capture_sha256": "50daa12e4711c76a8643eb194babf219bb9835ef12a2804606a52eed7c72e268",
         "error": null,
-        "hub_revision": "4631d0fb54ad90423c3ae76f812ff4d0e80fbfdf",
-        "observed_at": "2026-10-04T16:22:20.618502+00:00",
+        "hub_revision": "4b073a176712eaedc76d266b63724902e16b8fa8",
+        "observed_at": "2026-11-18T05:39:42.344351+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Moons-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "89432644e5ff1e64e35e8fe809587319b81e7e02",
+        "observed_at": "2026-11-16T23:01:57.917804+00:00",
+        "qualification_note": "Exact public revision 89432644e5ff1e64e35e8fe809587319b81e7e02 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st/blob/89432644e5ff1e64e35e8fe809587319b81e7e02/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "bfe1f8291656258503f07bbb9520edff529ecdde1452393f08c1d277287030ef",
+        "error": null,
+        "hub_revision": "89432644e5ff1e64e35e8fe809587319b81e7e02",
+        "observed_at": "2026-11-18T05:39:42.345130+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/Nemotron-Mini-4B-Instruct-st?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -230,12 +257,66 @@
       "id": "SZLHOLDINGS/ReceiptAgent-Nano",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "db9652098cd08abcc986754da7a8ef0a80e61174c95580fd6e51a98ca4103f04",
+        "capture_sha256": "ca5d592534a0a2432806d1d168d4b7c5aff1b79fb8c7ab90b7a1f4cf947b03e5",
         "error": null,
-        "hub_revision": "dc10582bfe9d09dc935b0be0a6faa043c38f721c",
-        "observed_at": "2026-10-04T16:22:26.593758+00:00",
+        "hub_revision": "faf8f8df972dc2ba98f2ae606032e99aa797440b",
+        "observed_at": "2026-11-18T05:39:42.435710+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ReceiptAgent-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "e3606c990ced50c3f4ed1264d19a70512cf06040",
+        "observed_at": "2026-11-16T23:01:57.918850+00:00",
+        "qualification_note": "Exact public revision e3606c990ced50c3f4ed1264d19a70512cf06040 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1/blob/e3606c990ced50c3f4ed1264d19a70512cf06040/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0f30ab427df38f0ddbc23df6360459bf51bc7390029f117a767ff0e55c776889",
+        "error": null,
+        "hub_revision": "e3606c990ced50c3f4ed1264d19a70512cf06040",
+        "observed_at": "2026-11-18T05:39:42.451747+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AcousticGovernance-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "9f432894f63d6cff18db291643537907972b4250",
+        "observed_at": "2026-11-16T23:01:57.841324+00:00",
+        "qualification_note": "Exact public revision 9f432894f63d6cff18db291643537907972b4250 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-AncientMath-0.8B-v1/blob/9f432894f63d6cff18db291643537907972b4250/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-AncientMath-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "99941ce32344b199b34760ee0972f76bd61385d4beacb17f391fef24442718f7",
+        "error": null,
+        "hub_revision": "9f432894f63d6cff18db291643537907972b4250",
+        "observed_at": "2026-11-18T05:39:42.451747+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-AncientMath-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -257,10 +338,10 @@
       "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "0c85302243fdf75fc750960adfa864c50f77c1b4873118913f0d1b377c3537de",
+        "capture_sha256": "787535d6ccae38ab096c74c28f72b87b50829993a5f208c1e9e7e7b6b99b8367",
         "error": null,
-        "hub_revision": "7fea926b22a99e0e9704d3500741467ae357eec2",
-        "observed_at": "2026-10-04T16:22:26.583433+00:00",
+        "hub_revision": "aa357f2a7849bc5f42991d7382f3ae2cffadca53",
+        "observed_at": "2026-11-18T05:39:42.451747+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -299,10 +380,10 @@
       "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "13089cb5dcbc0694e459508b4100b1fdcf2b66861c06b479379c0c1fe7749722",
+        "capture_sha256": "7fc875d44cf549b4f137058a53c8c1d92abed12405330a32808622df444c7224",
         "error": null,
-        "hub_revision": "d5e1d0722eeda4a2e0f8a4e5cdadeecf1b53bea4",
-        "observed_at": "2026-11-07T10:52:22.849077+00:00",
+        "hub_revision": "2577acee55b41bd76a70a42418dee59ba68dbfcc",
+        "observed_at": "2026-11-18T05:39:42.542652+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -326,12 +407,93 @@
       "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "af505f42059718de2f9fba60b7aba654c96bb5598f168e626822e53c99afedfd",
+        "capture_sha256": "1636a7629351ebf9cd01f5bf0d73f95525e58ce2b161c4652aadad6869666520",
         "error": null,
-        "hub_revision": "d61c815f53be5c3a551fa90fec7b8a2e3a61045e",
-        "observed_at": "2026-11-15T05:17:53.008174+00:00",
+        "hub_revision": "ce34422817e772cdc1f0fe81a68937e215221859",
+        "observed_at": "2026-11-18T05:39:42.559180+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "b7d6790d12f0d42e4aa00fdc23460c04ff20c94f",
+        "observed_at": "2026-11-16T23:02:12.857549+00:00",
+        "qualification_note": "Exact public revision b7d6790d12f0d42e4aa00fdc23460c04ff20c94f contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1/blob/b7d6790d12f0d42e4aa00fdc23460c04ff20c94f/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "e76322033f579db8fe9bdc77bc25e62cb50b4d3b2db9eba6e0e4f754f3f1bdf3",
+        "error": null,
+        "hub_revision": "b7d6790d12f0d42e4aa00fdc23460c04ff20c94f",
+        "observed_at": "2026-11-18T05:39:42.561192+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "c3a6ccf6b243aa0c84d85f49931268f313c4ec83",
+        "observed_at": "2026-11-16T23:01:58.228585+00:00",
+        "qualification_note": "Exact public revision c3a6ccf6b243aa0c84d85f49931268f313c4ec83 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1/blob/c3a6ccf6b243aa0c84d85f49931268f313c4ec83/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "7f346d5fafa9cc2260c404805d49b3c4543a78032dd7463b416c28937408984b",
+        "error": null,
+        "hub_revision": "c3a6ccf6b243aa0c84d85f49931268f313c4ec83",
+        "observed_at": "2026-11-18T05:39:42.561192+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-FreeEnergy-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "94a70d088dc632af9e14134dd2e09bdf673e17a8",
+        "observed_at": "2026-11-16T23:01:58.262289+00:00",
+        "qualification_note": "Exact public revision 94a70d088dc632af9e14134dd2e09bdf673e17a8 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1/blob/94a70d088dc632af9e14134dd2e09bdf673e17a8/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9d0e4f5aaf53303e3e64e476697fab523722e625a28edba5c0d367f4493625cb",
+        "error": null,
+        "hub_revision": "94a70d088dc632af9e14134dd2e09bdf673e17a8",
+        "observed_at": "2026-11-18T05:39:42.748345+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-GovernedDistill-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -353,10 +515,10 @@
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "807ded92057fae7b4f9c69fcfb98c2cf874cbe07b088863bda1fd9e51f23152e",
+        "capture_sha256": "0bed3392d71d66f954910ffa02326d57b549c72422b2d23f3bab29fd3240b2a0",
         "error": null,
-        "hub_revision": "fe1b7dbf81162e586e4dd32845ed17f048b54329",
-        "observed_at": "2026-10-04T16:22:26.588978+00:00",
+        "hub_revision": "27474937bf4a6177cdf9a8164c0019f98a9a95fc",
+        "observed_at": "2026-11-18T05:39:42.795430+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -395,10 +557,10 @@
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "e18d2120f7161ab78db30dfa3040ab67f50adea8bd542b1da4d0da5a7f480c9b",
+        "capture_sha256": "89c015942445042ed0f13abfa3cb150b25d33cdf2d623103598625bd6e9961ca",
         "error": null,
-        "hub_revision": "0737ae93c009322e4deffbe89ff34d2155a1b6c1",
-        "observed_at": "2026-10-04T16:22:26.596111+00:00",
+        "hub_revision": "12e28525f077fc55a48c60d5ea3a1a4604945661",
+        "observed_at": "2026-11-18T05:39:42.682267+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-GGUF?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -422,10 +584,10 @@
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "4856c675954b28587d378d86561364667dfad73c371e314bd0f6cd8385601105",
+        "capture_sha256": "b56663d24b09a2bd21779ceaa62b5574e9e7c3c09db1809db8eafb33403b4b65",
         "error": null,
-        "hub_revision": "942c02dd4e94f2cb7cfb0432a051c2db2219ee79",
-        "observed_at": "2026-10-04T16:22:34.256206+00:00",
+        "hub_revision": "47d47df3dfcb6ddcf3eb1a40380db226d657c31d",
+        "observed_at": "2026-11-18T05:39:42.662616+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-abstain?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -449,10 +611,10 @@
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "1f25f2b6d791e09285b0395f9b5acc122c2124c2241f5e5e4edbae71f73b3854",
+        "capture_sha256": "b4c7e57a31e303771a32c90045e176832ae31446b559cfbb12d177f8d26d53df",
         "error": null,
-        "hub_revision": "d78c85e2ce1c91fa80d4c25b94c115a8cda31bbf",
-        "observed_at": "2026-11-15T06:19:56.640411+00:00",
+        "hub_revision": "982009faaded95b71eaa85b4ff0de76790824ef8",
+        "observed_at": "2026-11-18T05:39:42.747345+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-abstain-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -476,10 +638,10 @@
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "aa9dcde3493d0333d595da731906e65818f1a101f8ed4c4c6da21c879160f220",
+        "capture_sha256": "1150e5a12c00744dd423bd1609682cebd17644053d8a4c084c189e6c9dbf89cb",
         "error": null,
-        "hub_revision": "b4ae083265f2f0a6749af4111162d3582dc4dace",
-        "observed_at": "2026-11-07T10:52:22.991475+00:00",
+        "hub_revision": "b15400d36692eebada23b5b80aff7c1c840c4afb",
+        "observed_at": "2026-11-18T05:39:42.746343+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -503,10 +665,10 @@
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "0bb3abb8f144aef7d548917151d3223e1f7d6bcc0a2c21677c9763ca3ef89b5e",
+        "capture_sha256": "aaf619575c7827000c7b25cda1b49b58e7ae10f5ab56abbcbd45531fcfe2496c",
         "error": null,
-        "hub_revision": "e31d71ac3d5e09b0ebc8bdd6a22d4cdea31232f9",
-        "observed_at": "2026-11-15T05:17:53.268983+00:00",
+        "hub_revision": "8771511f091e7e6c3ce4f6a80b063dad5ac9a4c8",
+        "observed_at": "2026-11-18T05:39:42.897610+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -530,10 +692,10 @@
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "322b4b930dfff91be6bf5f63cff914eb74c0c0c771f3a23400c5f81a8f2fdecd",
+        "capture_sha256": "9e7896a22588b1b89040a140e20abacaba2b2e82c9e7951e40f4a2750113f8d1",
         "error": null,
-        "hub_revision": "15c112a8171b4d6aa6eef09c57d92b35bfd3d9ab",
-        "observed_at": "2026-11-07T10:52:22.998301+00:00",
+        "hub_revision": "9db6d7fa3cf63de597824f973f19baebe51e9117",
+        "observed_at": "2026-11-18T05:39:42.896270+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-sft-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -557,12 +719,201 @@
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "181942b5a9e8dcb1e773cade8fad320b8d4f1c83c41a03216a8d9bd26f028fb7",
+        "capture_sha256": "2214062dd0290a5a061654f30b6af0b2246020e22b43507a440a67b3ea861e75",
         "error": null,
-        "hub_revision": "2cbaf7bf943eb8caa5e2c4a2b0ef066cd4a2ecce",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "340ee53005c8e40532de97576df83bbcacb561d6",
+        "observed_at": "2026-11-18T05:39:42.877520+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Khipu-1.5B-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "a302b62e7ee73990170229e0264559f3e51a2f00",
+        "observed_at": "2026-11-16T23:01:58.305674+00:00",
+        "qualification_note": "Exact public revision a302b62e7ee73990170229e0264559f3e51a2f00 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1/blob/a302b62e7ee73990170229e0264559f3e51a2f00/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "41e7f718fab043013e1f0dbcbb93e5e291f837f7b3ecf00d7295dec26651ea14",
+        "error": null,
+        "hub_revision": "a302b62e7ee73990170229e0264559f3e51a2f00",
+        "observed_at": "2026-11-18T05:39:42.896270+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Doctrine-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "05657f8fe5b63ebb58b4931baac445013e55776e",
+        "observed_at": "2026-11-16T23:01:58.583736+00:00",
+        "qualification_note": "Exact public revision 05657f8fe5b63ebb58b4931baac445013e55776e contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1/blob/05657f8fe5b63ebb58b4931baac445013e55776e/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "9d3891ca77b9f5620fef7778d9b5380603d39adb8cf81ac54d8c55e2e7635b49",
+        "error": null,
+        "hub_revision": "05657f8fe5b63ebb58b4931baac445013e55776e",
+        "observed_at": "2026-11-18T05:39:43.009413+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "9cbd5527d7f3ca4d41883fddbd814377d53b3c75",
+        "observed_at": "2026-11-16T23:01:58.675761+00:00",
+        "qualification_note": "Exact public revision 9cbd5527d7f3ca4d41883fddbd814377d53b3c75 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2/blob/9cbd5527d7f3ca4d41883fddbd814377d53b3c75/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "d06cfc009bd905e7ca4ab37ece34e3271ed20b7d4ddfb2219e186decc975dd34",
+        "error": null,
+        "hub_revision": "9cbd5527d7f3ca4d41883fddbd814377d53b3c75",
+        "observed_at": "2026-11-18T05:39:43.029923+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-DPO-v2?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "272514fd62729db94dc4fb66052753c7ab6397d7",
+        "observed_at": "2026-11-16T23:01:58.729982+00:00",
+        "qualification_note": "Exact public revision 272514fd62729db94dc4fb66052753c7ab6397d7 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1/blob/272514fd62729db94dc4fb66052753c7ab6397d7/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "937ccf3f4f695d821952cb0ba27c3d20e212b53962bf01e875e3fac83ae84fcf",
+        "error": null,
+        "hub_revision": "272514fd62729db94dc4fb66052753c7ab6397d7",
+        "observed_at": "2026-11-18T05:39:43.027882+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Nemotron-Mini-4B-Estate-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "5ec45d7976f836f1fd04a02b6a742f61e0bb3d40",
+        "observed_at": "2026-11-16T23:01:58.906384+00:00",
+        "qualification_note": "Exact public revision 5ec45d7976f836f1fd04a02b6a742f61e0bb3d40 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Reasoning-0.8B-v1/blob/5ec45d7976f836f1fd04a02b6a742f61e0bb3d40/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-Reasoning-0.8B-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "02c5567ca74beb39ff76e90e4b693fbf6cf15b89a613b75dedb915351eaeabac",
+        "error": null,
+        "hub_revision": "5ec45d7976f836f1fd04a02b6a742f61e0bb3d40",
+        "observed_at": "2026-11-18T05:39:43.029923+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Reasoning-0.8B-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "d20544d382156f8f1afb6208448648e9e481a6e6",
+        "observed_at": "2026-11-16T23:01:59.074079+00:00",
+        "qualification_note": "Exact public revision d20544d382156f8f1afb6208448648e9e481a6e6 contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Showcase-Systems-v1/blob/d20544d382156f8f1afb6208448648e9e481a6e6/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-Showcase-Systems-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "6b0a7afe0b6d02be5c4f6f3b4111a27096f513ea0743420c1dadf9c0a86358c8",
+        "error": null,
+        "hub_revision": "d20544d382156f8f1afb6208448648e9e481a6e6",
+        "observed_at": "2026-11-18T05:39:43.128317+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Showcase-Systems-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "058a617209921299f9934a4863f88553a0eb029d",
+        "observed_at": "2026-11-16T23:01:59.077843+00:00",
+        "qualification_note": "Exact public revision 058a617209921299f9934a4863f88553a0eb029d contains config.json and safetensors weights; configuration and README metadata are recorded in the source-review evidence. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/SZL-Specialized-Domains-v1/blob/058a617209921299f9934a4863f88553a0eb029d/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/SZL-Specialized-Domains-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "0e2bb64ae0c9f5c6c103426013fe92c28ae798fa5ce2e1ab0a3641fe8461b68c",
+        "error": null,
+        "hub_revision": "058a617209921299f9934a4863f88553a0eb029d",
+        "observed_at": "2026-11-18T05:39:43.147226+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/SZL-Specialized-Domains-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -584,10 +935,10 @@
       "id": "SZLHOLDINGS/TinyKhipu-Nano",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "a0a482c68b5fb48af51c2ec8ae01bed83c7b9f95c0fefe051a5d7889b1ca9e32",
+        "capture_sha256": "4650c424f91ef62e29d180ee65bee26a7470db810ed3503ac758d9765f4ad360",
         "error": null,
-        "hub_revision": "47ff3cc34ed8c0c1a255abff1f784d01c03e8b67",
-        "observed_at": "2026-10-04T16:22:34.251690+00:00",
+        "hub_revision": "e70f844eb4ea5c8b82739d2aa19e8554d7b26f30",
+        "observed_at": "2026-11-18T05:39:43.146187+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/TinyKhipu-Nano?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -611,10 +962,10 @@
       "id": "SZLHOLDINGS/WILLAY",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "277bcb223f2cb91bde14a05c0fffac40a4eef66eea8982d07eed343a31fada67",
+        "capture_sha256": "b6abe45b9816126042a8dca9cd9bbba3b8762c1c9afa262a624be9e198ca508f",
         "error": null,
-        "hub_revision": "96a0ac5c5c26e89f732b72d747b3577e1ea5236f",
-        "observed_at": "2026-10-04T16:22:34.283042+00:00",
+        "hub_revision": "93b928922004415c9157b59fb09b085ef9346377",
+        "observed_at": "2026-11-18T05:39:43.146187+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -653,10 +1004,10 @@
       "id": "SZLHOLDINGS/WILLAY-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "8e1c863132fbf3e7aa1ed878e57dbcf94beaccaa4d71812aabaf9f6230e9974b",
+        "capture_sha256": "8a77cc70651c73ef07667168bd7c3da67307a74a8f3abaf1ecb94c9b0089bc1a",
         "error": null,
-        "hub_revision": "4c2430a4f0c4d9459591019dac73ba4c235ceeb8",
-        "observed_at": "2026-11-07T10:52:23.352902+00:00",
+        "hub_revision": "fc49c614594ba59abd8d422e86fb8e92cec55607",
+        "observed_at": "2026-11-18T05:39:43.231268+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -680,10 +1031,10 @@
       "id": "SZLHOLDINGS/WILLAY-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "da6ebd67a2f37eceff236089e3f4d9a6aa01e255320a762a7b210212f5a63566",
+        "capture_sha256": "84a41e7297bb4c1eec59452a64278ece85b167cbe10d947e2d2113fa2c3b8eca",
         "error": null,
-        "hub_revision": "85b7dffeca94837eb93b88fb6ebc294b6254cd43",
-        "observed_at": "2026-11-15T06:19:56.765522+00:00",
+        "hub_revision": "44615abd7388a608837a7c178044a3255f822040",
+        "observed_at": "2026-11-18T05:39:43.264256+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/WILLAY-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -707,10 +1058,10 @@
       "id": "SZLHOLDINGS/YARQA-ATTN",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "d9c3db68a7c4dffdc6a2153b3aa756f7d3a58114d449e60a3d37c1fb89e63a20",
+        "capture_sha256": "53a57ac0c9b8b0045172f64da1b77c9aee94debb1f17ebc0d635d85751eea606",
         "error": null,
-        "hub_revision": "d6aeb4f24655c07acc155eed7acade5ad249724f",
-        "observed_at": "2026-10-04T16:22:34.232168+00:00",
+        "hub_revision": "c48f0ade85cf1c3619af58fbcc4c7201ce855de5",
+        "observed_at": "2026-11-18T05:39:43.251324+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/YARQA-ATTN?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -734,12 +1085,93 @@
       "id": "SZLHOLDINGS/a11oy-code-r1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "e49e6b914568be4b3fc32bfd13e822eeba0a2043e8a731b8f566f8278d5fdda7",
+        "capture_sha256": "3bc8d491fdde01a3920935e07b959c1c76b4d898383b44c59da6029aa41d3c73",
         "error": null,
-        "hub_revision": "541951e09431269c32b7093141a64643eb51113a",
-        "observed_at": "2026-11-10T17:54:56.684236+00:00",
+        "hub_revision": "e18fd511b9944be3c70d8d67efb7b27e91935c3c",
+        "observed_at": "2026-11-18T05:39:43.272160+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/a11oy-code-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "4f117f77cb410c55785f9ebb3956eae73b938e61",
+        "observed_at": "2026-11-16T23:02:53.437831+00:00",
+        "qualification_note": "Exact public revision 4f117f77cb410c55785f9ebb3956eae73b938e61 contains a LoRA adapter under final/ (adapter_config.json and adapter_model.safetensors), not a standalone base model. Provider API returned NO_PROVIDER_MAPPING at this same revision. Public tree, README and adapter configuration digests are recorded in the source-review evidence. No weight bytes were downloaded or executed; quality, safety, base-license clearance and serving admission remain unassessed.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r1-candidate/blob/4f117f77cb410c55785f9ebb3956eae73b938e61/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/absrl-grpo-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "79acff0a8b890df3755037cd5e0044142ba494d8f48fd134280560012782dbda",
+        "error": null,
+        "hub_revision": "4f117f77cb410c55785f9ebb3956eae73b938e61",
+        "observed_at": "2026-11-18T05:39:43.327219+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "48241a20b45565512dceeaa22a998bead2d5372c",
+        "observed_at": "2026-11-16T23:02:53.528367+00:00",
+        "qualification_note": "Exact public revision 48241a20b45565512dceeaa22a998bead2d5372c contains a LoRA adapter under final/ (adapter_config.json and adapter_model.safetensors), not a standalone base model. Provider API returned NO_PROVIDER_MAPPING at this same revision. Public tree, README and adapter configuration digests are recorded in the source-review evidence. No weight bytes were downloaded or executed; quality, safety, base-license clearance and serving admission remain unassessed.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r2-candidate/blob/48241a20b45565512dceeaa22a998bead2d5372c/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/absrl-grpo-r2-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "b425bcd5ee866e34134aa2d3f682f05458fc6695cea299f3852eb34a8df924e4",
+        "error": null,
+        "hub_revision": "48241a20b45565512dceeaa22a998bead2d5372c",
+        "observed_at": "2026-11-18T05:39:43.350771+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/absrl-grpo-r2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "8934164c409963c34378d1222f756a0e8915d624",
+        "observed_at": "2026-11-16T23:02:53.614825+00:00",
+        "qualification_note": "Exact public revision 8934164c409963c34378d1222f756a0e8915d624 contains a LoRA adapter under final/ (adapter_config.json and adapter_model.safetensors), not a standalone base model. Provider API returned NO_PROVIDER_MAPPING at this same revision. Public tree, README and adapter configuration digests are recorded in the source-review evidence. No weight bytes were downloaded or executed; quality, safety, base-license clearance and serving admission remain unassessed.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/abstention-doctrine-r1-candidate/blob/8934164c409963c34378d1222f756a0e8915d624/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/abstention-doctrine-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "906c5d425d3def5c43622ab3f52237d42d9ccdfba67bfae479a8597ad640e3bf",
+        "error": null,
+        "hub_revision": "8934164c409963c34378d1222f756a0e8915d624",
+        "observed_at": "2026-11-18T05:39:43.367899+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-doctrine-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -761,10 +1193,10 @@
       "id": "SZLHOLDINGS/abstention-v2-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "47184a57c90cef409103f505e318f85104798e361bc9b3e507607c2a2f6827bd",
+        "capture_sha256": "dd55899812d09fd412559a115a545b3ae3dd0b08195e1ad2c6e24ceae12272ca",
         "error": null,
-        "hub_revision": "2025383caf3a1d1341d51f0fd98634072262ae76",
-        "observed_at": "2026-11-11T15:15:10.279086+00:00",
+        "hub_revision": "2529583af903b08e95d5913fa9a7b83afcdc9ec2",
+        "observed_at": "2026-11-18T05:39:43.367899+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/abstention-v2-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -788,10 +1220,10 @@
       "id": "SZLHOLDINGS/acoustic-r1-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "b7c0dd995de79dd7e98e9f05258d4639e0b77f89824c14eb233d87fcbdc440a0",
+        "capture_sha256": "6106d3c8a3ecbc257bb20e9fa2dec8266bab5446b0dd11e8236eedbb43598f37",
         "error": null,
-        "hub_revision": "8874c7ef3e1904d72d6961701f17f7e49f74856f",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "0f3d9eab5b9e6cc9e606bc8323539452ef99efc3",
+        "observed_at": "2026-11-18T05:39:43.427938+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/acoustic-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -815,10 +1247,10 @@
       "id": "SZLHOLDINGS/acoustic-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "6f4f79408d0804f774da84551999d8b9672312fa432ef0788bf8c363d3fd758b",
+        "capture_sha256": "8fef86a6455a7881059574b41d811c4f0f22ca50e2963e5de8fa6e1b474a2755",
         "error": null,
-        "hub_revision": "218a0734060393ada51f03db53bee4f04ddde68d",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "77ea553c507e38faa3b6bfb7faa540eb57d0c91f",
+        "observed_at": "2026-11-18T05:39:43.445781+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/acoustic-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -842,10 +1274,10 @@
       "id": "SZLHOLDINGS/ancient-math-r1-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "79c12f3e98972adc45a88b5abc9b1b116ac140e0cb195c052a234898e5a2159e",
+        "capture_sha256": "e5ec9579968bbb26fc4b3ffd1e0112c3319cb173c92cf684df3972dfca9b5f76",
         "error": null,
-        "hub_revision": "0c518292055253bf9441b7c5adf50b829b9537dc",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "e86a0f83d683828ce6ab2d2cb67ee9afc7eb1926",
+        "observed_at": "2026-11-18T05:39:43.445781+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ancient-math-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -869,10 +1301,10 @@
       "id": "SZLHOLDINGS/ancient-math-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "72a58c89263c32edb204062c4b19bd76da49ee433c62e35d407f747c1e7e28e1",
+        "capture_sha256": "315db69661efe4aa0135a0a2c90a0963c7cab11ec94eb972779c6935a19c5f70",
         "error": null,
-        "hub_revision": "5130ee057695cff0345d675d9065909ac2cb8b13",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "2e9095b6c9634b9da3fd4424d9a4ef0fa47bd584",
+        "observed_at": "2026-11-18T05:39:43.472210+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ancient-math-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -896,10 +1328,10 @@
       "id": "SZLHOLDINGS/brain-navigator-r2",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "73ea7881fc94a875c086cffab754d5d95110a88db7f93526fc69112523f5975e",
+        "capture_sha256": "918fffaa84138b8526291816c56faf5daa9ccc6e82acb67f3922f6f3aa7d36f1",
         "error": null,
-        "hub_revision": "8f7d67af9c2f8315dc3a63afa9ebf23a3f60ca01",
-        "observed_at": "2026-10-04T16:22:38.883798+00:00",
+        "hub_revision": "78047dc39ff06763e2f726d96dd59bd39bca8110",
+        "observed_at": "2026-11-18T05:39:43.534386+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -938,10 +1370,10 @@
       "id": "SZLHOLDINGS/brain-navigator-r2-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "6a649483ac3614f177e43c97df8759b6afdf15b48603e3e8c4e9ce704a4315f8",
+        "capture_sha256": "aaf8d25aa6097e1e27b959ed9f4a0c7e9f097d8fa48626b2ba2a80f764dd6ed3",
         "error": null,
-        "hub_revision": "1943a58d83a8fbe3aa974dd243233d0354defcc8",
-        "observed_at": "2026-11-15T05:17:53.458056+00:00",
+        "hub_revision": "a708d82ade069dc9b2da792b7ac91cb2f78c193e",
+        "observed_at": "2026-11-18T05:39:43.551951+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -965,10 +1397,10 @@
       "id": "SZLHOLDINGS/brain-navigator-r2-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "ab87804bffc9be3e54b679161702ccfe625e42903845e70d9670579d0a613664",
+        "capture_sha256": "4cf775239640fa426d3e6b5e57c3b040c53aadcc5e1db13c9a167010eeb1e679",
         "error": null,
-        "hub_revision": "60b6fdd72bb745bb8b195f3a1e9120f2e05a0562",
-        "observed_at": "2026-11-15T05:17:53.624135+00:00",
+        "hub_revision": "2ffdc70a9225e8a7b124953859dfbe8a9074d5aa",
+        "observed_at": "2026-11-18T05:39:43.552954+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-r2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -992,10 +1424,10 @@
       "id": "SZLHOLDINGS/brain-navigator-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "65382ffb5ecd481544cce3d1d7f3b6bd3fe07945d61efc266871fc89ddbac367",
+        "capture_sha256": "a02e7ec7f0b698d09771eb05e2fff1cce7453ab271e95d3c38b3fcd761551c4c",
         "error": null,
-        "hub_revision": "0be03cef8c93faa1c29eef7e906f3d687813b8e6",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "6212cf87d7d35a39db68eee3cc07b5178a2a0838",
+        "observed_at": "2026-11-18T05:39:43.552954+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/brain-navigator-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1022,7 +1454,7 @@
         "capture_sha256": "216e684448b59c87f60b2f1bebd918d6f0564616cda3656fe4346c73294bca1c",
         "error": null,
         "hub_revision": "3454b7153b6481e7b9738182a7a846e985376212",
-        "observed_at": "2026-11-15T02:41:46.391043+00:00",
+        "observed_at": "2026-11-18T05:39:43.632938+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1046,10 +1478,10 @@
       "id": "SZLHOLDINGS/chakana-r1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "de4df4ee6481708a4f84816bfa7deceb1681930fa3cceeb4065081a76d4c3e6c",
+        "capture_sha256": "c2574dbf8eb8f82a387298691703b52eace2b94d87e1b48af9a8e76934acbb68",
         "error": null,
-        "hub_revision": "73219a8ada0e73ab4216d9e70d730e38455f2425",
-        "observed_at": "2026-11-07T10:52:23.447254+00:00",
+        "hub_revision": "a0ec863bac888f50ebaf59a1c71b2adfe2d4cccb",
+        "observed_at": "2026-11-18T05:39:43.651462+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1073,10 +1505,10 @@
       "id": "SZLHOLDINGS/chakana-r1-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "f4c9b81c9232a5565be5519e3aca248662864003e64cc00aaa62b4c5862e46fa",
+        "capture_sha256": "e081008b4143310bec549ad57d82c70e8bb55f31eda5f6f33ca91edd56ba88a7",
         "error": null,
-        "hub_revision": "b932b7b53a6ffe9df0e998e64622f0c00ab15d11",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "4595035443ce31f58c636aba3af6bdfaf8079c14",
+        "observed_at": "2026-11-18T05:39:43.651462+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1100,10 +1532,10 @@
       "id": "SZLHOLDINGS/chakana-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "e66615957ee0064bf291d6ad64acfb247fcc1cbfda20083abe4d97644c573c32",
+        "capture_sha256": "fc0eeeebbf4c1495125f65bc9b2eee2cf47760d557dea7b6c3dfa89897172dc1",
         "error": null,
-        "hub_revision": "fc88cb73aa8a5d33f132bab31357a615c07532a5",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "4bcb4c0baeb2b5f07968d8793b537465fea9fde8",
+        "observed_at": "2026-11-18T05:39:43.651462+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chakana-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1127,10 +1559,10 @@
       "id": "SZLHOLDINGS/chaski",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "e139dbeeabd46066582da9989851166b5419c0545c1e714535f4747ee91635b3",
+        "capture_sha256": "200ea6098f5c4abae7e4dbb4044d07f44f2465ab6a8d253f0d1d86ad621aaba2",
         "error": null,
-        "hub_revision": "375330cb5768ff5c8d1902aa5e7c820f67953c90",
-        "observed_at": "2026-10-04T16:22:38.881709+00:00",
+        "hub_revision": "89c5c22c56d42790313b696cfd2e4b3648c4e30a",
+        "observed_at": "2026-11-18T05:39:43.746259+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1169,10 +1601,10 @@
       "id": "SZLHOLDINGS/chaski-5050",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "e986a2dfdaeb01172c8c3c5a3c752588714e69e498f32a3f964d45dc02b3a44c",
+        "capture_sha256": "ecf2144537652aee210c7e56a1bc2ffa8758122a87ecf90649ce2591da7a9a69",
         "error": null,
-        "hub_revision": "0e324a93761abb7069ce0e40597780e734bf342b",
-        "observed_at": "2026-10-04T16:22:38.883290+00:00",
+        "hub_revision": "08c36c86c361315854739debd5be7881066aeab1",
+        "observed_at": "2026-11-18T05:39:43.777001+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1211,10 +1643,10 @@
       "id": "SZLHOLDINGS/chaski-5050-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "74841642c12864d15b0857e2642c0af7a2e9e49516ffac5ca2aa95a13a37007e",
+        "capture_sha256": "634c6d99e29b59d26145a6cae854bd3bbd965bfb12b2475f7a1640c68ccf93d1",
         "error": null,
-        "hub_revision": "b8034b05d39f3aff2cf059918d1b020129d0de15",
-        "observed_at": "2026-11-15T05:17:53.775919+00:00",
+        "hub_revision": "4a05cd6c9daa3783063865a612ee1ab8961dd276",
+        "observed_at": "2026-11-18T05:39:43.777001+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1238,10 +1670,10 @@
       "id": "SZLHOLDINGS/chaski-5050-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "ec80fddc0d91cda965cf3eec68d4ccc5d63e110b3542fc1cf91fad3e51782582",
+        "capture_sha256": "5ffbd5c4259aa9ced15429cabd2e1b80932f4bcc140132760041895d81c0a84f",
         "error": null,
-        "hub_revision": "7072215ed8bb74d9b9996748467d0d1cc79a56cf",
-        "observed_at": "2026-11-15T05:17:53.935077+00:00",
+        "hub_revision": "7036e94c58781b1af56ce1a293609b629b9b8c18",
+        "observed_at": "2026-11-18T05:39:43.746259+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1265,10 +1697,10 @@
       "id": "SZLHOLDINGS/chaski-5050-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "943221a4d28fe59fe7702dd47203338afc2455c47b6b3f83b27b63b98471ae0d",
+        "capture_sha256": "544bafd823d09c2e74ac95c2b6e6038d3c5c16db23194b8e19e997950f33cdfe",
         "error": null,
-        "hub_revision": "1a8700f87d246faacc39f5f3c34efbf412419d87",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "cf84cc0c709b7ab57c9a0140d1da9a3a74a00f50",
+        "observed_at": "2026-11-18T05:39:43.853279+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-5050-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1292,10 +1724,10 @@
       "id": "SZLHOLDINGS/chaski-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "4ce5fdc6ec2bc12be6c362c863279b7ba48439778248919fdd945d36f8fa754a",
+        "capture_sha256": "342b1f048f075c9a3135fd969c8602ef3909b4d1fb3a2f1cf0419a782d80f7e1",
         "error": null,
-        "hub_revision": "bb457141f3ac910b41e1b951d5b3d735cbec2838",
-        "observed_at": "2026-11-15T05:17:54.073692+00:00",
+        "hub_revision": "b30937d2975657c7e444fc84f553ec6dfc969a7d",
+        "observed_at": "2026-11-18T05:39:43.870473+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1319,10 +1751,10 @@
       "id": "SZLHOLDINGS/chaski-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "533c1c98113c43bfb3cd61ac91781faaa955af2b29ee7e4eb91424175b73827d",
+        "capture_sha256": "df909a513c83be8fbf0287767846fa1c8173f56ecd4280ccbe2e08c9977e83ba",
         "error": null,
-        "hub_revision": "824aa4610537b76e646b2ab14b1cff8812317e7d",
-        "observed_at": "2026-11-15T05:17:54.270667+00:00",
+        "hub_revision": "487314e86bbc50806fa3f17a950122d98d0950c8",
+        "observed_at": "2026-11-18T05:39:43.872230+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1346,10 +1778,10 @@
       "id": "SZLHOLDINGS/chaski-r2",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "952d99aed91f9db3c9aa49d39f8626c2895a8de2159615b77219052a73d17e2f",
+        "capture_sha256": "aef7e92dc146116efab23681692ca5c2a769231d600f2dccfdff65184cb1cf2b",
         "error": null,
-        "hub_revision": "83734cf80a2ca306f090b40a2e1fd23db2ddda45",
-        "observed_at": "2026-10-04T16:22:43.219554+00:00",
+        "hub_revision": "39b6d0b79f49e45a784b3c5271ab956ba641f1c5",
+        "observed_at": "2026-11-18T05:39:43.872602+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1388,10 +1820,10 @@
       "id": "SZLHOLDINGS/chaski-r2-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "1ef276356593cd45252947e7fa641c469a642329cdc5498304401989cbc86653",
+        "capture_sha256": "98f74197d9445dbcf7459fe188c99841a8732e8acb84d87a07c53560b6a3aab8",
         "error": null,
-        "hub_revision": "532ef3fb751a828c6211af252c68025995b266c9",
-        "observed_at": "2026-11-15T05:17:54.504296+00:00",
+        "hub_revision": "d60ba31632b24341f42dc016dc2de1af3a557e1b",
+        "observed_at": "2026-11-18T05:39:43.966438+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1415,10 +1847,10 @@
       "id": "SZLHOLDINGS/chaski-r2-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "50a057385998451b9e685d87f80ee067391b681294914564efe009b2745aa4b2",
+        "capture_sha256": "e955fcc55ff57c3bf39047238b4a97d7a33215cbdccb4556f6f897d597ebb722",
         "error": null,
-        "hub_revision": "cfff1cd2274af706028c5c6a1c08eeaf2a1d2695",
-        "observed_at": "2026-11-15T05:17:54.679042+00:00",
+        "hub_revision": "fb66bed0f2e5a19981f63834ed78bb9c23e44f23",
+        "observed_at": "2026-11-18T05:39:43.989382+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1442,10 +1874,10 @@
       "id": "SZLHOLDINGS/chaski-r2-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "9f472ff44ad0119af8da291bb31a15680fb9f52330885bda821e493dc28079ae",
+        "capture_sha256": "cf0ba47eff00169f1c501cf14b7fad8b58aac4100e78874073850dade8729d81",
         "error": null,
-        "hub_revision": "aefb81f3bc37329f0891a90bc3f6aa2391ec708f",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "21de3e33b72ef83b06abaaa5e6cc144523708cfe",
+        "observed_at": "2026-11-18T05:39:43.989382+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1469,10 +1901,10 @@
       "id": "SZLHOLDINGS/chaski-r4",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "5f85ef6e6abd0a145a6f229077e48f135077c2e8c00116e62daf3fb67e66b542",
+        "capture_sha256": "30491cd59f85254672235cb219d385dddf84783bef8cf400411020234e81edb8",
         "error": null,
-        "hub_revision": "6275945fab2515ee41019eb60703c6b5dbdf5640",
-        "observed_at": "2026-10-04T16:22:43.221466+00:00",
+        "hub_revision": "7e93db0e8b49fa1435e756ee54f9424895e1edf5",
+        "observed_at": "2026-11-18T05:39:43.988877+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1496,10 +1928,10 @@
       "id": "SZLHOLDINGS/chaski-r4-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "22dc7743d0b16dd641df3c085f4b4e355c233e5e7d6e2aa9db4ad87dadb35238",
+        "capture_sha256": "3bb884079b72392faa2c90c851f10fa169fa283c91cf718ba82faae790c8a185",
         "error": null,
-        "hub_revision": "d3da618277263d012ac5fbfb50cecd6553380cd3",
-        "observed_at": "2026-11-15T05:17:54.852365+00:00",
+        "hub_revision": "ec72d36e068a9321e0492e34fe63dafb2d75a95a",
+        "observed_at": "2026-11-18T05:39:44.087185+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1523,10 +1955,10 @@
       "id": "SZLHOLDINGS/chaski-r4-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "99334c4e66a3d6f30b5560aee0509ea4af08312a436dd8988d2c0ebf61a3badc",
+        "capture_sha256": "182ee060e81e71bce3c40fb3c9800cf9ae4f87439bea88ad6cc99a6b2ab0c751",
         "error": null,
-        "hub_revision": "85080dd8d8d2cf2f82d84ee2670d070d694cd31b",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "53136c1881449743f6ed359350130e1b3e540cd4",
+        "observed_at": "2026-11-18T05:39:44.106622+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-r4-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1550,10 +1982,10 @@
       "id": "SZLHOLDINGS/chaski-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "18c042305301689c1985e7e23260867eb243cc719024b514243821bf86b4066c",
+        "capture_sha256": "679fc5dc0850eee35e292a9fc1496c0c70cd6f5d17fe6134a59e7000f7092d6b",
         "error": null,
-        "hub_revision": "aff104346fdfcae30b9ec769d42daa08b9eb30b0",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "49d2c8dbb16b2ffe3f7cb2c5c5f796d73d14e68f",
+        "observed_at": "2026-11-18T05:39:44.106622+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/chaski-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1577,10 +2009,10 @@
       "id": "SZLHOLDINGS/code-master-v3-fresh",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "065124a355703c47250d07b4b8abc51e00db47f40794795b2c218dd0a3f774c9",
+        "capture_sha256": "f00fb392e486a6f2b6fa0ac9c946cff0ca78fa617a0c7a5c49e7dddfe009190a",
         "error": null,
-        "hub_revision": "a660d7d7a90f4ed527c966650041a6fa28724cf4",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "16b324fb03f8c941833713e8956a01764249246a",
+        "observed_at": "2026-11-18T05:39:44.135826+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/code-master-v3-fresh?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1604,10 +2036,10 @@
       "id": "SZLHOLDINGS/creativity-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "5b7a00671cb75a829aba351ae1d903b381d4c855a59065b904a9d627c3337a57",
+        "capture_sha256": "fe12697e6ce584c1a1d146a042211ff49d71e3bde86a1e20a2b23b224f704d28",
         "error": null,
-        "hub_revision": "c9d9cb9e7722d69922a44e3fe4f9393bdc66e544",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "61968f9935ec45d2232e447b5be3abfe41d528d0",
+        "observed_at": "2026-11-18T05:39:44.188861+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/creativity-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1631,10 +2063,10 @@
       "id": "SZLHOLDINGS/doctrine-master-v1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "78fc683d29aa1797b1269a93c45d0127a70fdab11477f86aa319676de9217c68",
+        "capture_sha256": "e8d5b18123c6e74a6219859117e92e5e7e31948b4e3525710747c06ed6597383",
         "error": null,
-        "hub_revision": "83713903efb2ba5f5da541a6fbf767825aa7cd40",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "33dbfe0875f64e1de2b342ec00cd9095da201b1a",
+        "observed_at": "2026-11-18T05:39:44.208867+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1661,7 +2093,7 @@
         "capture_sha256": "2579e1b780a49ac3fc1231aadcf5fb71878ccc21171a1fa779f601e603c3c5ce",
         "error": null,
         "hub_revision": "640062012ff0d003c74239911272d58d752ac820",
-        "observed_at": "2026-11-15T05:17:55.064656+00:00",
+        "observed_at": "2026-11-18T05:39:44.208867+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1685,10 +2117,10 @@
       "id": "SZLHOLDINGS/doctrine-v2-r2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "a03712e05c54c14faced6bf5d0c853b371e5f4e7ade2949b3431a70cbf3ae51e",
+        "capture_sha256": "76e2e947ad79713de8d4b377bfa879ea34dd8675ad06911c3e4a872126434cee",
         "error": null,
-        "hub_revision": "a3dc0ac564453d52216ce8bf6cf2758b2dca98aa",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "d083b634305aceff70e897a3b0cdfc3a53a2c3db",
+        "observed_at": "2026-11-18T05:39:44.247712+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-r2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1712,10 +2144,10 @@
       "id": "SZLHOLDINGS/doctrine-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "07b8849678d771df4631ac06ead243d91ab49c5b6d4da7ee80db9549c91c7e6c",
+        "capture_sha256": "e8320679fff2a24399e0def0aa7a1b456298f1a3c9feb1b1745da937d955b224",
         "error": null,
-        "hub_revision": "37af7132eaae98ce714b60d16d176ac171d0841b",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "21004dde395f1e1bb65525dcf5cdd9700ccf31f8",
+        "observed_at": "2026-11-18T05:39:44.293389+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1739,10 +2171,10 @@
       "id": "SZLHOLDINGS/doctrine1-r1-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "22a7af5807b8fe66247461fe813c971c197d7be7f933e2ed501ab526f6824e22",
+        "capture_sha256": "260f309501718466a94d2bac6597b34e2cbbe28efee3103d8e4e3725b3c7dfec",
         "error": null,
-        "hub_revision": "971811b32ae48f2295bdf6e7c09b5802c6418a07",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "dea76faf366498b50869183f9e47f45ded4f2caf",
+        "observed_at": "2026-11-18T05:39:44.327354+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/doctrine1-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1766,10 +2198,10 @@
       "id": "SZLHOLDINGS/forge-1.5b-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "591b6bb5ece804b4068124608852b8989f9a664aa055b711b6a7768fd18c7e3a",
+        "capture_sha256": "4d4185a1abc4b0dc8cc1f5aac99491748a8b9bdcef75e9d97f5bc252d78a50cc",
         "error": null,
-        "hub_revision": "1e37622c66d253775786de76cd5da684ec6d9a3d",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "138fb644ca8ca0f6c0f6bee170d4ecc51adee7db",
+        "observed_at": "2026-11-18T05:39:44.325339+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1793,10 +2225,10 @@
       "id": "SZLHOLDINGS/forge-v3",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "d47064ccf9539e3c2491f4cb8ec81541c6b0f15e2c2a74605edc5e35141df140",
+        "capture_sha256": "87feb8ac4ffbfd07173e6e7c676588cc549d80e68beeabb8bab3d3f7a7a40e60",
         "error": null,
-        "hub_revision": "0c80e886f7787a59a4ca01a4fc56d74b4711d98a",
-        "observed_at": "2026-11-15T06:19:56.878274+00:00",
+        "hub_revision": "5b7d921368ffc7088bb3a1958932ced30603faab",
+        "observed_at": "2026-11-18T05:39:44.327354+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/forge-v3?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1820,10 +2252,10 @@
       "id": "SZLHOLDINGS/freeenergy-r1-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "3cb87befab24fc47ad55f345f567068de8a048a65ba5b7959ff5af85d04f2e09",
+        "capture_sha256": "7986c9334eefb52baa4a6a4e7f496b5a26df078e375de8b4390c7dcfb55b4629",
         "error": null,
-        "hub_revision": "3d396856d939bef9061652973c736fec6c165d1a",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "8f2cdb414e1afe11de0b9ddd1de91b37ae33fc28",
+        "observed_at": "2026-11-18T05:39:44.414229+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1847,12 +2279,39 @@
       "id": "SZLHOLDINGS/freeenergy-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "131e3806cca54b2a717c817071c3592a802b2da824bb73fbace60e75b00a1172",
+        "capture_sha256": "d345246a817ac507ca7988b90a0d807fcd55f3a1cfe83a3be40246a4b32a1319",
         "error": null,
-        "hub_revision": "3b097b6c23a2ac1f20ca698bfcf8a988b4a237f1",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "7747ab5bd17316ef9b76d9a5aefbc976d6fed590",
+        "observed_at": "2026-11-18T05:39:44.435160+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/freeenergy-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "standalone_weight_bundle",
+        "hub_revision": "af0d82d9691e4677e711fff91d8bd0280f38e83c",
+        "observed_at": "2026-11-18T05:39:42.048623+00:00",
+        "qualification_note": "Exact public revision af0d82d9691e4677e711fff91d8bd0280f38e83c contains phase-0 and phase-1 full fine-tune artifacts with config.json and model.safetensors weights; the README at this revision still states that no phase artifacts have been published, pre-dating these uploads. Provider observation is NO_PROVIDER_MAPPING. No weight bytes were downloaded, model run, safety or quality qualification performed, license clearance granted, or serving authority issued.",
+        "request_disposition": "NO_RECORDED_REQUEST",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate/blob/af0d82d9691e4677e711fff91d8bd0280f38e83c/README.md",
+        "suggested_route": "No serving route is authorized. Exact artifact qualification and explicit serving admission are required before use."
+      },
+      "id": "SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "808542bc822640be89b0308035dcd507d8270df0b82e62abce14b8ea8f977382",
+        "error": null,
+        "hub_revision": "af0d82d9691e4677e711fff91d8bd0280f38e83c",
+        "observed_at": "2026-11-18T05:39:44.485690+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -1874,10 +2333,10 @@
       "id": "SZLHOLDINGS/governed-norm-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "ac41063378158ddd96c711f8841d0e8f5313c7ce8f04b00f26a9128a46f71b02",
+        "capture_sha256": "c0e140bfe194b8cace7081781823167e510ec0e443c4a2785b2800ce72c85c0f",
         "error": null,
-        "hub_revision": "4c90264bfa6fc2dc48641e9726b7c79a33135751",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "fc78aaa174b0082099b9f31a0a9529747b2fe7b7",
+        "observed_at": "2026-11-18T05:39:44.435160+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/governed-norm-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1901,10 +2360,10 @@
       "id": "SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "c6b6a7e6009bb635ab1508d6f85a35a7c440a59868d158985b9996ab6e7ea81f",
+        "capture_sha256": "e7ad86d47e1eba59b9a86cf12c7dd2120b4302106c4a5c720b54cefd2fd3fc1b",
         "error": null,
-        "hub_revision": "470fff332953b352fede85419140b8d76c2122e2",
-        "observed_at": "2026-11-10T17:54:57.117866+00:00",
+        "hub_revision": "e1e8d36362cf9dd323ece49ee37861fd5313fbbc",
+        "observed_at": "2026-11-18T05:39:44.536592+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-doctrine-math-r1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1928,10 +2387,10 @@
       "id": "SZLHOLDINGS/hatun-24-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "c01b4e01e39eec617c710ac4e7e3419871f96e4bd5d0a7218554b541d8732396",
+        "capture_sha256": "105061398965ec566789462fb70044f171f242cd00395fccef969eed339edc9d",
         "error": null,
-        "hub_revision": "3ad159374c0fd4a9f5a1521dd86121b3b16eb81f",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "f6227dd1d55a3068ad094389ef418bb0cbeebb79",
+        "observed_at": "2026-11-18T05:39:44.566716+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/hatun-24-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1955,10 +2414,10 @@
       "id": "SZLHOLDINGS/khipu-abstain-1.5b-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "0155fbd1e1e7735e080e016b1d63afa094b6ab028a0473079090dcefb29b9dff",
+        "capture_sha256": "3d0244a6ad695a7035490b171a9ee41094ea1a16b76caffa7798c2595d179487",
         "error": null,
-        "hub_revision": "90c82516a3436b7526de62f9a790874d96ff2802",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "11c733276c6ecfa717a0969541b4e58161108a60",
+        "observed_at": "2026-11-18T05:39:44.565207+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -1982,10 +2441,10 @@
       "id": "SZLHOLDINGS/khipu-abstain-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "aa2f6f38d2814fb0bbcc95cfabf98241b6dd72cfd375847e13938b3afe0b84d9",
+        "capture_sha256": "dfa9c6ff5eadbe77da0ad180ca942ed53cd9f5c719fa70edbe8c3f528e727c75",
         "error": null,
-        "hub_revision": "d81c31086e3869219cb6304366d3f973681dc3b0",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "4a3e07a056882fbabab0b560ff477b506eb0bcb4",
+        "observed_at": "2026-11-18T05:39:44.566716+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-abstain-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2009,10 +2468,10 @@
       "id": "SZLHOLDINGS/khipu-r2-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "994eaf2079ec2f43ec08958a7b54d678ea52d1bdf9ee38d56e2823cfc2ba8563",
+        "capture_sha256": "d003105afa443f2475f425693089f2bb3c1e9177bd2540f1d50d230701a59d1d",
         "error": null,
-        "hub_revision": "92f8a8cae4d1cde0e060268b39a71eca6a4c8b54",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "da947462ada2e594eaf037965546caf12443cbbd",
+        "observed_at": "2026-11-18T05:39:44.661441+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2036,10 +2495,10 @@
       "id": "SZLHOLDINGS/khipu-r3",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "9044c24f66953ac1010843f146a6135c69836c2621a100077cd0fd63ded35e07",
+        "capture_sha256": "c18b80c1a591880a2f44af2cb5b43cb61023297374c58dc3c0a0ff691741be85",
         "error": null,
-        "hub_revision": "7e388efb6e332c8c28e94bdf266293baf437fb64",
-        "observed_at": "2026-10-04T16:22:43.220181+00:00",
+        "hub_revision": "22e6dd84892ca534ef8661c1f9c0500c6160349e",
+        "observed_at": "2026-11-18T05:39:44.689842+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2078,10 +2537,10 @@
       "id": "SZLHOLDINGS/khipu-r3-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "ab6fa4d0ec7d59923e694c94b3557147f4d3e70443659508004ce8abd414ee98",
+        "capture_sha256": "69d18505e1014325ea4b38ede0de23e55fd7f096dd7cc2972306a973099c5126",
         "error": null,
-        "hub_revision": "882ac37445b6cefa865992474737246758434b44",
-        "observed_at": "2026-11-15T05:17:55.252051+00:00",
+        "hub_revision": "6c0aa95e35e907b46975dee835041897ec4c1881",
+        "observed_at": "2026-11-18T05:39:44.689521+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2105,10 +2564,10 @@
       "id": "SZLHOLDINGS/khipu-r3-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "0e48c97f2b97f211c6a9bb93c47e4cd305561544ae4b1f3fe1ce98d0ee6bd595",
+        "capture_sha256": "fd4854e27edcb5b87f3f3b35ce4cb22905f9756e35ece23a25a6b2b80273ddb7",
         "error": null,
-        "hub_revision": "0cd399061064bdf30b2636b4815bc61214951b63",
-        "observed_at": "2026-11-15T05:17:55.432828+00:00",
+        "hub_revision": "b68de63a1519bacf6607f28e2dd92cea0771b553",
+        "observed_at": "2026-11-18T05:39:44.742954+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2132,10 +2591,10 @@
       "id": "SZLHOLDINGS/khipu-r3-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "b7e0415daf3c69495a0400cc29e18fab8b902b15fca932ec39fb855fc91cfd71",
+        "capture_sha256": "17f262b056884c64a4232f8de54291271998e2f3463036341aa49b21ed50963e",
         "error": null,
-        "hub_revision": "6c440e2c7da4d564c05ddc9d49a3ff16a43b84de",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "1d9c6c6d5ac5c9c1c4d066c58a63adb9b38dacd0",
+        "observed_at": "2026-11-18T05:39:44.761584+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/khipu-r3-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2159,10 +2618,10 @@
       "id": "SZLHOLDINGS/lean-inv-r1-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "f7f56f9dca7511c1e7775179ffc5305d194fb1c170920f888f8cf27c851e14bc",
+        "capture_sha256": "bac562a2d0c016e00d33c284fa1a9b127ef89c35c5e855859bb5251bb7bc2fc5",
         "error": null,
-        "hub_revision": "929a7b94ff81c7fb66d62d9bc4275dd4e0a357b6",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "9ed4920433ba4cbb07d653c1ed7c92b0754d0452",
+        "observed_at": "2026-11-18T05:39:44.793400+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/lean-inv-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2186,10 +2645,10 @@
       "id": "SZLHOLDINGS/lean-invariants-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "cf1b721f6c01ee12598d022c21019f4da492bb405be161effa82769d89d3555d",
+        "capture_sha256": "bd7501d624230df8f59d3552db19dcbbae63a2de7b07ed1352a13c56204b7b93",
         "error": null,
-        "hub_revision": "dece8d8ca24c8a36091c25478ae4e766aea16d48",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "09c46375f34828c7c7c3eb41a7b65bde8c4a1395",
+        "observed_at": "2026-11-18T05:39:44.857372+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/lean-invariants-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2213,10 +2672,10 @@
       "id": "SZLHOLDINGS/measurement-master-v1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "47532ed7eda92998ef9350811758daf0fa0cccb27222c514f2fe65ccd15001c0",
+        "capture_sha256": "7d3dd5d4d2ae50e5e31c84b2022125a9f4503e43b18c070d49941f1932095714",
         "error": null,
-        "hub_revision": "fae6b77cda8457361362d2457d60a886ee7561af",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "0eabed41bae5221fb0f3ac732d242666b987b837",
+        "observed_at": "2026-11-18T05:39:44.893758+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/measurement-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2240,10 +2699,10 @@
       "id": "SZLHOLDINGS/miniembed-nano-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "064f97d2d2727aa9fb7c567421fbded829b1632371789aefdfb115e7831333e6",
+        "capture_sha256": "d5cb2b06c1b6ebed0f2fbfa2f83c20a479eec3e66f9d0c153e3693c32f8a6539",
         "error": null,
-        "hub_revision": "5a708009947882d08be3bbcb795d49062a8d5a90",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "e266f8310ecf8eab6ed398779c615ac173909e6c",
+        "observed_at": "2026-11-18T05:39:44.995495+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-nano-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2267,10 +2726,10 @@
       "id": "SZLHOLDINGS/miniembed-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "f49a644ef1e24f50412f32c6121ad99aec835fad86d7b5b632ebf1623b6e6197",
+        "capture_sha256": "a9ef203cef1248697ff66e465ba8ea7d0b2b30fb25aa4dbb811e2b8fe15f1aa5",
         "error": null,
-        "hub_revision": "97244b9430b1f4ed0aae14948153d88421a61686",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "d8eac46b159b3ecbb13f1ff39b07eca0a835bf0c",
+        "observed_at": "2026-11-18T05:39:45.028734+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/miniembed-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2294,10 +2753,10 @@
       "id": "SZLHOLDINGS/oac-ops-health-v2",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "36f3b7204d4181ff1f97cbbd24933ffec7c9d197e3c24d7fe5c85af60456aadd",
+        "capture_sha256": "02d49b6c0278adcf874c6c69c581be3d5588b3e7122bc8f5c097ee99fd7922c2",
         "error": null,
-        "hub_revision": "90df75bf58d91ea723128a86d7ed9af57535dbd8",
-        "observed_at": "2026-11-07T10:52:23.758461+00:00",
+        "hub_revision": "d45d7bd93e3ecd17f7efa67f500a61885f964b1b",
+        "observed_at": "2026-11-18T05:39:45.028734+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-ops-health-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2321,10 +2780,10 @@
       "id": "SZLHOLDINGS/oac-system-health-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "60ad41be418747a40d38208b41fb3517d914b77aa058061d406c751a9ffc8a0c",
+        "capture_sha256": "5d136b4042859f4bbf3ba961c7caedbb673d47196066464e7dfbf5da527e10a3",
         "error": null,
-        "hub_revision": "a99c3ec1157af351fa24da64f3b413620cae07fe",
-        "observed_at": "2026-11-07T10:52:23.762153+00:00",
+        "hub_revision": "5bd9e7ddbdc48b0ed72bce10c918f84f3505fb0e",
+        "observed_at": "2026-11-18T05:39:45.028734+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/oac-system-health-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2348,10 +2807,10 @@
       "id": "SZLHOLDINGS/ouroboros-r2-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "86e9778a6368534556b77b8499c596f5b736c3db4546e7cd793bf2d7456a92a0",
+        "capture_sha256": "3644f8e9ad55fc9f66f30c627ada7f84e7fbd62afcb7fda1578618bc8cb26653",
         "error": null,
-        "hub_revision": "df1b7a0380f9e7a5d31e5bc17eb59c59638f905c",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "7b3fea6c0a309f1ccc4f1703a9939b99edc13ca3",
+        "observed_at": "2026-11-18T05:39:45.245046+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2375,10 +2834,10 @@
       "id": "SZLHOLDINGS/ouroboros-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "2ec8772f44d3acae6c9f18867df582618a9ccaa4ae5fd731aae16229da9ccfe1",
+        "capture_sha256": "5e47da784f0c199d2f3323481072d2a653482fd91002855517da636203ee834b",
         "error": null,
-        "hub_revision": "ff81eed29c690db0a1fc1afa24ca43bc62760993",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "56c6e113c72ff134418fe27dd06420e6aaa76ad8",
+        "observed_at": "2026-11-18T05:39:45.295938+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/ouroboros-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2402,10 +2861,10 @@
       "id": "SZLHOLDINGS/papers-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "a4cd5f712677c6873bd822b20983cf64a54acb562ad5d0657064f26cb34fc599",
+        "capture_sha256": "5353982f60a39689d2326dc36fc772ad9eecaa4ba32e0c25b9c28fa5dd2278dd",
         "error": null,
-        "hub_revision": "c1595d9ebd50577d877f0eeee9f07031819026e0",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "011a312f7dcc65a905e8d66d53a43d002396585a",
+        "observed_at": "2026-11-18T05:39:45.276565+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/papers-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2429,10 +2888,10 @@
       "id": "SZLHOLDINGS/physics-master-v1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "23ac3a6486ff5b3647e1d3cbbacb5c76f19d660e80ef5923e063f6e28572e6f8",
+        "capture_sha256": "e32fe0ea3375a8b3dd80734557518027114d3f2d82e1f2861f8fdf231a7547c6",
         "error": null,
-        "hub_revision": "b6aa4f01476421acce9beeec60fe42cd00e594a3",
-        "observed_at": "2026-11-11T15:15:10.416290+00:00",
+        "hub_revision": "3074dff5225b0b0e36ba79f8b50963642d988396",
+        "observed_at": "2026-11-18T05:39:45.277691+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/physics-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2459,7 +2918,7 @@
         "capture_sha256": "1a0a9d637c0c05e8360e8c10a4822028f0ee6930d349699dbb5e45c3e2442626",
         "error": null,
         "hub_revision": "cd3e7b1596967638c3138e3a96288d192b6aced0",
-        "observed_at": "2026-11-15T02:41:46.457078+00:00",
+        "observed_at": "2026-11-18T05:39:45.606037+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/qantu?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2483,10 +2942,10 @@
       "id": "SZLHOLDINGS/quant-master-1.7b-500step-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "376b0ecc2d30d332840be3c68bf8929ea45d95f603773873834aa0e4573eeff5",
+        "capture_sha256": "2a78a18ffe12927aa197911a874fdfd8c09adb766db42db1663407d6eb0aef17",
         "error": null,
-        "hub_revision": "1b56b7505d6dadb04e9d4b25edb97651a9387058",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "8d9ac9209c5b97b59d49abb16d6b3e4e99adb52b",
+        "observed_at": "2026-11-18T05:39:45.603322+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-1.7b-500step-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2510,10 +2969,10 @@
       "id": "SZLHOLDINGS/quant-master-4b-500step-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "b20a844945bb0e6c495b7036ea4b555f1daab6c9f06ac874f96f2f487de54207",
+        "capture_sha256": "c5d6ecb4821394c226ef765f7601dd0cdc330129aa85c28ddbc178eae9118ac7",
         "error": null,
-        "hub_revision": "c23b1ba66faa2fad79860f06e8c794fc1431e530",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "2a882bac0a6ab708b86229498545dd353dfbc689",
+        "observed_at": "2026-11-18T05:39:45.523906+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-4b-500step-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2537,10 +2996,10 @@
       "id": "SZLHOLDINGS/quant-master-4b-v1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "1996039faa5529c6e9ba4a5a45ad6ff0f923eb116656408c753310a846dc8e7b",
+        "capture_sha256": "3a42faa5a67844903210bb68f067fd2038cedec76b29ab8201cd916404728abf",
         "error": null,
-        "hub_revision": "fcc85dc0ea5df5dc46aca1574a1750fe70712a2d",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "dfe5355813f1afa263a5fb8cc419b98ac5751eff",
+        "observed_at": "2026-11-18T05:39:45.605647+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-4b-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2564,10 +3023,10 @@
       "id": "SZLHOLDINGS/quant-master-v1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "5b7bd869b53f95ddfa44750662010f01961f9d69efc1ac227543e2bd3f45b19b",
+        "capture_sha256": "215f77c2d03715c62bb88569e925c1cf01b4211853aa51e4424a5dbccdaf701c",
         "error": null,
-        "hub_revision": "f5c1a56dee08267ae21057a43cc23eeeeb30973e",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "f973bd75d79de61cb041b060366f279befe9b07b",
+        "observed_at": "2026-11-18T05:39:45.818542+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/quant-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2591,10 +3050,10 @@
       "id": "SZLHOLDINGS/qwen2.5-0.5b-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "f91e4be0f2439abf176a5502ccb3837b50144504a1fa4ac06cb46f0eb2bd83ef",
+        "capture_sha256": "d80f678079c968abc7f83a41d976269a83a85f3e7158518cb44539bf8fbebb82",
         "error": null,
-        "hub_revision": "29f815ba8069d1fc9060b5e906e83cc8a7a1c2eb",
-        "observed_at": "2026-11-15T05:17:55.620918+00:00",
+        "hub_revision": "accbb4b210980a3899212d30dc1f959eb32ef6b6",
+        "observed_at": "2026-11-18T05:39:45.871770+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/qwen2.5-0.5b-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2618,10 +3077,10 @@
       "id": "SZLHOLDINGS/reasoning-master-v1-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "71d50b957d3bfb5d4395775bd3139287ad7d13c2958692ee700db626301fcff5",
+        "capture_sha256": "7627d9170f137e2a7cbe7e46479405469ae86a2531dcc9acd0437099832bce8a",
         "error": null,
-        "hub_revision": "1a49b9e58c9d9b7dfb37110b06a2d3aa002df712",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "e61b126bc0d9b8c8c1774a6dcf34aff1b2ae273b",
+        "observed_at": "2026-11-18T05:39:45.871253+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/reasoning-master-v1-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2645,10 +3104,10 @@
       "id": "SZLHOLDINGS/receiptagent-1.5b-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "cc1502d7161af9c4580b7723f3ac571151f42516c3346e441fde70d24e18ab15",
+        "capture_sha256": "aecae13d5b6df656af22de17e7e70787ca66ad6477b0451c173a0a87c3082cb1",
         "error": null,
-        "hub_revision": "66fdad3fcbd2fb2949fda93ab3e436d9b432bc52",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "e270183c5c8bbe1cc8fffc6b4eac9c6221f1d9af",
+        "observed_at": "2026-11-18T05:39:45.870416+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-1.5b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2672,10 +3131,10 @@
       "id": "SZLHOLDINGS/receiptagent-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "e82a3652db9be9e9211e803a5b442f6efa89d58f1adb8b1534ed7be80bcb9cbf",
+        "capture_sha256": "c3e22fd7f5edd3fb11e6354fa5b88b14eea879ba5e43da2d7d36e31a56d1ae58",
         "error": null,
-        "hub_revision": "e5ee23a3a6f0b474bb1acd3edc4ca26cf90c2345",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "ce0611e13e2cd7435ae38e7f5563f803442462e3",
+        "observed_at": "2026-11-18T05:39:46.040570+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2699,12 +3158,39 @@
       "id": "SZLHOLDINGS/receiptagent-v3-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "56df4dd3f927351d64bbd6e3ea711889521270219852e6276dbd88e106ae0559",
+        "capture_sha256": "d8961e9059482f32539fe77837a7b2f9e0983f2d4b82891d8b87ad6eb20ced3b",
         "error": null,
-        "hub_revision": "a009f6cc5195c834475a368fb52310284d04c43c",
-        "observed_at": "2026-11-15T05:17:55.843518+00:00",
+        "hub_revision": "9075b3f42daa2481a583d93111a362f7a1e9bf9f",
+        "observed_at": "2026-11-18T05:39:46.072275+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/receiptagent-v3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "b976db65d127e50075c6c7aa645b3880e3e32e61",
+        "observed_at": "2026-11-18T05:39:42.048623+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/salad-khipu-scholar-v1/blob/b976db65d127e50075c6c7aa645b3880e3e32e61/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/salad-khipu-scholar-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "1c5fae046f5382f9eaa28a0f0bd3f85409df32a135bd16f76dc3f5c5dcdef27d",
+        "error": null,
+        "hub_revision": "b976db65d127e50075c6c7aa645b3880e3e32e61",
+        "observed_at": "2026-11-18T05:39:46.072275+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/salad-khipu-scholar-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -2726,12 +3212,39 @@
       "id": "SZLHOLDINGS/szl-blocked",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "8750dcd90614fa0297d65f2c98979f25a9e901b82c209eceb2e429bd4574d528",
+        "capture_sha256": "44e9f720faa41e2dbefb2303df805d8f0129d070e9da415b54440f846fa2b8d0",
         "error": null,
-        "hub_revision": "74caaabb4a001fb3d2e8a346c1114008ad9c4f5d",
-        "observed_at": "2026-10-04T16:22:47.108354+00:00",
+        "hub_revision": "413f3a7a70492bae04f3994a73cb4e3b1abba94c",
+        "observed_at": "2026-11-18T05:39:46.081588+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-blocked?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "numpy_model_bundle",
+        "hub_revision": "056498d0ff9a04afeec5e26c171811ba58116447",
+        "observed_at": "2026-11-18T05:39:42.048623+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this NumPy artifact bundle (100-epoch and grid-2 refit energy models published as .npz files with receipted evaluation results present in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/szl-cram/blob/056498d0ff9a04afeec5e26c171811ba58116447/README.md",
+        "suggested_route": "Use the source-controlled NumPy/CPU model API or its Space; requires a custom inference handler rather than generic text generation."
+      },
+      "id": "SZLHOLDINGS/szl-cram",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "c5235e911e609bd8641774cf33ddf06bb2bbc316d9321f5a57428e16180d5dca",
+        "error": null,
+        "hub_revision": "056498d0ff9a04afeec5e26c171811ba58116447",
+        "observed_at": "2026-11-18T05:39:46.316375+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-cram?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",
@@ -2753,10 +3266,10 @@
       "id": "SZLHOLDINGS/szl-formulas",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "0dad0210bb5f825364a083393fff700963d4af27f369238f7f202181110803db",
+        "capture_sha256": "490abc9c4132c2cece7dcb9856a3fdb656d4e707a750a9cdf495fa3484c03534",
         "error": null,
-        "hub_revision": "d3f2dbbb7c59bef13cf1b755edf487bfb2960653",
-        "observed_at": "2026-10-04T16:22:51.201752+00:00",
+        "hub_revision": "edd7659c637bebb75193b320009486b11ec9c602",
+        "observed_at": "2026-11-18T05:39:46.317023+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-formulas?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2780,10 +3293,10 @@
       "id": "SZLHOLDINGS/szl-governed-norm",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "5c9e0f21678cdcedba36cb045137a3e096008e06cda5d0d530c8b3a96c477cfa",
+        "capture_sha256": "b803ea37e0fb94172a2dffd94c0ff969ac69ac51d5eb15c7749b4a8cb9bf638a",
         "error": null,
-        "hub_revision": "5abbd073ff159385be1f4e51c9fee4613cf52513",
-        "observed_at": "2026-10-04T16:22:51.245551+00:00",
+        "hub_revision": "d2b7cb8fc23bc0fbdce7775c9495070c41ab36fe",
+        "observed_at": "2026-11-18T05:39:46.275681+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-governed-norm?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2822,10 +3335,10 @@
       "id": "SZLHOLDINGS/szl-govsign",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "b766529af64ca89d881112c354af579c99ff0a2642d482ddf3f490ae25bad8bc",
+        "capture_sha256": "606cc95042c306390cb813da89a7177a6bf5bc33b1f1feee532093f956f01142",
         "error": null,
-        "hub_revision": "52576849d074aa7d251219241fe12888b02f1edd",
-        "observed_at": "2026-10-04T16:22:51.205405+00:00",
+        "hub_revision": "5f7982b031ad96bcab043f8070a09478e3295292",
+        "observed_at": "2026-11-18T05:39:46.369915+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-govsign?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2849,10 +3362,10 @@
       "id": "SZLHOLDINGS/szl-invariants",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "95c5eafcf7839ddd0e8ffc5c795aa73e3c4d171d7a848db1b1a3a85bca007b4a",
+        "capture_sha256": "0854615ba3f34142ede2a575789b30ee5cc0707a7f09ed9a4c48b0b69ffe9203",
         "error": null,
-        "hub_revision": "acfc77fbd3da15bb2a7957f11b3a9c8d81bf4a2c",
-        "observed_at": "2026-10-04T16:22:55.220875+00:00",
+        "hub_revision": "c337a6ae566535baac95c4dd23f441b0372bda19",
+        "observed_at": "2026-11-18T05:39:46.441510+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-invariants?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2876,10 +3389,10 @@
       "id": "SZLHOLDINGS/szl-kernels",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "91d8dc993c04780d0fdb13a78276e4ca37f60900cd5326473316dc9806191081",
+        "capture_sha256": "4217e985a994b404eb9d39fb6d9c24eacec99e204d742fdc71798540116e4a47",
         "error": null,
-        "hub_revision": "72df0342e34a1f198dd9c428cca072e9b1389ccd",
-        "observed_at": "2026-10-04T16:22:55.201332+00:00",
+        "hub_revision": "7f16c6f7abf3b5cf7bc6ceba17a3fef98e5cbce2",
+        "observed_at": "2026-11-18T05:39:46.509822+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-kernels?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2918,10 +3431,10 @@
       "id": "SZLHOLDINGS/szl-khipu",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "d7919e72542a49ce35c3076c55ac337daacf169b3e0c8e84970fc68652f40e5b",
+        "capture_sha256": "bfa6f35c6c529f2d5886063001ecb85f48cf0387d9b1dc7a042beb2fd06454d7",
         "error": null,
-        "hub_revision": "ee635354cb0b3d71965b17a227a374e40071e110",
-        "observed_at": "2026-10-04T16:22:55.224015+00:00",
+        "hub_revision": "c4031086bd7472e5266df03cf0fbfaeae283b3e7",
+        "observed_at": "2026-11-18T05:39:46.501285+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-khipu?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2945,10 +3458,10 @@
       "id": "SZLHOLDINGS/szl-lambda-gate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "9d6d8f9c2ec0147aa8f32d302b8987bd868954cbad9ed9879d8dcf0bb75434d0",
+        "capture_sha256": "a6dfafb69565dec147e3c89a5988b57d21608cc80bc4d32694c8382c13c69be5",
         "error": null,
-        "hub_revision": "f0c518b22f488e9f008deed27765c9fced32001e",
-        "observed_at": "2026-10-04T16:22:58.878108+00:00",
+        "hub_revision": "613c4a3e28c72c182399b888ffca6693fab3dc8e",
+        "observed_at": "2026-11-18T05:39:46.606061+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-lambda-gate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -2972,10 +3485,10 @@
       "id": "SZLHOLDINGS/szl-nemo",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "1e02e7361a979f8c3e02cc677b9d14d5553151a8cd035de67ba1c20e507222fd",
+        "capture_sha256": "733ec74eec8af2baf4e328be9b7d28e4d61c1e8d8f3785517a3d5f3aa878d483",
         "error": null,
-        "hub_revision": "8ba68dcf72f0b9e40c8114e5dd4e341aa7fac7b7",
-        "observed_at": "2026-10-04T16:22:58.852850+00:00",
+        "hub_revision": "130cce3ae8c7a047b065749c2604aa37e751c041",
+        "observed_at": "2026-11-18T05:39:46.700974+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-nemo?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3014,10 +3527,10 @@
       "id": "SZLHOLDINGS/szl-ouroboros",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "e07619c720012d2fce04e6ec121c7d08d9be04eabdb97770f54dacd80fc88ec7",
+        "capture_sha256": "3caa14605bdaae3f376b27239e6961b410cac6e8a0357b6e77a3cd8d757e1a18",
         "error": null,
-        "hub_revision": "ea49dcae37ea15e155b77f837f21a668871c6673",
-        "observed_at": "2026-10-04T16:22:58.889873+00:00",
+        "hub_revision": "88f23c6dcaef96636dafa6b3505fe2736369c324",
+        "observed_at": "2026-11-18T05:39:46.747660+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-ouroboros?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3041,10 +3554,10 @@
       "id": "SZLHOLDINGS/szl-provctl",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "ab6a764bd405a753d4b2645a9ed152ae77639abe9802cb6f906cd250db7e299a",
+        "capture_sha256": "22e4a5a9c284b16ad6002054bca0aa26baabe02c5e99da5422b24bc9206069d2",
         "error": null,
-        "hub_revision": "4e688726df8de19f2eafd1382d448fdf37e475d0",
-        "observed_at": "2026-10-04T16:23:02.831254+00:00",
+        "hub_revision": "f348b17f8baf33f086513d640a2abcf3dda9de91",
+        "observed_at": "2026-11-18T05:39:46.738902+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-provctl?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3068,10 +3581,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-0.8b-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "3b492ea28b4681528ce40703168bc00cc1d6a5f49aa61f036f1fc7424b3e9cde",
+        "capture_sha256": "7dd87fa9911e25dbe29af4f05f2fbc6393ffdf4c64b4b3dfafa01295aab232d0",
         "error": null,
-        "hub_revision": "27a3cedc675f5d4cc7498bd04c6a48b6e40d5775",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "e9b35aadc1fd0e4fed72d406b46387bc10c61b6e",
+        "observed_at": "2026-11-18T05:39:46.756282+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-0.8b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3095,10 +3608,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "7f6b1d09d91e6c8d72ee98e856f20487ba9ce8521d03adea0206033e83b09ae6",
+        "capture_sha256": "2727de7da59479bca6387d3b1a6e4be7eebc9fac0c5fdfe73fb1e503f01fc0dc",
         "error": null,
-        "hub_revision": "b2ec04727f46314b680ee26366159243924c1f67",
-        "observed_at": "2026-11-07T10:52:23.837753+00:00",
+        "hub_revision": "ee54feb8c1d98c0c1964a96b24906a3d5d31fd06",
+        "observed_at": "2026-11-18T05:39:47.055954+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen25-1.5b-experimental-20261104?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3122,10 +3635,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "bbd1ac6949406c32a82e7db4b3e1ab2843d4e56039a7a2f5fa95e7b167e571a4",
+        "capture_sha256": "77816dbc68870d10fb599ef75366dd3664202585755e560e4918773f648d4c44",
         "error": null,
-        "hub_revision": "51319f2213cb9dc1cc1a498967ccbd37117fe740",
-        "observed_at": "2026-11-15T06:19:56.987228+00:00",
+        "hub_revision": "9d0a72f25bde5848e0a7bab49481a32d5d93d3a7",
+        "observed_at": "2026-11-18T05:39:46.997631+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3149,10 +3662,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "8a92699c0d3906ab47a1f11fa2b0c485b1fbec15774923c84351cd01d4205609",
+        "capture_sha256": "87f25d041ebadfb509bd2e45aad9fe1ec603ff4610c3df7f0d18286ad54a2aac",
         "error": null,
-        "hub_revision": "119fb1c68ee5a83d0f09d5649e78d432ea4c7eab",
-        "observed_at": "2026-11-15T06:19:57.123559+00:00",
+        "hub_revision": "e3b157365473c4022e14ee6fcd27e9b67467cd47",
+        "observed_at": "2026-11-18T05:39:47.056494+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-dpo-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3176,10 +3689,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "709ce52e6c58b16cfc7caefe693fb3244d80bbfadc3b656b51f32316c8470901",
+        "capture_sha256": "27999a188251569ae326c93b2a31c069a7818a0ba2b914c40b130b08b43224ee",
         "error": null,
-        "hub_revision": "376a55e6120673d5404a3c7d48a5540a4d7b97b5",
-        "observed_at": "2026-11-15T06:19:57.234261+00:00",
+        "hub_revision": "60d3d5eeff7e1e8505f3df8177d35fada13d79e5",
+        "observed_at": "2026-11-18T05:39:47.047857+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-sft-v3?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3203,10 +3716,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "f557c6ff36358cad50c2abc0351a5653b91534f4339235191b4e57a07c7d1e4c",
+        "capture_sha256": "073ee383402802b4c8a5568e2d50a6fa12234abd527a467044c999d06508118f",
         "error": null,
-        "hub_revision": "fcb1f08c3925daeabcdca4c90c637a775a8ea7ca",
-        "observed_at": "2026-10-04T16:23:02.788763+00:00",
+        "hub_revision": "6841fd4748ccdf0547c9834fb942dbaab10be80b",
+        "observed_at": "2026-11-18T05:39:47.237432+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3230,10 +3743,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "979a5c298afe5acb10882753c8e634dbf9d6afa3a7eae2b21bc2b555c7cc70a2",
+        "capture_sha256": "ab00751f6959a22fb56304f2b8ef45a60a42c91fa8df1bef0387fc5b59582c5e",
         "error": null,
-        "hub_revision": "97809211c5470d1abb9dddb1d4ccba21fa94c0f0",
-        "observed_at": "2026-11-15T05:17:56.076228+00:00",
+        "hub_revision": "0851106ef0204f6d256abaf9e1539c7a5742d7dd",
+        "observed_at": "2026-11-18T05:39:47.310507+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3257,10 +3770,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "866d8b041efd7ee30e64656b585b5326b34444a72901528c5c26cfad91924b96",
+        "capture_sha256": "9c92c9846e238dcffcb881f213ea9e7c95ed8fcf9bad4db2211855418c2d52b7",
         "error": null,
-        "hub_revision": "fe55644363dd1e794a14fe5438903dd626726b4f",
-        "observed_at": "2026-11-15T06:19:57.340482+00:00",
+        "hub_revision": "19f86aec2a65eb549d464615cffce9cb049d5c33",
+        "observed_at": "2026-11-18T05:39:47.311508+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3299,10 +3812,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "8cecdeafdd79e2e0c9be809a574475de10f8cee9c2d1fefd18db1cf9698d3bc3",
+        "capture_sha256": "dd82a7679c94e8632fa966cfa34c442e152b440eed311ff8956aba6b1ecd0ea2",
         "error": null,
-        "hub_revision": "f68bb5cf1e51cbdbaf7a929ed140af81421138fa",
-        "observed_at": "2026-11-15T05:17:56.273454+00:00",
+        "hub_revision": "64cfc66fd0bc4c18a4d73ad137a9909757ad1ed6",
+        "observed_at": "2026-11-18T05:39:47.414353+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3326,10 +3839,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "499e87ba5e65dd59a8d4ee23f82db477b3a28878501f73ccdd1ed95f13794da3",
+        "capture_sha256": "da1d8b3ba2a77713baa403781820d9baaa7b3cc43248c791b6f41ed325c2e741",
         "error": null,
-        "hub_revision": "ad7833f225c28771b52c34351cebb1b9a95689dc",
-        "observed_at": "2026-11-15T05:17:56.476524+00:00",
+        "hub_revision": "aa3e937e991af2513f9f77f28aeab4f220622785",
+        "observed_at": "2026-11-18T05:39:47.509295+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2m-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3353,10 +3866,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "ead0bd68d566ed3c793051d289ede53d6c2b89036088d0e9b309adef4dd5773f",
+        "capture_sha256": "74f0960fe4bb6f1ec9a0bd74a48cefb480a1e1ead6746e493f408fb5522d1080",
         "error": null,
-        "hub_revision": "d674c37cae7127021ba36820ea7a6774cec06255",
-        "observed_at": "2026-10-04T16:23:06.687420+00:00",
+        "hub_revision": "1832170755896e102488d898abf18e9d548bef64",
+        "observed_at": "2026-11-18T05:39:47.556129+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3395,10 +3908,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "cf5a5d8e55beed1a881b358c31149e13d1e26af460099145d80c53c85de39350",
+        "capture_sha256": "9a09249d0b5377d291502b126fb8d9dee43119d933c05ececc0749b4c2618b77",
         "error": null,
-        "hub_revision": "5d33565030f04ac1bf0b2fdb012b90f238cc5dc0",
-        "observed_at": "2026-11-15T05:17:56.723750+00:00",
+        "hub_revision": "6da2c566ff46678d00feb9797349cc3f79c11dbc",
+        "observed_at": "2026-11-18T05:39:47.556129+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3422,10 +3935,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "57c5f64e17c8401445d97b4b82b9dfc6fae450a9f480270e845df425e5c4b6c1",
+        "capture_sha256": "fec262007d17093f0292048994f869505e64051e81848b699da8ccbd5fd6225a",
         "error": null,
-        "hub_revision": "7ce8a2303b97b490f33c8b22da013868b4863ef0",
-        "observed_at": "2026-11-15T05:17:56.900564+00:00",
+        "hub_revision": "e649b96a3a3cd771235d01f313edd36ef0f5b2ca",
+        "observed_at": "2026-11-18T05:39:47.658091+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3449,10 +3962,10 @@
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "737386545d054c60e448332808abfaba08bea1c7ae7fa138f864b45cd9f8a564",
+        "capture_sha256": "8aa48bf03a99561d6709f8aed2659b0449764309695cbaebdf009618e1e1f064",
         "error": null,
-        "hub_revision": "033108dd8a6a0205995216d3849387fcc3ec36d1",
-        "observed_at": "2026-11-15T05:17:57.149059+00:00",
+        "hub_revision": "a96f8a74be390738cd1ec922ca239ec3ac6f7a6f",
+        "observed_at": "2026-11-18T05:39:47.738961+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3476,10 +3989,10 @@
       "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "0f699e5176db47566d4839282ec6f41f76f83d9cecec345c2d20b7264fb6416a",
+        "capture_sha256": "9c5d4c1e6ba889fcf0e75fe2bc948adb8c25c58b0e0335e2197f52265c501088",
         "error": null,
-        "hub_revision": "94391aef62614a5ec48eb2adeaf1ac4dd24bbfed",
-        "observed_at": "2026-11-15T06:19:57.477658+00:00",
+        "hub_revision": "e191493995bb3ded53fbcbd508ce56a42d35e553",
+        "observed_at": "2026-11-18T05:39:47.813681+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3503,10 +4016,10 @@
       "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "5ecd24f5844514138c7c30e58926bd0ebe47ec49db93054be28069f150737a64",
+        "capture_sha256": "2a46bb31ea7b2d72450339098b9502b926d06601f4e2b10c5f1e1976cce95db0",
         "error": null,
-        "hub_revision": "17592f5fff6ee1119986af297dc16b745ed2b4c5",
-        "observed_at": "2026-11-15T05:17:57.407332+00:00",
+        "hub_revision": "61b9b7ee810973e1a060956bd3dd6d40cbd98544",
+        "observed_at": "2026-11-18T05:39:47.809681+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3530,10 +4043,10 @@
       "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5-laptop-lora",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "50e6f12f23663fd49854a3536e078cae4cd801db1f05788e08aaa734ebaada89",
+        "capture_sha256": "13df9b1ac48a225cea13add158b973f359102b2c2a53c24a6243e4cf1f47056b",
         "error": null,
-        "hub_revision": "31b32c70a3f52a63c9446b8fd885f8e1023c01ec",
-        "observed_at": "2026-11-15T06:19:57.593434+00:00",
+        "hub_revision": "2b92afee75c37f1d209caad258e53cda3e6d091d",
+        "observed_at": "2026-11-18T05:39:47.869879+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5-laptop-lora?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3557,10 +4070,10 @@
       "id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "6d2876379878a6d224a77f300b77facc54cd862463b656b59cc9918eb61413f5",
+        "capture_sha256": "63eb750838d533b4da1199194b880f4eee79bc58a199e5ca2385b3c8e4eb077d",
         "error": null,
-        "hub_revision": "e821e660b5940cd988307bba4b5c9a29a09605ec",
-        "observed_at": "2026-11-07T10:52:24.056321+00:00",
+        "hub_revision": "a36ddfa63b26ade1858af78b1ea942fba07b05b6",
+        "observed_at": "2026-11-18T05:39:47.958091+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/szl1-experimental-estate-sft-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3587,7 +4100,7 @@
         "capture_sha256": "acffb7e6017f4d814a228ac11515d14f64328713393d22361691c39446ad5f3d",
         "error": null,
         "hub_revision": "fff3d37ed54fcb631f9fea6ecbecb6c228fa9b12",
-        "observed_at": "2026-11-15T02:41:46.536545+00:00",
+        "observed_at": "2026-11-18T05:39:48.014736+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/tinku?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3611,10 +4124,10 @@
       "id": "SZLHOLDINGS/triage-0.8b-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "17fe31734d132088e2d9998eb6572b2668876b8874c1d6c1e62d8e4e10006cc1",
+        "capture_sha256": "551c3f4462d8f6d601743143a020efe4bfac31cc3632dd8b330296e32cf81e59",
         "error": null,
-        "hub_revision": "3519264cb800daed117de76d323a42ffc0445ad6",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "0be7119daa7d1219628006418fec8a48a0f8891b",
+        "observed_at": "2026-11-18T05:39:48.116817+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/triage-0.8b-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3638,10 +4151,10 @@
       "id": "SZLHOLDINGS/triage-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "f390f89466ba7e3bc0530e25d33f98e1cf30067d94b8e1a2dd2893fc025c7686",
+        "capture_sha256": "de6330600496b36248ed380d5d9388526e246df4cac184b24b8628af149656ee",
         "error": null,
-        "hub_revision": "0f8f39a4a7dc894545dddfb8191c64e9bc12e4c6",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "ee4be42003d241e62fb23bd5089a730acfbb33d2",
+        "observed_at": "2026-11-18T05:39:48.006657+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/triage-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3668,7 +4181,7 @@
         "capture_sha256": "cffdecfa44c117ea5d1e69d719fd794a70be9846da49fdd1e425aad2836b8a5d",
         "error": null,
         "hub_revision": "54716cf3e06a4305eb193e93e7f496a3d70bde06",
-        "observed_at": "2026-11-15T02:41:46.609538+00:00",
+        "observed_at": "2026-11-18T05:39:48.224400+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/waman?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3692,10 +4205,10 @@
       "id": "SZLHOLDINGS/willay-r1-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "66bdec688843b2d357c491a192e21ce32fffaa55b805346773679b0304afea7b",
+        "capture_sha256": "0be45dbdf461e714422e4e0d20429ff4a6b4d7d0d09ae78445cfb0e18c7393df",
         "error": null,
-        "hub_revision": "d20c1e70a357787a64bf421d58d9922e20115122",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "a416bf0761b0adec4c32cdaf225531dc8fdfee71",
+        "observed_at": "2026-11-18T05:39:48.224400+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r1-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3719,10 +4232,10 @@
       "id": "SZLHOLDINGS/willay-r2-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "386c7ea432cd0fc4e0c8174c192f5ce9ef982defd91dac749139d2226aa96e61",
+        "capture_sha256": "03e1b74684f1420b0e3bcba9790c66031611526ca4b97b77c0093ef4a079adba",
         "error": null,
-        "hub_revision": "431733451c8ddc5e90c14d814aa4578f92715cd3",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "9e2fd5f59fbf01baefd9706c057cf89f57a862ed",
+        "observed_at": "2026-11-18T05:39:48.237916+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-r2-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
@@ -3746,10 +4259,10 @@
       "id": "SZLHOLDINGS/willay-v2-trained",
       "inference": {
         "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
-        "capture_sha256": "809c8f7c10c1a4a26a0d6f775f816ffc3a18f133d11c7c64c37b1f0026e57de3",
+        "capture_sha256": "fb5194ca935ea527fc7219645fb18886558d0ef8ff876d7da992aad50fc93520",
         "error": null,
-        "hub_revision": "bf80c8b7bddbe1efda54ba85885fc61a5f67745a",
-        "observed_at": "2026-11-14T17:53:53.263685+00:00",
+        "hub_revision": "ac45d9ae34b22419f4c7841b320531f6c75b1adf",
+        "observed_at": "2026-11-18T05:39:48.252693+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/willay-v2-trained?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
