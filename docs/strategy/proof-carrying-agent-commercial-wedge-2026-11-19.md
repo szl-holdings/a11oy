@@ -40,21 +40,24 @@ A model can be **TRAINED** and **ARTIFACT_VERIFIED** yet still not be **EVALUATE
 
 | Surface | Observed source-scoped fact | What it does NOT establish |
 | --- | --- | --- |
-| A11oy public API | GET \`https://a-11-oy.com/api/a11oy/healthz\` returned JSON status OK, but \`operational_readiness.ready=false\` on 2026-11-19 20:05 UTC | Full production readiness, paid usage or signed real-world outcomes |
-| Product source | Canonical GitHub \`szl-holdings/a11oy\` main was \`bfb64b3c6bf5a477762540a9685b4fd9524fdf76\` at 19:54 UTC; live public Series A status declared \`9467fa988ff63c919954adbd8e23e930412321b5\` at 20:05 UTC | Exact current-main runtime-source parity; separate Hub and image-byte verification needed |
-| Proof domain | \`https://a11oy.net/record.json\` and \`/public-inventory.json\` returned \`403 cf-mitigated:challenge\` from one unauthenticated source at 20:05 UTC | Universal unavailability; the specific Cloudflare rule remains unobserved |
-| Training fleet | One project-scoped Salad collection at 20:05 UTC returned 138 groups, 51 named \`szl-train-*\`, and **zero training-named groups with provider-reported running instances** | All-project census, zero billable GPUs, or historical training completeness |
-| Payment | Unpaid HEAD on two inference routes returned HTTP 402 and \`PAYMENT-REQUIRED\` at 20:07 UTC | A signed payment, Coinbase settlement, wallet receipt, customer or ARR |
+| A11oy public API | GET `https://a-11-oy.com/api/a11oy/healthz` returned JSON status OK, but `operational_readiness.ready=false` on 2026-11-19 20:05 UTC | Full production readiness, paid usage or signed real-world outcomes |
+| Product source | Canonical GitHub `szl-holdings/a11oy` main was `bfb64b3c6bf5a477762540a9685b4fd9524fdf76` at 19:54 UTC; live public Series A status declared `9467fa988ff63c919954adbd8e23e930412321b5` at 20:05 UTC | Exact current-main runtime-source parity; separate Hub and image-byte verification needed |
+| Proof domain | `https://a11oy.net/record.json` and `/public-inventory.json` returned `403 cf-mitigated:challenge` from one unauthenticated source at 20:05 UTC | Universal unavailability; the specific Cloudflare rule remains unobserved |
+| Training fleet | One project-scoped Salad collection at 20:05 UTC returned 138 groups, 51 named `szl-train-*`, and **zero training-named groups with provider-reported running instances** | All-project census, zero billable GPUs, or historical training completeness |
+| Payment | Unpaid HEAD on two inference routes returned HTTP 402 and `PAYMENT-REQUIRED` at 20:07 UTC | A signed payment, Coinbase settlement, wallet receipt, customer or ARR |
 | BOM/license registry | The [SZLHOLDINGS/model-bom](https://huggingface.co/datasets/SZLHOLDINGS/model-bom) registry's Sep 25 card admits 44 BOMs covering 49 then-public models, last updated Sep 28. Canonical commercial ledger had asserted full August coverage for 43 public models and 28 datasets. | Up-to-date whole-estate model or dataset-rights coverage at 2026-11-19 |
-| Financials / buyers | Canonical \`COMMERCIAL_LEDGER.yaml\` does not evidence verified signed ARR, current paying-customer counts, accepted pricing, or signed design partners | No revenue has ever existed or will exist; absence of verified evidence is not a zero |
+| Published pricing | Anonymous GET at https://a-11-oy.com/pricing (20:20 UTC) returned HTTP 200 and published Community free, Team USD 2,500/month, Governed Evidence Pilot USD 15,000 flat for 30 days, Enterprise custom; served HTML SHA-256 `279d8c71b7d2e8ca11b5f70a0b037e9dfb957d8739e890168682126a951f7bc5` | Contract, invoice, customer acceptance, retained revenue, or observed sales |
+| Financials / buyers | Canonical `COMMERCIAL_LEDGER.yaml` does not verify signed ARR, current paying-customer count, pricing acceptance, or signed design partners | Missing accounting evidence cannot be replaced by a revenue-zero assertion |
 
 Research sources and dated private operational observations cannot be promoted into signed externally attested proof without independent checks. Some prior company cards carry an older snapshot: **do not silently reconcile differing author, visibility and account scopes into one headline repository count**.
 
-## 14-day design-partner pilot (proposal, not a commitment)
+## Published 30-day governed evidence pilot — proposed buyer acceptance plan
 
 **Week 1:** Select one owner-approved workflow; use read-only data and rights-cleared synthetic negative tests. The buyer provides exact acceptable identities, policy versions, incidents, actions, and evaluation acceptance criteria. Collect one baseline operational audit and a version-pinned artifact list. Define signed receipt roots and the operator's security boundary.
 
-**Week 2:** Deliver an offline-verifiable packet and CLI check, 3 incident/rollback traces, refusal evidence for missing signer, stale deployment, inconsistent transaction result, and a transparent cost/evaluation table. No access to live effectors by default. The buyer—not an SZL self-evaluator—confirms the result and signs an acceptance note.
+**Week 2:** Deliver an offline-verifiable packet and CLI check, three incident/rollback traces, refusal evidence for missing signer, stale deployment and uncertain transactions, and a transparent cost/evaluation table. No access to live effectors by default.
+
+**Weeks 3–4:** Buyer-run replays and adverse tests, procurement/legal review of data boundaries, baseline-versus-observed cycle-time analysis, rollback drill, transparent cost ledger, and written decision. The buyer—not an SZL self-evaluator—confirms acceptance or rejection.
 
 **Pilot success thresholds, to negotiate before execution:**
 1. 100% of injected unauthorized or inconsistent operations blocked by the strict gate in the bounded approved test suite.
@@ -71,7 +74,7 @@ Do not claim SOC 2 certification, cryptographic key custody, accredited verifica
 
 **Discovery milestones (targets, not actuals):** 20 interviews across enterprise AI-platform/FinOps/governance leaders; 6 problem-qualified buyer calls; 2 rights-cleared paid-pilot proposals; 1 buyer-signed repeatable success criterion; zero unsupported performance claims. Capture evidence for objection/decision type and procurement authority.
 
-**Price exploration:** fixed-fee pilot plus recurring per-workflow/verified-operation plan are hypotheses. Test willingness to pay in discovery; do not present a suggested amount as the actual published SKU or contracted ARR. Separately qualify wallet-funded x402 usage and enterprise invoices.
+**Pricing truth:** Public launch offers are Community free, Team USD 2,500/month, Governed Evidence Pilot USD 15,000 flat for 30 days, and Enterprise custom/annual. Those are posted offers, not signed contracts, paying customers or booked ARR. Test willingness to pay separately; optional usage/per-workflow pricing is a future hypothesis. Independently verify wallet-funded x402 settlements and any enterprise invoices before commercial promotion.
 
 **Funding claim:** "unicorn" is a scaling aspiration, **not** a valuation. Do not infer investability from repo/model counts or academic formulas. Raise-readiness requires current contracts, collection/retention evidence, audited cash/burn, attribution, IP assignment and a credible growing customer cohort.
 
