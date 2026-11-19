@@ -11,6 +11,7 @@ the script fails closed whenever Chromium cannot be shown to work.
 """
 
 import os
+import re
 import stat
 import subprocess
 import textwrap
@@ -70,7 +71,10 @@ def rig(tmp_path):
         fi
         exit 0
     """)
-    _exe(bin_dir / "sudo", 'exec "$@"\n')
+    _exe(bin_dir / "sudo", f'echo "sudo $*" >> "{state}/sudo.log"\nexec "$@"\n')
+    # Pretend to be the unprivileged runner user so the sudo path is exercised.
+    _exe(bin_dir / "id", '[ "$1" = -u ] && { echo "${FAKE_UID:-1001}"; exit 0; }\nexec /usr/bin/id "$@"\n')
+    _exe(bin_dir / "timeout", f'echo "timeout $*" >> "{state}/timeout.log"\nexec /usr/bin/timeout "$@"\n')
     _exe(bin_dir / "ldd", """
         echo "  libc.so.6 => /lib/libc.so.6"
         [ -n "${MISSING_LIB:-}" ] && echo "  libnss3.so => not found"
@@ -85,7 +89,7 @@ def rig(tmp_path):
 
     def run(*, installed=(), **env):
         (state / "installed").write_text("".join(f"{p}\n" for p in installed))
-        for log in ("pw.log", "apt.log"):
+        for log in ("pw.log", "apt.log", "sudo.log", "timeout.log"):
             (state / log).unlink(missing_ok=True)
         merged = {
             "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
@@ -96,13 +100,14 @@ def rig(tmp_path):
             **{k: str(v) for k, v in env.items()},
         }
         done = subprocess.run(["bash", str(SCRIPT), str(bin_dir / "pw")], env=merged,
-                              capture_output=True, text=True, timeout=120)
+                              capture_output=True, text=True, timeout=120, cwd=tmp_path)
         apt = (state / "apt.log").read_text() if (state / "apt.log").exists() else ""
         pw = (state / "pw.log").read_text() if (state / "pw.log").exists() else ""
         return done, apt, pw
 
     run.shell = shell
     run.state = state
+    run.log = lambda name: (state / name).read_text() if (state / name).exists() else ""
     return run
 
 
@@ -214,3 +219,14 @@ def test_usage_without_a_cli_is_an_error():
     done = subprocess.run(["bash", str(SCRIPT)], capture_output=True, text=True)
     assert done.returncode == 2
     assert "usage:" in done.stderr
+
+
+def test_apt_timeouts_run_under_sudo_so_they_can_kill_apt(rig):
+    done, _, _ = rig(installed=["libnss3"])
+    assert done.returncode == 0, done.stderr
+    sudo = rig.log("sudo.log").splitlines()
+    assert "sudo timeout --kill-after=15 240 apt-get update" in sudo
+    assert ("sudo timeout --kill-after=15 300 env DEBIAN_FRONTEND=noninteractive "
+            "apt-get install -y --no-install-recommends fonts-wqy-zenhei libgbm1") in sudo
+    wrapped = [l for l in rig.log("timeout.log").splitlines() if re.match(r"timeout( -\S+)* \S+ sudo ", l)]
+    assert wrapped == [], "a timeout outside sudo cannot stop a stalled apt-get"

@@ -39,12 +39,18 @@ if [ "$(id -u)" -ne 0 ]; then
   sudo_cmd=(sudo)
 fi
 
-# retry <label> <seconds per attempt> <command...>
+# Bounded runners. sudo (1.9.15) starts its command in a new session, so a
+# timeout outside sudo kills only sudo and orphans a stalled apt-get, which
+# keeps the apt lock. The root runner therefore puts the timeout under sudo.
+bounded() { local limit="$1"; shift; timeout --kill-after=15 "$limit" "$@"; }
+bounded_root() { local limit="$1"; shift; "${sudo_cmd[@]}" timeout --kill-after=15 "$limit" "$@"; }
+
+# retry <label> <runner> <seconds per attempt> <command...>
 retry() {
-  local label="$1" limit="$2" n
-  shift 2
+  local label="$1" runner="$2" limit="$3" n
+  shift 3
   for n in $(seq 1 "$attempts"); do
-    if timeout --kill-after=15 "$limit" "$@"; then
+    if "$runner" "$limit" "$@"; then
       return 0
     fi
     echo "::warning::$label failed (attempt $n of $attempts)" >&2
@@ -56,7 +62,7 @@ retry() {
   return 1
 }
 
-retry "Chromium download" 300 "${pw[@]}" install chromium
+retry "Chromium download" bounded 300 "${pw[@]}" install chromium
 
 harden_apt() {
   printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
@@ -96,9 +102,9 @@ elif [ -n "$packages" ]; then
   else
     echo "Installing $(printf '%s\n' $missing | wc -l) of $total OS packages: $(echo $missing)"
     harden_apt
-    retry "apt-get update" 240 "${sudo_cmd[@]}" apt-get update
+    retry "apt-get update" bounded_root 240 apt-get update
     # shellcheck disable=SC2086 # one argument per package name
-    retry "apt-get install" 300 "${sudo_cmd[@]}" env DEBIAN_FRONTEND=noninteractive \
+    retry "apt-get install" bounded_root 300 env DEBIAN_FRONTEND=noninteractive \
       apt-get install -y --no-install-recommends $missing
     missing="$(missing_packages)"
     if [ -n "$missing" ]; then
@@ -108,10 +114,12 @@ elif [ -n "$packages" ]; then
   fi
 else
   # Unreadable plan: fall back to Playwright's own installer, never worse than
-  # --with-deps, still with hardened apt and bounded attempts.
+  # --with-deps, still with hardened apt and bounded attempts. Playwright runs
+  # its own sudo here, so a stalled apt inside it is bounded by the job's
+  # timeout-minutes rather than by this timeout.
   echo "::warning::could not read Chromium's OS package plan (exit $plan_rc): $plan" >&2
   harden_apt
-  retry "playwright install-deps" 600 "${pw[@]}" install-deps chromium
+  retry "playwright install-deps" bounded 600 "${pw[@]}" install-deps chromium
 fi
 
 browsers="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
