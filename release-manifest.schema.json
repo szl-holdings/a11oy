@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/szl-holdings/a11oy/raw/main/release-manifest.schema.json",
+  "title": "SZL Release Manifest (issue #3770)",
+  "description": "One manifest binding source identity to runtime build evidence. Values are measured or honestly UNKNOWN; never hardcoded. A committed placeholder with status PLACEHOLDER_UNTIL_CI_GENERATED keeps constrained builds booting and the gate blocked.",
+  "type": "object",
+  "required": ["kind", "status", "release_id", "generated_at", "source", "runtime"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {"const": "szl.release-manifest/v1"},
+    "status": {"enum": ["GENERATED", "PLACEHOLDER_UNTIL_CI_GENERATED"]},
+    "release_id": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "minLength": 1},
+    "source": {
+      "type": "object",
+      "required": ["git_commit", "git_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "git_commit": {"type": "string", "minLength": 1},
+        "git_ref": {"type": "string", "minLength": 1}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["served_frontend_sha256", "api_contract_sha256", "model_identity", "deployment_identity"],
+      "additionalProperties": false,
+      "properties": {
+        "served_frontend_sha256": {"type": "string", "minLength": 1},
+        "api_contract_sha256": {"type": "string", "minLength": 1},
+        "model_identity": {"type": "string", "minLength": 1},
+        "deployment_identity": {"type": "string", "minLength": 1}
+      }
+    },
+    "api_contract_source": {"type": "string", "minLength": 1},
+    "honesty": {
+      "type": "object",
+      "required": ["never_hardcoded", "missing_values_stay_unknown"],
+      "properties": {
+        "never_hardcoded": {"const": true},
+        "missing_values_stay_unknown": {"const": true}
+      }
+    }
+  }
+}
