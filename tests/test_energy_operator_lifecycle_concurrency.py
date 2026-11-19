@@ -259,9 +259,9 @@ def test_existing_operator_gate_still_precedes_control_handlers(op, monkeypatch,
     calls = []
     original = getattr(op, action)
 
-    def counted():
+    def counted(*args, **kwargs):
         calls.append(action)
-        return original()
+        return original(*args, **kwargs)
 
     monkeypatch.setattr(op, action, counted)
     auth.install_gate(app)

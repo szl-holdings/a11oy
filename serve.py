@@ -1368,6 +1368,17 @@ try:
 except Exception as _szl_wire_e:  # pragma: no cover
     print(f"[a11oy] Energy operator->ledger NOT wired: {_szl_wire_e!r}", file=__import__("sys").stderr)
 
+# Energy operator -> provenance chain: each completed job becomes a hash-bound v2 entry,
+# MEASURED only when a verified NVML counter window bracketed it. This is the chain's
+# only production writer; a read never appends. Wired before the boot autostart.
+try:
+    import szl_energy_operator as _szl_eo_prov
+    import szl_energy_provenance as _szl_ep_prov
+    _prov_wire_report = _szl_ep_prov.wire_operator_to_provenance(_szl_eo_prov.get_operator())
+    print(f"[a11oy] Energy operator->provenance wired: {_prov_wire_report}", file=__import__("sys").stderr)
+except Exception as _szl_prov_wire_e:  # pragma: no cover
+    print(f"[a11oy] Energy operator->provenance NOT wired: {_szl_prov_wire_e!r}", file=__import__("sys").stderr)
+
 # -- Energy PROJECTION (honest measured-rate 1-day + scale projection) -- REGRESSION RESTORE.
 # Route /api/a11oy/v1/energy/projection?window=running is the projection surface the
 # /energy tab consumes. Its registration was dropped during a serve.py mesh refactor
@@ -5262,6 +5273,11 @@ async def startup() -> None:
         import szl_energy_operator as _szl_eo_autostart
         _eo_report = _szl_eo_autostart.autostart_if_lung_reachable()
         print(f"[a11oy] Energy operator autostart: {_eo_report}", file=sys.stderr)
+        # A lung that answers only after boot is picked up by the same lung-gated
+        # start on a bounded retry (A11OY_ENERGY_AUTOSTART_RETRY_S, default 300 s;
+        # 0 disables). It never overrides an operator's explicit stop.
+        _eo_retry = _szl_eo_autostart.start_autostart_watchdog()
+        print(f"[a11oy] Energy operator autostart retry: {_eo_retry}", file=sys.stderr)
     except Exception as _eo_as_e:  # pragma: no cover
         print(f"[a11oy] Energy operator autostart skipped: {_eo_as_e!r}", file=sys.stderr)
 
@@ -5277,6 +5293,23 @@ async def shutdown() -> None:
         except Exception as _eval_stop_error:
             print(
                 f"[a11oy] eval-arena autorun stop failed honestly: {_eval_stop_error!r}",
+                file=sys.stderr,
+            )
+        try:
+            # Stop the energy autostart retry started at boot. A retry still
+            # probing a lung finishes that probe but cannot start the loop on its
+            # own. It can only exist if startup loaded the module, so never import.
+            _szl_eo_shutdown = sys.modules.get("szl_energy_operator")
+            if _szl_eo_shutdown is not None:
+                if not await asyncio.to_thread(_szl_eo_shutdown.stop_autostart_watchdog):
+                    print(
+                        "[a11oy] energy autostart retry did not finish within the "
+                        "stop timeout; it is cancelled and cannot begin a new start",
+                        file=sys.stderr,
+                    )
+        except Exception as _eo_stop_error:
+            print(
+                f"[a11oy] energy autostart retry stop failed honestly: {_eo_stop_error!r}",
                 file=sys.stderr,
             )
         if _node_proc:
