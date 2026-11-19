@@ -21,7 +21,7 @@ function keys() {
   return generateKeyPairSync("ec", { namedCurve: "P-256" });
 }
 
-test("base58btc: known vectors and round trips (leading zero bytes become '1')", () => {
+test("base58btc: known vectors and round trips (zero-valued prefix bytes become '1')", () => {
   assert.equal(base58btcEncode(Buffer.from("hello world")), "StV1DL6CwTryKyV");
   assert.equal(base58btcEncode(Buffer.from("Hello World!")), "2NEpo7TZRRrLZSi2U");
   assert.equal(base58btcEncode(Buffer.from([0, 0, 0, 0])), "1111");

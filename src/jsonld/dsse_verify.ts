@@ -10,7 +10,7 @@
  *
  * Spec: https://github.com/secure-systems-lab/dsse/blob/master/protocol.md (v1.0.2)
  *   PAE(type, body) = "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body
- *   LEN = ASCII decimal byte length, no leading zeros.
+ *   LEN = ASCII decimal byte length, no zero-padding (no extra zero digits at the front).
  *
  * Verification rules implemented (protocol.md "Protocol" and "Multi-signature
  * Verification"):
