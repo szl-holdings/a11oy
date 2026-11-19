@@ -36,6 +36,12 @@ signer, credential, persistence layer, scheduler, or effector.
 measurements and separately observed current-process distribution metadata. It
 confers no model, provider, training, deployment or billable-job authority.
 
+`build_receipt` (#3770) is the additive GET/HEAD-only build-identity receipt: the
+read-only `/api/build` endpoint plus the fail-closed release promotion gate over
+the ONE release manifest. It owns no signer, credential, store, scheduler, or
+effector, reads only env + the CI-generated manifest, and reports honestly
+UNKNOWN/UNAVAILABLE states instead of fabricating a build id.
+
 The package top-level name is `routers` (not szl_*/a11oy_*), so it is intentionally
 OUTSIDE the guarded-import-liveness first-party scan — and the files exist anyway.
 
@@ -53,4 +59,5 @@ __all__ = [
     "command_centre",
     "platform_candidate_preview",
     "atelier_grok",
+    "build_receipt",
 ]
