@@ -48,8 +48,8 @@ Dev4 dashboard consume this):
 Endpoints (dual-registered under /api/{ns}/v1/energy/operator/* AND /v1/energy/operator/*):
   POST /energy/operator/start    — press play (idempotent; returns running state)
   POST /energy/operator/stop     — graceful stop (idempotent); holds the loop off until
-                                   the next explicit start, so the autostart retry
-                                   never overrides an operator's stop
+                                   the next explicit start or a process restart, so the
+                                   autostart retry never overrides an operator's stop
   GET  /energy/operator/status   — running?, jobs_done, joules_measured_total,
                                     tokens_total, nodes computing, uptime, degraded nodes
 
@@ -1263,8 +1263,12 @@ class OperatorDaemon:
         with self._lock:
             return self._lifecycle_state(self.is_running())
 
-    def start(self) -> dict:
+    def start(self, *, respect_operator_hold: bool = False) -> dict:
+        """Lung-gated start. With respect_operator_hold, an operator's explicit stop
+        wins even if it lands after the caller's own hold check."""
         with self._lock:
+            if respect_operator_hold and self._operator_hold:
+                return {**self.status(), "started": False, "reason": "operator_stop_requested"}
             if self.lifecycle_state() == "STOPPING":
                 return {**self.status(), "started": False, "reason": "operator_stopping"}
             if self.is_running():
@@ -1285,6 +1289,8 @@ class OperatorDaemon:
             raise
         with self._lock:
             self._starting = False
+            if respect_operator_hold and self._operator_hold:
+                return {**self.status(), "started": False, "reason": "operator_stop_requested"}
             if generation != self._lifecycle_generation or self._stop.is_set():
                 return {**self.status(), "started": False, "reason": "start_cancelled_by_stop"}
             if not reachable:
@@ -2030,7 +2036,7 @@ def autostart_retry_once(op: Optional[OperatorDaemon] = None) -> dict:
     if lifecycle in ("STARTING", "STOPPING"):
         return {"attempted": False, "started": False,
                 "reason": lifecycle.lower(), "running": running}
-    result = op.start()
+    result = op.start(respect_operator_hold=True)
     started = bool(result.get("started"))
     return {"attempted": True, "started": started,
             "reason": "lung_reachable" if started else result.get("reason"),

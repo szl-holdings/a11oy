@@ -116,7 +116,7 @@ _HASHED_FIELDS_V2 = _HASHED_FIELDS + (
 # Retention bound for the process chain the operator feeds. Oldest entries are
 # evicted behind an explicit anchor rather than growing memory without limit.
 MAX_ENTRIES_ENV = "SZL_ENERGY_PROVENANCE_MAX_ENTRIES"
-_MAX_ENTRIES_DEFAULT = 10000
+_MAX_ENTRIES_DEFAULT = 2000  # a public read walks the whole chain once
 _MAX_ENTRIES_CEILING = 1000000
 
 
@@ -165,12 +165,12 @@ def _receipt_hash(entry: dict) -> Optional[str]:
         return None  # a malformed entry can never match its recorded hash
 
 
-def _is_measured_window_entry(entry: dict) -> bool:
+def _claims_measured_window(entry: dict) -> bool:
+    """Field shape only; the caller must also confirm the entry's own hash."""
     return (entry.get("schema") == ENTRY_SCHEMA_V2
             and entry.get("measurement_label") == "MEASURED"
             and entry.get("measurement_scope") == MEASUREMENT_SCOPE_WINDOW
-            and _verified_window(entry.get("window_joules_measured"))
-            and _receipt_hash(entry) == entry.get("receipt_hash"))
+            and _verified_window(entry.get("window_joules_measured")))
 
 
 class EnergyProvenanceChain:
@@ -286,49 +286,44 @@ class EnergyProvenanceChain:
 
     def measured_window_entries(self) -> int:
         """Entries whose own hash binds a MEASURED bounded-window measurement."""
-        with self._lock:
-            return sum(1 for entry in self._chain if _is_measured_window_entry(entry))
+        return len(self._walk()[2])
 
     def _retention(self) -> Optional[dict]:
         if not self._dropped:
             return None
         return {"dropped_entries": self._dropped, "anchor_prev_hash": self._anchor_prev_hash}
 
-    # -- verification -------------------------------------------------------
-    def verify(self) -> dict:
-        """Walk the chain; confirm link integrity AND the Bekenstein gate.
-
-        Returns an honest report: ok True only when EVERY entry (a) hashes to its
-        recorded receipt_hash, (b) links to the prior entry's receipt_hash, and
-        (c) passed the Bekenstein gate (within_bound True). The first failure is
-        reported with its index + reason; later entries are still scanned for a
-        full gate tally so the report is complete.
-        """
+    def _walk(self) -> tuple:
+        """One hashing pass over a consistent snapshot: (verify report, entries,
+        entries whose own hash binds a MEASURED bounded window)."""
         with self._lock:
             chain = list(self._chain)
             prev_hash = self._anchor_prev_hash
             retention = self._retention()
-        n = len(chain)
         first_break: dict | None = None
         gate_failures: list[int] = []
+        measured: list[dict] = []
 
         for i, entry in enumerate(chain):
             recomputed = _receipt_hash(entry)
-            if recomputed is None or recomputed != entry.get("receipt_hash"):
+            intact = recomputed is not None and recomputed == entry.get("receipt_hash")
+            if not intact:
                 if first_break is None:
                     first_break = {"index": i, "reason": "receipt_hash mismatch (entry content tampered)"}
             elif entry.get("prev_hash") != prev_hash:
                 if first_break is None:
                     first_break = {"index": i, "reason": "broken link (prev_hash != prior receipt_hash)"}
+            if intact and _claims_measured_window(entry):
+                measured.append(entry)
             if entry.get("within_bound") is not True:
                 gate_failures.append(i)
             prev_hash = entry.get("receipt_hash")
 
         links_ok = first_break is None
         gate_ok = len(gate_failures) == 0
-        return {
+        report = {
             "ok": bool(links_ok and gate_ok),
-            "length": n,
+            "length": len(chain),
             "links_intact": links_ok,
             "bekenstein_gate_all_pass": gate_ok,
             "head_hash": chain[-1]["receipt_hash"] if chain else "",
@@ -340,16 +335,26 @@ class EnergyProvenanceChain:
                         "within_bound True"),
             "verified_at": _now(),
         }
+        return report, chain, measured
+
+    # -- verification -------------------------------------------------------
+    def verify(self) -> dict:
+        """Walk the chain; confirm link integrity AND the Bekenstein gate.
+
+        Returns an honest report: ok True only when EVERY entry (a) hashes to its
+        recorded receipt_hash, (b) links to the prior entry's receipt_hash, and
+        (c) passed the Bekenstein gate (within_bound True). The first failure is
+        reported with its index + reason; later entries are still scanned for a
+        full gate tally so the report is complete.
+        """
+        return self._walk()[0]
 
     def summary(self) -> dict:
         """Honest chain summary for the read endpoint: head + verify status + doctrine."""
-        with self._lock:
-            v = self.verify()
-            chain = list(self._chain)
-            retention = self._retention() or {"dropped_entries": 0, "anchor_prev_hash": ""}
+        v, chain, measured = self._walk()
+        retention = v["retention_anchor"] or {"dropped_entries": 0, "anchor_prev_hash": ""}
         head = chain[-1] if chain else None
         total_joules = round(sum(e["joules_est"] for e in chain), 6)
-        measured = [e for e in chain if _is_measured_window_entry(e)]
         v2_count = sum(1 for e in chain if e.get("schema") == ENTRY_SCHEMA_V2)
         return {
             "model": "Proven Energy Engine — tamper-evident energy provenance chain",

@@ -244,7 +244,8 @@ port or credential is reported.
 gate needs `A11OY_MODEL_CF_ACCESS_ORIGIN` plus the client id/secret pair (`szl_model_access`);
 `auth_refused` needs the matching `A11OY_GPU_TOKEN`. Once a probe answers, the autostart retry
 (`A11OY_ENERGY_AUTOSTART_RETRY_S`, default 300 s, `0` disables) starts the loop without a
-restart. An operator's explicit `POST /energy/operator/stop` holds it off until the next start.
+restart. An operator's explicit `POST /energy/operator/stop` holds it off until the next
+explicit start or a process restart (the boot autostart does not inherit the hold).
 
 **Readiness scope:** the tile needs a job bracketed by a verified NVML counter window, which
 also requires the joule meter (`A11OY_JOULE_METER_URL`, HMAC via `SZL_METER_HMAC_TARGETS`) to

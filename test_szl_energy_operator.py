@@ -1346,6 +1346,36 @@ def test_autostart_retry_never_overrides_an_operator_stop(monkeypatch):
             op.stop()
 
 
+def test_autostart_retry_cannot_start_after_a_racing_operator_stop(monkeypatch):
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: True)
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        op.operator_stop()
+        # The retry read the hold just before an operator's stop landed.
+        monkeypatch.setattr(op, "operator_hold_active", lambda: False)
+        result = OP.autostart_retry_once(op)
+        assert result == {"attempted": True, "started": False,
+                          "reason": "operator_stop_requested", "running": False}, result
+        assert op.is_running() is False
+
+
+def test_operator_stop_during_the_retry_probe_wins(monkeypatch):
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+
+        def stop_while_probing(*_args, **_kwargs):
+            op.operator_stop()
+            return True
+
+        monkeypatch.setattr(OP, "_http_reachable", stop_while_probing)
+        result = OP.autostart_retry_once(op)
+        assert result["started"] is False, result
+        assert op.is_running() is False
+        assert op.operator_hold_active() is True
+
+
 def test_operator_start_clears_the_hold_even_without_a_lung(monkeypatch):
     monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: False)
     with tempfile.TemporaryDirectory() as d:

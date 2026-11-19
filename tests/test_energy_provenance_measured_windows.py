@@ -146,7 +146,7 @@ def test_retention_keeps_a_verifiable_anchored_suffix():
 
 
 @pytest.mark.parametrize("raw,expected", [
-    ("", 10000), ("abc", 10000), ("0", 10000), ("-4", 10000), ("250", 250),
+    ("", 2000), ("abc", 2000), ("0", 2000), ("-4", 2000), ("250", 250),
     ("5000000", 1000000),
 ])
 def test_retention_bound_configuration(monkeypatch, raw, expected):
