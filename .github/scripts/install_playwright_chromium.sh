@@ -83,7 +83,12 @@ if [ "$plan_rc" -eq 0 ] && [ -z "$packages" ] \
   && [[ "$plan" == *"All system dependencies are installed"* ]]; then
   # Newer Playwright checks the libraries itself and prints no package list.
   echo "Playwright reports every OS dependency installed; apt was not used."
-elif [ "$plan_rc" -eq 0 ] && [ -n "$packages" ]; then
+elif [ -n "$packages" ]; then
+  # A package list is usable even if the dry-run exited non-zero
+  # (Playwright 1.62 does so when dependencies are missing).
+  if [ "$plan_rc" -ne 0 ]; then
+    echo "Playwright's dry-run exited $plan_rc but listed its packages; using that list."
+  fi
   total="$(printf '%s\n' $packages | wc -l)"
   missing="$(missing_packages)"
   if [ -z "$missing" ]; then

@@ -44,6 +44,7 @@ def rig(tmp_path):
         if [ "$1" = install-deps ] && [ "$2" = --dry-run ]; then
           [ -n "${{EMPTY_PLAN:-}}" ] && {{ echo "nothing to do"; exit 0; }}
           [ -n "${{PLAN_FAILS:-}}" ] && {{ echo "ERROR: host not supported"; exit 1; }}
+          [ -n "${{PLAN_LISTS_AND_FAILS:-}}" ] && {{ echo 'sh -c "apt-get update&& apt-get install -y --no-install-recommends {' '.join(PACKAGES)}"'; exit 1; }}
           [ -n "${{SELF_CHECKED:-}}" ] && {{ echo "All system dependencies are installed."; exit 0; }}
           echo 'sh -c "apt-get update&& apt-get install -y --no-install-recommends {' '.join(PACKAGES)}"'
           exit 0
@@ -169,6 +170,15 @@ def test_unreadable_plan_falls_back_to_playwrights_installer(rig, env):
     assert pw.count("install-deps chromium\n") == 1
     assert apt == ""
     assert 'Acquire::Retries "5";' in (rig.state / "apt.conf").read_text()
+
+
+def test_listed_packages_are_used_even_if_the_dry_run_exits_non_zero(rig):
+    done, apt, pw = rig(installed=["libnss3", "libgbm1"], PLAN_LISTS_AND_FAILS=1)
+    assert done.returncode == 0, done.stderr
+    assert "dry-run exited 1 but listed its packages" in done.stdout
+    assert [l for l in apt.splitlines() if l.startswith("apt-get install")] == [
+        "apt-get install -y --no-install-recommends fonts-wqy-zenhei"]
+    assert "install-deps chromium\n" not in pw
 
 
 def test_failed_plan_is_reported_never_swallowed(rig):
