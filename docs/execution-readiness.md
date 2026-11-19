@@ -47,6 +47,17 @@ process. Do not select a nonce or expected identity from an export to make it pa
 An environment approval pause does not guarantee that a running job will refresh
 repository variables, so continuing a paused run is not the supported handoff.
 
+Automatic publication restarts the Space, and every new boot invalidates the
+pinned review context (`HF_IDENTITY_MISMATCH`). While a review is open, set the
+repository variable `A11OY_AUTOMATIC_RELEASE_FREEZE` to `true`. The preflight
+deploy window then holds only the automatic, source-divergent path, before any
+capture or admission, with `PUBLICATION_HELD_AUTOMATIC_RELEASE_FREEZE`. Unset or
+`false` disables the hold; any other value holds (fail closed). A paused Space,
+an explicit `open_deploy_window=true` dispatch and an already current main are
+unchanged. The freeze grants no authority and selects no context; clear it after
+the verification run below. Behaviour is covered by
+`tests/test_hf_automatic_release_freeze.py`.
+
 After the approved execution, manually dispatch the existing `hf-sync.yml` on
 current protected main with `verify_current_deployment=true`. Leave
 `open_deploy_window` and `publish_vertical_flagships` false and `vertical_plan_json`
