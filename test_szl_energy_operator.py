@@ -1537,6 +1537,111 @@ def test_autostart_watchdog_starts_the_loop_once_a_lung_answers(monkeypatch):
             _swap_singleton(prev)
 
 
+def test_stopped_watchdog_cannot_start_the_loop_from_an_in_flight_probe(monkeypatch):
+    # The stop's join can give up while a retry is still probing a lung; the probe
+    # answering afterwards must not start the loop for a lifespan that has ended.
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    entered = threading.Event()
+    release = threading.Event()
+
+    def slow_probe(*_args, **_kwargs):
+        entered.set()
+        release.wait(5)
+        return True
+
+    monkeypatch.setattr(OP, "_http_reachable", slow_probe)
+    assert OP.stop_autostart_watchdog(timeout=2.0) is True
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        prev = _swap_singleton(op)
+        try:
+            assert OP.start_autostart_watchdog(interval_s=0.02)["started"] is True
+            retry_thread = OP._WATCHDOG_THREAD
+            assert entered.wait(5)
+            assert OP.stop_autostart_watchdog(timeout=0.05) is False
+            release.set()
+            retry_thread.join(5)
+            assert not retry_thread.is_alive()
+            assert op.is_running() is False
+        finally:
+            release.set()
+            OP.stop_autostart_watchdog(timeout=2.0)
+            op.stop()
+            _swap_singleton(prev)
+
+
+def test_cancelled_retry_never_probes_or_starts(monkeypatch):
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    probes = []
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: probes.append(1) or True)
+    cancel = threading.Event()
+    cancel.set()
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        result = OP.autostart_retry_once(op, cancel=cancel)
+        assert result == {"attempted": False, "started": False,
+                          "reason": "retry_cancelled", "running": False}, result
+        assert op.start(cancel=cancel)["reason"] == "retry_cancelled"
+        assert probes == [] and op.is_running() is False
+
+
+def test_a_start_that_joined_a_cancelled_retry_still_starts_the_loop(monkeypatch):
+    # An operator start that arrives while a retry probes is told start_in_progress;
+    # cancelling that retry must not silently drop the operator's start.
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    entered = threading.Event()
+    release = threading.Event()
+
+    def slow_probe(*_args, **_kwargs):
+        entered.set()
+        release.wait(5)
+        return True
+
+    monkeypatch.setattr(OP, "_http_reachable", slow_probe)
+    cancel = threading.Event()
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        results = {}
+        leader = threading.Thread(target=lambda: results.setdefault(
+            "retry", OP.autostart_retry_once(op, cancel=cancel)))
+        leader.start()
+        try:
+            assert entered.wait(5)
+            joined = op.operator_start()
+            cancel.set()
+        finally:
+            release.set()
+            leader.join(5)
+        try:
+            assert joined["started"] is False and joined["reason"] == "start_in_progress", joined
+            assert results["retry"]["started"] is True, results
+            assert op.is_running() is True
+        finally:
+            op.stop()
+
+
+def test_watchdog_stop_waits_out_a_retry_inside_the_commit_section():
+    # Holding the operator lock stands in for a retry between its last cancel check
+    # and its commit: the stop must not return until that section has finished.
+    assert OP.stop_autostart_watchdog(timeout=2.0) is True
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        prev = _swap_singleton(op)
+        try:
+            assert OP.start_autostart_watchdog(interval_s=3600)["started"] is True
+            returned = threading.Event()
+            stopper = threading.Thread(target=lambda: (
+                OP.stop_autostart_watchdog(timeout=2.0), returned.set()))
+            with op._lock:
+                stopper.start()
+                assert returned.wait(0.3) is False
+            stopper.join(5)
+            assert returned.is_set()
+        finally:
+            OP.stop_autostart_watchdog(timeout=2.0)
+            _swap_singleton(prev)
+
+
 if __name__ == "__main__":
     import sys
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

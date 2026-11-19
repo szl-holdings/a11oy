@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import inspect
 import json
 import subprocess
 import threading
@@ -77,7 +78,7 @@ def isolated_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             "reachable_lungs": 0,
         }
 
-    def mocked_energy_retry(op=None):
+    def mocked_energy_retry(op=None, *, cancel=None):
         energy_retry_calls.append(time.perf_counter())
         return {"attempted": False, "started": False,
                 "reason": "test_boundary", "running": False}
@@ -87,6 +88,9 @@ def isolated_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         "autostart_if_lung_reachable",
         mocked_energy_autostart,
     )
+    # The watchdog loop calls autostart_retry_once(cancel=stop); a double that
+    # cannot take that call would be swallowed by the loop and never noticed.
+    inspect.signature(mocked_energy_retry).bind(cancel=threading.Event())
     monkeypatch.setattr(szl_energy_operator, "autostart_retry_once", mocked_energy_retry)
     monkeypatch.delenv("A11OY_ENERGY_AUTOSTART_RETRY_S", raising=False)
     szl_energy_operator.stop_autostart_watchdog()

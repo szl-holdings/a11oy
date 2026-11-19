@@ -5296,12 +5296,17 @@ async def shutdown() -> None:
                 file=sys.stderr,
             )
         try:
-            # The energy autostart retry started at boot must not outlive this
-            # lifespan, or it keeps probing lungs and blocks the next start. It
-            # can only exist if startup loaded the module, so never import here.
+            # Stop the energy autostart retry started at boot. A retry still
+            # probing a lung finishes that probe but cannot start the loop on its
+            # own. It can only exist if startup loaded the module, so never import.
             _szl_eo_shutdown = sys.modules.get("szl_energy_operator")
             if _szl_eo_shutdown is not None:
-                await asyncio.to_thread(_szl_eo_shutdown.stop_autostart_watchdog)
+                if not await asyncio.to_thread(_szl_eo_shutdown.stop_autostart_watchdog):
+                    print(
+                        "[a11oy] energy autostart retry is finishing an in-flight "
+                        "probe; it cannot start the loop on its own",
+                        file=sys.stderr,
+                    )
         except Exception as _eo_stop_error:
             print(
                 f"[a11oy] energy autostart retry stop failed honestly: {_eo_stop_error!r}",

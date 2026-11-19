@@ -27,7 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The operator reports a bounded `lung_probe` reason per node (no URL, host or
   credential) and retries its lung-gated autostart (`A11OY_ENERGY_AUTOSTART_RETRY_S`,
   default 300 s). An operator's explicit stop holds the retry off. The retry
-  thread stops at app shutdown, so it cannot outlive the lifespan that started it.
+  thread is stopped at app shutdown. A retry still probing a lung finishes that
+  probe but cannot start the loop on its own; until it returns, another start in
+  the same process answers `start_in_progress` and is decided by that probe.
 - Contract: `docs/frontier-readiness-contract.md`, "Energy readiness: the
   bounded-window scope". Gotcha: `KNOWN_GOTCHAS.md` section 10.
 

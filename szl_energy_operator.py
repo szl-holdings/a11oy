@@ -1149,6 +1149,9 @@ class OperatorDaemon:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._starting = False
+        # Set when another start arrives during a probe; that caller was told
+        # start_in_progress, so a cancel private to the probing retry cannot drop it.
+        self._start_followed = False
         self._stop_joining = False
         self._lifecycle_generation = 0
         self._started_at: Optional[float] = None
@@ -1292,22 +1295,30 @@ class OperatorDaemon:
             return self._lifecycle_state(self.is_running())
 
     def start(self, *, respect_operator_hold: bool = False,
-              operator_request: bool = False) -> dict:
+              operator_request: bool = False,
+              cancel: Optional[threading.Event] = None) -> dict:
         """Lung-gated start. With respect_operator_hold, an operator's explicit stop
         wins even if it lands after the caller's own hold check. operator_request
-        releases the hold inside this transition, even when the start is refused."""
+        releases the hold inside this transition, even when the start is refused.
+        A set cancel event refuses the start before the probe and again before the
+        commit, so a stopped retry cannot start the loop from a probe in flight,
+        unless another start joined this transition while it probed."""
         with self._lock:
             if operator_request:
                 self._operator_hold = False
             if respect_operator_hold and self._operator_hold:
                 return {**self.status(), "started": False, "reason": "operator_stop_requested"}
+            if cancel is not None and cancel.is_set():
+                return {**self.status(), "started": False, "reason": "retry_cancelled"}
             if self.lifecycle_state() == "STOPPING":
                 return {**self.status(), "started": False, "reason": "operator_stopping"}
             if self.is_running():
                 return {**self.status(), "started": False, "reason": "already_running"}
             if self._starting:
+                self._start_followed = True
                 return {**self.status(), "started": False, "reason": "start_in_progress"}
             self._starting = True
+            self._start_followed = False
             self._lifecycle_generation += 1
             generation = self._lifecycle_generation
             # No live worker or joining stop exists here. A stop during the
@@ -1318,11 +1329,15 @@ class OperatorDaemon:
         except BaseException:
             with self._lock:
                 self._starting = False
+                self._start_followed = False
             raise
         with self._lock:
             self._starting = False
+            followed, self._start_followed = self._start_followed, False
             if respect_operator_hold and self._operator_hold:
                 return {**self.status(), "started": False, "reason": "operator_stop_requested"}
+            if cancel is not None and cancel.is_set() and not followed:
+                return {**self.status(), "started": False, "reason": "retry_cancelled"}
             if generation != self._lifecycle_generation or self._stop.is_set():
                 return {**self.status(), "started": False, "reason": "start_cancelled_by_stop"}
             if not reachable:
@@ -2062,10 +2077,15 @@ def autostart_retry_interval_s() -> Optional[float]:
     return min(_AUTOSTART_RETRY_MAX_S, max(_AUTOSTART_RETRY_MIN_S, value))
 
 
-def autostart_retry_once(op: Optional[OperatorDaemon] = None) -> dict:
-    """One retry decision. Starts the loop only through the lung-gated start()."""
+def autostart_retry_once(op: Optional[OperatorDaemon] = None, *,
+                         cancel: Optional[threading.Event] = None) -> dict:
+    """One retry decision. Starts the loop only through the lung-gated start(). A set
+    cancel event (the watchdog's stop) refuses the retry, even after its probe."""
     op = op if op is not None else get_operator()
     running = op.is_running()
+    if cancel is not None and cancel.is_set():
+        return {"attempted": False, "started": False,
+                "reason": "retry_cancelled", "running": running}
     if not autostart_enabled():
         return {"attempted": False, "started": False,
                 "reason": "autostart_disabled", "running": running}
@@ -2079,7 +2099,10 @@ def autostart_retry_once(op: Optional[OperatorDaemon] = None) -> dict:
     if lifecycle in ("STARTING", "STOPPING"):
         return {"attempted": False, "started": False,
                 "reason": lifecycle.lower(), "running": running}
-    result = op.start(respect_operator_hold=True)
+    if cancel is None:
+        result = op.start(respect_operator_hold=True)
+    else:
+        result = op.start(respect_operator_hold=True, cancel=cancel)
     started = bool(result.get("started"))
     return {"attempted": True, "started": started,
             "reason": "lung_reachable" if started else result.get("reason"),
@@ -2109,7 +2132,7 @@ def start_autostart_watchdog(interval_s: Optional[float] = None) -> dict:
         def _loop() -> None:
             while not stop.wait(interval):
                 try:
-                    autostart_retry_once()
+                    autostart_retry_once(cancel=stop)
                 except Exception:  # noqa: BLE001 — a failed retry waits for the next one
                     pass
 
@@ -2122,14 +2145,22 @@ def start_autostart_watchdog(interval_s: Optional[float] = None) -> dict:
 
 
 def stop_autostart_watchdog(timeout: float = 5.0) -> bool:
-    """Cancel the retry thread. True once no retry thread remains alive."""
+    """Cancel the retry thread. True once the thread this call stopped has exited.
+    A retry that is still probing finishes its probe but can no longer start the
+    loop unless another start joined it while it probed."""
     global _WATCHDOG_THREAD, _WATCHDOG_STOP
     with _WATCHDOG_LOCK:
         worker, stop = _WATCHDOG_THREAD, _WATCHDOG_STOP
         _WATCHDOG_THREAD = None
         _WATCHDOG_STOP = None
-    if stop is not None:
-        stop.set()
+        if stop is not None:
+            stop.set()
+    op = _OPERATOR
+    if stop is not None and op is not None:
+        # A retry already inside start()'s commit section finishes it before this
+        # returns; a retry reaching that section later sees the cancel.
+        with op._lock:
+            pass
     if worker is not None and worker is not threading.current_thread():
         worker.join(timeout=timeout)
         return not worker.is_alive()
