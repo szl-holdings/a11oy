@@ -132,13 +132,13 @@
   },
   "local_evidence": {
     "receipt_path": "attestations/forge-second-brain-live-2026-07-15.json",
-    "receipt_sha256": "b7c1e2144b953b1da4e9c4dab51cc138888707af9272437a82cb3a2191e24583",
+    "receipt_sha256": "0cfc363216624561f8faa080908fef4757db8267c40dafe07526b1cc502c9d8a",
     "verification_state": "PASS",
     "verified_exact_tags": [
       "khipu:latest",
       "receiptagent:latest"
     ],
-    "brain_handle_count": 9465,
+    "brain_handle_count": 9464,
     "brain_rows_admitted_to_gradients": 0,
     "claim_boundary": "This receipt verifies two loopback runtime turns and the handle plane. It does not prove training completion, remote Hub publication, remote artifact identity, benchmark quality, or production readiness."
   },
