@@ -335,7 +335,7 @@ One sovereign substrate, many organs — every decision carries a hash-chained, 
 [🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
 [🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
 [🔀 SZL Router](https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live) ·
-[🪢 SZL Khipu](https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu) ·
+[🪢 SZL Khipu](https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu) (Khipu not promoted: abstention 2/6 release blocker) ·
 [🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🌊 yarqa](https://huggingface.co/spaces/SZLHOLDINGS/yarqa) ·
 [🤗 all Spaces](https://huggingface.co/SZLHOLDINGS)
