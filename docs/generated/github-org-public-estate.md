@@ -5,7 +5,7 @@
 
 **Measured Hub inventory:** 33 public Spaces · 150 model repositories · 14 native kernels · 99 datasets as of `2026-11-18T05:28:05Z`.
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/frontier-console`, `SZLHOLDINGS/khipu-proof-loom`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-command-center`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-cram-demo`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-muhu-frontier`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-science-gate-studio`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/truth-router`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/frontier-console`, `SZLHOLDINGS/khipu-proof-loom`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-command-center`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-cram-demo`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-muhu-frontier`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/truth-router`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
 ### Five public domain bodies
 
@@ -26,5 +26,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `aa80dd41c3a0a1322028bb7d96f4b038fcb144c257fc2c6b78cad581624931ec`.
+Alignment receipt: `19fc12c71b36d17497d0d7ddc757ffe90d9e42558432d5b00f30dbf0197c1838`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
