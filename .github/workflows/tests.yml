@@ -1205,6 +1205,7 @@ jobs:
         run: >-
           pytest test_frontier_surfaces.py test_frontier_manifest.py
           tests/test_frontier_manifest_readiness.py
+          tests/test_energy_provenance_measured_windows.py
           tests/test_frontier_readiness_projection.py
           tests/test_frontier_readiness_boundary.py
           tests/test_frontier_readiness_page.py

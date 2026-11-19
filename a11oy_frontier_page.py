@@ -857,6 +857,8 @@ function provHtml(prov) {{
 
 // selected honest extra facts worth surfacing per tile (never fabricated; shown only if present)
 const EXTRA_KEYS = [
+  'measurement_scope','window_measured_jobs','window_joules_measured_total',
+  'window_age_s','measured_entries','joules_measured_label',
   'joules_measured_total','measured_jobs','chain_length','links_intact',
   'survives_redeploy','length','nodes_total','nodes_reachable','gpu_reachable',
   'modeled_nodes','reachable_nodes','on_orbit_hardware','on_artifact_minted',
