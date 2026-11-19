@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import inspect
 import json
 import subprocess
 import threading
@@ -61,11 +62,13 @@ def isolated_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 
     monkeypatch.setattr(subprocess, "Popen", forbidden_popen)
 
-    # Energy autostart is the only startup hook that can probe remote lungs.
-    # Replace that boundary with an explicit, observable unavailable receipt.
+    # Energy autostart and its bounded retry are the only startup hooks that can
+    # probe remote lungs. Replace both boundaries with observable test receipts;
+    # the retry thread itself stays real so its lifecycle is exercised.
     import szl_energy_operator
 
     energy_calls: list[float] = []
+    energy_retry_calls: list[float] = []
 
     def mocked_energy_autostart():
         energy_calls.append(time.perf_counter())
@@ -75,11 +78,22 @@ def isolated_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             "reachable_lungs": 0,
         }
 
+    def mocked_energy_retry(op=None, *, cancel=None):
+        energy_retry_calls.append(time.perf_counter())
+        return {"attempted": False, "started": False,
+                "reason": "test_boundary", "running": False}
+
     monkeypatch.setattr(
         szl_energy_operator,
         "autostart_if_lung_reachable",
         mocked_energy_autostart,
     )
+    # The watchdog loop calls autostart_retry_once(cancel=stop); a double that
+    # cannot take that call would be swallowed by the loop and never noticed.
+    inspect.signature(mocked_energy_retry).bind(cancel=threading.Event())
+    monkeypatch.setattr(szl_energy_operator, "autostart_retry_once", mocked_energy_retry)
+    monkeypatch.delenv("A11OY_ENERGY_AUTOSTART_RETRY_S", raising=False)
+    szl_energy_operator.stop_autostart_watchdog()
 
     # No scheduler may leak between contexts or tests.  Snapshot history because
     # the real history route below intentionally mutates the in-memory ring.
@@ -99,8 +113,13 @@ def isolated_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         serve._A11OY_EVAL_RERUN_PENDING.clear()
     serve._node_proc = None
 
-    yield {"popen_calls": popen_calls, "energy_calls": energy_calls}
+    yield {
+        "popen_calls": popen_calls,
+        "energy_calls": energy_calls,
+        "energy_retry_calls": energy_retry_calls,
+    }
 
+    szl_energy_operator.stop_autostart_watchdog()
     serve._a11oy_eval_autorun_stop()
     with serve._A11OY_EVAL_HIST_LOCK:
         serve._A11OY_EVAL_HIST = collections.deque(
@@ -117,8 +136,11 @@ def isolated_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 
 
 def test_real_lifespan_restarts_eval_scheduler_generation(isolated_runtime):
+    import szl_energy_operator
+
     async def scenario():
         generations = []
+        retry_threads = []
         durations = []
         for _ in range(2):
             started_at = time.perf_counter()
@@ -130,18 +152,26 @@ def test_real_lifespan_restarts_eval_scheduler_generation(isolated_runtime):
                 assert thread is not None and thread.is_alive()
                 assert not stop_event.is_set()
                 generations.append((thread, stop_event))
+                retry_thread = szl_energy_operator._WATCHDOG_THREAD
+                assert retry_thread is not None and retry_thread.is_alive()
+                retry_threads.append(retry_thread)
 
             assert stop_event.is_set()
             assert not thread.is_alive()
             assert serve._A11OY_EVAL_AUTORUN_STARTED is False
+            # The energy retry thread must not outlive the lifespan that started it.
+            assert szl_energy_operator._WATCHDOG_THREAD is None
+            assert not retry_threads[-1].is_alive()
 
         assert generations[1][0] is not generations[0][0]
         assert generations[1][1] is not generations[0][1]
+        assert retry_threads[1] is not retry_threads[0]
         return durations
 
     durations = asyncio.run(scenario())
     assert isolated_runtime["popen_calls"] == []
     assert len(isolated_runtime["energy_calls"]) == 2
+    assert isolated_runtime["energy_retry_calls"] == []
     # Boundary mocks should leave lifecycle execution small; this makes a future
     # accidental live probe visible without treating a specific CPU speed as truth.
     assert max(durations) < 5.0
