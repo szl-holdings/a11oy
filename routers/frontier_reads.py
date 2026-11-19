@@ -133,9 +133,7 @@ def normalize_phase_b_payload(
             else:
                 detail = (
                     "Bundled CISA KEV rows are served from the current image; "
-                    "this is cached source material, not a live catalog fetch. "
-                    "The KEV source identified displayed rows as cached during "
-                    "the current request."
+                    "this is cached source material, not a live catalog fetch."
                 )
         normalized["detail"] = detail
 
