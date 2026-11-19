@@ -172,21 +172,35 @@ async function verifySET(
 }
 
 // ---------------------------------------------------------------------------
-// Merkle inclusion proof verification (RFC 6962 §2.1.3)
+// Merkle inclusion proof verification (RFC 9162 section 2.1.3.2 / RFC 6962 2.1.1)
 // ---------------------------------------------------------------------------
 
+const HEX64 = /^[0-9a-fA-F]{64}$/;
+
+function nodeHash(left: Buffer, right: Buffer): Buffer {
+  return createHash("sha256").update(Buffer.from([0x01])).update(left).update(right).digest();
+}
+
 /**
- * Verify a Merkle inclusion proof against the claimed root hash.
+ * Verify a Merkle inclusion proof against the claimed root hash, exactly as
+ * RFC 9162 section 2.1.3.2 specifies (the same algorithm as RFC 6962 for
+ * SHA-256 logs such as Rekor):
+ *   - leaf node:  SHA-256(0x00 || leaf_data)  (the caller supplies the leaf hash)
+ *   - inner node: SHA-256(0x01 || left_hash || right_hash)
+ *   - on the right edge of a tree whose size is not a power of two, a node has no
+ *     sibling at some levels: fn/sn are shifted until the next real sibling.
  *
- * Rekor provides the leaf hash and a sequence of sibling hashes
- * (audit path).  We reconstruct the root hash bottom-up using the
- * RFC 6962 node hashing rules:
- *   - Leaf node:  SHA-256(0x00 || leaf_data)
- *   - Inner node: SHA-256(0x01 || left_hash || right_hash)
+ * The earlier version of this function treated an even rightmost node as having
+ * its sibling on the right and never skipped levels, so it rejected valid proofs
+ * for trees whose size is not a power of two, and it never checked that the whole
+ * path was consumed (sn === 0). It also let Buffer.from(x, "hex") silently drop
+ * malformed hex. Any malformed input returns false.
  *
- * Ref: https://www.rfc-editor.org/rfc/rfc6962#section-2.1
+ * NOTE: a valid proof only shows the leaf is under `expectedRootHash`. Callers
+ * must take (treeSize, rootHash) from a checkpoint whose signature they verified
+ * against a pinned log key; this function does not do that.
  */
-function verifyMerkleInclusionProof(
+export function verifyMerkleInclusionProof(
   leafHash: Buffer,
   auditPath: string[],
   leafIndex: number,
@@ -194,42 +208,32 @@ function verifyMerkleInclusionProof(
   expectedRootHash: string
 ): boolean {
   try {
-    let hash = leafHash;
-    let idx = leafIndex;
-    let lastNode = treeSize - 1;
+    if (!Buffer.isBuffer(leafHash) || leafHash.length !== 32) return false;
+    if (typeof expectedRootHash !== "string" || !HEX64.test(expectedRootHash)) return false;
+    if (!Array.isArray(auditPath) || auditPath.some((h) => typeof h !== "string" || !HEX64.test(h))) return false;
+    if (!Number.isSafeInteger(leafIndex) || !Number.isSafeInteger(treeSize) || leafIndex < 0 || leafIndex >= treeSize) return false;
 
+    let fn = leafIndex;
+    let sn = treeSize - 1;
+    let hash = leafHash;
     for (const sibling of auditPath) {
-      const siblingBytes = Buffer.from(sibling, "hex");
-      if (idx % 2 === 1 || idx === lastNode) {
-        // Current node is on the right (or is the rightmost node at this level)
-        if (idx % 2 === 1) {
-          // Sibling is on the left
-          hash = createHash("sha256")
-            .update(Buffer.from([0x01]))
-            .update(siblingBytes)
-            .update(hash)
-            .digest();
-        } else {
-          // Rightmost node: promote without sibling
-          hash = createHash("sha256")
-            .update(Buffer.from([0x01]))
-            .update(hash)
-            .update(siblingBytes)
-            .digest();
+      if (sn === 0) return false; // proof is longer than the tree is deep
+      const p = Buffer.from(sibling, "hex");
+      if (fn % 2 === 1 || fn === sn) {
+        hash = nodeHash(p, hash);
+        if (fn % 2 === 0) {
+          while (fn % 2 === 0 && fn !== 0) {
+            fn = Math.floor(fn / 2);
+            sn = Math.floor(sn / 2);
+          }
         }
       } else {
-        // Current node is on the left
-        hash = createHash("sha256")
-          .update(Buffer.from([0x01]))
-          .update(hash)
-          .update(siblingBytes)
-          .digest();
+        hash = nodeHash(hash, p);
       }
-      idx = Math.floor(idx / 2);
-      lastNode = Math.floor(lastNode / 2);
+      fn = Math.floor(fn / 2);
+      sn = Math.floor(sn / 2);
     }
-
-    return hash.toString("hex") === expectedRootHash;
+    return sn === 0 && hash.toString("hex") === expectedRootHash.toLowerCase();
   } catch {
     return false;
   }
