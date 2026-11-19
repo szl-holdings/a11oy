@@ -30,7 +30,6 @@ import base64
 import hashlib
 import json
 import os
-import ssl
 import sys
 import time
 import urllib.error
@@ -48,6 +47,19 @@ POOL_MEASUREMENT_CONTRACT = "szl.compute-pool.measurement-contract/v1"
 
 _PROBE_PROMPT = "Health probe. Reply with the single word: READY"
 _USER_AGENT = "a11oy-pool-attester/1.0"
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse redirect hops: a redirect would replay Authorization elsewhere."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Proxy-free, redirect-free opener: ambient HTTP(S)_PROXY must never see this
+# module's Bearer tokens (localhost sovereign serving + public Space ingest);
+# the exactly-configured URL is the only origin ever contacted.
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirectHandler)
 
 
 def canonical_json(obj: Any) -> bytes:
@@ -73,7 +85,8 @@ def _http_json(url: str, *, method: str = "GET", body: Optional[bytes] = None, t
     if body is not None:
         request.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(request, timeout=timeout_s, context=ssl.create_default_context()) as response:
+        # Sovereign secrets never traverse an ambient proxy or a redirect hop.
+        with _OPENER.open(request, timeout=timeout_s) as response:
             return int(response.status), response.read()
     except urllib.error.HTTPError as error:
         return int(error.code), error.read() if error.fp else None
@@ -203,9 +216,11 @@ def main() -> int:
         return 2
 
     while True:
-        mint_once(args, private_key)
+        accepted = mint_once(args, private_key)
         if args.once:
-            return 0
+            # Fail closed on the oneshot: an unreachable fabric, a failed
+            # inference, or a refused ingestion must not look green to cron.
+            return 0 if accepted else 1
         time.sleep(max(10, args.interval))
 
 

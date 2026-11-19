@@ -116,7 +116,14 @@ def _atomic_store(root: Path, raw: bytes, payload: Dict[str, Any]) -> Tuple[bool
             # mkstemp already creates the file owner-only (0o600 on POSIX,
             # O_EXCL everywhere); os.fchmod is POSIX-only and would crash
             # this otherwise-portable surface on Windows dev machines.
-            os.write(fd, raw)
+            # Write ALL bytes or none: os.write may be short (disk full/quota)
+            # and a truncated envelope must never be acknowledged as stored.
+            written = 0
+            while written < len(raw):
+                count = os.write(fd, raw[written:])
+                if count <= 0:
+                    raise OSError("short write to receipt file")
+                written += count
         finally:
             os.close(fd)
         os.replace(tmp_name, final_path)
@@ -162,8 +169,19 @@ async def _ingest(request: Request) -> JSONResponse:  # noqa: ANN401
         content_length = 0
     if content_length > _MAX_ENVELOPE_BYTES:
         return _json_error(413, "envelope too large", limit_bytes=_MAX_ENVELOPE_BYTES)
-    raw = await request.body()
-    if len(raw) <= 0 or len(raw) > _MAX_ENVELOPE_BYTES:
+    # Bounded read: a chunked body or a lying Content-Length must never
+    # buffer more than the envelope bound -- request.body() materializes
+    # the whole stream first, so stream incrementally and abort at the
+    # first byte past the bound. Nothing beyond the limit is ever buffered.
+    chunks: List[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > _MAX_ENVELOPE_BYTES:
+            return _json_error(413, "envelope too large", limit_bytes=_MAX_ENVELOPE_BYTES)
+        chunks.append(chunk)
+    raw = b"".join(chunks)
+    if len(raw) <= 0:
         return _json_error(413, "envelope too large", limit_bytes=_MAX_ENVELOPE_BYTES)
     verifier = pool_contract._pool_verifier()
     if verifier is None:
