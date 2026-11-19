@@ -121,7 +121,10 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
             return values
 
     api = CadenceApi()
-    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
+    # The production writer admits every variable write through the released-state
+    # guard and the bounded mutation transport; reuse the owner's release fixture
+    # instead of letting the guard read the live Space storage status.
+    kwargs, _fixture, _guard, _requests, _writers = install_gdw_release_transport(monkeypatch, api)
     real_readback = config.await_readback
     sleeps = []
     monkeypatch.setattr(config, "await_readback", lambda api, **kwargs: real_readback(
@@ -132,11 +135,11 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
         admissions.append(tuple(api.writes))
         return "a" * 40
 
-    report = config.configure(repo_id=config.CANONICAL_SPACE, hf_token="synthetic-hf-control",
-                              expected_source_sha="a" * 40, main_reader=main_reader,
-                              authority_get=pinned_get)
+    kwargs["main_reader"] = main_reader
+    report = config.configure(**kwargs)
     assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
-    assert admissions == [(), ()]
+    # one entry-gate read plus the pre- and post-guard reads for the single write
+    assert admissions == [(), (), ()]
     assert report["variables_changed"] == ["A11OY_STATE_PERIODIC_SECONDS"]
     assert {"A11OY_STATE_DEBOUNCE_SECONDS", "A11OY_STATE_PERIODIC_SECONDS",
             "A11OY_STATE_ALERT_SECONDS"} <= set(report["variables_managed"])
