@@ -45,6 +45,12 @@ MANAGED_RESPONSE_LIMIT = 512 * 1024
 MANAGED_MAX_SECONDS = 120
 MANAGED_SECRET_NAMES = {"HF_TOKEN", "GDW_CREDENTIALS_JSON", "SZL_COSIGN_PRIVATE_PEM"}
 STATIC_VARIABLES = {
+    # ADR-0001 schedules continuous-write snapshots every five minutes and
+    # alerts after fifteen. Converge these values so an external interval
+    # override cannot silently extend the documented recovery window.
+    "A11OY_STATE_DEBOUNCE_SECONDS": "30",
+    "A11OY_STATE_PERIODIC_SECONDS": "300",
+    "A11OY_STATE_ALERT_SECONDS": "900",
     "GDW_PRODUCTION_MODE": "1",
     "GDW_NAMESPACE": "a11oy",
     "GDW_SERVICE_OWNER_ID": "gdw-runtime",
