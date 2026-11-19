@@ -33,6 +33,9 @@ LOCKED_IDS = frozenset({"F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"})
 RUNTIME_NAMESPACE = "puriq-runtime-registry"
 PROOF_NAMESPACE = "puriq-lean-proof-pack"
 THESIS_NAMESPACE = "thesis-extracted-formulas"
+M1_NUMERIC_SOURCE_FAMILY = "puriq-numeric-demonstrations"
+M1_NUMERIC_NAMESPACE = "puriq.numeric-demo.v1"
+M1_THESIS_NAMESPACE = "knowledge.formula-history.v1"
 
 KNOWLEDGE = pathlib.Path("knowledge.json")
 STATIC_THESIS = pathlib.Path("static/thesis.json")
@@ -213,6 +216,9 @@ def _brain_and_m1_state(root: pathlib.Path) -> dict[str, Any]:
     }
     if len(formula_nodes) != 23:
         raise AdmissionError(f"BRAIN_FORMULA_COUNT_MISMATCH:{len(formula_nodes)}")
+    if any(node.get("formula_namespace") != M1_NUMERIC_NAMESPACE
+           for node in formula_nodes.values()):
+        raise AdmissionError("BRAIN_NUMERIC_NAMESPACE_MISMATCH")
     return {
         "graph": graph,
         "formula_nodes": formula_nodes,
@@ -227,12 +233,32 @@ def _brain_and_m1_state(root: pathlib.Path) -> dict[str, Any]:
 
 
 def _m1_formula_index(root: pathlib.Path) -> dict[tuple[str, str], dict[str, Any]]:
+    """Admit only current, explicitly scoped holdout metadata from M1.
+
+    The old canonical-formula-registry family contained numeric demonstrations.
+    It is historical evidence, not a fallback for the current producer's
+    namespace. A short F-ID cannot cross either source boundary.
+    """
     rows = _read_jsonl(root, M1_FORMULA_LEDGER)
     result: dict[tuple[str, str], dict[str, Any]] = {}
     for row in rows:
         key = (str(row.get("source_family") or ""), str(row.get("formula_id") or ""))
         if not all(key) or key in result:
             raise AdmissionError(f"M1_FORMULA_KEY_INVALID:{key}")
+        namespace = {
+            M1_NUMERIC_SOURCE_FAMILY: M1_NUMERIC_NAMESPACE,
+            "thesis-formula-corpus": M1_THESIS_NAMESPACE,
+        }.get(key[0])
+        if (namespace is None or row.get("formula_namespace") != namespace
+                or row.get("record_id") != f"{namespace}:{key[1]}"):
+            raise AdmissionError(f"M1_FORMULA_NAMESPACE_MISMATCH:{key}")
+        if (row.get("formal_binding") != "UNKNOWN_NOT_ASSERTED"
+                or row.get("formula_status") != "OPEN"
+                or row.get("source_family_split") != "HOLDOUT"
+                or row.get("training_decision") != "HOLDOUT_ABSTENTION"
+                or row.get("training_eligible") is not False
+                or row.get("can_authorize_action") is not False):
+            raise AdmissionError(f"M1_FORMULA_AUTHORITY_CONFLICT:{key}")
         result[key] = row
     if len(rows) != 123:
         raise AdmissionError(f"M1_FORMULA_COUNT_MISMATCH:{len(rows)}")
@@ -302,7 +328,7 @@ def _crosswalk_records(root: pathlib.Path, state: Mapping[str, Any]) -> list[dic
         runtime = runtime_items[formula_id]
         proof = proof_items[formula_id]
         brain_node = state["formula_nodes"][formula_id]
-        historical = m1[("canonical-formula-registry", formula_id)]
+        historical = m1[(M1_NUMERIC_SOURCE_FAMILY, formula_id)]
         runtime_name = str(runtime.get("name") or "")
         proof_name = str(proof.get("name") or "")
         if runtime_name == proof_name:
@@ -751,18 +777,27 @@ def build_artifacts(repo_root: pathlib.Path | str | None = None) -> dict[str, An
 
 
 def write_artifacts(repo_root: pathlib.Path | str | None = None) -> dict[str, Any]:
+    from szl_m1_corpus_manifest import prepare_current_inventory_refresh
+
     root = pathlib.Path(repo_root or ROOT).resolve()
     artifacts = build_artifacts(root)
+    # Validate every downstream target before writing; these references bind the
+    # admission bytes below and therefore must be committed after those bytes.
+    inventory_updates = prepare_current_inventory_refresh(root, artifacts["manifest"])
     output = root / OUTPUT_DIR
     output.mkdir(parents=True, exist_ok=True)
     (root / CROSSWALK).write_bytes(_json_bytes(artifacts["crosswalk"]))
     (root / TRANCHE).write_bytes(_jsonl_bytes(artifacts["tranche_rows"]))
     (root / MANIFEST).write_bytes(_json_bytes(artifacts["manifest"]))
     (root / RECEIPT).write_bytes(_json_bytes(artifacts["receipt"]))
+    for path, content in inventory_updates.items():
+        path.write_bytes(content)
     return artifacts
 
 
 def verify_committed(repo_root: pathlib.Path | str | None = None) -> dict[str, Any]:
+    from szl_m1_corpus_manifest import prepare_current_inventory_refresh
+
     root = pathlib.Path(repo_root or ROOT).resolve()
     artifacts = build_artifacts(root)
     expected = {
@@ -771,6 +806,10 @@ def verify_committed(repo_root: pathlib.Path | str | None = None) -> dict[str, A
         MANIFEST: _json_bytes(artifacts["manifest"]),
         RECEIPT: _json_bytes(artifacts["receipt"]),
     }
+    expected.update({
+        path.relative_to(root): content
+        for path, content in prepare_current_inventory_refresh(root, artifacts["manifest"]).items()
+    })
     mismatches = [
         relative.as_posix()
         for relative, content in expected.items()
