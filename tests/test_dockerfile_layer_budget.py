@@ -92,6 +92,11 @@ CPU_LAB_CONTRACT_COPY_ADDITIONS = {"a11oy_cpu_lab_contract.py"}
 # module. Freeze every historical source digest by excluding this exact source.
 FLAVIN_SPIN_COPY_ADDITIONS = {"szl_flavin_spin_research.py"}
 
+# One pool-receipt ingestion surface, batched into the existing root COPY beside
+# the compute-pool contract it reuses; every historical source digest and count
+# stays frozen by excluding this exact addition below.
+POOL_RECEIPT_INGEST_COPY_ADDITIONS = {"szl_pool_receipt_ingest.py"}
+
 COPY_SOURCE_ALLOWLIST_COUNT = 589
 COPY_SOURCE_ALLOWLIST_SHA256 = (
     "4f4d797eac48f0cd845f4fce9869aa9a25aabc6ab321cf3dd48934be07d2c8b1"
@@ -233,6 +238,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert ORO_EVIDENCE_COPY_ADDITIONS <= copy_sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= copy_sources
     assert FLAVIN_SPIN_COPY_ADDITIONS <= copy_sources
+    assert POOL_RECEIPT_INGEST_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | X402_ORIGIN_COPY_ADDITIONS
@@ -261,6 +267,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | ORO_EVIDENCE_COPY_ADDITIONS
         | CPU_LAB_CONTRACT_COPY_ADDITIONS
         | FLAVIN_SPIN_COPY_ADDITIONS
+        | POOL_RECEIPT_INGEST_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -303,6 +310,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert ORO_EVIDENCE_COPY_ADDITIONS <= sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
     assert FLAVIN_SPIN_COPY_ADDITIONS <= sources
+    assert POOL_RECEIPT_INGEST_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -328,6 +336,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - ORO_EVIDENCE_COPY_ADDITIONS
         - CPU_LAB_CONTRACT_COPY_ADDITIONS
         - FLAVIN_SPIN_COPY_ADDITIONS
+        - POOL_RECEIPT_INGEST_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -368,6 +377,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert ORO_EVIDENCE_COPY_ADDITIONS <= sources
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
     assert FLAVIN_SPIN_COPY_ADDITIONS <= sources
+    assert POOL_RECEIPT_INGEST_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -393,6 +403,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - ORO_EVIDENCE_COPY_ADDITIONS
         - CPU_LAB_CONTRACT_COPY_ADDITIONS
         - FLAVIN_SPIN_COPY_ADDITIONS
+        - POOL_RECEIPT_INGEST_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
