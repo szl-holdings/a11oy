@@ -616,9 +616,10 @@ def test_all_three_jobs_and_their_dependency_order_are_required(combined,mutatio
     ({"date": "invalid-private-header", "retry-after": "90"}, 90),
     ({"retry-after": "0", "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1"}, 60),
     ({"retry-after": "Thu, 01 Jan 1970 00:31:40"}, 60),
-    ({"retry-after": "9" * 400}, float("inf")),
-    ({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "9" * 400}, float("inf")),
 ])
+# Oversized (>128-char) retry metadata is NOT an infinite wait here: main's #3647
+# contract refuses it terminally as READINESS_RETRY_DELAY_INVALID, which
+# test_oversized_retry_metadata_is_a_fixed_terminal_refusal below already proves.
 def test_rate_limit_preserves_only_numeric_wait_instructions(headers, expected):
     class NeverRead(httpx.SyncByteStream):
         def __iter__(self):
