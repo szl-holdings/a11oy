@@ -813,14 +813,16 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # stage without restarting it, requires an open deploy window while SQLite lives
 # on the bucket mount, re-admits current main before each configuration command,
 # and each helper re-reads exact main before each provider mutation. Any
-# configuration error fails; current main is re-admitted before deploy;
-# runtime-config re-admits current main before any deferred configuration write
+# configuration error fails; each changed configuration batch is observed with
+# the sole read-only handover helper before another batch or publication.
+# Current main is re-admitted before deploy; runtime-config repeats those
+# observations and re-admits main before any deferred configuration write
 # against the deployed revision. Every gate is an invariant (protected main, newest main
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "bc5403aa3b31ddc6f52b6bec2ff0e8bd852af09940131ffac2cc60035ca003a1"
-REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "f31c0be60794030747539b9f60037698b3c26bc8930dc9d0fe1e2612c1ef9e1a"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "d19f07f7363e3424dc91b16b3e088265b822bbee6a3eca58251de2aac8415cb4"
+REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "97e8984ca6c46878b548d7815c52ea5b3048a81d5639964cc9e9729815653d28"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
 # package-bound Chromium revision, and gates relock on success.
@@ -836,8 +838,10 @@ REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "7590b85e303209c953e267aa5bd8b861e557e
 REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
-    ".github/scripts/admit_execution_handoff.py": "5c3c9b13eb4151e9b98d279505798c9b801a0b9028a3a947e6eeb70ec90847ae",
-    ".github/scripts/collect_execution_readiness.py": "b58e1b5b681709f2f547b64230cb5dc1133368bd51d724d0d2b87fc35468a100",
+    ".github/scripts/admit_execution_handoff.py": "679adeb336dd8b9d6261eeaff6040069de4260a282bc2a0dde03d7f202502f4b",
+    # The first source-admission gate imports this pure plan parser by a fixed path.
+    # Its complete bytes are part of the reviewed deployment helper closure.
+    "scripts/estate_repair_dispatch.py": "94bbbf48839e9d394264986255d87590e33a2b75aba3fd7d8d9a17b62e68982e",    ".github/scripts/collect_execution_readiness.py": "b58e1b5b681709f2f547b64230cb5dc1133368bd51d724d0d2b87fc35468a100",
     ".github/scripts/materialize_execution_authority_pins.py": "70c0aa8857127ce4cec78e512b8f1ccc36affb78ab5ee334f6b8c6f003f448df",
     "szl_execution_readiness.py": "9b4b4102037ee1f941bf4a6e01ad05e163c9159722ab394a6833a58fb51e49cd",
     "observer_adapters.py": "84b80c124c8e6e70c0292934f150873ea93340a8995795e48cab477628e90b66",
@@ -847,8 +851,12 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     ".github/scripts/resume_hf_space.py": "26cb21d2f0be37ebe6aa7e3be28f456489560f740f29215edd4b1d957ec53d49",
     # Read-only wait for the deployed revision after a convergence write.
     ".github/scripts/await_hf_runtime_serving.py": "2fb80ffe94124f359e55166f51e2c24105033348adc624421619a4311d42b98e",
-    "scripts/configure_hf_series_a_runtime.py": "1495ac166237c48e84eadf6b4200ccbcf03dd7d545cc7758ef70db5175c03687",
-    "scripts/configure_hf_gdw_runtime.py": "289c0a3d0896c3b10321e2aa3f4543188e238cf22b1b79d632c98cbf23ba0462",
+    # Read-only observation after each configuration batch, including deferred writes.
+    ".github/scripts/await_hf_configuration_handover.py": "cc6e383934e2a681daf529690f9d14cad84bd4bc191e94fe428aea3ff4c739a1",
+    # Zero-write post-cutover release admission, bound to private HEAD and canonical store health.
+    ".github/scripts/admit_hf_fenced_runtime.py": "7936e60da45121f94c2c43f8d30aebcd238b6c31eaf9f571f7110aac0cd538e5",
+    "scripts/configure_hf_series_a_runtime.py": "dc4d54b31beb794e62e66ec614bd46257353d0ecdf2645e7295655cb2d96f60c",
+    "scripts/configure_hf_gdw_runtime.py": "43611e182618321ed70647afee9e017295a7fedc6d29446e5b209059abdc28f3",
     # Installed-authority verifier imported by both configure helpers, with
     # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
@@ -864,7 +872,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     ".github/scripts/publish_readiness_verdict.py": "e823c027fa3be4e440fdbbe99681fa903da70b86aecf785f3f7a795045f439a5",
     "tools/readiness-harness/probe_runner.mjs": "85936fa56b87d7269e4085b4ca0592df1f03516d5db0a5d2b1a6d054f772ab50",
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
-    "tools/readiness-harness/tabs.json": "1a966eb1944536d27e5f90edfdd0f7e8e3c67b28fddec206729f8ce4b3bf008f",
+    "tools/readiness-harness/tabs.json": "612c58b45c69811305c96b1b23fa010a842a1a1b960fc83bcaf82bc589484c0a",
     # Read-only terminal verifier used by the exact relock job.
     ".github/scripts/verify_canonical_a11oy.py": "30285b3887cfde3043fd6ea189ca24741da11ebeeebc1345f50f3322cf1cdcad",
 }

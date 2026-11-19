@@ -58,7 +58,7 @@ test("initial and missing counts are not fabricated as zero", async () => {
   }
   assert.equal(h.run("count(0)"), 0);
   assert.equal(h.run("count(12)"), 12);
-  assert.equal(h.elements.get("receipts").textContent, "Receipts · UNAVAILABLE");
+  assert.equal(h.elements.get("receipts").textContent, "Recent receipts · UNAVAILABLE");
   assert.equal(h.elements.get("release").dataset.state, "unavailable");
   assert.match(h.elements.get("content").textContent, /Readiness UNAVAILABLE/);
   assert.doesNotMatch(h.elements.get("content").textContent, /0 static|0 OK|0 lies/);
@@ -72,7 +72,7 @@ test("numeric advisory rejects coercion of null, blanks and booleans", async () 
 
 test("source-reported zero and false remain distinguishable from missing", async () => {
   const h = await harness({body: {count: 0, chain_verified: false, signature_state: "UNSIGNED"}});
-  assert.equal(h.elements.get("receipts").textContent, "Receipts · 0");
+  assert.equal(h.elements.get("receipts").textContent, "Recent receipts · 0");
   h.run('openRoom("evidence")');
   assert.match(h.elements.get("content").textContent, /REPORTED UNVERIFIED/);
 });
@@ -85,14 +85,14 @@ test("source observation expires at the client freshness boundary", async () => 
   h.run('state.data.ledger.observedAt=Date.now()-60001');
   h.intervals[0]();
   assert.equal(h.run('get("ledger").json'), null);
-  assert.equal(h.elements.get("receipts").textContent, "Receipts · UNAVAILABLE");
+  assert.equal(h.elements.get("receipts").textContent, "Recent receipts · UNAVAILABLE");
 });
 
 test("each source expires independently, including after an earlier source expired", async () => {
   const h = await harness({body: {count: 7, version: "fixture-release"}});
   h.run('state.data.ledger.observedAt=Date.now()-60001');
   h.intervals[0]();
-  assert.equal(h.elements.get("receipts").textContent, "Receipts · UNAVAILABLE");
+  assert.equal(h.elements.get("receipts").textContent, "Recent receipts · UNAVAILABLE");
   assert.equal(h.elements.get("release").textContent, "Release · fixture-release");
   h.run('state.data.version.observedAt=Date.now()-60001');
   h.intervals[0]();
@@ -104,7 +104,7 @@ test("each source expires independently, including after an earlier source expir
 
 test("expiry preserves inspector close focus and original source return target", async () => {
   const h = await harness({body: {count: 7}});
-  const original = h.elements.get("inspect-card-receipts");
+  const original = h.elements.get("inspect-card-recent-receipts");
   original.focus(); h.run('inspectSource("ledger")');
   h.elements.get("close-source-inspector").focus();
   original.isConnected = false;
@@ -114,7 +114,7 @@ test("expiry preserves inspector close focus and original source return target",
   assert.equal(h.run("document.activeElement"), h.elements.get("close-source-inspector"));
   assert.match(h.elements.get("source-inspector").textContent, /STALE/);
   h.elements.get("source-inspector").close();
-  assert.equal(h.run("document.activeElement"), h.elements.get("inspect-card-receipts"));
+  assert.equal(h.run("document.activeElement"), h.elements.get("inspect-card-recent-receipts"));
 });
 
 test("synthetic preview is visibly labeled, not presented as a runtime witness", async () => {
@@ -134,7 +134,7 @@ for (const [name, response] of Object.entries({
     const h = await harness(response);
     assert.equal(h.run('get("ledger").json'), null);
     assert.equal(h.run('observationState(state.data.ledger)'), "UNAVAILABLE");
-    assert.equal(h.elements.get("receipts").textContent, "Receipts · UNAVAILABLE");
+    assert.equal(h.elements.get("receipts").textContent, "Recent receipts · UNAVAILABLE");
     assert.doesNotMatch(h.elements.get("content").textContent, /private details/);
   });
 }
@@ -143,7 +143,7 @@ test("failed refresh does not retain an earlier headline count", async () => {
   const h = await harness({body: {count: 8}});
   h.respond({status: 503, body: {error: "unavailable"}});
   await h.run("refreshObservations()");
-  assert.equal(h.elements.get("receipts").textContent, "Receipts · UNAVAILABLE");
+  assert.equal(h.elements.get("receipts").textContent, "Recent receipts · UNAVAILABLE");
 });
 
 test("health renders its degraded application state, not a measured 200", async () => {
@@ -158,7 +158,7 @@ test("refresh and inspection use only known same-origin GET endpoints", async ()
   h.run('inspectSource("ledger")');
   assert.equal(h.calls.length, baseline, "inspecting retained evidence makes no request");
   await h.run("refreshObservations()");
-  assert.equal(h.calls.length, 22);
+  assert.equal(h.calls.length, 26);
   for (const {url, options} of h.calls) {
     assert.ok(url.startsWith("/") && !url.startsWith("//"));
     assert.notEqual(url, "/api/a11oy/v1/kernel/probe");
@@ -202,4 +202,189 @@ test("existing explicit kernel probe still returns its own unknown contract", as
   assert.equal(h.calls.at(-1).options.method, "POST");
   assert.equal(h.calls.at(-1).options.body, "{}");
   assert.equal(h.run('get("kernelProbe").json.certified'), false);
+});
+
+function graphFixture(revision = "a".repeat(40), extra = []) {
+  const edges = [{schema:"szl.evidence-edge/v1",subject:{kind:"runtime",id:revision},source_revision:revision,verdict:"OBSERVED",authority:{execution_authorized:false}},...extra];
+  return {schema:"szl.evidence-graph/v1",state:"OBSERVED",reason:"SYNTHETIC TEST INPUT",graph:{
+    schema:"szl.evidence-graph/v1",edge_count:edges.length,total_input_edges:edges.length,bounded:false,
+    verdict_counts:Object.fromEntries(["OBSERVED","VERIFIED","DEGRADED","UNAVAILABLE"].map(v=>[v,edges.filter(e=>e.verdict===v).length])),
+    digest_sha256:"b".repeat(64),edges
+  }};
+}
+function setSource(h, name, body) {
+  h.run(`state.data[${JSON.stringify(name)}]={ok:true,status:200,observedAt:Date.now(),json:${JSON.stringify(body)}}`);
+}
+function setBuild(h, revision = "a".repeat(40)) {
+  setSource(h,"build",{status:"OBSERVED",build:{state:"OBSERVED",revision,revision_source:"env:SZL_GIT_SHA"}});
+}
+test("recent receipt window preserves the backend count scope", async () => {
+  const h=await harness({body:{count:32,count_scope:"recent returned window, not the DAG total",signature_state:"SIGNED",chain_verified:null,chain_verification:"NOT_EVALUATED_BY_THIS_ROUTE"}});
+  h.run('openRoom("evidence")');
+  const text=h.elements.get("content").textContent;
+  assert.match(text,/Recent receipts 32 recent returned window, not the DAG total/);
+  assert.match(text,/NOT_EVALUATED_BY_THIS_ROUTE/);
+  assert.doesNotMatch(text,/Minted|REPORTED VERIFIED/);
+});
+test("identity comparison ignores historical artifacts and never certifies deployment", async () => {
+  const h=await harness();setBuild(h);
+  setSource(h,"evidenceGraph",graphFixture("a".repeat(40),[{schema:"szl.evidence-edge/v1",subject:{kind:"artifact",id:"historical"},source_revision:null,verdict:"OBSERVED",authority:{execution_authorized:false}}]));
+  h.run('openRoom("evidence")');
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"SOURCE-REPORTED MATCH");
+  assert.match(h.elements.get("content").textContent,/no deployment verification/);
+  assert.match(h.elements.get("content").textContent,/artifact · historical/);
+  setBuild(h,"c".repeat(40));
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"DIFFERENT OBSERVATIONS");
+});
+test("missing malformed and conflicting identity cannot become a match", async () => {
+  const h=await harness();setBuild(h);
+  setSource(h,"evidenceGraph",graphFixture(null));
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"UNAVAILABLE");
+  setSource(h,"evidenceGraph",graphFixture("a".repeat(40),[{schema:"szl.evidence-edge/v1",subject:{kind:"runtime",id:"c".repeat(40)},source_revision:"c".repeat(40),verdict:"OBSERVED"}]));
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"CONFLICTING OBSERVATIONS");
+  setSource(h,"evidenceGraph",graphFixture());
+  setSource(h,"build",{status:"OBSERVED",build:{state:"OBSERVED",revision:"a".repeat(40),revision_source:"env:SPACE_COMMIT_SHA"}});
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"UNAVAILABLE");
+});
+test("graph rejects inconsistent counts and wrong field types while preserving real zero", async () => {
+  const h=await harness();
+  for(const mutate of [
+    b=>b.schema="other/v1",b=>b.graph.edge_count=2,b=>b.graph.edge_count="1",
+    b=>b.graph.total_input_edges=null,b=>b.graph.bounded=null,b=>b.graph.digest_sha256=["b".repeat(64)],
+    b=>b.graph.verdict_counts.VERIFIED=1,b=>b.graph.edges[0].subject=[],
+    b=>b.graph.edges[0].verdict="ok",
+  ]) {
+    const b=graphFixture();mutate(b);setSource(h,"evidenceGraph",b);
+    assert.equal(h.run("evidenceGraphView().ok"),false);
+  }
+  const b=graphFixture();b.graph.edges=[];b.graph.edge_count=0;b.graph.total_input_edges=0;b.graph.verdict_counts.OBSERVED=0;
+  setSource(h,"evidenceGraph",b);h.run('openRoom("evidence")');
+  assert.equal(h.run("evidenceGraphView().ok"),true);
+  assert.match(h.elements.get("content").textContent,/Relationships 0/);
+  assert.match(h.elements.get("content").textContent,/returned no relationships/);
+});
+test("one expired observation invalidates identity comparison without hiding retained payload", async () => {
+  const h=await harness();setBuild(h);setSource(h,"evidenceGraph",graphFixture());
+  h.run("state.data.build.observedAt=Date.now()-60001");
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"UNAVAILABLE");
+  assert.equal(h.run("evidenceGraphView().ok"),true);
+  h.run('inspectSource("evidenceGraph")');
+  assert.match(h.elements.get("source-inspector").textContent,/SYNTHETIC TEST INPUT/);
+});
+test("storage mode role and missing errors remain separate from durability", async () => {
+  const h=await harness();
+  setSource(h,"storage",{schema:"szl.a11oy-storage-status/v2",mode:"FENCED",role:"WRITER",writable:true,pending_publish:[],active_errors:null,stores:{gdw:{health:"BLOCKED",last_snapshot_age_s:null,unsnapshotted_change_age_s:5}}});
+  h.run('openRoom("evidence")');
+  const text=h.elements.get("content").textContent;
+  assert.match(text,/Storage mode FENCED/);
+  assert.match(text,/Storage role WRITER/);
+  assert.match(text,/Active storage errors UNAVAILABLE/);
+  assert.match(text,/Pending publication 0/);
+  assert.match(text,/gdw/);assert.match(text,/BLOCKED/);
+  assert.doesNotMatch(text,/DURABLE|ALL HEALTHY/);
+  setSource(h,"storage",{schema:"szl.a11oy-storage-status/v2",mode:"DISABLED",role:"DISABLED",writable:true});
+  h.run('openRoom("evidence")');
+  assert.match(h.elements.get("content").textContent,/Storage mode DISABLED/);
+});
+test("relationship display is bounded and source text remains literal", async () => {
+  const h=await harness(),bad='<img src=x onerror="alert(1)">';
+  const extra=Array.from({length:14},(_,i)=>({schema:"szl.evidence-edge/v1",subject:{kind:"artifact",id:i?String(i):bad},source_revision:null,verdict:"OBSERVED"}));
+  const b=graphFixture("a".repeat(40),extra);b.graph.bounded=true;b.graph.total_input_edges=20;
+  setSource(h,"evidenceGraph",b);h.run('openRoom("evidence")');
+  assert.match(h.elements.get("content").textContent,/Showing 12 of 15 returned relationships; 20 input relationships/);
+  assert.match(h.elements.get("content").textContent,/Backend limit applied/);
+  const view=h.run("graphRelationships(evidenceGraphView())");
+  assert.equal(view.children[1].children.length,12);
+  assert.equal(view.children[1].children[1].children[0].tag,"span");
+  assert.equal(view.children[1].children[1].children[0].textContent,"artifact · "+bad);
+});
+test("new graph and storage sources participate in the same read-only batch", async () => {
+  const h=await harness();
+  assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/evidence/graph").length,1);
+  assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/storage/status").length,1);
+  const before=h.calls.length;h.run('inspectSource("storage")');assert.equal(h.calls.length,before);
+});
+
+test("non-string and missing runtime identities stay unavailable", async () => {
+  const h=await harness();setBuild(h);
+  for(const mutate of [
+    b=>b.graph.edges[0].source_revision=["a".repeat(40)],
+    b=>b.graph.edges[0].subject.id="",
+    b=>{b.graph.edges[0].verdict="UNAVAILABLE";b.graph.verdict_counts.OBSERVED=0;b.graph.verdict_counts.UNAVAILABLE=1;},
+  ]) {
+    const b=graphFixture();mutate(b);setSource(h,"evidenceGraph",b);
+    assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"UNAVAILABLE");
+  }
+  setSource(h,"evidenceGraph",graphFixture());
+  setSource(h,"build",{status:"OBSERVED",build:{state:"OBSERVED",revision:["a".repeat(40)],revision_source:"env:SZL_GIT_SHA"}});
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"UNAVAILABLE");
+});
+
+test("unavailable graph cannot match even when retained identity fields agree", async () => {
+  const h=await harness();setBuild(h);const b=graphFixture();b.state="UNAVAILABLE";
+  setSource(h,"evidenceGraph",b);
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"UNAVAILABLE");
+});
+test("truncation flag must agree with returned and input counts", async () => {
+  const h=await harness();
+  for (const [total,bounded] of [[20,false],[1,true]]) {
+    const b=graphFixture();b.graph.total_input_edges=total;b.graph.bounded=bounded;
+    setSource(h,"evidenceGraph",b);assert.equal(h.run("evidenceGraphView().ok"),false);
+  }
+});
+
+test("HF runtime identity may differ from the explicit Git source revision", async () => {
+  const h=await harness();setBuild(h);
+  const b=graphFixture();b.graph.edges[0].subject.id="d".repeat(40);
+  b.graph.edges[0].runtime={revision:"d".repeat(40)};
+  setSource(h,"evidenceGraph",b);
+  assert.equal(h.run("runtimeBinding(evidenceGraphView()).state"),"SOURCE-REPORTED MATCH");
+});
+test("array and object storage labels cannot masquerade as reported strings", async () => {
+  const h=await harness();
+  for(const value of [["FENCED"],{},true,"","  "]) {
+    setSource(h,"storage",{schema:"szl.a11oy-storage-status/v2",mode:value,role:value,writable:true,stores:{gdw:{health:value}}});
+    h.run('openRoom("evidence")');
+    const text=h.elements.get("content").textContent;
+    assert.match(text,/Storage mode UNAVAILABLE/);assert.match(text,/Storage role UNAVAILABLE/);
+    assert.match(text,/gdw · UNAVAILABLE/);
+  }
+});
+
+
+test("static lineage export is a link, not an inferred successful run", async () => {
+  const h=await harness();
+  const before=h.calls.length;
+  h.run('openRoom("evidence")');
+  assert.match(h.elements.get("content").textContent,/Static lineage JSON/);
+  assert.match(h.elements.get("content").textContent,/Evidence gaps \(unqualified\)/);
+  assert.equal(h.calls.length,before);
+  assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/evidence/openlineage").length,0);
+  assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/evidence/discovery").length,0);
+});
+test("parent coverage without a denominator is explicitly unavailable", async () => {
+  const h=await harness();
+  const b=graphFixture();
+  b.graph.parent_resolution={
+    state:"UNAVAILABLE", authority:"OBSERVATION_ONLY",resolved:0,unresolved:0,
+    denominator:0,ratio:null,unresolved_preview:[],preview_truncated:false,
+    graph_bounded:false,signatures_verified:false
+  };
+  setSource(h,"evidenceGraph",b);
+  h.run('openRoom("evidence")');
+  const rendered=h.elements.get("content").textContent;
+  assert.match(rendered,/Parent references UNAVAILABLE/);
+  assert.match(rendered,/No parent-reference denominator/);
+});
+
+
+test("flavin spin preview is an explicitly modeled link, never a passive route probe", async () => {
+  const h=await harness();
+  const before=h.calls.length;
+  h.run('openRoom("models")');
+  const output=h.elements.get("content").textContent;
+  assert.match(output,/Flavin spin research/);
+  assert.match(output,/MODELED, not measured/);
+  assert.equal(h.calls.length,before);
+  assert.equal(h.calls.filter(c=>c.url==="/api/a11oy/v1/qbio/flavin-spin-research").length,0);
 });

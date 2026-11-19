@@ -233,7 +233,17 @@ test("provider failures return 502 and never echo the recipient", async (t) => {
 test("the revision endpoint reports the deployed SHA and readiness without auth", async () => {
   const ready = await call(new Request(`${ORIGIN}${REVISION_PATH}`));
   assert.equal(ready.response.status, 200);
-  assert.deepEqual(ready.payload, { worker: "szl-email-sender", source_revision: REVISION, ready: true });
+  assert.deepEqual(ready.payload, {
+    worker: "szl-email-sender",
+    source_revision: REVISION,
+    ready: true,
+    readiness_checks: {
+      secret_requirement_met: true,
+      sender_valid: true,
+      send_binding_callable: true,
+      email_message_available: true,
+    },
+  });
 
   for (const SOURCE_REVISION of [undefined, "", "d739c95b", REVISION.toUpperCase(), `${REVISION}0`]) {
     const { payload } = await call(new Request(`${ORIGIN}${REVISION_PATH}`), environment({ SOURCE_REVISION }));
@@ -253,4 +263,65 @@ test("secret comparison hashes both sides and needs exact equality", async () =>
   assert.equal(await secretMatches(`${SECRET} `, SECRET), false);
   assert.equal(await secretMatches("", SECRET), false);
   assert.equal(await secretMatches("a", "b"), false);
+});
+
+test("readiness diagnostics identify configuration failures without returning values", async (t) => {
+  const healthy = {
+    secret_requirement_met: true,
+    sender_valid: true,
+    send_binding_callable: true,
+    email_message_available: true,
+  };
+  const cases = [
+    ["absent secret", { API_SECRET: undefined }, {}, "secret_requirement_met"],
+    ["non-string secret", { API_SECRET: 12345678901234567890123456789012n }, {}, "secret_requirement_met"],
+    ["short secret", { API_SECRET: "private-short-sentinel" }, {}, "secret_requirement_met"],
+    ["31-character boundary", { API_SECRET: "q".repeat(31) }, {}, "secret_requirement_met"],
+    ["sender outside domain", { MAIL_FROM: "private-sender@example.org" }, {}, "sender_valid"],
+    ["absent sender", { MAIL_FROM: undefined }, {}, "sender_valid"],
+    ["invalid sender", { MAIL_FROM: "private-sender\r\nBcc: hidden@example.org" }, {}, "sender_valid"],
+    ["absent binding", { SEND_EMAIL: undefined }, {}, "send_binding_callable"],
+    ["non-callable binding", { SEND_EMAIL: { send: "private-binding-sentinel" } }, {}, "send_binding_callable"],
+    ["absent message constructor", {}, { EmailMessage: undefined }, "email_message_available"],
+  ];
+  for (const [label, overrides, options, failed] of cases) {
+    await t.test(label, async () => {
+      const env = environment(overrides);
+      const { response, payload } = await call(new Request(ORIGIN + REVISION_PATH), env, options);
+      assert.equal(response.status, 200);
+      assertJsonError(response);
+      assert.deepEqual(payload, {
+        worker: "szl-email-sender",
+        source_revision: REVISION,
+        ready: false,
+        readiness_checks: { ...healthy, [failed]: false },
+      });
+      const serialized = JSON.stringify(payload);
+      for (const value of [SECRET, "private-short-sentinel", "private-sender", "private-binding-sentinel"]) {
+        assert.equal(serialized.includes(value), false);
+      }
+      if (env.SEND_EMAIL?.sent) assert.equal(env.SEND_EMAIL.sent.length, 0);
+      const request = sendRequest();
+      const denied = await call(request, env, options);
+      assert.equal(denied.response.status, 503);
+      assert.deepEqual(denied.payload, { error: "not_configured" });
+      assert.equal(request.bodyUsed, false);
+      if (env.SEND_EMAIL?.sent) assert.equal(env.SEND_EMAIL.sent.length, 0);
+    });
+  }
+  const boundaryEnv = environment({ API_SECRET: "q".repeat(32) });
+  const boundary = await call(new Request(ORIGIN + REVISION_PATH), boundaryEnv);
+  assert.deepEqual(boundary.payload.readiness_checks, healthy);
+  assert.equal(boundary.payload.ready, true);
+  assert.equal(boundaryEnv.SEND_EMAIL.sent.length, 0);
+
+  const missing = await call(new Request(ORIGIN + REVISION_PATH), null, { EmailMessage: undefined });
+  assert.deepEqual(missing.payload.readiness_checks, {
+    secret_requirement_met: false,
+    sender_valid: false,
+    send_binding_callable: false,
+    email_message_available: false,
+  });
+  assert.equal(missing.payload.ready, false);
+  assert.equal(missing.payload.source_revision, null);
 });

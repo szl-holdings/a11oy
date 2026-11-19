@@ -35,6 +35,13 @@ _AUTH_HEADERS = ("X-SZL-Meter-Client", "X-SZL-Meter-Time", "X-SZL-Meter-Nonce",
 _RESERVED = {name.lower() for name in _AUTH_HEADERS} | {
     "cf-access-client-id", "cf-access-client-secret", "host"}
 _WINDOW_NS = 30_000_000_000
+# Bounded client/verifier clock-skew allowance. Clients sign on independently
+# synchronized clocks; a verifier that denies every future stamp fails closed
+# on ordinary NTP drift between the client host and this exporter. Stamps dated
+# further than _SKEW_NS into the future of this process are denied. The
+# process-start floor, the 30-second expiry window, the nonce replay cache,
+# and the clock-rollback rule are all unchanged.
+_SKEW_NS = 15_000_000_000
 
 
 class MeterAuthConfigurationError(ValueError):
@@ -141,9 +148,12 @@ def meter_request_headers(url: str) -> dict[str, str]:
 class MeterRequestVerifier:
     """Atomic bounded replay protection for a process-scoped read capability.
 
-    Timestamps must be no earlier than this process's start and never in the future.
+    Timestamps must be no earlier than this process's start and no more than
+    _SKEW_NS into the future (bounded clock-skew allowance for independently
+    synchronized client clocks).
     This rejects a captured request after a restart, with no persistent GET writes.
-    Client/server clocks therefore must be synchronized; clock skew fails closed.
+    Client/server clocks therefore must stay synchronized within _SKEW_NS;
+    beyond that bound, clock skew fails closed.
     """
 
     def __init__(self, audience, keys, *, clock=time.time_ns, capacity=4096):
@@ -194,7 +204,7 @@ class MeterRequestVerifier:
                 or not _HEX_KEY.fullmatch(signature)):
             return False
         now, signed_at = self._clock(), int(stamp)
-        if not self._started <= signed_at <= now or now - signed_at > _WINDOW_NS:
+        if not self._started <= signed_at <= now + _SKEW_NS or now - signed_at > _WINDOW_NS:
             return False
         expected = hmac.new(key, _message(method, target, self._audience, client, stamp, nonce),
                             hashlib.sha256).hexdigest()
@@ -204,7 +214,7 @@ class MeterRequestVerifier:
             # Read again under the lock: concurrent requests may validate their MACs
             # out of order, but real time at cache insertion must not go backwards.
             now = self._clock()
-            if (now < self._last_clock or not self._started <= signed_at <= now
+            if (now < self._last_clock or not self._started <= signed_at <= now + _SKEW_NS
                     or now - signed_at > _WINDOW_NS):
                 return False
             self._last_clock = now

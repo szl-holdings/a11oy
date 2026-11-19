@@ -114,7 +114,7 @@ jobs:
     needs: source-admission
     if: ${{ !inputs.verify_current_deployment && needs.source-admission.result == 'success' && needs.source-admission.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 50
     permissions:
       contents: read
     outputs:
@@ -126,6 +126,10 @@ jobs:
       PREFLIGHT_REPORT: /tmp/canonical-a11oy-preflight.json
       RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
       GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
+      SERIES_BASELINE_REPORT: /tmp/preflight-series-configuration-baseline.json
+      SERIES_HANDOVER_REPORT: /tmp/preflight-series-configuration-handover.json
+      GDW_BASELINE_REPORT: /tmp/preflight-gdw-configuration-baseline.json
+      GDW_HANDOVER_REPORT: /tmp/preflight-gdw-configuration-handover.json
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -162,9 +166,8 @@ jobs:
           "requests==2.32.5"
           "cryptography==50.0.1"
 
-      # Never restarts. A serving Space is rebuilt by the deploy commit; a
-      # paused, crashed or failed-build Space is started once by the publisher
-      # after the commit. Either way the deploy starts the new revision once.
+      # Classification never restarts. Configuration writes can restart the
+      # old revision; the barrier below settles that process before publication.
       - name: Classify the runtime stage without restarting it
         id: runtime
         if: ${{ steps.admit.outputs.publish == 'true' }}
@@ -174,9 +177,9 @@ jobs:
           --output "$PREFLIGHT_REPORT"
           --github-output "$GITHUB_OUTPUT"
 
-      # Until durable storage replaces SQLite on the bucket mount, a deploy
-      # must not overlap a serving writer outside an agreed maintenance window:
-      # the operator pauses the Space, or dispatches with open_deploy_window.
+      # Before v2 cutover, a deploy needs a paused Space or operator window.
+      # After cutover, source-divergent automatic publication needs a CLEAN
+      # FENCED writer, private HEAD/heartbeat parity and fresh store evidence.
       # Soft-green is forbidden: a closed window may skip only when live
       # /api/build-info already equals this protected main (MEASURED). Any
       # other closed-window state fails closed so PR HF parity cannot rot.
@@ -203,8 +206,29 @@ jobs:
             echo 'open=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          if [ "${STAGE:-}" = 'RUNNING' ] && [ -n "$live" ]; then
+            # A paused or operator-approved window remains valid. Automatic releases
+            # instead require independently measured post-cutover fencing and clean HEAD.
+            python -I -B .github/scripts/await_hf_configuration_handover.py capture \
+              --origin "$CANONICAL_ORIGIN" \
+              --output "$RUNNER_TEMP/fenced-admission-baseline.json"
+            python -I -B .github/scripts/admit_hf_fenced_runtime.py \
+              --origin "$CANONICAL_ORIGIN" \
+              --expected-live-sha "$live" \
+              --baseline "$RUNNER_TEMP/fenced-admission-baseline.json" \
+              --output "$RUNNER_TEMP/fenced-admission.json" \
+              --github-output "$GITHUB_OUTPUT"
+            echo "::notice::Previously cut-over CLEAN/FENCED writer independently admitted."
+            exit 0
+          fi
           echo "::error::PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED: stage=${STAGE:-UNKNOWN} protected_main=${GITHUB_SHA} live_revision=${live:-UNAVAILABLE}. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
           exit 1
+
+      - name: Capture the serving writer before configuration changes
+        if: ${{ steps.window.outputs.open == 'true' && steps.runtime.outputs.converge == 'true' }}
+        run: >-
+          python -I -B .github/scripts/await_hf_configuration_handover.py capture
+          --origin "$CANONICAL_ORIGIN" --output "$SERIES_BASELINE_REPORT"
 
       # Idempotent: a converged Space receives no write. Convergence needs the
       # serving runtime to prove installed authority, so a paused or crashed
@@ -235,6 +259,12 @@ jobs:
             --repo-id "$CANONICAL_SPACE" --bucket "SZLHOLDINGS/szl-evidence" \
             --expected-source-sha "$GITHUB_SHA" \
             --output "$RUNTIME_CONFIG_REPORT"
+          python -I -B .github/scripts/await_hf_configuration_handover.py wait \
+            --origin "$CANONICAL_ORIGIN" --owner series-a \
+            --baseline "$SERIES_BASELINE_REPORT" --report "$RUNTIME_CONFIG_REPORT" \
+            --output "$SERIES_HANDOVER_REPORT"
+          python -I -B .github/scripts/await_hf_configuration_handover.py capture \
+            --origin "$CANONICAL_ORIGIN" --output "$GDW_BASELINE_REPORT"
           python3 -I -B scripts/hf_exact_main_ownership.py \
             --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
             --receipt "$RUNNER_TEMP/preflight-gdw-config-admission.json" \
@@ -246,6 +276,10 @@ jobs:
           python -I -B scripts/configure_hf_gdw_runtime.py \
             --repo-id "$CANONICAL_SPACE" --expected-source-sha "$GITHUB_SHA" \
             --output "$GDW_CONFIG_REPORT"
+          python -I -B .github/scripts/await_hf_configuration_handover.py wait \
+            --origin "$CANONICAL_ORIGIN" --owner gdw \
+            --baseline "$GDW_BASELINE_REPORT" --report "$GDW_CONFIG_REPORT" \
+            --output "$GDW_HANDOVER_REPORT"
           echo 'converged=true' >> "$GITHUB_OUTPUT"
 
       - name: Re-admit current protected main immediately before deploy
@@ -274,10 +308,16 @@ jobs:
             ${{ env.PREFLIGHT_REPORT }}
             ${{ env.RUNTIME_CONFIG_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
+            ${{ env.SERIES_BASELINE_REPORT }}
+            ${{ env.SERIES_HANDOVER_REPORT }}
+            ${{ env.GDW_BASELINE_REPORT }}
+            ${{ env.GDW_HANDOVER_REPORT }}
             ${{ runner.temp }}/preflight-admission.json
             ${{ runner.temp }}/preflight-series-config-admission.json
             ${{ runner.temp }}/preflight-gdw-config-admission.json
             ${{ runner.temp }}/preflight-source-admission.json
+            ${{ runner.temp }}/fenced-admission-baseline.json
+            ${{ runner.temp }}/fenced-admission.json
           if-no-files-found: error
           retention-days: 90
   deploy:
@@ -309,16 +349,20 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
   runtime-config:
-    name: Verify the deployed runtime configuration without restarting it
+    name: Verify or converge deployed runtime configuration
     needs: [preflight, deploy]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 55
     permissions:
       contents: read
     env:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
       GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
+      SERIES_BASELINE_REPORT: /tmp/runtime-series-configuration-baseline.json
+      SERIES_HANDOVER_REPORT: /tmp/runtime-series-configuration-handover.json
+      GDW_BASELINE_REPORT: /tmp/runtime-gdw-configuration-baseline.json
+      GDW_HANDOVER_REPORT: /tmp/runtime-gdw-configuration-handover.json
     steps:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -353,6 +397,8 @@ jobs:
             mode=(--check-only)
           else
             echo '::notice::Configuration was not converged before deploy; converging against the deployed revision.'
+            python -I -B .github/scripts/await_hf_configuration_handover.py capture \
+              --origin "$CANONICAL_ORIGIN" --output "$SERIES_BASELINE_REPORT"
             python3 -I -B scripts/hf_exact_main_ownership.py \
               --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
               --receipt "$RUNNER_TEMP/runtime-series-config-admission.json" \
@@ -367,6 +413,12 @@ jobs:
             --expected-source-sha "$GITHUB_SHA" \
             "${mode[@]}" --output "$RUNTIME_CONFIG_REPORT"
           if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+            python -I -B .github/scripts/await_hf_configuration_handover.py wait \
+              --origin "$CANONICAL_ORIGIN" --owner series-a \
+              --baseline "$SERIES_BASELINE_REPORT" --report "$RUNTIME_CONFIG_REPORT" \
+              --output "$SERIES_HANDOVER_REPORT"
+            python -I -B .github/scripts/await_hf_configuration_handover.py capture \
+              --origin "$CANONICAL_ORIGIN" --output "$GDW_BASELINE_REPORT"
             python3 -I -B scripts/hf_exact_main_ownership.py \
               --repository "$GITHUB_REPOSITORY" --expected-sha "$GITHUB_SHA" \
               --receipt "$RUNNER_TEMP/runtime-gdw-config-admission.json" \
@@ -380,6 +432,12 @@ jobs:
             --repo-id "$CANONICAL_SPACE" \
             --expected-source-sha "$GITHUB_SHA" \
             "${mode[@]}" --output "$GDW_CONFIG_REPORT"
+          if [ "${PREDEPLOY_CONVERGED:-false}" != 'true' ]; then
+            python -I -B .github/scripts/await_hf_configuration_handover.py wait \
+              --origin "$CANONICAL_ORIGIN" --owner gdw \
+              --baseline "$GDW_BASELINE_REPORT" --report "$GDW_CONFIG_REPORT" \
+              --output "$GDW_HANDOVER_REPORT"
+          fi
 
       # A convergence write restarts the deployed revision. Read-only: wait
       # until it is RUNNING and serves this exact source again before probing.
@@ -400,6 +458,10 @@ jobs:
           path: |
             ${{ env.RUNTIME_CONFIG_REPORT }}
             ${{ env.GDW_CONFIG_REPORT }}
+            ${{ env.SERIES_BASELINE_REPORT }}
+            ${{ env.SERIES_HANDOVER_REPORT }}
+            ${{ env.GDW_BASELINE_REPORT }}
+            ${{ env.GDW_HANDOVER_REPORT }}
             ${{ runner.temp }}/runtime-series-config-admission.json
             ${{ runner.temp }}/runtime-gdw-config-admission.json
           if-no-files-found: error

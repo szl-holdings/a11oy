@@ -60,10 +60,13 @@ for _p in (os.getcwd(), _REPO_ROOT):
 # DECLARED = asserted/stated by the operator, NOT measured and NOT proven; never upgraded to
 # MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). It stays outside
 # _BANNED_LABELS, so a surface still cannot use it to dress up a measurement as a green claim.
+# UNKNOWN is listed in the public-estate contract truthVocabulary
+# (static/shared/public-estate-contract.v1.json): evidence exists but is unverified, so it never
+# upgrades a claim. The feed copies catalog labels verbatim, so it can carry UNKNOWN.
 HONEST_VOCAB = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
     "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
-    "HONEST-STUB", "UNSIGNED-LOCAL", "UNAVAILABLE",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNKNOWN", "UNAVAILABLE",
 )
 FEED_PATH = "/api/a11oy/v1/whatsnew/feed"
 
@@ -220,6 +223,7 @@ def _selftest() -> int:
     ok_feed = feed_with([
         {"id": "alpha", "label": "MODELED", "added": "2026-07-01T00:00:00Z"},
         {"id": "beta", "label": "SAMPLE", "added": None},
+        {"id": "whatsnew", "label": "UNKNOWN", "added": None},  # public-estate contract truthVocabulary
     ])
     vio = find_violations(ok_feed, registered)
     if vio:

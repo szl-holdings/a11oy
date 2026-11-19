@@ -60,8 +60,9 @@ def test_unknown_targets_never_gain_authentication(protocol, target):
     assert not verifier.accepts("GET", target, signed(key, target=target))
 
 
-@pytest.mark.parametrize("stamp", [BASE_TIME - 1, BASE_TIME + 101, BASE_TIME - 30_000_000_001])
-def test_pre_start_future_and_expired_timestamps_deny(protocol, stamp):
+@pytest.mark.parametrize("stamp", [BASE_TIME - 1, BASE_TIME + 100 + auth._SKEW_NS + 1,
+                                   BASE_TIME - 30_000_000_001])
+def test_pre_start_beyond_skew_future_and_expired_timestamps_deny(protocol, stamp):
     key, _, verifier = protocol
     assert not verifier.accepts("GET", "/metrics", signed(key, stamp=stamp))
 
@@ -174,3 +175,9 @@ def test_invalid_unused_target_config_also_denies_before_network(monkeypatch):
     with mock.patch.object(auth.urllib.request, "build_opener", side_effect=AssertionError("network")):
         with pytest.raises(auth.MeterAuthConfigurationError):
             auth.open_meter_get(origin + "/metrics", timeout=1)
+
+
+def test_future_stamp_within_bounded_skew_is_tolerated(protocol):
+    key, now, verifier = protocol
+    assert verifier.accepts("GET", "/metrics", signed(key, stamp=now[0] + auth._SKEW_NS - 1))
+    assert not verifier.accepts("GET", "/metrics", signed(key, stamp=now[0] + auth._SKEW_NS + 1))

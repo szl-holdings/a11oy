@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import socket
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -72,14 +74,62 @@ class FakeGdwApi:
         self.effects.append(("variable", key))
 
 
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    def denied(*_args, **_kwargs):
+        pytest.fail("ownership fixtures must not open a network connection")
+    monkeypatch.setattr(socket.socket, "connect", denied)
+
+
 def install_fakes(monkeypatch, helper, api):
+    is_series = isinstance(api, FakeSeriesApi)
+
+    def metadata_client(*, token, endpoint=None):
+        assert token == "offline-fixture"
+        assert endpoint == "https://huggingface.co"
+        return api
+
+    class Volume(SimpleNamespace):
+        def to_dict(self):
+            return {
+                "type": self.type, "source": self.source,
+                "mountPath": self.mount_path, "readOnly": self.read_only,
+                **({"path": self.path} if self.path is not None else {}),
+                **({"revision": self.revision} if self.revision is not None else {}),
+            }
+
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(
-        HfApi=lambda *, token: api, Volume=SimpleNamespace))
+        HfApi=metadata_client, Volume=Volume))
     monkeypatch.setattr(helper, "manual_prerequisites", lambda *_args, **_kwargs: {
         "state": "READY", "converged": True,
         "credential_authority_state": "VERIFIED",
         "installed_authority": {"github_public_reader": {"state": "VERIFIED"}},
     })
+    import httpx
+
+    owner = helper if is_series else helper.load_runtime_mutation_owner()
+    if not is_series:
+        monkeypatch.setattr(helper, "load_runtime_mutation_owner", lambda: owner)
+    state = owner.load_state_store()
+    monkeypatch.setattr(owner, "read_storage_status", lambda: {
+        "schema": state.STATUS_SCHEMA, "mode": "DISABLED",
+        "role": "DISABLED", "writable": True,
+    })
+    writer = owner.RuntimeMutationClient
+
+    def handle(request):
+        payload = json.loads(request.content)
+        root = "https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy/"
+        if request.method == "PUT" and str(request.url) == root + "volumes":
+            api.set_space_volumes(repo_id=helper.CANONICAL_SPACE, **payload)
+        elif request.method == "POST" and str(request.url) == root + "variables":
+            api.add_space_variable(repo_id=helper.CANONICAL_SPACE, **payload)
+        else:
+            pytest.fail("unexpected configuration fixture operation")
+        return httpx.Response(200, json={})
+
+    monkeypatch.setattr(owner, "RuntimeMutationClient", lambda token: writer(
+        token, transport=httpx.MockTransport(handle)))
 
 
 def changing_reader(values):
@@ -90,12 +140,12 @@ def changing_reader(values):
 def test_series_a_stops_between_volume_and_variable_writes(monkeypatch):
     helper, api = load_helper("series_a"), FakeSeriesApi()
     install_fakes(monkeypatch, helper, api)
-    # First read binds the helper; second admits the volume; the next read
+    # The binding and both pre-write reads admit the volume. The next read
     # observes supersession before any variable can be written.
     with pytest.raises(helper.RuntimeConfigError) as caught:
         helper.configure(repo_id=helper.CANONICAL_SPACE, bucket=helper.CANONICAL_BUCKET,
                          token="offline-fixture", expected_source_sha=SOURCE,
-                         main_reader=changing_reader([SOURCE, SOURCE, NEW_MAIN]))
+                         main_reader=changing_reader([SOURCE, SOURCE, SOURCE, NEW_MAIN]))
     assert caught.value.diagnostic_code == "SOURCE_NOT_CURRENT_MAIN"
     assert api.effects == ["volume"]
 
@@ -109,7 +159,7 @@ def test_series_a_stops_between_variable_writes_when_volume_exists(monkeypatch):
     with pytest.raises(helper.RuntimeConfigError) as caught:
         helper.configure(repo_id=helper.CANONICAL_SPACE, bucket=helper.CANONICAL_BUCKET,
                          token="offline-fixture", expected_source_sha=SOURCE,
-                         main_reader=changing_reader([SOURCE, SOURCE, NEW_MAIN]))
+                         main_reader=changing_reader([SOURCE, SOURCE, SOURCE, NEW_MAIN]))
     assert caught.value.diagnostic_code == "SOURCE_NOT_CURRENT_MAIN"
     assert len(api.effects) == 1 and api.effects[0][0] == "variable"
 
@@ -120,7 +170,7 @@ def test_gdw_stops_between_variable_writes(monkeypatch):
     with pytest.raises(helper.RuntimeConfigError) as caught:
         helper.configure(repo_id=helper.CANONICAL_SPACE, hf_token="offline-fixture",
                          expected_source_sha=SOURCE,
-                         main_reader=changing_reader([SOURCE, SOURCE, NEW_MAIN]))
+                         main_reader=changing_reader([SOURCE, SOURCE, SOURCE, NEW_MAIN]))
     assert caught.value.diagnostic_code == "SOURCE_NOT_CURRENT_MAIN"
     assert len(api.effects) == 1
 
@@ -147,7 +197,7 @@ def test_reader_failure_after_first_effect_is_fixed_diagnostic(monkeypatch, name
     def reader():
         nonlocal calls
         calls += 1
-        if calls == 3:
+        if calls == 4:
             raise RuntimeError("private-provider-secret-canary")
         return SOURCE
 

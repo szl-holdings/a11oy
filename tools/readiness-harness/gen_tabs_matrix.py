@@ -240,7 +240,13 @@ ENDPOINTS = {
     # ── Operator (rosie) ──
     "/api/a11oy/v1/operator/ledger": ep(schema="generic_obj", sla=HOUR),
     "/api/a11oy/v1/operator/recommend": ep(schema="generic_obj", sla=None,
-        note="Read-only recommendation rollup consumed by the Ask & Act surface."),
+        allow_labels=("live", "cached", "degraded"),
+        degraded_blocks_readiness=False,
+        note=("Read-only recommendation rollup consumed by the Ask & Act surface. "
+              "The governed envelope may honestly report a DEGRADED rollup when "
+              "frontier capabilities are not ready; that truthful negative root "
+              "label is admitted, non-blocking, and distinct from availability "
+              "evidence.")),
     "/api/a11oy/v2/operator/command-log": ep(schema="generic_obj", sla=None,
         note="Append-only command log; quiet != stale, so no freshness SLA."),
 

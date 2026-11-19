@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-10-14T00:00:00Z",
+  "generatedAt": "2026-11-18T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -786,14 +786,15 @@
       "schema": "generic_obj",
       "freshnessSLA": null,
       "citationsRequired": false,
-      "degradedBlocksReadiness": true,
+      "degradedBlocksReadiness": false,
       "degradedRules": {
         "allowStatuses": [
           200
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "degraded"
         ],
         "liesIf": [
           "mock",
@@ -801,7 +802,7 @@
           "placeholder"
         ]
       },
-      "note": "Read-only recommendation rollup consumed by the Ask & Act surface."
+      "note": "Read-only recommendation rollup consumed by the Ask & Act surface. The governed envelope may honestly report a DEGRADED rollup when frontier capabilities are not ready; that truthful negative root label is admitted, non-blocking, and distinct from availability evidence."
     },
     "/api/a11oy/v2/operator/command-log": {
       "method": "GET",
