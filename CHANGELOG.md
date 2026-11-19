@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - compute-pool receipt ingest and khipu-os verify (breaking for some callers)
+
+- `POST /api/a11oy/v1/compute-pool/receipts` now refuses, with HTTP 422
+  "receipt outside freshness window", any receipt whose `observed_at` is more
+  than 30 s ahead of the server clock or older than the freshness window.
+  Nothing is stored. Migration: a minter that re-posts old envelopes, or runs
+  with a skewed clock, must re-mint with a current `observed_at`.
+- `GET /khipu-os/verify` no longer mints a signed receipt per request. It now
+  returns `receipt: null` and `recorded: false`. Migration: a caller that read
+  the receipt from this GET must stop relying on it; verification results are
+  unchanged.
+- Optional `A11OY_POOL_RECEIPT_TRUST_ROOTS` adds pool attester keys bound to
+  named nodes. Unset, behaviour is unchanged. No second node is claimed live.
+
 ### Added - admit horizon: when an admitted claim lapses, and through which evidence
 
 - `szl_admit_horizon` (governance layer, stdlib, read-only, no route) analyses
