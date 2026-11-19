@@ -6,9 +6,9 @@
     "qualification": false,
     "routing": false
   },
-  "generated_at": "2026-11-18T05:39:48.254218+00:00",
+  "generated_at": "2026-11-19T07:31:23.431802+00:00",
   "inventory_source": {
-    "model_ids_sha256": "1eff88d013d32a9c77ae34a33518a9e11b0a0bc29bad92495347225945e8a404",
+    "model_ids_sha256": "9b3b37a8cfc30722ec0680c59e8eb3caf67f87b4d17f9daa144dc02b7217291b",
     "path": "docs/huggingface-ecosystem-manifest.json"
   },
   "max_observation_age_seconds": 86400,
@@ -3191,6 +3191,33 @@
         "observed_at": "2026-11-18T05:39:46.072275+00:00",
         "providers": [],
         "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/salad-khipu-scholar-v1?expand[]=inferenceProviderMapping&expand[]=sha",
+        "state": "NO_PROVIDER_MAPPING"
+      },
+      "repo_type": "model",
+      "support": {
+        "requests": [],
+        "state": "NO_RECORDED_REQUEST"
+      }
+    },
+    {
+      "assessment": {
+        "artifact_class": "adapter_bundle",
+        "hub_revision": "03ceac415c12cca0a3f1fd5cdfd69b36ec4b3f19",
+        "observed_at": "2026-11-19T07:31:23.431676+00:00",
+        "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights plus training-receipt metadata measured in the public revision).",
+        "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+        "source_url": "https://huggingface.co/SZLHOLDINGS/salad-khipu-structure-v1/blob/03ceac415c12cca0a3f1fd5cdfd69b36ec4b3f19/README.md",
+        "suggested_route": "Merge the adapter onto its declared base model (Qwen/Qwen3-1.7B) and serve locally; requires a custom inference handler rather than generic hosted inference."
+      },
+      "id": "SZLHOLDINGS/salad-khipu-structure-v1",
+      "inference": {
+        "capture_kind": "NORMALIZED_PUBLIC_API_FIELDS_NOT_INDEPENDENT_ATTESTATION",
+        "capture_sha256": "2e70b9519b9720a986add8ad972013b29a8b14cf7036508ee650d637df5756b2",
+        "error": null,
+        "hub_revision": "03ceac415c12cca0a3f1fd5cdfd69b36ec4b3f19",
+        "observed_at": "2026-11-19T07:31:23.431607+00:00",
+        "providers": [],
+        "source_url": "https://huggingface.co/api/models/SZLHOLDINGS/salad-khipu-structure-v1?expand[]=inferenceProviderMapping&expand[]=sha",
         "state": "NO_PROVIDER_MAPPING"
       },
       "repo_type": "model",

@@ -122,7 +122,11 @@ def test_second_brain_is_a_compound_model_not_a_false_weight_claim():
     assert runtime["training_boundary"]["raw_brain_nodes_admitted_to_gradients"] == 0
     assert runtime["memory"]["brain_handle_count"] == 17
     assert runtime["memory"]["brain_handle_count_source"] == "RUNTIME_RAG_STATUS"
-    assert manifest["brain_training_policy"]["raw_nodes_observed"] == 9465
+    current_m1 = json.loads((
+        ROOT / "model_release/m1/corpus-ingestion-manifest.json").read_text())
+    current_rows = current_m1["ledgers"]["brain_nodes"]["rows"]
+    assert type(current_rows) is int and current_rows > 0
+    assert manifest["brain_training_policy"]["raw_nodes_observed"] == current_rows
     assert runtime["training_boundary"]["raw_brain_nodes_observed"] == (
         manifest["brain_training_policy"]["raw_nodes_observed"]
     )
@@ -130,6 +134,11 @@ def test_second_brain_is_a_compound_model_not_a_false_weight_claim():
         "model_release/szl-khipu-second-brain.json"
         "#brain_training_policy.raw_nodes_observed"
     )
+    assert runtime["training_boundary"]["raw_brain_nodes_observation_state"] == "OBSERVED"
+    assert runtime["training_boundary"]["current_inventory_evidence"]["ledger_sha256"] == (
+        current_m1["ledgers"]["brain_nodes"]["sha256"]
+    )
+    assert runtime["training_boundary"]["current_inventory_evidence"]["execution_authority"] is False
     assert runtime["training_boundary"][
         "raw_brain_nodes_observed_is_runtime_index_count"
     ] is False

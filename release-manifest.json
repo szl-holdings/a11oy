@@ -1,0 +1,19 @@
+{
+  "kind": "szl.release-manifest/v1",
+  "status": "PLACEHOLDER_UNTIL_CI_GENERATED",
+  "release_id": "UNKNOWN",
+  "generated_at": "UNKNOWN",
+  "source": {"git_commit": "UNKNOWN", "git_ref": "UNKNOWN"},
+  "runtime": {
+    "served_frontend_sha256": "UNKNOWN",
+    "api_contract_sha256": "UNKNOWN",
+    "model_identity": "UNKNOWN",
+    "deployment_identity": "UNKNOWN"
+  },
+  "api_contract_source": "UNKNOWN",
+  "honesty": {
+    "never_hardcoded": true,
+    "missing_values_stay_unknown": true,
+    "note": "Placeholder committed so constrained rebuilds keep booting; CI (scripts/generate_release_manifest.py) overwrites it. The promotion gate treats this status as BLOCKED, never as evidence."
+  }
+}
