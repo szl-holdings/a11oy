@@ -136,7 +136,7 @@ LEDGER_ROWS = [
     ("monthly_burn", "What is the average monthly net burn", "no bookkeeping export exists to compute it", "financials"),
     ("runway_months", "How many months of runway remain at current burn", "requires cash on hand and monthly burn, both UNKNOWN", "financials"),
     ("burn_multiple", "What is the burn multiple", "requires net burn and net new ARR, both UNKNOWN; also blocked by contradiction B-04", "unit_economics"),
-    ("published_price", "What is the published price of the product", "no pricing page or price list has been published", "pricing"),
+    ("published_price", "What is the published price of the product", "published founder-set price list exists, but current price evidence, customer acceptance, collections, and contract terms must be independently refreshed after scaffold generation", "pricing"),
     ("buyer_persona", "Who is the named buyer persona with budget authority", "hypotheses exist in strategy notes but no interviewed buyer has confirmed one", "gtm"),
     ("pricing_model", "What pricing model does the product use", "no model has been chosen among per-seat, per-action, or platform fee", "pricing"),
     ("design_partner_count", "How many signed design partners are actively testing the product", "no signed design partner agreement exists", "customers"),
