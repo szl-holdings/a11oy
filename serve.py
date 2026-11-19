@@ -901,6 +901,21 @@ except Exception as _szl_pool_contract_error:  # pragma: no cover
         f"[a11oy] compute-pool/v1 contract NOT registered: {_szl_pool_contract_error!r}; legacy routes unaffected",
         file=__import__("sys").stderr,
     )
+
+# Pool inference-receipt ingestion (szl_pool_receipt_ingest): the authorized
+# transport for pool-attester DSSE receipts into the running Space.  The minter
+# lives on the sovereign laptop; without this guarded registration its receipts
+# have nowhere fail-closed to land and the contract can never promote a node
+# above REACHABLE.  Same fail-closed style as the contract registration above.
+try:
+    import szl_pool_receipt_ingest as _szl_pool_receipt_ingest
+    _szl_pool_ingest_paths = _szl_pool_receipt_ingest.register(app, ns="a11oy")
+    print(f"[a11oy] compute-pool receipt ingestion registered: {_szl_pool_ingest_paths}", file=__import__("sys").stderr)
+except Exception as _szl_pool_ingest_error:  # pragma: no cover
+    print(
+        f"[a11oy] compute-pool receipt ingestion NOT registered: {_szl_pool_ingest_error!r}; contract read paths unaffected",
+        file=__import__("sys").stderr,
+    )
 # ── Backend hardening (devJ) — szl_backend_hardening ── end
 
 # ── Observability / distributed tracing (devN) — szl_observability ──
