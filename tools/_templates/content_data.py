@@ -145,8 +145,8 @@ LEDGER_ROWS = [
     ("cofounder_advisor_name", "Who is the committed co-founder or named advisor", "Stephen Lutar is solo; no co-founder or advisor has signed (see contradiction B-05)", "team"),
     ("cap_table_cleanliness", "Is the cap table clean and fully documented", "no counsel-verified cap table export has been attached", "legal"),
     ("contributor_ip_assignments", "Do all contributors have signed IP assignment agreements", "no signed IP assignment paperwork has been attached", "legal"),
-    ("model_bom_status", "Does a complete model bill of materials exist for every model in the estate", "no Model BOM register has been created for the ~15 Hugging Face models", "ai_governance"),
-    ("dataset_license_register", "Does a license register exist covering all datasets", "no license register has been created for the ~30 Hugging Face datasets", "ai_governance"),
+    ("model_bom_status", "Does a complete model bill of materials exist for every model in the estate", "historical model BOM exists, but current repository membership, model revisions, source rights and complete coverage have not been reconciled", "ai_governance"),
+    ("dataset_license_register", "Does a license register exist covering all datasets", "historical dataset license register exists, but current dataset membership and per-source training eligibility have not been reconciled", "ai_governance"),
     ("soc2_status", "What is the SOC 2 attestation status", "SOC 2 work has not been started; no auditor engaged", "security_readiness"),
     ("eu_design_partner", "Is there at least one EU-based design partner for the Article 12 profile", "no EU design partner conversation has reached a signed agreement", "customers"),
 ]
