@@ -1156,6 +1156,522 @@ def test_governance_is_additive_energy_unchanged(monkeypatch):
     assert on["governed_compute"]["recent_governed"] >= 1, on["governed_compute"]
 
 
+# ---------------------------------------------------------------------------
+# (11) BOUNDED-WINDOW READINESS. A fresh NVML counter window that brackets a real
+#      job is counted for this process. It is MEASURED host-window energy, never
+#      billable job energy, and it is never persisted or inherited by a restart.
+# ---------------------------------------------------------------------------
+def _counter_sample(ts: float, joules: float):
+    return OP._exporter_sample_for_node({"engines": [{"engine": "betterwithage", "gpus": [{
+        "gpu_uuid": "GPU-fixture", "counter_epoch": "fixture-segment", "sample_ts": ts,
+        "joules_method": "NVML_COUNTER_DELTA", "live": True, "joules": joules}]}]},
+        "betterwithage")
+
+
+def test_verified_windows_are_counted_without_billing(monkeypatch):
+    node = _FakeNode()
+    base = node.start()
+    try:
+        monkeypatch.setattr(OP, "_JOULE_METER_URL", f"http://127.0.0.1:{node.port}/meter")
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "ledger.json")
+            op = OP.OperatorDaemon(nodes=[_node_cfg(base)], state_path=path,
+                                   allow_stub=False)
+            before = op.status()
+            assert before["window_measured_jobs"] == 0, before
+            assert before["window_joules_label"] == "UNAVAILABLE", before
+            assert before["window_joules_reason"] == "NO_VERIFIED_NVML_COUNTER_WINDOW", before
+            assert before["last_window_measured_at"] is None, before
+            op.run_once()
+            st = op.status()
+            assert st["window_measured_jobs"] >= 1, st
+            assert st["window_joules_label"] == "MEASURED", st
+            assert st["window_joules_reason"] is None, st
+            assert st["window_joules_scope"] == "BOUNDED_METER_WINDOW", st
+            assert abs(st["window_joules_measured_total"] - _window_sum(st)) < 1e-6, st
+            assert st["last_window_measured_at"], st
+            # A host window is not exclusive job attribution: billing stays closed.
+            assert st["measured_jobs"] == 0 and st["joules_measured_total"] == 0, st
+            assert st["joules_measured_label"] == "UNAVAILABLE", st
+            assert st["joules_measured_reason"] == "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION", st
+            with open(path, encoding="utf-8") as fh:
+                persisted = json.load(fh)
+            assert not any(key.startswith("window_") for key in persisted), persisted
+            restarted = OP.OperatorDaemon(nodes=[_node_cfg(base)], state_path=path,
+                                          allow_stub=False)
+            assert restarted.status()["window_measured_jobs"] == 0
+    finally:
+        node.stop()
+
+
+def test_job_without_a_verified_window_is_not_counted():
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        rec = op._commit("rtx-betterwithage", "llama3.1:8b", "generate", 5, 0.5,
+                         None, None)
+        assert rec.window_joules_measured is None, rec
+        st = op.status()
+        assert st["jobs_done"] == 1, st
+        assert st["window_measured_jobs"] == 0, st
+        assert st["window_joules_measured_total"] == 0.0, st
+        assert st["window_joules_label"] == "UNAVAILABLE", st
+        assert st["joules_measured_reason"] == "NO_VERIFIED_NVML_COUNTER_WINDOW", st
+
+
+def test_one_bracketed_job_counts_one_window():
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        t = time.time() - 2
+        rec = op._commit("rtx-betterwithage", "llama3.1:8b", "generate", 42, 0.5,
+                         _counter_sample(t + 1, 112.5), 12.5,
+                         exporter_before_sample=_counter_sample(t, 100.0),
+                         job_start_ts=t + 0.25, job_end_ts=t + 0.75)
+        assert rec.window_joules_measured == 12.5 and rec.joules_measured is None, rec
+        st = op.status()
+        assert st["window_measured_jobs"] == 1, st
+        assert st["window_joules_measured_total"] == 12.5, st
+        assert st["measured_jobs"] == 0 and st["joules_measured_total"] == 0.0, st
+
+
+# ---------------------------------------------------------------------------
+# (12) LUNG PROBE DIAGNOSTICS. The latest liveness outcome per configured node is
+#      reported as a bounded reason code under the public node name. No URL, host,
+#      port, or credential reaches status() or readiness().
+# ---------------------------------------------------------------------------
+def test_probe_failure_reasons_are_bounded_codes():
+    import socket
+    import ssl
+    import urllib.error
+
+    reason = OP._probe_failure_reason
+    assert reason(urllib.error.URLError(socket.gaierror(-2, "unknown"))) == "dns_failure"
+    assert reason(socket.gaierror(-2, "unknown")) == "dns_failure"
+    assert reason(urllib.error.URLError(ConnectionRefusedError(111, "refused"))) == "connection_refused"
+    assert reason(ConnectionRefusedError(111, "refused")) == "connection_refused"
+    assert reason(urllib.error.URLError(socket.timeout("timed out"))) == "timeout"
+    assert reason(TimeoutError("timed out")) == "timeout"
+    assert reason(urllib.error.URLError(ssl.SSLError("certificate"))) == "tls_error"
+    assert reason(OSError("unreachable")) == "network_error"
+    assert reason(ValueError("malformed")) == "probe_error"
+
+
+def test_probe_outcome_is_reported_under_the_public_name_only(monkeypatch):
+    monkeypatch.delenv("A11OY_GPU_TOKEN", raising=False)
+    answer = 401
+
+    def respond(request):
+        return answer, ({"Location": "/elsewhere"} if 300 <= answer < 400 else {})
+
+    with _probe_server(respond) as (base, _requests):
+        with tempfile.TemporaryDirectory() as d:
+            op = OP.OperatorDaemon(
+                nodes=[OP.NodeCfg("omen-betterwithage", base, "llama3.1:8b",
+                                  "bge-large", "omen", standby=True)],
+                state_path=os.path.join(d, "l.json"), allow_stub=False)
+            public = "Sovereign GPU 2 (always-on anchor)"
+            assert op.status()["lung_probe"] == {
+                public: {"reachable": None, "reason": "not_probed", "observed_at": None}}
+            prev = _swap_singleton(op)
+            try:
+                for answer, expected, reachable in ((401, "auth_refused", False),
+                                                    (302, "redirect_refused", False),
+                                                    (500, "http_error", False),
+                                                    (200, "ok", True)):
+                    assert op.any_lung_reachable() is reachable
+                    rows = op.status()["lung_probe"]
+                    assert set(rows) == {public}, rows
+                    assert rows[public]["reachable"] is reachable, rows
+                    assert rows[public]["reason"] == expected, rows
+                    assert rows[public]["observed_at"], rows
+                    probed = OP.readiness()
+                    assert probed["lung_probe"][public]["reason"] == expected, probed
+                    blob = json.dumps({"status": op.status(), "readiness": probed})
+                    assert "127.0.0.1" not in blob and base not in blob, blob
+            finally:
+                _swap_singleton(prev)
+
+
+# ---------------------------------------------------------------------------
+# (13) AUTOSTART RETRY. After boot, a lung-gated start is retried on a bounded
+#      interval. It never fabricates a running loop, honors the global off switch,
+#      and never overrides an operator's explicit stop.
+# ---------------------------------------------------------------------------
+def _idle_operator(d: str) -> "OP.OperatorDaemon":
+    op = OP.OperatorDaemon(nodes=[_node_cfg("http://192.0.2.1:11434/v1")],
+                           state_path=os.path.join(d, "l.json"),
+                           job_interval_s=60, allow_stub=False)
+    op.run_once = lambda: []  # the worker must not dispatch work in these tests
+    return op
+
+
+def test_autostart_retry_starts_only_after_a_lung_answers(monkeypatch):
+    answers = []
+    monkeypatch.setattr(OP, "_http_reachable",
+                        lambda *a, **k: answers.pop(0) if answers else False)
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        try:
+            first = OP.autostart_retry_once(op)
+            assert first == {"attempted": True, "started": False,
+                             "reason": "no_lung_reachable", "running": False}, first
+            assert op.is_running() is False
+            answers.append(True)
+            second = OP.autostart_retry_once(op)
+            assert second["attempted"] is True and second["started"] is True, second
+            assert op.is_running() is True
+            third = OP.autostart_retry_once(op)
+            assert third == {"attempted": False, "started": False,
+                             "reason": "already_running", "running": True}, third
+        finally:
+            op.stop()
+
+
+def test_autostart_retry_never_overrides_an_operator_stop(monkeypatch):
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: True)
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        try:
+            stopped = op.operator_stop()
+            assert stopped["operator_hold"] is True, stopped
+            held = OP.autostart_retry_once(op)
+            assert held == {"attempted": False, "started": False,
+                            "reason": "operator_stop_requested", "running": False}, held
+            assert op.is_running() is False
+            started = op.operator_start()
+            assert started["started"] is True, started
+            assert started["operator_hold"] is False, started
+        finally:
+            op.stop()
+
+
+def test_autostart_retry_cannot_start_after_a_racing_operator_stop(monkeypatch):
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: True)
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        op.operator_stop()
+        # The retry read the hold just before an operator's stop landed.
+        monkeypatch.setattr(op, "operator_hold_active", lambda: False)
+        result = OP.autostart_retry_once(op)
+        assert result == {"attempted": True, "started": False,
+                          "reason": "operator_stop_requested", "running": False}, result
+        assert op.is_running() is False
+
+
+def test_operator_stop_during_the_retry_probe_wins(monkeypatch):
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+
+        def stop_while_probing(*_args, **_kwargs):
+            op.operator_stop()
+            return True
+
+        monkeypatch.setattr(OP, "_http_reachable", stop_while_probing)
+        result = OP.autostart_retry_once(op)
+        assert result["started"] is False, result
+        assert op.is_running() is False
+        assert op.operator_hold_active() is True
+
+
+def test_operator_stop_landing_during_an_operator_start_wins_and_holds(monkeypatch):
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    entered = threading.Event()
+    release = threading.Event()
+
+    def blocked_probe(*_args, **_kwargs):
+        entered.set()
+        release.wait(5)
+        return True
+
+    monkeypatch.setattr(OP, "_http_reachable", blocked_probe)
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        results = {}
+        worker = threading.Thread(
+            target=lambda: results.setdefault("start", op.operator_start()))
+        worker.start()
+        try:
+            assert entered.wait(5)
+            stopped = op.operator_stop()
+        finally:
+            release.set()
+            worker.join(5)
+        assert results["start"]["started"] is False, results
+        assert results["start"]["reason"] == "start_cancelled_by_stop", results
+        assert stopped["operator_hold"] is True, stopped
+        assert op.is_running() is False and op.operator_hold_active() is True
+        assert OP.autostart_retry_once(op)["reason"] == "operator_stop_requested"
+
+
+def test_window_label_requires_a_recent_window(monkeypatch):
+    monkeypatch.setenv("A11OY_ENERGY_WINDOW_MAX_AGE_S", "120")
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        t = time.time() - 2
+        op._commit("rtx-betterwithage", "llama3.1:8b", "generate", 42, 0.5,
+                   _counter_sample(t + 1, 112.5), 12.5,
+                   exporter_before_sample=_counter_sample(t, 100.0),
+                   job_start_ts=t + 0.25, job_end_ts=t + 0.75)
+        fresh = op.status()
+        assert fresh["window_fresh"] is True, fresh
+        assert fresh["window_max_age_s"] == 120.0, fresh
+        assert 0 <= fresh["window_age_s"] <= 120, fresh
+        assert fresh["window_joules_label"] == "MEASURED", fresh
+        op._last_window_measured_ts -= 1000  # the meter went quiet long ago
+        stale = op.status()
+        assert stale["window_fresh"] is False, stale
+        assert stale["window_joules_label"] == "UNAVAILABLE", stale
+        assert stale["window_joules_reason"] == "NO_RECENT_VERIFIED_NVML_COUNTER_WINDOW", stale
+        assert stale["window_measured_jobs"] == 1, stale
+        assert stale["joules_measured_reason"] == "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION", stale
+
+
+def test_window_max_age_configuration(monkeypatch):
+    for raw, expected in (("", 900.0), ("abc", 900.0), ("nan", 900.0), ("inf", 900.0),
+                          ("-5", 900.0), ("0", 900.0), ("30", 60.0), ("600", 600.0),
+                          ("999999", 86400.0)):
+        monkeypatch.setenv("A11OY_ENERGY_WINDOW_MAX_AGE_S", raw)
+        assert OP.window_max_age_s() == expected, (raw, expected)
+
+
+def test_external_jobs_are_marked_apart_from_operator_jobs():
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        external = op.submit_external_job("local-governed-kernel", "python", "code_cell",
+                                          0, 0.1)
+        own = op._commit("rtx-betterwithage", "llama3.1:8b", "generate", 5, 0.5,
+                         None, None)
+        assert external.to_dict()["origin"] == "external"
+        assert own.to_dict()["origin"] == "operator"
+
+
+def test_operator_start_clears_the_hold_even_without_a_lung(monkeypatch):
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: False)
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        op.operator_stop()
+        refused = op.operator_start()
+        assert refused["started"] is False, refused
+        assert refused["reason"] == "no_lung_reachable", refused
+        assert refused["operator_hold"] is False, refused
+
+
+def test_autostart_retry_honors_the_global_off_switch(monkeypatch):
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: True)
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "0")
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        assert OP.autostart_retry_once(op) == {
+            "attempted": False, "started": False,
+            "reason": "autostart_disabled", "running": False}
+        assert op.is_running() is False
+
+
+def test_operator_routes_set_and_clear_the_stop_hold(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: True)
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        prev = _swap_singleton(op)
+        try:
+            app = FastAPI()
+            OP.register(app, ns="a11oy")
+            client = TestClient(app)
+            stopped = client.post("/api/a11oy/v1/energy/operator/stop")
+            assert stopped.status_code == 200, stopped.text
+            assert stopped.json()["operator_hold"] is True, stopped.json()
+            assert OP.autostart_retry_once(op)["reason"] == "operator_stop_requested"
+            started = client.post("/v1/energy/operator/start")
+            assert started.status_code == 200, started.text
+            assert started.json()["started"] is True, started.json()
+            assert started.json()["operator_hold"] is False, started.json()
+        finally:
+            op.stop()
+            _swap_singleton(prev)
+
+
+def test_autostart_retry_interval_configuration(monkeypatch):
+    for raw, expected in (("", 300.0), ("not-a-number", 300.0), ("nan", 300.0),
+                          ("inf", 300.0), ("120", 120.0), ("5", 60.0),
+                          ("999999", 3600.0), ("0", None), ("off", None),
+                          ("-30", None)):
+        monkeypatch.setenv("A11OY_ENERGY_AUTOSTART_RETRY_S", raw)
+        assert OP.autostart_retry_interval_s() == expected, (raw, expected)
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART_RETRY_S", "0")
+    assert OP.start_autostart_watchdog() == {
+        "started": False, "reason": "retry_disabled", "interval_s": None}
+
+
+def test_autostart_watchdog_starts_the_loop_once_a_lung_answers(monkeypatch):
+    reachable = []
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: bool(reachable))
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    # A retry thread left by another suite in this process would answer
+    # already_scheduled and tick against the wrong operator.
+    assert OP.stop_autostart_watchdog(timeout=2.0) is True
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        prev = _swap_singleton(op)
+        try:
+            report = OP.start_autostart_watchdog(interval_s=0.02)
+            assert report == {"started": True, "reason": "retry_scheduled",
+                              "interval_s": 0.02}, report
+            again = OP.start_autostart_watchdog(interval_s=0.02)
+            assert again["started"] is False and again["reason"] == "already_scheduled", again
+            time.sleep(0.1)
+            assert op.is_running() is False
+            reachable.append(True)
+            deadline = time.monotonic() + 5.0
+            while not op.is_running() and time.monotonic() < deadline:
+                time.sleep(0.02)
+            assert op.is_running() is True
+        finally:
+            assert OP.stop_autostart_watchdog(timeout=2.0) is True
+            op.stop()
+            _swap_singleton(prev)
+
+
+def test_stopped_watchdog_cannot_start_the_loop_from_an_in_flight_probe(monkeypatch):
+    # The stop's join can give up while a retry is still probing a lung; the probe
+    # answering afterwards must not start the loop for a lifespan that has ended.
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    entered = threading.Event()
+    release = threading.Event()
+
+    def slow_probe(*_args, **_kwargs):
+        entered.set()
+        release.wait(5)
+        return True
+
+    monkeypatch.setattr(OP, "_http_reachable", slow_probe)
+    assert OP.stop_autostart_watchdog(timeout=2.0) is True
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        prev = _swap_singleton(op)
+        try:
+            assert OP.start_autostart_watchdog(interval_s=0.02)["started"] is True
+            retry_thread = OP._WATCHDOG_THREAD
+            assert entered.wait(5)
+            assert OP.stop_autostart_watchdog(timeout=0.05) is False
+            release.set()
+            retry_thread.join(5)
+            assert not retry_thread.is_alive()
+            assert op.is_running() is False
+        finally:
+            release.set()
+            OP.stop_autostart_watchdog(timeout=2.0)
+            op.stop()
+            _swap_singleton(prev)
+
+
+def test_cancelled_retry_never_probes_or_starts(monkeypatch):
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    probes = []
+    monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: probes.append(1) or True)
+    cancel = threading.Event()
+    cancel.set()
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        result = OP.autostart_retry_once(op, cancel=cancel)
+        assert result == {"attempted": False, "started": False,
+                          "reason": "retry_cancelled", "running": False}, result
+        assert op.start(cancel=cancel)["reason"] == "retry_cancelled"
+        assert probes == [] and op.is_running() is False
+
+
+def test_a_start_that_joined_a_cancelled_retry_still_starts_the_loop(monkeypatch):
+    # An operator start that arrives while a retry probes is told start_in_progress;
+    # cancelling that retry must not silently drop the operator's start.
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    entered = threading.Event()
+    release = threading.Event()
+
+    def slow_probe(*_args, **_kwargs):
+        entered.set()
+        release.wait(5)
+        return True
+
+    monkeypatch.setattr(OP, "_http_reachable", slow_probe)
+    cancel = threading.Event()
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        results = {}
+        leader = threading.Thread(target=lambda: results.setdefault(
+            "retry", OP.autostart_retry_once(op, cancel=cancel)))
+        leader.start()
+        try:
+            assert entered.wait(5)
+            joined = op.operator_start()
+            cancel.set()
+        finally:
+            release.set()
+            leader.join(5)
+        try:
+            assert joined["started"] is False and joined["reason"] == "start_in_progress", joined
+            assert results["retry"]["started"] is True, results
+            assert op.is_running() is True
+        finally:
+            op.stop()
+
+
+def test_watchdog_stop_waits_out_a_retry_inside_the_commit_section():
+    # Holding the operator lock stands in for a retry between its last cancel check
+    # and its commit: the stop must not return until that section has finished.
+    assert OP.stop_autostart_watchdog(timeout=2.0) is True
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        prev = _swap_singleton(op)
+        try:
+            assert OP.start_autostart_watchdog(interval_s=3600)["started"] is True
+            returned = threading.Event()
+            stopper = threading.Thread(target=lambda: (
+                OP.stop_autostart_watchdog(timeout=2.0), returned.set()))
+            with op._lock:
+                stopper.start()
+                assert returned.wait(0.3) is False
+            stopper.join(5)
+            assert returned.is_set()
+        finally:
+            OP.stop_autostart_watchdog(timeout=2.0)
+            _swap_singleton(prev)
+
+
+def test_watchdog_stop_stays_bounded_while_the_operator_lock_is_held():
+    # A slow persist (fsync under the operator lock) must not hang app shutdown:
+    # the lock wait and the join share the one timeout.
+    assert OP.stop_autostart_watchdog(timeout=2.0) is True
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        prev = _swap_singleton(op)
+        release = threading.Event()
+        holding = threading.Event()
+
+        def hold_the_operator_lock():
+            with op._lock:
+                holding.set()
+                release.wait(3)
+
+        holder = threading.Thread(target=hold_the_operator_lock)
+        try:
+            assert OP.start_autostart_watchdog(interval_s=3600)["started"] is True
+            holder.start()
+            assert holding.wait(5)
+            began = time.monotonic()
+            OP.stop_autostart_watchdog(timeout=0.3)
+            assert time.monotonic() - began < 1.5
+        finally:
+            release.set()
+            holder.join(5)
+            OP.stop_autostart_watchdog(timeout=2.0)
+            _swap_singleton(prev)
+
+
 if __name__ == "__main__":
     import sys
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

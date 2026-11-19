@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-11-18T05:28:05Z",
+  "observedAt": "2026-11-19T07:31:17Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -22,7 +22,7 @@
     "https://huggingface.co/api/kernels?author=SZLHOLDINGS&limit=100&full=true"
   ],
   "counts": {
-    "models": 150,
+    "models": 151,
     "datasets": 99,
     "spaces": 33,
     "kernels": 14
@@ -3647,6 +3647,40 @@
         "claimStatus": "inventory",
         "evidenceUrls": [
           "https://huggingface.co/SZLHOLDINGS/salad-khipu-scholar-v1"
+        ],
+        "unsafeFlags": []
+      },
+      {
+        "id": "SZLHOLDINGS/salad-khipu-structure-v1",
+        "repoType": "model",
+        "private": false,
+        "gated": false,
+        "disabled": false,
+        "sdk": null,
+        "license": "apache-2.0",
+        "sha": "03ceac415c12cca0a3f1fd5cdfd69b36ec4b3f19",
+        "lastModified": "2026-11-19T07:30:12.000Z",
+        "cardSemanticSha256": "52f7d13a3a5e6e46c4c8430fe896d08fc94c19ccfc6349eb56947cc5be13f2b2",
+        "createdAt": "2026-11-17T07:38:34.000Z",
+        "tags": [
+          "peft",
+          "safetensors",
+          "lora",
+          "sft",
+          "transformers",
+          "trl",
+          "khipu",
+          "structure",
+          "text-generation",
+          "conversational",
+          "base_model:Qwen/Qwen3-1.7B",
+          "base_model:adapter:Qwen/Qwen3-1.7B",
+          "license:apache-2.0",
+          "region:us"
+        ],
+        "claimStatus": "inventory",
+        "evidenceUrls": [
+          "https://huggingface.co/SZLHOLDINGS/salad-khipu-structure-v1"
         ],
         "unsafeFlags": []
       },
