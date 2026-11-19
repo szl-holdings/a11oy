@@ -13,7 +13,9 @@
 # This keeps the final package set identical to --with-deps, but:
 #   1. downloads the pinned browser build with bounded retries;
 #   2. asks Playwright which OS packages it needs (install-deps --dry-run) and
-#      does not touch apt when every one is already installed;
+#      does not touch apt when every one is already installed (newer
+#      Playwright reports "All system dependencies are installed" itself);
+#      an unreadable plan falls back to Playwright's own installer;
 #   3. otherwise installs only the missing packages, with apt request retries,
 #      per-request timeouts and bounded attempts;
 #   4. fails closed unless every required package is installed and the
@@ -56,14 +58,17 @@ retry() {
 
 retry "Chromium download" 300 "${pw[@]}" install chromium
 
-plan="$("${pw[@]}" install-deps --dry-run chromium)"
+harden_apt() {
+  printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
+    | "${sudo_cmd[@]}" tee "$apt_conf" >/dev/null
+}
+
+# Never let a failing dry-run abort silently: keep its output and exit code.
+plan_rc=0
+plan="$("${pw[@]}" install-deps --dry-run chromium 2>&1)" || plan_rc=$?
 packages="$(printf '%s\n' "$plan" \
   | sed -n 's/.*--no-install-recommends \([^"]*\).*/\1/p' \
   | tr ' ' '\n' | grep -E '^[a-z0-9][a-z0-9.+-]*$' | sort -u || true)"
-if [ -z "$packages" ]; then
-  echo "::error::could not read Chromium's OS package list from: $plan" >&2
-  exit 1
-fi
 
 missing_packages() {
   local pkg
@@ -74,23 +79,34 @@ missing_packages() {
   done
 }
 
-total="$(printf '%s\n' $packages | wc -l)"
-missing="$(missing_packages)"
-if [ -z "$missing" ]; then
-  echo "All $total OS packages Chromium needs are already installed; apt was not used."
-else
-  echo "Installing $(printf '%s\n' $missing | wc -l) of $total OS packages: $(echo $missing)"
-  printf '%s\n' 'Acquire::Retries "5";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' \
-    | "${sudo_cmd[@]}" tee "$apt_conf" >/dev/null
-  retry "apt-get update" 240 "${sudo_cmd[@]}" apt-get update
-  # shellcheck disable=SC2086 # one argument per package name
-  retry "apt-get install" 300 "${sudo_cmd[@]}" env DEBIAN_FRONTEND=noninteractive \
-    apt-get install -y --no-install-recommends $missing
+if [ "$plan_rc" -eq 0 ] && [ -z "$packages" ] \
+  && [[ "$plan" == *"All system dependencies are installed"* ]]; then
+  # Newer Playwright checks the libraries itself and prints no package list.
+  echo "Playwright reports every OS dependency installed; apt was not used."
+elif [ "$plan_rc" -eq 0 ] && [ -n "$packages" ]; then
+  total="$(printf '%s\n' $packages | wc -l)"
   missing="$(missing_packages)"
-  if [ -n "$missing" ]; then
-    echo "::error::OS packages still missing after install: $(echo $missing)" >&2
-    exit 1
+  if [ -z "$missing" ]; then
+    echo "All $total OS packages Chromium needs are already installed; apt was not used."
+  else
+    echo "Installing $(printf '%s\n' $missing | wc -l) of $total OS packages: $(echo $missing)"
+    harden_apt
+    retry "apt-get update" 240 "${sudo_cmd[@]}" apt-get update
+    # shellcheck disable=SC2086 # one argument per package name
+    retry "apt-get install" 300 "${sudo_cmd[@]}" env DEBIAN_FRONTEND=noninteractive \
+      apt-get install -y --no-install-recommends $missing
+    missing="$(missing_packages)"
+    if [ -n "$missing" ]; then
+      echo "::error::OS packages still missing after install: $(echo $missing)" >&2
+      exit 1
+    fi
   fi
+else
+  # Unreadable plan: fall back to Playwright's own installer, never worse than
+  # --with-deps, still with hardened apt and bounded attempts.
+  echo "::warning::could not read Chromium's OS package plan (exit $plan_rc): $plan" >&2
+  harden_apt
+  retry "playwright install-deps" 600 "${pw[@]}" install-deps chromium
 fi
 
 browsers="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"

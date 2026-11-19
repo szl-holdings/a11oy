@@ -43,7 +43,14 @@ def rig(tmp_path):
         fi
         if [ "$1" = install-deps ] && [ "$2" = --dry-run ]; then
           [ -n "${{EMPTY_PLAN:-}}" ] && {{ echo "nothing to do"; exit 0; }}
+          [ -n "${{PLAN_FAILS:-}}" ] && {{ echo "ERROR: host not supported"; exit 1; }}
+          [ -n "${{SELF_CHECKED:-}}" ] && {{ echo "All system dependencies are installed."; exit 0; }}
           echo 'sh -c "apt-get update&& apt-get install -y --no-install-recommends {' '.join(PACKAGES)}"'
+          exit 0
+        fi
+        if [ "$1" = install-deps ] && [ "$2" = chromium ]; then
+          n=$(grep -c '^install-deps chromium$' "{state}/pw.log")
+          [ "$n" -gt "${{FAIL_PW_DEPS:-0}}" ] || exit 1
           exit 0
         fi
         exit 64
@@ -146,11 +153,34 @@ def test_browser_download_is_retried_then_fails_closed(rig):
     assert "::error::Chromium download failed after 3 attempts" in done.stderr
 
 
-def test_unreadable_package_plan_fails_closed(rig):
-    done, apt, _ = rig(installed=PACKAGES, EMPTY_PLAN=1)
-    assert done.returncode != 0
-    assert "could not read Chromium's OS package list" in done.stderr
+def test_newer_playwright_self_check_skips_apt(rig):
+    done, apt, pw = rig(installed=[], SELF_CHECKED=1)
+    assert done.returncode == 0, done.stderr
+    assert "Playwright reports every OS dependency installed; apt was not used." in done.stdout
     assert apt == ""
+    assert "install-deps chromium\n" not in pw
+
+
+@pytest.mark.parametrize("env", [{"EMPTY_PLAN": 1}, {"PLAN_FAILS": 1}])
+def test_unreadable_plan_falls_back_to_playwrights_installer(rig, env):
+    done, apt, pw = rig(installed=PACKAGES, **env)
+    assert done.returncode == 0, done.stderr
+    assert "could not read Chromium's OS package plan" in done.stderr
+    assert pw.count("install-deps chromium\n") == 1
+    assert apt == ""
+    assert 'Acquire::Retries "5";' in (rig.state / "apt.conf").read_text()
+
+
+def test_failed_plan_is_reported_never_swallowed(rig):
+    done, _, _ = rig(installed=PACKAGES, PLAN_FAILS=1)
+    assert "(exit 1): ERROR: host not supported" in done.stderr
+
+
+def test_fallback_installer_failure_fails_closed(rig):
+    done, _, pw = rig(installed=PACKAGES, PLAN_FAILS=1, FAIL_PW_DEPS=99)
+    assert done.returncode != 0
+    assert pw.count("install-deps chromium\n") == 3
+    assert "::error::playwright install-deps failed after 3 attempts" in done.stderr
 
 
 @pytest.mark.parametrize("env,message", [
