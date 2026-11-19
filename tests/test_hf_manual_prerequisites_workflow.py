@@ -170,6 +170,10 @@ fi
 if [ "${STAGE:-}" = 'RUNNING' ] && [ -n "$live" ]; then
   # A paused or operator-approved window remains valid. Automatic releases
   # instead require independently measured post-cutover fencing and clean HEAD.
+  if [ -n "${RELEASE_FREEZE:-}" ] && [ "${RELEASE_FREEZE}" != 'false' ]; then
+    echo "::error::PUBLICATION_HELD_AUTOMATIC_RELEASE_FREEZE: A11OY_AUTOMATIC_RELEASE_FREEZE is set, so the serving boot stays pinned for an in-flight execution review. protected_main=${GITHUB_SHA} live_revision=${live}. Clear it after verify_current_deployment, or dispatch hf-sync.yml on main with open_deploy_window=true inside an agreed window."
+    exit 1
+  fi
   python -I -B .github/scripts/await_hf_configuration_handover.py capture \
     --origin "$CANONICAL_ORIGIN" \
     --output "$RUNNER_TEMP/fenced-admission-baseline.json"
@@ -185,7 +189,8 @@ fi
 echo "::error::PUBLICATION_BLOCKED_DEPLOY_WINDOW_CLOSED: stage=${STAGE:-UNKNOWN} protected_main=${GITHUB_SHA} live_revision=${live:-UNAVAILABLE}. Pause the Space, or dispatch hf-sync.yml on main with open_deploy_window=true, inside an agreed maintenance window."
 exit 1'''
 WINDOW_ENV = {"STAGE": "${{ steps.runtime.outputs.stage }}",
-              "DISPATCH_WINDOW": "${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}"}
+              "DISPATCH_WINDOW": "${{ github.event_name == 'workflow_dispatch' && inputs.open_deploy_window == true }}",
+              "RELEASE_FREEZE": "${{ vars.A11OY_AUTOMATIC_RELEASE_FREEZE }}"}
 ADMITTED = "${{ steps.admit.outputs.publish == 'true' }}"
 WINDOW_OPEN = "${{ steps.window.outputs.open == 'true' }}"
 AWAIT_RUN = '''python -I -B .github/scripts/await_hf_runtime_serving.py
