@@ -61,6 +61,28 @@ The same change removes the unconditional `sovereign_ownership_not_verified` rea
 
 Consumers that partition tiles must account for `not_runtime_verifiable`; the healthz liveness signal's consistency check does. A missing, malformed, or count-mismatched `not_runtime_verifiable` value fails closed: the rollup reports unavailable rather than ok.
 
+## Energy readiness: the bounded-window scope
+
+Before this change, two runtime-satisfiable tiles could never become ready, whatever ran on the live Space:
+
+- The Energy operator predicate required `measured_jobs >= 1`. The operator increments that billable counter only for exclusively attributed job energy, and no NVML host window can establish exclusivity, so the counter is always zero.
+- The Energy provenance chain predicate was hard-coded unsatisfied, and nothing appended to the chain in production.
+
+Both tiles are rescoped to the runtime-verifiable subset, following the pattern of the compute-fabric change above. The part a runtime cannot verify stays visible as its own field and is never presented as met.
+
+| Tile | Predicate now | Reported, never promoted |
+| --- | --- | --- |
+| Energy operator | `running=true` + a configured GPU node answered its latest sweep probe + at least one job this process was bracketed by a verified NVML counter window | `joules_measured_total`, `joules_measured_label`, `joules_measured_reason`: billable per-job energy, unavailable without exclusive attribution |
+| Energy provenance chain | non-empty chain + computed chain verification + at least one hash-bound MEASURED bounded-window entry | `joules_est` stays SAMPLE/ESTIMATE |
+
+A verified window means fresh before and after counter samples on the same GPU UUID and continuity epoch that bracket the job interval. The delta includes host work outside the job, so it is labelled MEASURED only within the `BOUNDED_METER_WINDOW` scope (`measurement_scope` on both tiles) and is never billed. The operator tile's label is MEASURED only once such a window has been observed, and UNAVAILABLE otherwise. A missing, malformed or contradictory billable label fails closed to UNAVAILABLE.
+
+The provenance chain gains a v2 entry (`szl.energy-provenance.entry/v2`) that binds `schema`, `measurement_label`, `measurement_scope`, `window_joules_measured`, `source`, `source_seq` and `node` into its receipt hash, so promoting a SAMPLE entry after append breaks verification. A v1 entry keeps its historical encoding and never counts. The operator's completed-job stream is the chain's only production writer: one entry per real GPU job, under the public node name, with no GPU UUID, counter evidence, receipt id or private host. Stub jobs are not recorded, and a read never appends. The process chain keeps at most `SZL_ENERGY_PROVENANCE_MAX_ENTRIES` entries (default 10000); evicted entries leave an explicit retention anchor that `verify()` walks from.
+
+Both counts are process-local and restart at zero, like the other tiles' evidence. The operator also reports `lung_probe` per node (bounded reason codes under public names) and retries its lung-gated autostart every `A11OY_ENERGY_AUTOSTART_RETRY_S` seconds (default 300, `0` disables); an operator's explicit stop holds the retry off until the next explicit start.
+
+This change does not alter the governance or composite tiles. Each still needs a real operator-authorized governed write in the current process: a restraint evaluation (`POST /api/a11oy/v1/restraint/evaluate`) and a composite receipt (`POST /api/a11oy/v1/provenance/receipt`). A manifest read never performs either.
+
 ## Frontend responsibilities
 
 The UI consumes the supplied decision. It validates the contract's representation rather than recalculating a capability's predicate.

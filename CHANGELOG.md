@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - energy frontier tiles can become ready from real evidence
+
+- The Energy operator tile required a billable `measured_jobs` count that no NVML
+  host window can produce, and the Energy provenance tile was hard-coded
+  unsatisfied with no production writer. Both now gate on the runtime-verifiable
+  subset: a job bracketed by a verified NVML counter window, MEASURED only within
+  the `BOUNDED_METER_WINDOW` scope. Billable per-job energy keeps its own label
+  and stays unavailable without exclusive attribution.
+- The operator's completed-job stream appends hash-bound v2 entries to the energy
+  provenance chain, so a label cannot be promoted after append. v1 entries keep
+  their encoding; the chain is bounded behind an explicit retention anchor.
+- The operator reports a bounded `lung_probe` reason per node (no URL, host or
+  credential) and retries its lung-gated autostart (`A11OY_ENERGY_AUTOSTART_RETRY_S`,
+  default 300 s). An operator's explicit stop holds the retry off.
+- Contract: `docs/frontier-readiness-contract.md`, "Energy readiness: the
+  bounded-window scope". Gotcha: `KNOWN_GOTCHAS.md` section 10.
+
 ### Added - admit horizon: when an admitted claim lapses, and through which evidence
 
 - `szl_admit_horizon` (governance layer, stdlib, read-only, no route) analyses

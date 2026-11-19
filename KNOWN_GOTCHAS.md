@@ -224,6 +224,34 @@ and the `run_tests` tool are **not sandboxed** (no rlimits, no network or filesy
 and say so in `RUN_BOUNDARY`.
 Resolver: `szl_operator_auth.py` (governance/). Tests: `tests/test_operator_auth_code_routes.py`.
 
+## 10. A TCP-reachable GPU is not an energy lung
+
+**Symptom:** `/api/a11oy/v1/compute-pool-hardened` shows a sovereign GPU `reachable`, yet
+`GET /api/a11oy/readyz` reports `operator.lung_reachable: false` and the Energy operator tile
+stays `operator_stopped`.
+
+**Why:** the fabric pool opens a TCP connection; the operator needs an authenticated
+`GET <base>/v1/models` (falling back to `<base>/v1`) to answer 2xx. An access-login redirect,
+a token refusal, or a 404 on both paths all leave the lung unreachable while TCP succeeds.
+
+**Diagnose:** `readyz` → `operator.lung_probe` (also in `/api/a11oy/v1/energy/operator/status`)
+reports the latest outcome per node under its public name: `ok`, `auth_refused`,
+`redirect_refused`, `http_error`, `timeout`, `dns_failure`, `connection_refused`, `tls_error`,
+`network_error`, `access_configuration_error`, `probe_error` or `not_probed`. No URL, host,
+port or credential is reported.
+
+**Fix belongs in Space settings, not code:** `redirect_refused` on an origin behind an access
+gate needs `A11OY_MODEL_CF_ACCESS_ORIGIN` plus the client id/secret pair (`szl_model_access`);
+`auth_refused` needs the matching `A11OY_GPU_TOKEN`. Once a probe answers, the autostart retry
+(`A11OY_ENERGY_AUTOSTART_RETRY_S`, default 300 s, `0` disables) starts the loop without a
+restart. An operator's explicit `POST /energy/operator/stop` holds it off until the next start.
+
+**Readiness scope:** the tile needs a job bracketed by a verified NVML counter window, which
+also requires the joule meter (`A11OY_JOULE_METER_URL`, HMAC via `SZL_METER_HMAC_TARGETS`) to
+answer. That bounded host window is MEASURED; billable per-job energy stays unavailable without
+exclusive attribution. Both counts are process-local and restart at zero.
+Tests: `test_szl_energy_operator.py`, `tests/test_energy_provenance_measured_windows.py`.
+
 ---
 
 *Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>*

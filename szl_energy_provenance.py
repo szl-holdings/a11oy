@@ -22,11 +22,20 @@ Each chain entry records (and hash-binds):
   joules_est       SAMPLE/ESTIMATE energy draw — NOT a metered value
   ts               ISO-8601 UTC timestamp
 
+A v2 entry (schema szl.energy-provenance.entry/v2) additionally hash-binds
+  schema, measurement_label, measurement_scope, window_joules_measured, source,
+  source_seq and node. measurement_label is MEASURED only when the entry carries a
+  verified NVML counter window over a bounded host window (scope
+  BOUNDED_METER_WINDOW); every other v2 entry is SAMPLE. A v1 entry keeps its
+  historical field set and encoding, so its receipt_hash is unchanged.
+
 verify() walks the chain and confirms BOTH:
   (1) link integrity — each entry's prev_hash equals the prior entry's receipt_hash,
       and each entry's recomputed content hash equals its recorded receipt_hash
       (so any tampering of any field, or any reordering/insertion/deletion, is caught);
   (2) the Bekenstein gate — every entry has within_bound is True.
+A bounded chain (max_entries) evicts its oldest entries and verifies the retained
+suffix from an explicit retention anchor, which verify() and summary() report.
 
 DOCTRINE (v11/v12, NEVER violated):
   - NO free-energy / perpetual-motion claims. The chain proves WHAT was receipted and
@@ -42,8 +51,12 @@ runs and self-tests standalone (the PR depends on #328 but does not require it m
 """
 import hashlib
 import json
+import math
+import os
+import threading
 from collections import Counter
 from datetime import datetime, timezone
+from typing import Any, Optional
 from starlette.requests import Request  # module-scope so add_api_route injects Request, not a 'req' query param (422 fix)
 
 # ---------------------------------------------------------------------------
@@ -93,6 +106,43 @@ _HASHED_FIELDS = (
     "bekenstein_bound", "within_bound", "energy_source", "joules_est", "ts",
 )
 
+ENTRY_SCHEMA_V2 = "szl.energy-provenance.entry/v2"
+MEASUREMENT_SCOPE_WINDOW = "BOUNDED_METER_WINDOW"
+_HASHED_FIELDS_V2 = _HASHED_FIELDS + (
+    "schema", "measurement_label", "measurement_scope", "window_joules_measured",
+    "source", "source_seq", "node",
+)
+
+# Retention bound for the process chain the operator feeds. Oldest entries are
+# evicted behind an explicit anchor rather than growing memory without limit.
+MAX_ENTRIES_ENV = "SZL_ENERGY_PROVENANCE_MAX_ENTRIES"
+_MAX_ENTRIES_DEFAULT = 10000
+_MAX_ENTRIES_CEILING = 1000000
+
+
+def _max_entries_from_env() -> int:
+    raw = (os.environ.get(MAX_ENTRIES_ENV) or "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        return _MAX_ENTRIES_DEFAULT
+    if value < 1:
+        return _MAX_ENTRIES_DEFAULT
+    return min(value, _MAX_ENTRIES_CEILING)
+
+
+def _verified_window(value: Any) -> bool:
+    return (not isinstance(value, bool) and isinstance(value, (int, float))
+            and math.isfinite(value) and value > 0)
+
+
+def _hashed_fields(entry: dict) -> Optional[tuple]:
+    if "schema" not in entry:
+        return _HASHED_FIELDS
+    if entry.get("schema") == ENTRY_SCHEMA_V2:
+        return _HASHED_FIELDS_V2
+    return None  # an unknown schema marker is not a format this chain wrote
+
 
 def _canonical_bytes(entry: dict) -> bytes:
     """Deterministic canonical encoding of the hash-bound content of an entry.
@@ -101,12 +151,26 @@ def _canonical_bytes(entry: dict) -> bytes:
     and tight separators so the bytes are stable across processes — the same rule
     szl_energy_budget.task_hash uses, so receipts are reproducible + offline-checkable.
     """
-    payload = {k: entry[k] for k in _HASHED_FIELDS}
+    fields = _hashed_fields(entry)
+    if fields is None:
+        raise KeyError("schema")
+    payload = {k: entry[k] for k in fields}
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-def _receipt_hash(entry: dict) -> str:
-    return hashlib.sha256(_canonical_bytes(entry)).hexdigest()
+def _receipt_hash(entry: dict) -> Optional[str]:
+    try:
+        return hashlib.sha256(_canonical_bytes(entry)).hexdigest()
+    except (KeyError, TypeError, ValueError):
+        return None  # a malformed entry can never match its recorded hash
+
+
+def _is_measured_window_entry(entry: dict) -> bool:
+    return (entry.get("schema") == ENTRY_SCHEMA_V2
+            and entry.get("measurement_label") == "MEASURED"
+            and entry.get("measurement_scope") == MEASUREMENT_SCOPE_WINDOW
+            and _verified_window(entry.get("window_joules_measured"))
+            and _receipt_hash(entry) == entry.get("receipt_hash"))
 
 
 class EnergyProvenanceChain:
@@ -117,8 +181,16 @@ class EnergyProvenanceChain:
     reorder/insert/delete, breaks a link and is caught by verify().
     """
 
-    def __init__(self) -> None:
+    def __init__(self, max_entries: Optional[int] = None) -> None:
         self._chain: list[dict] = []
+        # The operator appends from its worker thread while reads verify from request
+        # threads; one lock keeps every walk consistent with a single chain state.
+        self._lock = threading.RLock()
+        self._max_entries = (int(max_entries) if max_entries is not None
+                             and not isinstance(max_entries, bool)
+                             and int(max_entries) > 0 else None)
+        self._dropped = 0
+        self._anchor_prev_hash = ""
 
     # -- construction -------------------------------------------------------
     def append(
@@ -128,12 +200,22 @@ class EnergyProvenanceChain:
         shannon_bits: float | None = None,
         energy_source: str = "grid",
         joules_est: float = 0.0,
+        *,
+        window_joules_measured: Any = None,
+        measurement_scope: Optional[str] = None,
+        source: Optional[str] = None,
+        source_seq: Any = None,
+        node: Optional[str] = None,
     ) -> dict:
         """Build + append one hash-linked, Bekenstein-gated provenance entry.
 
         Computes shannon_bits + bytes from `output` when given; else uses the supplied
         sizes (worst-case full-entropy bytes*8 if shannon_bits omitted). within_bound
         is the proven F19/TH6 gate. joules_est is clamped nonneg and stays SAMPLE.
+
+        Passing any measurement keyword writes a v2 entry. It is MEASURED only for a
+        finite positive window_joules_measured with scope BOUNDED_METER_WINDOW;
+        otherwise the entry is SAMPLE and records no window.
         """
         if output is not None:
             data = output.encode("utf-8") if isinstance(output, str) else bytes(output)
@@ -145,36 +227,72 @@ class EnergyProvenanceChain:
         bound = bekenstein_bound(n_bytes)
         within = bool(s_bits <= bound + 1e-9)
         j_est = round(max(0.0, float(joules_est)), 6)
-        prev_hash = self._chain[-1]["receipt_hash"] if self._chain else ""
+        v2 = any(value is not None for value in
+                 (window_joules_measured, measurement_scope, source, source_seq, node))
 
-        entry = {
-            "prev_hash": prev_hash,
-            "task_hash": task_hash({
-                "output_bytes": n_bytes, "shannon_bits": s_bits,
-                "energy_source": str(energy_source), "joules_est": j_est,
-            }),
-            "bytes": n_bytes,
-            "shannon_bits": s_bits,
-            "bekenstein_bound": bound,
-            "within_bound": within,
-            "energy_source": str(energy_source),
-            "joules_est": j_est,
-            "joules_est_label": ENERGY_FIGURE_LABEL,
-            "ts": _now(),
-        }
-        entry["receipt_hash"] = _receipt_hash(entry)
-        self._chain.append(entry)
-        return entry
+        with self._lock:
+            prev_hash = self._chain[-1]["receipt_hash"] if self._chain else self._anchor_prev_hash
+            entry = {
+                "prev_hash": prev_hash,
+                "task_hash": task_hash({
+                    "output_bytes": n_bytes, "shannon_bits": s_bits,
+                    "energy_source": str(energy_source), "joules_est": j_est,
+                }),
+                "bytes": n_bytes,
+                "shannon_bits": s_bits,
+                "bekenstein_bound": bound,
+                "within_bound": within,
+                "energy_source": str(energy_source),
+                "joules_est": j_est,
+                "joules_est_label": ENERGY_FIGURE_LABEL,
+                "ts": _now(),
+            }
+            if v2:
+                measured = (_verified_window(window_joules_measured)
+                            and measurement_scope == MEASUREMENT_SCOPE_WINDOW)
+                seq_ok = (not isinstance(source_seq, bool) and isinstance(source_seq, int)
+                          and source_seq >= 0)
+                entry.update({
+                    "schema": ENTRY_SCHEMA_V2,
+                    "measurement_label": "MEASURED" if measured else "SAMPLE",
+                    "measurement_scope": MEASUREMENT_SCOPE_WINDOW if measured else None,
+                    "window_joules_measured": (round(float(window_joules_measured), 6)
+                                               if measured else None),
+                    "source": str(source) if source is not None else None,
+                    "source_seq": source_seq if seq_ok else None,
+                    "node": str(node) if node is not None else None,
+                })
+            entry["receipt_hash"] = _receipt_hash(entry)
+            self._chain.append(entry)
+            if self._max_entries is not None and len(self._chain) > self._max_entries:
+                drop = len(self._chain) - self._max_entries
+                del self._chain[:drop]
+                self._dropped += drop
+                self._anchor_prev_hash = self._chain[0]["prev_hash"]
+            return entry
 
     # -- inspection ---------------------------------------------------------
     def head(self) -> dict | None:
-        return self._chain[-1] if self._chain else None
+        with self._lock:
+            return self._chain[-1] if self._chain else None
 
     def __len__(self) -> int:
-        return len(self._chain)
+        with self._lock:
+            return len(self._chain)
 
     def entries(self) -> list[dict]:
-        return list(self._chain)
+        with self._lock:
+            return list(self._chain)
+
+    def measured_window_entries(self) -> int:
+        """Entries whose own hash binds a MEASURED bounded-window measurement."""
+        with self._lock:
+            return sum(1 for entry in self._chain if _is_measured_window_entry(entry))
+
+    def _retention(self) -> Optional[dict]:
+        if not self._dropped:
+            return None
+        return {"dropped_entries": self._dropped, "anchor_prev_hash": self._anchor_prev_hash}
 
     # -- verification -------------------------------------------------------
     def verify(self) -> dict:
@@ -186,14 +304,17 @@ class EnergyProvenanceChain:
         reported with its index + reason; later entries are still scanned for a
         full gate tally so the report is complete.
         """
-        n = len(self._chain)
+        with self._lock:
+            chain = list(self._chain)
+            prev_hash = self._anchor_prev_hash
+            retention = self._retention()
+        n = len(chain)
         first_break: dict | None = None
         gate_failures: list[int] = []
-        prev_hash = ""
 
-        for i, entry in enumerate(self._chain):
+        for i, entry in enumerate(chain):
             recomputed = _receipt_hash(entry)
-            if recomputed != entry.get("receipt_hash"):
+            if recomputed is None or recomputed != entry.get("receipt_hash"):
                 if first_break is None:
                     first_break = {"index": i, "reason": "receipt_hash mismatch (entry content tampered)"}
             elif entry.get("prev_hash") != prev_hash:
@@ -210,33 +331,51 @@ class EnergyProvenanceChain:
             "length": n,
             "links_intact": links_ok,
             "bekenstein_gate_all_pass": gate_ok,
-            "head_hash": self._chain[-1]["receipt_hash"] if self._chain else "",
+            "head_hash": chain[-1]["receipt_hash"] if chain else "",
             "first_break": first_break,
             "gate_failures": gate_failures,
-            "checked": "each entry hashes to its receipt_hash; prev_hash chains to prior; within_bound True",
+            "retention_anchor": retention,
+            "checked": ("each entry hashes to its receipt_hash; prev_hash chains to prior "
+                        "(from the retention anchor when older entries were evicted); "
+                        "within_bound True"),
             "verified_at": _now(),
         }
 
     def summary(self) -> dict:
         """Honest chain summary for the read endpoint: head + verify status + doctrine."""
-        v = self.verify()
-        head = self.head()
-        total_joules = round(sum(e["joules_est"] for e in self._chain), 6)
+        with self._lock:
+            v = self.verify()
+            chain = list(self._chain)
+            retention = self._retention() or {"dropped_entries": 0, "anchor_prev_hash": ""}
+        head = chain[-1] if chain else None
+        total_joules = round(sum(e["joules_est"] for e in chain), 6)
+        measured = [e for e in chain if _is_measured_window_entry(e)]
+        v2_count = sum(1 for e in chain if e.get("schema") == ENTRY_SCHEMA_V2)
         return {
             "model": "Proven Energy Engine — tamper-evident energy provenance chain",
             "status": "VERIFIED (hash-linked + Bekenstein gate)" if v["ok"] else
-                      ("EMPTY" if not self._chain else "TAMPER DETECTED"),
-            "length": len(self._chain),
+                      ("EMPTY" if not chain else "TAMPER DETECTED"),
+            "length": len(chain),
             "head_hash": head["receipt_hash"] if head else "",
             "head": head,
             "verify": v,
             "total_joules_est": total_joules,
             "total_joules_est_label": ENERGY_FIGURE_LABEL,
+            "entry_schemas": {"v1": len(chain) - v2_count, "v2": v2_count},
+            "measured_window_entries": len(measured),
+            "window_joules_measured_total": round(
+                sum(e["window_joules_measured"] for e in measured), 6),
+            "window_joules_label": "MEASURED" if measured else "UNAVAILABLE",
+            "window_joules_scope": MEASUREMENT_SCOPE_WINDOW,
+            "retention": retention,
             "math_source": _SOURCE,
             "gate": "F19/TH6 Bekenstein: shannon_bits <= bytes*8 per entry",
             "link_rule": "entry.prev_hash == prior.receipt_hash; receipt_hash = sha256(canonical content)",
-            "doctrine": "tamper-EVIDENT not 'measured'; NO free-energy claims; joules are SAMPLE/ESTIMATE "
-                        "until a real meter; open-weight only; never commit a key.",
+            "doctrine": "tamper-EVIDENT, which alone is not a measurement; NO free-energy claims; "
+                        "joules_est stays SAMPLE/ESTIMATE; window_joules_measured is MEASURED only "
+                        "on a hash-bound v2 entry carrying a verified NVML counter window over a "
+                        "bounded host window, never per-job billable energy; open-weight only; "
+                        "never commit a key.",
             "composes": ["szl_energy_budget #328 (Bekenstein-gated receipts)",
                          "SZL cosign+Rekor+in-toto transparency-log doctrine",
                          "Showcase/Frontier/EnergyBudgetWitness.lean (0-sorry witness)"],
@@ -245,12 +384,88 @@ class EnergyProvenanceChain:
 
 
 # Process-local chain instance backing the read endpoint (resets on restart).
-_CHAIN = EnergyProvenanceChain()
+_CHAIN = EnergyProvenanceChain(max_entries=_max_entries_from_env())
 
 
 def append_receipt(**kwargs) -> dict:
     """Module-level convenience: append to the shared process chain."""
     return _CHAIN.append(**kwargs)
+
+
+_OPERATOR_SOURCE = "energy-operator"
+
+
+def _public_node_name(node: str) -> str:
+    """The operator's public display name; a private host never enters the chain."""
+    try:
+        from szl_energy_operator import _public_node
+        return str(_public_node(node))
+    except Exception:  # noqa: BLE001 — unknown mapping collapses to a generic label
+        return "sovereign-gpu (private mesh)"
+
+
+def append_operator_job(job: Any, chain: Optional[EnergyProvenanceChain] = None) -> Optional[dict]:
+    """Record one completed operator job as a v2 entry. Never raises.
+
+    Only the bounded public summary is hashed as the entry's output: no GPU UUID,
+    counter evidence, receipt id or private host. Stub jobs are not GPU work and
+    malformed records are refused, so neither enters the chain.
+    """
+    target = chain if chain is not None else _CHAIN
+    try:
+        if not isinstance(job, dict):
+            return None
+        node = str(job.get("node") or "")
+        if not node or node == "local-stub" or node.endswith("-stub"):
+            return None
+        seq = job.get("seq")
+        if isinstance(seq, bool) or not isinstance(seq, int) or seq < 0:
+            return None
+        window = job.get("window_joules_measured")
+        scope = job.get("joules_scope")
+        verified = _verified_window(window) and scope == MEASUREMENT_SCOPE_WINDOW
+        tokens = job.get("tokens")
+        wall_s = job.get("wall_s")
+        public = _public_node_name(node)
+        output = json.dumps({
+            "kind": str(job.get("kind") or ""),
+            "model": str(job.get("model") or ""),
+            "tokens": tokens if isinstance(tokens, int) and not isinstance(tokens, bool) else None,
+            "wall_s": (round(float(wall_s), 6) if isinstance(wall_s, (int, float))
+                       and not isinstance(wall_s, bool) and math.isfinite(wall_s) else None),
+            "ts": str(job.get("ts") or ""),
+            "seq": seq,
+            "node": public,
+            "window_joules_measured": round(float(window), 6) if verified else None,
+            "joules_scope": MEASUREMENT_SCOPE_WINDOW if verified else None,
+        }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return target.append(
+            output=output, energy_source="operator-job (grid mix unattributed)",
+            joules_est=0.0,
+            window_joules_measured=window if verified else None,
+            measurement_scope=MEASUREMENT_SCOPE_WINDOW if verified else None,
+            source=_OPERATOR_SOURCE, source_seq=seq, node=public)
+    except Exception:  # noqa: BLE001 — a bad record never breaks the operator loop
+        return None
+
+
+def wire_operator_to_provenance(operator: Any,
+                                chain: Optional[EnergyProvenanceChain] = None) -> dict:
+    """Subscribe the chain to the operator's completed-job stream (idempotent).
+
+    Wired at import time, before the boot autostart, so no job of this process is
+    missed. Jobs completed before wiring are not itemised here; the JouleCharge
+    ledger keeps its own record of them.
+    """
+    if getattr(operator, "_provenance_wired", False):
+        return {"subscribed": False, "already_wired": True}
+
+    def _on_job(job_dict: dict) -> None:
+        append_operator_job(job_dict, chain=chain)
+
+    operator.subscribe(_on_job)
+    operator._provenance_wired = True
+    return {"subscribed": True, "already_wired": False}
 
 
 # ---------------------------------------------------------------------------

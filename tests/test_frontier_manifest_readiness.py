@@ -625,6 +625,70 @@ def test_unbound_measured_label_cannot_promote_provenance(monkeypatch):
     assert "no_measured_entries" in reasons
 
 
+def _window_chain(ep, measured=1, sample=0):
+    chain = ep.EnergyProvenanceChain()
+    for i in range(sample):
+        chain.append(output=f"sample-{i}", source="energy-operator", source_seq=i + 1,
+                     node="Sovereign GPU 1", window_joules_measured=None,
+                     measurement_scope=None)
+    for i in range(measured):
+        chain.append(output=f"window-{i}", source="energy-operator", source_seq=100 + i,
+                     node="Sovereign GPU 2 (always-on anchor)",
+                     window_joules_measured=12.5, measurement_scope="BOUNDED_METER_WINDOW")
+    return chain
+
+
+def test_hash_bound_measured_window_entry_makes_provenance_ready(monkeypatch):
+    import szl_energy_provenance as ep
+
+    chain = _window_chain(ep, measured=1, sample=1)
+    monkeypatch.setattr(ep, "_CHAIN", chain)
+
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert chain.verify()["ok"] is True
+    assert tile["measured_entries"] == 1
+    assert tile["label"] == manifest.MEASURED
+    assert tile["measurement_scope"] == "BOUNDED_METER_WINDOW"
+    assert tile["window_joules_measured_total"] == 12.5
+    assert (ready, reasons) == (True, [])
+
+
+def test_v2_sample_entries_never_satisfy_the_provenance_tile(monkeypatch):
+    import szl_energy_provenance as ep
+
+    monkeypatch.setattr(ep, "_CHAIN", _window_chain(ep, measured=0, sample=2))
+
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert tile["label"] == manifest.SAMPLE
+    assert tile["measured_entries"] == 0
+    assert ready is False
+    assert "no_measured_entries" in reasons
+
+
+def test_promoting_a_sample_entry_after_append_breaks_the_chain(monkeypatch):
+    import szl_energy_provenance as ep
+
+    chain = _window_chain(ep, measured=0, sample=1)
+    entry = chain.entries()[0]
+    entry["measurement_label"] = "MEASURED"
+    entry["measurement_scope"] = "BOUNDED_METER_WINDOW"
+    entry["window_joules_measured"] = 9.0
+    monkeypatch.setattr(ep, "_CHAIN", chain)
+
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert chain.verify()["ok"] is False
+    assert tile["measured_entries"] == 0
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert ready is False
+    assert "chain_not_verified" in reasons
+
+
 def test_broken_energy_provenance_chain_is_unavailable(monkeypatch):
     import szl_energy_provenance as ep
 
@@ -649,7 +713,11 @@ def _operator_status(**overrides):
         "stub_mode": False,
         "jobs_done": 4,
         "joules_measured_total": 0.0,
+        "joules_measured_label": manifest.UNAVAILABLE,
+        "joules_measured_reason": "NO_VERIFIED_NVML_COUNTER_WINDOW",
         "measured_jobs": 0,
+        "window_measured_jobs": 0,
+        "window_joules_measured_total": 0.0,
         "node_status": {"rtx": "computing"},
     }
     status.update(overrides)
@@ -669,11 +737,11 @@ def test_running_stub_operator_without_a_gpu_is_not_ready(monkeypatch):
 
     assert ready is False
     assert "no_gpu_reachable" in reasons
-    assert "no_measured_jobs" in reasons
+    assert "no_measured_energy_window" in reasons
     assert tile["gpu_nodes_reachable"] == 0
 
 
-def test_running_operator_with_a_gpu_needs_a_measured_job(monkeypatch):
+def test_running_operator_with_a_gpu_needs_a_measured_window(monkeypatch):
     import szl_energy_operator as eo
 
     monkeypatch.setattr(eo, "handle_status", lambda: _operator_status())
@@ -681,14 +749,96 @@ def test_running_operator_with_a_gpu_needs_a_measured_job(monkeypatch):
     ready, reasons = manifest._tile_operational_readiness(tile)
 
     assert ready is False
-    assert reasons == ["no_measured_jobs"]
+    assert reasons == ["no_measured_energy_window",
+                       "label_unavailable_is_not_operational_evidence"]
     assert tile["gpu_nodes_reachable"] == 1
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["window_measured_jobs"] == 0
 
     monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
-        measured_jobs=1, joules_measured_total=2.5))
+        window_measured_jobs=2, window_joules_measured_total=25.0,
+        joules_measured_reason="NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION"))
     measured = manifest._tile_energy_operator()
 
+    assert measured["label"] == manifest.MEASURED
+    assert measured["measurement_scope"] == "BOUNDED_METER_WINDOW"
+    assert measured["window_measured_jobs"] == 2
+    assert measured["window_joules_measured_total"] == 25.0
+    # A host window never promotes billable per-job energy.
+    assert measured["joules_measured_total"] == 0.0
+    assert measured["joules_measured_label"] == manifest.UNAVAILABLE
+    assert measured["joules_measured_reason"] == "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION"
     assert manifest._tile_operational_readiness(measured) == (True, [])
+
+
+def test_stopped_operator_with_earlier_windows_is_not_ready(monkeypatch):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        running=False, node_status={"rtx": "idle"}, window_measured_jobs=3))
+    tile = manifest._tile_energy_operator()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert ready is False
+    assert {"operator_stopped", "no_gpu_reachable", "status_not_running"} <= set(reasons)
+    assert "no_measured_energy_window" not in reasons
+
+
+@pytest.mark.parametrize("bad", [True, -1, 1.5, "2", [1], float("nan")])
+def test_malformed_window_count_fails_closed(monkeypatch, bad):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        window_measured_jobs=bad))
+    tile = manifest._tile_energy_operator()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert ready is False
+    assert tile["window_measured_jobs"] == 0
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert "invalid_window_measurement_count" in reasons
+    json.dumps(tile, allow_nan=False)
+
+
+def test_operator_without_window_reporting_stays_not_ready(monkeypatch):
+    import szl_energy_operator as eo
+
+    legacy = _operator_status()
+    legacy.pop("window_measured_jobs")
+    legacy.pop("window_joules_measured_total")
+    monkeypatch.setattr(eo, "handle_status", lambda: legacy)
+    tile = manifest._tile_energy_operator()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert ready is False
+    assert "no_measured_energy_window" in reasons
+    assert "invalid_window_measurement_count" not in reasons
+
+
+@pytest.mark.parametrize("source_label", [None, "", "UNKNOWN", "measured", {}])
+def test_operator_billable_label_missing_or_invalid_fails_closed(monkeypatch, source_label):
+    import szl_energy_operator as eo
+
+    source = _operator_status(joules_measured_label=source_label,
+                              joules_measured_reason=None, window_measured_jobs=1)
+    if source_label is None:
+        source.pop("joules_measured_label")
+    monkeypatch.setattr(eo, "handle_status", lambda: source)
+    tile = manifest._tile_energy_operator()
+
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "MEASUREMENT_LABEL_UNAVAILABLE"
+
+
+def test_operator_billable_measured_label_without_a_measured_job_fails_closed(monkeypatch):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        joules_measured_label=manifest.MEASURED, joules_measured_reason=None))
+    tile = manifest._tile_energy_operator()
+
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "NO_VERIFIED_NVML_COUNTER_WINDOW"
 
 
 def test_by_design_tiles_are_reported_not_blocking():
