@@ -2145,10 +2145,12 @@ def start_autostart_watchdog(interval_s: Optional[float] = None) -> dict:
 
 
 def stop_autostart_watchdog(timeout: float = 5.0) -> bool:
-    """Cancel the retry thread. True once the thread this call stopped has exited.
-    A retry that is still probing finishes its probe but can no longer start the
-    loop unless another start joined it while it probed."""
+    """Cancel the retry thread, waiting at most ``timeout`` seconds in total. True
+    once the thread this call stopped has exited. A retry that is still probing
+    finishes its probe but can no longer start the loop unless another start
+    joined it while it probed."""
     global _WATCHDOG_THREAD, _WATCHDOG_STOP
+    deadline = time.monotonic() + max(0.0, float(timeout))
     with _WATCHDOG_LOCK:
         worker, stop = _WATCHDOG_THREAD, _WATCHDOG_STOP
         _WATCHDOG_THREAD = None
@@ -2158,11 +2160,12 @@ def stop_autostart_watchdog(timeout: float = 5.0) -> bool:
     op = _OPERATOR
     if stop is not None and op is not None:
         # A retry already inside start()'s commit section finishes it before this
-        # returns; a retry reaching that section later sees the cancel.
-        with op._lock:
-            pass
+        # returns; a retry reaching that section later sees the cancel. The wait
+        # shares the deadline because a persist (fsync) can hold the same lock.
+        if op._lock.acquire(timeout=max(0.0, deadline - time.monotonic())):
+            op._lock.release()
     if worker is not None and worker is not threading.current_thread():
-        worker.join(timeout=timeout)
+        worker.join(timeout=max(0.0, deadline - time.monotonic()))
         return not worker.is_alive()
     return True
 

@@ -1642,6 +1642,36 @@ def test_watchdog_stop_waits_out_a_retry_inside_the_commit_section():
             _swap_singleton(prev)
 
 
+def test_watchdog_stop_stays_bounded_while_the_operator_lock_is_held():
+    # A slow persist (fsync under the operator lock) must not hang app shutdown:
+    # the lock wait and the join share the one timeout.
+    assert OP.stop_autostart_watchdog(timeout=2.0) is True
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        prev = _swap_singleton(op)
+        release = threading.Event()
+        holding = threading.Event()
+
+        def hold_the_operator_lock():
+            with op._lock:
+                holding.set()
+                release.wait(3)
+
+        holder = threading.Thread(target=hold_the_operator_lock)
+        try:
+            assert OP.start_autostart_watchdog(interval_s=3600)["started"] is True
+            holder.start()
+            assert holding.wait(5)
+            began = time.monotonic()
+            OP.stop_autostart_watchdog(timeout=0.3)
+            assert time.monotonic() - began < 1.5
+        finally:
+            release.set()
+            holder.join(5)
+            OP.stop_autostart_watchdog(timeout=2.0)
+            _swap_singleton(prev)
+
+
 if __name__ == "__main__":
     import sys
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]

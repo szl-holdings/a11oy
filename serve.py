@@ -5303,8 +5303,8 @@ async def shutdown() -> None:
             if _szl_eo_shutdown is not None:
                 if not await asyncio.to_thread(_szl_eo_shutdown.stop_autostart_watchdog):
                     print(
-                        "[a11oy] energy autostart retry is finishing an in-flight "
-                        "probe; it cannot start the loop on its own",
+                        "[a11oy] energy autostart retry did not finish within the "
+                        "stop timeout; it is cancelled and cannot begin a new start",
                         file=sys.stderr,
                     )
         except Exception as _eo_stop_error:
