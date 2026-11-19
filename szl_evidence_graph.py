@@ -252,6 +252,14 @@ def graph_snapshot(
         "total_input_edges": len(ordered),
         # Retained for v1 clients. Hash order is not chronology or ledger order.
         "receipt_head": bounded[-1].receipt_id if bounded else None,
+        "receipt_head_semantics": "LEXICOGRAPHIC_LAST_RECEIPT_ID",
+        # The CEG persists no append-only ledger; there is no ledger head.
+        "ledger_head": None,
+        # Returned edges that no other returned edge names as a parent.
+        "causal_heads": sorted(included_ids - {
+            parent for edge in bounded for parent in edge.parents
+        }),
+        "causal_heads_scope": "RETURNED_EDGES",
         "dangling_parent_count": len(unresolved_ids),
         "parent_resolution": {
             "state": ("UNAVAILABLE" if not parent_ids else
