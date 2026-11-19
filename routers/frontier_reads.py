@@ -22,6 +22,12 @@ credential, scheduler, passport authority, or effector. Atelier Frontier shares
 this pre-catch-all seam as a clean-room, GET/HEAD-only reference registry and
 MODELED evaluator; it has no provider write authority or effectors.
 
+The additive build-receipt group (#3770) is registered at this same guarded seam
+(same pattern as series_a/frontier_now/atelier/hf_tooling above): GET/HEAD-only
+/api/build + /api/a11oy/v1/release/gate, reading env + the CI-generated release
+manifest, failing closed to honest UNKNOWN/UNAVAILABLE labels. Not auto-merge;
+needs review and the owner's yes. No deploy.
+
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
 from __future__ import annotations
@@ -75,7 +81,7 @@ def normalize_phase_b_payload(
 ) -> Any:
     """Apply the closed Phase-B vocabulary to one decoded JSON value.
 
-    Supplying ``observed_at`` makes the function deterministic for regression
+    Supplying `observed_at` makes the function deterministic for regression
     tests. Unknown paths and non-object values are returned without semantic
     changes. Error responses are never rewritten into cached KEV evidence.
     """
@@ -106,7 +112,7 @@ def normalize_phase_b_payload(
             canonical_kind = "live"
             normalized["data_kind_detail"] = raw_kind_text
         elif raw_kind in {"cached", "sample", "snapshot"}:
-            # Bundled/in-image CISA rows are cached source material, not a
+            # Bundled/in-image CISA KEV rows are cached source material, not a
             # fabricated SAMPLE feed. Unknown kinds stay fail-closed.
             canonical_kind = "cached"
         else:
@@ -126,7 +132,7 @@ def normalize_phase_b_payload(
                 )
             else:
                 detail = (
-                    "Bundled CISA KEV snapshot served from the current image; "
+                    "Bundled CISA KEV rows are served from the current image; "
                     "this is cached source material, not a live catalog fetch."
                 )
         normalized["detail"] = detail
@@ -321,6 +327,17 @@ def register(app) -> dict:
             "effectors": [],
         }
 
+    try:
+        from routers import build_receipt as _build_receipt
+
+        build_receipt = _build_receipt.register(app)
+    except Exception as exc:  # build receipt must never take down A11oy
+        build_receipt = {
+            "ok": False,
+            "state": "UNAVAILABLE",
+            "reason": type(exc).__name__,
+        }
+
     return {
         "ok": True,
         "ns": "a11oy",
@@ -329,6 +346,7 @@ def register(app) -> dict:
         "frontier_now": frontier_now,
         "atelier_frontier": atelier_frontier,
         "hf_tooling": hf_tooling,
+        "build_receipt": build_receipt,
         "routes": [
             "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
             "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
@@ -341,5 +359,7 @@ def register(app) -> dict:
             "/api/a11oy/v1/atelier/frontier/registry",
             "/api/a11oy/v1/atelier/frontier/evaluate",
             "/frontier-tooling", "/api/a11oy/v1/frontier-tooling",
+            "/api/build", "/api/a11oy/v1/build",
+            "/api/a11oy/v1/release/gate",
         ],
     }

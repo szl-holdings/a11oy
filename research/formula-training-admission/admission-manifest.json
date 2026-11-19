@@ -1,10 +1,10 @@
 {
   "artifacts": {
     "crosswalk": {
-      "bytes": 161227,
+      "bytes": 161139,
       "path": "research/formula-training-admission/formula-id-crosswalk.json",
-      "receipt_sha256": "6da2819f3195e08f82290a6006cc92f914fada1510ee105d8eeb864564862b52",
-      "sha256": "cde0b70299a673f7e64aae7598f38cde038ec47bf7c48612abf9ea2f91bdc832"
+      "receipt_sha256": "de7ab64c8efa05c7649ce8a8e43e0a54eb6858dcf624eb1a48fcdb0601f2bc79",
+      "sha256": "3f1fd6ffcf656968fd92d6172a8b7c47b7c212d1325900d11b3f7c4f2dc21a9c"
     },
     "receipt_path": "research/formula-training-admission/artifact-receipt.json",
     "tranche": {
@@ -35,7 +35,7 @@
     "executable_formula_records": 23,
     "formula_crosswalk_rows": 146,
     "holdout_rows": 148,
-    "raw_brain_nodes_quarantined": 9465,
+    "raw_brain_nodes_quarantined": 9484,
     "raw_brain_rows_emitted": 0,
     "resolved_status_counts": {
       "CONDITIONAL": 28,
@@ -48,23 +48,23 @@
     "training_admission": "BLOCKED_PENDING_NAMESPACE_AND_SOURCE_RECONCILIATION",
     "tranche_rows": 148
   },
-  "manifest_receipt_sha256": "c2c5feac57683fe75a06eebf52cca2938ff8ea6fcdd13913a877e9ffb06721f4",
+  "manifest_receipt_sha256": "e23f6a3e12093f1a4322a9829efbf230e716bf758e36fa6236c203b451f750f8",
   "schema_version": "szl.formula-training-admission-manifest.v1",
   "source_snapshot": {
     "brain": {
-      "distinct_artifact_count": 4230,
+      "distinct_artifact_count": 4249,
       "formula_node_count": 23,
-      "graph_content_sha256": "933c3a41ef6f9d5a49401be67948786a55b9c58d0e9762f9b619c6a800ce2cc7",
-      "inventory_sha256": "0dc8d914089e4e8fecbc7e2d4623ec92449f6a8de64a5064e30b985fd379cf9b",
+      "graph_content_sha256": "65e1c5e99a79432f8d68f4b61c5acd7cd6ea14cb5528b5ade790b55576bea724",
+      "inventory_sha256": "0fe248109d7a8d32f8a3ecd09950f3f8a2c3a683c7399efbd9b73223ad7f7c2d",
       "person_metadata_count": 5235,
-      "quarantined_node_count": 9465,
-      "raw_node_count": 9465,
+      "quarantined_node_count": 9484,
+      "raw_node_count": 9484,
       "reason_counts": {
-        "DUPLICATE_CANONICAL_KEY": 3747,
-        "FRESHNESS_UNKNOWN": 9431,
-        "LICENSE_UNKNOWN": 9465,
-        "PROVENANCE_UNKNOWN": 186,
-        "REVISION_UNKNOWN": 9465
+        "DUPLICATE_CANONICAL_KEY": 3756,
+        "FRESHNESS_UNKNOWN": 9450,
+        "LICENSE_UNKNOWN": 9484,
+        "PROVENANCE_UNKNOWN": 196,
+        "REVISION_UNKNOWN": 9484
       },
       "training_text_rows_emitted": 0
     },
@@ -112,13 +112,13 @@
       "admission": "CURRENT_INVENTORY_ONLY_ALL_ROWS_QUARANTINED",
       "aligned": true,
       "brain_ledger_path": "model_release/m1/brain-ingest-ledger.jsonl",
-      "brain_ledger_rows": 9465,
-      "brain_ledger_sha256": "d2946716f30ae6705f5f6b75ffbac862a42eefb55f2787ec320ed4f0992df8d0",
+      "brain_ledger_rows": 9484,
+      "brain_ledger_sha256": "b52d060db04b6f2550208275a7c41f09565cadcfb299a30525d39fb47a9dfeaa",
       "current_only_node_ids": [],
-      "current_raw_nodes": 9465,
+      "current_raw_nodes": 9484,
       "m1_only_node_ids": [],
       "manifest_path": "model_release/m1/corpus-ingestion-manifest.json",
-      "manifest_sha256": "7305f93e5592bd94f1681e23ddb0f819d258db23dfe5fbc1180da6180a3259f7",
+      "manifest_sha256": "0ca782f0809b039a4a49911a18d8abff9fd81f0662148536e80665d9d52fa0cc",
       "raw_training_eligible_rows": 0,
       "training_state": "NOT_RUN"
     },
@@ -146,7 +146,7 @@
     "stages": [
       {
         "decision": "QUARANTINE_AGGREGATE_ONLY",
-        "record_count": 9465,
+        "record_count": 9484,
         "stage": "DORMANT_RAW",
         "training_text_rows_emitted": 0
       },
@@ -162,7 +162,7 @@
       },
       {
         "holdout_rows": 148,
-        "quarantined_raw_nodes": 9465,
+        "quarantined_raw_nodes": 9484,
         "stage": "ADMISSION_DECISION",
         "train_rows": 0
       },
