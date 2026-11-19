@@ -5295,6 +5295,18 @@ async def shutdown() -> None:
                 f"[a11oy] eval-arena autorun stop failed honestly: {_eval_stop_error!r}",
                 file=sys.stderr,
             )
+        try:
+            # The energy autostart retry started at boot must not outlive this
+            # lifespan, or it keeps probing lungs and blocks the next start. It
+            # can only exist if startup loaded the module, so never import here.
+            _szl_eo_shutdown = sys.modules.get("szl_energy_operator")
+            if _szl_eo_shutdown is not None:
+                await asyncio.to_thread(_szl_eo_shutdown.stop_autostart_watchdog)
+        except Exception as _eo_stop_error:
+            print(
+                f"[a11oy] energy autostart retry stop failed honestly: {_eo_stop_error!r}",
+                file=sys.stderr,
+            )
         if _node_proc:
             _node_proc.terminate()
         if _http_client:

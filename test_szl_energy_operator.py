@@ -1512,6 +1512,9 @@ def test_autostart_watchdog_starts_the_loop_once_a_lung_answers(monkeypatch):
     reachable = []
     monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: bool(reachable))
     monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    # A retry thread left by another suite in this process would answer
+    # already_scheduled and tick against the wrong operator.
+    assert OP.stop_autostart_watchdog(timeout=2.0) is True
     with tempfile.TemporaryDirectory() as d:
         op = _idle_operator(d)
         prev = _swap_singleton(op)
