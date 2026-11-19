@@ -116,3 +116,27 @@ all of the following from the same build:
 5. circuit-breaker/failover and negative-path regression evidence;
 6. responsive/accessibility checks for every control-plane tab;
 7. post-deploy readback showing source/deployment alignment.
+
+
+## Receipt transport and minter (2026-11-19)
+
+The verifier had no authorized producer: this estate ships the receipt minter
+side by side with the ingestion surface.
+
+- `tools/mint_pool_receipt.py` runs on the sovereign laptop. It resolves the
+  exact served model digest, performs one bounded chat through the same
+  fail-closed serving path the public API uses, and binds request/response
+  SHA-256 only (never content). The dedicated pool-attester P-256 key is
+  generated on the laptop and never leaves it; only the public PEM and its
+  SHA-256 pin are published to the Space as `A11OY_POOL_RECEIPT_PUBLIC_KEY_PEM`
+  and `A11OY_POOL_RECEIPT_PUBLIC_KEY_SHA256`.
+- `szl_pool_receipt_ingest.py` (served Space surface) registers
+  `POST /api/a11oy/v1/compute-pool/receipts`: it fails closed on a missing
+  ingest bearer (`A11OY_POOL_RECEIPT_INGEST_TOKEN`), an unconfigured or
+  mismatched trust root, an unsafe receipt directory, oversized envelopes,
+  and any envelope that does not pass the very same contract verifier that
+  later promotes the node. Accepted receipts are stored byte-exact and
+  atomically, and the receipt directory is pruned so only the newest
+  contract-bounded set survives.
+- Minter cadence must be at most half the freshness window (default 120 s for
+  a 300 s window) so a single missed cycle cannot make the node appear stale.

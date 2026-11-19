@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - admit horizon: when an admitted claim lapses, and through which evidence
+
+- `szl_admit_horizon` (governance layer, stdlib, read-only, no route) analyses
+  an evidence DAG under the locked admit rule from `szl_verify_nine`. Per claim
+  it reports the margin over tau, each evidence item's admit floor, an exact
+  additive attribution of the score deficit, and the lapse horizon under
+  declared exponential decay or hard expiry. Horizons are MODELED projections.
+- Claims are gated deny-by-default: a parent admits only if every child claim
+  admits. Withdrawing evidence is a veto (score 0), never removal and
+  renormalisation.
+- Undeclared freshness makes a horizon UNKNOWN, never infinite. Bound to the
+  live `/api/a11oy/v1/storage/status` payload, the storage horizon is UNKNOWN
+  because the payload publishes no lease staleness bound; the declared-only
+  upper bound is each store's own `alert_after_s` deadline.
+- The module signs nothing and mints no receipt. Prior art is cited in its
+  docstring; only the binding to the locked contract is SZL's.
+
 ### Fixed - honesty wall UNKNOWN label and console Ask & Act badge
 
 - The honesty wall no longer reports VIOLATED for a sovereign node that is
