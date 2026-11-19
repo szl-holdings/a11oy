@@ -12,6 +12,8 @@ from fastapi.testclient import TestClient
 
 
 def test_frontier_adoption_exposes_truth_without_authority() -> None:
+    from a11oy_brain_graph import get_brain_graph
+
     payload = intel.get_frontier_adoption()
     assert payload["state"] == "GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION"
     assert payload["qualificationAuthority"] is False
@@ -21,7 +23,8 @@ def test_frontier_adoption_exposes_truth_without_authority() -> None:
     assert payload["registry"]["github_estate_strategy"]["inventory_complete"] is False
     assert payload["registry"]["github_estate_strategy"]["source_reported_repository_count"] == 54
     registry = payload["registry"]
-    assert registry["brain_model_truth"]["raw_nodes_observed"] == 9475
+    assert registry["brain_model_truth"]["raw_nodes_observed"] == len(get_brain_graph(refresh=True)["nodes"])
+    assert registry["brain_model_truth"]["raw_observation_scope"] == "CURRENT_VERSIONED_GRAPH_NOT_MODEL_EVALUATION"
     assert registry["brain_model_truth"]["raw_nodes_admitted_to_gradients"] == 0
     assert len(registry["candidates"]) == 11
 
