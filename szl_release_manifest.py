@@ -95,10 +95,6 @@ def _is_unknown(value: Any) -> bool:
     return text == "" or text.upper() == UNKNOWN
 
 
-def _hash_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
 def sha256_file(path: str | os.PathLike[str]) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -113,7 +109,7 @@ def load_manifest(path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
     Absent or malformed file → {"status": "UNAVAILABLE"} and the promotion
     gate blocks on MANIFEST_UNAVAILABLE. A committed placeholder (status
     PLACEHOLDER_UNTIL_CI_GENERATED) is surfaced honestly; its UNKNOWN values
-    are never upgraded into evidence.
+    are never upgraded into evidence and the gate BLOCKS on it.
     """
     target = Path(path) if path else manifest_path()
     result: dict[str, Any] = {
@@ -154,79 +150,99 @@ def runtime_evidence() -> dict[str, Any]:
         "kind": BUILD_KIND,
         "source_commit": source_commit(),
         "release_id": release_id(),
+        "_labels": {},
     }
     for key, env_name in RUNTIME_ENV_NAMES.items():
         value = _env(env_name)
         evidence[key] = value
-        evidence.setdefault("_labels", {})[key] = "MEASURED_ENV" if not _is_unknown(value) else UNKNOWN
+        evidence["_labels"][key] = "MEASURED_ENV" if not _is_unknown(value) else UNKNOWN
     return evidence
 
 
 def _finding(kind: str, severity: str, detail: str, **extra: Any) -> dict[str, Any]:
-    finding = {"kind": kind, "severity": severity, "detail": detail}
+    finding: dict[str, Any] = {"kind": kind, "severity": severity, "detail": detail}
     finding.update(extra)
     return finding
 
 
 def compare_runtime(manifest: dict[str, Any], runtime: dict[str, Any]) -> list[dict[str, Any]]:
-    """Deterministic findings comparing manifest vs runtime. Empty list ONLY
-    when all required evidence is present AND consistent AND the commit is
-    present. #3768 repro (commit match, no hashes) must never be empty.
+    """Deterministic findings comparing manifest vs runtime.
+
+    The finding list is empty ONLY when the manifest is available and
+    generated, the source commit matches, and every required runtime evidence
+    item is present and matches the manifest. The #3768 repro (matching git
+    commit, NO runtime hashes reported) must never be empty: it is
+    PUBLICATION_LAG and BLOCKS.
     """
     findings: list[dict[str, Any]] = []
     m_status = manifest.get("status", "UNAVAILABLE")
     m_runtime = manifest.get("runtime", {})
+    m_runtime = m_runtime if isinstance(m_runtime, dict) else {}
     m_commit = manifest.get("source_commit", UNKNOWN)
     r_commit = runtime.get("source_commit", UNKNOWN)
 
     if m_status == "UNAVAILABLE":
-        findings.append(_finding("MANIFEST_UNAVAILABLE", "error",
-                                 "release manifest is absent or malformed; build identity cannot be checked"))
+        findings.append(_finding(
+            "MANIFEST_UNAVAILABLE", "error",
+            "release manifest is absent or malformed; build identity cannot be checked"))
     if m_status == _PLACEHOLDER_STATUS:
-        findings.append(_finding("MANIFEST_PLACEHOLDER", "error",
-                                 "release manifest is a placeholder; CI must generate it before promotion"))
+        findings.append(_finding(
+            "MANIFEST_PLACEHOLDER", "error",
+            "release manifest is the committed placeholder; CI must generate it before promotion"))
 
+    commit_matches = False
     if _is_unknown(r_commit):
-        findings.append(_finding("SOURCE_COMMIT_UNKNOWN", "error",
-                                 "runtime source commit is UNKNOWN; no commit-level check is possible"))
-    elif not _is_unknown(m_commit):
-        if r_commit == str(m_commit).strip().lower() and str(m_commit).strip().lower() == m_commit if isinstance(m_commit, str) else False:
-            pass  # unreachable guard, normalized below
+        findings.append(_finding(
+            "SOURCE_COMMIT_UNKNOWN", "error",
+            "runtime source commit is UNKNOWN; no commit-level check is possible"))
+    elif _is_unknown(m_commit):
+        findings.append(_finding(
+            "MANIFEST_COMMIT_UNKNOWN", "error",
+            "manifest carries no source commit; identity check is impossible"))
+    elif str(r_commit) == str(m_commit):
+        commit_matches = True
+        findings.append(_finding(
+            "SOURCE_COMMIT_MATCH", "info",
+            f"runtime commit {str(r_commit)[:12]} matches the manifest"))
+    else:
+        findings.append(_finding(
+            "SOURCE_COMMIT_MISMATCH", "error",
+            f"runtime commit and manifest commit differ ({str(r_commit)[:12]} vs {str(m_commit)[:12]})"))
 
     missing_any = False
     mismatched_any = False
-    commit_matches = False
-    if not _is_unknown(r_commit) and not _is_unknown(m_commit) and str(r_commit) == str(m_commit):
-        commit_matches = True
-        findings.append(_finding("SOURCE_COMMIT_MATCH", "info",
-                                 f"runtime commit {r_commit[:12]} matches the manifest"))
-    elif not _is_unknown(r_commit) and not _is_unknown(m_commit):
-        findings.append(_finding("SOURCE_COMMIT_MISMATCH", "error",
-                                 f"runtime commit and manifest commit differ ({r_commit[:12]} vs {str(m_commit)[:12]})"))
-
     for key in REQUIRED_RUNTIME_EVIDENCE:
         run_value = runtime.get(key, UNKNOWN)
         man_value = m_runtime.get(key, UNKNOWN)
         if _is_unknown(run_value):
             missing_any = True
-            findings.append(_finding(f"{key.upper()}_UNKNOWN", "error",
-                                     f"required runtime evidence '{key}' is UNKNOWN (env {RUNTIME_ENV_NAMES[key]} unset)"))
-        elif not _is_unknown(man_value) and str(run_value) != str(man_value):
+            findings.append(_finding(
+                f"{key.upper()}_UNKNOWN", "error",
+                f"required runtime evidence '{key}' is UNKNOWN (env {RUNTIME_ENV_NAMES[key]} unset)"))
+        elif _is_unknown(man_value):
+            findings.append(_finding(
+                f"MANIFEST_{key.upper()}_UNKNOWN", "error",
+                f"runtime '{key}' is present but the manifest does not bind it"))
+        elif str(run_value) != str(man_value):
             mismatched_any = True
-            findings.append(_finding(f"{key.upper()}_MISMATCH", "error",
-                                     f"runtime '{key}' does not match the release manifest"))
-        elif not _is_unknown(man_value):
-            findings.append(_finding(f"{key.upper()}_MATCH", "info",
-                                     f"runtime '{key}' matches the release manifest"))
+            findings.append(_finding(
+                f"{key.upper()}_MISMATCH", "error",
+                f"runtime '{key}' does not match the release manifest"))
+        else:
+            findings.append(_finding(
+                f"{key.upper()}_MATCH", "info",
+                f"runtime '{key}' matches the release manifest"))
 
     if commit_matches and (missing_any or mismatched_any):
-        findings.append(_finding("PUBLICATION_LAG", "error",
-                                 "source commit is deployed but its build evidence was never published to the runtime; "
-                                 "promote/route is denied until the manifest evidence ships with the deployment"))
+        findings.append(_finding(
+            "PUBLICATION_LAG", "error",
+            "source commit is deployed but its build evidence was never published to the runtime; "
+            "promote/route is denied until the manifest evidence ships with the deployment"))
 
     if missing_any and not commit_matches:
-        findings.append(_finding("REQUIRED_EVIDENCE_INCOMPLETE", "error",
-                                 "required runtime evidence is incomplete; promotion gate fails closed"))
+        findings.append(_finding(
+            "REQUIRED_EVIDENCE_INCOMPLETE", "error",
+            "required runtime evidence is incomplete; promotion gate fails closed"))
     return findings
 
 
@@ -239,13 +255,15 @@ def promotion_gate(manifest: dict[str, Any], runtime: dict[str, Any]) -> dict[st
     """
     findings = compare_runtime(manifest, runtime)
     blocking = [f for f in findings if f["severity"] == "error"]
-    m_runtime = manifest.get("runtime", {}) if isinstance(manifest.get("runtime", {}), dict) else {}
+    m_runtime = manifest.get("runtime", {})
+    m_runtime = m_runtime if isinstance(m_runtime, dict) else {}
     checked: dict[str, Any] = {}
     for key in REQUIRED_RUNTIME_EVIDENCE:
         run_ok = not _is_unknown(runtime.get(key, UNKNOWN))
+        man_ok = not _is_unknown(m_runtime.get(key, UNKNOWN))
         checked[key] = {
             "runtime": "MEASURED" if run_ok else UNKNOWN,
-            "manifest": "MEASURED" if not _is_unknown(m_runtime.get(key, UNKNOWN)) else UNKNOWN,
+            "manifest": "MEASURED" if man_ok else UNKNOWN,
         }
     decision = "BLOCKED" if blocking else "PASS"
     return {
@@ -269,7 +287,8 @@ def build_payload(manifest: dict[str, Any] | None = None, runtime: dict[str, Any
     runtime = runtime if runtime is not None else runtime_evidence()
     findings = compare_runtime(manifest, runtime)
     gate = promotion_gate(manifest, runtime)
-    resolved_release_id = runtime.get("release_id") if not _is_unknown(runtime.get("release_id")) else manifest.get("release_id", UNKNOWN)
+    r_id = runtime.get("release_id")
+    resolved_release_id = r_id if not _is_unknown(r_id) else manifest.get("release_id", UNKNOWN)
     return {
         "kind": BUILD_KIND,
         "release_id": resolved_release_id,
@@ -305,8 +324,8 @@ def generate_manifest(
     """Build a manifest purely from measured/explicit inputs.
 
     Returns (manifest, missing) where missing lists REQUIRED_RUNTIME_EVIDENCE
-    (and source commit) that stayed UNKNOWN. Callers using --require-complete
-    treat a non-empty missing list as a hard failure.
+    (and the source commit) that stayed UNKNOWN. Callers using
+    --require-complete treat a non-empty missing list as a hard failure.
     """
     commit = (commit or os.getenv("GITHUB_SHA") or "").strip().lower() or UNKNOWN
     if commit != UNKNOWN and not _FULL_SHA_RE.fullmatch(commit):
@@ -340,7 +359,7 @@ def generate_manifest(
         if _is_unknown(value):
             missing.append(f"runtime.{key}")
 
-    manifest = {
+    manifest: dict[str, Any] = {
         "kind": KIND,
         "status": status,
         "release_id": release_id_value,
