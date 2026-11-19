@@ -151,6 +151,12 @@ def test_normalization_is_credential_free_and_exact() -> None:
         live.normalize_sha("abc")
 
 
+def test_malformed_origin_authority_fails_closed() -> None:
+    for bad in ("https://example.com:bad", "https://example.com:99999", "https://[::1"):
+        with pytest.raises(live.LiveProofError, match="credential-free HTTPS origin"):
+            live.normalize_origin(bad)
+
+
 def test_complete_source_bound_live_proof_passes_without_network() -> None:
     payloads = _payloads()
     with mock.patch.object(live, "_http", side_effect=_fake_http(payloads)) as request:
