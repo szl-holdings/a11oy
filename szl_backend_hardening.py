@@ -434,10 +434,17 @@ _NODE_RESOLVE: Dict[str, Dict[str, List[str]]] = {
 }
 
 
-def _ip_from_url_env(name: str) -> Optional[Tuple[str, str]]:
-    """Extract a 100.x (or any host) IP from the node's URL env vars, if set.
-    Returns (ip, "env:<VAR>") or None. Honest: only reads what the operator set;
-    a router/placeholder URL (no usable host, or the HF router) is ignored."""
+def _ip_from_url_env(name: str) -> Optional[Tuple[str, str, Optional[int]]]:
+    """Extract a probe host (and the port its URL carries) from the node's URL
+    env vars, if set. Returns (host, "env:<VAR>", port_or_None) or None.
+    Honest: only reads what the operator set; a router/placeholder URL (no
+    usable host, or the HF router) is ignored. The PORT travels WITH the URL
+    exactly because the operator declared it in the URL: an https origin
+    without an explicit port is probed at 443, an explicit :port at that port,
+    and only a bare host with no port spelling keeps the node's static port.
+    A Cloudflare-fronted public origin was previously probed at the static
+    tailnet port and mis-reported unreachable, which is a lie of transport
+    probing."""
     spec = _NODE_RESOLVE.get(name.lower())
     if not spec:
         return None
@@ -445,34 +452,49 @@ def _ip_from_url_env(name: str) -> Optional[Tuple[str, str]]:
         raw = (_os.environ.get(var) or "").strip()
         if not raw or "router.huggingface.co" in raw:
             continue
-        # Accept full URLs (http://host:port/...) and bare host[:port] forms.
-        host = raw
-        m = _re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:]+)", raw)
+        # Accept full URLs (http(s)://host[:port]/...) and bare host[:port] forms.
+        m = _re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:?]+)(?::(\d+))?", raw)
+        port: Optional[int] = None
         if m:
             host = m.group(1)
+            scheme = raw[: m.start(1)].split("://", 1)[0].lower()
+            if m.group(2):
+                port = int(m.group(2))
+            elif scheme == "https":
+                port = 443
+            elif scheme == "http":
+                port = 80
         else:
-            host = raw.split("/")[0].split(":")[0]
+            head = raw.split("/")[0].split(":")
+            host = head[0]
+            if len(head) == 2 and head[1].isdigit():
+                port = int(head[1])
         host = host.strip()
         # Ignore non-routable placeholder hostnames (e.g. "chaski", "rtx-betterwithage")
         # that won't resolve from this process; we want a real IP/DNS the box can reach.
         if host and (host[0].isdigit() or "." in host):
-            return host, f"env:{var}"
+            return host, f"env:{var}", port
     return None
 
-
-def _resolve_node_ip(name: str, fallback_ip: str) -> Tuple[str, str]:
-    """Resolve a node's CURRENT tailnet IP. Returns (ip, source).
-    Priority: explicit IP pin -> node URL env -> live tailscale (alias-aware) ->
-    static fallback. Every layer reads runtime config; no IP is hardcoded as truth."""
+def _resolve_node_target(name: str, fallback_ip: str,
+                         static_port: int) -> Tuple[str, int, str]:
+    """Resolve a node's CURRENT probe target. Returns (host, port, source).
+    Priority: explicit IP pin -> node URL env (host AND the port that URL
+    carries, so a CF-fronted https origin is probed at 443) -> live tailscale
+    (alias-aware, static port) -> static fallback (static port). Every layer
+    reads runtime config; no target is hardcoded as truth, and the host and
+    the port are resolved as ONE unit: a host taken from a URL env is probed
+    only on that URL's own port."""
     env_key = "A11OY_GPU_NODE_" + "".join(c if c.isalnum() else "_" for c in name).upper() + "_IP"
     pinned = (_os.environ.get(env_key) or "").strip()
     if pinned:
-        return pinned, "env-pin"
+        return pinned, static_port, "env-pin"
     # The plain /compute-pool resolves chaski/rtx/omen via their URL env vars; consult
     # the same ones so the hardened pool agrees instead of using a stale static IP.
     from_url = _ip_from_url_env(name)
     if from_url:
-        return from_url
+        _host, _src, _url_port = from_url
+        return _host, (static_port if _url_port is None else _url_port), _src
     peers = _tailscale_peers()
     # Prefix-collision guard (2026-06-15): BOTH Windows GPU boxes are tailscale-named
     # 'betterwithage' (the RTX 5050 laptop and the OMEN), so the bare suffix
@@ -490,14 +512,14 @@ def _resolve_node_ip(name: str, fallback_ip: str) -> Tuple[str, str]:
     lname = name.lower()
     # (a) exact full-name hostname match always wins
     if lname in peers:
-        return peers[lname], "tailscale-live"
+        return peers[lname], static_port, "tailscale-live"
     # (a') declared aliases exact-match (e.g. chaski's Replit tailnet hostnames), so a
-    #      node whose tailnet host is not literally its name still resolves WITHOUT a
-    #      loose prefix match that could collide with the betterwithage twins.
+    #      node whose tailnet host is not literally its name still resolves WITHOUT
+    #      a loose prefix match that could collide with the betterwithage twins.
     for alias in _NODE_RESOLVE.get(lname, {}).get("aliases", []):
         al = alias.lower()
         if al != lname and al in peers:
-            return peers[al], "tailscale-alias"
+            return peers[al], static_port, "tailscale-alias"
     lead = lname.split("-", 1)[0] if "-" in lname else ""      # e.g. 'omen', 'rtx'
     suffix = lname.split("-", 1)[1] if "-" in lname else ""   # e.g. 'betterwithage'
     # (b) disambiguate by the prefix token: a peer hostname that contains the
@@ -506,20 +528,20 @@ def _resolve_node_ip(name: str, fallback_ip: str) -> Tuple[str, str]:
         lead_matches = [(hn, ip) for hn, ip in peers.items()
                         if lead in hn and suffix in hn]
         if len(lead_matches) == 1:
-            return lead_matches[0][1], "tailscale-lead"
+            return lead_matches[0][1], static_port, "tailscale-lead"
         # a peer carrying just the prefix token (e.g. 'omen', 'omen-1')
         lead_only = [(hn, ip) for hn, ip in peers.items() if hn.startswith(lead)]
         if len(lead_only) == 1:
-            return lead_only[0][1], "tailscale-lead"
+            return lead_only[0][1], static_port, "tailscale-lead"
     # (c) bare-suffix fallback — ONLY if exactly one peer carries the suffix, so an
     #     ambiguous 'betterwithage' (laptop vs OMEN) NEVER silently mis-maps.
     key = suffix or lname
     suffix_matches = [(hn, ip) for hn, ip in peers.items()
-                      if hn == key or hn.startswith(key + "-")]
+                       if hn == key or hn.startswith(key + "-")]
     if len(suffix_matches) == 1:
-        return suffix_matches[0][1], "tailscale-suffix"
-    # Ambiguous or no live match -> honest static fallback (never guess an IP).
-    return fallback_ip, "static-fallback"
+        return suffix_matches[0][1], static_port, "tailscale-suffix"
+    # Ambiguous or no live match -> honest static fallback (never guess a target).
+    return fallback_ip, static_port, "static-fallback"
 
 # OMEN always-on home anchor — SINGLE SOURCE OF TRUTH for its tailnet endpoint.
 # Both this hardened fabric pool AND the energy loop (szl_energy_operator._default_nodes)
@@ -711,30 +733,28 @@ def _probe_fabric_uncached(
 ) -> Dict[str, Any]:
     """One real concurrent sweep of the fabric. Returns the full compute-pool payload."""
     nodes = list(nodes)
-    # Re-resolve sovereign/tailnet GPU node IPs LIVE from tailscale so a moved node
-    # is probed at its CURRENT 100.x, not a stale hardcoded IP (honest fail-safe to
-    # the static IP if tailscale is unreadable). Hosted-inference nodes (groq/nim/hf)
-    # use DNS names and are left untouched.
+    # Re-resolve sovereign/tailnet GPU node targets LIVE so a moved node is
+    # probed at its CURRENT target, not a stale hardcoded one (honest
+    # fail-safe to the static target if tailscale is unreadable). The URL-env
+    # layer carries the declared PORT with the declared host: a CF-fronted
+    # https origin is probed at 443 instead of the static tailnet port.
+    # Hosted-inference nodes (groq/nim/hf) use DNS names and are left untouched.
     _resolved = []
     for _n in nodes:
         _t = _n.get("probe")
         _kind = str(_n.get("kind", ""))
         if _t and "gpu" in _kind and _n.get("rented") is not True:
             _host, _port = _t
-            _ip, _src = _resolve_node_ip(_n["name"], _host)
-            if _ip != _host:
+            _ip, _pport, _src = _resolve_node_target(_n["name"], _host, _port)
+            if (_ip, _pport) != (_host, _port):
                 _n = dict(_n)
-                _n["probe"] = (_ip, _port)
-                _n["endpoint"] = "http://%s:%d" % (_ip, _port)
+                _n["probe"] = (_ip, _pport)
+                _n["endpoint"] = (f"https://{_ip}" if _pport == 443
+                                  else "http://%s:%d" % (_ip, _pport))
                 _base = (_n.get("detail") or "").split(" | ip:")[0]
                 _n["detail"] = (_base + (" | ip:%s via %s" % (_ip, _src))).strip(" |")
         _resolved.append(_n)
     nodes = _resolved
-    # Each node probe makes up to (retries+1) real connect attempts, each bounded by
-    # `timeout`. The concurrent dispatcher's per-node wall-clock guard must therefore
-    # allow the full retry budget to elapse, or it would cut a retrying-but-live node
-    # short and mis-report it unreachable. Sweep stays concurrent, so total wall time
-    # is ~one node's full budget, NOT the sum across nodes.
     probes = {n["name"]: _build_node_probe(n, timeout, retries=retries) for n in nodes}
     wall = timeout * (max(0, int(retries)) + 1) + 0.5
     results = probe_all_concurrent(probes, timeout=wall)
@@ -1117,16 +1137,46 @@ def _selftest() -> Dict[str, Any]:
     c2.get_or_compute(_producer)
     chk("cache_reprobe_after_ttl", calls["n"] >= 3)
 
-    # --- _resolve_node_ip: env pin + prefix-collision disambiguation (honest) ---
+    # --- _resolve_node_target: env pin + URL-port + prefix-collision disambiguation (honest) ---
     # env pin wins over everything, exact key derivation.
     _os.environ["A11OY_GPU_NODE_OMEN_BETTERWITHAGE_IP"] = "100.70.130.45"
-    _ip, _src = _resolve_node_ip("omen-betterwithage", "9.9.9.9")
-    chk("resolve_env_pin_omen", _ip == "100.70.130.45" and _src == "env-pin")
+    _ip, _pport, _src = _resolve_node_target("omen-betterwithage", "9.9.9.9", 11434)
+    chk("resolve_env_pin_omen", _ip == "100.70.130.45" and _src == "env-pin" and _pport == 11434)
     _os.environ["A11OY_GPU_NODE_CHASKI_IP"] = "100.102.173.88"
-    _ip, _src = _resolve_node_ip("chaski", "1.2.3.4")
-    chk("resolve_env_pin_chaski", _ip == "100.102.173.88" and _src == "env-pin")
+    _ip, _pport, _src = _resolve_node_target("chaski", "1.2.3.4", 11434)
+    chk("resolve_env_pin_chaski", _ip == "100.102.173.88" and _src == "env-pin" and _pport == 11434)
     del _os.environ["A11OY_GPU_NODE_OMEN_BETTERWITHAGE_IP"]
     del _os.environ["A11OY_GPU_NODE_CHASKI_IP"]
+
+    # URL env carries its own PORT: https origin -> 443, explicit :port honored,
+    # bare host keeps the static port. Honoring only the host would probe a
+    # CF-fronted public origin at the static tailnet port and mis-report it
+    # unreachable, which is a lie of transport probing.
+    _orig_peers_url = _tailscale_peers
+    try:
+        globals()["_tailscale_peers"] = lambda: {}
+        _os.environ["A11OY_MODEL_BASE_URL"] = "https://meter2.a-11-oy.com/v1"
+        _ip, _pport, _src = _resolve_node_target("rtx-betterwithage", "100.125.77.31", 11434)
+        chk("resolve_env_url_https_443", _ip == "meter2.a-11-oy.com" and _pport == 443
+            and _src == "env:A11OY_MODEL_BASE_URL")
+        _os.environ["A11OY_BETTERWITHAGE_BASE_URL"] = "http://192.0.2.9:4000/v1"
+        _ip, _pport, _src = _resolve_node_target("rtx-betterwithage", "100.125.77.31", 11434)
+        chk("resolve_env_url_explicit_port", (_ip, _pport) == ("192.0.2.9", 4000))
+        _os.environ["A11OY_BETTERWITHAGE_BASE_URL"] = "192.0.2.9"
+        _ip, _pport, _src = _resolve_node_target("rtx-betterwithage", "100.125.77.31", 11434)
+        chk("resolve_env_bare_host_static_port", (_ip, _pport) == ("192.0.2.9", 11434))
+        _os.environ["A11OY_BETTERWITHAGE_BASE_URL"] = "https://router.huggingface.co/v1"
+        del _os.environ["A11OY_MODEL_BASE_URL"]
+        _ip, _pport, _src = _resolve_node_target("rtx-betterwithage", "0.0.0.0", 11434)
+        chk("resolve_env_router_ignored", (_ip, _pport, _src) == ("0.0.0.0", 11434, "static-fallback"))
+        _os.environ["A11OY_MODEL_BASE_URL"] = "https://router.huggingface.co/v1"
+        del _os.environ["A11OY_BETTERWITHAGE_BASE_URL"]
+        _ip, _pport, _src = _resolve_node_target("rtx-betterwithage", "0.0.0.0", 11434)
+        chk("resolve_env_router_ignored_v2", (_ip, _pport, _src) == ("0.0.0.0", 11434, "static-fallback"))
+    finally:
+        _os.environ.pop("A11OY_MODEL_BASE_URL", None)
+        _os.environ.pop("A11OY_BETTERWITHAGE_BASE_URL", None)
+        globals()["_tailscale_peers"] = _orig_peers_url
 
     # collision: BOTH Windows boxes are tailscale-named 'betterwithage'. With peers
     # {omen-betterwithage: OMEN_IP, betterwithage: LAPTOP_IP}, omen MUST NOT grab the
@@ -1137,9 +1187,9 @@ def _selftest() -> Dict[str, Any]:
             "omen-betterwithage": "100.70.130.45",   # OMEN
             "betterwithage": "100.125.77.31",        # RTX 5050 laptop
         }
-        _ip, _src = _resolve_node_ip("omen-betterwithage", "0.0.0.0")
+        _ip, _pport, _src = _resolve_node_target("omen-betterwithage", "0.0.0.0", 11434)
         chk("resolve_omen_exact_not_laptop", _ip == "100.70.130.45")
-        _ip, _src = _resolve_node_ip("rtx-betterwithage", "0.0.0.0")
+        _ip, _pport, _src = _resolve_node_target("rtx-betterwithage", "0.0.0.0", 11434)
         chk("resolve_rtx_suffix_to_laptop", _ip == "100.125.77.31")
 
         # suffixed names (betterwithage / betterwithage-1) with prefix token in peer
@@ -1147,7 +1197,7 @@ def _selftest() -> Dict[str, Any]:
             "omen-betterwithage-1": "100.70.130.45",
             "betterwithage": "100.125.77.31",
         }
-        _ip, _src = _resolve_node_ip("omen-betterwithage", "0.0.0.0")
+        _ip, _pport, _src = _resolve_node_target("omen-betterwithage", "0.0.0.0", 11434)
         chk("resolve_omen_lead_token", _ip == "100.70.130.45" and _src == "tailscale-lead")
 
         # AMBIGUOUS bare suffix (two peers carry 'betterwithage', no prefix token to
@@ -1156,12 +1206,12 @@ def _selftest() -> Dict[str, Any]:
             "betterwithage": "100.125.77.31",
             "betterwithage-1": "100.70.130.45",
         }
-        _ip, _src = _resolve_node_ip("omen-betterwithage", "5.5.5.5")
+        _ip, _pport, _src = _resolve_node_target("omen-betterwithage", "5.5.5.5", 11434)
         chk("resolve_ambiguous_declines", _ip == "5.5.5.5" and _src == "static-fallback")
 
         # empty tailscale (box has no CLI / unreadable) -> static fallback, honest.
         globals()["_tailscale_peers"] = lambda: {}
-        _ip, _src = _resolve_node_ip("omen-betterwithage", "100.70.130.45")
+        _ip, _pport, _src = _resolve_node_target("omen-betterwithage", "100.70.130.45", 11434)
         chk("resolve_empty_static_fallback", _ip == "100.70.130.45" and _src == "static-fallback")
     finally:
         globals()["_tailscale_peers"] = _orig_peers

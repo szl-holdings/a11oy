@@ -3,22 +3,6 @@ name: Public estate single-source contract
 on:
   pull_request:
     branches: [main]
-    paths:
-      - static/shared/public-estate-contract.v1.json
-      - docs/series-a/hf-space-keep-list.yaml
-      - docs/huggingface-ecosystem-manifest.json
-      - docs/ecosystem-readiness-report.json
-      - docs/theorem-runtime-manifest.json
-      - docs/ecosystem-stage-matrix.json
-      - docs/generated/**
-      - scripts/render_public_estate_alignment.py
-      - scripts/build_ecosystem_stage_matrix.py
-      - scripts/hf_keep_policy.py
-      - scripts/hf_consolidate_fleet.py
-      - tests/test_public_estate_alignment.py
-      - tests/test_hf_keep_policy_continuations.py
-      - tests/test_confirmation_retention_policy.py
-      - .github/workflows/public-estate-contract.yml
   push:
     branches: [main]
     paths:
