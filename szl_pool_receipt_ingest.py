@@ -15,7 +15,8 @@ with fail-closed semantics end to end:
   * wrong or absent bearer                         -> 403 (constant-time compare);
   * envelope larger than the contract bound        -> 413, nothing stored;
   * pool trust root (A11OY_POOL_RECEIPT_PUBLIC_KEY_PEM + ...SHA256) absent or
-    mismatched                                    -> 503, nothing accepted;
+    mismatched, or an A11OY_POOL_RECEIPT_TRUST_ROOTS map that is set but
+    malformed                                     -> 503, nothing accepted;
   * signature/schema invalid (reuse of the contract verifier — single source
     of verification truth)                        -> 422, nothing stored;
   * observed_at more than the contract's future skew ahead of, or more than
@@ -186,14 +187,14 @@ async def _ingest(request: Request) -> JSONResponse:  # noqa: ANN401
     raw = b"".join(chunks)
     if len(raw) <= 0:
         return _json_error(413, "envelope too large", limit_bytes=_MAX_ENVELOPE_BYTES)
-    verifier = pool_contract._pool_verifier()
-    if verifier is None:
+    roots = pool_contract._pool_trust_roots()
+    if roots is None:
         return _json_error(503, "pool trust root not configured or mismatched")
     try:
         envelope = json.loads(raw)
     except (UnicodeDecodeError, json.JSONDecodeError):
         return _json_error(422, "envelope is not valid JSON")
-    payload = pool_contract._verify_pool_envelope(envelope, verifier)
+    payload = pool_contract._verify_pool_envelope(envelope, roots)
     if payload is None:
         return _json_error(422, "envelope failed pool verification (signature or payload contract)")
     # A receipt the contract would never treat as fresh must not be stored:
