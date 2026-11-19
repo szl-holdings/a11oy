@@ -7,8 +7,10 @@ export const REVISION_PATH = "/.well-known/szl-worker-revision";
 const SOURCE_REVISION = /^[0-9a-f]{40}$/;
 const MAX_JSON_BYTES = 64 * 1024;
 const MAX_PUBLICATION_RESPONSE_BYTES = 64 * 1024;
-// Leave time for the existing eight-second canary to receive an honest failure.
-const PUBLICATION_TIMEOUT_MS = 6000;
+// Measured Worker->ntfy.sh delivery takes about 19.5 s (README, 2026-11-18), and
+// the post-deploy canary allows 30 s (#3702). 25 s lets a real publication
+// finish and still gives the canary an honest 504 before it gives up.
+const PUBLICATION_TIMEOUT_MS = 25000;
 const PUBLICATION_METHODS = new Set(["POST", "PUT"]);
 const TOPIC_HASH_HEX_LENGTH = 60;
 const ALLOWED_METHODS = new Set(["GET", "HEAD", "POST", "PUT", "OPTIONS"]);

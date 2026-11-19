@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed - bound alert publication acknowledgements
 
-- Alert-relay POST/PUT attempts now stop waiting after six seconds, including
-  acknowledgement-body reads. An HTTP 504 records `delivery_status: UNKNOWN`;
+- Alert-relay POST/PUT attempts now stop waiting after 25 seconds, including
+  acknowledgement-body reads. The bound sits above the measured ~19.5 s
+  Worker-to-ntfy.sh delivery and under the 30 s post-deploy canary. An HTTP 504 records `delivery_status: UNKNOWN`;
   it does not assert that the provider rejected a message or retry it.
 - Publication acknowledgements are bounded to 64 KiB; oversized responses fail
   with HTTP 502 and unknown delivery. Complete responses retain their status

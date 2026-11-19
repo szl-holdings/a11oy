@@ -26,7 +26,8 @@ Safety properties:
 - write requests require a topic path;
 - malformed or oversized JSON fails before delivery;
 - complete upstream publication acknowledgements preserve their status and body bytes;
-- POST/PUT upstream acknowledgements have a six-second deadline and a 64 KiB
+- POST/PUT upstream acknowledgements have a 25-second deadline (above the measured
+  ~19.5 s delivery below, under the 30 s canary budget) and a 64 KiB
   response bound; timeout returns HTTP 504 (`upstream_timeout`) and an oversized
   acknowledgement returns HTTP 502 (`upstream_response_too_large`), both with
   `delivery_status: UNKNOWN`;

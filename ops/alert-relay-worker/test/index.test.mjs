@@ -240,7 +240,7 @@ for (const method of ["POST", "PUT"]) {
       },
     );
     await started.promise;
-    t.mock.timers.tick(6000);
+    t.mock.timers.tick(25000);
     const response = await flushAfterDeadline(pending);
     assert.ok(response instanceof Response, "stalled publication must settle within its deadline");
     assert.equal(response.status, 504);
@@ -253,6 +253,28 @@ for (const method of ["POST", "PUT"]) {
     assert.equal(attempts, 1, "an unknown delivery must never be retried automatically");
   });
 }
+
+test("a publication acknowledged at the measured 19.5 s delivery latency completes", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const started = deferred();
+  let forwarded;
+  let acknowledge;
+  const pending = handleRequest(
+    relayRequest("/opaque-topic", { method: "POST", body: "fixture" }),
+    (request) => {
+      forwarded = request;
+      started.resolve();
+      return new Promise((resolve) => { acknowledge = resolve; });
+    },
+  );
+  await started.promise;
+  t.mock.timers.tick(19500);
+  acknowledge(new Response('{"id":"fixture"}', { status: 200 }));
+  const response = await pending;
+  assert.equal(response.status, 200, "a real delivery inside the measured latency must not time out");
+  assert.equal(await response.text(), '{"id":"fixture"}');
+  assert.equal(forwarded.signal.aborted, false);
+});
 
 test("publication deadline includes a stalled acknowledgement body", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
@@ -267,7 +289,7 @@ test("publication deadline includes a stalled acknowledgement body", async (t) =
     async () => new Response(body, { status: 200 }),
   );
   await bodyStarted.promise;
-  t.mock.timers.tick(6000);
+  t.mock.timers.tick(25000);
   const response = await flushAfterDeadline(pending);
   assert.ok(response instanceof Response, "partial acknowledgements must not hang");
   assert.equal(response.status, 504, "headers alone must not claim delivery");
@@ -290,7 +312,7 @@ test("completed publication preserves bytes and status, then releases its deadli
   assert.equal(response.status, 429);
   assert.equal(response.headers.get("retry-after"), "12");
   assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
-  t.mock.timers.tick(6000);
+  t.mock.timers.tick(25000);
   assert.equal(forwarded.signal.aborted, false, "completed requests must not retain a deadline");
   caller.abort();
   assert.equal(forwarded.signal.aborted, false, "completed requests must detach caller cancellation");
@@ -308,7 +330,7 @@ test("publication transport rejection remains 502 and cleans up its timer", asyn
   );
   assert.equal(response.status, 502);
   assert.deepEqual(await response.json(), { error: "upstream_unavailable" });
-  t.mock.timers.tick(6000);
+  t.mock.timers.tick(25000);
   assert.equal(forwarded.signal.aborted, false);
 });
 
@@ -368,7 +390,7 @@ test("a transport ignoring cancellation still times out and its late body is can
     },
   );
   await started.promise;
-  t.mock.timers.tick(6000);
+  t.mock.timers.tick(25000);
   const response = await flushAfterDeadline(pending);
   assert.ok(response instanceof Response, "cancellation must not depend on transport cooperation");
   assert.equal(response.status, 504);
