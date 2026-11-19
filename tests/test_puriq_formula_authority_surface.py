@@ -96,6 +96,10 @@ def test_authority_failure_never_falls_back_to_historical_proof_claims(client, m
         assert response.status_code == 503
         assert "UNAVAILABLE" in response.text
         assert "private path" not in response.text
+    page = client.get("/formulas").text
+    assert "Eight locked records" not in page
+    assert "Formal identities come from the validated" not in page
+    assert "Formal coverage is UNAVAILABLE" in page
     payload = client.get("/api/a11oy/v1/puriq/formulas").json()
     assert payload["formal_registry"]["formulas"] == {}
     assert payload["summary"]["proved_count"] is None

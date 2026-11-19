@@ -724,6 +724,18 @@ def _render_html(snapshot=None):
         '<p role="alert">Formal authority is UNAVAILABLE. No historical proof claims '
         'are substituted. The numerical samples below carry no proof authority.</p>'
     )
+    if formal["state"] == "AVAILABLE":
+        coverage = ('<p>Eight locked records and the F23 Lambda boundary are covered. Lambda '
+                    'uniqueness remains\nConjecture 1, advisory. This is not an exhaustive '
+                    'inventory of SZL mathematics.</p>')
+        identity_source = ('Formal identities come from the validated, commit-pinned formula '
+                           'registry.')
+    else:
+        coverage = ('<p>Formal coverage is UNAVAILABLE: no locked record or Lambda boundary is '
+                    'asserted while\nthe registry cannot be validated. Lambda uniqueness '
+                    'remains Conjecture 1, advisory.</p>')
+        identity_source = ('Formal identities are UNAVAILABLE because the formula registry '
+                           'could not be validated.')
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -765,8 +777,7 @@ it does not establish signer identity, runtime applicability, or permission to a
 <p class="mono">Registry SHA-256: {digest}</p>
 <a href="/api/a11oy/v1/puriq/formal-registry">Inspect canonical registry JSON</a></section>
 <h2>Formal statements and proof limits</h2>
-<p>Eight locked records and the F23 Lambda boundary are covered. Lambda uniqueness remains
-Conjecture 1, advisory. This is not an exhaustive inventory of SZL mathematics.</p>
+{coverage}
 <div class="formal-grid">{formal_body}</div>
 <h2>Numerical demonstrations · SAMPLE</h2>
 <p class="boundary">These 23 examples use fixed reproducible inputs. Their proof binding is
@@ -777,7 +788,7 @@ action authorization. No receipts are minted or signed by this page.</p>
 <thead><tr><th scope="col">Legacy ID</th><th scope="col">Demonstration</th><th scope="col">Sample value</th>
 <th scope="col">Sample check</th><th scope="col">Proof binding</th><th scope="col">Evidence</th></tr></thead>
 <tbody>{''.join(demo_rows)}</tbody></table></div>
-<footer>Formal identities come from the validated, commit-pinned formula registry. Numerical
+<footer>{identity_source} Numerical
 demonstrations remain separately identified. Reads perform no signing, persistence, or model inference.</footer>
 </main></body></html>'''
 
