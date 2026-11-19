@@ -187,27 +187,21 @@ rows:
   - id: model_bom_status
     category: ai_governance
     question: Does a complete model bill of materials exist for every model in the estate
-    state: VERIFIED
-    value: "MODEL_BOM.csv covers all 43 public models: license, base model, library, 30d downloads, unsafe-file scan, gating"
+    state: UNKNOWN
+    value: null
     blocks_raise: true
-    evidence:
-      - status: supports
-        uri: https://huggingface.co/datasets/SZLHOLDINGS/model-bom/blob/main/MODEL_BOM.csv
-        note: machine-readable BOM snapshotted 2026-08-30 from the live HF API; provenance.json + status.json in same repo
-    why_unknown: "no Model BOM register has been created for the ~15 Hugging Face models"
-    last_audited: 2026-08-30
+    evidence: null
+    why_unknown: "Historical registry exists at SZLHOLDINGS/model-bom. Its own 2026-09-25 card admitted 44 BOMs versus 49 then-public models; dataset last modified 2026-09-28. No complete current same-scope repository census, immutable BOM-byte readback, license reconciliation, or coverage gate was verified on 2026-11-19. The old 43-model snapshot cannot prove estate-wide coverage."
+    last_audited: 2026-11-19
   - id: dataset_license_register
     category: ai_governance
     question: Does a license register exist covering all datasets
-    state: VERIFIED
-    value: "DATASET_LICENSE_REGISTER.csv covers 28 public datasets: license, training-eligibility ruling, upstream sources; TRAINING_BLOCKLIST.txt is CI-consumable"
+    state: UNKNOWN
+    value: null
     blocks_raise: true
-    evidence:
-      - status: supports
-        uri: https://huggingface.co/datasets/SZLHOLDINGS/model-bom/blob/main/DATASET_LICENSE_REGISTER.csv
-        note: training-eligibility rulings with blocklist enforcement; snapshotted 2026-08-30
-    why_unknown: "no license register has been created for the ~30 Hugging Face datasets"
-    last_audited: 2026-08-30
+    evidence: null
+    why_unknown: "Historical 28-row public dataset license register and CI blocklist existed at SZLHOLDINGS/model-bom in 2026-08, but no independent 2026-11-19 same-scope dataset membership and upstream-rights reconciliation was verified. A historical list is not evidence that all current datasets are licensed for training or covered by the blocklist."
+    last_audited: 2026-11-19
   - id: soc2_status
     category: security_readiness
     question: What is the SOC 2 attestation status
