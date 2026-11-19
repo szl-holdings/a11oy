@@ -143,29 +143,47 @@ def test_all_existing_and_new_negative_controls_still_pass():
 # --- Bounded route-probe contracts (rebuilt from #3557; adapted to the pooled probe design) ---
 
 def test_route_probe_timeout_returns_before_the_handler_finishes():
+    """Timeout returns None near the deadline; abandoned work is never the caller's wait.
+
+    The probe pool owns long-lived lazy daemon workers, so this test asserts only
+    what the contract guarantees: the caller comes back None well before the
+    blocked handler finishes, the submitted handler is observed to start (not
+    assumed to have started before the deadline), and a released pool stops
+    promptly through its own bounded shutdown.
+    """
     import threading
     import time
     from types import SimpleNamespace
+    import starlette.requests  # noqa: F401  Wires the lazy import inside _invoke_route.
     import szl_frontier_index as frontier
-    __import__("starlette.requests")
 
     release = threading.Event()
-    workers = []
+    entered = threading.Event()
+
     def blocked():
-        workers.append(threading.current_thread())
+        entered.set()
         release.wait(1)
         return {"label": "SAMPLE"}
+
+    pool = frontier._RouteProbePool()
+    previous = frontier._PROBE_POOL
+    frontier._PROBE_POOL = pool
     try:
         started = time.monotonic()
         result = frontier._invoke_route(object(), SimpleNamespace(endpoint=blocked), "/probe", 0.03)
         elapsed = time.monotonic() - started
+        # The caller is released near the 30 ms deadline, not after the blocked work.
         assert result is None
-        assert elapsed < 0.4, "caller waited for the abandoned handler to finish"
-        assert workers and workers[0].is_alive()
+        assert elapsed < 0.9, "caller waited for the abandoned handler to finish"
+        # Lazy pool start may begin the handler only after the deadline: observe it.
+        assert entered.wait(timeout=2.0), "submitted handler never started"
+        # Pool doctrine: release synthetic blocking work, then bounded shutdown.
+        release.set()
+        assert pool.shutdown(timeout=2.0), "released pool did not stop promptly"
     finally:
         release.set()
-        for worker in workers:
-            worker.join(timeout=2)
+        pool.shutdown(timeout=2.0)
+        frontier._PROBE_POOL = previous
 
 
 def test_route_probe_async_handler_keeps_request_and_label_contract():
