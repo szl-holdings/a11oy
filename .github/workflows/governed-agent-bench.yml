@@ -12,6 +12,7 @@ on:
       - "scripts/validate_benchmark_map.py"
       - "scripts/test_validate_benchmark_map.py"
       - ".github/workflows/governed-agent-bench.yml"
+      - ".github/scripts/install_playwright_chromium.sh"
   pull_request:
     branches:
       - main
@@ -23,6 +24,7 @@ on:
       - "scripts/validate_benchmark_map.py"
       - "scripts/test_validate_benchmark_map.py"
       - ".github/workflows/governed-agent-bench.yml"
+      - ".github/scripts/install_playwright_chromium.sh"
 
 permissions:
   contents: read
@@ -115,7 +117,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check -r benchmarks/governed-agent-bench/huggingface/requirements.txt
           npm install --prefix "$RUNNER_TEMP/bench-browser" --ignore-scripts --save-exact playwright@1.62.0
-          node "$RUNNER_TEMP/bench-browser/node_modules/playwright/cli.js" install --with-deps chromium
+          bash .github/scripts/install_playwright_chromium.sh node "$RUNNER_TEMP/bench-browser/node_modules/playwright/cli.js"
 
       - name: Qualify the actual generated read-only Gradio presentation
         env:

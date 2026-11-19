@@ -38,7 +38,7 @@ jobs:
       - name: Install isolated pinned browser runner
         run: |
           python -m pip install --disable-pip-version-check 'playwright==1.57.0'
-          python -m playwright install --with-deps chromium
+          bash .github/scripts/install_playwright_chromium.sh python -m playwright
       - name: Exercise actual pages with intercepted synthetic fixtures
         shell: bash
         run: |

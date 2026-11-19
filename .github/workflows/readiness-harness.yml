@@ -217,7 +217,7 @@ jobs:
         run: |
           npm init -y >/dev/null 2>&1 || true
           npm install --no-save @playwright/test
-          npx playwright install --with-deps chromium
+          bash "$GITHUB_WORKSPACE/.github/scripts/install_playwright_chromium.sh" npx playwright
       - name: Sweep every tab of the live console
         working-directory: tools/readiness-harness
         run: |

@@ -90,7 +90,7 @@ jobs:
           browser_env="$(mktemp -d)"
           python -m venv "$browser_env"
           "$browser_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir -r finance-runtime.txt -c finance-runtime.txt 'playwright==1.57.0' 'huggingface_hub==1.31.0' 'cryptography==50.0.2' 'cffi==2.1.1' 'pycparser==3.0' 'pytest==9.0.2'
-          "$browser_env/bin/python" -m playwright install --with-deps chromium
+          bash .github/scripts/install_playwright_chromium.sh "$browser_env/bin/python" -m playwright
           # Chromium talks to the published loopback port. An --internal network
           # does not publish that port to the host on this runner. Browser
           # fetches stay same-origin and are intercepted as UNAVAILABLE/synthetic.

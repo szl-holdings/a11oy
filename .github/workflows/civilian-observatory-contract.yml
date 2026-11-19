@@ -11,6 +11,7 @@ on:
       - "tests/browser_civilian_styles.py"
       - "scripts/build_civilian_manifest.py"
       - ".github/workflows/civilian-observatory-contract.yml"
+      - ".github/scripts/install_playwright_chromium.sh"
       - "serve.py"
       - "Dockerfile"
   push:
@@ -23,6 +24,7 @@ on:
       - "tests/browser_civilian_styles.py"
       - "scripts/build_civilian_manifest.py"
       - ".github/workflows/civilian-observatory-contract.yml"
+      - ".github/scripts/install_playwright_chromium.sh"
       - "serve.py"
       - "Dockerfile"
   workflow_dispatch:
@@ -87,7 +89,7 @@ jobs:
           "$BROWSER_PYTHON" -m pip install --disable-pip-version-check "playwright==1.57.0" \
             2>&1 | tee "$EVIDENCE_DIR/setup.log"
           "$BROWSER_PYTHON" -m playwright --version 2>&1 | tee -a "$EVIDENCE_DIR/setup.log"
-          "$BROWSER_PYTHON" -m playwright install --with-deps chromium \
+          bash .github/scripts/install_playwright_chromium.sh "$BROWSER_PYTHON" -m playwright \
             2>&1 | tee -a "$EVIDENCE_DIR/setup.log"
       - name: Exercise exact shipped styles with offline browser fixtures
         shell: bash

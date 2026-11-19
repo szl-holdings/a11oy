@@ -17,6 +17,7 @@ on:
       - "tests/test_brain_reranker.py"
       - "tests/test_anatomy_3d_observation_contract.py"
       - "tests/test_anatomy_3d_browser_contract.py"
+      - ".github/scripts/install_playwright_chromium.sh"
       - "tests/test_chain_verified_missing_defaults.py"
       - "static-vendor/three.min.js"
       - "console/assets/szl/**"
@@ -39,6 +40,7 @@ on:
       - "tests/test_brain_reranker.py"
       - "tests/test_anatomy_3d_observation_contract.py"
       - "tests/test_anatomy_3d_browser_contract.py"
+      - ".github/scripts/install_playwright_chromium.sh"
       - "tests/test_chain_verified_missing_defaults.py"
       - "static-vendor/three.min.js"
       - "console/assets/szl/**"
@@ -90,7 +92,7 @@ jobs:
           namespace[name]()
           PY
       - name: Install isolated Chromium
-        run: python -m playwright install --with-deps chromium
+        run: bash .github/scripts/install_playwright_chromium.sh python -m playwright
       - name: Verify registered routes and seven browser surfaces
         env:
           SZL_ANATOMY_BROWSER_ARTIFACT_DIR: ${{ runner.temp }}/anatomy-browser
