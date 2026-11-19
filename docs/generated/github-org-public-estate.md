@@ -3,7 +3,7 @@
 
 [A11oy](https://a-11-oy.com) is the product and command fabric; [a11oy.net](https://a11oy.net) is the proof and diligence surface. GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.
 
-**Measured Hub inventory:** 33 public Spaces · 150 model repositories · 14 native kernels · 99 datasets as of `2026-11-18T05:28:05Z`.
+**Measured Hub inventory:** 33 public Spaces · 151 model repositories · 14 native kernels · 99 datasets as of `2026-11-19T07:31:17Z`.
 Repository namespaces can share project names; these counts do not establish trained-model totals or readiness.
 Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/frontier-console`, `SZLHOLDINGS/khipu-proof-loom`, `SZLHOLDINGS/llm-router-live`, `SZLHOLDINGS/sentra`, `SZLHOLDINGS/szl-bench-suite`, `SZLHOLDINGS/szl-command-center`, `SZLHOLDINGS/szl-constellation`, `SZLHOLDINGS/szl-cram-demo`, `SZLHOLDINGS/szl-forge-lab`, `SZLHOLDINGS/szl-marketing`, `SZLHOLDINGS/szl-muhu-frontier`, `SZLHOLDINGS/szl-router-control`, `SZLHOLDINGS/szl-science-gate-studio`, `SZLHOLDINGS/the-grid`, `SZLHOLDINGS/truth-router`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`. Reserved organization card (not a governed keeper): `SZLHOLDINGS/README`.
 
@@ -26,5 +26,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `aa80dd41c3a0a1322028bb7d96f4b038fcb144c257fc2c6b78cad581624931ec`.
+Alignment receipt: `65a924f6ba6c0917bf438b93df3b8cc1656114c890e9bc1a9af7571e8ac56ce4`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->

@@ -49,7 +49,11 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def normalize_origin(value: str) -> str:
-    parsed = urllib.parse.urlsplit(str(value or "").strip())
+    try:
+        parsed = urllib.parse.urlsplit(str(value or "").strip())
+        parsed_port = parsed.port
+    except ValueError as exc:
+        raise LiveProofError("origin must be a credential-free HTTPS origin") from exc
     if (
         parsed.scheme.lower() != "https"
         or not parsed.hostname
@@ -60,7 +64,7 @@ def normalize_origin(value: str) -> str:
         or parsed.path not in ("", "/")
     ):
         raise LiveProofError("origin must be a credential-free HTTPS origin")
-    port = f":{parsed.port}" if parsed.port else ""
+    port = f":{parsed_port}" if parsed_port else ""
     return f"https://{parsed.hostname.lower()}{port}"
 
 
