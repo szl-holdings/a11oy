@@ -56,6 +56,7 @@ jobs:
           output-format: sarif
           output-file: grype-results.sarif
           cache-db: true
+          config: .github/grype-gate-ignore.yaml
 
       - name: Summarize actionable Grype findings
         if: always()
