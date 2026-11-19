@@ -106,12 +106,15 @@ rows:
   - id: published_price
     category: pricing
     question: What is the published price of the product
-    state: UNKNOWN
-    value: null
+    state: VERIFIED
+    value: "Observed founder-set public launch offers on 2026-11-19: Community free, Team USD 2500 per month, Governed Evidence Pilot USD 15000 flat for 30 days, and Enterprise custom. This verifies posted pricing only, not contracts, paying customers, settlement, recognized revenue, or buyer acceptance."
     blocks_raise: true
-    evidence: null
-    why_unknown: no pricing page or price list has been published
-    last_audited: 2026-08-30
+    evidence:
+      - status: supports
+        uri: https://a-11-oy.com/pricing
+        note: "Anonymous GET 200 text/html from BETTERWITHAGE on 2026-11-19T20:20:20Z. All four tier labels and terms matched public GitHub pages/pricing.html at bfb64b3c6bf5a477762540a9685b4fd9524fdf76; served HTML SHA256 279d8c71b7d2e8ca11b5f70a0b037e9dfb957d8739e890168682126a951f7bc5. Does not prove paid conversion."
+    why_unknown: null
+    last_audited: 2026-11-19
   - id: buyer_persona
     category: gtm
     question: Who is the named buyer persona with budget authority
