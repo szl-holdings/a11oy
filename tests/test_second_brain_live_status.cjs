@@ -8,7 +8,8 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "pages", "second-brain.html"), "utf8");
-const inline = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/);
+const INLINE_SCRIPT = /<script>\s*([\s\S]*?)\s*<\/script>/i;
+const inline = html.match(INLINE_SCRIPT);
 assert.ok(inline, "one inline Second Brain application script is required");
 const script = inline[1];
 const section = script.match(/function classifyBrain\([\s\S]*?(?=function emptyMembrane\()/);
@@ -31,6 +32,12 @@ const missing = {
 
 test("the inline UI script parses without external dependencies", () => {
   assert.doesNotThrow(() => new vm.Script(script));
+});
+
+test("inline script extraction accepts uppercase SCRIPT tags", () => {
+  const uppercase = "<SCRIPT>const uppercase = true;</SCRIPT>".match(INLINE_SCRIPT);
+  assert.ok(uppercase);
+  assert.equal(uppercase[1], "const uppercase = true;");
 });
 
 test("HTTP 200 alone cannot become indexed memory or a verified inference turn", () => {
