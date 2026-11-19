@@ -286,6 +286,49 @@ def test_readiness_layout_wraps_and_bounds_height_without_dropping_evidence():
     assert "straight to the proof" not in html
 
 
+def _energy_operator_card(monkeypatch, **status):
+    import szl_energy_operator as eo
+    import szl_frontier_manifest as manifest
+
+    base = {"running": True, "stub_mode": False, "jobs_done": 6, "measured_jobs": 0,
+            "joules_measured_total": 0.0, "joules_measured_label": "UNAVAILABLE",
+            "joules_measured_reason": "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION",
+            "window_measured_jobs": 3, "window_joules_measured_total": 37.5,
+            "window_fresh": True, "window_age_s": 4.0, "window_max_age_s": 900.0,
+            "last_window_measured_at": "2026-11-19T00:00:00Z",
+            "node_status": {"omen": "computing"}}
+    base.update(status)
+    monkeypatch.setattr(eo, "handle_status", lambda: base)
+    tile = manifest._tile_energy_operator()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+    tile["operational_readiness"] = _contract(
+        state="READY" if ready else "NOT_READY", ready=ready,
+        predicate=tile["operational_evidence"]["predicate"], reasons=reasons)
+    return ready, _node("tileCard(payload)", tile)
+
+
+def test_energy_operator_card_shows_the_measured_window_and_its_scope(monkeypatch):
+    ready, card = _energy_operator_card(monkeypatch)
+
+    assert ready is True
+    assert "measurement_scope <b>BOUNDED_METER_WINDOW</b>" in card
+    assert "window_measured_jobs <b>3</b>" in card
+    assert "window_joules_measured_total <b>37.5</b>" in card
+    assert "joules_measured_label <b>UNAVAILABLE</b>" in card
+    # An unmeasured billable total is never rendered as a bare number.
+    assert "joules_measured_total <b>" not in card.replace(
+        "window_joules_measured_total <b>", "")
+
+
+def test_stale_energy_window_card_is_not_ready_and_says_why(monkeypatch):
+    ready, card = _energy_operator_card(monkeypatch, window_fresh=False,
+                                        window_age_s=5000.0)
+
+    assert ready is False
+    assert "<code>measured_energy_window_stale</code>" in card
+    assert 'data-readiness-state="READY"' not in card
+
+
 def test_complete_served_module_is_valid_javascript():
     node = shutil.which("node")
     assert node, "Node is required to validate the served Frontier module"

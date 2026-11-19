@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from collections import Counter
 
@@ -70,37 +73,27 @@ class ProofObligationDatasetReleaseTests(unittest.TestCase):
             self.manifest["prohibited_claims"],
         )
 
-    def test_source_copies_are_byte_identical_and_receipted(self):
-        source_pairs = (
-            (
-                ROOT
-                / "research/formula-training-admission/formula-id-crosswalk.json",
-                DATA / "formula-id-crosswalk.json",
-            ),
-            (
-                ROOT / "research/formula-training-admission/admission-tranche.jsonl",
-                DATA / "admission-tranche.jsonl",
-            ),
-            (
-                ROOT / "research/formula-training-admission/artifact-receipt.json",
-                DATA / "source-artifact-receipt.json",
-            ),
-            (
-                ROOT / "research/formula-training-admission/admission-manifest.json",
-                DATA / "source-admission-manifest.json",
-            ),
+    @staticmethod
+    def builder():
+        spec = importlib.util.spec_from_file_location(
+            "proof_obligation_frozen_builder", PACKAGE / "build_package.py"
         )
-        for source, packaged in source_pairs:
-            self.assertEqual(source.read_bytes(), packaged.read_bytes())
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
 
+    def test_retained_source_copies_are_release_hash_bound_and_receipted(self):
+        builder = self.builder()
+        self.assertEqual(builder.verify_frozen_release(), self.manifest)
         receipt = load_json(DATA / "source-artifact-receipt.json")
         for source_path, expected in receipt["artifacts"].items():
-            self.assertEqual(sha256(ROOT / source_path), expected)
+            retained = PACKAGE / builder.RETAINED_SOURCES[source_path]
+            self.assertEqual(sha256(retained), expected)
         payload = dict(receipt)
         observed = payload.pop("artifact_receipt_sha256")
         self.assertEqual(hashlib.sha256(canonical_bytes(payload)).hexdigest(), observed)
-
         snapshot = self.manifest["source_snapshots"]["formula_admission"]
+        self.assertEqual(snapshot["artifact_receipt_sha256"], observed)
         self.assertEqual(
             snapshot["crosswalk_and_tranche_commit"],
             "e4d269b309fe67264f1dfe64a65c3c5fb6ecf570",
@@ -109,6 +102,46 @@ class ProofObligationDatasetReleaseTests(unittest.TestCase):
             snapshot["admission_manifest_and_receipt_commit"],
             "b7b0f2996edf674d7365d37112371fa6690e7c0e",
         )
+
+    def test_current_source_drift_cannot_rewrite_or_relabel_frozen_package(self):
+        builder = self.builder()
+        before = {p.name: p.read_bytes() for p in DATA.iterdir() if p.is_file()}
+        with tempfile.TemporaryDirectory() as temporary:
+            builder.REPO_ROOT = pathlib.Path(temporary)
+            mutable = builder.REPO_ROOT / builder.SOURCE_CROSSWALK
+            mutable.parent.mkdir(parents=True)
+            mutable.write_text('{"new_current_source":true}\n', encoding="utf-8")
+            self.assertEqual(builder.build(), self.manifest)
+            status = builder.current_source_status()
+        self.assertEqual(status["state"], "NOT_CURRENT")
+        self.assertFalse(status["package_modified"])
+        changed = next(row for row in status["sources"]
+                       if row["path"] == builder.SOURCE_CROSSWALK.as_posix())
+        self.assertEqual(changed["state"], "NOT_CURRENT")
+        self.assertNotEqual(changed["current_sha256"], changed["retained_sha256"])
+        self.assertEqual(before, {p.name: p.read_bytes() for p in DATA.iterdir() if p.is_file()})
+
+    def test_retained_artifact_tamper_fails_closed(self):
+        builder = self.builder()
+        with tempfile.TemporaryDirectory() as temporary:
+            builder.PACKAGE_DIR = pathlib.Path(temporary) / "package"
+            shutil.copytree(PACKAGE, builder.PACKAGE_DIR, ignore=shutil.ignore_patterns("__pycache__"))
+            retained = builder.PACKAGE_DIR / "data/formula-id-crosswalk.json"
+            retained.write_bytes(retained.read_bytes() + b" ")
+            with self.assertRaisesRegex(builder.PackageError, "RETAINED_ARTIFACT_DIGEST_MISMATCH"):
+                builder.build()
+
+    def test_release_manifest_tamper_cannot_repin_retained_inputs(self):
+        builder = self.builder()
+        with tempfile.TemporaryDirectory() as temporary:
+            builder.PACKAGE_DIR = pathlib.Path(temporary) / "package"
+            shutil.copytree(PACKAGE, builder.PACKAGE_DIR, ignore=shutil.ignore_patterns("__pycache__"))
+            manifest_path = builder.PACKAGE_DIR / "release-manifest.json"
+            changed = load_json(manifest_path)
+            changed["source_snapshots"]["formula_admission"]["crosswalk_and_tranche_commit"] = "a" * 40
+            manifest_path.write_text(json.dumps(changed), encoding="utf-8")
+            with self.assertRaisesRegex(builder.PackageError, "FROZEN_RELEASE_MANIFEST_CHANGED"):
+                builder.build()
 
     def test_queue_is_complete_receipt_bound_and_holdout_only(self):
         self.assertEqual(len(self.crosswalk["records"]), 146)
@@ -262,6 +295,8 @@ class ProofObligationDatasetReleaseTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn('"doi": "PENDING"', completed.stdout)
+        self.assertIn('"reproduction": "FROZEN_RETAINED_INPUTS_VERIFIED"', completed.stdout)
+        self.assertIn('"current_source"', completed.stdout)
         after = {path.relative_to(PACKAGE).as_posix(): sha256(path) for path in tracked}
         self.assertEqual(before, after)
 

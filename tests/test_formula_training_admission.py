@@ -17,7 +17,7 @@ def _expected_brain_counts() -> tuple[int, int]:
 
 def test_committed_artifacts_rebuild_byte_for_byte():
     result = admission.verify_committed(ROOT)
-    assert result["ok"] is True
+    assert result["ok"] is True, result
     assert result["mismatches"] == []
     assert len(result["manifest_receipt_sha256"]) == 64
     assert len(result["artifact_receipt_sha256"]) == 64
