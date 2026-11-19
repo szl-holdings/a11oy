@@ -47,13 +47,17 @@ Dev4 dashboard consume this):
 
 Endpoints (dual-registered under /api/{ns}/v1/energy/operator/* AND /v1/energy/operator/*):
   POST /energy/operator/start    — press play (idempotent; returns running state)
-  POST /energy/operator/stop     — graceful stop (idempotent)
+  POST /energy/operator/stop     — graceful stop (idempotent); holds the loop off until
+                                   the next explicit start or a process restart, so the
+                                   autostart retry never overrides an operator's stop
   GET  /energy/operator/status   — running?, jobs_done, joules_measured_total,
                                     tokens_total, nodes computing, uptime, degraded nodes
 
 Graceful start/stop via a threading stop-flag + optional SIGINT/SIGTERM handler.
 Backpressure: a per-node in-flight cap + inter-job sleep so we never overwhelm a node.
-State persists to a JSON ledger so a restart RESUMES the cumulative counts.
+State persists to a JSON ledger so a restart RESUMES the cumulative counts. The
+verified-window counts that gate operational readiness are process-local and restart at
+zero; readiness is re-established by fresh counter samples after every restart.
 
 Pure stdlib + httpx (already a repo dep) + FastAPI. No Node, no CDN.
 """
@@ -768,6 +772,9 @@ class JobRecord:
     window_joules_measured: Optional[float] = None
     joules_scope: Optional[str] = None
     window_evidence: Optional[dict] = None
+    # "operator" for jobs this daemon dispatched; "external" for submit_external_job
+    # records (for example governed CPU code cells), which are not operator GPU jobs.
+    origin: str = "operator"
 
     def to_dict(self) -> dict:
         return {
@@ -784,6 +791,7 @@ class JobRecord:
             "ts": self.ts, "seq": self.seq,
             "useful_work": self.useful_work, "rag_chunk_id": self.rag_chunk_id,
             "governance": self.governance,
+            "origin": self.origin,
         }
 
 
@@ -854,6 +862,83 @@ def _with_model_access_headers(headers: dict, url: str) -> dict:
     return merged
 
 
+# A verified window older than this no longer counts as current measurement, so a
+# meter that went quiet cannot keep the operator reading MEASURED for the life of
+# the process. Default 900 s, clamped to 60 s .. 1 day.
+WINDOW_MAX_AGE_ENV = "A11OY_ENERGY_WINDOW_MAX_AGE_S"
+_WINDOW_MAX_AGE_DEFAULT_S = 900.0
+
+
+def window_max_age_s() -> float:
+    raw = (os.environ.get(WINDOW_MAX_AGE_ENV) or "").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return _WINDOW_MAX_AGE_DEFAULT_S
+    if not math.isfinite(value) or value <= 0:
+        return _WINDOW_MAX_AGE_DEFAULT_S
+    return min(86400.0, max(60.0, value))
+
+
+# Latest liveness outcome per probed base URL. Without it an unreachable lung reads
+# only lung_reachable=false, which cannot distinguish an access-login redirect from a
+# token refusal, a DNS failure or a sleeping node. status()/readiness() expose these
+# rows under PUBLIC node names, so no URL, host, port or credential leaves the process.
+_PROBE_OUTCOMES: dict[str, dict] = {}
+_PROBE_OUTCOMES_LOCK = threading.Lock()
+_PROBE_OUTCOMES_MAX = 64
+
+
+def _probe_failure_reason(exc: BaseException) -> str:
+    """Bounded reason code for a transport failure; exception text is never kept."""
+    import socket
+    import ssl
+    import urllib.error
+
+    inner: Any = exc
+    if isinstance(exc, urllib.error.URLError) and not isinstance(exc, urllib.error.HTTPError):
+        inner = exc.reason
+    if isinstance(inner, socket.gaierror):
+        return "dns_failure"
+    if isinstance(inner, ssl.SSLError):
+        return "tls_error"
+    if isinstance(inner, TimeoutError):
+        return "timeout"
+    if isinstance(inner, ConnectionRefusedError):
+        return "connection_refused"
+    if isinstance(inner, OSError):
+        return "network_error"
+    return "probe_error"
+
+
+def _record_probe(base_url: str, reachable: bool, reason: str) -> None:
+    row = {"reachable": bool(reachable), "reason": reason, "observed_at": _now_iso()}
+    with _PROBE_OUTCOMES_LOCK:
+        _PROBE_OUTCOMES.pop(base_url, None)
+        _PROBE_OUTCOMES[base_url] = row
+        while len(_PROBE_OUTCOMES) > _PROBE_OUTCOMES_MAX:
+            _PROBE_OUTCOMES.pop(next(iter(_PROBE_OUTCOMES)))
+
+
+def _probe_outcome(base_url: str) -> dict:
+    with _PROBE_OUTCOMES_LOCK:
+        row = _PROBE_OUTCOMES.get(base_url)
+    if row is None:
+        return {"reachable": None, "reason": "not_probed", "observed_at": None}
+    return dict(row)
+
+
+def _lung_probe_rows(nodes: Any) -> dict:
+    """Latest probe outcome per configured node, keyed by PUBLIC name only."""
+    rows = {}
+    for node in nodes or []:
+        name = getattr(node, "name", None)
+        base_url = getattr(node, "base_url", None)
+        if isinstance(name, str) and isinstance(base_url, str):
+            rows[_public_node(name)] = _probe_outcome(base_url)
+    return rows
+
+
 def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
     """Read-only liveness on the configured inference base, using its GPU bearer.
 
@@ -881,7 +966,9 @@ def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
     try:
         headers = _with_model_access_headers(headers, root)
     except ModelAccessConfigurationError:
+        _record_probe(base_url, False, "access_configuration_error")
         return False
+    reason = "probe_error"
     for path in ("/models", ""):
         try:
             # Only the configured base receives the existing inference credential;
@@ -890,13 +977,22 @@ def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
                              headers=headers)
             with _u.build_opener(_NoRedirect()).open(req, timeout=timeout) as r:  # noqa: S310
                 if 200 <= getattr(r, "status", r.getcode()) < 300:
+                    _record_probe(base_url, True, "ok")
                     return True
+                reason = "http_error"
         except _e.HTTPError as exc:
             exc.close()
-            if exc.code in (401, 403) or 300 <= exc.code < 400:
+            if exc.code in (401, 403):
+                _record_probe(base_url, False, "auth_refused")
                 return False
-        except Exception:  # noqa: BLE001
+            if 300 <= exc.code < 400:
+                _record_probe(base_url, False, "redirect_refused")
+                return False
+            reason = "http_error"
+        except Exception as exc:  # noqa: BLE001
+            reason = _probe_failure_reason(exc)
             continue
+    _record_probe(base_url, False, reason)
     return False
 
 
@@ -1034,7 +1130,8 @@ class OperatorDaemon:
     jobs to reachable nodes, observing bounded GPU windows and persisting state.
 
     Thread-safe. Idempotent start/stop. Graceful: the loop checks a stop flag between
-    jobs and joins on stop(). Restart resumes cumulative counts from the ledger.
+    jobs and joins on stop(). Restart resumes cumulative counts from the ledger; the
+    verified-window counts are process-local and restart at zero.
     """
 
     def __init__(self, nodes: Optional[list[NodeCfg]] = None,
@@ -1052,6 +1149,9 @@ class OperatorDaemon:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._starting = False
+        # Set when another start arrives during a probe; that caller was told
+        # start_in_progress, so a cancel private to the probing retry cannot drop it.
+        self._start_followed = False
         self._stop_joining = False
         self._lifecycle_generation = 0
         self._started_at: Optional[float] = None
@@ -1083,6 +1183,16 @@ class OperatorDaemon:
         self._harvest_renewable: Optional[float] = None
         self._harvest_ts: float = 0.0
         self._harvest_refreshing: bool = False
+        # Bounded host windows observed by THIS process. Deliberately not persisted:
+        # readiness must be re-established by fresh counter samples after a restart.
+        self._window_measured_jobs = 0
+        self._window_joules_measured_total = 0.0
+        self._last_window_measured_at: Optional[str] = None
+        self._last_window_measured_ts: Optional[float] = None
+        # Set by an operator's explicit stop so the autostart retry never overrides it.
+        # Written inside the same locked transition as the stop or start it belongs
+        # to, so the hold always agrees with whichever operator request landed last.
+        self._operator_hold = False
 
     # -- subscription (Dev2 receipts hook) --------------------------------
     def subscribe(self, cb: Callable[[dict], None]) -> None:
@@ -1184,15 +1294,31 @@ class OperatorDaemon:
         with self._lock:
             return self._lifecycle_state(self.is_running())
 
-    def start(self) -> dict:
+    def start(self, *, respect_operator_hold: bool = False,
+              operator_request: bool = False,
+              cancel: Optional[threading.Event] = None) -> dict:
+        """Lung-gated start. With respect_operator_hold, an operator's explicit stop
+        wins even if it lands after the caller's own hold check. operator_request
+        releases the hold inside this transition, even when the start is refused.
+        A set cancel event refuses the start before the probe and again before the
+        commit, so a stopped retry cannot start the loop from a probe in flight,
+        unless another start joined this transition while it probed."""
         with self._lock:
+            if operator_request:
+                self._operator_hold = False
+            if respect_operator_hold and self._operator_hold:
+                return {**self.status(), "started": False, "reason": "operator_stop_requested"}
+            if cancel is not None and cancel.is_set():
+                return {**self.status(), "started": False, "reason": "retry_cancelled"}
             if self.lifecycle_state() == "STOPPING":
                 return {**self.status(), "started": False, "reason": "operator_stopping"}
             if self.is_running():
                 return {**self.status(), "started": False, "reason": "already_running"}
             if self._starting:
+                self._start_followed = True
                 return {**self.status(), "started": False, "reason": "start_in_progress"}
             self._starting = True
+            self._start_followed = False
             self._lifecycle_generation += 1
             generation = self._lifecycle_generation
             # No live worker or joining stop exists here. A stop during the
@@ -1203,9 +1329,15 @@ class OperatorDaemon:
         except BaseException:
             with self._lock:
                 self._starting = False
+                self._start_followed = False
             raise
         with self._lock:
             self._starting = False
+            followed, self._start_followed = self._start_followed, False
+            if respect_operator_hold and self._operator_hold:
+                return {**self.status(), "started": False, "reason": "operator_stop_requested"}
+            if cancel is not None and cancel.is_set() and not followed:
+                return {**self.status(), "started": False, "reason": "retry_cancelled"}
             if generation != self._lifecycle_generation or self._stop.is_set():
                 return {**self.status(), "started": False, "reason": "start_cancelled_by_stop"}
             if not reachable:
@@ -1221,8 +1353,10 @@ class OperatorDaemon:
                 raise
             return {**self.status(), "started": True}
 
-    def stop(self, join_timeout: float = 10.0) -> dict:
+    def stop(self, join_timeout: float = 10.0, *, operator_request: bool = False) -> dict:
         with self._lock:
+            if operator_request:
+                self._operator_hold = True
             self._stop.set()
             self._lifecycle_generation += 1
             if self._stop_joining:
@@ -1248,6 +1382,18 @@ class OperatorDaemon:
                 finally:
                     self._stop_joining = False
         return self.status()
+
+    def operator_start(self) -> dict:
+        """An operator's explicit start: releases any stop hold, then the lung-gated start."""
+        return self.start(operator_request=True)
+
+    def operator_stop(self) -> dict:
+        """An operator's explicit stop: held until the next explicit start or restart."""
+        return self.stop(operator_request=True)
+
+    def operator_hold_active(self) -> bool:
+        with self._lock:
+            return self._operator_hold
 
     def run_once(self) -> list[dict]:
         """Run exactly ONE dispatch sweep across all nodes (one job each, or stub).
@@ -1500,7 +1646,8 @@ class OperatorDaemon:
                 job_end_ts: Optional[float] = None,
                 useful_work: bool = False,
                 rag_chunk_id: Optional[str] = None,
-                governance: Optional[dict] = None) -> JobRecord:
+                governance: Optional[dict] = None,
+                origin: str = "operator") -> JobRecord:
         verified_window = _counter_window_joules(
             exporter_before_sample, exporter_sample,
             job_start_ts=job_start_ts, job_end_ts=job_end_ts)
@@ -1527,11 +1674,17 @@ class OperatorDaemon:
                                     exporter_sample["gpu_readings"])
                 ],
             }
+        completed_at = _now_iso()
         with self._lock:
             self._state.seq += 1
             seq = self._state.seq
             self._state.jobs_done += 1
             self._state.tokens_total += int(tokens)
+            if verified_window is not None:
+                self._window_measured_jobs += 1
+                self._window_joules_measured_total += verified_window
+                self._last_window_measured_at = completed_at
+                self._last_window_measured_ts = time.time()
             if useful_work:
                 self._state.corpus_embeds += 1
             bn = self._state.by_node.setdefault(
@@ -1549,12 +1702,13 @@ class OperatorDaemon:
         rec = JobRecord(
             node=node_name, model=model, kind=kind, tokens=int(tokens), wall_s=wall_s,
             joules_measured=billable_j,
-            joules_label=label, joules_evidence=evidence, ts=_now_iso(), seq=seq,
+            joules_label=label, joules_evidence=evidence, ts=completed_at, seq=seq,
             joules_reason=joules_reason,
             window_joules_measured=verified_window,
             joules_scope=("BOUNDED_METER_WINDOW" if verified_window is not None else None),
             window_evidence=window_evidence,
-            useful_work=useful_work, rag_chunk_id=rag_chunk_id, governance=governance)
+            useful_work=useful_work, rag_chunk_id=rag_chunk_id, governance=governance,
+            origin=origin)
         self._emit(rec)
         return rec
 
@@ -1568,7 +1722,7 @@ class OperatorDaemon:
         ledger subscribe() wire (wire_operator_to_ledger) then append_job()s it into the
         shared chain — one wire, one ledger, no parallel ledger."""
         return self._commit(node, model, kind, int(tokens), float(wall_s),
-                            exporter_sample, joules_measured)
+                            exporter_sample, joules_measured, origin="external")
 
     def _run_real_job(self, node: NodeCfg, kind: str) -> Optional[dict]:
         """Dispatch a job with fresh enclosing NVML samples, never bill its window.
@@ -1701,6 +1855,11 @@ class OperatorDaemon:
             standby = [_public_node(n) for n, s in self._node_status.items() if s == "standby"]
             st = self._state
             legacy = st.legacy_unverified_snapshot
+            max_age = window_max_age_s()
+            last_ts = self._last_window_measured_ts
+            window_age = (round(max(0.0, time.time() - last_ts), 3)
+                          if self._window_measured_jobs > 0 and last_ts is not None else None)
+            window_fresh = window_age is not None and window_age <= max_age
             return {
                 "service": "energy-operator",
                 "doctrine": DOCTRINE,
@@ -1711,8 +1870,30 @@ class OperatorDaemon:
                 "joules_measured_total": round(st.joules_measured_total, 6),
                 "joules_measured_label": (LABEL_MEASURED if st.measured_jobs > 0
                                            else "UNAVAILABLE"),
-                "joules_measured_reason": (None if st.measured_jobs > 0 else
-                                            "NO_VERIFIED_NVML_COUNTER_WINDOW"),
+                "joules_measured_reason": (
+                    None if st.measured_jobs > 0 else
+                    "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION" if self._window_measured_jobs > 0
+                    else "NO_VERIFIED_NVML_COUNTER_WINDOW"),
+                "window_measured_jobs": self._window_measured_jobs,
+                "window_joules_measured_total": round(self._window_joules_measured_total, 6),
+                "window_joules_label": LABEL_MEASURED if window_fresh else "UNAVAILABLE",
+                "window_joules_reason": (
+                    None if window_fresh else
+                    "NO_RECENT_VERIFIED_NVML_COUNTER_WINDOW" if self._window_measured_jobs > 0
+                    else "NO_VERIFIED_NVML_COUNTER_WINDOW"),
+                "window_joules_scope": "BOUNDED_METER_WINDOW",
+                "window_fresh": window_fresh,
+                "window_age_s": window_age,
+                "window_max_age_s": max_age,
+                "window_joules_note": (
+                    "jobs this process bracketed by fresh NVML counter samples on the same "
+                    "GPU UUID and continuity epoch; each window also includes host work "
+                    "outside the job, so it is never billed or attributed as job energy. "
+                    "The label is MEASURED only while the latest window is younger than "
+                    "window_max_age_s, and the count restarts at zero with the process"),
+                "last_window_measured_at": self._last_window_measured_at,
+                "operator_hold": self._operator_hold,
+                "lung_probe": self._lung_probe_view(),
                 "legacy_unverified_state_present": legacy is not None,
                 "legacy_unverified_joules_claimed": (
                     legacy.get("joules_measured_total") if isinstance(legacy, dict)
@@ -1776,6 +1957,9 @@ class OperatorDaemon:
                 ),
                 "computed_at": _now_iso(),
             }
+
+    def _lung_probe_view(self) -> dict:
+        return _lung_probe_rows(self.nodes)
 
     def any_lung_reachable(self) -> bool:
         """REAL probe: True iff at least one configured GPU node answers its
@@ -1862,6 +2046,130 @@ def autostart_if_lung_reachable() -> dict:
             "running": result["running"]}
 
 
+# The boot hook above runs once. A lung that comes up after boot (a home GPU waking,
+# a tunnel reconnecting) would otherwise leave the loop stopped until someone pressed
+# play by hand. The retry repeats the SAME lung-gated start on a bounded interval; it
+# honors the global off switch and never overrides an operator's explicit stop.
+A11OY_ENERGY_AUTOSTART_RETRY_ENV = "A11OY_ENERGY_AUTOSTART_RETRY_S"
+_AUTOSTART_RETRY_DEFAULT_S = 300.0
+_AUTOSTART_RETRY_MIN_S = 60.0
+_AUTOSTART_RETRY_MAX_S = 3600.0
+_WATCHDOG_LOCK = threading.Lock()
+_WATCHDOG_THREAD: Optional[threading.Thread] = None
+_WATCHDOG_STOP: Optional[threading.Event] = None
+
+
+def autostart_retry_interval_s() -> Optional[float]:
+    """Retry interval in seconds, or None when the retry is disabled."""
+    raw = (os.environ.get(A11OY_ENERGY_AUTOSTART_RETRY_ENV) or "").strip().lower()
+    if raw in ("0", "off", "false", "no", "disabled"):
+        return None
+    if not raw:
+        return _AUTOSTART_RETRY_DEFAULT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        return _AUTOSTART_RETRY_DEFAULT_S
+    if not math.isfinite(value):
+        return _AUTOSTART_RETRY_DEFAULT_S
+    if value <= 0:
+        return None
+    return min(_AUTOSTART_RETRY_MAX_S, max(_AUTOSTART_RETRY_MIN_S, value))
+
+
+def autostart_retry_once(op: Optional[OperatorDaemon] = None, *,
+                         cancel: Optional[threading.Event] = None) -> dict:
+    """One retry decision. Starts the loop only through the lung-gated start(). A set
+    cancel event (the watchdog's stop) refuses the retry, even after its probe."""
+    op = op if op is not None else get_operator()
+    running = op.is_running()
+    if cancel is not None and cancel.is_set():
+        return {"attempted": False, "started": False,
+                "reason": "retry_cancelled", "running": running}
+    if not autostart_enabled():
+        return {"attempted": False, "started": False,
+                "reason": "autostart_disabled", "running": running}
+    if op.operator_hold_active():
+        return {"attempted": False, "started": False,
+                "reason": "operator_stop_requested", "running": running}
+    lifecycle = op.lifecycle_state()
+    if lifecycle == "RUNNING":
+        return {"attempted": False, "started": False,
+                "reason": "already_running", "running": True}
+    if lifecycle in ("STARTING", "STOPPING"):
+        return {"attempted": False, "started": False,
+                "reason": lifecycle.lower(), "running": running}
+    if cancel is None:
+        result = op.start(respect_operator_hold=True)
+    else:
+        result = op.start(respect_operator_hold=True, cancel=cancel)
+    started = bool(result.get("started"))
+    return {"attempted": True, "started": started,
+            "reason": "lung_reachable" if started else result.get("reason"),
+            "running": bool(result.get("running"))}
+
+
+def start_autostart_watchdog(interval_s: Optional[float] = None) -> dict:
+    """Schedule the retry on a daemon thread (idempotent). The first retry waits one
+    interval, because the boot hook has just made the first attempt."""
+    global _WATCHDOG_THREAD, _WATCHDOG_STOP
+    if interval_s is None:
+        interval = autostart_retry_interval_s()
+    else:
+        try:
+            interval = float(interval_s)
+        except (TypeError, ValueError):
+            interval = None
+        if interval is not None and (not math.isfinite(interval) or interval <= 0):
+            interval = None
+    if interval is None:
+        return {"started": False, "reason": "retry_disabled", "interval_s": None}
+    with _WATCHDOG_LOCK:
+        if _WATCHDOG_THREAD is not None and _WATCHDOG_THREAD.is_alive():
+            return {"started": False, "reason": "already_scheduled", "interval_s": interval}
+        stop = threading.Event()
+
+        def _loop() -> None:
+            while not stop.wait(interval):
+                try:
+                    autostart_retry_once(cancel=stop)
+                except Exception:  # noqa: BLE001 — a failed retry waits for the next one
+                    pass
+
+        worker = threading.Thread(target=_loop, name="szl-energy-autostart-retry",
+                                  daemon=True)
+        _WATCHDOG_STOP = stop
+        _WATCHDOG_THREAD = worker
+        worker.start()
+    return {"started": True, "reason": "retry_scheduled", "interval_s": interval}
+
+
+def stop_autostart_watchdog(timeout: float = 5.0) -> bool:
+    """Cancel the retry thread, waiting at most ``timeout`` seconds in total. True
+    once the thread this call stopped has exited. A retry that is still probing
+    finishes its probe but can no longer start the loop unless another start
+    joined it while it probed."""
+    global _WATCHDOG_THREAD, _WATCHDOG_STOP
+    deadline = time.monotonic() + max(0.0, float(timeout))
+    with _WATCHDOG_LOCK:
+        worker, stop = _WATCHDOG_THREAD, _WATCHDOG_STOP
+        _WATCHDOG_THREAD = None
+        _WATCHDOG_STOP = None
+        if stop is not None:
+            stop.set()
+    op = _OPERATOR
+    if stop is not None and op is not None:
+        # A retry already inside start()'s commit section finishes it before this
+        # returns; a retry reaching that section later sees the cancel. The wait
+        # shares the deadline because a persist (fsync) can hold the same lock.
+        if op._lock.acquire(timeout=max(0.0, deadline - time.monotonic())):
+            op._lock.release()
+    if worker is not None and worker is not threading.current_thread():
+        worker.join(timeout=max(0.0, deadline - time.monotonic()))
+        return not worker.is_alive()
+    return True
+
+
 def readiness() -> dict:
     """Return separate capability and deployment-readiness truth.
 
@@ -1877,6 +2185,7 @@ def readiness() -> dict:
     stopping = lifecycle["lifecycle_state"] == "STOPPING"
     lung = op.any_lung_reachable()
     required = operator_required()
+    hold = getattr(op, "operator_hold_active", None)
     if stopping:
         state = "stopping"
         reason = "operator_stopping"
@@ -1902,7 +2211,10 @@ def readiness() -> dict:
         "state": state,
         "operator_running": running,
         "lung_reachable": lung,
+        "lung_probe": _lung_probe_rows(getattr(op, "nodes", None)),
         "autostart_enabled": autostart_enabled(),
+        "autostart_retry_s": autostart_retry_interval_s(),
+        "operator_hold": bool(hold()) if callable(hold) else False,
         "reason": reason,
     }
 
@@ -1918,10 +2230,10 @@ def register(app, ns: str = "a11oy") -> dict:
     op = get_operator()
 
     def _start(request: Request):  # noqa: ANN202
-        return JSONResponse(op.start())
+        return JSONResponse(op.operator_start())
 
     def _stop(request: Request):  # noqa: ANN202
-        return JSONResponse(op.stop())
+        return JSONResponse(op.operator_stop())
 
     async def _status():  # noqa: ANN202
         return JSONResponse(op.status())
