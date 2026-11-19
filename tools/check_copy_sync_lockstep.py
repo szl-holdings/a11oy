@@ -821,7 +821,7 @@ REVIEWED_SOURCE_ADMISSION_HELPER_SHA256 = "9184aea135b776023f73f7615cc77a44c1aee
 # wins, live source binding), never an exact run, artifact or parent identity.
 # These exact job bodies and their complete local helper closure establish
 # reviewed source coverage only; they never establish provider success.
-REVIEWED_PREFLIGHT_JOB_SHA256 = "d19f07f7363e3424dc91b16b3e088265b822bbee6a3eca58251de2aac8415cb4"
+REVIEWED_PREFLIGHT_JOB_SHA256 = "c09cb55e5db36900072aeb12a8db02b5f6ff089a5dd2f5db7e39cf151e44cdd6"
 REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "97e8984ca6c46878b548d7815c52ea5b3048a81d5639964cc9e9729815653d28"
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
@@ -872,7 +872,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     ".github/scripts/publish_readiness_verdict.py": "e823c027fa3be4e440fdbbe99681fa903da70b86aecf785f3f7a795045f439a5",
     "tools/readiness-harness/probe_runner.mjs": "85936fa56b87d7269e4085b4ca0592df1f03516d5db0a5d2b1a6d054f772ab50",
     "tools/readiness-harness/canonical_unavailable.mjs": "ca50ca28195281bccdc3cfae09831eabdacff2028946ebaf0c403776cb905e24",
-    "tools/readiness-harness/tabs.json": "1a966eb1944536d27e5f90edfdd0f7e8e3c67b28fddec206729f8ce4b3bf008f",
+    "tools/readiness-harness/tabs.json": "612c58b45c69811305c96b1b23fa010a842a1a1b960fc83bcaf82bc589484c0a",
     # Read-only terminal verifier used by the exact relock job.
     ".github/scripts/verify_canonical_a11oy.py": "30285b3887cfde3043fd6ea189ca24741da11ebeeebc1345f50f3322cf1cdcad",
 }

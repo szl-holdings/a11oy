@@ -386,7 +386,7 @@ def test_env_retries_is_read_and_clamped():
 
 
 # ===========================================================================
-# 5. _resolve_node_ip — alias + URL-env resolution closes the stale-IP bug.
+# 5. _resolve_node_target — alias + URL-env (host+port) resolution closes the stale-IP bug.
 #    The hardened pool used to fall back to the STALE static chaski IP because the
 #    Replit chaski host is not literally named "chaski" on the tailnet. Now the
 #    resolver consults the SAME URL env vars the plain /compute-pool uses, so the
@@ -407,9 +407,22 @@ def test_resolver_uses_url_env_so_hardened_agrees_with_plain_pool():
         # The plain /compute-pool resolves chaski via SZL_GOV_LLM_URL; the hardened
         # resolver must read the same var instead of the stale static fallback.
         os.environ["SZL_GOV_LLM_URL"] = "http://100.102.173.88:11434/api/generate"
-        ip, src = bh._resolve_node_ip("chaski", "100.76.58.50")
+        ip, port, src = bh._resolve_node_target("chaski", "100.76.58.50", 11434)
         assert ip == "100.102.173.88", f"expected live chaski IP, got {ip} ({src})"
+        assert port == 11434, (ip, port, src)
         assert src.startswith("env:"), src
+    finally:
+        _clear_node_env()
+
+
+def test_resolver_https_url_env_declares_port_443():
+    _clear_node_env()
+    try:
+        # A Cloudflare-fronted https origin is probed at 443 (the port travels WITH
+        # the declared URL), never at the static tailnet port.
+        os.environ["SZL_GOV_LLM_URL"] = "https://meter2.a-11-oy.com/v1"
+        ip, port, src = bh._resolve_node_target("chaski", "100.76.58.50", 11434)
+        assert ip == "meter2.a-11-oy.com" and port == 443 and src.startswith("env:"), (ip, port, src)
     finally:
         _clear_node_env()
 
@@ -418,8 +431,8 @@ def test_resolver_omen_from_env():
     _clear_node_env()
     try:
         os.environ["A11OY_OMEN_BASE_URL"] = "http://100.70.130.45:11434"
-        ip, src = bh._resolve_node_ip("omen-betterwithage", "100.70.130.45")
-        assert ip == "100.70.130.45" and src.startswith("env:"), (ip, src)
+        ip, port, src = bh._resolve_node_target("omen-betterwithage", "100.70.130.45", 11434)
+        assert ip == "100.70.130.45" and port == 11434 and src.startswith("env:"), (ip, port, src)
     finally:
         _clear_node_env()
 
@@ -429,8 +442,8 @@ def test_resolver_static_fallback_is_honest_when_nothing_set():
     try:
         # No env, no tailscale here -> honest static fallback (the previous behaviour),
         # never an invented/empty IP.
-        ip, src = bh._resolve_node_ip("chaski", "100.76.58.50")
-        assert ip == "100.76.58.50" and src == "static-fallback", (ip, src)
+        ip, port, src = bh._resolve_node_target("chaski", "100.76.58.50", 11434)
+        assert ip == "100.76.58.50" and port == 11434 and src == "static-fallback", (ip, port, src)
     finally:
         _clear_node_env()
 
@@ -438,10 +451,11 @@ def test_resolver_static_fallback_is_honest_when_nothing_set():
 def test_resolver_ignores_router_placeholder_url():
     _clear_node_env()
     try:
-        # An HF-router URL is not a real node IP — must NOT be used as the node's host.
+        # An HF-router URL is not a real node IP — must NOT be used as the node's host
+        # (nor its URL port).
         os.environ["A11OY_CHASKI_BASE_URL"] = "https://router.huggingface.co/v1"
-        ip, src = bh._resolve_node_ip("chaski", "100.76.58.50")
-        assert src == "static-fallback", (ip, src)
+        ip, port, src = bh._resolve_node_target("chaski", "100.76.58.50", 11434)
+        assert src == "static-fallback", (ip, port, src)
     finally:
         _clear_node_env()
 

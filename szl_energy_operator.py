@@ -839,15 +839,33 @@ _PROBE_UA = os.environ.get(
     "Mozilla/5.0 (compatible; szl-energy-operator/1.0; +https://a-11-oy.com)")
 
 
+def _with_model_access_headers(headers: dict, url: str) -> dict:
+    """Merge the opt-in CF Access pair when the request targets the declared
+    model origin (szl_model_access). A public origin behind Cloudflare Access
+    answers anonymous calls with a login redirect, so without this merge a
+    tunnel-fronted sovereign node is falsely DEGRADED no matter how reachable
+    it is. Scope is exact: the pair is sent ONLY for the declared origin; a
+    tailnet node is not behind that gate and never receives these
+    credentials. A partially configured pair raises instead of silently
+    sending an anonymous request (fail closed at the caller, honestly)."""
+    from szl_model_access import model_access_headers_for_origin
+    merged = dict(headers)
+    merged.update(model_access_headers_for_origin(url))
+    return merged
+
+
 def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
     """Read-only liveness on the configured inference base, using its GPU bearer.
 
     Only a successful response qualifies. Auth refusals and redirects fail closed;
-    a public root must not hide a protected /models refusal. Never raises.
-    Timeout defaults to SZL_GPU_PROBE_TIMEOUT (_PROBE_TIMEOUT_S) so tunneled nodes
-    are not falsely DEGRADED; pass an explicit value to override."""
+    a public root must not hide a protected /models refusal. Never raises. A
+    partially configured CF Access pair also fails closed here: an Access-gated
+    origin must never be called anonymously just to look reachable. Timeout
+    defaults to SZL_GPU_PROBE_TIMEOUT (_PROBE_TIMEOUT_S) so tunneled nodes are
+    not falsely DEGRADED; pass an explicit value to override."""
     import urllib.error as _e
     import urllib.request as _u
+    from szl_model_access import ModelAccessConfigurationError
 
     class _NoRedirect(_u.HTTPRedirectHandler):
         def redirect_request(self, request, fp, code, msg, headers, newurl):
@@ -859,11 +877,16 @@ def _http_reachable(base_url: str, timeout: Optional[float] = None) -> bool:
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
         headers["Authorization"] = f"Bearer {gpu_token}"
+    root = base_url.rstrip("/")
+    try:
+        headers = _with_model_access_headers(headers, root)
+    except ModelAccessConfigurationError:
+        return False
     for path in ("/models", ""):
         try:
             # Only the configured base receives the existing inference credential;
             # no redirect may carry it to a different endpoint.
-            req = _u.Request(base_url.rstrip("/") + path, method="GET",
+            req = _u.Request(root + path, method="GET",
                              headers=headers)
             with _u.build_opener(_NoRedirect()).open(req, timeout=timeout) as r:  # noqa: S310
                 if 200 <= getattr(r, "status", r.getcode()) < 300:
@@ -889,8 +912,10 @@ def _ollama_generate(base_url: str, model: str, prompt: str,
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
         headers["Authorization"] = f"Bearer {gpu_token}"
+    endpoint = f"{base_url.rstrip('/')}/chat/completions"
+    headers = _with_model_access_headers(headers, endpoint)
     with httpx.Client(timeout=timeout) as client:
-        resp = client.post(f"{base_url.rstrip('/')}/chat/completions",
+        resp = client.post(endpoint,
                            headers=headers, json=body)
         resp.raise_for_status()
         data = resp.json()
@@ -915,8 +940,10 @@ def _ollama_embed(base_url: str, model: str, text: str,
     gpu_token = (os.environ.get("A11OY_GPU_TOKEN") or "").strip()
     if gpu_token:
         headers["Authorization"] = f"Bearer {gpu_token}"
+    endpoint = f"{root}/api/embeddings"
+    headers = _with_model_access_headers(headers, endpoint)
     with httpx.Client(timeout=timeout) as client:
-        resp = client.post(f"{root}/api/embeddings",
+        resp = client.post(endpoint,
                            headers=headers, json={"model": model, "prompt": text})
         resp.raise_for_status()
         data = resp.json()
