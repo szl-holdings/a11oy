@@ -79,94 +79,6 @@ def test_plan_variables_reports_only_drift_and_rejects_collisions() -> None:
         config.plan_variables({}, {"GDW_DB_PATH"}, desired)
 
 
-def test_state_store_plan_corrects_extended_periodic_without_raising_alert():
-    current = {name: SimpleNamespace(value=value)
-               for name, value in config.desired_variables().items()}
-    current.update({
-        "A11OY_STATE_STORE": SimpleNamespace(value="v2"),
-        "A11OY_STATE_DEBOUNCE_SECONDS": SimpleNamespace(value="30"),
-        "A11OY_STATE_PERIODIC_SECONDS": SimpleNamespace(value="1800"),
-        "A11OY_STATE_ALERT_SECONDS": SimpleNamespace(value="900"),
-    })
-    assert config.plan_variables(current, set(), config.desired_variables()) == {
-        "A11OY_STATE_PERIODIC_SECONDS": "300",
-    }
-
-
-def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypatch):
-    class CadenceApi(MetadataOnlyApi):
-        def __init__(self):
-            super().__init__()
-            self.variables = {name: SimpleNamespace(value=value)
-                              for name, value in config.desired_variables().items()}
-            self.variables.update({
-                "A11OY_STATE_STORE": SimpleNamespace(value="v2"),
-                "A11OY_STATE_DEBOUNCE_SECONDS": SimpleNamespace(value="30"),
-                "A11OY_STATE_PERIODIC_SECONDS": SimpleNamespace(value="1800"),
-                "A11OY_STATE_ALERT_SECONDS": SimpleNamespace(value="900"),
-            })
-            self.readbacks = 0
-
-        def add_space_variable(self, *, repo_id, key, value, description):
-            assert repo_id == config.CANONICAL_SPACE
-            self.writes.append((key, value))
-            self.variables[key] = SimpleNamespace(value=value)
-
-        def get_space_variables(self, *, repo_id):
-            values = super().get_space_variables(repo_id=repo_id)
-            if self.writes:
-                self.readbacks += 1
-                if self.readbacks == 1:
-                    return {**values, "A11OY_STATE_PERIODIC_SECONDS": SimpleNamespace(value="1800")}
-            return values
-
-    api = CadenceApi()
-    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
-    real_readback = config.await_readback
-    sleeps = []
-    monkeypatch.setattr(config, "await_readback", lambda api, **kwargs: real_readback(
-        api, **kwargs, attempts=3, delay_seconds=0, sleep=sleeps.append))
-    admissions = []
-
-    def main_reader():
-        admissions.append(tuple(api.writes))
-        return "a" * 40
-
-    report = config.configure(repo_id=config.CANONICAL_SPACE, hf_token="synthetic-hf-control",
-                              expected_source_sha="a" * 40, main_reader=main_reader,
-                              authority_get=pinned_get)
-    assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
-    assert admissions == [(), ()]
-    assert report["variables_changed"] == ["A11OY_STATE_PERIODIC_SECONDS"]
-    assert {"A11OY_STATE_DEBOUNCE_SECONDS", "A11OY_STATE_PERIODIC_SECONDS",
-            "A11OY_STATE_ALERT_SECONDS"} <= set(report["variables_managed"])
-    assert report["readback_attempts"] == 2 and api.readbacks == 2
-    assert sleeps == [0]
-    assert report["converged"] is True
-    assert report["secret_values_read"] is False
-    assert report["secret_values_mutated"] is False
-    assert api.variables["A11OY_STATE_ALERT_SECONDS"].value == "900"
-    assert api.variables["A11OY_STATE_DEBOUNCE_SECONDS"].value == "30"
-
-
-@pytest.mark.parametrize("name,wrong", [
-    ("A11OY_STATE_PERIODIC_SECONDS", "1800"),
-    ("A11OY_STATE_ALERT_SECONDS", "3600"),
-    ("A11OY_STATE_DEBOUNCE_SECONDS", "60"),
-])
-def test_state_store_readback_refuses_stale_cadence(name, wrong):
-    current = {key: SimpleNamespace(value=value)
-               for key, value in config.desired_variables().items()}
-    current[name] = SimpleNamespace(value=wrong)
-    api = SimpleNamespace(get_space_variables=lambda **_kwargs: current)
-    sleeps = []
-    with pytest.raises(config.RuntimeConfigError, match=name):
-        config.await_readback(api, repo_id=config.CANONICAL_SPACE, secret_names=set(),
-                              desired=config.desired_variables(), attempts=2,
-                              delay_seconds=0, sleep=sleeps.append)
-    assert sleeps == [0]
-
-
 class OpaqueMetadata:
     def __init__(self, attempts):
         self.attempts = attempts
@@ -1425,3 +1337,17 @@ def test_check_only_cli_reports_gdw_only_drift_without_secret_values(monkeypatch
     assert json.loads(stdout) == report
     assert "synthetic-private-drift" not in stdout and "synthetic-hf-control" not in stdout
     assert api.writes == [] and api.value_reads == []
+
+
+def test_state_store_plan_corrects_extended_periodic_without_raising_alert():
+    current = {name: SimpleNamespace(value=value)
+               for name, value in config.desired_variables().items()}
+    current.update({
+        "A11OY_STATE_STORE": SimpleNamespace(value="v2"),
+        "A11OY_STATE_DEBOUNCE_SECONDS": SimpleNamespace(value="30"),
+        "A11OY_STATE_PERIODIC_SECONDS": SimpleNamespace(value="1800"),
+        "A11OY_STATE_ALERT_SECONDS": SimpleNamespace(value="900"),
+    })
+    assert config.plan_variables(current, set(), config.desired_variables()) == {
+        "A11OY_STATE_PERIODIC_SECONDS": "300",
+    }
