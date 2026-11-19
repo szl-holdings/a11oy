@@ -53,6 +53,26 @@ class CommercialInventoryTruthTests(unittest.TestCase):
         for key in SCOPE_ROWS:
             self.assertIn("id: " + key, raw)
 
+    def test_published_launch_prices_have_source_scoped_evidence_not_customer_claim(self):
+        price = self.rows["published_price"]
+        self.assertEqual(price["state"], "VERIFIED")
+        self.assertIs(price["blocks_raise"], True)
+        self.assertIsNone(price["why_unknown"])
+        self.assertIn("Team USD 2500", price["value"])
+        self.assertIn("Pilot USD 15000", price["value"])
+        self.assertIn("not contracts", price["value"])
+        self.assertTrue(
+            any(
+                e.get("status") == "supports"
+                and e.get("uri") == "https://a-11-oy.com/pricing"
+                and "279d8c71b7d2e8ca11b5f70a0b037e9dfb957d8739e890168682126a951f7bc5"
+                in e.get("note", "")
+                for e in price["evidence"]
+            )
+        )
+        self.assertEqual(self.rows["arr"]["state"], "UNKNOWN")
+        self.assertEqual(self.rows["paying_customers"]["state"], "UNKNOWN")
+
     def test_scaffold_fallback_does_not_claim_no_register_exists(self):
         generator = GENERATOR.read_text(encoding="utf-8")
         self.assertNotIn("no Model BOM register has been created", generator)
@@ -80,6 +100,7 @@ class CommercialInventoryTruthTests(unittest.TestCase):
         self.assertIn("targets, not actuals", strategy)
         self.assertIn("2026-11-19", strategy)
         self.assertIn("operational_readiness.ready=false", strategy)
+        self.assertIn("Published 30-day governed evidence pilot", strategy)
         self.assertIn("An HTTP 402 is a challenge", strategy)
 
 
