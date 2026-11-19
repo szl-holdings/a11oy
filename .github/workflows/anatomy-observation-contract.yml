@@ -91,8 +91,24 @@ jobs:
                namespace)
           namespace[name]()
           PY
+      - name: Restore cached Chromium OS packages
+        id: chromium-debs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-ubuntu-latest-anatomy-${{ hashFiles('.github/scripts/install_playwright_chromium.sh') }}
+          restore-keys: |
+            szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-ubuntu-latest-anatomy-
       - name: Install isolated Chromium
+        env:
+          SZL_PW_DEB_CACHE: ~/.cache/szl-chromium-debs
         run: bash .github/scripts/install_playwright_chromium.sh python -m playwright
+      - name: Save Chromium OS packages for later jobs
+        if: success() && steps.chromium-debs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: ${{ steps.chromium-debs.outputs.cache-primary-key }}
       - name: Verify registered routes and seven browser surfaces
         env:
           SZL_ANATOMY_BROWSER_ARTIFACT_DIR: ${{ runner.temp }}/anatomy-browser

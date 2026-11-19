@@ -470,8 +470,24 @@ jobs:
           pip install --require-hashes
           -r .github/requirements/ci-rag.txt
           -r .github/requirements/platform-candidate-browser.txt
+      - name: Restore cached Chromium OS packages
+        id: chromium-debs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-ubuntu-latest-witness-${{ hashFiles('.github/scripts/install_playwright_chromium.sh') }}
+          restore-keys: |
+            szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-ubuntu-latest-witness-
       - name: Install pinned Playwright Chromium
+        env:
+          SZL_PW_DEB_CACHE: ~/.cache/szl-chromium-debs
         run: bash .github/scripts/install_playwright_chromium.sh python -m playwright
+      - name: Save Chromium OS packages for later jobs
+        if: success() && steps.chromium-debs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: ${{ steps.chromium-debs.outputs.cache-primary-key }}
       - name: Verify evidence inspector and runtime API browser contract
         env:
           SZL_REQUIRE_EVIDENCE_BROWSER: "1"

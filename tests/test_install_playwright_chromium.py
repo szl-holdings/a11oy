@@ -12,6 +12,7 @@ the script fails closed whenever Chromium cannot be shown to work.
 
 import os
 import re
+import shutil
 import stat
 import subprocess
 import textwrap
@@ -64,10 +65,29 @@ def rig(tmp_path):
     _exe(bin_dir / "apt-get", f"""
         echo "apt-get $*" >> "{state}/apt.log"
         if [ "$1" = install ]; then
-          n=$(grep -c '^apt-get install' "{state}/apt.log")
+          pkgs=(); offline=0
+          for arg in "$@"; do
+            case "$arg" in --no-download) offline=1;; -*|install) ;; *) pkgs+=("$arg");; esac
+          done
+          ver="${{WANT_VERSION:-1.0}}"
+          if [ "$offline" = 1 ]; then
+            [ -n "${{OFFLINE_NOOP:-}}" ] && exit 0
+            for p in "${{pkgs[@]}}"; do
+              if [ -n "${{OFFLINE_PARTIAL:-}}" ] && [ "$p" = "${{pkgs[0]}}" ]; then
+                echo "$p" >> "{state}/installed"; continue
+              fi
+              [ -f "$SZL_PW_APT_ARCHIVES/${{p}}_${{ver}}_all.deb" ] || exit 100
+            done
+            for p in "${{pkgs[@]}}"; do echo "$p" >> "{state}/installed"; done
+            exit 0
+          fi
+          n=$(grep -v -- '--no-download' "{state}/apt.log" | grep -c '^apt-get install')
           [ "$n" -gt "${{FAIL_INSTALLS:-0}}" ] || exit 100
           [ -n "${{INSTALL_IS_NOOP:-}}" ] && exit 0
-          for arg in "$@"; do case "$arg" in -*|install) ;; *) echo "$arg" >> "{state}/installed";; esac; done
+          for p in "${{pkgs[@]}}"; do
+            echo "$p" >> "{state}/installed"
+            echo "$p $ver" > "$SZL_PW_APT_ARCHIVES/${{p}}_${{ver}}_all.deb"
+          done
         fi
         exit 0
     """)
@@ -87,16 +107,29 @@ def rig(tmp_path):
         echo '<html><body><p>szl-chromium-ok</p></body></html>'
     """)
 
-    def run(*, installed=(), **env):
+    archives = state / "archives"
+
+    def run(*, installed=(), cached=None, preexisting=(), **env):
         (state / "installed").write_text("".join(f"{p}\n" for p in installed))
         for log in ("pw.log", "apt.log", "sudo.log", "timeout.log"):
             (state / log).unlink(missing_ok=True)
+        shutil.rmtree(archives, ignore_errors=True)
+        archives.mkdir()
+        for name in preexisting:
+            (archives / name).write_text("left on the image\n")
+        if cached is not None:
+            shutil.rmtree(run.cache, ignore_errors=True)
+            run.cache.mkdir()
+            for name in cached:
+                (run.cache / name).write_text(f"{name}\n")
+            env.setdefault("SZL_PW_DEB_CACHE", run.cache)
         merged = {
             "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
             "HOME": str(tmp_path),
             "PLAYWRIGHT_BROWSERS_PATH": str(browsers),
             "SZL_PW_RETRY_PAUSE": "0",
             "SZL_PW_APT_CONF": str(state / "apt.conf"),
+            "SZL_PW_APT_ARCHIVES": str(archives),
             **{k: str(v) for k, v in env.items()},
         }
         done = subprocess.run(["bash", str(SCRIPT), str(bin_dir / "pw")], env=merged,
@@ -108,6 +141,8 @@ def rig(tmp_path):
     run.shell = shell
     run.state = state
     run.log = lambda name: (state / name).read_text() if (state / name).exists() else ""
+    run.archives = archives
+    run.cache = tmp_path / "deb-cache"
     return run
 
 
@@ -230,3 +265,82 @@ def test_apt_timeouts_run_under_sudo_so_they_can_kill_apt(rig):
             "apt-get install -y --no-install-recommends fonts-wqy-zenhei libgbm1") in sudo
     wrapped = [l for l in rig.log("timeout.log").splitlines() if re.match(r"timeout( -\S+)* \S+ sudo ", l)]
     assert wrapped == [], "a timeout outside sudo cannot stop a stalled apt-get"
+
+
+def _debs(path):
+    return sorted(p.name for p in path.glob("*.deb")) if path.exists() else []
+
+
+def test_cached_archives_install_offline_without_the_network(rig):
+    done, apt, _ = rig(installed=["libnss3"], cached=["fonts-wqy-zenhei_1.0_all.deb", "libgbm1_1.0_all.deb"])
+    assert done.returncode == 0, done.stderr
+    assert "Installed from 2 cached package archives; the Ubuntu archive was not used." in done.stdout
+    assert apt.splitlines() == ["apt-get install -y --no-install-recommends --no-download fonts-wqy-zenhei libgbm1"]
+    assert not (rig.state / "apt.conf").exists()
+    assert ("sudo timeout --kill-after=15 300 env DEBIAN_FRONTEND=noninteractive apt-get install -y "
+            "--no-install-recommends --no-download fonts-wqy-zenhei libgbm1") in rig.log("sudo.log").splitlines()
+
+
+def test_stale_cache_falls_back_to_the_network_and_is_replaced(rig):
+    done, apt, _ = rig(installed=["libnss3"], cached=["fonts-wqy-zenhei_0.9_all.deb", "libgbm1_0.9_all.deb"])
+    assert done.returncode == 0, done.stderr
+    assert "The cached archives did not cover this install; using the network." in done.stdout
+    assert "apt-get update" in apt
+    assert apt.splitlines()[-1] == "apt-get install -y --no-install-recommends fonts-wqy-zenhei libgbm1"
+    assert _debs(rig.archives) == ["fonts-wqy-zenhei_1.0_all.deb", "libgbm1_1.0_all.deb"], "copied stale archives must be removed"
+    assert _debs(rig.cache) == ["fonts-wqy-zenhei_1.0_all.deb", "libgbm1_1.0_all.deb"]
+    assert "Kept 2 downloaded package archives for the Actions cache." in done.stdout
+
+
+def test_a_network_install_keeps_only_its_downloads_for_the_cache(rig):
+    done, _, _ = rig(installed=["libnss3"], preexisting=["unrelated_2.0_all.deb"],
+                     SZL_PW_DEB_CACHE=rig.cache)
+    assert done.returncode == 0, done.stderr
+    assert _debs(rig.cache) == ["fonts-wqy-zenhei_1.0_all.deb", "libgbm1_1.0_all.deb"]
+
+
+def test_without_a_cache_directory_nothing_is_kept(rig):
+    done, apt, _ = rig(installed=["libnss3"])
+    assert done.returncode == 0, done.stderr
+    assert "--no-download" not in apt
+    assert not rig.cache.exists()
+
+
+def test_a_partial_offline_install_never_reinstalls_what_it_installed(rig):
+    done, apt, _ = rig(installed=[], cached=["fonts-wqy-zenhei_0.9_all.deb"], OFFLINE_PARTIAL=1)
+    assert done.returncode == 0, done.stderr
+    network = [l for l in apt.splitlines() if l.startswith("apt-get install") and "--no-download" not in l]
+    assert network == ["apt-get install -y --no-install-recommends libgbm1 libnss3"]
+
+
+def test_a_cache_that_cannot_be_written_only_warns(rig, tmp_path):
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("file in the way\n")
+    done, _, _ = rig(installed=["libnss3"], SZL_PW_DEB_CACHE=blocker)
+    assert done.returncode == 0, done.stderr
+    assert "::warning::could not keep the downloaded package archives" in done.stderr
+    assert "Chromium renders headlessly" in done.stdout
+
+
+def test_a_tilde_cache_path_resolves_under_home(rig):
+    done, _, _ = rig(installed=["libnss3"], SZL_PW_DEB_CACHE="~/deb-cache")
+    assert done.returncode == 0, done.stderr
+    assert _debs(rig.cache) == ["fonts-wqy-zenhei_1.0_all.deb", "libgbm1_1.0_all.deb"]
+
+
+def test_an_offline_run_that_installs_nothing_is_not_reported_as_cached(rig):
+    done, apt, _ = rig(installed=["libnss3"], cached=["fonts-wqy-zenhei_1.0_all.deb", "libgbm1_1.0_all.deb"],
+                       OFFLINE_NOOP=1)
+    assert done.returncode == 0, done.stderr
+    assert "the Ubuntu archive was not used" not in done.stdout
+    assert "The cached archives did not cover this install; using the network." in done.stdout
+    assert "apt-get update" in apt
+
+
+def test_a_failed_copy_into_the_cache_only_warns(rig):
+    rig.cache.mkdir()
+    (rig.cache / "libgbm1_1.0_all.deb").mkdir()  # a directory where an archive must go
+    done, _, _ = rig(installed=["libnss3"], SZL_PW_DEB_CACHE=rig.cache)
+    assert done.returncode == 0, done.stderr
+    assert "::warning::could not keep the downloaded package archives" in done.stderr
+    assert "Chromium renders headlessly" in done.stdout

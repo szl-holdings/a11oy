@@ -82,7 +82,18 @@ jobs:
           "$audit_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'pip-audit==2.10.1'
           "$audit_env/bin/python" -m pip freeze --all > finance-auditor-environment.txt
           "$audit_env/bin/python" -m pip_audit --strict --no-deps --disable-pip --progress-spinner off --requirement finance-container-requirements.txt --format json --output finance-generated-dependency-audit.json
+      - name: Restore cached Chromium OS packages
+        id: chromium-debs
+        if: matrix.python == '3.12'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-ubuntu-24.04-finance-${{ hashFiles('.github/scripts/install_playwright_chromium.sh') }}
+          restore-keys: |
+            szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-ubuntu-24.04-finance-
       - name: Exercise generated Finance workspace in Chromium with explicit synthetic sources
+        env:
+          SZL_PW_DEB_CACHE: ~/.cache/szl-chromium-debs
         if: matrix.python == '3.12'
         shell: bash
         run: |
@@ -107,6 +118,12 @@ jobs:
           done
           "$browser_env/bin/python" tests/browser_finance_workspace.py --url http://127.0.0.1:17860 --output finance-workspace-browser
           "$browser_env/bin/python" tests/browser_finance_signed_prices.py --url http://127.0.0.1:17860 --output finance-workspace-browser
+      - name: Save Chromium OS packages for later jobs
+        if: matrix.python == '3.12' && success() && steps.chromium-debs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: ${{ steps.chromium-debs.outputs.cache-primary-key }}
       - name: Retain exact checked-in source and test evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
