@@ -660,6 +660,7 @@ jobs:
           tests/test_attest_build_commit.py
           tests/test_attest_meter_evidence.py
           tests/test_runtime_contracts.py
+          tests/test_khipu_verify_tamper.py
           tests/test_monetized_surfaces.py
           tests/test_frontier_now_control_plane.py
           tests/test_holographic_static_route_runtime.py
