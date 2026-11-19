@@ -720,3 +720,27 @@ CMD ["python", "-B", "gdw_runtime.py"]
 # Canonical reviewed package; outbound remains explicit and snapshot-gated.
 COPY khipu_lmdb/ ./khipu_lmdb/
 
+
+# ---------------------------------------------------------------------------
+# #3770 RELEASE-MANIFEST FIXTURES: build-identity ARG/ENV (7, ALL empty-default;
+# values are NEVER hardcoded into source — the canonical container workflow
+# supplies them at build time and absent values stay honestly UNKNOWN at
+# runtime, where GET /api/build reports them fail-closed) + ONE COPY of the
+# release-manifest module set. The manifest JSON itself is CI-generated via
+# scripts/generate_release_manifest.py (--require-complete fails the build on
+# missing evidence); the committed placeholder keeps this COPY valid on
+# constrained rebuilds while the promotion gate still BLOCKS on it.
+ARG SZL_RELEASE_MANIFEST_PATH=""
+ARG SZL_SERVED_FRONTEND_SHA256=""
+ARG SZL_API_CONTRACT_SHA256=""
+ARG SZL_MODEL_IDENTITY=""
+ARG SZL_DEPLOYMENT_IDENTITY=""
+ARG SZL_RELEASE_ID=""
+ARG SZL_RELEASE_COMMIT=""
+ENV SZL_SERVED_FRONTEND_SHA256=${SZL_SERVED_FRONTEND_SHA256} \
+    SZL_API_CONTRACT_SHA256=${SZL_API_CONTRACT_SHA256} \
+    SZL_MODEL_IDENTITY=${SZL_MODEL_IDENTITY} \
+    SZL_DEPLOYMENT_IDENTITY=${SZL_DEPLOYMENT_IDENTITY} \
+    SZL_RELEASE_ID=${SZL_RELEASE_ID} \
+    SZL_RELEASE_COMMIT=${SZL_RELEASE_COMMIT}
+COPY szl_release_manifest.py release-manifest.schema.json release-manifest.json ./
