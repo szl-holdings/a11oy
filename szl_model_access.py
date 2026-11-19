@@ -99,6 +99,42 @@ def model_access_headers(url: str, *, env=None) -> dict[str, str]:
             "CF-Access-Client-Secret": client_secret}
 
 
+def model_access_headers_for_origin(url: str, *, env=None) -> dict[str, str]:
+    """Access pair for this URL only when its exact origin IS the configured one.
+
+    Single-origin callers fail on any mismatch (they never silently drop
+    authentication; that is model_access_headers). Multi-node callers probe
+    both this declared public origin and private tailnet nodes through one code
+    path, and a tailnet node is not behind the declared origin's Access gate:
+    it must neither receive these credentials nor be blocked on their absence,
+    so it gets an empty dict instead of an error.
+
+    The fail-closed contract is unchanged in the states that matter: an
+    all-absent configuration preserves legacy behavior ({}) and a PARTIAL
+    configuration always raises MODEL_ACCESS_CONFIGURATION_INCOMPLETE whatever
+    the URL, because a half-configured trio makes the origin's protection
+    unknowable. A matching-origin decision still requires the complete valid
+    pair (model_access_headers enforces credentials and exact-origin equality).
+    """
+    env = os.environ if env is None else env
+    values = {name: env.get(name) for name in _ACCESS_ENVS}
+    if all(value is None for value in values.values()):
+        return {}
+    if any(value is None or value == "" for value in values.values()):
+        raise ModelAccessConfigurationError("MODEL_ACCESS_CONFIGURATION_INCOMPLETE")
+    _, expected = _https_origin(values[ACCESS_ORIGIN_ENV], origin_only=True)
+    try:
+        _, observed = _https_origin(url)
+    except ModelAccessConfigurationError:
+        # A URL that is not a valid https origin cannot be the declared
+        # Access origin; it is another (private) node, not a config error.
+        # An INVALID origin env or partial trio has already raised above.
+        return {}
+    if observed != expected:
+        return {}
+    return model_access_headers(url, env=env)
+
+
 def model_access_catalog_request(base: str) -> tuple[str, dict[str, str]]:
     """Build one explicit catalog GET using the protected code endpoint's bearer.
 
