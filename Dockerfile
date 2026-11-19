@@ -58,9 +58,25 @@ FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc4243
 ARG VERSION=""
 ARG REVISION=""
 ARG BUILD_DATE=""
+# Release-manifest build IDs (scripts/generate_release_manifest.py --emit-build-args).
+# Empty means UNKNOWN: /api/build reports it as such and never guesses. No secrets.
+ARG A11OY_FRONTEND_BUNDLE_SHA256=""
+ARG A11OY_FRONTEND_ENTRY_SHA256=""
+ARG A11OY_API_CONTRACT_SHA256=""
+ARG A11OY_MODEL_REVISION=""
+ARG A11OY_DEPLOYMENT_ID=""
+ARG A11OY_ROLLBACK_TARGET=""
+ARG A11OY_RELEASE_ID=""
 ENV A11OY_VERSION=${VERSION} \
     A11OY_GIT_SHA=${REVISION} \
-    A11OY_BUILD_DATE=${BUILD_DATE}
+    A11OY_BUILD_DATE=${BUILD_DATE} \
+    A11OY_FRONTEND_BUNDLE_SHA256=${A11OY_FRONTEND_BUNDLE_SHA256} \
+    A11OY_FRONTEND_ENTRY_SHA256=${A11OY_FRONTEND_ENTRY_SHA256} \
+    A11OY_API_CONTRACT_SHA256=${A11OY_API_CONTRACT_SHA256} \
+    A11OY_MODEL_REVISION=${A11OY_MODEL_REVISION} \
+    A11OY_DEPLOYMENT_ID=${A11OY_DEPLOYMENT_ID} \
+    A11OY_ROLLBACK_TARGET=${A11OY_ROLLBACK_TARGET} \
+    A11OY_RELEASE_ID=${A11OY_RELEASE_ID}
 LABEL org.opencontainers.image.version=${VERSION} \
       org.opencontainers.image.revision=${REVISION} \
       org.opencontainers.image.created=${BUILD_DATE}
@@ -190,7 +206,7 @@ COPY model_release/m1/ ./model_release/m1/
 # Keep root-level sources explicit while batching them into one filesystem layer.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py a11oy_cpu_lab_contract.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
+COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_release_manifest.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py a11oy_cpu_lab_contract.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.

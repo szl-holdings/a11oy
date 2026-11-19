@@ -10,6 +10,9 @@ The four read-only endpoints deliberately answer different questions:
 * ``/api/readyz`` re-walks the configured Khipu chain and folds in the existing
   boot-preflight signal.  Missing or non-durable chain state fails closed.
 * ``/api/build-info`` emits only observable, allowlisted build metadata.
+* ``/api/build`` emits the release-manifest build IDs (commit, frontend bundle,
+  API contract, model revision, deployment ID, rollback target); absent values
+  are reported UNKNOWN, never guessed.
 * ``/api/<ns>/v1/otel/status`` separates in-process propagation, exporter
   configuration, and fresh collector delivery evidence.
 
@@ -425,6 +428,21 @@ def _install_landing_honest_bind(app: Any) -> None:
     app.state.szl_landing_honest_bind = True
 
 
+def _release_build_ids(build_identity: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """Startup snapshot of the release-manifest IDs; None if the module is absent."""
+    try:
+        import szl_release_manifest as release_manifest
+    except ImportError:
+        return None
+    here = Path(__file__).resolve().parent
+    revision = build_identity.get("revision")
+    return release_manifest.runtime_build_ids(
+        commit=str(revision) if revision else None,
+        commit_source=str(build_identity.get("revision_source") or "UNKNOWN"),
+        static_dirs=(Path("/app/static"), here / "console"),
+    )
+
+
 def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
     """Register idempotent, read-only runtime endpoints and the soft-404 guard."""
     if getattr(app.state, "szl_runtime_contracts_registered", False):
@@ -502,6 +520,22 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
             }
         )
 
+    release_ids = _release_build_ids(build_identity)
+
+    @app.get("/api/build", tags=["runtime"], include_in_schema=True)
+    async def _build_ids():
+        """Read-only release build IDs: commit, bundle, contract, model, deployment, rollback."""
+        if release_ids is None:
+            return _no_store_json(
+                {"status": "UNAVAILABLE", "service": ns, "reason": "release manifest module not in this image",
+                 "receipt_minted": False},
+                status_code=503,
+            )
+        response = _no_store_json({**release_ids, "service": ns})
+        if release_ids.get("release_id"):
+            response.headers["X-SZL-Release-Id"] = str(release_ids["release_id"])
+        return response
+
     @app.get(f"/api/{ns}/v1/otel/status", tags=["runtime"], include_in_schema=True)
     async def _otel_status():
         return _no_store_json(_otel_posture(app))
@@ -540,6 +574,7 @@ def register(app: Any, ns: str = "a11oy") -> dict[str, Any]:
             "/api/livez",
             "/api/readyz",
             "/api/build-info",
+            "/api/build",
             f"/api/{ns}/v1/otel/status",
             "/static/landing-honest-bind.js",
         ],
