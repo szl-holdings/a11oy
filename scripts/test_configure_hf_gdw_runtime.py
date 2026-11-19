@@ -121,7 +121,10 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
             return values
 
     api = CadenceApi()
-    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
+    # configure() writes through the guarded release transport, not
+    # api.add_space_variable; route it through the offline release fixture so
+    # the test never reads live storage status or posts to the Hub.
+    install_gdw_release_transport(monkeypatch, api)
     real_readback = config.await_readback
     sleeps = []
     monkeypatch.setattr(config, "await_readback", lambda api, **kwargs: real_readback(
@@ -136,7 +139,8 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
                               expected_source_sha="a" * 40, main_reader=main_reader,
                               authority_get=pinned_get)
     assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
-    assert admissions == [(), ()]
+    # One entry read, then the bracket before and after the single release admission.
+    assert admissions == [(), (), ()]
     assert report["variables_changed"] == ["A11OY_STATE_PERIODIC_SECONDS"]
     assert {"A11OY_STATE_DEBOUNCE_SECONDS", "A11OY_STATE_PERIODIC_SECONDS",
             "A11OY_STATE_ALERT_SECONDS"} <= set(report["variables_managed"])
