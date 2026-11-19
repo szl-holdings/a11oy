@@ -65,7 +65,11 @@ def test_v2_entry_binds_its_measurement():
     assert summary["window_joules_label"] == "MEASURED"
     assert summary["window_joules_scope"] == WINDOW
     assert summary["entry_schemas"] == {"v1": 0, "v2": 1}
-    assert "SAMPLE/ESTIMATE" in summary["total_joules_est_label"]
+    # A v2 entry makes no joules estimate unless one is supplied.
+    assert entry["joules_est"] is None
+    assert entry["joules_est_label"].startswith("UNAVAILABLE")
+    assert summary["total_joules_est"] is None
+    assert summary["total_joules_est_label"].startswith("UNAVAILABLE")
 
 
 @pytest.mark.parametrize("window,scope", [
@@ -147,7 +151,7 @@ def test_retention_keeps_a_verifiable_anchored_suffix():
 
 @pytest.mark.parametrize("raw,expected", [
     ("", 2000), ("abc", 2000), ("0", 2000), ("-4", 2000), ("250", 250),
-    ("5000000", 1000000),
+    ("5000000", 10000),
 ])
 def test_retention_bound_configuration(monkeypatch, raw, expected):
     monkeypatch.setenv(ep.MAX_ENTRIES_ENV, raw)
@@ -208,10 +212,15 @@ def _counter_sample(ts, joules):
         "betterwithage")
 
 
+def _gpu_node(name="rtx-betterwithage"):
+    return OP.NodeCfg(name, "http://192.0.2.1:11434/v1", "llama3.1:8b", "bge-large",
+                      "betterwithage")
+
+
 def test_operator_stream_is_wired_once_and_appends_completed_jobs():
     chain = ep.EnergyProvenanceChain()
     with tempfile.TemporaryDirectory() as d:
-        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        op = OP.OperatorDaemon(nodes=[_gpu_node()], state_path=os.path.join(d, "l.json"))
         first = ep.wire_operator_to_provenance(op, chain=chain)
         again = ep.wire_operator_to_provenance(op, chain=chain)
         assert first == {"subscribed": True, "already_wired": False}
@@ -231,6 +240,101 @@ def test_operator_stream_is_wired_once_and_appends_completed_jobs():
     assert entries[0]["node"] == "Sovereign GPU 1"
     assert chain.verify()["ok"] is True
     assert chain.measured_window_entries() == 1
+
+
+def test_external_or_unconfigured_jobs_never_enter_as_operator_gpu_jobs():
+    chain = ep.EnergyProvenanceChain()
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[_gpu_node()], state_path=os.path.join(d, "l.json"))
+        ep.wire_operator_to_provenance(op, chain=chain)
+        op.submit_external_job("local-governed-kernel", "python", "code_cell", 0, 0.1)
+        op.submit_external_job("rtx-betterwithage", "python", "code_cell", 0, 0.1)
+        op._commit("unconfigured-gpu", "llama3.1:8b", "generate", 5, 0.5, None, None)
+        assert len(chain) == 0
+        op._commit("rtx-betterwithage", "llama3.1:8b", "generate", 5, 0.5, None, None)
+    assert len(chain) == 1
+    assert chain.entries()[0]["source"] == "energy-operator"
+
+
+def test_operator_entries_never_pair_a_zero_estimate_with_a_measured_window():
+    chain = ep.EnergyProvenanceChain()
+    entry = ep.append_operator_job(_job(), chain=chain)
+    blob = json.dumps(entry)
+
+    assert entry["measurement_label"] == "MEASURED"
+    assert entry["joules_est"] is None
+    assert "no real power meter wired" not in blob
+    assert chain.verify()["ok"] is True
+    summary = chain.summary()
+    assert summary["total_joules_est"] is None
+    assert summary["total_joules_est_label"].startswith("UNAVAILABLE")
+
+
+def test_mixed_chain_totals_only_numeric_estimates():
+    chain = ep.EnergyProvenanceChain()
+    chain.append(output="legacy", energy_source="grid", joules_est=1.5)
+    ep.append_operator_job(_job(), chain=chain)
+    summary = chain.summary()
+
+    assert summary["total_joules_est"] == 1.5
+    assert "SAMPLE/ESTIMATE" in summary["total_joules_est_label"]
+
+
+def test_unverified_chain_reports_no_measured_window():
+    chain = ep.EnergyProvenanceChain()
+    _measured(chain, seq=1)
+    second = _measured(chain, seq=2)
+    second["prev_hash"] = "f" * 64
+    second["receipt_hash"] = ep._receipt_hash(second)  # self-consistent, link broken
+
+    summary = chain.summary()
+    assert summary["verify"]["ok"] is False
+    assert summary["measured_window_entries"] == 0
+    assert summary["window_joules_measured_total"] == 0.0
+    assert summary["window_joules_label"] == "UNAVAILABLE"
+    assert summary["window_joules_reason"] == "CHAIN_NOT_VERIFIED"
+    assert chain.measured_window_entries() == 0
+
+
+def test_tampering_stays_detected_after_the_entry_is_evicted():
+    chain = ep.EnergyProvenanceChain(max_entries=3)
+    tampered = _measured(chain, seq=0)
+    tampered["window_joules_measured"] = 900.0
+    for seq in range(1, 5):
+        _measured(chain, seq=seq)
+
+    assert [e["source_seq"] for e in chain.entries()] == [2, 3, 4]
+    report = chain.verify()
+    assert report["ok"] is False
+    assert report["evicted_break"]["reason"].startswith("receipt_hash mismatch")
+    summary = chain.summary()
+    assert summary["measured_window_entries"] == 0
+    assert summary["window_joules_reason"] == "CHAIN_NOT_VERIFIED"
+
+
+def test_append_receipt_writes_sample_entries_only():
+    with pytest.raises(TypeError):
+        ep.append_receipt(output="x", window_joules_measured=1e9,
+                          measurement_scope=WINDOW, source="anything", source_seq=0,
+                          node="anything")
+
+
+def test_public_read_is_cached_briefly_and_refreshes_after_an_append(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    chain = ep.EnergyProvenanceChain()
+    monkeypatch.setattr(ep, "_CHAIN", chain)
+    app = FastAPI()
+    ep.register(app, ns="a11oy")
+    client = TestClient(app)
+
+    first = client.get("/api/a11oy/v1/energy/provenance").json()
+    again = client.get("/api/a11oy/v1/energy/provenance").json()
+    assert first["computed_at"] == again["computed_at"]
+    _measured(chain, seq=1)
+    after = client.get("/api/a11oy/v1/energy/provenance").json()
+    assert after["length"] == 1 and after["measured_window_entries"] == 1
 
 
 def test_public_read_never_appends():

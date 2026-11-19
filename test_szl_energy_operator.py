@@ -1376,6 +1376,78 @@ def test_operator_stop_during_the_retry_probe_wins(monkeypatch):
         assert op.operator_hold_active() is True
 
 
+def test_operator_stop_landing_during_an_operator_start_wins_and_holds(monkeypatch):
+    monkeypatch.setenv("A11OY_ENERGY_AUTOSTART", "1")
+    entered = threading.Event()
+    release = threading.Event()
+
+    def blocked_probe(*_args, **_kwargs):
+        entered.set()
+        release.wait(5)
+        return True
+
+    monkeypatch.setattr(OP, "_http_reachable", blocked_probe)
+    with tempfile.TemporaryDirectory() as d:
+        op = _idle_operator(d)
+        results = {}
+        worker = threading.Thread(
+            target=lambda: results.setdefault("start", op.operator_start()))
+        worker.start()
+        try:
+            assert entered.wait(5)
+            stopped = op.operator_stop()
+        finally:
+            release.set()
+            worker.join(5)
+        assert results["start"]["started"] is False, results
+        assert results["start"]["reason"] == "start_cancelled_by_stop", results
+        assert stopped["operator_hold"] is True, stopped
+        assert op.is_running() is False and op.operator_hold_active() is True
+        assert OP.autostart_retry_once(op)["reason"] == "operator_stop_requested"
+
+
+def test_window_label_requires_a_recent_window(monkeypatch):
+    monkeypatch.setenv("A11OY_ENERGY_WINDOW_MAX_AGE_S", "120")
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        t = time.time() - 2
+        op._commit("rtx-betterwithage", "llama3.1:8b", "generate", 42, 0.5,
+                   _counter_sample(t + 1, 112.5), 12.5,
+                   exporter_before_sample=_counter_sample(t, 100.0),
+                   job_start_ts=t + 0.25, job_end_ts=t + 0.75)
+        fresh = op.status()
+        assert fresh["window_fresh"] is True, fresh
+        assert fresh["window_max_age_s"] == 120.0, fresh
+        assert 0 <= fresh["window_age_s"] <= 120, fresh
+        assert fresh["window_joules_label"] == "MEASURED", fresh
+        op._last_window_measured_ts -= 1000  # the meter went quiet long ago
+        stale = op.status()
+        assert stale["window_fresh"] is False, stale
+        assert stale["window_joules_label"] == "UNAVAILABLE", stale
+        assert stale["window_joules_reason"] == "NO_RECENT_VERIFIED_NVML_COUNTER_WINDOW", stale
+        assert stale["window_measured_jobs"] == 1, stale
+        assert stale["joules_measured_reason"] == "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION", stale
+
+
+def test_window_max_age_configuration(monkeypatch):
+    for raw, expected in (("", 900.0), ("abc", 900.0), ("nan", 900.0), ("inf", 900.0),
+                          ("-5", 900.0), ("0", 900.0), ("30", 60.0), ("600", 600.0),
+                          ("999999", 86400.0)):
+        monkeypatch.setenv("A11OY_ENERGY_WINDOW_MAX_AGE_S", raw)
+        assert OP.window_max_age_s() == expected, (raw, expected)
+
+
+def test_external_jobs_are_marked_apart_from_operator_jobs():
+    with tempfile.TemporaryDirectory() as d:
+        op = OP.OperatorDaemon(nodes=[], state_path=os.path.join(d, "l.json"))
+        external = op.submit_external_job("local-governed-kernel", "python", "code_cell",
+                                          0, 0.1)
+        own = op._commit("rtx-betterwithage", "llama3.1:8b", "generate", 5, 0.5,
+                         None, None)
+        assert external.to_dict()["origin"] == "external"
+        assert own.to_dict()["origin"] == "operator"
+
+
 def test_operator_start_clears_the_hold_even_without_a_lung(monkeypatch):
     monkeypatch.setattr(OP, "_http_reachable", lambda *a, **k: False)
     with tempfile.TemporaryDirectory() as d:

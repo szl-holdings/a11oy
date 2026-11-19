@@ -249,8 +249,10 @@ explicit start or a process restart (the boot autostart does not inherit the hol
 
 **Readiness scope:** the tile needs a job bracketed by a verified NVML counter window, which
 also requires the joule meter (`A11OY_JOULE_METER_URL`, HMAC via `SZL_METER_HMAC_TARGETS`) to
-answer. That bounded host window is MEASURED; billable per-job energy stays unavailable without
-exclusive attribution. Both counts are process-local and restart at zero.
+answer. The latest window must be younger than `A11OY_ENERGY_WINDOW_MAX_AGE_S` (default 900 s);
+a meter that goes quiet turns the tile `measured_energy_window_stale`. That bounded host window
+is MEASURED; billable per-job energy stays unavailable without exclusive attribution. Both counts
+are process-local and restart at zero.
 Tests: `test_szl_energy_operator.py`, `tests/test_energy_provenance_measured_windows.py`.
 
 ---

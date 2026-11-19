@@ -689,6 +689,25 @@ def test_promoting_a_sample_entry_after_append_breaks_the_chain(monkeypatch):
     assert "chain_not_verified" in reasons
 
 
+@pytest.mark.parametrize("total", [None, float("nan"), -1.0, 0.0, True])
+def test_measured_entries_without_a_positive_total_fail_closed(monkeypatch, total):
+    import szl_energy_provenance as ep
+
+    chain = _window_chain(ep, measured=1)
+    real = chain.summary()
+    monkeypatch.setattr(chain, "summary",
+                        lambda: {**real, "window_joules_measured_total": total})
+    monkeypatch.setattr(ep, "_CHAIN", chain)
+
+    tile = manifest._tile_energy_provenance()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert ready is False
+    assert "invalid_window_joules_total" in reasons
+    assert tile["label"] == manifest.UNAVAILABLE
+    json.dumps(tile, allow_nan=False)
+
+
 def test_broken_energy_provenance_chain_is_unavailable(monkeypatch):
     import szl_energy_provenance as ep
 
@@ -718,10 +737,23 @@ def _operator_status(**overrides):
         "measured_jobs": 0,
         "window_measured_jobs": 0,
         "window_joules_measured_total": 0.0,
+        "window_fresh": False,
+        "window_age_s": None,
+        "window_max_age_s": 900.0,
+        "last_window_measured_at": None,
         "node_status": {"rtx": "computing"},
     }
     status.update(overrides)
     return status
+
+
+def _fresh_windows(**overrides):
+    values = {"window_measured_jobs": 2, "window_joules_measured_total": 25.0,
+              "window_fresh": True, "window_age_s": 12.0,
+              "last_window_measured_at": "2026-11-19T00:00:00Z",
+              "joules_measured_reason": "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION"}
+    values.update(overrides)
+    return _operator_status(**values)
 
 
 def test_running_stub_operator_without_a_gpu_is_not_ready(monkeypatch):
@@ -755,20 +787,75 @@ def test_running_operator_with_a_gpu_needs_a_measured_window(monkeypatch):
     assert tile["label"] == manifest.UNAVAILABLE
     assert tile["window_measured_jobs"] == 0
 
-    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
-        window_measured_jobs=2, window_joules_measured_total=25.0,
-        joules_measured_reason="NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION"))
+    monkeypatch.setattr(eo, "handle_status", lambda: _fresh_windows())
     measured = manifest._tile_energy_operator()
 
     assert measured["label"] == manifest.MEASURED
     assert measured["measurement_scope"] == "BOUNDED_METER_WINDOW"
     assert measured["window_measured_jobs"] == 2
     assert measured["window_joules_measured_total"] == 25.0
-    # A host window never promotes billable per-job energy.
-    assert measured["joules_measured_total"] == 0.0
+    assert measured["window_age_s"] == 12.0
+    assert measured["last_window_measured_at"] == "2026-11-19T00:00:00Z"
+    # A host window never promotes billable per-job energy, and an unmeasured
+    # billable total is withheld rather than shown as 0.
+    assert measured["joules_measured_total"] is None
     assert measured["joules_measured_label"] == manifest.UNAVAILABLE
     assert measured["joules_measured_reason"] == "NO_VERIFIED_EXCLUSIVE_JOB_ATTRIBUTION"
     assert manifest._tile_operational_readiness(measured) == (True, [])
+
+
+@pytest.mark.parametrize("freshness", [{"window_fresh": False}, {"window_fresh": None},
+                                       {"window_fresh": "true"}, {"window_fresh": 1}])
+def test_stale_or_unreported_window_freshness_blocks_the_operator_tile(monkeypatch, freshness):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _fresh_windows(**freshness))
+    tile = manifest._tile_energy_operator()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert ready is False
+    assert "measured_energy_window_stale" in reasons
+    assert tile["label"] == manifest.UNAVAILABLE
+
+
+def test_missing_window_freshness_key_fails_closed(monkeypatch):
+    import szl_energy_operator as eo
+
+    status = _fresh_windows()
+    status.pop("window_fresh")
+    monkeypatch.setattr(eo, "handle_status", lambda: status)
+    ready, reasons = manifest._tile_operational_readiness(manifest._tile_energy_operator())
+
+    assert ready is False
+    assert "measured_energy_window_stale" in reasons
+
+
+@pytest.mark.parametrize("total", [None, float("nan"), float("inf"), -5.0, 0.0, True, "25"])
+def test_window_count_without_a_positive_total_fails_closed(monkeypatch, total):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _fresh_windows(
+        window_joules_measured_total=total))
+    tile = manifest._tile_energy_operator()
+    ready, reasons = manifest._tile_operational_readiness(tile)
+
+    assert ready is False
+    assert "invalid_window_joules_total" in reasons
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["window_joules_measured_total"] is None
+    json.dumps(tile, allow_nan=False)
+
+
+def test_billable_total_is_shown_only_when_billable_energy_is_measured(monkeypatch):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _fresh_windows(
+        measured_jobs=1, joules_measured_total=2.5,
+        joules_measured_label=manifest.MEASURED, joules_measured_reason=None))
+    tile = manifest._tile_energy_operator()
+
+    assert tile["joules_measured_label"] == manifest.MEASURED
+    assert tile["joules_measured_total"] == 2.5
 
 
 def test_stopped_operator_with_earlier_windows_is_not_ready(monkeypatch):

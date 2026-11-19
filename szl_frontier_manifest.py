@@ -271,6 +271,21 @@ _ENERGY_LABELS = (MEASURED, SAMPLE, MODELED, ROADMAP, UNAVAILABLE)
 _WINDOW_SCOPE = "BOUNDED_METER_WINDOW"
 
 
+def _positive_joules(value: Any) -> float | None:
+    """A finite energy above zero, or None. A verified window is never zero."""
+    if (isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) or value <= 0):
+        return None
+    return float(value)
+
+
+def _non_negative_seconds(value: Any) -> float | None:
+    if (isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) or value < 0):
+        return None
+    return float(value)
+
+
 def _tile_energy_operator() -> dict:
     import szl_energy_operator as eo
     st = eo.handle_status()
@@ -300,11 +315,12 @@ def _tile_energy_operator() -> dict:
     windows = _strict_count(raw_windows)
     window_count_valid = windows is not None
     windows = windows or 0
-    window_total = st.get("window_joules_measured_total")
-    if (windows < 1 or isinstance(window_total, bool)
-            or not isinstance(window_total, (int, float)) or not math.isfinite(window_total)
-            or window_total < 0):
-        window_total = 0.0
+    window_total = _positive_joules(st.get("window_joules_measured_total")) if windows else None
+    total_invalid = windows >= 1 and window_total is None
+    # The operator decides freshness against its own bound; anything but a literal
+    # True (missing, stale, malformed) is treated as not current.
+    stale = windows >= 1 and not total_invalid and st.get("window_fresh") is not True
+    window_ok = windows >= 1 and not total_invalid and not stale
     if running:
         status = "OK (operator running)"
     elif st.get("stub_mode"):
@@ -313,19 +329,26 @@ def _tile_energy_operator() -> dict:
         status = "IDLE (operator stopped)"
     return _tile(
         "Energy operator", "energy", status=status,
-        label=MEASURED if windows >= 1 else UNAVAILABLE,
+        label=MEASURED if window_ok else UNAVAILABLE,
         provenance={
             "endpoint": f"{_API}/energy/operator/status",
             "kind": "live in-process status",
             "note": ("window_joules_measured_total sums verified NVML counter deltas over "
                      "bounded host windows this process; joules_measured_total is billable "
-                     "per-job energy and stays unavailable without exclusive attribution"),
+                     "per-job energy, shown only when that energy is MEASURED"),
         },
         measurement_scope=_WINDOW_SCOPE,
         running=running,
         window_measured_jobs=windows,
-        window_joules_measured_total=round(float(window_total), 6),
-        joules_measured_total=measured_total,
+        window_joules_measured_total=(round(window_total, 6)
+                                      if window_total is not None else None),
+        window_age_s=_non_negative_seconds(st.get("window_age_s")),
+        window_max_age_s=_non_negative_seconds(st.get("window_max_age_s")),
+        last_window_measured_at=(st.get("last_window_measured_at")
+                                 if isinstance(st.get("last_window_measured_at"), str)
+                                 else None),
+        # An unmeasured billable total is withheld, never shown as a bare 0.
+        joules_measured_total=measured_total if billable_label == MEASURED else None,
         joules_measured_label=billable_label,
         joules_measured_reason=billable_reason,
         measured_jobs=measured_jobs,
@@ -333,17 +356,20 @@ def _tile_energy_operator() -> dict:
         gpu_nodes_reachable=gpu_reachable,
         operational_evidence={
             "predicate": ("energy operator reports running=true + a configured GPU node "
-                          "answered its latest sweep probe + at least one job this process "
-                          "was bracketed by a verified NVML counter window (bounded host-window "
-                          "energy MEASURED; billable per-job energy stays unavailable without "
-                          "exclusive attribution)"),
-            "satisfied": bool(running and gpu_reachable and windows >= 1),
+                          "answered its latest sweep probe + a job this process was "
+                          "bracketed by a verified NVML counter window no older than the "
+                          "operator's window_max_age_s (bounded host-window energy MEASURED; "
+                          "billable per-job energy stays unavailable without exclusive "
+                          "attribution)"),
+            "satisfied": bool(running and gpu_reachable and window_ok),
             "reasons": [
                 reason for failed, reason in (
                     (not running, "operator_stopped"),
                     (not gpu_reachable, "no_gpu_reachable"),
                     (not window_count_valid, "invalid_window_measurement_count"),
                     (window_count_valid and windows < 1, "no_measured_energy_window"),
+                    (total_invalid, "invalid_window_joules_total"),
+                    (stale, "measured_energy_window_stale"),
                 ) if failed
             ],
         },
@@ -420,12 +446,14 @@ def _tile_energy_provenance() -> dict:
     # never count, and nothing counts while any link of the chain fails to verify.
     measured_entries = (_strict_count(summ.get("measured_window_entries")) or 0
                         if verified else 0)
-    window_total = summ.get("window_joules_measured_total") if measured_entries else 0.0
-    if (isinstance(window_total, bool) or not isinstance(window_total, (int, float))
-            or not math.isfinite(window_total) or window_total < 0):
-        window_total = 0.0
+    window_total = (_positive_joules(summ.get("window_joules_measured_total"))
+                    if measured_entries else None)
+    total_invalid = bool(measured_entries) and window_total is None
     if not length:
         status, label = "EMPTY (no receipts this process)", UNAVAILABLE
+    elif verified and measured_entries and total_invalid:
+        status = "UNAVAILABLE (measured window entries report no positive total)"
+        label = UNAVAILABLE
     elif verified and measured_entries:
         status = (f"VERIFIED ({length} hash-linked receipts; {measured_entries} "
                   "MEASURED bounded-window entries)")
@@ -450,19 +478,22 @@ def _tile_energy_provenance() -> dict:
         length=length,
         measured_entries=measured_entries,
         measurement_scope=_WINDOW_SCOPE,
-        window_joules_measured_total=round(float(window_total), 6),
+        window_joules_measured_total=(round(window_total, 6)
+                                      if window_total is not None else None),
         integrity_chain_status=summ.get("status"),
         verification_scope="content and hash-link integrity only; authorship not verified",
         operational_evidence={
             "predicate": ("non-empty provenance chain + computed chain verification + at "
                           "least one hash-bound MEASURED bounded-window entry (verified NVML "
                           "counter window; never billable per-job energy)"),
-            "satisfied": bool(length and verified and measured_entries >= 1),
+            "satisfied": bool(length and verified and measured_entries >= 1
+                              and not total_invalid),
             "reasons": [
                 reason for failed, reason in (
                     (not length, "no_chain_entries"),
                     (not verified, "chain_not_verified"),
                     (measured_entries < 1, "no_measured_entries"),
+                    (total_invalid, "invalid_window_joules_total"),
                 ) if failed
             ],
         },

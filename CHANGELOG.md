@@ -15,11 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   host window can produce, and the Energy provenance tile was hard-coded
   unsatisfied with no production writer. Both now gate on the runtime-verifiable
   subset: a job bracketed by a verified NVML counter window, MEASURED only within
-  the `BOUNDED_METER_WINDOW` scope. Billable per-job energy keeps its own label
-  and stays unavailable without exclusive attribution.
+  the `BOUNDED_METER_WINDOW` scope and, for the operator, only while the latest
+  window is younger than `A11OY_ENERGY_WINDOW_MAX_AGE_S` (default 900 s). Billable
+  per-job energy keeps its own label and stays unavailable without exclusive
+  attribution. Both counts are process-local and restart at zero.
 - The operator's completed-job stream appends hash-bound v2 entries to the energy
-  provenance chain, so a label cannot be promoted after append. v1 entries keep
-  their encoding; the chain is bounded behind an explicit retention anchor.
+  provenance chain, so a label cannot be promoted after append. Only jobs the
+  operator dispatched to its configured GPU nodes are recorded, and they carry no
+  joules estimate. v1 entries keep their encoding; the chain is bounded, and
+  entries are verified as they are evicted so tampering stays detected.
 - The operator reports a bounded `lung_probe` reason per node (no URL, host or
   credential) and retries its lung-gated autostart (`A11OY_ENERGY_AUTOSTART_RETRY_S`,
   default 300 s). An operator's explicit stop holds the retry off.

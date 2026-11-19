@@ -55,7 +55,9 @@ Endpoints (dual-registered under /api/{ns}/v1/energy/operator/* AND /v1/energy/o
 
 Graceful start/stop via a threading stop-flag + optional SIGINT/SIGTERM handler.
 Backpressure: a per-node in-flight cap + inter-job sleep so we never overwhelm a node.
-State persists to a JSON ledger so a restart RESUMES the cumulative counts.
+State persists to a JSON ledger so a restart RESUMES the cumulative counts. The
+verified-window counts that gate operational readiness are process-local and restart at
+zero; readiness is re-established by fresh counter samples after every restart.
 
 Pure stdlib + httpx (already a repo dep) + FastAPI. No Node, no CDN.
 """
@@ -770,6 +772,9 @@ class JobRecord:
     window_joules_measured: Optional[float] = None
     joules_scope: Optional[str] = None
     window_evidence: Optional[dict] = None
+    # "operator" for jobs this daemon dispatched; "external" for submit_external_job
+    # records (for example governed CPU code cells), which are not operator GPU jobs.
+    origin: str = "operator"
 
     def to_dict(self) -> dict:
         return {
@@ -786,6 +791,7 @@ class JobRecord:
             "ts": self.ts, "seq": self.seq,
             "useful_work": self.useful_work, "rag_chunk_id": self.rag_chunk_id,
             "governance": self.governance,
+            "origin": self.origin,
         }
 
 
@@ -854,6 +860,24 @@ def _with_model_access_headers(headers: dict, url: str) -> dict:
     merged = dict(headers)
     merged.update(model_access_headers_for_origin(url))
     return merged
+
+
+# A verified window older than this no longer counts as current measurement, so a
+# meter that went quiet cannot keep the operator reading MEASURED for the life of
+# the process. Default 900 s, clamped to 60 s .. 1 day.
+WINDOW_MAX_AGE_ENV = "A11OY_ENERGY_WINDOW_MAX_AGE_S"
+_WINDOW_MAX_AGE_DEFAULT_S = 900.0
+
+
+def window_max_age_s() -> float:
+    raw = (os.environ.get(WINDOW_MAX_AGE_ENV) or "").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return _WINDOW_MAX_AGE_DEFAULT_S
+    if not math.isfinite(value) or value <= 0:
+        return _WINDOW_MAX_AGE_DEFAULT_S
+    return min(86400.0, max(60.0, value))
 
 
 # Latest liveness outcome per probed base URL. Without it an unreachable lung reads
@@ -1106,7 +1130,8 @@ class OperatorDaemon:
     jobs to reachable nodes, observing bounded GPU windows and persisting state.
 
     Thread-safe. Idempotent start/stop. Graceful: the loop checks a stop flag between
-    jobs and joins on stop(). Restart resumes cumulative counts from the ledger.
+    jobs and joins on stop(). Restart resumes cumulative counts from the ledger; the
+    verified-window counts are process-local and restart at zero.
     """
 
     def __init__(self, nodes: Optional[list[NodeCfg]] = None,
@@ -1160,7 +1185,10 @@ class OperatorDaemon:
         self._window_measured_jobs = 0
         self._window_joules_measured_total = 0.0
         self._last_window_measured_at: Optional[str] = None
+        self._last_window_measured_ts: Optional[float] = None
         # Set by an operator's explicit stop so the autostart retry never overrides it.
+        # Written inside the same locked transition as the stop or start it belongs
+        # to, so the hold always agrees with whichever operator request landed last.
         self._operator_hold = False
 
     # -- subscription (Dev2 receipts hook) --------------------------------
@@ -1263,10 +1291,14 @@ class OperatorDaemon:
         with self._lock:
             return self._lifecycle_state(self.is_running())
 
-    def start(self, *, respect_operator_hold: bool = False) -> dict:
+    def start(self, *, respect_operator_hold: bool = False,
+              operator_request: bool = False) -> dict:
         """Lung-gated start. With respect_operator_hold, an operator's explicit stop
-        wins even if it lands after the caller's own hold check."""
+        wins even if it lands after the caller's own hold check. operator_request
+        releases the hold inside this transition, even when the start is refused."""
         with self._lock:
+            if operator_request:
+                self._operator_hold = False
             if respect_operator_hold and self._operator_hold:
                 return {**self.status(), "started": False, "reason": "operator_stop_requested"}
             if self.lifecycle_state() == "STOPPING":
@@ -1306,8 +1338,10 @@ class OperatorDaemon:
                 raise
             return {**self.status(), "started": True}
 
-    def stop(self, join_timeout: float = 10.0) -> dict:
+    def stop(self, join_timeout: float = 10.0, *, operator_request: bool = False) -> dict:
         with self._lock:
+            if operator_request:
+                self._operator_hold = True
             self._stop.set()
             self._lifecycle_generation += 1
             if self._stop_joining:
@@ -1336,15 +1370,11 @@ class OperatorDaemon:
 
     def operator_start(self) -> dict:
         """An operator's explicit start: releases any stop hold, then the lung-gated start."""
-        with self._lock:
-            self._operator_hold = False
-        return self.start()
+        return self.start(operator_request=True)
 
     def operator_stop(self) -> dict:
-        """An operator's explicit stop: held until the next explicit start."""
-        with self._lock:
-            self._operator_hold = True
-        return self.stop()
+        """An operator's explicit stop: held until the next explicit start or restart."""
+        return self.stop(operator_request=True)
 
     def operator_hold_active(self) -> bool:
         with self._lock:
@@ -1601,7 +1631,8 @@ class OperatorDaemon:
                 job_end_ts: Optional[float] = None,
                 useful_work: bool = False,
                 rag_chunk_id: Optional[str] = None,
-                governance: Optional[dict] = None) -> JobRecord:
+                governance: Optional[dict] = None,
+                origin: str = "operator") -> JobRecord:
         verified_window = _counter_window_joules(
             exporter_before_sample, exporter_sample,
             job_start_ts=job_start_ts, job_end_ts=job_end_ts)
@@ -1638,6 +1669,7 @@ class OperatorDaemon:
                 self._window_measured_jobs += 1
                 self._window_joules_measured_total += verified_window
                 self._last_window_measured_at = completed_at
+                self._last_window_measured_ts = time.time()
             if useful_work:
                 self._state.corpus_embeds += 1
             bn = self._state.by_node.setdefault(
@@ -1660,7 +1692,8 @@ class OperatorDaemon:
             window_joules_measured=verified_window,
             joules_scope=("BOUNDED_METER_WINDOW" if verified_window is not None else None),
             window_evidence=window_evidence,
-            useful_work=useful_work, rag_chunk_id=rag_chunk_id, governance=governance)
+            useful_work=useful_work, rag_chunk_id=rag_chunk_id, governance=governance,
+            origin=origin)
         self._emit(rec)
         return rec
 
@@ -1674,7 +1707,7 @@ class OperatorDaemon:
         ledger subscribe() wire (wire_operator_to_ledger) then append_job()s it into the
         shared chain — one wire, one ledger, no parallel ledger."""
         return self._commit(node, model, kind, int(tokens), float(wall_s),
-                            exporter_sample, joules_measured)
+                            exporter_sample, joules_measured, origin="external")
 
     def _run_real_job(self, node: NodeCfg, kind: str) -> Optional[dict]:
         """Dispatch a job with fresh enclosing NVML samples, never bill its window.
@@ -1807,6 +1840,11 @@ class OperatorDaemon:
             standby = [_public_node(n) for n, s in self._node_status.items() if s == "standby"]
             st = self._state
             legacy = st.legacy_unverified_snapshot
+            max_age = window_max_age_s()
+            last_ts = self._last_window_measured_ts
+            window_age = (round(max(0.0, time.time() - last_ts), 3)
+                          if self._window_measured_jobs > 0 and last_ts is not None else None)
+            window_fresh = window_age is not None and window_age <= max_age
             return {
                 "service": "energy-operator",
                 "doctrine": DOCTRINE,
@@ -1823,16 +1861,21 @@ class OperatorDaemon:
                     else "NO_VERIFIED_NVML_COUNTER_WINDOW"),
                 "window_measured_jobs": self._window_measured_jobs,
                 "window_joules_measured_total": round(self._window_joules_measured_total, 6),
-                "window_joules_label": (LABEL_MEASURED if self._window_measured_jobs > 0
-                                        else "UNAVAILABLE"),
-                "window_joules_reason": (None if self._window_measured_jobs > 0 else
-                                         "NO_VERIFIED_NVML_COUNTER_WINDOW"),
+                "window_joules_label": LABEL_MEASURED if window_fresh else "UNAVAILABLE",
+                "window_joules_reason": (
+                    None if window_fresh else
+                    "NO_RECENT_VERIFIED_NVML_COUNTER_WINDOW" if self._window_measured_jobs > 0
+                    else "NO_VERIFIED_NVML_COUNTER_WINDOW"),
                 "window_joules_scope": "BOUNDED_METER_WINDOW",
+                "window_fresh": window_fresh,
+                "window_age_s": window_age,
+                "window_max_age_s": max_age,
                 "window_joules_note": (
                     "jobs this process bracketed by fresh NVML counter samples on the same "
                     "GPU UUID and continuity epoch; each window also includes host work "
-                    "outside the job, so it is never billed or attributed as job energy, "
-                    "and the count restarts at zero with the process"),
+                    "outside the job, so it is never billed or attributed as job energy. "
+                    "The label is MEASURED only while the latest window is younger than "
+                    "window_max_age_s, and the count restarts at zero with the process"),
                 "last_window_measured_at": self._last_window_measured_at,
                 "operator_hold": self._operator_hold,
                 "lung_probe": self._lung_probe_view(),
