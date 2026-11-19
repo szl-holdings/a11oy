@@ -185,6 +185,9 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Memory Covenant capability role retained an inherited parent';
     END IF;
+    -- The covenant owner is the one exception: where no superuser exists (for
+    -- example on Neon), it must keep ADMIN to grant these roles to runtime
+    -- logins. It already owns every covenant relation and definer function.
     IF EXISTS (
         SELECT 1
           FROM pg_auth_members AS edge
@@ -193,6 +196,11 @@ BEGIN
              'a11oy_memory_worker'::regrole
          )
            AND edge.admin_option
+           AND edge.member <> (
+               SELECT relation.relowner
+                 FROM pg_catalog.pg_class AS relation
+                WHERE relation.oid = 'public.memory_records'::pg_catalog.regclass
+           )
     ) THEN
         RAISE EXCEPTION 'Memory Covenant capability membership retained ADMIN OPTION';
     END IF;

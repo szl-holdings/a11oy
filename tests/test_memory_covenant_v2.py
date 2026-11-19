@@ -670,6 +670,123 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
             self.assert_contract_error(root, "UTF-8 BOM is forbidden")
 
+    # Provider-owner compatibility: Neon and similar providers never grant the
+    # superuser attribute, so every role change must be one a project owner
+    # can make, and every sweep must be proven rather than trusted.
+
+    def test_combined_superuser_alter_reintroduction_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "ALTER ROLE a11oy_memory_app NOSUPERUSER;",
+                "ALTER ROLE a11oy_memory_app NOSUPERUSER NOCREATEDB NOCREATEROLE "
+                "NOLOGIN NOREPLICATION INHERIT NOBYPASSRLS;",
+            )
+            self.assert_contract_error(root, "cannot run under a provider-managed owner")
+
+    def test_unguarded_attribute_convergence_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "IF observed.rolcreatedb THEN ALTER ROLE a11oy_memory_worker NOCREATEDB; END IF;",
+                "ALTER ROLE a11oy_memory_worker NOCREATEDB;",
+            )
+            self.assert_contract_error(
+                root, "guarded NOCREATEDB convergence for a11oy_memory_worker"
+            )
+
+    def test_superuser_attribute_branch_without_fail_closed_raise_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "RAISE EXCEPTION USING ERRCODE = '42501',\n"
+                "                  MESSAGE = 'a11oy_memory_app holds an attribute this "
+                "migration principal cannot clear';",
+                "NULL;",
+            )
+            self.assert_contract_error(
+                root, "fail-closed superuser-attribute convergence for a11oy_memory_app"
+            )
+
+    def test_provider_owner_admin_exemption_widening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "           AND member.rolname <> CURRENT_USER\n    LOOP",
+                "           AND member.rolname <> CURRENT_USER OR TRUE\n    LOOP",
+            )
+            self.assert_contract_error(
+                root, "ADMIN retention limited to the migration principal"
+            )
+
+    def test_inbound_convergence_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "capability-role delegation survived the sweep; another grantor holds it",
+                "capability-role delegation state unchecked",
+            )
+            self.assert_contract_error(root, "inbound delegation convergence assertion")
+
+    def test_notice_only_convergence_assertion_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "RAISE EXCEPTION USING ERRCODE = '42501',\n"
+                "          MESSAGE = 'a capability role still belongs to a parent role "
+                "this principal could not revoke';",
+                "RAISE WARNING 'a capability role still belongs to a parent role "
+                "this principal could not revoke';",
+            )
+            self.assert_contract_error(root, "fail-closed convergence assertion")
+
+    def test_convergence_assertions_before_sweeps_fail(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            text = path.read_text(encoding="utf-8")
+            start = text.index("-- A principal that is not a superuser can revoke only")
+            end = text.index("$$;\n", start) + len("$$;\n")
+            block = text[start:end]
+            text = text[:start] + text[end:]
+            anchor = text.index("-- Capability roles must not inherit or SET ROLE")
+            path.write_text(text[:anchor] + block + "\n" + text[anchor:], encoding="utf-8")
+            self.assert_contract_error(root, "must follow both sweeps")
+
+    def test_acceptance_admin_exemption_widening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "WHERE relation.oid = 'public.memory_records'::pg_catalog.regclass",
+                "WHERE relation.relname LIKE 'memory_%'",
+            )
+            self.assert_contract_error(root, "exemption limited to the covenant owner")
+
+    def test_provider_owner_fixture_must_stay_non_superuser(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "CREATE ROLE a11oy_memory_provider_owner LOGIN NOSUPERUSER",
+                "CREATE ROLE a11oy_memory_provider_owner LOGIN SUPERUSER",
+            )
+            self.assert_contract_error(root, "non-superuser provider owner fixture")
+
 
 if __name__ == "__main__":
     unittest.main()

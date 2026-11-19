@@ -64,6 +64,24 @@ ROLE_ATTRIBUTES = (
     "INHERIT",
     "NOBYPASSRLS",
 )
+# Existing capability roles converge one attribute at a time, and only when the
+# catalog shows a deviation. A provider-managed owner (Neon, for example) is
+# never a superuser, and PostgreSQL rejects any ALTER ROLE that names the
+# superuser attribute unless the caller is one, even to clear it.
+ROLE_CONVERGENCE_STEPS = (
+    ("rolcreatedb", "NOCREATEDB", False),
+    ("rolcreaterole", "NOCREATEROLE", False),
+    ("rolcanlogin", "NOLOGIN", False),
+    ("rolreplication", "NOREPLICATION", False),
+    ("rolinherit", "INHERIT", True),
+    ("rolbypassrls", "NOBYPASSRLS", False),
+)
+OUTBOUND_CONVERGENCE_MESSAGE = (
+    "a capability role still belongs to a parent role this principal could not revoke"
+)
+INBOUND_CONVERGENCE_MESSAGE = (
+    "capability-role delegation survived the sweep; another grantor holds it"
+)
 
 
 def _without_comments(text: str) -> str:
@@ -633,21 +651,57 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
             f"{label} fully hardened CREATE ROLE for {role}",
             errors,
         )
+        if re.search(rf"\bALTER\s+ROLE\s+{role}\s+NOSUPERUSER\s+\w", sql, re.IGNORECASE):
+            errors.append(
+                f"{label} combined ALTER ROLE for {role} names the superuser "
+                "attribute and cannot run under a provider-managed owner"
+            )
         _require_count(
-            rf"\bALTER\s+ROLE\s+{role}\s+{attrs}\b",
+            r"\bSELECT\s+role\.rolsuper\s*,\s*role\.rolcreatedb\s*,\s*"
+            r"role\.rolcreaterole\s*,\s*role\.rolcanlogin\s*,\s*"
+            r"role\.rolreplication\s*,\s*role\.rolinherit\s*,\s*"
+            r"role\.rolbypassrls\s+INTO\s+observed\s+FROM\s+"
+            r"pg_catalog\.pg_roles\s+AS\s+role\s+WHERE\s+"
+            rf"role\.rolname\s*=\s*'{role}'\s*;",
             sql,
             1,
-            f"{label} fully hardened ALTER ROLE for {role}",
+            f"{label} catalog read of current attributes for {role}",
             errors,
         )
+        _require_count(
+            r"\bIF\s+observed\.rolsuper\s+THEN\s+IF\s*\(\s*SELECT\s+"
+            r"principal\.rolsuper\s+FROM\s+pg_catalog\.pg_roles\s+AS\s+"
+            r"principal\s+WHERE\s+principal\.rolname\s*=\s*CURRENT_USER\s*\)\s+"
+            rf"THEN\s+ALTER\s+ROLE\s+{role}\s+NOSUPERUSER\s*;\s+ELSE\s+"
+            r"RAISE\s+EXCEPTION\s+USING\s+ERRCODE\s*=\s*'42501'",
+            sql,
+            1,
+            f"{label} fail-closed superuser-attribute convergence for {role}",
+            errors,
+        )
+        for column, clause, negated in ROLE_CONVERGENCE_STEPS:
+            guard = (
+                rf"\bIF\s+NOT\s+observed\.{column}"
+                if negated
+                else rf"\bIF\s+observed\.{column}"
+            )
+            _require_count(
+                guard + rf"\s+THEN\s+ALTER\s+ROLE\s+{role}\s+{clause}\s*;\s*END\s+IF\s*;",
+                sql,
+                1,
+                f"{label} guarded {clause} convergence for {role}",
+                errors,
+            )
 
+    # A word-character lookbehind keeps catalog columns such as rolcanlogin
+    # from reading as granted attributes while NOLOGIN and friends stay legal.
     forbidden_positive_attributes = {
-        "BYPASSRLS": r"(?<!NO)BYPASSRLS\b",
-        "SUPERUSER": r"(?<!NO)SUPERUSER\b",
-        "LOGIN": r"(?<!NO)LOGIN\b",
-        "CREATEDB": r"(?<!NO)CREATEDB\b",
-        "CREATEROLE": r"(?<!NO)CREATEROLE\b",
-        "REPLICATION": r"(?<!NO)REPLICATION\b",
+        "BYPASSRLS": r"(?<![A-Za-z0-9_])BYPASSRLS\b",
+        "SUPERUSER": r"(?<![A-Za-z0-9_])SUPERUSER\b",
+        "LOGIN": r"(?<![A-Za-z0-9_])LOGIN\b",
+        "CREATEDB": r"(?<![A-Za-z0-9_])CREATEDB\b",
+        "CREATEROLE": r"(?<![A-Za-z0-9_])CREATEROLE\b",
+        "REPLICATION": r"(?<![A-Za-z0-9_])REPLICATION\b",
     }
     for attribute, pattern in forbidden_positive_attributes.items():
         if re.search(pattern, sql, re.IGNORECASE):
@@ -683,6 +737,15 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
         "delegated inbound inherit disable": (
             "GRANT %I TO %I WITH INHERIT FALSE, ADMIN FALSE"
         ),
+        "provider-owner ADMIN retention limited to the migration principal": (
+            "AND edge.admin_option AND member.rolname <> CURRENT_USER LOOP"
+        ),
+        "outbound membership convergence assertion": (
+            OUTBOUND_CONVERGENCE_MESSAGE
+        ),
+        "inbound delegation convergence assertion": (
+            INBOUND_CONVERGENCE_MESSAGE
+        ),
         "schema ACL catalog sweep": (
             "namespace.nspacl"
         ),
@@ -707,6 +770,25 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
     }
     for requirement, token in membership_requirements.items():
         _require_token(token, sql, f"{label} {requirement}", errors)
+    # A principal that is not a superuser can revoke only grants it made; any
+    # other grantor's membership survives with a WARNING. The sweeps must be
+    # proven, fail closed, after they run.
+    for message in (OUTBOUND_CONVERGENCE_MESSAGE, INBOUND_CONVERGENCE_MESSAGE):
+        _require_count(
+            r"\bRAISE\s+EXCEPTION\s+USING\s+ERRCODE\s*=\s*'42501'\s*,\s*"
+            rf"MESSAGE\s*=\s*'{re.escape(message)}'",
+            sql,
+            1,
+            f"{label} fail-closed convergence assertion ({message[:40]})",
+            errors,
+        )
+    sweep_position = sql.upper().find("REVOKE ADMIN OPTION FOR %I FROM %I CASCADE")
+    for message in (OUTBOUND_CONVERGENCE_MESSAGE, INBOUND_CONVERGENCE_MESSAGE):
+        assertion_position = sql.upper().find(message.upper())
+        if sweep_position >= 0 and 0 <= assertion_position < sweep_position:
+            errors.append(
+                f"{label} membership convergence assertions must follow both sweeps"
+            )
     for table in ALL_COVENANT_TABLES:
         if sql.count(f"'{table}'") < 1:
             errors.append(f"{label} table ACL sweep omits {table}")
@@ -879,14 +961,14 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
     _require_count(
         r"ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}",
         text,
-        2,
+        3,
         "exact requested-head checkout binding",
         errors,
     )
     _require_count(
         r'test\s+"\$\(git\s+rev-parse\s+HEAD\)"\s*=\s*"\$EXPECTED_SOURCE_SHA"',
         text,
-        2,
+        3,
         "checked-out source identity assertion",
         errors,
     )
@@ -1026,6 +1108,24 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "context rollback residue assertion": (
             "grep -F '\"context_binding_rows\": 0'"
         ),
+        "provider-owner marker": (
+            "=== provider-owner (non-superuser) application ==="
+        ),
+        "non-superuser provider owner fixture": (
+            "CREATE ROLE a11oy_memory_provider_owner LOGIN NOSUPERUSER CREATEDB CREATEROLE BYPASSRLS"
+        ),
+        "migrations applied by the provider owner": (
+            "psql -X -U a11oy_memory_provider_owner -d memory_covenant_provider -v ON_ERROR_STOP=1"
+        ),
+        "provider owner keeps capability ADMIN": (
+            'test "$provider_owner_admin_count" = "2"'
+        ),
+        "provider owner provisions a runtime login": (
+            "GRANT a11oy_memory_app TO a11oy_memory_provider_runtime"
+        ),
+        "provider-owner acceptance evidence": (
+            "provider-owner-acceptance.log"
+        ),
     }
     for label, token in required.items():
         _require_token(token, text, f"workflow {label}", errors)
@@ -1086,6 +1186,13 @@ def _validate_acceptance(text: str, errors: list[str]) -> None:
         (
             "Memory Covenant capability membership retained ADMIN OPTION",
             "acceptance inbound ADMIN OPTION absence assertion",
+        ),
+        (
+            "AND edge.admin_option AND edge.member <> ( SELECT relation.relowner "
+            "FROM pg_catalog.pg_class AS relation WHERE relation.oid = "
+            "'public.memory_records'::pg_catalog.regclass ) ) THEN RAISE EXCEPTION "
+            "'Memory Covenant capability membership retained ADMIN OPTION'",
+            "acceptance ADMIN OPTION exemption limited to the covenant owner",
         ),
         (
             "Seeded inbound capability membership was not preserved",

@@ -622,3 +622,122 @@ jobs:
           path: evidence/memory-covenant-v2
           if-no-files-found: error
           retention-days: 90
+
+  provider-owner-acceptance:
+    name: PostgreSQL 18 provider-owner (non-superuser) application
+    needs: static-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: memory_covenant
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d memory_covenant"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Bind qualification to the requested source
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+
+      - name: Resolve the isolated PostgreSQL service container
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t containers < <(docker ps --filter publish=5432 --format '{{.ID}}')
+          test "${#containers[@]}" -eq 1
+          echo "PG_CONTAINER=${containers[0]}" >> "$GITHUB_ENV"
+
+      - name: Apply every migration twice as a non-superuser provider-style owner
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/memory-covenant-v2-provider-owner
+          log=evidence/memory-covenant-v2-provider-owner/provider-owner-apply.log
+          echo '=== provider-owner (non-superuser) application ===' | tee "$log"
+          # Neon and similar providers give the project owner CREATEDB,
+          # CREATEROLE and BYPASSRLS but never the superuser attribute.
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c 'CREATE ROLE a11oy_memory_provider_owner LOGIN NOSUPERUSER CREATEDB CREATEROLE BYPASSRLS' \
+            -c 'CREATE ROLE a11oy_memory_provider_runtime LOGIN NOSUPERUSER NOBYPASSRLS' \
+            -c 'CREATE DATABASE memory_covenant_provider OWNER a11oy_memory_provider_owner' \
+            | tee -a "$log"
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+            -c 'CREATE SCHEMA memory_attacker' | tee -a "$log"
+          for pass in 1 2; do
+            for migration in \
+              migrations/20260811_memory_covenant_v2.sql \
+              migrations/20260811_memory_covenant_v2_security_hardening.sql \
+              migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
+            do
+              echo "--- pass ${pass}: ${migration} ---" | tee -a "$log"
+              docker exec -i \
+                -e PGPASSWORD=postgres \
+                -e PGOPTIONS='-c search_path=memory_attacker,public' \
+                "$PG_CONTAINER" \
+                psql -X -U a11oy_memory_provider_owner -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+                < "$migration" | tee -a "$log"
+            done
+          done
+          provider_owner="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -XqAt -U postgres -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+            -c "SELECT pg_catalog.pg_get_userbyid(relowner) FROM pg_catalog.pg_class WHERE oid = 'public.memory_records'::pg_catalog.regclass")"
+          test "$provider_owner" = "a11oy_memory_provider_owner"
+          provider_owner_admin_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -XqAt -U postgres -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid IN ('a11oy_memory_app'::regrole, 'a11oy_memory_worker'::regrole) AND member = 'a11oy_memory_provider_owner'::regrole AND admin_option")"
+          test "$provider_owner_admin_count" = "2"
+          echo '=== provider owner provisions a runtime login and a binding ===' | tee -a "$log"
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U a11oy_memory_provider_owner -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+            -c 'GRANT a11oy_memory_app TO a11oy_memory_provider_runtime' | tee -a "$log"
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U a11oy_memory_provider_owner -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+            <<'SQL' | tee -a "$log"
+          BEGIN;
+          INSERT INTO public.memory_context_bindings (principal_oid, tenant_id, security_domain)
+          VALUES ('a11oy_memory_provider_runtime'::regrole, 'provider-tenant', 'provider-domain');
+          ROLLBACK;
+          SQL
+
+      - name: Execute rollback-only acceptance against the provider-owned database
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+            < tests/memory_covenant_acceptance.sql \
+            | tee evidence/memory-covenant-v2-provider-owner/provider-owner-acceptance.log
+          grep -F '"status": "PASS"' evidence/memory-covenant-v2-provider-owner/provider-owner-acceptance.log
+          grep -F '"memory_rows": 0' evidence/memory-covenant-v2-provider-owner/provider-owner-acceptance.log
+          grep -F '"context_binding_rows": 0' evidence/memory-covenant-v2-provider-owner/provider-owner-acceptance.log
+
+      - name: Upload provider-owner evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: memory-covenant-v2-provider-owner-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/memory-covenant-v2-provider-owner
+          if-no-files-found: error
+          retention-days: 90
