@@ -1,0 +1,200 @@
+# SPDX-License-Identifier: Apache-2.0
+# One-shot maintenance helper for the 2026-11-19 solo regeneration of the public
+# inventory + reviewed support catalog on this maintenance branch. Mirrors the
+# gates of public-inventory-refresh.yml (which cannot currently be dispatched
+# from this machine); runs the identical deterministic scripts against live HF,
+# fail-closed on every gate, commits only the generated/ reviewed outputs, and
+# is deleted from the branch before the PR to main. No secrets, no deploys.
+name: Solo public inventory refresh one-shot 20261119
+"on":
+  push:
+    branches: ['maintenance/public-inventory/2026-11-19-solo']
+    paths: ['.github/workflows/zz-solo-refresh-20261119.yml']
+permissions: read-all
+concurrency:
+  group: zz-solo-refresh-20261119
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.actor == 'stephenlutar2-hash'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install exact generation and test dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'fastapi==0.141.1' 'starlette==1.6.0'
+          'jsonschema==4.25.0' 'pytest==8.4.2'
+          'cryptography==50.0.2' 'httpx==0.28.1'
+      - name: Bind exact source and preserve previous observations
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          mkdir -p /tmp/solo-refresh
+          cp docs/huggingface-ecosystem-manifest.json /tmp/solo-refresh/previous-manifest.json
+          cp docs/model-inference-support.json /tmp/solo-refresh/previous-catalog.json
+          python -S scripts/test_audit_huggingface_ecosystem.py
+          python -S scripts/test_hf_gated_public_inventory.py
+      - name: Add the source-reviewed catalog entry for the new public model
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, sys
+          sys.path.insert(0, ".")
+          sys.path.insert(0, "scripts")
+          import a11oy_model_support as support
+          from collect_model_inference_support import fetch_observation
+          MODEL = "SZLHOLDINGS/salad-khipu-structure-v1"
+          REV = "8afe58cc46a32e927f461a8b14975b8e4892d749"
+          PATH = "docs/model-inference-support.json"
+          doc = json.load(open(PATH, encoding="utf-8"))
+          ids = [m["id"] for m in doc["models"]]
+          if MODEL not in ids:
+              entry = {
+                  "assessment": {
+                      "artifact_class": "adapter_bundle",
+                      "hub_revision": REV,
+                      "observed_at": support.utc_now(),
+                      "qualification_note": "No hosted neural-model qualification is inferred from this LoRA adapter bundle (adapter weights, chat template and training-argument metadata measured in the public revision; SFT run on the SZL khipu-structure corpus under DSSE-signed receipts).",
+                      "request_disposition": "NOT_STANDALONE_PROVIDER_MODEL",
+                      "source_url": "https://huggingface.co/" + MODEL + "/blob/" + REV + "/README.md",
+                      "suggested_route": "Merge the adapter onto its declared base model and serve locally; requires a custom inference handler rather than generic hosted inference.",
+                  },
+                  "id": MODEL,
+                  "inference": fetch_observation(MODEL),
+                  "repo_type": "model",
+                  "support": {"requests": [], "state": "NO_RECORDED_REQUEST"},
+              }
+              doc["models"].append(entry)
+              doc["models"] = sorted(doc["models"], key=lambda m: m["id"])
+              ids = [m["id"] for m in doc["models"]]
+              doc["inventory_source"]["model_ids_sha256"] = hashlib.sha256(
+                  support.canonical_bytes(ids)).hexdigest()
+              doc["generated_at"] = support.utc_now()
+              with open(PATH, "w", encoding="utf-8", newline="\n") as handle:
+                  handle.write(json.dumps(doc, sort_keys=True, indent=2,
+                                          ensure_ascii=False, allow_nan=False) + "\n")
+              print("CATALOG_ENTRY_ADDED models=" + str(len(doc["models"])))
+          else:
+              print("CATALOG_ENTRY_ALREADY_PRESENT")
+          PY
+      - name: Full anonymous re-observation and offline catalog gate
+        run: |
+          set -euo pipefail
+          python -B scripts/collect_model_inference_support.py --refresh
+          python -B scripts/collect_model_inference_support.py --check
+      - name: Generate a fresh public card snapshot and all existing projections
+        run: |
+          set -euo pipefail
+          python scripts/audit_huggingface_ecosystem.py
+          python scripts/build_ecosystem_stage_matrix.py
+          python scripts/render_public_estate_alignment.py
+          python scripts/build_model_pretraining_projection.py --write
+          python scripts/build_ecosystem_stage_matrix.py --check
+          python scripts/render_public_estate_alignment.py --check
+          python scripts/build_model_pretraining_projection.py --check
+          python -B scripts/collect_model_inference_support.py --check
+          python -m unittest tests.test_public_estate_alignment -v
+          python -B -m unittest discover -s tests -p 'test_hf_inventory_refresh*.py' -v
+          python tests/test_hf_public_inventory.py
+          python -m pytest tests/test_model_inference_support.py -q
+          python -m pytest tests/test_frontier_model_admission.py tests/test_model_inference_inventory_failures.py -q
+      - name: Independently verify complete membership and record exact output bytes
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, subprocess
+          from pathlib import Path
+          from scripts.hf_public_inventory import collect, compare_manifest, PREDICATE, digest
+          outputs = [
+              'docs/huggingface-ecosystem-manifest.json',
+              'docs/ecosystem-stage-matrix.json',
+              'docs/generated/github-org-public-estate.md',
+              'docs/generated/huggingface-org-card.md',
+              'docs/generated/a11oy-net-public-estate.md',
+              'routers/data/model-pretraining-snapshot.json',
+              'docs/model-inference-support.json',
+          ]
+          root = Path('/tmp/solo-refresh')
+          previous = json.loads((root/'previous-manifest.json').read_text())
+          previous_catalog = json.loads((root/'previous-catalog.json').read_text())
+          current = json.loads(Path(outputs[0]).read_text())
+          public = collect('SZLHOLDINGS')
+          result = compare_manifest(public, current, current['counts'])
+          report = {
+              'schema': 'szl.reviewed-public-snapshot/v1',
+              'state': 'VALIDATED' if result['aligned'] else 'HOLD',
+              'generator_source_revision': subprocess.check_output(
+                  ['git','rev-parse','HEAD'], text=True).strip(),
+              'source_binding': 'GENERATOR_CHECKOUT_AND_OUTPUT_BYTES_NOT_RUNTIME_ATTESTATION',
+              'observed_at': current['observedAt'],
+              'scope': PREDICATE, 'scope_sha256': digest(PREDICATE),
+              'previous_counts': previous['counts'], 'counts': current['counts'],
+              'comparison': result, 'public_observation': public,
+              'delta': {k: {
+                  'added': sorted({r['id'] for r in current['inventory'][k]} - {r['id'] for r in previous['inventory'][k]}),
+                  'removed': sorted({r['id'] for r in previous['inventory'][k]} - {r['id'] for r in current['inventory'][k]}),
+              } for k in ('models','datasets','spaces','kernels')},
+              'catalog_delta': {
+                  'added': sorted({m['id'] for m in json.loads(Path(outputs[6]).read_text())['models']}
+                                  - {m['id'] for m in previous_catalog['models']}),
+                  'removed': sorted({m['id'] for m in previous_catalog['models']}
+                                    - {m['id'] for m in json.loads(Path(outputs[6]).read_text())['models']}),
+              },
+              'output_sha256': {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in outputs},
+              'previous_manifest_sha256': hashlib.sha256(
+                  (root/'previous-manifest.json').read_bytes()).hexdigest(),
+              'provider_mutations': False, 'production_authorization': False,
+              'model_executed': False, 'policy_changed_by_generator': False,
+              'profile_declaration_updated': False,
+          }
+          report['record_sha256'] = digest(report)
+          (root/'receipt.json').write_text(json.dumps(report, indent=2, sort_keys=True)+'\n')
+          changed = set(subprocess.check_output(['git','diff','--name-only'], text=True).splitlines())
+          assert changed <= set(outputs), sorted(changed-set(outputs))
+          assert not subprocess.check_output(
+              ['git','ls-files','--others','--exclude-standard'], text=True).strip()
+          assert result['aligned'], result
+          print(json.dumps({'aligned': True, 'counts': report['counts'],
+                            'catalog_delta': report['catalog_delta']}))
+          PY
+          python scripts/audit_huggingface_ecosystem.py --check
+          git diff --check
+      - name: Commit only generated and reviewed observations to this maintenance branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_REF#refs/heads/}"
+          case "$branch" in maintenance/public-inventory/*) ;; *) exit 2;; esac
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/$branch" --jq .object.sha)" = "$GITHUB_SHA"
+          if git diff --quiet; then echo "NOTHING_TO_COMMIT"; exit 0; fi
+          git add -- docs/huggingface-ecosystem-manifest.json docs/ecosystem-stage-matrix.json \
+            docs/generated/github-org-public-estate.md docs/generated/huggingface-org-card.md \
+            docs/generated/a11oy-net-public-estate.md routers/data/model-pretraining-snapshot.json \
+            docs/model-inference-support.json
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit --signoff -m 'docs(estate): regenerate source-bound public inventory and reviewed support catalog'
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/$branch"
+          git rev-parse HEAD > /tmp/solo-refresh/generated-commit.txt
+      - name: Preserve verification evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: zz-solo-refresh-20261119-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/solo-refresh
+          if-no-files-found: error
+          retention-days: 90
