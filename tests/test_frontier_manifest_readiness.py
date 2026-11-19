@@ -369,7 +369,7 @@ def _rented_pool(reachable=True, sovereign=False, reported_sovereign=0):
         "cached_at": "2026-10-28T00:00:00Z",
         "nodes": [{"name": _RENTED_NODE, "kind": "rented-gpu", "reachable": reachable,
                    "sovereign": sovereign, "rented": True, "provider": "Massed Compute",
-                   "endpoint": "rented GPU · Massed Compute", "probe_kind": "TCP_CONNECT",
+                   "endpoint": "rented GPU Â· Massed Compute", "probe_kind": "TCP_CONNECT",
                    "inference_verified": False, "ownership_verified": False}],
         "counts": {"nodes_total": 1, "nodes_reachable": int(reachable),
                    "gpu_nodes_reachable": int(reachable),
@@ -975,3 +975,77 @@ def test_sovereign_gpu_with_verified_inference_is_ready_without_ownership_proof(
     assert "sovereign_ownership_not_verified" not in reasons
     assert reasons == []
     assert ready is True
+
+
+@pytest.mark.parametrize("measured_jobs", [0, 1])
+def test_operator_preserves_unavailable_measurement_evidence(monkeypatch, measured_jobs):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        running=False, node_status={"rtx": "idle"},
+        measured_jobs=measured_jobs,
+        joules_measured_reason="NO_VERIFIED_NVML_COUNTER_WINDOW",
+    ))
+
+    tile = manifest._tile_energy_operator()
+
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "NO_VERIFIED_NVML_COUNTER_WINDOW"
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert manifest._tile_operational_readiness(tile)[0] is False
+
+
+@pytest.mark.parametrize("source_label", [None, "", "UNKNOWN", "measured", {}])
+def test_operator_missing_or_invalid_measurement_label_fails_closed(monkeypatch, source_label):
+    import szl_energy_operator as eo
+
+    source = _operator_status(
+        measured_jobs=1, joules_measured_total=2.5,
+        joules_measured_label=source_label, joules_measured_reason=None,
+    )
+    if source_label is None:
+        source.pop("joules_measured_label")
+    monkeypatch.setattr(eo, "handle_status", lambda: source)
+
+    tile = manifest._tile_energy_operator()
+
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "MEASUREMENT_LABEL_UNAVAILABLE"
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert manifest._tile_operational_readiness(tile)[0] is False
+
+
+def test_operator_measured_label_without_a_measured_job_fails_closed(monkeypatch):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        joules_measured_label=manifest.MEASURED, joules_measured_reason=None,
+    ))
+
+    tile = manifest._tile_energy_operator()
+
+    assert tile["label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_label"] == manifest.UNAVAILABLE
+    assert tile["joules_measured_reason"] == "NO_VERIFIED_NVML_COUNTER_WINDOW"
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert manifest._tile_operational_readiness(tile)[0] is False
+
+
+@pytest.mark.parametrize("source_label", [manifest.SAMPLE, manifest.MODELED, manifest.ROADMAP])
+def test_operator_preserves_non_measured_source_labels_without_readiness(monkeypatch, source_label):
+    import szl_energy_operator as eo
+
+    monkeypatch.setattr(eo, "handle_status", lambda: _operator_status(
+        measured_jobs=1, joules_measured_total=2.5,
+        joules_measured_label=source_label, joules_measured_reason="SOURCE_NOT_MEASURED",
+    ))
+
+    tile = manifest._tile_energy_operator()
+
+    assert tile["label"] == manifest.UNAVAILABLE  # host-window readiness policy from #3737
+    assert tile["joules_measured_label"] == source_label
+    assert tile["joules_measured_reason"] == "SOURCE_NOT_MEASURED"
+    assert tile["operational_evidence"]["satisfied"] is False
+    assert manifest._tile_operational_readiness(tile)[0] is False
