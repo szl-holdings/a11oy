@@ -856,7 +856,7 @@ REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Zero-write post-cutover release admission, bound to private HEAD and canonical store health.
     ".github/scripts/admit_hf_fenced_runtime.py": "7936e60da45121f94c2c43f8d30aebcd238b6c31eaf9f571f7110aac0cd538e5",
     "scripts/configure_hf_series_a_runtime.py": "dc4d54b31beb794e62e66ec614bd46257353d0ecdf2645e7295655cb2d96f60c",
-    "scripts/configure_hf_gdw_runtime.py": "43611e182618321ed70647afee9e017295a7fedc6d29446e5b209059abdc28f3",
+    "scripts/configure_hf_gdw_runtime.py": "b0eedfdda3cbb9d2e2b728aa84abc116f0e6f8923c7132a337407245d902a5ad",
     # Installed-authority verifier imported by both configure helpers, with
     # its pinned verification key and static fallback source.
     "scripts/verify_installed_authority.py": "2d9465f393dbaa08754b02d6295abade1134a7dbc843cdab48a6ad70867fb68e",
