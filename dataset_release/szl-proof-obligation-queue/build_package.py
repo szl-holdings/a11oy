@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Build the unpublished SZL proof-obligation companion dataset.
+"""Verify and reproduce the frozen, unpublished proof-obligation package.
 
-The builder is intentionally local and deterministic.  It verifies the source
-receipts before copying any source artifact, emits no raw Brain text, and never
-changes training, publication, DOI, or remote state.
+Retained package bytes are the build inputs. Mutable research artifacts are
+compared only in a separate diagnostic; they cannot silently replace the
+historical source snapshot. This command writes no package or remote state.
 """
 
 from __future__ import annotations
@@ -11,8 +11,6 @@ from __future__ import annotations
 import hashlib
 import json
 import pathlib
-import shutil
-from collections import Counter
 from typing import Any, Iterable, Mapping
 
 
@@ -118,8 +116,12 @@ def verify_sources(
     artifacts = source_receipt.get("artifacts")
     if not isinstance(artifacts, dict):
         raise PackageError("SOURCE_RECEIPT_ARTIFACTS_MISSING")
+    required = {SOURCE_CROSSWALK.as_posix(), SOURCE_TRANCHE.as_posix(),
+                SOURCE_ADMISSION_MANIFEST.as_posix()}
+    if set(artifacts) != required:
+        raise PackageError("SOURCE_RECEIPT_ARTIFACT_SET_MISMATCH")
     for source_path, expected_digest in artifacts.items():
-        observed = sha256_file(REPO_ROOT / source_path)
+        observed = sha256_file(PACKAGE_DIR / RETAINED_SOURCES[source_path])
         if observed != expected_digest:
             raise PackageError(f"SOURCE_DIGEST_MISMATCH:{source_path}")
 
@@ -225,206 +227,100 @@ def build_queue(
     return rows
 
 
-def build_brain_summary(
-    brain_manifest: Mapping[str, Any], brain_results: Mapping[str, Any]
-) -> dict[str, Any]:
+# The retained release manifest is reviewed historical evidence. This digest
+# deliberately does not follow mutable research/ output or regenerate itself.
+FROZEN_RELEASE_MANIFEST_SHA256 = "091387a1e3a397f61df5a4cd14c89fb6c232d8e5e9be83bd40a0b9c798bb9c4d"
+RETAINED_SOURCES = {
+    SOURCE_CROSSWALK.as_posix(): "data/formula-id-crosswalk.json",
+    SOURCE_TRANCHE.as_posix(): "data/admission-tranche.jsonl",
+    SOURCE_RECEIPT.as_posix(): "data/source-artifact-receipt.json",
+    SOURCE_ADMISSION_MANIFEST.as_posix(): "data/source-admission-manifest.json",
+}
+RETAINED_ARTIFACTS = {
+    "formula_crosswalk": "data/formula-id-crosswalk.json",
+    "admission_tranche": "data/admission-tranche.jsonl",
+    "source_artifact_receipt": "data/source-artifact-receipt.json",
+    "source_admission_manifest": "data/source-admission-manifest.json",
+    "proof_obligation_queue": "data/proof-obligation-queue.jsonl",
+    "brain_evidence_summary": "data/brain-evidence-summary.json",
+}
+
+
+def verify_frozen_release() -> dict[str, Any]:
+    path = PACKAGE_DIR / "release-manifest.json"
+    if sha256_file(path) != FROZEN_RELEASE_MANIFEST_SHA256:
+        raise PackageError("FROZEN_RELEASE_MANIFEST_CHANGED")
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    if set(manifest["artifacts"]) != set(RETAINED_ARTIFACTS):
+        raise PackageError("RETAINED_ARTIFACT_SET_MISMATCH")
+    for key, relative in RETAINED_ARTIFACTS.items():
+        item = manifest["artifacts"][key]
+        target = PACKAGE_DIR / relative
+        if item["path"] != relative:
+            raise PackageError(f"RETAINED_ARTIFACT_PATH_MISMATCH:{key}")
+        if target.stat().st_size != item["bytes"] or sha256_file(target) != item["sha256"]:
+            raise PackageError(f"RETAINED_ARTIFACT_DIGEST_MISMATCH:{key}")
+    source = manifest["source_snapshots"]
+    if (source["formula_admission"]["crosswalk_and_tranche_commit"] != FORMULA_SOURCE_COMMIT
+            or source["formula_admission"]["admission_manifest_and_receipt_commit"]
+            != FORMULA_ADMISSION_RECEIPT_COMMIT
+            or source["brain_evidence"]["commit"] != BRAIN_SOURCE_COMMIT):
+        raise PackageError("FROZEN_SOURCE_COMMIT_MISMATCH")
+    return manifest
+
+
+def current_source_status() -> dict[str, Any]:
+    """Compare current bytes without treating agreement as source freshness."""
+    manifest = verify_frozen_release()
+    brain = load_json(PACKAGE_DIR / RETAINED_ARTIFACTS["brain_evidence_summary"])
+    expected = {
+        source: sha256_file(PACKAGE_DIR / retained)
+        for source, retained in RETAINED_SOURCES.items()
+    }
+    expected[SOURCE_BRAIN_MANIFEST.as_posix()] = brain["source"]["manifest_file_sha256"]
+    expected[SOURCE_BRAIN_RESULTS.as_posix()] = brain["source"]["results_file_sha256"]
+    observations = []
+    for relative, retained_digest in sorted(expected.items()):
+        try:
+            observed = sha256_file(REPO_ROOT / relative)
+        except OSError:
+            observed = None
+        observations.append({
+            "path": relative, "retained_sha256": retained_digest,
+            "current_sha256": observed,
+            "state": "BYTE_MATCH" if observed == retained_digest else
+                     ("UNAVAILABLE" if observed is None else "NOT_CURRENT"),
+        })
     return {
-        "schema_version": "szl.proof-obligation-brain-summary.v1",
-        "source": {
-            "commit": BRAIN_SOURCE_COMMIT,
-            "manifest_path": SOURCE_BRAIN_MANIFEST.as_posix(),
-            "manifest_file_sha256": sha256_file(REPO_ROOT / SOURCE_BRAIN_MANIFEST),
-            "manifest_receipt_sha256": brain_manifest["manifest_receipt_sha256"],
-            "results_path": SOURCE_BRAIN_RESULTS.as_posix(),
-            "results_file_sha256": sha256_file(REPO_ROOT / SOURCE_BRAIN_RESULTS),
-            "results_receipt_sha256": brain_results["results_receipt_sha256"],
-            "protocol_id": brain_manifest["protocol_id"],
-        },
-        "evidence_label": brain_manifest["label"],
-        "pilot_status": brain_manifest["status"],
-        "admission_summary": brain_manifest["admission_summary"],
-        "metrics": brain_manifest["metrics"],
-        "limitations": brain_manifest["limitations"],
-        "inclusion_boundary": {
-            "raw_brain_content_included": False,
-            "canonical_document_text_included": False,
-            "query_text_included": False,
-            "per_query_results_included": False,
-            "summary_metrics_included": True,
-            "training_eligible": False,
-        },
-        "claims_boundary": {
-            **brain_manifest["claims_boundary"],
-            "independent_replication": False,
-            "external_validity": "NOT_ESTABLISHED",
-            "peer_reviewed": False,
-        },
+        "state": "BYTE_MATCH" if all(row["state"] == "BYTE_MATCH" for row in observations)
+                 else "NOT_CURRENT",
+        "scope": "Historical package comparison; no new source, proof or freshness claim.",
+        "package_version": manifest["version"], "package_modified": False,
+        "sources": observations,
     }
-
-
-def file_entry(path: pathlib.Path, rows: int | None = None) -> dict[str, Any]:
-    entry: dict[str, Any] = {
-        "path": path.relative_to(PACKAGE_DIR).as_posix(),
-        "bytes": path.stat().st_size,
-        "sha256": sha256_file(path),
-    }
-    if rows is not None:
-        entry["rows"] = rows
-    return entry
-
-
-def write_json(path: pathlib.Path, value: Any) -> None:
-    path.write_bytes(pretty_bytes(value))
-
-
-def write_jsonl(path: pathlib.Path, rows: Iterable[Mapping[str, Any]]) -> int:
-    row_list = list(rows)
-    with path.open("w", encoding="utf-8", newline="\n") as stream:
-        for row in row_list:
-            stream.write(canonical_bytes(row).decode("utf-8") + "\n")
-    return len(row_list)
 
 
 def build() -> dict[str, Any]:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    crosswalk = load_json(SOURCE_CROSSWALK)
-    tranche = read_jsonl(SOURCE_TRANCHE)
-    source_receipt = load_json(SOURCE_RECEIPT)
-    brain_manifest = load_json(SOURCE_BRAIN_MANIFEST)
-    brain_results = load_json(SOURCE_BRAIN_RESULTS)
+    """Reproduce the historical queue in memory and verify retained bytes."""
+    manifest = verify_frozen_release()
+    crosswalk = load_json(PACKAGE_DIR / RETAINED_ARTIFACTS["formula_crosswalk"])
+    tranche = read_jsonl(PACKAGE_DIR / RETAINED_ARTIFACTS["admission_tranche"])
+    source_receipt = load_json(PACKAGE_DIR / RETAINED_ARTIFACTS["source_artifact_receipt"])
+    admission = load_json(PACKAGE_DIR / RETAINED_ARTIFACTS["source_admission_manifest"])
     verify_sources(crosswalk, tranche, source_receipt)
-
-    crosswalk_target = DATA_DIR / "formula-id-crosswalk.json"
-    tranche_target = DATA_DIR / "admission-tranche.jsonl"
-    receipt_target = DATA_DIR / "source-artifact-receipt.json"
-    admission_manifest_target = DATA_DIR / "source-admission-manifest.json"
-    shutil.copyfile(REPO_ROOT / SOURCE_CROSSWALK, crosswalk_target)
-    shutil.copyfile(REPO_ROOT / SOURCE_TRANCHE, tranche_target)
-    shutil.copyfile(REPO_ROOT / SOURCE_RECEIPT, receipt_target)
-    shutil.copyfile(
-        REPO_ROOT / SOURCE_ADMISSION_MANIFEST, admission_manifest_target
-    )
-
+    verify_receipted(admission, "manifest_receipt_sha256", "source-admission-manifest")
+    if (source_receipt["crosswalk_receipt_sha256"] != crosswalk["crosswalk_receipt_sha256"]
+            or source_receipt["manifest_receipt_sha256"] != admission["manifest_receipt_sha256"]):
+        raise PackageError("RETAINED_SOURCE_RECEIPT_BINDING_MISMATCH")
+    source = manifest["source_snapshots"]["formula_admission"]
+    if (source["artifact_receipt_sha256"] != source_receipt["artifact_receipt_sha256"]
+            or source["crosswalk_receipt_sha256"] != crosswalk["crosswalk_receipt_sha256"]):
+        raise PackageError("RELEASE_SOURCE_RECEIPT_BINDING_MISMATCH")
     queue = build_queue(crosswalk, tranche, source_receipt)
-    queue_target = DATA_DIR / "proof-obligation-queue.jsonl"
-    queue_rows = write_jsonl(queue_target, queue)
-
-    brain_summary = build_brain_summary(brain_manifest, brain_results)
-    brain_target = DATA_DIR / "brain-evidence-summary.json"
-    write_json(brain_target, brain_summary)
-
-    status_counts = Counter(row["resolved_status"] for row in queue)
-    membership_counts = Counter(row["queue_membership"] for row in queue)
-    tranche_kind_counts = Counter(row["record_kind"] for row in tranche)
-    manifest: dict[str, Any] = {
-        "schema_version": "szl.proof-obligation-dataset-release.v1",
-        "title": "SZL Proof-Obligation Queue and Receipt-Scoped Formula Crosswalk",
-        "version": "0.1.0",
-        "record_type": "dataset",
-        "publication": {
-            "state": "UNPUBLISHED_CANDIDATE",
-            "doi": "PENDING",
-            "doi_url": "PENDING",
-            "peer_reviewed": False,
-            "zenodo_deposition_created": False,
-            "remote_mutation_performed": False,
-            "publish_allowed": False,
-            "blockers": [
-                "HUMAN_RELEASE_APPROVAL_REQUIRED",
-                "ROW_LEVEL_RIGHTS_AND_LICENSE_REVIEW_REQUIRED",
-                "ARCHIVE_UPLOAD_AND_READBACK_NOT_RUN",
-                "DOI_NOT_MINTED",
-            ],
-        },
-        "dataset": {
-            "formula_crosswalk_rows": len(crosswalk["records"]),
-            "admission_tranche_rows": len(tranche),
-            "proof_obligation_queue_rows": queue_rows,
-            "queue_membership_counts": dict(sorted(membership_counts.items())),
-            "resolved_status_counts": dict(sorted(status_counts.items())),
-            "tranche_kind_counts": dict(sorted(tranche_kind_counts.items())),
-            "training_eligible_rows": 0,
-            "split": "HOLDOUT_ONLY",
-        },
-        "source_snapshots": {
-            "formula_admission": {
-                "crosswalk_and_tranche_commit": FORMULA_SOURCE_COMMIT,
-                "admission_manifest_and_receipt_commit": (
-                    FORMULA_ADMISSION_RECEIPT_COMMIT
-                ),
-                "artifact_receipt_sha256": source_receipt[
-                    "artifact_receipt_sha256"
-                ],
-                "crosswalk_receipt_sha256": crosswalk[
-                    "crosswalk_receipt_sha256"
-                ],
-            },
-            "brain_evidence": {
-                "commit": BRAIN_SOURCE_COMMIT,
-                "protocol_id": brain_manifest["protocol_id"],
-                "manifest_receipt_sha256": brain_manifest[
-                    "manifest_receipt_sha256"
-                ],
-                "results_receipt_sha256": brain_results[
-                    "results_receipt_sha256"
-                ],
-            },
-        },
-        "artifacts": {
-            "formula_crosswalk": file_entry(crosswalk_target, len(crosswalk["records"])),
-            "admission_tranche": file_entry(tranche_target, len(tranche)),
-            "source_artifact_receipt": file_entry(receipt_target),
-            "source_admission_manifest": file_entry(admission_manifest_target),
-            "proof_obligation_queue": file_entry(queue_target, queue_rows),
-            "brain_evidence_summary": file_entry(brain_target),
-        },
-        "schemas": {
-            "release_manifest": "schemas/release-manifest.schema.json",
-            "proof_obligation_record": "schemas/proof-obligation-record.schema.json",
-        },
-        "license": {
-            "spdx": "Apache-2.0",
-            "scope": "Package-authored metadata, schemas, and deterministic transformations.",
-            "upstream_rights_rule": (
-                "The package license does not cure unknown or incompatible rights in "
-                "any upstream source; publication remains blocked pending item-level review."
-            ),
-        },
-        "claims_boundary": {
-            "mathematical_proof_added": False,
-            "proof_credit_added": 0,
-            "raw_brain_text_included": False,
-            "model_training_triggered": False,
-            "model_promotion_allowed": False,
-            "training_eligibility_claimed": False,
-            "independent_replication_claimed": False,
-            "peer_review_claimed": False,
-        },
-        "prohibited_claims": [
-            "THE_DATASET_IS_TRAINING_ELIGIBLE",
-            "A_FORMULA_ID_ALONE_TRANSFERS_PROOF_BETWEEN_NAMESPACES",
-            "EXECUTABILITY_IMPLIES_MATHEMATICAL_PROOF",
-            "THE_LOCAL_RETRIEVAL_PILOT_ESTABLISHES_EXTERNAL_VALIDITY",
-            "THIS_UNPUBLISHED_PACKAGE_HAS_A_DOI_OR_PEER_REVIEW",
-        ],
-    }
-    manifest_path = PACKAGE_DIR / "release-manifest.json"
-    write_json(manifest_path, manifest)
-
-    checksum_paths = sorted(
-        path
-        for path in PACKAGE_DIR.rglob("*")
-        if path.is_file()
-        and path.name != "SHA256SUMS"
-        and "__pycache__" not in path.parts
-    )
-    with (PACKAGE_DIR / "SHA256SUMS").open(
-        "w", encoding="utf-8", newline="\n"
-    ) as stream:
-        for path in checksum_paths:
-            stream.write(
-                f"{sha256_file(path)}  {path.relative_to(PACKAGE_DIR).as_posix()}\n"
-            )
+    reproduced = b"".join(canonical_bytes(row) + b"\n" for row in queue)
+    retained = (PACKAGE_DIR / RETAINED_ARTIFACTS["proof_obligation_queue"]).read_bytes()
+    if reproduced != retained:
+        raise PackageError("FROZEN_QUEUE_REPRODUCTION_MISMATCH")
     return manifest
 
 
@@ -434,6 +330,8 @@ if __name__ == "__main__":
         json.dumps(
             {
                 "status": built["publication"]["state"],
+                "reproduction": "FROZEN_RETAINED_INPUTS_VERIFIED",
+                "current_source": current_source_status(),
                 "doi": built["publication"]["doi"],
                 "queue_rows": built["dataset"]["proof_obligation_queue_rows"],
                 "training_eligible_rows": built["dataset"][

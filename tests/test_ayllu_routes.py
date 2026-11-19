@@ -16,8 +16,10 @@ the ayllu routes on a bare app and exercises them for real (no mocks, no network
 """
 import asyncio
 import hashlib
+import json
 import sys
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -92,7 +94,14 @@ def test_second_brain_route_exposes_compound_runtime_boundary(monkeypatch):
     assert body["memory"]["brain_handle_count"] == 9465
     assert body["memory"]["brain_handle_count_source"] == "RUNTIME_RAG_STATUS"
     assert body["memory"]["training_authority_rows"] == 0
-    assert body["training_boundary"]["raw_brain_nodes_observed"] == 9465
+    current_manifest = json.loads((
+        Path(__file__).resolve().parents[1]
+        / "model_release/m1/corpus-ingestion-manifest.json"
+    ).read_text(encoding="utf-8"))
+    current_rows = current_manifest["ledgers"]["brain_nodes"]["rows"]
+    assert type(current_rows) is int and current_rows > 0
+    assert body["training_boundary"]["raw_brain_nodes_observed"] == current_rows
+    assert body["training_boundary"]["raw_brain_nodes_observation_state"] == "OBSERVED"
     assert body["training_boundary"][
         "raw_brain_nodes_observed_is_runtime_index_count"
     ] is False

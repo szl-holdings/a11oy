@@ -40,7 +40,7 @@ _ROOT = Path(__file__).resolve().parent
 _MANIFEST_PATH = _ROOT / "numerics" / "dataset_preregistration.json"
 _FORMULA_SOURCE_PATH = _ROOT / "szl_puriq_formulas.py"
 _LICENSE_PATH = _ROOT / "LICENSE"
-_LOCKED_FORMULA_IDS = frozenset({"F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"})
+_NUMERIC_NAMESPACE = "puriq.numeric-demo.v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$")
 _CASE_RE = re.compile(r"^case-[a-z0-9-]{8,120}$")
@@ -67,28 +67,18 @@ def _file_sha256(path: Path) -> str:
 def _formula_source_family(meta: Mapping[str, Any]) -> str:
     organ = str(meta.get("organ") or "source-unavailable").strip().lower()
     organ = re.sub(r"[^a-z0-9]+", "-", organ).strip("-") or "source-unavailable"
-    return f"puriq-formula-meta/{organ}"
+    return f"puriq-numeric-demo/{organ}"
 
 
-def _source_family_split(source_family: str) -> str:
-    """Assign a whole source family to one split to prevent family leakage."""
-
-    bucket = int(hashlib.sha256(source_family.encode("utf-8")).hexdigest()[:8], 16) % 10
-    if bucket < 7:
-        return "train"
-    if bucket < 9:
-        return "validation"
-    return "test"
-
-
-@lru_cache(maxsize=1)
 def formula_curriculum() -> dict[str, Any]:
-    """Build the full formula-ID/status curriculum without manufacturing proof evidence.
+    """Project numerical demonstrations without transferring formal proof authority.
 
     This is a metadata bridge into the Brain curriculum, not a theorem dataset.
-    The local canonical registry and repository license are content-addressed.  A
-    proof/refutation receipt remains null unless an exact per-formula receipt is
-    present; the repository currently provides no such mapping.
+    The numeric namespace is distinct from the formal registry even when their
+    short F-identifiers coincide. All demonstration rows remain evaluation-only
+    holdouts; an identifier or historical proof label is not a semantic binding.
+    Recheck source and formal registry evidence on every read; a cached positive
+    registry observation must not survive missing or invalid authority bytes.
     """
 
     if not _FORMULA_SOURCE_PATH.is_file() or not _LICENSE_PATH.is_file():
@@ -98,10 +88,16 @@ def formula_curriculum() -> dict[str, Any]:
     eligible: list[dict[str, Any]] = []
     quarantined: list[dict[str, Any]] = []
     expected_ids = {f"F{index}" for index in range(1, 24)}
+    numeric_metadata = _puriq.numeric_demo_metadata()
 
     def quarantine(formula_id: str, reasons: Sequence[str], meta: Mapping[str, Any] | None = None) -> None:
         quarantined.append({
             "formula_id": formula_id,
+            "formula_namespace": _NUMERIC_NAMESPACE,
+            "record_id": f"{_NUMERIC_NAMESPACE}:{formula_id}",
+            "formal_binding": "UNKNOWN_NOT_ASSERTED",
+            "training_eligible": False,
+            "can_authorize_action": False,
             "reasons": sorted(set(reasons)),
             "source_record_sha256": _adapter.digest_json(dict(meta)) if meta is not None else None,
             "proof_receipt_sha256": None,
@@ -111,20 +107,22 @@ def formula_curriculum() -> dict[str, Any]:
         })
 
     for formula_id in sorted(expected_ids, key=lambda token: int(token[1:])):
-        meta = _puriq.FORMULA_META.get(formula_id)
+        meta = numeric_metadata.get(formula_id)
         if not isinstance(meta, Mapping):
-            quarantine(formula_id, ["CANONICAL_RECORD_UNAVAILABLE"])
+            quarantine(formula_id, ["NUMERIC_DEMONSTRATION_UNAVAILABLE"])
             continue
         reasons: list[str] = []
         if meta.get("id") != formula_id:
             reasons.append("FORMULA_ID_CONFLICT")
         status = meta.get("proof_status")
-        if status not in {"PROVED", "UNATTEMPTED", "CONJECTURE_1"}:
-            reasons.append("UNSUPPORTED_PROOF_STATUS")
-        if (formula_id in _LOCKED_FORMULA_IDS) != (status == "PROVED"):
-            reasons.append("LOCKED_PROOF_CLAIM_CONFLICT")
-        if formula_id == "F23" and status != "CONJECTURE_1":
-            reasons.append("LAMBDA_CONJECTURE_STATUS_CONFLICT")
+        if (status != "UNVERIFIED" or meta.get("lean_status") != "UNVERIFIED"
+                or meta.get("lean_name") is not None or meta.get("locked") is not False
+                or meta.get("can_authorize_action") is not False):
+            reasons.append("NUMERIC_PROOF_AUTHORITY_CONFLICT")
+        if (meta.get("formula_namespace") != _NUMERIC_NAMESPACE
+                or meta.get("record_id") != f"{_NUMERIC_NAMESPACE}:{formula_id}"
+                or meta.get("formal_binding") != "UNKNOWN_NOT_ASSERTED"):
+            reasons.append("NUMERIC_NAMESPACE_BINDING_CONFLICT")
         required_text = ("name", "organ", "primitive", "identity_doc")
         if any(not isinstance(meta.get(field), str) or not str(meta[field]).strip() for field in required_text):
             reasons.append("PROVENANCE_METADATA_INCOMPLETE")
@@ -133,17 +131,11 @@ def formula_curriculum() -> dict[str, Any]:
             continue
 
         source_family = _formula_source_family(meta)
-        proof_note = meta.get("proof_note")
-        if status == "PROVED" and proof_note:
-            claim_scope = "LOCKED_THEOREM_ONLY_FORMULA_IDENTITY_SCOPE_MAY_DIFFER"
-        elif status == "PROVED":
-            claim_scope = "LOCKED_THEOREM_REPORTED_BY_CANONICAL_REGISTRY"
-        elif status == "CONJECTURE_1":
-            claim_scope = "CONJECTURE_1_OPEN_NOT_A_THEOREM"
-        else:
-            claim_scope = "OPEN_PROOF_OBLIGATION_UNATTEMPTED"
         eligible.append({
             "formula_id": formula_id,
+            "formula_namespace": _NUMERIC_NAMESPACE,
+            "record_id": meta["record_id"],
+            "formal_binding": "UNKNOWN_NOT_ASSERTED",
             "name": meta["name"],
             "organ": meta["organ"],
             "primitive": meta["primitive"],
@@ -151,26 +143,28 @@ def formula_curriculum() -> dict[str, Any]:
             "proof_status": status,
             "lean_name": meta.get("lean_name"),
             "lean_status": meta.get("lean_status"),
-            "locked": formula_id in _LOCKED_FORMULA_IDS,
-            "claim_scope": claim_scope,
+            "locked": False,
+            "claim_scope": "NUMERIC_DEMONSTRATION_NO_FORMAL_BINDING",
+            "can_authorize_action": False,
+            "training_eligible": False,
             "source_family": source_family,
-            "split": _source_family_split(source_family),
+            "split": "holdout",
             "source_record_sha256": _adapter.digest_json(dict(meta)),
             "proof_receipt_sha256": None,
             "refutation_receipt_sha256": None,
             "receipt_state": "PER_FORMULA_RECEIPT_SOURCE_UNAVAILABLE",
             "license_state": "REPOSITORY_APACHE_2_0",
-            "dataset_role": "STATUS_AND_PROVENANCE_METADATA_ONLY",
+            "dataset_role": "NUMERIC_DEMONSTRATION_METADATA_HOLDOUT_ONLY",
             "proof_uplift": 0,
             "trust_uplift": 0,
         })
 
-    extras = sorted(set(_puriq.FORMULA_META) - expected_ids)
+    extras = sorted(set(numeric_metadata) - expected_ids)
     for formula_id in extras:
-        meta = _puriq.FORMULA_META[formula_id]
+        meta = numeric_metadata[formula_id]
         quarantine(str(formula_id), ["FORMULA_ID_OUTSIDE_F1_F23_CONTRACT"], meta if isinstance(meta, Mapping) else None)
 
-    split_families: dict[str, list[str]] = {"train": [], "validation": [], "test": []}
+    split_families: dict[str, list[str]] = {"train": [], "validation": [], "test": [], "holdout": []}
     for item in eligible:
         if item["source_family"] not in split_families[item["split"]]:
             split_families[item["split"]].append(item["source_family"])
@@ -179,34 +173,42 @@ def formula_curriculum() -> dict[str, Any]:
     return {
         "schema": CURRICULUM_SCHEMA,
         "state": "READY" if eligible and not quarantined else ("PARTIAL" if eligible else "UNAVAILABLE"),
-        "dataset_role": "BRAIN_CURRICULUM_FORMULA_STATUS_AND_PROVENANCE_METADATA",
-        "canonical_source": {
+        "dataset_role": "BRAIN_CURRICULUM_NUMERIC_METADATA_HOLDOUT_ONLY",
+        "training_eligible": False,
+        "numeric_source": {
             "path": "szl_puriq_formulas.py",
+            "projection": "numeric_demo_metadata",
+            "formula_namespace": _NUMERIC_NAMESPACE,
             "sha256": source_sha256,
             "license": "Apache-2.0",
             "license_file_sha256": license_sha256,
         },
         "formula_contract": {
             "expected_ids": [f"F{index}" for index in range(1, 24)],
-            "locked_proven_ids": sorted(_LOCKED_FORMULA_IDS, key=lambda token: int(token[1:])),
-            "lambda_formula_id": "F23",
-            "lambda_status": "CONJECTURE_1",
+            "formula_namespace": _NUMERIC_NAMESPACE,
+            "locked_proven_ids": [],
+            "formal_binding": "UNKNOWN_NOT_ASSERTED",
+            "f_id_to_callable_mapping": "UNKNOWN_NOT_ASSERTED",
+            "can_authorize_action": False,
         },
+        "formal_registry": _puriq.formal_registry_snapshot(),
         "counts": {
             "expected": 23,
             "eligible": len(eligible),
             "quarantined": len(quarantined),
+            "training_eligible": 0,
+            "eligible_scope": "VALID_NUMERIC_METADATA_ONLY",
             "source_families": len({item["source_family"] for item in eligible}),
         },
         "source_family_split": {
-            "method": "SHA256_FAMILY_BUCKET_70_20_10_NO_FAMILY_LEAKAGE",
+            "method": "ALL_NUMERIC_DEMONSTRATIONS_HOLDOUT_ONLY",
             "families": split_families,
         },
         "eligible": eligible,
         "quarantined": quarantined,
         "receipt_boundary": (
             "Null receipt hashes mean no exact per-formula proof/refutation receipt mapping was found; "
-            "canonical registry status is not upgraded into receipt evidence."
+            "formal registry status is not transferred across numeric namespaces."
         ),
         "interpretation_guard": (
             "This curriculum carries formula identifiers, statuses, and provenance metadata only. "
