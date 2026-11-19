@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -121,6 +122,48 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
             return values
 
     api = CadenceApi()
+    # The real configuration path now uses a guarded mutation transport.
+    # This fixture must exercise that contract, not accidentally call the
+    # provider or silently bypass the guard after source ownership checks.
+    effects = []
+
+    class FixtureGuard:
+        def __init__(self, provider):
+            assert provider is api
+            self.summary = {"state": "FIXTURE_ONLY_NOT_PRODUCTION_AUTHORITY"}
+
+        def admit(self):
+            effects.append("guard_admit")
+            return time.monotonic() + 30
+
+        def close(self):
+            effects.append("guard_close")
+
+    class FixtureWriter:
+        def __init__(self, token):
+            assert token == "synthetic-hf-control"
+
+        def submit(self, method, route, payload, *, deadline, label):
+            assert effects == ["guard_admit"]
+            assert method == "POST" and route == "variables"
+            assert deadline > time.monotonic()
+            assert label == payload["key"] == "A11OY_STATE_PERIODIC_SECONDS"
+            assert payload["value"] == "300"
+            api.add_space_variable(repo_id=config.CANONICAL_SPACE,
+                                   key=payload["key"], value=payload["value"],
+                                   description=payload["description"])
+            effects.append("writer_submit")
+
+        def outcome(self):
+            return {"state": "FIXTURE_ONLY"}
+
+        def close(self):
+            effects.append("writer_close")
+
+    monkeypatch.setattr(config, "load_runtime_mutation_owner", lambda: SimpleNamespace(
+        ReleasedStateGuard=FixtureGuard,
+        RuntimeMutationClient=FixtureWriter,
+        RuntimeConfigError=config.RuntimeConfigError))
     monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
     real_readback = config.await_readback
     sleeps = []
@@ -136,7 +179,8 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
                               expected_source_sha="a" * 40, main_reader=main_reader,
                               authority_get=pinned_get)
     assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
-    assert admissions == [(), ()]
+    assert admissions == [(), (), ()]  # initial, pre-guard, and pre-dispatch exact-main reads
+    assert effects == ["guard_admit", "writer_submit", "writer_close", "guard_close"]
     assert report["variables_changed"] == ["A11OY_STATE_PERIODIC_SECONDS"]
     assert {"A11OY_STATE_DEBOUNCE_SECONDS", "A11OY_STATE_PERIODIC_SECONDS",
             "A11OY_STATE_ALERT_SECONDS"} <= set(report["variables_managed"])
