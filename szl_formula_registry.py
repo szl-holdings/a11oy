@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parent
 REGISTRY_PATH = ROOT / "formula_registry" / "formula-registry.v1.json"
 
 SCHEMA_VERSION = "szl.formula-authority.v2"
+EXPECTED_PAYLOAD_DIGEST = "ec1d9e1aa6c6bcb1fb70731c86d46374a6aeed6d311c2bf5e315b12c87ec6b08"
 EXPECTED_CANONICALIZATION = (
     "UTF-8 JSON; object keys sorted; separators ',', ':'; "
     "ensure_ascii=false; digest scope=payload"
@@ -83,6 +84,18 @@ EXPECTED_SOURCE_ASSETS = (
         "role": "conditional Lambda theorem and unconditional counterexample source",
     },
 )
+EXPECTED_FORMULA_NAMES = {
+    "F1": "Replay-Hash Determinism",
+    "F4": "Khipu DAG Acyclicity",
+    "F7": "Chaski FIFO Ordering",
+    "F11": "Ayni Reciprocity Conservation",
+    "F12": "Kuramoto Additive Fragment",
+    "F18": "Reed-Solomon RS(10,6) Recovery Arithmetic",
+    "F19": "Bekenstein Additive Scaffolding",
+    "F22": "Khipu Emit Monotonicity",
+    "F23": "Lambda Aggregator Uniqueness",
+}
+
 EXPECTED_FORMULA_SEMANTICS = {
     "F1": (
         "LOCKED_PROVEN",
@@ -351,6 +364,8 @@ def validate_registry_document(
     for entry in formulas:
         _assert_exact_keys(entry, FORMULA_KEYS, f"{entry.get('id')} formula")
         formula_id = entry["id"]
+        if entry.get("name") != EXPECTED_FORMULA_NAMES[formula_id]:
+            raise ValueError(f"{formula_id} formal identity name drift")
         expected = EXPECTED_FORMULA_SEMANTICS[formula_id]
         actual = (
             entry.get("maturity"),
@@ -367,7 +382,8 @@ def validate_registry_document(
             raise ValueError(f"{formula_id} must require an applicability decision")
         if entry.get("can_authorize_action") is not False:
             raise ValueError(f"{formula_id} may not independently authorize an action")
-        if not entry.get("scope") or not entry.get("caveat"):
+        if any(not isinstance(entry.get(field), str) or not entry[field].strip()
+               for field in ("scope", "caveat")):
             raise ValueError(f"{formula_id} scope/caveat must be explicit")
 
     flagged = tuple(
@@ -387,6 +403,10 @@ def validate_registry_document(
     source_paths = {asset["path"] for asset in assets}
     if source_paths & set(historical):
         raise ValueError("historical snapshots cannot re-enter the authority source set")
+    # A self-consistent replacement hash cannot expand the reviewed statements,
+    # caveats or policy. Changing this pin requires a reviewed authority update.
+    if actual_digest != EXPECTED_PAYLOAD_DIGEST:
+        raise ValueError("formula authority differs from the reviewed payload digest")
 
 
 def load_registry(

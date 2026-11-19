@@ -1,18 +1,17 @@
 {
   "candidate_id": "a11oy-evidence-1.5b-sft-lora",
   "coverage": {
-    "abstention_examples": 115,
-    "distinct_artifacts": 4230,
+    "abstention_examples": 123,
+    "distinct_artifacts": 4249,
     "formula_records_current_versioned_sources": 123,
     "formula_requested_200_claim": "NOT_VERIFIED_BY_CURRENT_VERSIONED_SOURCES",
     "formula_roles": {
-      "HOLDOUT_ABSTENTION": 115,
-      "HOLDOUT_POSITIVE": 8
+      "HOLDOUT_ABSTENTION": 123
     },
     "formula_status": {
       "CONDITIONAL": 0,
-      "KERNEL_ACCEPTED": 8,
-      "OPEN": 115,
+      "KERNEL_ACCEPTED": 0,
+      "OPEN": 123,
       "REFUTED": 0
     },
     "formula_status_vocabulary": [
@@ -21,41 +20,41 @@
       "OPEN",
       "REFUTED"
     ],
-    "missing_item_level_license_nodes": 9301,
-    "missing_source_timestamp_nodes": 9267,
+    "missing_item_level_license_nodes": 9310,
+    "missing_source_timestamp_nodes": 9276,
     "negative_examples": 0,
     "node_decision_coverage": 1.0,
     "node_decisions": {
-      "QUARANTINE": 9465
+      "QUARANTINE": 9484
     },
-    "node_decisions_expected": 9465,
-    "node_decisions_total": 9465,
+    "node_decisions_expected": 9484,
+    "node_decisions_total": 9484,
     "node_safety": {
       "QUARANTINE_LICENSE_UNKNOWN": 4066,
       "QUARANTINE_PERSON_METADATA": 5235,
-      "QUARANTINE_RAW_GRAPH_DUPLICATE_FORMULA": 23,
-      "QUARANTINE_RAW_GRAPH_NOT_ADMITTED": 141
+      "QUARANTINE_RAW_GRAPH_DUPLICATE_FORMULA": 32,
+      "QUARANTINE_RAW_GRAPH_NOT_ADMITTED": 151
     },
     "person_metadata": 5235,
-    "quarantined_or_excluded_nodes": 9465,
-    "raw_nodes_training_quarantined": 9465,
+    "quarantined_or_excluded_nodes": 9484,
+    "raw_nodes_training_quarantined": 9484,
     "training_eligible_nodes": 0
   },
   "leakage_policy": "all rows from one source_family have exactly one split; formula families are HOLDOUT; quarantined rows are never training text",
   "ledgers": {
     "brain_nodes": {
-      "bytes": 13370772,
+      "bytes": 13406983,
       "path": "brain-ingest-ledger.jsonl",
-      "rows": 9465,
+      "rows": 9484,
       "schema": "szl.m1-brain-ingest-decision/v1",
-      "sha256": "d2946716f30ae6705f5f6b75ffbac862a42eefb55f2787ec320ed4f0992df8d0"
+      "sha256": "b52d060db04b6f2550208275a7c41f09565cadcfb299a30525d39fb47a9dfeaa"
     },
     "formulas": {
-      "bytes": 163362,
+      "bytes": 202738,
       "path": "formula-curriculum-ledger.jsonl",
       "rows": 123,
       "schema": "szl.m1-formula-curriculum-decision/v1",
-      "sha256": "028ff018a9574af2356b23ac581c1eb4087c170e689ca221fdb59ace4cae63a8"
+      "sha256": "2d12e3fb3d07cc5cf87f353bd3a9294a1e8150ac0e85051ee59d9a9b2080668d"
     }
   },
   "quality_claim": "NOT_ESTABLISHED",
@@ -71,7 +70,7 @@
   "schema": "szl.m1-corpus-ingestion-manifest/v1",
   "source_family_split": {
     "a11oy-versioned-runtime": {
-      "rows": 141,
+      "rows": 151,
       "split": "QUARANTINE"
     },
     "academic-publication-metadata": {
@@ -82,13 +81,13 @@
       "rows": 5235,
       "split": "QUARANTINE"
     },
+    "brain-raw-formal-index": {
+      "rows": 9,
+      "split": "QUARANTINE"
+    },
     "brain-raw-formula-index": {
       "rows": 23,
       "split": "QUARANTINE"
-    },
-    "canonical-formula-registry": {
-      "rows": 23,
-      "split": "HOLDOUT"
     },
     "dataset-benchmark-metadata": {
       "rows": 44,
@@ -97,6 +96,10 @@
     "other-graph-metadata": {
       "rows": 3,
       "split": "QUARANTINE"
+    },
+    "puriq-numeric-demonstrations": {
+      "rows": 23,
+      "split": "HOLDOUT"
     },
     "repository-metadata": {
       "rows": 2362,
@@ -112,13 +115,13 @@
     }
   },
   "source_snapshot": {
-    "brain_graph_receipt_id": "brain-graph:sha256:5b326cd5c5d003d57631e46aa9f64bb377fa2aee36d1c8685f570d9190c122eb",
-    "brain_graph_sha256": "5b326cd5c5d003d57631e46aa9f64bb377fa2aee36d1c8685f570d9190c122eb",
-    "distinct_artifact_count": 4230,
-    "link_count_reported_by_graph": 14240,
+    "brain_graph_receipt_id": "brain-graph:sha256:ec3135fe5ca73c691c25ca938dc01b8631a5aa8e554617e77b8e13bf746dd231",
+    "brain_graph_sha256": "ec3135fe5ca73c691c25ca938dc01b8631a5aa8e554617e77b8e13bf746dd231",
+    "distinct_artifact_count": 4249,
+    "link_count_reported_by_graph": 14296,
     "network_fetches": 0,
     "person_metadata_count": 5235,
-    "raw_node_count": 9465,
+    "raw_node_count": 9484,
     "versioned_sources_only": true
   },
   "training_relation": "PROPOSAL_ONLY_NOT_USED_BY_EXISTING_ADAPTER",

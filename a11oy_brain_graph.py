@@ -13,11 +13,13 @@ WHAT IT HARVESTS (all real sources — no invented nodes):
   * 64 frontier surfaces  — reuses a11oy_frontier_page.build_surfaces_manifest()
                             (the one source of truth parsed from holographic.html;
                             each surface carries its verbatim honesty label).
-  * 23 PURIQ formulas F1..F23 — reuses szl_puriq_formulas.FORMULA_META (the
-                            wave formula substrate). The locked-8
-                            {F1,F4,F7,F11,F12,F18,F19,F22} are flagged
-                            (EXPERIMENTAL_WAVES.locked_ids); F23 (Λ) carries
-                            "Conjecture 1" — NEVER a theorem.
+  * 23 PURIQ numerical cases — preserves the historical formula:F1..F23 node
+                            IDs in a distinct numeric-demo namespace. These
+                            cases have no asserted formal theorem binding.
+  * Formal formula records — projects the validated, digest-bound formula
+                            authority with its exact names, scopes, caveats,
+                            and pinned sources. Only these records can carry
+                            locked flags; an unavailable registry cannot.
   * 34 active org repos    — a static snapshot of the live szl-holdings GitHub
                             inventory (non-archived, non-fork) captured at build
                             time; provenance + capture date are reported.
@@ -34,13 +36,13 @@ provenance field:
   * formula -> topic    (formula's own organ)
   * repo -> topic       (repo name token matches a topic)
   * topic -> estate     (structural backbone)
-  * formula -> estate   (locked-8 + Λ proven/conjectured backbone -> thesis)
+  * formal formula -> endpoint (the API that publishes the authority record)
   * endpoint -> estate  (each live endpoint feeds the estate root)
 
 LAYERS (for the neural-net render; `layer` on every node):
   0 = INPUT   : repos + surfaces
   1 = HIDDEN  : topic clusters
-  2 = HIDDEN  : formulas (locked-8 highlighted)
+  2 = HIDDEN  : numerical cases and separately namespaced formal formulas
   3 = OUTPUT  : estate root + live endpoints
 
 Doctrine v11 honesty:
@@ -188,6 +190,11 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
     formulas_ep = f"/api/{ns}/v1/puriq/formulas"
     manifest_ep = f"/api/{ns}/v1/frontier/manifest"
     graph_ep = f"/api/{ns}/v1/brain/graph"
+    numeric_cases = _puriq.numeric_demo_metadata()
+    formal_snapshot = _puriq.formal_registry_snapshot()
+    formal_available = formal_snapshot["state"] == "AVAILABLE"
+    formal_formulas = formal_snapshot["formulas"] if formal_available else {}
+    locked = set(formal_snapshot["locked_proven_ids"]) if formal_available else set()
 
     nodes: list = []
     links: list = []
@@ -215,7 +222,7 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
     # ---- OUTPUT layer: live endpoints ------------------------------------- #
     endpoint_defs = [
         (surfaces_ep, "frontier surfaces manifest"),
-        (formulas_ep, "PURIQ formulas registry"),
+        (formulas_ep, "formal authority and numerical case metadata"),
         (manifest_ep, "frontier honest roll-up"),
         (graph_ep, "brain graph (this view)"),
     ]
@@ -233,13 +240,13 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
     def _organ_tokens(organ: str) -> list:
         return [t for t in organ.replace("A/agency", "A").split("/") if t]
 
-    for meta in _puriq.FORMULA_META.values():
+    for meta in numeric_cases.values():
         for tok in _organ_tokens(meta.get("organ", "")):
             if tok not in topic_ids:
                 tid = f"topic:{tok}"
                 topic_ids[tok] = tid
                 add_node(tid, kind="topic", layer=1, title=tok,
-                         label="MODELED", derived_from="FORMULA_META.organ")
+                         label="MODELED", derived_from="numeric_demo_metadata.organ")
                 add_link(tid, estate_id, "topic-estate", derived_from="backbone")
 
     # ---- INPUT layer: surfaces (real manifest) ---------------------------- #
@@ -256,34 +263,58 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
         add_link(sid, endpoint_ids[surfaces_ep], "surface-endpoint",
                  derived_from="frontier/surfaces manifest")
 
-    # ---- HIDDEN layer 2: formulas (locked-8 flagged) ---------------------- #
-    locked = set(_puriq.EXPERIMENTAL_WAVES.get("locked_ids", []))
-    for fid, meta in _puriq.FORMULA_META.items():
+    # Historical node IDs stay stable for corpus crosswalks, but their F-number
+    # is not a formal identity. Matching identifiers never establish a binding.
+    for fid, meta in numeric_cases.items():
         nid = f"formula:{fid}"
-        is_lambda = fid == "F23"
-        node = add_node(
+        add_node(
             nid, kind="formula", layer=2, title=meta.get("name", fid),
             formula_id=fid, organ=meta.get("organ", ""),
-            proof_status=meta.get("proof_status", "UNATTEMPTED"),
-            locked=fid in locked,
-            label="MODELED" if not is_lambda else "MODELED",
-            conjecture="Conjecture 1" if is_lambda else None,
+            formula_namespace=meta["formula_namespace"],
+            record_id=meta["record_id"],
+            formal_binding="UNKNOWN_NOT_ASSERTED",
+            proof_status="UNVERIFIED", lean_status="UNVERIFIED", lean_name=None,
+            locked=False, can_authorize_action=False, execution_authority=False,
+            label="MODELED", conjecture=None,
             primitive=meta.get("primitive", ""))
         ftokens = _tokens(meta.get("name", ""), meta.get("primitive", ""),
                           meta.get("organ", ""))
         # formula -> topic (its own organ)
         for tok in _organ_tokens(meta.get("organ", "")):
             add_link(nid, topic_ids.get(tok, ""), "formula-topic",
-                     derived_from="FORMULA_META.organ")
+                     derived_from="numeric_demo_metadata.organ")
         # formula -> surface (shared token in surface id/title)
         for _su, snode, sid in surface_nodes:
             shared = ftokens & snode["_tokens"]
             if shared:
                 add_link(nid, sid, "formula-surface", via=sorted(shared)[0])
-        # locked-8 + Λ proven/conjectured backbone -> thesis output
-        if fid in locked or is_lambda:
-            add_link(nid, estate_id, "formula-estate",
-                     derived_from="locked-8" if fid in locked else "Λ=Conjecture 1")
+
+    # Formal identities have their own node kind and IDs. These records are
+    # registry metadata, not applicability evidence for the numerical cases or
+    # any deployed mechanism; no semantic mapping edges are inferred.
+    for fid, meta in formal_formulas.items():
+        nid = f"formal-formula:{fid}"
+        add_node(
+            nid, kind="formal_formula", layer=2, title=meta["name"],
+            formula_id=fid, formula_namespace=meta["formula_namespace"],
+            record_id=meta.get("record_id", f"{meta['formula_namespace']}:{fid}"),
+            proof_status=meta["maturity"], maturity=meta["maturity"],
+            locked=meta["locked_proven"] is True and fid in locked,
+            label="MODELED", scope=meta["scope"], caveat=meta["caveat"],
+            theorem_refs=list(meta["theorem_refs"]),
+            source_url=meta["source_url"], source="szl_formula_registry",
+            source_pin=dict(meta["source"]),
+            source_asset=meta.get("source_asset"),
+            registry_digest=formal_snapshot["registry_digest"],
+            signature_status=formal_snapshot["signature_status"],
+            kernel_mapping=formal_snapshot["kernel_mapping"],
+            applicability_required=True,
+            runtime_applicability=meta["runtime_applicability"],
+            can_authorize_action=False, execution_authority=False,
+            conjecture="Conjecture 1" if meta["maturity"] == "CONJECTURE_1_ADVISORY" else None,
+        )
+        add_link(nid, endpoint_ids[formulas_ep], "formal-formula-endpoint",
+                 derived_from="validated formula authority")
 
     # ---- INPUT layer: repos (static snapshot) ----------------------------- #
     # Each estate repo node inherits the snapshot's REAL committed capture date
@@ -317,6 +348,8 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
     # (e.g. surface:* stubs) are dropped, never overwriting the real estate node.
     harvested_added = 0
     harvest_dupes = 0
+    harvest_reserved_formulas = 0
+    harvest_formal_links = 0
     _link_seen = set()  # (source, target, rel) dedupe for harvested links only
     pending_edges: list = []
 
@@ -335,6 +368,10 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
         if kind == "node":
             hid = obj.get("id")
             if not hid:
+                continue
+            if str(hid).startswith("formal-formula:") or obj.get("kind") == "formal_formula":
+                # A harvested label cannot replace unavailable formal authority.
+                harvest_reserved_formulas += 1
                 continue
             if hid in index:  # collision with estate (or an earlier harvest id)
                 harvest_dupes += 1
@@ -368,6 +405,11 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
     # the REAL estate surface nodes; targets that resolve to nothing are dropped
     # (add-link is dangling-safe) — no fabricated placeholder nodes.
     for src, dst, rel in pending_edges:
+        if str(src).startswith("formal-formula:") or str(dst).startswith("formal-formula:"):
+            # Public research links do not prove formula applicability or a
+            # semantic correspondence to a numerical case or implementation.
+            harvest_formal_links += 1
+            continue
         _add_field_link(src, dst, rel, derived_from="harvest")
 
     # strip internal token caches before returning
@@ -409,8 +451,10 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
         "doctrine": {
             "version": "v11",
             "lambda": "Conjecture 1",
-            "locked_count": len(locked),
-            "locked_ids": sorted(locked),
+            "formula_authority_state": formal_snapshot["state"],
+            "locked_count": len(locked) if formal_available else None,
+            "locked_ids": sorted(locked) if formal_available else None,
+            "formula_registry_digest": formal_snapshot["registry_digest"],
             "canonical_domain": CANONICAL_DOMAIN,
             "note": ("MODELED derived view; node/link counts are the ACTUAL "
                      "harvested totals (NOT the leaked 8,893). Pure read — no "
@@ -420,21 +464,37 @@ def build_brain_graph(ns: str = "a11oy") -> dict:
             "-1": "field (harvested field leaders — outer ring, beyond input)",
             "0": "input (repos + surfaces)",
             "1": "hidden (topic clusters)",
-            "2": "hidden (formulas; locked-8 highlighted)",
+            "2": "hidden (numerical cases and distinct formal formula records)",
             "3": "output (estate root + live endpoints)",
         },
         "sources": {
             "surfaces": {"endpoint": surfaces_ep, "count": len(surface_nodes),
                          "source": "a11oy_frontier_page.build_surfaces_manifest"},
-            "formulas": {"endpoint": formulas_ep, "count": len(_puriq.FORMULA_META),
-                         "source": "szl_puriq_formulas.FORMULA_META"},
+            "formulas": {"endpoint": formulas_ep, "count": len(numeric_cases),
+                         "source": "szl_puriq_formulas.numeric_demo_metadata",
+                         "formula_namespace": "puriq.numeric-demo.v1",
+                         "formal_binding": "UNKNOWN_NOT_ASSERTED",
+                         "locked_proven_count": 0},
+            "formal_formulas": {
+                "endpoint": formulas_ep, "count": len(formal_formulas),
+                "source": "szl_puriq_formulas.formal_registry_snapshot",
+                "state": formal_snapshot["state"],
+                "reason": formal_snapshot.get("reason"),
+                "formula_namespace": "lutar-lean.formal-f-id.v2",
+                "registry_digest": formal_snapshot["registry_digest"],
+                "signature_status": formal_snapshot["signature_status"],
+                "kernel_mapping": formal_snapshot["kernel_mapping"],
+                "locked_proven_count": len(locked) if formal_available else None,
+            },
             "repos": {"count": len(ORG_REPOS_SNAPSHOT["repos"]),
                       "captured": ORG_REPOS_SNAPSHOT["captured"],
                       "source": ORG_REPOS_SNAPSHOT["source"]},
             "topics": {"count": len(topic_ids),
-                       "source": "distinct FORMULA_META.organ"},
+                       "source": "distinct numeric_demo_metadata.organ"},
             "harvest": {"count": harvested_added,
                         "deduped_against_estate": harvest_dupes,
+                        "reserved_formula_nodes_rejected": harvest_reserved_formulas,
+                        "unproved_formal_links_rejected": harvest_formal_links,
                         "available": harvest_available(),
                         "files": _harvest_files(),
                         "layer": FIELD_LAYER,
@@ -485,9 +545,17 @@ _CACHE: dict = {}
 def get_brain_graph(ns: str = "a11oy", *, refresh: bool = False) -> dict:
     """Return the merged graph, cached per-ns (built on first call).
 
-    The merged graph is thousands of nodes; rebuilding it per request is wasted
-    work on a pure read. Deterministic, so caching is safe."""
-    if refresh or ns not in _CACHE:
+    The large harvested graph is cached. Revalidate its small local formula
+    authority before reuse so a missing or invalid registry cannot leave stale
+    locked claims in the cached view. No provider call or write is performed."""
+    formula_state = _puriq.formal_registry_snapshot()
+    cached = _CACHE.get(ns)
+    cached_formula = cached["sources"]["formal_formulas"] if cached else {}
+    formula_changed = any(
+        cached_formula.get(key) != formula_state.get(key)
+        for key in ("state", "registry_digest")
+    )
+    if refresh or cached is None or formula_changed:
         _CACHE[ns] = build_brain_graph(ns)
     return _CACHE[ns]
 
@@ -593,11 +661,17 @@ def _selftest() -> None:
     assert g["node_count"] != 8893, "must NOT be the leaked fabricated 8,893"
     # real source counts. Surfaces are read LIVE from holographic.html (the one
     # source of truth), so pin the structural invariant, not a magic number that
-    # drifts every time a surface is added: estate = 70 fixed scaffold (1 estate
-    # + 4 endpoints + 8 topics + 23 formulas + 34 repos) + N live surfaces.
+    # drifts every time a surface is added: estate = 70 historical scaffold
+    # (1 estate + 4 endpoints + 8 topics + 23 numerical cases + 34 repos)
+    # + the independently validated formal records + N live surfaces.
     surf_count = g["sources"]["surfaces"]["count"]
     assert surf_count >= 64, f"expected >=64 frontier surfaces, got {surf_count}"
-    assert g["sources"]["formulas"]["count"] == 23, "expected 23 PURIQ formulas"
+    assert g["sources"]["formulas"]["count"] == 23, "expected 23 PURIQ numerical cases"
+    formal_count = g["sources"]["formal_formulas"]["count"]
+    assert formal_count == 9, "expected exact eight locked records plus advisory F23"
+    demos = [n for n in g["nodes"] if n["kind"] == "formula"]
+    assert all(n["locked"] is False and n["proof_status"] == "UNVERIFIED" for n in demos), \
+        "numerical cases cannot inherit a formal proof by F-number"
     assert g["sources"]["repos"]["count"] == 34, "expected 34 active org repos"
     assert g["summary"]["locked_flagged"] == 8, "exactly 8 locked formulas flagged"
     # neural-net layering present on every node
@@ -626,8 +700,8 @@ def _selftest() -> None:
     if harvest_available():
         est_n = g["summary"]["estate_node_count"]
         har_n = g["summary"]["harvest_node_count"]
-        assert est_n == 70 + surf_count, \
-            f"estate = 70 scaffold + {surf_count} live surfaces, got {est_n}"
+        assert est_n == 70 + formal_count + surf_count, \
+            f"estate = 70 scaffold + {formal_count} formal records + {surf_count} surfaces, got {est_n}"
         assert har_n > 1000, f"expected thousands of harvested nodes, got {har_n}"
         assert g["node_count"] == est_n + har_n, "merged node_count must add up"
         # pass-2 must be picked up by the glob loader (not a fixed file list)
