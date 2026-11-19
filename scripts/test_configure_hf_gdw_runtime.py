@@ -107,11 +107,6 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
             })
             self.readbacks = 0
 
-        def add_space_variable(self, *, repo_id, key, value, description):
-            assert repo_id == config.CANONICAL_SPACE
-            self.writes.append((key, value))
-            self.variables[key] = SimpleNamespace(value=value)
-
         def get_space_variables(self, *, repo_id):
             values = super().get_space_variables(repo_id=repo_id)
             if self.writes:
@@ -121,7 +116,9 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
             return values
 
     api = CadenceApi()
-    monkeypatch.setitem(sys.modules, "huggingface_hub", SimpleNamespace(HfApi=lambda **_kwargs: api))
+    # Writes go through the guarded GDW mutation owner (#3637); the release
+    # transport fixture applies each admitted POST to api.variables/api.writes.
+    kwargs, _fixture, _guard, requests, _writers = install_gdw_release_transport(monkeypatch, api)
     real_readback = config.await_readback
     sleeps = []
     monkeypatch.setattr(config, "await_readback", lambda api, **kwargs: real_readback(
@@ -132,11 +129,13 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
         admissions.append(tuple(api.writes))
         return "a" * 40
 
-    report = config.configure(repo_id=config.CANONICAL_SPACE, hf_token="synthetic-hf-control",
-                              expected_source_sha="a" * 40, main_reader=main_reader,
-                              authority_get=pinned_get)
+    report = config.configure(**{**kwargs, "main_reader": main_reader})
     assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
-    assert admissions == [(), ()]
+    assert len(requests) == 1
+    # One protected-main check before any provider client (#2644), then a fresh
+    # check on each side of the guard admission for the single write (#3637);
+    # every one of them happens before the write lands.
+    assert admissions == [(), (), ()]
     assert report["variables_changed"] == ["A11OY_STATE_PERIODIC_SECONDS"]
     assert {"A11OY_STATE_DEBOUNCE_SECONDS", "A11OY_STATE_PERIODIC_SECONDS",
             "A11OY_STATE_ALERT_SECONDS"} <= set(report["variables_managed"])
