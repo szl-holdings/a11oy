@@ -268,8 +268,16 @@ def _tile_energy_operator() -> dict:
     gpu_reachable = 0 if st.get("stub_mode") else sum(
         1 for state in node_status.values() if state == "computing")
     measured = int(measured_jobs or 0)
-    # Honest status: MEASURED label always (the operator's billable figure is MEASURED),
-    # but the human status reflects whether the loop is actually running right now.
+    # Preserve the operator's energy evidence; a status response is not a
+    # measurement. Missing labels and contradictory zero-job claims fail closed.
+    measured_label = st.get("joules_measured_label")
+    measured_reason = st.get("joules_measured_reason")
+    if measured_label not in (MEASURED, SAMPLE, MODELED, ROADMAP, UNAVAILABLE):
+        measured_label = UNAVAILABLE
+        measured_reason = measured_reason or "MEASUREMENT_LABEL_UNAVAILABLE"
+    elif measured_label == MEASURED and measured < 1:
+        measured_label = UNAVAILABLE
+        measured_reason = measured_reason or "NO_VERIFIED_NVML_COUNTER_WINDOW"
     if running:
         status = "OK (operator running)"
     elif st.get("stub_mode"):
@@ -277,7 +285,7 @@ def _tile_energy_operator() -> dict:
     else:
         status = "IDLE (operator stopped)"
     return _tile(
-        "Energy operator", "energy", status=status, label=MEASURED,
+        "Energy operator", "energy", status=status, label=measured_label,
         provenance={
             "endpoint": f"{_API}/energy/operator/status",
             "kind": "live in-process status",
@@ -285,18 +293,23 @@ def _tile_energy_operator() -> dict:
         },
         running=running,
         joules_measured_total=measured_total,
+        joules_measured_label=measured_label,
+        joules_measured_reason=measured_reason,
         measured_jobs=measured_jobs,
         jobs_done=st.get("jobs_done"),
         gpu_nodes_reachable=gpu_reachable,
         operational_evidence={
             "predicate": ("energy operator reports running=true + a configured GPU "
-                          "node answered its latest sweep probe + measured_jobs >= 1"),
-            "satisfied": bool(running and gpu_reachable and measured),
+                          "node answered its latest sweep probe + measured_jobs >= 1 "
+                          "+ joules_measured_label=MEASURED"),
+            "satisfied": bool(running and gpu_reachable and measured > 0
+                              and measured_label == MEASURED),
             "reasons": [
                 reason for failed, reason in (
                     (not running, "operator_stopped"),
                     (not gpu_reachable, "no_gpu_reachable"),
-                    (not measured, "no_measured_jobs"),
+                    (measured < 1, "no_measured_jobs"),
+                    (measured_label != MEASURED, "measured_energy_evidence_unavailable"),
                 ) if failed
             ],
         },
