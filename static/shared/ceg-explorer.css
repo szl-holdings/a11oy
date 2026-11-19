@@ -1,0 +1,187 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+ */
+#evidence-inspector {
+  margin-block: var(--space-8);
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  scroll-margin-block-start: calc(var(--honest-banner-h) + var(--space-4));
+}
+#evidence-inspector * { min-width: 0; }
+#evidence-inspector h2, #evidence-inspector h3, #evidence-inspector h4 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-heading);
+  overflow-wrap: anywhere;
+}
+#evidence-inspector h2 { font-size: var(--text-xl); }
+#evidence-inspector h3 { font-size: var(--text-lg); }
+#evidence-inspector h4 { font-size: var(--text-sm); }
+#evidence-inspector p { margin-block: var(--space-2); }
+#evidence-inspector a { color: var(--link); text-underline-offset: 3px; }
+#evidence-inspector a:hover { color: var(--link-hover); }
+#evidence-inspector :where(button, input, select) {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-md);
+  background: var(--bg-deep);
+  color: var(--text);
+  font: inherit;
+}
+#evidence-inspector button { cursor: pointer; }
+#evidence-inspector button:hover { background: var(--surface-raised); }
+#evidence-inspector button:disabled { opacity: .6; cursor: wait; }
+#evidence-inspector :where(a, button, input, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+#evidence-inspector .ceg-kicker {
+  color: var(--text-ghost);
+  font: var(--weight-semibold) var(--text-xs)/var(--leading-normal) var(--font-mono);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+#evidence-inspector .ceg-caption { display: block; color: var(--text-sub); }
+#evidence-inspector .ceg-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+#evidence-inspector .ceg-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, .65fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+  margin-block: var(--space-5) var(--space-3);
+}
+#evidence-inspector label { display: grid; gap: var(--space-1); color: var(--text-sub); }
+#evidence-inspector input, #evidence-inspector select { width: 100%; }
+#evidence-inspector input::placeholder { color: var(--text-ghost); }
+#evidence-inspector .ceg-status {
+  padding: var(--space-3);
+  border-inline-start: 3px solid var(--border);
+  background: var(--bg-deep);
+  overflow-wrap: anywhere;
+}
+#evidence-inspector .ceg-snapshot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  margin-block: var(--space-4);
+}
+#evidence-inspector .ceg-snapshot > section {
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+#evidence-inspector .ceg-facts {
+  display: grid;
+  grid-template-columns: minmax(7rem, .7fr) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  margin-block: var(--space-3);
+}
+#evidence-inspector .ceg-facts dt { color: var(--text-ghost); }
+#evidence-inspector .ceg-facts dd { margin: 0; overflow-wrap: anywhere; }
+#evidence-inspector .ceg-blockers { margin: var(--space-2) 0 0; padding-inline-start: var(--space-5); }
+#evidence-inspector .ceg-blockers li { overflow-wrap: anywhere; }
+#evidence-inspector .ceg-workspace {
+  display: grid;
+  grid-template-columns: minmax(15rem, .72fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  margin-block: var(--space-4);
+}
+#evidence-inspector .ceg-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+  padding: var(--space-1);
+  list-style: none;
+  max-height: 38rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#evidence-inspector .ceg-edge {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: start;
+  border-color: var(--border);
+  background: var(--surface-alt);
+  overflow-wrap: anywhere;
+}
+#evidence-inspector .ceg-edge[aria-pressed="true"] {
+  border-color: var(--text-sub);
+  box-shadow: inset 3px 0 var(--text-sub);
+}
+#evidence-inspector .ceg-details {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-deep);
+}
+#evidence-inspector .ceg-notice {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-sub);
+}
+#evidence-inspector .ceg-parents { margin-block: var(--space-5); }
+#evidence-inspector .ceg-parents ul {
+  display: grid;
+  gap: var(--space-2);
+  padding-inline-start: var(--space-5);
+}
+#evidence-inspector .ceg-parent-link {
+  min-height: 2.75rem;
+  text-align: start;
+  color: var(--link);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+#evidence-inspector .ceg-disclosure {
+  margin-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+  padding-block-start: var(--space-3);
+}
+#evidence-inspector summary { cursor: pointer; }
+#evidence-inspector .ceg-json {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--code-ink);
+  background: var(--code-bg);
+  font: var(--text-xs)/var(--leading-mono) var(--font-mono);
+}
+#evidence-inspector .ceg-empty { color: var(--text-ghost); }
+#evidence-inspector .ceg-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border-block-start: 1px solid var(--border);
+  padding-block-start: var(--space-3);
+}
+@media (max-width: 800px) {
+  #evidence-inspector { padding: var(--space-4); }
+  #evidence-inspector .ceg-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
+  #evidence-inspector .ceg-toolbar label:first-child { grid-column: 1 / -1; }
+  #evidence-inspector .ceg-workspace, #evidence-inspector .ceg-snapshot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #evidence-inspector .ceg-list { max-height: 22rem; }
+}
+@media (max-width: 420px) {
+  #evidence-inspector .ceg-toolbar, #evidence-inspector .ceg-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #evidence-inspector .ceg-facts dd { margin-block-end: var(--space-2); }
+}
