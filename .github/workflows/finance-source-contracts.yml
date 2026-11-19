@@ -82,15 +82,21 @@ jobs:
           "$audit_env/bin/python" -m pip install --disable-pip-version-check --no-cache-dir 'pip-audit==2.10.1'
           "$audit_env/bin/python" -m pip freeze --all > finance-auditor-environment.txt
           "$audit_env/bin/python" -m pip_audit --strict --no-deps --disable-pip --progress-spinner off --requirement finance-container-requirements.txt --format json --output finance-generated-dependency-audit.json
+      - name: Identify the runner image for the Chromium package cache
+        id: chromium-image
+        if: matrix.python == '3.12'
+        run: |
+          echo "os=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "version=${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
       - name: Restore cached Chromium OS packages
         id: chromium-debs
         if: matrix.python == '3.12'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/szl-chromium-debs
-          key: szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-ubuntu-24.04-finance-${{ hashFiles('.github/scripts/install_playwright_chromium.sh') }}
+          key: szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.chromium-image.outputs.os }}-finance-${{ steps.chromium-image.outputs.version }}-${{ hashFiles('.github/scripts/install_playwright_chromium.sh') }}
           restore-keys: |
-            szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-ubuntu-24.04-finance-
+            szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.chromium-image.outputs.os }}-finance-
       - name: Exercise generated Finance workspace in Chromium with explicit synthetic sources
         env:
           SZL_PW_DEB_CACHE: ~/.cache/szl-chromium-debs

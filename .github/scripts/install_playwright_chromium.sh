@@ -18,9 +18,11 @@
 #      an unreadable plan falls back to Playwright's own installer;
 #   3. otherwise installs only the missing packages: first offline from package
 #      archives restored from the Actions cache (SZL_PW_DEB_CACHE, checked by
-#      apt against the runner's signed package lists), else from the network
-#      with apt request retries, per-request timeouts and bounded attempts,
-#      keeping what it downloaded for the next cache save;
+#      apt against the runner's signed package lists); if those lists do not
+#      match, it updates them and apt reuses every cached archive that still
+#      matches, downloading only the rest with request retries, per-request
+#      timeouts and bounded attempts; archives matching the installed versions
+#      are kept for the next cache save;
 #   4. fails closed unless every required package is installed and the
 #      Chromium headless shell renders a page.
 #
@@ -98,53 +100,61 @@ list_archives() {
   find "$archives" -maxdepth 1 -type f -name '*.deb' -printf '%f\n' 2>/dev/null | sort || true
 }
 
-# Install the missing packages from cached archives only (apt-get --no-download).
-# Succeeds only if every missing package ends up installed; otherwise the copied
-# archives are removed again and the network path runs as before.
-install_from_cache() {
-  local f name n=0 copied=()
-  [ -n "$deb_cache" ] || return 1
-  for f in "$deb_cache"/*.deb; do
-    [ -f "$f" ] || continue
-    n=$((n + 1))
-    name="$(basename "$f")"
-    if [ ! -e "$archives/$name" ] && "${sudo_cmd[@]}" cp -- "$f" "$archives/$name"; then
-      copied+=("$archives/$name")
-    fi
-  done
-  [ "$n" -gt 0 ] || return 1
-  echo "Trying $n cached package archives before the network"
-  # shellcheck disable=SC2086 # one argument per package name
-  if bounded_root 300 env DEBIAN_FRONTEND=noninteractive \
-      apt-get install -y --no-install-recommends --no-download $missing \
-      && [ -z "$(missing_packages)" ]; then
-    echo "Installed from $n cached package archives; the Ubuntu archive was not used."
-    return 0
-  fi
-  if [ "${#copied[@]}" -gt 0 ]; then
-    "${sudo_cmd[@]}" rm -f -- "${copied[@]}" || true
-  fi
-  echo "The cached archives did not cover this install; using the network."
-  return 1
+# installed_archive <file>: true if the archive's package is installed at
+# exactly the archive's version.
+installed_archive() {
+  local fields pkg ver
+  fields="$(dpkg-deb --show --showformat='${Package} ${Version}' "$1" 2>/dev/null)" || return 1
+  pkg="${fields%% *}"
+  ver="${fields#* }"
+  [ -n "$pkg" ] && [ "$(dpkg-query -W -f='${Version}' "$pkg" 2>/dev/null || true)" = "$ver" ]
 }
 
-# Keep exactly the archives this run downloaded, for the Actions cache to save.
-# Never fails the job: a cache that is not refreshed only costs time next run.
-keep_for_cache() {
-  local before="$1" fetched f ok=1
+# Copy every cached archive apt does not already hold into its archive
+# directory and print the names copied. apt checks each one against the signed
+# package lists before it uses it, and ignores any that do not match.
+stage_cached_archives() {
+  local f name
   [ -n "$deb_cache" ] || return 0
-  fetched="$(comm -13 <(printf '%s\n' "$before") <(list_archives) | sed '/^$/d')"
-  [ -n "$fetched" ] || return 0
+  for f in "$deb_cache"/*.deb; do
+    [ -f "$f" ] || continue
+    name="$(basename "$f")"
+    if [ ! -e "$archives/$name" ] && "${sudo_cmd[@]}" cp -- "$f" "$archives/$name"; then
+      echo "$name"
+    fi
+  done
+}
+
+# settle_archives <preexisting> <staged> <networked>: among the archives this
+# run added, drop staged copies apt did not install (stale versions) and, if
+# the network was used, store the ones matching installed versions for the job
+# to save. Never fails the job: a cache that is not refreshed only costs time.
+settle_archives() {
+  local preexisting="$1" staged="$2" networked="$3" name f ok=1
+  local keep=()
+  while read -r name; do
+    [ -n "$name" ] || continue
+    f="$archives/$name"
+    [ -f "$f" ] || continue
+    if installed_archive "$f"; then
+      keep+=("$f")
+    elif grep -qxF -- "$name" <<< "$staged"; then
+      "${sudo_cmd[@]}" rm -f -- "$f" || true
+    fi
+  done < <(comm -13 <(printf '%s\n' "$preexisting") <(list_archives))
+  if [ -z "$deb_cache" ] || [ "$networked" != 1 ] || [ "${#keep[@]}" -eq 0 ]; then
+    return 0
+  fi
   mkdir -p "$deb_cache" && find "$deb_cache" -maxdepth 1 -type f -name '*.deb' -delete || ok=0
   if [ "$ok" -eq 1 ]; then
-    while read -r f; do
-      cp -- "$archives/$f" "$deb_cache/" || { ok=0; break; }
-    done <<< "$fetched"
+    for f in "${keep[@]}"; do
+      cp -- "$f" "$deb_cache/" || { ok=0; break; }
+    done
   fi
   if [ "$ok" -eq 1 ]; then
-    echo "Kept $(printf '%s\n' "$fetched" | wc -l) downloaded package archives for the Actions cache."
+    echo "Kept ${#keep[@]} package archives matching the installed versions for the Actions cache."
   else
-    echo "::warning::could not keep the downloaded package archives for the Actions cache" >&2
+    echo "::warning::could not keep the package archives for the Actions cache" >&2
   fi
 }
 
@@ -164,18 +174,32 @@ elif [ -n "$packages" ]; then
     echo "All $total OS packages Chromium needs are already installed; apt was not used."
   else
     echo "Installing $(printf '%s\n' $missing | wc -l) of $total OS packages: $(echo $missing)"
-    install_from_cache || true
+    preexisting="$(list_archives)"
+    staged="$(stage_cached_archives)"
+    networked=0
+    if [ -n "$staged" ]; then
+      n="$(printf '%s\n' "$staged" | wc -l)"
+      echo "Trying $n cached package archives before the network"
+      # shellcheck disable=SC2086 # one argument per package name
+      if bounded_root 300 env DEBIAN_FRONTEND=noninteractive \
+          apt-get install -y --no-install-recommends --no-download $missing \
+          && [ -z "$(missing_packages)" ]; then
+        echo "Installed from $n cached package archives; the Ubuntu archive was not used."
+      else
+        echo "The runner's package lists do not match every cached archive; updating them and reusing the archives that still match."
+      fi
+    fi
     # Recompute either way: never re-install (and so upgrade) a present package.
     missing="$(missing_packages)"
     if [ -n "$missing" ]; then
-      before="$(list_archives)"
+      networked=1
       harden_apt
       retry "apt-get update" bounded_root 240 apt-get update
       # shellcheck disable=SC2086 # one argument per package name
       retry "apt-get install" bounded_root 300 env DEBIAN_FRONTEND=noninteractive \
         apt-get install -y --no-install-recommends $missing
-      keep_for_cache "$before"
     fi
+    settle_archives "$preexisting" "$staged" "$networked"
     missing="$(missing_packages)"
     if [ -n "$missing" ]; then
       echo "::error::OS packages still missing after install: $(echo $missing)" >&2

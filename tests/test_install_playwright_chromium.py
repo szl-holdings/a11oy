@@ -60,33 +60,50 @@ def rig(tmp_path):
     """)
     _exe(bin_dir / "dpkg-query", f"""
         pkg="${{@: -1}}"
-        grep -qx "$pkg" "{state}/installed" && printf installed || printf not-installed
+        case "$*" in
+          *'${{Version}}'*) grep "^$pkg " "{state}/versions" 2>/dev/null | tail -n 1 | cut -d' ' -f2 | tr -d '\\n' ;;
+          *) grep -qx "$pkg" "{state}/installed" && printf installed || printf not-installed ;;
+        esac
+    """)
+    # Archives are named <package>_<version>_all.deb; report those two fields.
+    _exe(bin_dir / "dpkg-deb", """
+        f="$(basename "${@: -1}" .deb)"
+        pkg="${f%%_*}"; rest="${f#*_}"; printf '%s %s' "$pkg" "${rest%_*}"
     """)
     _exe(bin_dir / "apt-get", f"""
         echo "apt-get $*" >> "{state}/apt.log"
+        [ "$1" = update ] && touch "{state}/updated"
         if [ "$1" = install ]; then
           pkgs=(); offline=0
           for arg in "$@"; do
             case "$arg" in --no-download) offline=1;; -*|install) ;; *) pkgs+=("$arg");; esac
           done
-          ver="${{WANT_VERSION:-1.0}}"
+          # Before apt-get update the runner image's own package lists decide
+          # the candidate version; afterwards the current archive does.
+          if [ -f "{state}/updated" ]; then ver="${{WANT_VERSION:-1.0}}"; else ver="${{IMAGE_VERSION:-${{WANT_VERSION:-1.0}}}}"; fi
+          installed_at() {{ echo "$1" >> "{state}/installed"; echo "$1 $ver" >> "{state}/versions"; }}
           if [ "$offline" = 1 ]; then
             [ -n "${{OFFLINE_NOOP:-}}" ] && exit 0
             for p in "${{pkgs[@]}}"; do
               if [ -n "${{OFFLINE_PARTIAL:-}}" ] && [ "$p" = "${{pkgs[0]}}" ]; then
-                echo "$p" >> "{state}/installed"; continue
+                installed_at "$p"; continue
               fi
               [ -f "$SZL_PW_APT_ARCHIVES/${{p}}_${{ver}}_all.deb" ] || exit 100
             done
-            for p in "${{pkgs[@]}}"; do echo "$p" >> "{state}/installed"; done
+            for p in "${{pkgs[@]}}"; do installed_at "$p"; done
             exit 0
           fi
           n=$(grep -v -- '--no-download' "{state}/apt.log" | grep -c '^apt-get install')
           [ "$n" -gt "${{FAIL_INSTALLS:-0}}" ] || exit 100
           [ -n "${{INSTALL_IS_NOOP:-}}" ] && exit 0
           for p in "${{pkgs[@]}}"; do
-            echo "$p" >> "{state}/installed"
-            echo "$p $ver" > "$SZL_PW_APT_ARCHIVES/${{p}}_${{ver}}_all.deb"
+            if [ -f "$SZL_PW_APT_ARCHIVES/${{p}}_${{ver}}_all.deb" ]; then
+              echo "$p" >> "{state}/reused.log"
+            else
+              echo "$p" >> "{state}/downloads.log"
+              echo "$p $ver" > "$SZL_PW_APT_ARCHIVES/${{p}}_${{ver}}_all.deb"
+            fi
+            installed_at "$p"
           done
         fi
         exit 0
@@ -111,7 +128,8 @@ def rig(tmp_path):
 
     def run(*, installed=(), cached=None, preexisting=(), **env):
         (state / "installed").write_text("".join(f"{p}\n" for p in installed))
-        for log in ("pw.log", "apt.log", "sudo.log", "timeout.log"):
+        for log in ("pw.log", "apt.log", "sudo.log", "timeout.log", "versions", "updated",
+                    "downloads.log", "reused.log"):
             (state / log).unlink(missing_ok=True)
         shutil.rmtree(archives, ignore_errors=True)
         archives.mkdir()
@@ -284,12 +302,12 @@ def test_cached_archives_install_offline_without_the_network(rig):
 def test_stale_cache_falls_back_to_the_network_and_is_replaced(rig):
     done, apt, _ = rig(installed=["libnss3"], cached=["fonts-wqy-zenhei_0.9_all.deb", "libgbm1_0.9_all.deb"])
     assert done.returncode == 0, done.stderr
-    assert "The cached archives did not cover this install; using the network." in done.stdout
+    assert "The runner's package lists do not match every cached archive; updating them and reusing the archives that still match." in done.stdout
     assert "apt-get update" in apt
     assert apt.splitlines()[-1] == "apt-get install -y --no-install-recommends fonts-wqy-zenhei libgbm1"
     assert _debs(rig.archives) == ["fonts-wqy-zenhei_1.0_all.deb", "libgbm1_1.0_all.deb"], "copied stale archives must be removed"
     assert _debs(rig.cache) == ["fonts-wqy-zenhei_1.0_all.deb", "libgbm1_1.0_all.deb"]
-    assert "Kept 2 downloaded package archives for the Actions cache." in done.stdout
+    assert "Kept 2 package archives matching the installed versions for the Actions cache." in done.stdout
 
 
 def test_a_network_install_keeps_only_its_downloads_for_the_cache(rig):
@@ -318,7 +336,7 @@ def test_a_cache_that_cannot_be_written_only_warns(rig, tmp_path):
     blocker.write_text("file in the way\n")
     done, _, _ = rig(installed=["libnss3"], SZL_PW_DEB_CACHE=blocker)
     assert done.returncode == 0, done.stderr
-    assert "::warning::could not keep the downloaded package archives" in done.stderr
+    assert "::warning::could not keep the package archives" in done.stderr
     assert "Chromium renders headlessly" in done.stdout
 
 
@@ -333,7 +351,7 @@ def test_an_offline_run_that_installs_nothing_is_not_reported_as_cached(rig):
                        OFFLINE_NOOP=1)
     assert done.returncode == 0, done.stderr
     assert "the Ubuntu archive was not used" not in done.stdout
-    assert "The cached archives did not cover this install; using the network." in done.stdout
+    assert "The runner's package lists do not match every cached archive; updating them and reusing the archives that still match." in done.stdout
     assert "apt-get update" in apt
 
 
@@ -342,5 +360,17 @@ def test_a_failed_copy_into_the_cache_only_warns(rig):
     (rig.cache / "libgbm1_1.0_all.deb").mkdir()  # a directory where an archive must go
     done, _, _ = rig(installed=["libnss3"], SZL_PW_DEB_CACHE=rig.cache)
     assert done.returncode == 0, done.stderr
-    assert "::warning::could not keep the downloaded package archives" in done.stderr
+    assert "::warning::could not keep the package archives" in done.stderr
     assert "Chromium renders headlessly" in done.stdout
+
+
+def test_cached_archives_newer_than_the_image_lists_are_reused_after_update(rig):
+    # The cache was filled after apt-get update (1.1); the image's lists still
+    # name 1.0, so the offline attempt cannot match, but nothing is downloaded.
+    done, apt, _ = rig(installed=["libnss3"], cached=["fonts-wqy-zenhei_1.1_all.deb", "libgbm1_1.1_all.deb"],
+                       WANT_VERSION="1.1", IMAGE_VERSION="1.0")
+    assert done.returncode == 0, done.stderr
+    assert "apt-get update" in apt
+    assert rig.log("downloads.log") == ""
+    assert sorted(rig.log("reused.log").split()) == ["fonts-wqy-zenhei", "libgbm1"]
+    assert _debs(rig.cache) == ["fonts-wqy-zenhei_1.1_all.deb", "libgbm1_1.1_all.deb"]
