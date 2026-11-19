@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-11-18T05:28:05Z",
+  "observedAt": "2026-11-19T07:31:17Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,7 +26,7 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 150,
+      "models": 151,
       "datasets": 99,
       "spaces": 33,
       "kernels": 14
@@ -1897,6 +1897,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/salad-khipu-scholar-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-khipu-structure-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-khipu-structure-v1"
       ]
     },
     {

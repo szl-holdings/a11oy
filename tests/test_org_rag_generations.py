@@ -404,9 +404,19 @@ def test_seed_bootstrap_is_single_flight_and_receipts_once(monkeypatch, tmp_path
     assert rag.build_state()["phase"] == "seed"
 
 
-def test_m1_release_manifest_reports_all_9465_handles_without_copying_fixture(tmp_path):
-    # This reads the versioned ledger once; the generation tests above stay tiny.
-    verified = rag._verify_m1_ledger(rag._M1_LEDGER_DEFAULT)
+def test_m1_release_manifest_reports_current_handles_without_copying_fixture():
+    # Current inventory follows the current producer manifest. Historical pilot
+    # counts remain bound to their retained artifacts, not to this live ledger.
+    ledger = rag._M1_LEDGER_DEFAULT
+    manifest = json.loads(
+        ledger.with_name("corpus-ingestion-manifest.json").read_text(encoding="utf-8")
+    )
+    entry = manifest["ledgers"]["brain_nodes"]
+    assert entry["path"] == ledger.name
+    assert type(entry["rows"]) is int and entry["rows"] > 0
+    assert ledger.stat().st_size == entry["bytes"]
+    verified = rag._verify_m1_ledger(ledger)
     assert verified["manifest_verified"] is True
-    assert verified["rows"] == 9465
+    assert verified["rows"] == entry["rows"]
+    assert verified["sha256"] == entry["sha256"]
     assert len(verified["sha256"]) == 64

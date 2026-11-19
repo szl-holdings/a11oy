@@ -114,6 +114,7 @@ jobs:
           tests/test_org_rag_generations.py
           tests/test_rag_route_readonly.py
           tests/test_ayllu_model_binding.py
+          tests/test_second_brain_release_schema.py
           tests/test_forge_profile_runtime.py
           tests/test_model_catalog_observation.py
           tests/test_ayllu_routes.py
@@ -575,6 +576,21 @@ jobs:
         # turning a silent phantom-proof claim into a red gate. Formulas honestly marked
         # tier=experimental/live-data are reported but allowed. Λ stays Conjecture 1.
         run: pytest tests/test_formula_registry_guard.py -q
+      - name: Verify formula authority across UI, API, graph and corpus
+        run: |
+          python -B -m pytest -q -p no:cacheprovider \
+            tests/test_puriq_formula_authority_surface.py \
+            tests/test_formula_registry_reconciliation.py \
+            tests/test_formula_registry_doctrine_boundary.py \
+            tests/test_brain_formula_authority.py \
+            tests/test_brain_snapshot.py \
+            tests/test_numerics_dataset.py \
+            tests/test_m1_formula_authority.py \
+            tests/test_m1_proposal_refresh.py \
+            tests/test_m1_corpus_reconciliation.py \
+            tests/test_formula_admission_namespaces.py \
+            tests/test_formula_training_admission.py \
+            tests/test_proof_obligation_dataset_release.py
 
   python-formula-input-guards:
     name: Formula input guards match their Lean hypotheses (pytest, offline)
@@ -1226,6 +1242,7 @@ jobs:
         run: >-
           pytest test_frontier_surfaces.py test_frontier_manifest.py
           tests/test_frontier_manifest_readiness.py
+          tests/test_energy_provenance_measured_windows.py
           tests/test_frontier_readiness_projection.py
           tests/test_frontier_readiness_boundary.py
           tests/test_frontier_readiness_page.py
