@@ -49,3 +49,6 @@ khipu/**/*.ndjson
 .release-controller-peer/
 hf-lyte-release-evidence/
 szl_energy_ledger.jsonl.writer.lock
+
+# Generated at build time by scripts/generate_release_manifest.py; never committed.
+/release-manifest.json

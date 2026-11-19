@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/szl-holdings/a11oy/release-manifest.schema.json",
+  "title": "A11oy release manifest v1",
+  "description": "Binds one build: git commit, frontend bundle, API contract, HF model revision, deployment ID, rollback target. Generated at build time by scripts/generate_release_manifest.py; UNKNOWN is reported, never guessed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "release_id", "generated_at", "git", "frontend", "api_contract", "model", "deployment", "rollback", "honesty"],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sha40": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "state", "source"],
+      "properties": {
+        "value": {"type": ["string", "null"], "maxLength": 128},
+        "state": {"enum": ["SUPPLIED", "UNKNOWN"]},
+        "source": {"type": "string", "maxLength": 128}
+      },
+      "if": {"properties": {"state": {"const": "UNKNOWN"}}},
+      "then": {"properties": {"value": {"type": "null"}}},
+      "else": {"properties": {"value": {"type": "string", "minLength": 1}}}
+    }
+  },
+  "properties": {
+    "schema": {"const": "szl.a11oy.release-manifest/v1"},
+    "release_id": {"type": "string", "pattern": "^[0-9a-f]{12}$", "description": "First 12 hex of sha256 over every bound value (excludes generated_at)."},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "commit_source", "tree_state"],
+      "properties": {
+        "commit": {"oneOf": [{"$ref": "#/$defs/sha40"}, {"type": "null"}]},
+        "commit_source": {"type": "string"},
+        "tree_state": {"enum": ["CLEAN", "DIRTY", "UNKNOWN"]}
+      }
+    },
+    "frontend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bundle_root", "bundle_sha256", "entry", "entry_sha256", "file_count"],
+      "properties": {
+        "bundle_root": {"type": "string"},
+        "bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "entry": {"type": "string"},
+        "entry_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "file_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "api_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "inputs", "sha256"],
+      "properties": {
+        "kind": {"enum": ["repo-files", "openapi-json"]},
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256"],
+            "properties": {"path": {"type": "string"}, "sha256": {"$ref": "#/$defs/sha256"}}
+          }
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "revision"],
+      "properties": {"repo": {"$ref": "#/$defs/field"}, "revision": {"$ref": "#/$defs/field"}}
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {"id": {"$ref": "#/$defs/field"}}
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target"],
+      "properties": {"target": {"$ref": "#/$defs/field"}}
+    },
+    "honesty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["values_are_declared_not_proven_deployed", "unknown_is_reported_not_guessed", "receipt_minted"],
+      "properties": {
+        "values_are_declared_not_proven_deployed": {"const": true},
+        "unknown_is_reported_not_guessed": {"const": true},
+        "receipt_minted": {"const": false}
+      }
+    }
+  }
+}
