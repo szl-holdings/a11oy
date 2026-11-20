@@ -46,6 +46,12 @@ RUNTIME_LAYER_BUDGET = 118
 # Historical baselines exclude these exact sources.
 # Preserve every prior source and the unchanged layer budget, not a broad COPY.
 RUNTIME_IDENTITY_COPY_ADDITIONS = {".szl-runtime-marker.json", "szl_runtime_identity.py", ".github/workflows/hf-sync.yml"}
+# #3770 exact runtime release-manifest sources. Keep every frozen historical
+# allowlist COUNT/SHA unchanged; subtract only these newly admitted bytes.
+RELEASE_MANIFEST_COPY_ADDITIONS = {
+    "szl_release_manifest.py", "release-manifest.schema.json", "release-manifest.json",
+}
+
 # One adapter and one canonical package, with adjacent root COPY lines batched
 # to retain the existing layer ceiling and every previous source identity.
 REPLICATION_COPY_ADDITIONS = {"szl_khipu_delivery_routes.py", "khipu_lmdb/"}
@@ -193,6 +199,27 @@ def _copy_sources(instruction: str) -> list[str]:
     return values[:-1]
 
 
+def test_release_manifest_sources_are_batched_once_at_the_original_root_path() -> None:
+    """The three new #3770 files do not consume a layer or weaken old hashes."""
+    assert len(RELEASE_MANIFEST_COPY_ADDITIONS) == 3
+    batches = [
+        instruction for _line, instruction in _logical_instructions()
+        if instruction.upper().startswith("COPY ")
+        and RELEASE_MANIFEST_COPY_ADDITIONS & set(_copy_sources(instruction))
+    ]
+    assert len(batches) == 1
+    sources = _copy_sources(batches[0])
+    assert RELEASE_MANIFEST_COPY_ADDITIONS <= set(sources)
+    assert len(sources) == len(set(sources))
+    assert "szl_runtime_identity.py" in sources
+    assert shlex.split(batches[0])[-1] == "./"
+    for source in RELEASE_MANIFEST_COPY_ADDITIONS:
+        assert (ROOT / source).is_file()
+        assert sum(source in _copy_sources(row)
+                   for _line, row in _logical_instructions()
+                   if row.upper().startswith("COPY ")) == 1
+
+
 def test_runtime_image_stays_below_docker_layer_depth_budget() -> None:
     """Preserve the prior admitted source depth and the real PR image-load gate."""
     rows = _runtime_filesystem_instructions()
@@ -240,6 +267,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= copy_sources
     assert FLAVIN_SPIN_COPY_ADDITIONS <= copy_sources
     assert POOL_RECEIPT_INGEST_COPY_ADDITIONS <= copy_sources
+    assert RELEASE_MANIFEST_COPY_ADDITIONS <= copy_sources
     copy_sources -= (
         MODEL_SUPPORT_COPY_ADDITIONS
         | X402_ORIGIN_COPY_ADDITIONS
@@ -269,6 +297,7 @@ def test_layer_batching_keeps_the_explicit_source_allowlist() -> None:
         | CPU_LAB_CONTRACT_COPY_ADDITIONS
         | FLAVIN_SPIN_COPY_ADDITIONS
         | POOL_RECEIPT_INGEST_COPY_ADDITIONS
+        | RELEASE_MANIFEST_COPY_ADDITIONS
     )
     encoded_allowlist = ("\n".join(sorted(copy_sources)) + "\n").encode("utf-8")
     assert len(copy_sources) == COPY_SOURCE_ALLOWLIST_COUNT
@@ -312,6 +341,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
     assert FLAVIN_SPIN_COPY_ADDITIONS <= sources
     assert POOL_RECEIPT_INGEST_COPY_ADDITIONS <= sources
+    assert RELEASE_MANIFEST_COPY_ADDITIONS <= sources
     previous = (
         sources - CIVILIAN_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -338,6 +368,7 @@ def test_civilian_packaging_preserves_every_previous_source() -> None:
         - CPU_LAB_CONTRACT_COPY_ADDITIONS
         - FLAVIN_SPIN_COPY_ADDITIONS
         - POOL_RECEIPT_INGEST_COPY_ADDITIONS
+        - RELEASE_MANIFEST_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_CIVILIAN_ALLOWLIST_COUNT
@@ -379,6 +410,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
     assert CPU_LAB_CONTRACT_COPY_ADDITIONS <= sources
     assert FLAVIN_SPIN_COPY_ADDITIONS <= sources
     assert POOL_RECEIPT_INGEST_COPY_ADDITIONS <= sources
+    assert RELEASE_MANIFEST_COPY_ADDITIONS <= sources
     previous = (
         sources - HF_DOCS_COPY_ADDITIONS - MODEL_SUPPORT_COPY_ADDITIONS
         - X402_ORIGIN_COPY_ADDITIONS
@@ -405,6 +437,7 @@ def test_public_hf_docs_preserve_the_previous_copy_allowlist() -> None:
         - CPU_LAB_CONTRACT_COPY_ADDITIONS
         - FLAVIN_SPIN_COPY_ADDITIONS
         - POOL_RECEIPT_INGEST_COPY_ADDITIONS
+        - RELEASE_MANIFEST_COPY_ADDITIONS
     )
     encoded = ("\n".join(sorted(previous)) + "\n").encode("utf-8")
     assert len(previous) == PRE_HF_DOCS_ALLOWLIST_COUNT
