@@ -54,11 +54,11 @@ RUNTIME_ENV_NAMES: dict[str, str] = {
 
 _COMMIT_ENV_NAMES = ("SZL_RELEASE_COMMIT", "A11OY_GIT_SHA", "SZL_GIT_SHA", "GITHUB_SHA")
 _RELEASE_ID_ENV_NAMES = ("SZL_RELEASE_ID",)
-_FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+_FULL_SHA_RE = re.compile(r"^(?!0{40}$)[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _IMMUTABLE_ID_RE = re.compile(
     r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,191}@"
-    r"(?:sha256:[0-9a-f]{64}|[0-9a-f]{40})$"
+    r"(?:sha256:(?!0{64}$)[0-9a-f]{64}|(?!0{40}$)[0-9a-f]{40})$"
 )
 
 
