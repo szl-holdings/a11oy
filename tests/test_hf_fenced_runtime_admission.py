@@ -42,6 +42,9 @@ def test_clean_fenced_private_head_and_public_stores_admit_existing_writer():
 
 @pytest.mark.parametrize("mutation", [
     lambda s: s.update(mode="SNAPSHOT_ONLY_UNFENCED"),
+    lambda s: s.update(mode_reason="STATE_DATASET_NOT_PRIVATE"),
+    lambda s: s.update(mode_reason="STATE_DATASET_ABSENT"),
+    lambda s: s.update(mode_reason=False),
     lambda s: s.update(role="RELEASED"),
     lambda s: s.update(unfenced=True),
     lambda s: s.update(writable=False),

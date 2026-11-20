@@ -774,6 +774,8 @@ def validate_state_store_status(payload: Mapping[str, Any]) -> dict[str, Any]:
     if (
         payload.get("schema") != "szl.a11oy-storage-status/v2"
         or payload.get("mode") != "FENCED"
+        or payload.get("mode_reason") is not None
+        or payload.get("claim") != "CLEAN"
         or payload.get("role") != "WRITER"
         or payload.get("writable") is not True
         or payload.get("unfenced") is not False
