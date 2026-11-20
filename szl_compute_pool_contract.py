@@ -20,6 +20,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import anyio
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from cryptography.exceptions import InvalidSignature
@@ -457,11 +458,16 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
     if route in existing:
         return []
 
+    # The shared FastAPI sync-handler pool is also used by /healthz and other
+    # routes. Bound compute-pool probes separately so a cache-expiry burst cannot
+    # exhaust the shared pool and starve independent synchronous health reads.
+    pool_probe_limiter = anyio.CapacityLimiter(2)
+
     @app.get(route, response_model=ComputePoolResponse)
-    def compute_pool_v1():
-        # A cache miss performs synchronous transport probes. FastAPI executes
-        # sync handlers in a threadpool so a slow probe cannot starve /healthz.
-        payload = build_compute_pool_contract()
+    async def compute_pool_v1():
+        payload = await anyio.to_thread.run_sync(
+            build_compute_pool_contract, limiter=pool_probe_limiter
+        )
         return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
     return [route]
