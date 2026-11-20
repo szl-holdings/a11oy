@@ -5,7 +5,7 @@ title: "SZL Holdings — lean-kernel"
 date-released: "2026-06-03"
 license: Apache-2.0
 repository-code: "https://github.com/szl-holdings/lean-kernel"
-url: "https://szlholdings.ai"
+url: "https://a-11-oy.com"
 abstract: >
   SZL Holdings component — Doctrine v11 compliant (749/14/163, kernel c7c0ba17,
   Λ = Conjecture 1). SLSA Build Level 1 (honest); Sigstore signing pending.
@@ -17,5 +17,5 @@ keywords:
   - doctrine-v11
 authors:
   - name: "SZL Holdings"
-    website: "https://szlholdings.ai"
-    email: "hello@szlholdings.ai"
+    website: "https://a-11-oy.com"
+    email: "hello@szlholdings.com"
