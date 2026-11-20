@@ -1401,3 +1401,46 @@ def test_reference_scope_parser_is_strict(document):
     parsed = reference.parse_reference_scope(
         '{"version": 1, "tenants": {"t": {"repo": "r", "sources": ["s2", "s1"]}}}')
     assert parsed == reference.ReferenceScope(namespace="t", repo="r", sources=("s1", "s2"))
+
+
+# --- Qullqa: the RAG corpus is read from an immutable dataset commit ---------
+# Static (AST) contract: no network, no Hub, no model load. Bumping DATASET_REVISION
+# is an explicit, reviewable change; an unpinned snapshot_download would silently
+# follow the dataset main branch.
+_RAG_SRC = Path(__file__).resolve().parents[1] / "szl_rag.py"
+
+
+def _rag_tree() -> ast.Module:
+    return ast.parse(_RAG_SRC.read_text(encoding="utf-8"))
+
+
+def _rag_module_const(tree: ast.Module, name: str):
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id == name:
+                    return ast.literal_eval(node.value)
+    raise AssertionError(f"{name} not defined at module level")
+
+
+def test_dataset_revision_is_a_full_commit_sha():
+    rev = _rag_module_const(_rag_tree(), "DATASET_REVISION")
+    assert isinstance(rev, str) and len(rev) == 40 and set(rev) <= set("0123456789abcdef"), rev
+
+
+def test_every_snapshot_download_of_the_dataset_passes_the_pinned_revision():
+    calls = [
+        n for n in ast.walk(_rag_tree())
+        if isinstance(n, ast.Call)
+        and getattr(n.func, "id", getattr(n.func, "attr", "")) == "snapshot_download"
+        and n.args and isinstance(n.args[0], ast.Name) and n.args[0].id == "DATASET_REPO"
+    ]
+    assert calls, "expected a snapshot_download(DATASET_REPO, ...) call"
+    for call in calls:
+        kw = {k.arg: k.value for k in call.keywords}
+        assert "revision" in kw, f"unpinned snapshot_download at line {call.lineno}"
+        assert isinstance(kw["revision"], ast.Name) and kw["revision"].id == "DATASET_REVISION"
+
+
+def test_status_surface_reports_the_pinned_revision():
+    assert '"dataset_revision": DATASET_REVISION' in _RAG_SRC.read_text(encoding="utf-8")
