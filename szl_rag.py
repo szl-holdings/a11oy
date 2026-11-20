@@ -51,6 +51,11 @@ except Exception:  # fastapi optional at import time in non-serving contexts
 
 DOCTRINE = "v10/v11"
 DATASET_REPO = "SZLHOLDINGS/rag-corpus-v1"
+# Immutable dataset commit the FAISS indexes are read from (Hub sha observed 2026-11-12).
+# Bumping it is an explicit, reviewable change; an unpinned download would silently
+# follow whatever the dataset main branch points to.
+DATASET_REVISION = "49e49fb450446b622dda1781ded8a389d3b03499"
+MODEL_REVISION = None  # UNKNOWN: pin once the serving revision is chosen; see Qullqa F-L2
 MODEL_NAME = "BAAI/bge-base-en-v1.5"
 BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 SIGNATURE_PLACEHOLDER = "PLACEHOLDER — Sigstore CI signing not yet wired (Doctrine v10/v11)"
@@ -248,7 +253,7 @@ def _ensure_loaded() -> None:
             import faiss  # noqa
             from sentence_transformers import SentenceTransformer
 
-            ddir = snapshot_download(DATASET_REPO, repo_type="dataset")
+            ddir = snapshot_download(DATASET_REPO, repo_type="dataset", revision=DATASET_REVISION)
             _state["dataset_dir"] = ddir
 
             corpus = {}
@@ -394,6 +399,7 @@ def status(space: str) -> dict[str, Any]:
         "ready": _state["ready"],
         "error": _state["error"],
         "dataset": DATASET_REPO,
+        "dataset_revision": DATASET_REVISION,
         "model": MODEL_NAME,
         "doctrine": DOCTRINE,
         "n_chunks": (len(_state["corpus"]) if _state["corpus"] else None),
