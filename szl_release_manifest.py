@@ -283,24 +283,48 @@ def verify_manifest(manifest: dict[str, Any], repo_root: Path) -> list[dict[str,
 
 
 def compare_runtime(manifest: dict[str, Any], observed: dict[str, Any]) -> list[dict[str, Any]]:
-    """Compare a manifest with what a deployed runtime reports about itself."""
+    """Compare required declarations against flat runtime observations.
+
+    Empty findings require all six fields to be present, well formed and equal.
+    This is parity of supplied evidence, not attestation of deployment.
+    """
+    fields = (
+        ("revision", ("git", "commit"), SHA40, "REVISION", "PUBLICATION_LAG"),
+        ("frontend_bundle_sha256", ("frontend", "bundle_sha256"), SHA64,
+         "FRONTEND_BUNDLE", "FRONTEND_BUNDLE_MISMATCH"),
+        ("api_contract_sha256", ("api_contract", "sha256"), SHA64,
+         "API_CONTRACT", "API_CONTRACT_MISMATCH"),
+        ("model_revision", ("model", "revision"), SHA40,
+         "MODEL_REVISION", "MODEL_REVISION_MISMATCH"),
+        ("deployment_id", ("deployment", "id"), DEPLOY_ID,
+         "DEPLOYMENT_ID", "DEPLOYMENT_ID_MISMATCH"),
+        ("rollback_target", ("rollback", "target"), GIT_REF,
+         "ROLLBACK_TARGET", "ROLLBACK_TARGET_MISMATCH"),
+    )
+
+    def checked(value: Any, pattern: re.Pattern[str]) -> Optional[str]:
+        if not isinstance(value, str) or value.upper() in {"UNKNOWN", "UNAVAILABLE", "UNSET", "NONE", "NULL", "NOT_APPLICABLE", "NOT_RUN"}:
+            return None
+        return value if pattern.fullmatch(value) else None
+
     findings: list[dict[str, Any]] = []
-    want = (manifest.get("git") or {}).get("commit")
-    got = observed.get("revision")
-    if not got:
-        findings.append({"code": "RUNTIME_REVISION_UNKNOWN", "expected": want, "observed": None})
-    elif want != got:
-        findings.append({"code": "PUBLICATION_LAG", "expected": want, "observed": got})
-    for key, path, code in (
-        ("frontend_bundle_sha256", ("frontend", "bundle_sha256"), "FRONTEND_BUNDLE_MISMATCH"),
-        ("api_contract_sha256", ("api_contract", "sha256"), "API_CONTRACT_MISMATCH"),
-    ):
-        if observed.get(key):
-            node: Any = manifest
-            for part in path:
-                node = node.get(part) if isinstance(node, dict) else None
-            if node != observed[key]:
-                findings.append({"code": code, "expected": node, "observed": observed[key]})
+    for key, (section, name), pattern, label, mismatch in fields:
+        node = manifest.get(section)
+        raw_expected = node.get(name) if isinstance(node, dict) else None
+        if section in ("model", "deployment", "rollback"):
+            raw_expected = (
+                raw_expected.get("value")
+                if isinstance(raw_expected, dict) and raw_expected.get("state") == "SUPPLIED"
+                else None
+            )
+        expected = checked(raw_expected, pattern)
+        actual = checked(observed.get(key), pattern)
+        if expected is None:
+            findings.append({"code": f"MANIFEST_{label}_UNKNOWN", "expected": None, "observed": actual})
+        if actual is None:
+            findings.append({"code": f"RUNTIME_{label}_UNKNOWN", "expected": expected, "observed": None})
+        if expected is not None and actual is not None and expected != actual:
+            findings.append({"code": mismatch, "expected": expected, "observed": actual})
     return findings
 
 
