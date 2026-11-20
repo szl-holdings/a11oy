@@ -7,19 +7,83 @@ BEGIN;
 
 SET LOCAL search_path = pg_catalog, pg_temp;
 
+-- The migration principal must see every existing row and own schema public.
+-- Without the first, the preflights and foreign-key validation in this chain
+-- run under FORCE RLS with every policy stripped, see no rows and pass. Without
+-- the second, PostgreSQL reduces the schema privilege sweep to warnings. A
+-- provider-managed owner needs row-security bypass and database ownership.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS principal
+         WHERE principal.rolname = CURRENT_USER
+           AND (principal.rolsuper OR principal.rolbypassrls)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'the migration principal must bypass row security to check existing rows';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS principal
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.nspname = 'public'
+         WHERE principal.rolname = CURRENT_USER
+           AND (principal.rolsuper
+                OR pg_catalog.pg_has_role(CURRENT_USER, namespace.nspowner, 'USAGE'))
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'the migration principal must own schema public';
+    END IF;
+END;
+$$;
+
 -- The runtime login is expected to inherit this capability role. Existing
 -- roles are normalized, not trusted. Any missing authority aborts the entire
 -- transaction; a partially hardened role must never be treated as enabled.
 DO $$
+DECLARE
+    observed record;
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'a11oy_memory_app') THEN
         CREATE ROLE a11oy_memory_app
           NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN
           NOREPLICATION INHERIT NOBYPASSRLS;
     ELSE
-        ALTER ROLE a11oy_memory_app
-          NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN
-          NOREPLICATION INHERIT NOBYPASSRLS;
+        -- A provider-managed owner (Neon, for example) is never a superuser,
+        -- and PostgreSQL refuses any ALTER ROLE that names the superuser
+        -- attribute or targets a superuser role unless the caller is one.
+        -- Refuse that case by name before touching the role.
+        IF EXISTS (
+            SELECT 1
+              FROM pg_catalog.pg_roles AS role
+             WHERE role.rolname = 'a11oy_memory_app'
+               AND role.rolsuper
+        ) AND NOT EXISTS (
+            SELECT 1
+              FROM pg_catalog.pg_roles AS principal
+             WHERE principal.rolname = CURRENT_USER
+               AND principal.rolsuper
+        ) THEN
+            RAISE EXCEPTION USING ERRCODE = '42501',
+              MESSAGE = 'a11oy_memory_app holds an attribute this migration principal cannot clear';
+        END IF;
+        -- Rewrite the role's catalog row before reading it. The row stays
+        -- locked until COMMIT, so a concurrent ALTER ROLE waits and then fails
+        -- instead of landing between this read and COMMIT.
+        ALTER ROLE a11oy_memory_app NOCREATEROLE;
+        SELECT role.rolsuper, role.rolcreatedb, role.rolcanlogin,
+               role.rolreplication, role.rolinherit, role.rolbypassrls
+          INTO observed
+          FROM pg_catalog.pg_roles AS role
+         WHERE role.rolname = 'a11oy_memory_app';
+        -- Name only the attributes that deviate.
+        IF observed.rolsuper THEN ALTER ROLE a11oy_memory_app NOSUPERUSER; END IF;
+        IF observed.rolcreatedb THEN ALTER ROLE a11oy_memory_app NOCREATEDB; END IF;
+        IF observed.rolcanlogin THEN ALTER ROLE a11oy_memory_app NOLOGIN; END IF;
+        IF observed.rolreplication THEN ALTER ROLE a11oy_memory_app NOREPLICATION; END IF;
+        IF NOT observed.rolinherit THEN ALTER ROLE a11oy_memory_app INHERIT; END IF;
+        IF observed.rolbypassrls THEN ALTER ROLE a11oy_memory_app NOBYPASSRLS; END IF;
     END IF;
 END;
 $$;
@@ -27,15 +91,48 @@ $$;
 -- The outbox worker receives no table-wide bypass. Cross-tenant leasing is
 -- exposed only through the bounded SECURITY DEFINER function below.
 DO $$
+DECLARE
+    observed record;
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'a11oy_memory_worker') THEN
         CREATE ROLE a11oy_memory_worker
           NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN
           NOREPLICATION INHERIT NOBYPASSRLS;
     ELSE
-        ALTER ROLE a11oy_memory_worker
-          NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN
-          NOREPLICATION INHERIT NOBYPASSRLS;
+        -- A provider-managed owner (Neon, for example) is never a superuser,
+        -- and PostgreSQL refuses any ALTER ROLE that names the superuser
+        -- attribute or targets a superuser role unless the caller is one.
+        -- Refuse that case by name before touching the role.
+        IF EXISTS (
+            SELECT 1
+              FROM pg_catalog.pg_roles AS role
+             WHERE role.rolname = 'a11oy_memory_worker'
+               AND role.rolsuper
+        ) AND NOT EXISTS (
+            SELECT 1
+              FROM pg_catalog.pg_roles AS principal
+             WHERE principal.rolname = CURRENT_USER
+               AND principal.rolsuper
+        ) THEN
+            RAISE EXCEPTION USING ERRCODE = '42501',
+              MESSAGE = 'a11oy_memory_worker holds an attribute this migration principal cannot clear';
+        END IF;
+        -- Rewrite the role's catalog row before reading it. The row stays
+        -- locked until COMMIT, so a concurrent ALTER ROLE waits and then fails
+        -- instead of landing between this read and COMMIT.
+        ALTER ROLE a11oy_memory_worker NOCREATEROLE;
+        SELECT role.rolsuper, role.rolcreatedb, role.rolcanlogin,
+               role.rolreplication, role.rolinherit, role.rolbypassrls
+          INTO observed
+          FROM pg_catalog.pg_roles AS role
+         WHERE role.rolname = 'a11oy_memory_worker';
+        -- Name only the attributes that deviate.
+        IF observed.rolsuper THEN ALTER ROLE a11oy_memory_worker NOSUPERUSER; END IF;
+        IF observed.rolcreatedb THEN ALTER ROLE a11oy_memory_worker NOCREATEDB; END IF;
+        IF observed.rolcanlogin THEN ALTER ROLE a11oy_memory_worker NOLOGIN; END IF;
+        IF observed.rolreplication THEN ALTER ROLE a11oy_memory_worker NOREPLICATION; END IF;
+        IF NOT observed.rolinherit THEN ALTER ROLE a11oy_memory_worker INHERIT; END IF;
+        IF observed.rolbypassrls THEN ALTER ROLE a11oy_memory_worker NOBYPASSRLS; END IF;
     END IF;
 END;
 $$;
@@ -64,7 +161,8 @@ END;
 $$;
 
 -- Preserve inbound memberships. ADMIN OPTION holders keep the membership row
--- but lose inherit/set so they cannot use worker EXECUTE or SET ROLE into it.
+-- but lose INHERIT and SET, so they can neither use worker EXECUTE nor SET ROLE
+-- into it. PostgreSQL 16 and later leave SET true unless it is named.
 DO $$
 DECLARE
     membership record;
@@ -77,6 +175,7 @@ BEGIN
           JOIN pg_catalog.pg_roles AS member ON member.oid = edge.member
          WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
            AND edge.admin_option
+           AND member.rolname <> CURRENT_USER
     LOOP
         EXECUTE pg_catalog.format(
             'REVOKE ADMIN OPTION FOR %I FROM %I CASCADE',
@@ -84,11 +183,73 @@ BEGIN
             membership.member_role
         );
         EXECUTE pg_catalog.format(
-            'GRANT %I TO %I WITH INHERIT FALSE, ADMIN FALSE',
+            'GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE',
             membership.capability_role,
             membership.member_role
         );
     END LOOP;
+END;
+$$;
+
+-- A principal that is not a superuser can revoke only membership grants it
+-- made itself; PostgreSQL reports another grantor's grant as a WARNING and
+-- keeps it. Prove both sweeps converged instead of trusting them. The
+-- migration principal, which owns every covenant relation, keeps ADMIN so it
+-- can still grant these capability roles to runtime logins where no superuser
+-- exists. A swept delegate's grant from another grantor is a separate row that
+-- can still carry SET or INHERIT. The attributes are re-read last, while this
+-- transaction still holds both role rows.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS capability ON capability.oid = edge.member
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a capability role still belongs to a parent role this principal could not revoke';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS capability ON capability.oid = edge.roleid
+          JOIN pg_catalog.pg_roles AS holder ON holder.oid = edge.member
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND edge.admin_option
+           AND holder.rolname <> CURRENT_USER
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'capability-role delegation survived the sweep; another grantor holds it';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_auth_members AS swept
+          JOIN pg_catalog.pg_auth_members AS other
+            ON other.roleid = swept.roleid
+           AND other.member = swept.member
+          JOIN pg_catalog.pg_roles AS capability ON capability.oid = swept.roleid
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND NOT swept.admin_option
+           AND NOT swept.inherit_option
+           AND NOT swept.set_option
+           AND (other.inherit_option OR other.set_option)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a swept capability-role delegate keeps SET or INHERIT through another grant';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS capability
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND (capability.rolsuper OR capability.rolcreatedb
+                OR capability.rolcreaterole OR capability.rolcanlogin
+                OR capability.rolreplication OR NOT capability.rolinherit
+                OR capability.rolbypassrls)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a capability role attribute did not converge';
+    END IF;
 END;
 $$;
 
