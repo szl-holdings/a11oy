@@ -24,6 +24,6 @@ permissions:
 
 jobs:
   anatomy-map-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@1bda800b8326aa1a8456987250d75137f9379f47
+    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@f33ee74353c19336130d00ec3cd8d230c1057008
     with:
-      checker-ref: 1bda800b8326aa1a8456987250d75137f9379f47
+      checker-ref: f33ee74353c19336130d00ec3cd8d230c1057008
