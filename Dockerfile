@@ -188,9 +188,11 @@ COPY model_release/m1/ ./model_release/m1/
 # destinations explicitly; this module performs pinned DNS validation, bounded
 # redirect handling, response-size limits, and secret-safe deterministic errors.
 # Keep root-level sources explicit while batching them into one filesystem layer.
+# #3770 release-manifest module/schema/placeholder live here, not as a late extra
+# layer; exact source allowlists and historical digests remain separately frozen.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py a11oy_cpu_lab_contract.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py ./
+COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py a11oy_cpu_lab_contract.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py szl_release_manifest.py release-manifest.schema.json release-manifest.json ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -725,8 +727,9 @@ COPY khipu_lmdb/ ./khipu_lmdb/
 # #3770 RELEASE-MANIFEST FIXTURES: build-identity ARG/ENV (7, ALL empty-default;
 # values are NEVER hardcoded into source — the canonical container workflow
 # supplies them at build time and absent values stay honestly UNKNOWN at
-# runtime, where GET /api/build reports them fail-closed) + ONE COPY of the
-# release-manifest module set. The manifest JSON itself is CI-generated via
+# runtime, where GET /api/build reports them fail-closed). The three release
+# manifest sources are batched with the prior root COPY, adding NO layer.
+# The manifest JSON itself is CI-generated via
 # scripts/generate_release_manifest.py (--require-complete fails the build on
 # missing evidence); the committed placeholder keeps this COPY valid on
 # constrained rebuilds while the promotion gate still BLOCKS on it.
@@ -743,4 +746,3 @@ ENV SZL_SERVED_FRONTEND_SHA256=${SZL_SERVED_FRONTEND_SHA256} \
     SZL_DEPLOYMENT_IDENTITY=${SZL_DEPLOYMENT_IDENTITY} \
     SZL_RELEASE_ID=${SZL_RELEASE_ID} \
     SZL_RELEASE_COMMIT=${SZL_RELEASE_COMMIT}
-COPY szl_release_manifest.py release-manifest.schema.json release-manifest.json ./
