@@ -150,6 +150,15 @@ blocked until independent release-quality and model evidence exists.
 Source for this host service belongs to the
 `services` and `provenance` layers; these scripts are not copied into the HF image.
 
+Known deterministic startup refusals (pinned-source mismatch, pinned SSH
+configuration mismatch, preserved existing listener, invalid private gateway
+credential) are classified into fixed failure codes and recorded in the bootstrap
+evidence log as a single unsigned `refusal` record; a classified refusal stops
+the bounded retry loop immediately instead of spending its budget. Unknown
+nonzero exits and tracebacks stay unclassified - nothing raw is appended to
+that log. These diagnostics are unsigned observations; they do not replace the
+supervisor's signed lifecycle receipts and never establish readiness.
+
 ### Installation requirements
 
 1. Use a native Windows Python environment with the gateway's existing
