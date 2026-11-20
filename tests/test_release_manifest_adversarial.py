@@ -84,6 +84,7 @@ class ReleaseManifestFailClosedTests(unittest.TestCase):
     def test_invalid_source_commits_do_not_match(self):
         for value in (
             "abc",
+            "0" * 40,
             "f" * 39,
             "z" * 40,
             "ABC" * 13 + "A",
@@ -146,6 +147,8 @@ class ReleaseManifestFailClosedTests(unittest.TestCase):
                 "model",
                 "model@latest",
                 "model@sha256:" + "0" * 63,
+                "model@sha256:" + "0" * 64,
+                "model@" + "0" * 40,
                 "model@sha256:" + "f" * 64 + "\n",
             ):
                 with self.subTest(key=key, value=value):
@@ -266,6 +269,13 @@ class ReleaseManifestFailClosedTests(unittest.TestCase):
         self.assertEqual(result["_labels"]["model_identity"], srm.UNKNOWN)
         self.assertEqual(result["_labels"]["api_contract_sha256"], "MEASURED_ENV")
         self.assertEqual(result["_labels"]["deployment_identity"], "MEASURED_ENV")
+
+    def test_null_commit_cannot_be_source_or_generated(self):
+        with patch.dict("os.environ", {"SZL_RELEASE_COMMIT": "0" * 40}, clear=True):
+            self.assertEqual(srm.source_commit(), srm.UNKNOWN)
+        generated, missing = srm.generate_manifest(commit="0" * 40)
+        self.assertEqual(generated["source"]["git_commit"], srm.UNKNOWN)
+        self.assertIn("source.git_commit", missing)
 
 
 if __name__ == "__main__":
