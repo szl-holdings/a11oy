@@ -116,10 +116,13 @@ def manifest_entry(pem_bytes: bytes, manifest: dict):
         if fingerprint is not None and not isinstance(fingerprint, str):
             raise ChainError(f"trust manifest organ {name!r} has non-string fingerprint")
     fprs = key_fingerprints(pem_bytes)
-    for name, entry in organs.items():
-        if entry.get("fingerprint_sha256") in fprs:
-            return name, entry
-    return None, None
+    matches = [(name, entry) for name, entry in organs.items()
+               if entry.get("fingerprint_sha256") in fprs]
+    if len(matches) > 1:
+        names = ", ".join(sorted(name for name, _ in matches))
+        raise ChainError("ambiguous trust manifest: fingerprint matches multiple organs ("
+                         + names + "); refusing to pick one (fail closed)")
+    return matches[0] if matches else (None, None)
 
 
 def manifest_signer(pem_bytes: bytes, manifest: dict):
@@ -131,13 +134,22 @@ def parse_ts(value, what: str) -> datetime:
     """Parse an RFC 3339 UTC timestamp ('...Z' or '+00:00'). Fail closed otherwise."""
     if not isinstance(value, str) or not value:
         raise ChainError(f"{what}: missing or non-string timestamp")
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    if " " in value:
+        raise ChainError(f"{what}: {value!r} is not an RFC 3339 timestamp (T separator required)")
     try:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(value)
     except ValueError:
         raise ChainError(f"{what}: {value!r} is not an RFC 3339 timestamp")
     if dt.tzinfo is None:
         raise ChainError(f"{what}: {value!r} has no timezone (UTC required)")
-    return dt.astimezone(timezone.utc)
+    if dt.utcoffset() != timedelta(0):
+        raise ChainError(f"{what}: {value!r} has a nonzero UTC offset (zero offset required)")
+    try:
+        return dt.astimezone(timezone.utc)
+    except (OverflowError, ValueError):
+        raise ChainError(f"{what}: {value!r} overflows the datetime range")
 
 
 def lifecycle_problem(entry: dict, first_ts: datetime, last_ts: datetime):
@@ -359,8 +371,12 @@ def main(argv=None) -> int:
         stale = False
         if args.max_age_days is not None:
             now = now_override if now_override is not None else datetime.now(timezone.utc)
-            age = now - last
-            if age > timedelta(days=args.max_age_days):
+            try:
+                age = now - last
+                limit = timedelta(days=args.max_age_days)
+            except (OverflowError, ValueError):
+                return usage_error("--max-age-days is out of the datetime range")
+            if age > limit:
                 stale = True
                 notes.append(f"newest beat is {age.days} days old (> {args.max_age_days:g})")
         if args.manifest is not None:
@@ -385,7 +401,7 @@ def main(argv=None) -> int:
         return usage_error(exc)
 
     if args.json:
-        out = {"ok": True, **result, "verdict": verdict, "exit_code": code}
+        out = {"ok": code == EXIT_OK, "integrity_ok": True, **result, "verdict": verdict, "exit_code": code}
         if args.manifest is not None:
             out["signer"] = signer or "UNKNOWN"
             out["signer_anchored"] = verdict in ("PASS", "STALE") and bool(signer)
@@ -393,7 +409,10 @@ def main(argv=None) -> int:
             out["notes"] = notes
         print(json.dumps(out))
     else:
-        print(f"CHAIN OK — {result['beats']} beats verified, root sha256:{result['root']}")
+        if code == EXIT_OK:
+            print(f"CHAIN OK — {result['beats']} beats verified, root sha256:{result['root']}")
+        else:
+            print(f"CHAIN VERIFIED (NOT OK) - {result['beats']} beats verified, root sha256:{result['root']}; verdict {verdict}")
         print(f"signer fingerprint (sha256 of normalized PEM): {result['fingerprint']}")
         if args.manifest is not None:
             if verdict == "SIGNER_UNKNOWN":

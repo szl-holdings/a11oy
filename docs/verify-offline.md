@@ -64,7 +64,9 @@ python examples/verify_chain_offline.py --bundle examples/offline-verify-sample/
 
 ```
 CHAIN FAILED — ECDSA signature invalid
+CHAIN VERIFIED (NOT OK) - 3 beats verified, root sha256:e9c3cb7c3260c4f9c7a86a2c68d20d4f4c187691d9da85745332b71f7af3381b; verdict SIGNER_UNKNOWN
 SIGNER UNKNOWN — integrity verified, but this key is not in the trust manifest; treat the receipts as unauthenticated (abstain)
+CHAIN VERIFIED (NOT OK) - 3 beats verified, root sha256:e9c3cb7c3260c4f9c7a86a2c68d20d4f4c187691d9da85745332b71f7af3381b; verdict STALE
 STALE — newest beat is 77 days old (> 30); integrity holds, but re-fetch a current bundle before relying on it (abstain)
 ```
 
@@ -75,7 +77,7 @@ that is deliberately absent from the org manifest.
 |---|---|---|---|
 | `PASS` | 0 | Signatures, links and root verified (and, with `--manifest`, the key is listed and valid for the beat times) | Rely on integrity; with `--manifest`, the signer is identified |
 | `FAIL` | 1 | Any signature, link, digest, canonical-encoding or timestamp-format failure | Do not use the bundle |
-| (usage) | 2 | Unreadable file or bad arguments | Fix the command |
+| (usage) | 2 | Unreadable file or bad arguments; an ambiguous trust manifest (one fingerprint in several organs) also fails closed here | Fix the command or the manifest |
 | `SIGNER_UNKNOWN` | 3 | Integrity holds but the key is not in the manifest | Abstain: confirm the fingerprint out-of-band or treat as unauthenticated |
 | `SIGNER_REVOKED` / `SIGNER_NOT_VALID_AT_TIME` | 4 | Key revoked, retired without a bound, or the beats claim times outside its window | Do not trust the signer identity |
 | `STALE` | 5 | Integrity holds but the newest beat is older than `--max-age-days` | Abstain: fetch a current bundle |
@@ -83,8 +85,10 @@ that is deliberately absent from the org manifest.
 When several apply, the more serious one wins: 1 > 4 > 3 > 5 > 0.
 
 Malformed trust-manifest structure (root, organs, entries or fingerprint types) is a configuration error (exit 2), not an unrecognized signer (exit 3). Non-string or unrecognized status on the matching key fails closed with exit 4.
+A manifest in which one fingerprint names more than one organ is an ambiguous trust root: the verifier refuses to choose by JSON member order and fails closed as a configuration error (exit 2).
 
 Every signed beat timestamp is checked for parseability and nondecreasing order, not just the endpoints. The first and last timestamps therefore bound every beat for optional key validity windows, but they are still signer-declared rather than independently time-attested. Invalid `--now` or `--max-age-days` arguments and malformed selected-key `not_before`/`not_after` trust-root fields are configuration errors (exit 2), not receipt-integrity failures (exit 1).
+Timestamps must be RFC 3339 UTC with a zero offset (`Z` or `+00:00`); nonzero UTC offsets and space-separated stamps are rejected. Staleness is strict: a newest beat exactly `--max-age-days` old is still fresh (age > limit).
 
 ## Verifying a real published bundle
 
@@ -134,9 +138,7 @@ as before:
 | Final `beat_hash` == `expected_root` | Any divergence anywhere in the chain |
 
 Every failure exits 1 with `CHAIN FAILED — <reason>`. IO/usage errors exit 2.
-Only a full pass prints `CHAIN OK` and exits 0; exits 3, 4 and 5 are the
-abstain and signer states in the table above. `--json` emits a
-machine-readable verdict for CI; `--quiet` suppresses per-beat lines.
+Only a full pass prints `CHAIN OK` and exits 0. Exits 3, 4 and 5 keep the abstain and signer meaning from the table above and print `CHAIN VERIFIED (NOT OK) - ...` first instead of `CHAIN OK`. In `--json` output `ok` is true only on a full pass; every other exit carries `ok: false`, and `integrity_ok: true` records that the chain itself still verified. `--quiet` suppresses per-beat lines.
 
 ## What this verification does not prove
 
