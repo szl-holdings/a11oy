@@ -5,7 +5,13 @@ Covers: revoked keys, validity windows (not_before / not_after), unknown status
 Bundles are generated in-test with a throwaway P-256 key; nothing is fetched.
 Override the verifier under test with VERIFIER=/path/to/verify_chain_offline.py.
 """
-import base64, copy, hashlib, importlib.util, json, os, subprocess, sys
+import base64
+import hashlib
+import importlib.util
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,7 +23,8 @@ ROOT = HERE.parent
 SAMPLE = ROOT / "examples" / "offline-verify-sample"
 VERIFIER = Path(os.environ.get("VERIFIER") or ROOT / "examples" / "verify_chain_offline.py").resolve()
 spec = importlib.util.spec_from_file_location("vco", VERIFIER)
-vco = importlib.util.module_from_spec(spec); spec.loader.exec_module(vco)
+vco = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(vco)
 
 TS = ["2026-11-01T00:00:00Z", "2026-11-02T00:00:00Z", "2026-11-03T00:00:00Z"]
 
@@ -37,7 +44,8 @@ def make_bundle(tmp, ts=TS):
                                       "sig": base64.b64encode(sig).decode()}]})
         running = hashlib.sha256(vco.pae(pt.encode(), body)).hexdigest()
     b = {"payloadType": pt, "genesis": "0" * 64, "beats": beats, "expected_root": running}
-    (tmp / "bundle.json").write_text(json.dumps(b)); (tmp / "pub.pem").write_bytes(pem)
+    (tmp / "bundle.json").write_text(json.dumps(b))
+    (tmp / "pub.pem").write_bytes(pem)
     return pem
 
 
@@ -79,7 +87,8 @@ def test_v1_entry_without_lifecycle_is_anchored(tmp_path):
 
 def test_unknown_signer_abstains(tmp_path):
     make_bundle(tmp_path)
-    m = tmp_path / "m.json"; m.write_text(json.dumps({"organs": {}}))
+    m = tmp_path / "m.json"
+    m.write_text(json.dumps({"organs": {}}))
     code, out = run(tmp_path, "--manifest", m)
     assert code == 3 and out["verdict"] == "SIGNER_UNKNOWN" and out["signer_anchored"] is False
 
@@ -139,7 +148,8 @@ def test_fresh_bundle_not_stale(tmp_path):
 
 def test_precedence_unknown_beats_stale(tmp_path):
     make_bundle(tmp_path)
-    m = tmp_path / "m.json"; m.write_text(json.dumps({"organs": {}}))
+    m = tmp_path / "m.json"
+    m.write_text(json.dumps({"organs": {}}))
     code, out = run(tmp_path, "--manifest", m, "--max-age-days", "1", "--now", "2027-01-01T00:00:00Z")
     assert code == 3
 
@@ -204,3 +214,45 @@ def test_equal_timestamp_signed_beats_remain_compatible(tmp_path):
         "2026-11-03T00:00:00Z"])
     code, out = run(tmp_path)
     assert code == 0 and out["verdict"] == "PASS"
+
+
+def test_manifest_top_level_array_is_usage_error(tmp_path):
+    make_bundle(tmp_path)
+    m = tmp_path / "m.json"
+    m.write_text("[]", encoding="utf-8")
+    code, out = run(tmp_path, "--manifest", m)
+    assert code == 2 and out["verdict"] == "USAGE"
+
+
+def test_manifest_organs_array_is_usage_error(tmp_path):
+    make_bundle(tmp_path)
+    m = tmp_path / "m.json"
+    m.write_text(json.dumps({"organs": ["malformed"]}), encoding="utf-8")
+    code, out = run(tmp_path, "--manifest", m)
+    assert code == 2 and out["verdict"] == "USAGE"
+
+
+def test_manifest_status_array_rejects_without_exception(tmp_path):
+    pem = make_bundle(tmp_path)
+    code, out = run(tmp_path, "--manifest",
+                    manifest(tmp_path, pem, status=["active"]))
+    assert code == 4 and out["verdict"] == "SIGNER_NOT_VALID_AT_TIME"
+
+
+def test_manifest_fingerprint_array_is_usage_error(tmp_path):
+    make_bundle(tmp_path)
+    m = tmp_path / "m.json"
+    m.write_text(json.dumps({"organs": {
+        "bad": {"fingerprint_sha256": ["not-a-string"]}
+    }}), encoding="utf-8")
+    code, out = run(tmp_path, "--manifest", m)
+    assert code == 2 and out["verdict"] == "USAGE"
+
+
+def test_manifest_nonmapping_organ_entry_is_usage_error(tmp_path):
+    make_bundle(tmp_path)
+    m = tmp_path / "m.json"
+    m.write_text(json.dumps({"organs": {"bad": ["not-a-mapping"]}}),
+                 encoding="utf-8")
+    code, out = run(tmp_path, "--manifest", m)
+    assert code == 2 and out["verdict"] == "USAGE"

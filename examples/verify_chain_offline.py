@@ -102,9 +102,22 @@ def key_fingerprints(pem_bytes: bytes) -> set:
 
 def manifest_entry(pem_bytes: bytes, manifest: dict):
     """Return (name, entry) for the manifest entry whose fingerprint names this key."""
+    if not isinstance(manifest, dict):
+        raise ChainError("trust manifest must be a JSON object")
+    organs = manifest.get("organs", {})
+    if not isinstance(organs, dict):
+        raise ChainError("trust manifest organs must be a JSON object")
+    # Validate the entire trust-root structure before using any entry.
+    # An invalid, unrelated entry cannot be ignored by finding the key first.
+    for name, entry in organs.items():
+        if not isinstance(entry, dict):
+            raise ChainError(f"trust manifest organ {name!r} must be a JSON object")
+        fingerprint = entry.get("fingerprint_sha256")
+        if fingerprint is not None and not isinstance(fingerprint, str):
+            raise ChainError(f"trust manifest organ {name!r} has non-string fingerprint")
     fprs = key_fingerprints(pem_bytes)
-    for name, entry in (manifest.get("organs") or {}).items():
-        if isinstance(entry, dict) and entry.get("fingerprint_sha256") in fprs:
+    for name, entry in organs.items():
+        if entry.get("fingerprint_sha256") in fprs:
             return name, entry
     return None, None
 
@@ -140,7 +153,7 @@ def lifecycle_problem(entry: dict, first_ts: datetime, last_ts: datetime):
     Returns (verdict, message) or (None, None). Unknown status values fail closed.
     """
     status = entry.get("status", "active")
-    if status not in KEY_STATUSES:
+    if not isinstance(status, str) or status not in KEY_STATUSES:
         return "SIGNER_NOT_VALID_AT_TIME", f"unrecognized key status {status!r} (fail closed)"
     if status == "revoked":
         when = entry.get("revoked_at") or "unknown time"
