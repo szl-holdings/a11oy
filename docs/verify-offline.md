@@ -82,6 +82,8 @@ that is deliberately absent from the org manifest.
 
 When several apply, the more serious one wins: 1 > 4 > 3 > 5 > 0.
 
+Every signed beat timestamp is checked for parseability and nondecreasing order, not just the endpoints. The first and last timestamps therefore bound every beat for optional key validity windows, but they are still signer-declared rather than independently time-attested. Invalid `--now` or `--max-age-days` arguments and malformed selected-key `not_before`/`not_after` trust-root fields are configuration errors (exit 2), not receipt-integrity failures (exit 1).
+
 ## Verifying a real published bundle
 
 1. Obtain the bundle (`bundle.json`: `payloadType`, `genesis`, `beats[]`,

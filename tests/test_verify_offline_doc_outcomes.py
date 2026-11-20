@@ -39,13 +39,13 @@ def repo(tmp_path):
 
 
 def test_doc_promises_are_labelled_as_targets():
-    text = DOC.read_text()
+    text = DOC.read_text(encoding="utf-8")
     assert "Under 5 minutes." not in text, "unqualified timing claim"
     assert "not yet timed" in text
 
 
 def test_every_outcome_command_exits_as_documented(repo):
-    sec = section(DOC.read_text())
+    sec = section(DOC.read_text(encoding="utf-8"))
     bash = [b for lang, b in blocks(sec) if lang == "bash"]
     assert bash, "no bash block"
     expectations, outputs = 0, []
@@ -58,7 +58,11 @@ def test_every_outcome_command_exits_as_documented(repo):
         argv = shlex.split(cmd)
         if argv[0] == "python":
             argv[0] = sys.executable
-        p = subprocess.run(argv, cwd=repo, capture_output=True, text=True)
+        # Normalize Windows console encoding so the documented Unicode
+        # em dash is compared as UTF-8, not a replacement character.
+        p = subprocess.run(argv, cwd=repo, capture_output=True, text=True,
+                           encoding="utf-8",
+                           env={**os.environ, "PYTHONIOENCODING": "utf-8"})
         if m:
             expectations += 1
             assert p.returncode == int(m.group(1)), (cmd, p.returncode, p.stdout, p.stderr)
@@ -72,13 +76,13 @@ def test_every_outcome_command_exits_as_documented(repo):
 
 
 def test_outcome_table_lists_every_exit_code():
-    sec = section(DOC.read_text())
+    sec = section(DOC.read_text(encoding="utf-8"))
     for code in ("| 0 |", "| 1 |", "| 2 |", "| 3 |", "| 4 |", "| 5 |"):
         assert code in sec
 
 
 def test_limits_section_present():
-    text = " ".join(DOC.read_text().split())
+    text = " ".join(DOC.read_text(encoding="utf-8").split())
     assert "## What this verification does not prove" in text
     for phrase in ("written by the", "not independent verification", "unknown"):
         assert phrase in text

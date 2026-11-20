@@ -35,6 +35,7 @@ import base64
 import binascii
 import hashlib
 import json
+import math
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -234,6 +235,7 @@ def verify_chain(bundle: dict, pubkey, pem: bytes, strict_keyid: bool,
     running = genesis
     n = len(beats)
     stamps = []
+    previous_stamp = None
     for i, env in enumerate(beats):
         pt, body, keyid_note = verify_signature(env, pubkey, pem, strict_keyid)
         if pt != payload_type:
@@ -247,6 +249,12 @@ def verify_chain(bundle: dict, pubkey, pem: bytes, strict_keyid: bool,
         for field in ("seq", "prev_beat_hash", "receipt", "ts"):
             if field not in payload_obj:
                 raise ChainError(f"beat {i}: payload missing field {field!r}")
+        # Validate every signed beat, not only first/last. This ensures the
+        # bounds are sufficient for subsequent manifest window checks.
+        stamp = parse_ts(payload_obj["ts"], f"beat {i} ts")
+        if previous_stamp is not None and stamp < previous_stamp:
+            raise ChainError(f"beat {i}: timestamp predates the prior signed beat")
+        previous_stamp = stamp
         stamps.append(payload_obj["ts"])
         if payload_obj["seq"] != i:
             raise ChainError(f"beat {i}: seq {payload_obj['seq']} != position {i}")
@@ -289,6 +297,23 @@ def main(argv=None) -> int:
                     help="RFC 3339 'current time' for --max-age-days (testing/replay)")
     args = ap.parse_args(argv)
 
+    def usage_error(message) -> int:
+        if args.json:
+            print(json.dumps({"ok": False, "verdict": "USAGE",
+                              "exit_code": EXIT_USAGE, "error": str(message)}))
+        else:
+            print(f"error: {message}", file=sys.stderr)
+        return EXIT_USAGE
+
+    if args.max_age_days is not None and (
+        not math.isfinite(args.max_age_days) or args.max_age_days < 0
+    ):
+        return usage_error("--max-age-days must be a finite nonnegative number")
+    try:
+        now_override = parse_ts(args.now, "--now") if args.now is not None else None
+    except ChainError as exc:
+        return usage_error(exc)
+
     try:
         bundle = json.loads(args.bundle.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -320,7 +345,7 @@ def main(argv=None) -> int:
         last = parse_ts(result["last_ts"], f"beat {result['beats'] - 1} ts")
         stale = False
         if args.max_age_days is not None:
-            now = parse_ts(args.now, "--now") if args.now else datetime.now(timezone.utc)
+            now = now_override if now_override is not None else datetime.now(timezone.utc)
             age = now - last
             if age > timedelta(days=args.max_age_days):
                 stale = True
@@ -342,12 +367,9 @@ def main(argv=None) -> int:
         if stale and code == EXIT_OK:
             verdict, code = "STALE", EXIT_STALE
     except ChainError as exc:
-        if args.json:
-            print(json.dumps({"ok": False, "verdict": "FAIL", "exit_code": EXIT_FAIL,
-                              "error": str(exc)}))
-        else:
-            print(f"CHAIN FAILED — {exc}", file=sys.stderr)
-        return EXIT_FAIL
+        # At this stage the signed bundle has passed verification; the only
+        # possible timestamp parse errors come from caller/trust-root metadata.
+        return usage_error(exc)
 
     if args.json:
         out = {"ok": True, **result, "verdict": verdict, "exit_code": code}

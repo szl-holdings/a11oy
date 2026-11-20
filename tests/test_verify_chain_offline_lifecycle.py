@@ -148,3 +148,59 @@ def test_unparseable_timestamp_fails_closed(tmp_path):
     make_bundle(tmp_path, ts=["yesterday", "2026-11-02T00:00:00Z", "2026-11-03T00:00:00Z"])
     code, out = run(tmp_path, "--max-age-days", "30")
     assert code == 1 and out["verdict"] == "FAIL"
+
+
+
+def test_intermediate_timestamp_outside_window_fails(tmp_path):
+    # Both endpoints are within the manifest window; a signed middle beat
+    # outside it must never be accepted through endpoint-only validation.
+    pem = make_bundle(tmp_path, ts=[
+        "2026-11-01T00:00:00Z", "2026-11-20T00:00:00Z",
+        "2026-11-03T00:00:00Z"])
+    code, out = run(tmp_path, "--manifest",
+                    manifest(tmp_path, pem, not_after="2026-11-10T00:00:00Z"))
+    assert code == 1 and out["verdict"] == "FAIL"
+
+
+def test_intermediate_timestamp_malformed_without_freshness_fails(tmp_path):
+    make_bundle(tmp_path, ts=[
+        "2026-11-01T00:00:00Z", "not-a-timestamp",
+        "2026-11-03T00:00:00Z"])
+    code, out = run(tmp_path)
+    assert code == 1 and out["verdict"] == "FAIL"
+
+
+def test_out_of_order_signed_beats_fail_without_manifest(tmp_path):
+    make_bundle(tmp_path, ts=[
+        "2026-11-03T00:00:00Z", "2026-11-02T00:00:00Z",
+        "2026-11-04T00:00:00Z"])
+    code, out = run(tmp_path)
+    assert code == 1 and out["verdict"] == "FAIL"
+
+
+def test_malformed_manifest_time_is_usage_error(tmp_path):
+    pem = make_bundle(tmp_path)
+    code, out = run(tmp_path, "--manifest",
+                    manifest(tmp_path, pem, not_before="invalid-date"))
+    assert code == 2 and out["verdict"] == "USAGE" and out["exit_code"] == 2
+
+
+def test_malformed_now_is_usage_error(tmp_path):
+    make_bundle(tmp_path)
+    code, out = run(tmp_path, "--max-age-days", "30", "--now", "not-a-date")
+    assert code == 2 and out["verdict"] == "USAGE"
+
+
+@pytest.mark.parametrize("age", ["NaN", "Infinity", "-1"])
+def test_invalid_staleness_limit_is_usage_error(tmp_path, age):
+    make_bundle(tmp_path)
+    code, out = run(tmp_path, "--max-age-days", age)
+    assert code == 2 and out["verdict"] == "USAGE"
+
+
+def test_equal_timestamp_signed_beats_remain_compatible(tmp_path):
+    make_bundle(tmp_path, ts=[
+        "2026-11-03T00:00:00Z", "2026-11-03T00:00:00Z",
+        "2026-11-03T00:00:00Z"])
+    code, out = run(tmp_path)
+    assert code == 0 and out["verdict"] == "PASS"
