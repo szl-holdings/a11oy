@@ -6,7 +6,7 @@ version: "1.0.0"
 date-released: "2026-06-09"
 license: Apache-2.0
 repository-code: "https://github.com/szl-holdings/amaru"
-url: "https://szlholdings.ai"
+url: "https://a-11-oy.com"
 abstract: >
   SZL Holdings flagship software suite — Doctrine v11 compliant,
   SLSA Build Level 1, Section 889 attested, OpenTelemetry instrumented.
@@ -21,12 +21,12 @@ keywords:
   - sovereign-ai
 authors:
   - name: "SZL Holdings"
-    website: "https://szlholdings.ai"
-    email: "hello@szlholdings.ai"
+    website: "https://a-11-oy.com"
+    email: "hello@szlholdings.com"
   - name: "Yachay"
     email: "yachay@szlholdings.ai"
 contact:
-  - email: "hello@szlholdings.ai"
+  - email: "hello@szlholdings.com"
     name: "SZL Holdings"
 references:
   - type: article
