@@ -250,6 +250,44 @@ No inference is replayed by a supervisor retry. A nondefault local port does not
 validate the remote engine's model bytes, add execution authority, or lift the
 existing `production_acceptance: BLOCKED` status.
 
+### Windows host preflight (read-only, not a service installer)
+
+Run the source-controlled preflight with a separately proven Python interpreter,
+**not** necessarily the Python executable named by the scheduled task. The
+task's own sibling `python.exe` is probed for a working `encodings` standard
+library using fixed `-I -B` import code **only** when it is inside the
+operator's per-user `%LOCALAPPDATA%\\Programs\\Python` installation tree
+and is not a reparse-point file. Unapproved executables are not launched.
+
+```powershell
+$approvedPython = '<operator-verified absolute python.exe path>'
+& $approvedPython -I -B ops/vm-model-gateway/host_preflight.py `
+  --output "$env:TEMP\\szl-gateway-host-unique-UTC.json"
+```
+
+The preflight performs bounded, read-only Windows Task Scheduler, private
+**file-existence only**, and loopback listener checks. It does not read bearer
+keys, SSH private keys, audit-signing material, command-line secrets, or
+process memory; it does not start/enable/disable tasks, adopt port 4000,
+install source files, or call a model. The `--output` destination must be
+new, private, and **outside the GitHub checkout**.
+
+The typed result uses exit **0** for `STRUCTURAL_ONLY` (never execution or
+production authority), **2** for `HOLD` with fixed reason codes, and **3**
+for `UNAVAILABLE`. It independently tests the configured Python standard
+library; mere `python.exe`/`pythonw.exe` file existence is insufficient.
+For a missing private runtime, preserve the operator's disabled task and
+restore only from a reviewed, source-pinned installation with approved
+credential provisioning. After restoration, fresh signed DSSE receipts,
+actual instance identity, model provenance and a functional inference smoke
+remain mandatory **separate** admission gates.
+
+Portable regressions (no Windows provider mutation or real task required):
+
+```bash
+python -I -B -m unittest discover -s ops/vm-model-gateway -p test_host_preflight.py -v
+```
+
 ### Bootstrap migration and rollback
 
 Treat the reviewed bootstrap replacement and removal of native
