@@ -115,6 +115,7 @@ jobs:
           tests/test_rag_route_readonly.py
           tests/test_ayllu_model_binding.py
           tests/test_second_brain_release_schema.py
+          tests/test_verify_second_brain_live.py
           tests/test_forge_profile_runtime.py
           tests/test_model_catalog_observation.py
           tests/test_ayllu_routes.py
