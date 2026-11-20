@@ -458,7 +458,9 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
         return []
 
     @app.get(route, response_model=ComputePoolResponse)
-    async def compute_pool_v1():  # noqa: ANN202
+    def compute_pool_v1():
+        # A cache miss performs synchronous transport probes. FastAPI executes
+        # sync handlers in a threadpool so a slow probe cannot starve /healthz.
         payload = build_compute_pool_contract()
         return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
