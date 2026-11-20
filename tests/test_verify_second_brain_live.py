@@ -417,7 +417,16 @@ def test_raw_inventory_expectation_is_pinned_to_immutable_ledger():
     attestation = boundary["current_inventory_evidence"]["m1_brain_ingest_ledger"]
     ledger = (root / attestation["path"]).read_bytes()
     assert hashlib.sha256(ledger).hexdigest() == attestation["file_sha256"]
-    assert len(ledger.splitlines()) == attestation["rows"]
+    rows = [json.loads(line) for line in ledger.splitlines()]
+    assert len(rows) == attestation["rows"]
+    node_ids: set[str] = set()
+    for row in rows:
+        node_id = row.get("node_id")
+        assert isinstance(node_id, str) and node_id and node_id not in node_ids
+        node_ids.add(node_id)
+        assert row.get("training_eligible") is False
+        assert row.get("training_decision") == "QUARANTINE"
+    assert len(node_ids) == attestation["rows"]
     assert attestation["rows"] == boundary["raw_nodes_observed"]
     assert attestation["rows"] == verifier.EXPECTED_RAW_BRAIN_NODE_COUNT
     assert verifier.EXPECTED_BRAIN_HANDLE_COUNT == verifier.EXPECTED_RAW_BRAIN_NODE_COUNT
