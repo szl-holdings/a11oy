@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - bound alert publication acknowledgements
+
+- Alert-relay POST/PUT attempts now stop waiting after 25 seconds, including
+  acknowledgement-body reads. The bound sits above the measured ~19.5 s
+  Worker-to-ntfy.sh delivery and under the 30 s post-deploy canary. An HTTP 504 records `delivery_status: UNKNOWN`;
+  it does not assert that the provider rejected a message or retry it.
+- Publication acknowledgements are bounded to 64 KiB; oversized responses fail
+  with HTTP 502 and unknown delivery. Complete responses retain their status
+  and body bytes. Long-lived GET subscriptions retain their streaming behavior.
+- Controlled upstream tests cover stalled requests and bodies, cancellation,
+  cleanup, and subscription continuity. This source change does not establish
+  live provider recovery or successful alert delivery.
+
 ### Fixed - energy frontier tiles can become ready from real evidence
 
 - The Energy operator tile required a billable `measured_jobs` count that no NVML

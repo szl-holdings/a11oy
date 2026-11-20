@@ -25,7 +25,16 @@ Safety properties:
 - cookies and Cloudflare forwarding metadata are not sent upstream;
 - write requests require a topic path;
 - malformed or oversized JSON fails before delivery;
-- the real upstream response status and body are preserved;
+- complete upstream publication acknowledgements preserve their status and body bytes;
+- POST/PUT upstream acknowledgements have a 25-second deadline (above the measured
+  ~19.5 s delivery below, under the 30 s canary budget) and a 64 KiB
+  response bound; timeout returns HTTP 504 (`upstream_timeout`) and an oversized
+  acknowledgement returns HTTP 502 (`upstream_response_too_large`), both with
+  `delivery_status: UNKNOWN`;
+- a timeout does not prove that the provider rejected the message: the relay
+  aborts the attempt but never retries an unknown delivery automatically;
+- GET/HEAD subscription streams and OPTIONS are not subject to the publication
+  deadline; completed publications release their timers and cancellation listeners;
 - transport errors return HTTP 502, never a synthetic 2xx;
 - one reserved read-only path, `GET /.well-known/szl-worker-revision`, answers
   `{"worker": "szl-alert-relay", "source_revision": "<40-hex or null>"}` from
@@ -60,7 +69,7 @@ map to the same derived topic) or to the derived `ntfy.sh/szl_...` topic.
 ```shell
 cd ops/alert-relay-worker
 npm ci --ignore-scripts
-npm test         # node --test, 8 tests
+npm test         # node --test with controlled upstream fixtures; no alerts sent
 npm run build    # wrangler deploy --dry-run with Wrangler from package-lock.json
 ```
 
