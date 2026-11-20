@@ -330,7 +330,7 @@ def v2_session(origin: str, source_sha: str):
     series_a["database"] = "/tmp/a11oy-state/series-a/control-plane-v2.sqlite3"
     status = {
         "schema": "szl.a11oy-storage-status/v2",
-        "mode": "FENCED", "role": "WRITER", "writable": True,
+        "mode": "FENCED", "claim": "CLEAN", "mode_reason": None, "role": "WRITER", "writable": True,
         "unfenced": False, "epoch": 1, "alert": False,
         "lease": {"state": "ACTIVE", "sequence": 52, "heartbeat_age_s": 3.6},
         "pending_publish": [], "last_error": None,
@@ -437,6 +437,7 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
     def test_v2_rejects_unfenced_or_stale_lease_and_unhealthy_snapshots(self) -> None:
         changes = (
             (("schema",), "wrong"), (("mode",), "SNAPSHOT_ONLY_UNFENCED"),
+            (("claim",), "UNCLEAN_HANDOVER"), (("claim",), None),
             (("role",), "FENCED"), (("writable",), False), (("unfenced",), True),
             (("epoch",), 0), (("epoch",), True), (("alert",), True),
             (("pending_publish",), ["series_a"]), (("last_error",), {"code": "FAILED"}),
