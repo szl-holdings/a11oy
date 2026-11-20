@@ -230,6 +230,7 @@ async def model_complete(
             citation_state = "NOT_DECLARED_UNSTRUCTURED_OUTPUT"
             cited_node_ids: list[str] = []
             citation_error = None
+            parsed_answer = None
             if isinstance(answer, str):
                 candidate = answer.strip()
                 if candidate.startswith("```") and candidate.endswith("```"):
@@ -268,6 +269,51 @@ async def model_complete(
                                 )
                             else:
                                 citation_state = "CITATIONS_WITHIN_OFFERED_HANDLES"
+            if (
+                citation_error is None
+                and isinstance(parsed_answer, dict)
+                and parsed_answer.get("decision") in ("NAVIGATE", "ABSTAIN")
+            ):
+                # Source/handle proof, never the model's assertion of semantic
+                # relevance. Legacy PLAN responses retain their original scope.
+                from .khipu_plan_guard import validate_khipu_plan
+
+                check = validate_khipu_plan(
+                    parsed_answer, grounding.get("handles"),
+                    grounding.get("evidence"), requested_query=prompt or "",
+                )
+                grounding["plan_invariants"] = {
+                    "code": check.code,
+                    "admitted_structure": check.admitted_structure,
+                    "semantic_relevance_verified": False,
+                    "execution_authorized": False,
+                    "signer_verified": False,
+                }
+                if not check.admitted_structure:
+                    citation_state = "KHIPU_PLAN_INVARIANT_REFUSED"
+                    citation_error = (
+                        "Khipu retrieval plan failed independent "
+                        "decision/citation/evidence invariants"
+                    )
+                else:
+                    cited_node_ids = list(check.cited_node_ids)
+            if citation_error is None:
+                if citation_state == "NOT_DECLARED_UNSTRUCTURED_OUTPUT":
+                    citation_state = "MISSING_KHIPU_CITATION_CONTRACT_REFUSED"
+                    citation_error = (
+                        "Khipu model output did not declare a structured "
+                        "citation or abstention contract"
+                    )
+                elif (
+                    isinstance(parsed_answer, dict)
+                    and parsed_answer.get("decision") == "PLAN"
+                    and not cited_node_ids
+                ):
+                    citation_state = "EMPTY_LEGACY_PLAN_REFUSED"
+                    citation_error = (
+                        "legacy Khipu PLAN must cite at least one "
+                        "controller-offered handle"
+                    )
             grounding["citation_validation"] = {
                 "state": citation_state,
                 "cited_node_ids": cited_node_ids,
