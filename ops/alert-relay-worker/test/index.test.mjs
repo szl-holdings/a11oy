@@ -459,3 +459,14 @@ for (const [label, contentType, body] of [
     assert.deepEqual(await response.json(), { error: "upstream_unavailable" });
   });
 }
+
+test("legacy Worker compatibility enables client-disconnect aborts for publications", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const config = JSON.parse(await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"));
+  const flags = config.compatibility_flags || [];
+  assert.ok(!flags.includes("disable_request_signal"), "client aborts must not be disabled");
+  assert.ok(
+    config.compatibility_date >= "2026-11-17" || flags.includes("enable_request_signal"),
+    "older Workers need enable_request_signal for request.signal to fire on disconnect",
+  );
+});
