@@ -1,6 +1,6 @@
 # Security Policy
 
-Report vulnerabilities privately to **security@szlholdings.ai** — do not open a public issue.
+Report vulnerabilities privately to **security@szlholdings.com** — do not open a public issue.
 We acknowledge within 2 business days.
 
 ---
