@@ -56,6 +56,11 @@ _COMMIT_ENV_NAMES = ("SZL_RELEASE_COMMIT", "A11OY_GIT_SHA", "SZL_GIT_SHA", "GITH
 _RELEASE_ID_ENV_NAMES = ("SZL_RELEASE_ID",)
 _FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_IMMUTABLE_ID_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,191}@"
+    r"(?:sha256:[0-9a-f]{64}|[0-9a-f]{40})$"
+)
+
 
 _PLACEHOLDER_STATUS = "PLACEHOLDER_UNTIL_CI_GENERATED"
 _GENERATED_STATUS = "GENERATED"
@@ -91,8 +96,39 @@ def manifest_path() -> Path:
 
 
 def _is_unknown(value: Any) -> bool:
-    text = str(value or "").strip()
+    if value is None:
+        return True
+    if type(value) is not str:
+        return False
+    text = value.strip()
     return text == "" or text.upper() == UNKNOWN
+
+
+def _unique_json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate keys, including nested status/identity keys."""
+    output: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in output:
+            raise ValueError("duplicate manifest key")
+        output[key] = value
+    return output
+
+
+def _valid_runtime_value(key: str, value: Any) -> bool:
+    """Syntax-only eligibility; verification of source bytes is external."""
+    if (
+        type(value) is not str
+        or len(value) > 512
+        or not value
+        or value != value.strip()
+        or _is_unknown(value)
+    ):
+        return False
+    if key in ("served_frontend_sha256", "api_contract_sha256"):
+        return _SHA256_RE.fullmatch(value) is not None and any(ch != "0" for ch in value)
+    if key in ("model_identity", "deployment_identity"):
+        return _IMMUTABLE_ID_RE.fullmatch(value) is not None
+    return False
 
 
 def sha256_file(path: str | os.PathLike[str]) -> str:
@@ -120,7 +156,10 @@ def load_manifest(path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
         "manifest": None,
     }
     try:
-        raw = json.loads(target.read_text(encoding="utf-8"))
+        raw = json.loads(
+            target.read_text(encoding="utf-8"),
+            object_pairs_hook=_unique_json_pairs,
+        )
     except (OSError, ValueError, TypeError) as exc:
         result["reason"] = f"{type(exc).__name__}: {exc}"[:200]
         return result
@@ -132,11 +171,12 @@ def load_manifest(path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
     runtime = runtime if isinstance(runtime, dict) else {}
     source = raw.get("source")
     source = source if isinstance(source, dict) else {}
-    status = str(raw.get("status") or "").strip()
+    status = raw.get("status")
+    if type(status) is not str or status not in {_PLACEHOLDER_STATUS, _GENERATED_STATUS}:
+        result["reason"] = "manifest status invalid"
+        return result
 
-    result["status"] = (
-        _PLACEHOLDER_STATUS if status == _PLACEHOLDER_STATUS else _GENERATED_STATUS
-    )
+    result["status"] = status
     result["manifest"] = raw
     result["source_commit"] = source.get("git_commit") or UNKNOWN
     result["runtime"] = {key: (runtime.get(key) or UNKNOWN) for key in REQUIRED_RUNTIME_EVIDENCE}
@@ -155,7 +195,9 @@ def runtime_evidence() -> dict[str, Any]:
     for key, env_name in RUNTIME_ENV_NAMES.items():
         value = _env(env_name)
         evidence[key] = value
-        evidence["_labels"][key] = "MEASURED_ENV" if not _is_unknown(value) else UNKNOWN
+        evidence["_labels"][key] = (
+            "MEASURED_ENV" if _valid_runtime_value(key, value) else UNKNOWN
+        )
     return evidence
 
 
@@ -189,6 +231,10 @@ def compare_runtime(manifest: dict[str, Any], runtime: dict[str, Any]) -> list[d
         findings.append(_finding(
             "MANIFEST_PLACEHOLDER", "error",
             "release manifest is the committed placeholder; CI must generate it before promotion"))
+    if type(m_status) is not str or m_status not in {_GENERATED_STATUS, _PLACEHOLDER_STATUS, "UNAVAILABLE"}:
+        findings.append(_finding(
+            "MANIFEST_STATUS_INVALID", "error",
+            "manifest status is not an admitted release state"))
 
     commit_matches = False
     if _is_unknown(r_commit):
@@ -199,11 +245,20 @@ def compare_runtime(manifest: dict[str, Any], runtime: dict[str, Any]) -> list[d
         findings.append(_finding(
             "MANIFEST_COMMIT_UNKNOWN", "error",
             "manifest carries no source commit; identity check is impossible"))
-    elif str(r_commit) == str(m_commit):
+    elif (
+        type(r_commit) is not str
+        or type(m_commit) is not str
+        or _FULL_SHA_RE.fullmatch(r_commit) is None
+        or _FULL_SHA_RE.fullmatch(m_commit) is None
+    ):
+        findings.append(_finding(
+            "SOURCE_COMMIT_FORMAT_INVALID", "error",
+            "runtime and manifest commits must be full canonical 40-hex revisions"))
+    elif r_commit == m_commit:
         commit_matches = True
         findings.append(_finding(
             "SOURCE_COMMIT_MATCH", "info",
-            f"runtime commit {str(r_commit)[:12]} matches the manifest"))
+            f"runtime commit {r_commit[:12]} matches the manifest"))
     else:
         findings.append(_finding(
             "SOURCE_COMMIT_MISMATCH", "error",
@@ -211,6 +266,7 @@ def compare_runtime(manifest: dict[str, Any], runtime: dict[str, Any]) -> list[d
 
     missing_any = False
     mismatched_any = False
+    invalid_any = False
     for key in REQUIRED_RUNTIME_EVIDENCE:
         run_value = runtime.get(key, UNKNOWN)
         man_value = m_runtime.get(key, UNKNOWN)
@@ -219,11 +275,22 @@ def compare_runtime(manifest: dict[str, Any], runtime: dict[str, Any]) -> list[d
             findings.append(_finding(
                 f"{key.upper()}_UNKNOWN", "error",
                 f"required runtime evidence '{key}' is UNKNOWN (env {RUNTIME_ENV_NAMES[key]} unset)"))
+        elif not _valid_runtime_value(key, run_value):
+            invalid_any = True
+            findings.append(_finding(
+                f"{key.upper()}_INVALID", "error",
+                f"runtime '{key}' is malformed or lacks a pinned identity"))
         elif _is_unknown(man_value):
+            missing_any = True
             findings.append(_finding(
                 f"MANIFEST_{key.upper()}_UNKNOWN", "error",
                 f"runtime '{key}' is present but the manifest does not bind it"))
-        elif str(run_value) != str(man_value):
+        elif not _valid_runtime_value(key, man_value):
+            invalid_any = True
+            findings.append(_finding(
+                f"MANIFEST_{key.upper()}_INVALID", "error",
+                f"manifest '{key}' is malformed or lacks a pinned identity"))
+        elif run_value != man_value:
             mismatched_any = True
             findings.append(_finding(
                 f"{key.upper()}_MISMATCH", "error",
@@ -233,7 +300,7 @@ def compare_runtime(manifest: dict[str, Any], runtime: dict[str, Any]) -> list[d
                 f"{key.upper()}_MATCH", "info",
                 f"runtime '{key}' matches the release manifest"))
 
-    if commit_matches and (missing_any or mismatched_any):
+    if commit_matches and (missing_any or mismatched_any or invalid_any):
         findings.append(_finding(
             "PUBLICATION_LAG", "error",
             "source commit is deployed but its build evidence was never published to the runtime; "
@@ -259,8 +326,8 @@ def promotion_gate(manifest: dict[str, Any], runtime: dict[str, Any]) -> dict[st
     m_runtime = m_runtime if isinstance(m_runtime, dict) else {}
     checked: dict[str, Any] = {}
     for key in REQUIRED_RUNTIME_EVIDENCE:
-        run_ok = not _is_unknown(runtime.get(key, UNKNOWN))
-        man_ok = not _is_unknown(m_runtime.get(key, UNKNOWN))
+        run_ok = _valid_runtime_value(key, runtime.get(key, UNKNOWN))
+        man_ok = _valid_runtime_value(key, m_runtime.get(key, UNKNOWN))
         checked[key] = {
             "runtime": "MEASURED" if run_ok else UNKNOWN,
             "manifest": "MEASURED" if man_ok else UNKNOWN,
@@ -356,7 +423,7 @@ def generate_manifest(
     if commit == UNKNOWN:
         missing.append("source.git_commit")
     for key, value in runtime.items():
-        if _is_unknown(value):
+        if not _valid_runtime_value(key, value):
             missing.append(f"runtime.{key}")
 
     manifest: dict[str, Any] = {
