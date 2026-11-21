@@ -646,6 +646,39 @@ def test_unresolved_source_never_admits(sentra_wrapper, monkeypatch, defect):
     with pytest.raises(sentra_wrapper.SentraPublicationError): sentra_wrapper._sentra_source_admission()
 
 
+
+# Regression for issue #3834: GitHub required-status-check contexts with null
+# app_id are NOT verified check authorities. Do not make the publisher accept
+# context-only results, including when check-runs themselves are successful.
+@pytest.mark.parametrize("untrusted_app_id", [None, True, False, "15368", 0, -1])
+def test_sentra_rejects_unbound_required_check_authority(
+        sentra_wrapper, monkeypatch, untrusted_app_id):
+    responses = _transaction_source_responses(sentra_wrapper)
+    branch = responses["/repos/szl-holdings/a11oy/branches/main"]
+    branch["protection"]["required_status_checks"]["checks"][0]["app_id"] = untrusted_app_id
+    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
+    with pytest.raises(sentra_wrapper.SentraPublicationError, match="Required source-check authority is unavailable"):
+        sentra_wrapper._sentra_source_admission()
+
+
+@pytest.mark.parametrize("defect", ["missing-required-check", "duplicate-required-context", "context-list-drift"])
+def test_sentra_rejects_required_context_inventory_mismatch(
+        sentra_wrapper, monkeypatch, defect):
+    responses = _transaction_source_responses(sentra_wrapper)
+    policy = responses["/repos/szl-holdings/a11oy/branches/main"]["protection"]["required_status_checks"]
+    if defect == "missing-required-check":
+        policy["checks"] = []
+    elif defect == "duplicate-required-context":
+        policy["checks"].append(dict(policy["checks"][0]))
+    else:
+        policy["contexts"].append("missing-exact-main-source-check")
+    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
+    with pytest.raises(sentra_wrapper.SentraPublicationError):
+        sentra_wrapper._sentra_source_admission()
+
+
+
+
 class _SentraFixtureApi:
     def __init__(self, module):
         self.module = module
