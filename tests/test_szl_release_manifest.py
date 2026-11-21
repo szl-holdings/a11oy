@@ -172,5 +172,32 @@ class GeneratorTests(unittest.TestCase):
             self.assertEqual(manifest["api_contract_source"], "docs/api-contract.md")
 
 
+class UnverifiedReleaseEvidence(unittest.TestCase):
+    def test_matching_deployment_placeholder_is_not_evidence(self):
+        for placeholder in ("UNAVAILABLE", "undeclared", " PLACEHOLDER ", "NOT_CONFIGURED"):
+            with self.subTest(placeholder=placeholder):
+                runtime = _runtime(deployment_identity=placeholder)
+                gate = srm.promotion_gate(_manifest(runtime=runtime.copy()), runtime)
+                self.assertEqual(gate["decision"], "BLOCKED")
+                self.assertEqual(gate["checked"]["deployment_identity"]["runtime"], srm.UNKNOWN)
+
+    def test_unrecognized_status_is_not_treated_as_generated(self):
+        runtime = _runtime()
+        gate = srm.promotion_gate(_manifest(status="PENDING", runtime=runtime.copy()), runtime)
+        self.assertEqual(gate["decision"], "BLOCKED")
+
+    def test_loading_manifest_does_not_promote_unrecognized_status(self):
+        raw = {
+            "kind": srm.KIND,
+            "status": "PENDING",
+            "source": {"git_commit": COMMIT},
+            "runtime": _runtime(),
+        }
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "manifest.json"
+            path.write_text(json.dumps(raw), encoding="utf-8")
+            self.assertEqual(srm.load_manifest(path)["status"], "UNAVAILABLE")
+
+
 if __name__ == "__main__":
     unittest.main()

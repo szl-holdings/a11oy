@@ -59,11 +59,16 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 _PLACEHOLDER_STATUS = "PLACEHOLDER_UNTIL_CI_GENERATED"
 _GENERATED_STATUS = "GENERATED"
+_RESERVED_EVIDENCE_VALUES = frozenset({
+    "", UNKNOWN, "UNAVAILABLE", "UNDECLARED", "PLACEHOLDER",
+    "MANIFEST_PLACEHOLDER", "MANIFEST_UNAVAILABLE", "NOT_CONFIGURED",
+    "NONE", "NULL", "N/A", "TBD", _PLACEHOLDER_STATUS,
+})
 
 
 def _env(name: str) -> str:
     value = (os.getenv(name) or "").strip()
-    return value if value else UNKNOWN
+    return UNKNOWN if _is_unknown(value) else value
 
 
 def source_commit() -> str:
@@ -78,7 +83,7 @@ def source_commit() -> str:
 def release_id() -> str:
     for name in _RELEASE_ID_ENV_NAMES:
         value = (os.getenv(name) or "").strip()
-        if value and value != UNKNOWN:
+        if not _is_unknown(value):
             return value
     return UNKNOWN
 
@@ -91,8 +96,7 @@ def manifest_path() -> Path:
 
 
 def _is_unknown(value: Any) -> bool:
-    text = str(value or "").strip()
-    return text == "" or text.upper() == UNKNOWN
+    return not isinstance(value, str) or value.strip().upper() in _RESERVED_EVIDENCE_VALUES
 
 
 def sha256_file(path: str | os.PathLike[str]) -> str:
@@ -134,9 +138,10 @@ def load_manifest(path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
     source = source if isinstance(source, dict) else {}
     status = str(raw.get("status") or "").strip()
 
-    result["status"] = (
-        _PLACEHOLDER_STATUS if status == _PLACEHOLDER_STATUS else _GENERATED_STATUS
-    )
+    if status not in (_PLACEHOLDER_STATUS, _GENERATED_STATUS):
+        result["reason"] = "manifest generation status is absent or unrecognized"
+        return result
+    result["status"] = status
     result["manifest"] = raw
     result["source_commit"] = source.get("git_commit") or UNKNOWN
     result["runtime"] = {key: (runtime.get(key) or UNKNOWN) for key in REQUIRED_RUNTIME_EVIDENCE}
@@ -181,7 +186,7 @@ def compare_runtime(manifest: dict[str, Any], runtime: dict[str, Any]) -> list[d
     m_commit = manifest.get("source_commit", UNKNOWN)
     r_commit = runtime.get("source_commit", UNKNOWN)
 
-    if m_status == "UNAVAILABLE":
+    if m_status not in (_PLACEHOLDER_STATUS, _GENERATED_STATUS):
         findings.append(_finding(
             "MANIFEST_UNAVAILABLE", "error",
             "release manifest is absent or malformed; build identity cannot be checked"))
