@@ -564,7 +564,7 @@ def _sentra_source_admission() -> str:
     for check in checks:
         if (not isinstance(check, dict) or not isinstance(check.get("context"), str)
                 or not check["context"] or type(check.get("app_id")) is not int
-                or check["context"] in required):
+                or check["app_id"] <= 0 or check["context"] in required):
             raise SentraPublicationError("Required source-check authority is unavailable")
         required[check["context"]] = check["app_id"]
     if set(policy.get("contexts") or ()) != set(required):
