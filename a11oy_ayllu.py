@@ -1098,15 +1098,30 @@ function unavailable(el,status){el.innerHTML='<span class="src">endpoint unavail
 async function loadSecondBrain(){
   const badge=document.getElementById('sb-badge'), out=document.getElementById('sb-out');
   const {ok,status,data}=await j(api('second-brain'));
-  if(!ok){badge.textContent='offline';unavailable(out,status);return;}
-  const ready=!!data.ready_for_grounded_navigation;
-  const profile=data.profile||{}, memory=data.memory||{}, training=data.training_boundary||{};
-  badge.textContent=ready?'ready':'gated';
-  out.innerHTML='<div class="kpi">'+esc(ready?'GROUNDED':'NOT READY')+'</div>'
+  // A 200 containing null, an array, or a non-contract body is not readiness.
+  if(!ok||!data||typeof data!=='object'||Array.isArray(data)){
+    badge.textContent='offline';unavailable(out,ok?'INVALID_RESPONSE':status);return;
+  }
+  const profile=data.profile&&typeof data.profile==='object'&&!Array.isArray(data.profile)?data.profile:{};
+  const memory=data.memory&&typeof data.memory==='object'&&!Array.isArray(data.memory)?data.memory:{};
+  const training=data.training_boundary&&typeof data.training_boundary==='object'&&!Array.isArray(data.training_boundary)?data.training_boundary:{};
+  const memoryBuilt=memory.built===true;
+  const exactTagObserved=profile.exact_tag_observed===true
+    && typeof profile.expected_model==='string' && profile.expected_model.length>0
+    && typeof profile.served_model==='string'
+    && profile.served_model===profile.expected_model;
+  // API navigation is separate from weight identity, signed inference and
+  // production promotion. Never substitute the expected model for a served one.
+  const navigationApiReady=data.ready_for_grounded_navigation===true && memoryBuilt && exactTagObserved;
+  badge.textContent=navigationApiReady?'API navigation only':'inference held';
+  out.innerHTML='<div class="kpi">'+esc(navigationApiReady?'NAVIGATION API READY / TURN UNVERIFIED'
+    :memoryBuilt?'MEMORY BUILT / INFERENCE HELD':'MEMORY / INFERENCE NOT READY')+'</div>'
     +'<div class="small">'+esc(data.system_id||'SZL-Khipu-Second-Brain-v1')+'</div>'
-    +'<div class="lg small">model '+esc(profile.served_model||profile.expected_model||'unavailable')
-    +' · exact tag '+esc(profile.exact_tag_observed?'observed':'missing')+'</div>'
-    +'<div class="lg small">memory '+esc(memory.built?'built':'not built')
+    +'<div class="lg small">expected model '+esc(profile.expected_model||'NOT DECLARED')
+    +' · served model '+esc(profile.served_model||'NOT OBSERVED')
+    +' · exact tag '+esc(exactTagObserved?'observed in catalog':'NOT VERIFIED')
+    +' · artifact '+esc(profile.artifact_binding||'UNBOUND')+'</div>'
+    +'<div class="lg small">memory '+esc(memoryBuilt?'built':'not built')
     +' · '+esc(String(memory.document_count??'—'))+' docs · '
     +esc(String(memory.chunk_count??'—'))+' chunks · '
     +esc(String(memory.node_count??'—'))+' graph nodes</div>'
@@ -1117,7 +1132,7 @@ async function loadSecondBrain(){
     +esc(String(training.raw_brain_nodes_admitted_to_gradients??0))+' / '
     +esc(String(training.raw_brain_nodes_observed??'—'))
     +' · '+esc(data.promotion_state||data.state||'UNKNOWN')+'</div>'
-    +'<div class="src" style="margin-top:6px">Compound model: navigator + persistent evidence memory + governed controller + receipts. Indexed nodes are not mislabeled as weights.</div>';
+    +'<div class="src" style="margin-top:6px">API/source status only. A catalog tag, memory index, and HTTP 200 do NOT independently verify a signed model completion, immutable weights or production promotion. Indexed nodes are not trained weights.</div>';
 }
 async function loadFormulas(){
   const b=document.getElementById('f-badge'), out=document.getElementById('f-out');
