@@ -208,3 +208,265 @@ test("nearby paths stay opaque topics, not the reserved revision path", async ()
     assert.match(new URL(forwarded.url).pathname, /^\/szl_[a-f0-9]{60}(\/json)?$/, path);
   }
 });
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+async function flushAfterDeadline(pending) {
+  return Promise.race([
+    pending,
+    new Promise((resolve) => setImmediate(() => resolve(null))),
+  ]);
+}
+
+for (const method of ["POST", "PUT"]) {
+  test(`a stalled ${method} is aborted once and returns an unknown-delivery timeout`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const started = deferred();
+    let attempts = 0;
+    let forwarded;
+    const pending = handleRequest(
+      relayRequest("/opaque-topic", { method, body: "canary fixture only" }),
+      (request) => {
+        attempts += 1;
+        forwarded = request;
+        started.resolve();
+        return new Promise((resolve, reject) => {
+          request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+        });
+      },
+    );
+    await started.promise;
+    t.mock.timers.tick(25000);
+    const response = await flushAfterDeadline(pending);
+    assert.ok(response instanceof Response, "stalled publication must settle within its deadline");
+    assert.equal(response.status, 504);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await response.json(), {
+      error: "upstream_timeout",
+      delivery_status: "UNKNOWN",
+    });
+    assert.equal(forwarded.signal.aborted, true);
+    assert.equal(attempts, 1, "an unknown delivery must never be retried automatically");
+  });
+}
+
+test("a publication acknowledged at the measured 19.5 s delivery latency completes", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const started = deferred();
+  let forwarded;
+  let acknowledge;
+  const pending = handleRequest(
+    relayRequest("/opaque-topic", { method: "POST", body: "fixture" }),
+    (request) => {
+      forwarded = request;
+      started.resolve();
+      return new Promise((resolve) => { acknowledge = resolve; });
+    },
+  );
+  await started.promise;
+  t.mock.timers.tick(19500);
+  acknowledge(new Response('{"id":"fixture"}', { status: 200 }));
+  const response = await pending;
+  assert.equal(response.status, 200, "a real delivery inside the measured latency must not time out");
+  assert.equal(await response.text(), '{"id":"fixture"}');
+  assert.equal(forwarded.signal.aborted, false);
+});
+
+test("publication deadline includes a stalled acknowledgement body", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const bodyStarted = deferred();
+  let bodyCancelled = false;
+  const body = new ReadableStream({
+    pull() { bodyStarted.resolve(); },
+    cancel() { bodyCancelled = true; },
+  }, { highWaterMark: 0 });
+  const pending = handleRequest(
+    relayRequest("/opaque-topic", { method: "POST", body: "fixture" }),
+    async () => new Response(body, { status: 200 }),
+  );
+  await bodyStarted.promise;
+  t.mock.timers.tick(25000);
+  const response = await flushAfterDeadline(pending);
+  assert.ok(response instanceof Response, "partial acknowledgements must not hang");
+  assert.equal(response.status, 504, "headers alone must not claim delivery");
+  assert.equal((await response.json()).delivery_status, "UNKNOWN");
+  assert.equal(bodyCancelled, true);
+});
+
+test("completed publication preserves bytes and status, then releases its deadline and abort listener", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const caller = new AbortController();
+  let forwarded;
+  const bytes = new Uint8Array([0, 255, 13, 10]);
+  const response = await handleRequest(
+    relayRequest("/opaque-topic", { method: "POST", body: "fixture", signal: caller.signal }),
+    async (request) => {
+      forwarded = request;
+      return new Response(bytes, { status: 429, headers: { "retry-after": "12" } });
+    },
+  );
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("retry-after"), "12");
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
+  t.mock.timers.tick(25000);
+  assert.equal(forwarded.signal.aborted, false, "completed requests must not retain a deadline");
+  caller.abort();
+  assert.equal(forwarded.signal.aborted, false, "completed requests must detach caller cancellation");
+});
+
+test("publication transport rejection remains 502 and cleans up its timer", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let forwarded;
+  const response = await handleRequest(
+    relayRequest("/opaque-topic", { method: "POST", body: "fixture" }),
+    async (request) => {
+      forwarded = request;
+      throw new TypeError("synthetic unavailable upstream");
+    },
+  );
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { error: "upstream_unavailable" });
+  t.mock.timers.tick(25000);
+  assert.equal(forwarded.signal.aborted, false);
+});
+
+test("large publication acknowledgements are cancelled with unknown delivery", async () => {
+  let cancelled = false;
+  const response = await handleRequest(
+    relayRequest("/opaque-topic", { method: "POST", body: "fixture" }),
+    async () => new Response(new ReadableStream({
+      start(controller) { controller.enqueue(new Uint8Array(64 * 1024 + 1)); },
+      cancel() { cancelled = true; },
+    }), { status: 200 }),
+  );
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), {
+    error: "upstream_response_too_large",
+    delivery_status: "UNKNOWN",
+  });
+  assert.equal(cancelled, true);
+});
+
+test("subscription GET remains streaming beyond the publication deadline", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let stream;
+  let forwarded;
+  const response = await handleRequest(
+    relayRequest("/opaque-topic/sse", { method: "GET" }),
+    async (request) => {
+      forwarded = request;
+      return new Response(new ReadableStream({
+        start(controller) { stream = controller; },
+      }), { headers: { "content-type": "text/event-stream" } });
+    },
+  );
+  assert.equal(response.status, 200);
+  const reader = response.body.getReader();
+  t.mock.timers.tick(12000);
+  assert.equal(forwarded.signal.aborted, false);
+  stream.enqueue(new TextEncoder().encode("data: fixture\n\n"));
+  assert.equal(new TextDecoder().decode((await reader.read()).value), "data: fixture\n\n");
+  stream.close();
+  assert.equal((await reader.read()).done, true);
+  reader.releaseLock();
+});
+
+test("a transport ignoring cancellation still times out and its late body is cancelled", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const started = deferred();
+  const lateResponse = deferred();
+  let attempts = 0;
+  let lateBodyCancelled = false;
+  const pending = handleRequest(
+    relayRequest("/opaque-topic", { method: "POST", body: "fixture" }),
+    () => {
+      attempts += 1;
+      started.resolve();
+      return lateResponse.promise;
+    },
+  );
+  await started.promise;
+  t.mock.timers.tick(25000);
+  const response = await flushAfterDeadline(pending);
+  assert.ok(response instanceof Response, "cancellation must not depend on transport cooperation");
+  assert.equal(response.status, 504);
+  lateResponse.resolve(new Response(new ReadableStream({
+    cancel() { lateBodyCancelled = true; },
+  }), { status: 200 }));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(lateBodyCancelled, true);
+  assert.equal(attempts, 1);
+});
+
+for (const [label, contentType, body] of [
+  ["JSON", "application/json", JSON.stringify({ text: "fixture" })],
+  ["plain text", "text/plain", "fixture"],
+]) {
+  test(`caller abort reaches an in-flight ${label} publication`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const caller = new AbortController();
+    const started = deferred();
+    let attempts = 0;
+    let forwarded;
+    const pending = handleRequest(
+      relayRequest("/opaque-topic", {
+        method: "POST",
+        headers: { "content-type": contentType },
+        body,
+        signal: caller.signal,
+      }),
+      (request) => {
+        attempts += 1;
+        forwarded = request;
+        started.resolve();
+        return new Promise((resolve, reject) => {
+          request.signal.addEventListener("abort", () => reject(request.signal.reason), { once: true });
+        });
+      },
+    );
+    await started.promise;
+    caller.abort();
+    const response = await flushAfterDeadline(pending);
+    assert.ok(response instanceof Response, "caller cancellation must not wait for the publication deadline");
+    assert.equal(forwarded.signal.aborted, true);
+    assert.equal(response.status, 502);
+    assert.equal(attempts, 1);
+  });
+
+  test(`an already-aborted ${label} caller never starts publication`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const caller = new AbortController();
+    caller.abort();
+    let attempts = 0;
+    const response = await handleRequest(
+      relayRequest("/opaque-topic", {
+        method: "POST",
+        headers: { "content-type": contentType },
+        body,
+        signal: caller.signal,
+      }),
+      async () => {
+        attempts += 1;
+        return new Response(null, { status: 204 });
+      },
+    );
+    assert.equal(attempts, 0);
+    assert.equal(response.status, 502);
+    assert.deepEqual(await response.json(), { error: "upstream_unavailable" });
+  });
+}
+
+test("legacy Worker compatibility enables client-disconnect aborts for publications", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const config = JSON.parse(await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"));
+  const flags = config.compatibility_flags || [];
+  assert.ok(!flags.includes("disable_request_signal"), "client aborts must not be disabled");
+  assert.ok(
+    config.compatibility_date >= "2026-11-17" || flags.includes("enable_request_signal"),
+    "older Workers need enable_request_signal for request.signal to fire on disconnect",
+  );
+});
