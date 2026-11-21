@@ -438,6 +438,9 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
         changes = (
             (("schema",), "wrong"), (("mode",), "SNAPSHOT_ONLY_UNFENCED"),
             (("claim",), "UNCLEAN_HANDOVER"), (("claim",), None),
+            (("claim",), "UNKNOWN"), (("claim",), []), (("claim",), {}),
+            (("mode_reason",), "STATE_DATASET_NOT_PRIVATE"),
+            (("mode_reason",), "STATE_DATASET_ABSENT"), (("mode_reason",), False),
             (("role",), "FENCED"), (("writable",), False), (("unfenced",), True),
             (("epoch",), 0), (("epoch",), True), (("alert",), True),
             (("pending_publish",), ["series_a"]), (("last_error",), {"code": "FAILED"}),
@@ -460,6 +463,19 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 target[path[-1]] = value
                 with self.assertRaises(relock.RelockError):
                     evaluate_once(api, session, self.contract)
+
+    def test_v2_health_accepts_first_boot_only_at_initial_epoch(self) -> None:
+        _, _, status = v2_session(self.origin, self.source)
+        status["claim"] = "FIRST_BOOT"
+        self.assertEqual(relock.validate_state_store_status(status)["claim"], "FIRST_BOOT")
+        status["epoch"] = 2
+        with self.assertRaises(relock.RelockError):
+            relock.validate_state_store_status(status)
+        status["claim"] = "CLEAN"
+        self.assertEqual(relock.validate_state_store_status(status)["epoch"], 2)
+        status.pop("claim")
+        with self.assertRaises(relock.RelockError):
+            relock.validate_state_store_status(status)
 
     def test_relock_rejects_any_doctrine_lie(self) -> None:
         session = success_session(self.origin, self.source)

@@ -40,6 +40,16 @@ def test_clean_fenced_private_head_and_public_stores_admit_existing_writer():
     assert "token" not in json.dumps(result).lower()
 
 
+def test_healthy_first_boot_status_cannot_admit_a_release():
+    baseline, storage, now = good()
+    baseline["observation"]["epoch"] = storage["epoch"] = 1
+    assert guard.assess(baseline, storage, expected_live_sha=SOURCE, now=now)["status"] == "ADMITTED"
+    storage["claim"] = "FIRST_BOOT"
+    guard.relock.validate_state_store_status(storage)
+    with pytest.raises(guard.AdmissionHold, match="WRITER_COHERENCE_UNAVAILABLE"):
+        guard.assess(baseline, storage, expected_live_sha=SOURCE, now=now)
+
+
 @pytest.mark.parametrize("mutation", [
     lambda s: s.update(mode="SNAPSHOT_ONLY_UNFENCED"),
     lambda s: s.update(mode_reason="STATE_DATASET_NOT_PRIVATE"),
