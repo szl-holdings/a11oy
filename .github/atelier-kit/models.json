@@ -1,10 +1,18 @@
 {
   "doctrine": "v11 LOCKED \u00b7 749/14/163 \u00b7 \u039b = Conjecture 1 OPEN",
   "n": 40,
+  "hub_visibility": {
+    "measured_at": "2026-11-19T18:39Z",
+    "method": "anonymous Hugging Face API GET /api/models/<id> (HTTP 200 = public; 401/404 = not publicly readable)",
+    "public": 6,
+    "not_public": 34,
+    "note": "Catalog of record, not a list of public models. hub_public is a dated measurement, not a promise: visibility is changed only by the Hub-visibility owner and is not set by this file. A link to a model with hub_public=false will not resolve for anonymous readers."
+  },
   "models": [
     {
       "slug": "miniembed-nano",
       "hf": "SZLHOLDINGS/MiniEmbed-Nano",
+      "hub_public": false,
       "name": "MiniEmbed-Nano",
       "family": "nano",
       "kind": "Hash-table embed",
@@ -60,6 +68,7 @@
     {
       "slug": "moons-nano",
       "hf": "SZLHOLDINGS/Moons-Nano",
+      "hub_public": false,
       "name": "Moons-Nano",
       "family": "nano",
       "kind": "2-layer MLP",
@@ -112,6 +121,7 @@
     {
       "slug": "tinykhipu-nano",
       "hf": "SZLHOLDINGS/TinyKhipu-Nano",
+      "hub_public": false,
       "name": "TinyKhipu-Nano",
       "family": "nano",
       "kind": "Navigate | Abstain MLP",
@@ -166,6 +176,7 @@
     {
       "slug": "receiptagent-nano",
       "hf": "SZLHOLDINGS/ReceiptAgent-Nano",
+      "hub_public": false,
       "name": "ReceiptAgent-Nano",
       "family": "nano",
       "kind": "4-way lambda gate",
@@ -213,6 +224,7 @@
     {
       "slug": "szl-khipu",
       "hf": "SZLHOLDINGS/szl-khipu",
+      "hub_public": false,
       "name": "szl-khipu",
       "family": "nano",
       "kind": "Lambda-gate",
@@ -266,6 +278,7 @@
     {
       "slug": "szl-khipu-1.5b",
       "hf": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "hub_public": true,
       "name": "SZL-Khipu-1.5B",
       "family": "navigator",
       "kind": "Qwen2.5 QLoRA, merged",
@@ -336,6 +349,7 @@
     {
       "slug": "szl-khipu-1.5b-gguf",
       "hf": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "hub_public": true,
       "name": "SZL-Khipu-1.5B-GGUF",
       "family": "navigator",
       "kind": "llama.cpp quant",
@@ -386,6 +400,7 @@
     {
       "slug": "szl-khipu-1.5b-abstain",
       "hf": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
+      "hub_public": false,
       "name": "SZL-Khipu-1.5B-abstain",
       "family": "navigator",
       "kind": "PEFT abstain adapter",
@@ -430,6 +445,7 @@
     {
       "slug": "khipu-r2",
       "hf": "SZLHOLDINGS/KHIPU-R2",
+      "hub_public": false,
       "name": "KHIPU-R2",
       "family": "navigator",
       "kind": "Abstain-retrain round 2",
@@ -478,6 +494,7 @@
     {
       "slug": "szl-forge-1.5b-receiptagent",
       "hf": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "hub_public": true,
       "name": "SZL-Forge-1.5B-ReceiptAgent",
       "family": "receipt",
       "kind": "Qwen2.5 QLoRA, merged",
@@ -535,6 +552,7 @@
     {
       "slug": "szl-receiptagent-qwen35-0.8b-v2",
       "hf": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "hub_public": true,
       "name": "szl-receiptagent-qwen35-0.8b-v2",
       "family": "receipt",
       "kind": "Unsloth LoRA on Qwen3.5-0.8B",
@@ -583,6 +601,7 @@
     {
       "slug": "willay",
       "hf": "SZLHOLDINGS/WILLAY",
+      "hub_public": false,
       "name": "WILLAY",
       "family": "doctrine",
       "kind": "SFT identity, 0.5B",
@@ -651,6 +670,7 @@
     {
       "slug": "a11oy-mini",
       "hf": "SZLHOLDINGS/A11OY-MINI",
+      "hub_public": true,
       "name": "A11OY-MINI",
       "family": "doctrine",
       "kind": "GGUF mini",
@@ -699,6 +719,7 @@
     {
       "slug": "chaski",
       "hf": "SZLHOLDINGS/chaski",
+      "hub_public": true,
       "name": "chaski",
       "family": "messenger",
       "kind": "Qwen3.5 0.8B messenger",
@@ -766,6 +787,7 @@
     {
       "slug": "chaski-5050",
       "hf": "SZLHOLDINGS/chaski-5050",
+      "hub_public": false,
       "name": "chaski-5050",
       "family": "messenger",
       "kind": "50/50 cutting mix",
@@ -828,6 +850,7 @@
     {
       "slug": "chaski-r2",
       "hf": "SZLHOLDINGS/chaski-r2",
+      "hub_public": false,
       "name": "chaski-r2",
       "family": "messenger",
       "kind": "Messenger round 2",
@@ -883,6 +906,7 @@
     {
       "slug": "killinchu-eye",
       "hf": "SZLHOLDINGS/KILLINCHU-EYE",
+      "hub_public": false,
       "name": "KILLINCHU-EYE",
       "family": "sensing",
       "kind": "CUAS object detection",
@@ -930,6 +954,7 @@
     {
       "slug": "yarqa-attn",
       "hf": "SZLHOLDINGS/YARQA-ATTN",
+      "hub_public": false,
       "name": "YARQA-ATTN",
       "family": "kernel",
       "kind": "Receipt-bound attention",
@@ -978,6 +1003,7 @@
     {
       "slug": "szl-receipt-attn",
       "hf": "SZLHOLDINGS/szl-receipt-attn",
+      "hub_public": false,
       "name": "szl-receipt-attn",
       "family": "kernel",
       "kind": "Gated attention",
@@ -1025,6 +1051,7 @@
     {
       "slug": "szl-khipu-kernels",
       "hf": "SZLHOLDINGS/szl-khipu-kernels",
+      "hub_public": false,
       "name": "szl-khipu-kernels",
       "family": "kernel",
       "kind": "Khipu kernel suite",
@@ -1077,6 +1104,7 @@
     {
       "slug": "szl-kernels",
       "hf": "SZLHOLDINGS/szl-kernels",
+      "hub_public": false,
       "name": "szl-kernels",
       "family": "kernel",
       "kind": "Feature-extraction suite",
@@ -1124,6 +1152,7 @@
     {
       "slug": "szl-maskmod",
       "hf": "SZLHOLDINGS/szl-maskmod",
+      "hub_public": false,
       "name": "szl-maskmod",
       "family": "kernel",
       "kind": "Mask modulation",
@@ -1170,6 +1199,7 @@
     {
       "slug": "szl-block-kv",
       "hf": "SZLHOLDINGS/szl-block-kv",
+      "hub_public": false,
       "name": "szl-block-kv",
       "family": "kernel",
       "kind": "Blocked KV cache",
@@ -1217,6 +1247,7 @@
     {
       "slug": "szl-lambda-gate",
       "hf": "SZLHOLDINGS/szl-lambda-gate",
+      "hub_public": false,
       "name": "szl-lambda-gate",
       "family": "kernel",
       "kind": "Torch lambda gate",
@@ -1274,6 +1305,7 @@
     {
       "slug": "szl-governed-norm",
       "hf": "SZLHOLDINGS/szl-governed-norm",
+      "hub_public": false,
       "name": "szl-governed-norm",
       "family": "kernel",
       "kind": "RMSNorm / LayerNorm",
@@ -1327,6 +1359,7 @@
     {
       "slug": "governed-inference-meter",
       "hf": "SZLHOLDINGS/governed-inference-meter",
+      "hub_public": false,
       "name": "governed-inference-meter",
       "family": "kernel",
       "kind": "Tokens-per-joule",
@@ -1373,6 +1406,7 @@
     {
       "slug": "szl-invariants",
       "hf": "SZLHOLDINGS/szl-invariants",
+      "hub_public": false,
       "name": "szl-invariants",
       "family": "governance",
       "kind": "Ed25519 invariant kernel",
@@ -1419,6 +1453,7 @@
     {
       "slug": "szl-ouroboros",
       "hf": "SZLHOLDINGS/szl-ouroboros",
+      "hub_public": false,
       "name": "szl-ouroboros",
       "family": "governance",
       "kind": "Loop-tax kernel",
@@ -1466,6 +1501,7 @@
     {
       "slug": "szl-formulas",
       "hf": "SZLHOLDINGS/szl-formulas",
+      "hub_public": false,
       "name": "szl-formulas",
       "family": "governance",
       "kind": "Lean-bound formulas",
@@ -1519,6 +1555,7 @@
     {
       "slug": "szl-govsign",
       "hf": "SZLHOLDINGS/szl-govsign",
+      "hub_public": false,
       "name": "szl-govsign",
       "family": "governance",
       "kind": "DSSE / in-toto",
@@ -1560,6 +1597,7 @@
     {
       "slug": "szl-provctl",
       "hf": "SZLHOLDINGS/szl-provctl",
+      "hub_public": false,
       "name": "szl-provctl",
       "family": "governance",
       "kind": "SLSA provenance",
@@ -1601,6 +1639,7 @@
     {
       "slug": "szl-blocked",
       "hf": "SZLHOLDINGS/szl-blocked",
+      "hub_public": false,
       "name": "szl-blocked",
       "family": "governance",
       "kind": "EU AI Act Annex IV",
@@ -1642,6 +1681,7 @@
     {
       "slug": "szl-nemo",
       "hf": "SZLHOLDINGS/szl-nemo",
+      "hub_public": false,
       "name": "szl-nemo",
       "family": "governance",
       "kind": "sklearn doctrine triage",
@@ -1707,6 +1747,7 @@
     {
       "slug": "a11oy-v19-substrate",
       "hf": "SZLHOLDINGS/a11oy-v19-substrate",
+      "hub_public": false,
       "name": "a11oy-v19-substrate",
       "family": "estate",
       "kind": "Operational payload",
@@ -1748,6 +1789,7 @@
     {
       "slug": "szl-training-scripts",
       "hf": "SZLHOLDINGS/szl-training-scripts",
+      "hub_public": false,
       "name": "szl-training-scripts",
       "family": "estate",
       "kind": "Forge scripts",
@@ -1789,6 +1831,7 @@
     {
       "slug": "qantu",
       "hf": "SZLHOLDINGS/qantu",
+      "hub_public": false,
       "name": "qantu",
       "family": "roadmap",
       "kind": "Named organ",
@@ -1830,6 +1873,7 @@
     {
       "slug": "waman",
       "hf": "SZLHOLDINGS/waman",
+      "hub_public": false,
       "name": "waman",
       "family": "roadmap",
       "kind": "Killinchu roadmap organ",
@@ -1871,6 +1915,7 @@
     {
       "slug": "chakana",
       "hf": "SZLHOLDINGS/chakana",
+      "hub_public": false,
       "name": "chakana",
       "family": "roadmap",
       "kind": "Andean cross organ",
@@ -1912,6 +1957,7 @@
     {
       "slug": "tinku",
       "hf": "SZLHOLDINGS/tinku",
+      "hub_public": false,
       "name": "tinku",
       "family": "roadmap",
       "kind": "Encounter organ",
@@ -1953,6 +1999,7 @@
     {
       "slug": "szlholdings-stub",
       "hf": "SZLHOLDINGS/SZLHOLDINGS",
+      "hub_public": false,
       "name": "SZLHOLDINGS",
       "family": "estate",
       "kind": "Org stub",
@@ -2068,7 +2115,7 @@
       "name": "szl-atelier Space",
       "kind": "space",
       "href": "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier",
-      "oneLiner": "Walk all 40 Hub models. Unique cuts. Kernel playgrounds in the browser.",
+      "oneLiner": "Walk the 40-model catalog. 6 of the 40 are publicly readable on the Hub as of 2026-11-19; the rest are not public. Unique cuts. Kernel playgrounds in the browser.",
       "cut": "Leaders ship one demo Space. We shipped the whole catalog as a walk you can fail-close.",
       "when": "live now",
       "evidence": "Hub Space RUNNING \u00b7 a11oy.net/atelier \u00b7 a-11-oy.com/atelier"

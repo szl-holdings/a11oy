@@ -284,5 +284,100 @@ class NativeJobTests(unittest.TestCase):
         self.native_canary(nested=True)
 
 
+class RefusalClassificationTests(unittest.TestCase):
+    """Bootstrap #3565 port: pinned refusals classify once, never retry, never leak."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.home = Path(self.folder.name)
+        (self.home / "logs").mkdir()
+        self.launcher = self.home / "windows-bootstrap.py"
+        self.launcher.write_text("# fixture launcher\n", encoding="utf-8")
+        self.source = (HERE / "windows-supervisor.py").read_bytes()
+        (self.home / "windows-supervisor.py").write_bytes(self.source)
+        self.events = []
+        self.attempts = []
+        self.delays = []
+        self.refusals = []
+
+    def emit(self, phase, **fields):
+        self.events.append((phase, fields))
+
+    def factory(self, codes):
+        owner = self
+
+        class Attempt:
+            def __init__(self):
+                self.number = len(owner.attempts)
+                self.pid = 100 + len(owner.attempts)
+                owner.attempts.append(self)
+
+            def start(self, command, cwd, out, err):
+                if self.number < len(owner.refusals) and owner.refusals[self.number]:
+                    err.write(owner.refusals[self.number].encode("utf-8"))
+
+            def wait(self):
+                return codes[self.number]
+
+            def cleanup(self):
+                return {"process_wait_completed": True,
+                        "active_processes": 0, "job_closed": True}
+
+        return Attempt
+
+    def sleep(self, seconds):
+        self.delays.append(seconds)
+        self.events.append(("sleep", {"seconds": seconds}))
+
+    def run_recovery(self, codes, refusals):
+        self.refusals = refusals
+        return bootstrap.recover(self.launcher, self.emit,
+                                 attempt_factory=self.factory(codes), sleep=self.sleep)
+
+    def assert_no_refusal_text_leaked(self, message):
+        for phase, fields in self.events:
+            blob = json.dumps(fields)
+            self.assertNotIn(message, blob)
+            self.assertNotIn("fixture-private", blob)
+
+    def test_known_refusal_classifies_once_and_never_retries(self):
+        for message, code in {
+            "Pinned source mismatch": "SOURCE_PIN_MISMATCH",
+            "Pinned SSH configuration mismatch": "SSH_CONFIG_PIN_MISMATCH",
+            "Existing listener preserved; startup refused": "EXISTING_LISTENER_PRESERVED",
+            "Invalid private gateway credential": "INVALID_GATEWAY_CREDENTIAL",
+        }.items():
+            with self.subTest(code=code):
+                self.events = []
+                self.attempts = []
+                self.delays = []
+                self.assertEqual(self.run_recovery([1], [message]), 1)
+                self.assertEqual(len(self.attempts), 1)
+                self.assertEqual(self.delays, [])
+                refusals = [f for phase, f in self.events if phase == "refusal"]
+                self.assertEqual(len(refusals), 1)
+                self.assertEqual(refusals[0]["failure_code"], code)
+                self.assertIs(refusals[0]["signed"], False)
+                self.assertEqual(refusals[0]["retries_remaining"], 3)
+                self.assert_no_refusal_text_leaked(message)
+
+    def test_unclassified_failure_still_spends_the_full_budget(self):
+        self.assertEqual(
+            self.run_recovery([1, 1, 1, 1],
+                               ["Traceback (most recent call last):",
+                                "fixture-private-value-must-not-appear", "", ""]), 1)
+        self.assertEqual(len(self.attempts), 4)
+        self.assertEqual(self.delays, [60, 60, 60])
+        self.assertEqual(
+            [phase for phase, _ in self.events if phase == "refusal"], [])
+        self.assert_no_refusal_text_leaked("fixture-private")
+
+    def test_clean_exit_emits_no_refusal_record(self):
+        self.assertEqual(self.run_recovery([0], [""]), 0)
+        self.assertEqual(
+            [phase for phase, _ in self.events if phase == "refusal"], [])
+
+
 if __name__ == "__main__":
     unittest.main()
