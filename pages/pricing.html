@@ -151,10 +151,11 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
   <section class="hero wrap">
     <p class="eyebrow">Pricing</p>
     <h1>Verifiable evidence for agentic AI,<br>priced honestly.</h1>
-    <p>a11oy puts a policy gate in front of every AI agent action and seals each decision into a
-      signed, hash-chained receipt anyone can verify offline. Four tiers below. Prices are
+    <p>a11oy puts a policy gate in front of every AI agent action and records each decision in a
+      hash-chained receipt. <b>Current limitation (2026-11-19):</b> receipts are not yet independently verifiable &mdash; signing is
+      not consistently applied and the browser check trusts a key served by the same host it checks. Four tiers below. Prices are
       <b>founder-set launch pricing</b> — early, simple, and subject to change as we learn.</p>
-    <span class="tag">Founder-set launch pricing — every receipt verifiable, every claim checkable.</span>
+    <span class="tag">Founder-set launch pricing — every claim labelled with its evidence status.</span>
   </section>
 
   <!-- Tier cards (naturally responsive; stack on phones) -->
@@ -193,8 +194,8 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
       <div class="price">$15,000<small>flat · 30 days · launch pricing</small></div>
       <ul>
         <li>One integrated agent workflow, end to end</li>
-        <li>Signed receipts on every governed action</li>
-        <li>External adversarial review of the receipt claim</li>
+        <li>Hash-chained receipts on every governed action (signing scoped in the pilot agreement)</li>
+        <li>External adversarial review of the receipt claim (reviewer not yet engaged; named in the written scope)</li>
         <li>Measurable acceptance: chain verifies offline, zero unlogged decisions</li>
         <li>Fixed price, fixed scope, fixed calendar</li>
       </ul>
@@ -209,8 +210,8 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
         <li>Everything in Team</li>
         <li>Own-metal mesh deployment</li>
         <li>Hardware-key signing — your keys, your signing root</li>
-        <li>Air-gap / UDS deployment, zero outside dependency</li>
-        <li>Named engineer &amp; response SLA</li>
+        <li>Air-gap / UDS deployment target (not yet demonstrated at a customer site)</li>
+        <li>Support and response terms written into the signed agreement</li>
       </ul>
       <div class="cta"><a class="btn" href="mailto:hello@a-11-oy.com?subject=a11oy%20Enterprise">Talk to the founder</a></div>
     </div>
@@ -300,9 +301,9 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
           <tr>
             <th scope="row">Support</th>
             <td data-label="Community">Community</td>
-            <td data-label="Team">Business hours</td>
+            <td data-label="Team">Best effort, no SLA</td>
             <td data-label="Pilot">Direct to founder</td>
-            <td data-label="Enterprise">Named engineer + SLA</td>
+            <td data-label="Enterprise">By signed agreement</td>
           </tr>
         </tbody>
       </table>
@@ -424,16 +425,15 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
 
   <!-- FAQ -->
   <section class="faq wrap">
-    <div class="q"><h3>Do I have to trust your numbers?</h3><p>No. Every decision ships a signed receipt
-      you can re-verify yourself, in your own browser, at <a href="/verify">/verify</a> — including
-      anything we meter for billing.</p></div>
+    <div class="q"><h3>Do I have to trust your numbers?</h3><p>Not yet without caveats. Receipts are hash-chained and you can inspect them at <a href="/verify">/verify</a>,
+      but as of 2026-11-19 signatures are not consistently applied and the browser check trusts a key fetched from the
+      same host, so it is not an independent verification. We will say so here until that is fixed.</p></div>
     <div class="q"><h3>What happens in the 30-day pilot?</h3><p>We integrate one agent workflow with the
-      evidence plane: policy gates on every action, signed hash-chained receipts, 10 mapped controls with
+      evidence plane: policy gates on every action, hash-chained receipts, 10 mapped controls with
       evidence links, an auditor export, and an external adversarial review that tries to break the
       receipt claim. Acceptance is measurable, in writing, up front.</p></div>
-    <div class="q"><h3>Can it run fully offline?</h3><p>Yes — the Enterprise tier deploys air-gapped on
-      your own hardware (own-metal mesh, UDS) with your signing keys and no runtime dependency on
-      outside services.</p></div>
+    <div class="q"><h3>Can it run fully offline?</h3><p>That is the Enterprise design target: air-gapped on your own hardware (own-metal mesh, UDS) with
+      your signing keys. It has not yet been demonstrated end to end at a customer site; the pilot scope would say what is tested.</p></div>
     <div class="q"><h3>What is "proven"?</h3><p>Eight core formulas (the locked-8) are proven in Lean 4
       and re-checked on every build. The Λ trust score is <b>Conjecture 1</b> — advisory, never a gate,
       never shown as "green". Trust is capped at 0.97, never 100%.</p></div>
