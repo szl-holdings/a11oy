@@ -97,6 +97,20 @@ def test_lean_declarations_with_modifiers_are_found(repo):
     assert any("private lemma baz' (a b : Nat) : a + b = b + a" in a for a in lean)
 
 
+def test_sentence_extract_preserves_parenthesized_punctuation():
+    prefix = ("Evidence remains source-bound across separate receipt paths and "
+              "cannot be treated as a live deployment claim. ") * 2
+    # Force truncation after the sentence ending in '.) ', before the
+    # surrounding paragraph ends.
+    prefix = prefix.replace(". ", " ")
+    body = prefix + "(This observation is not admission.) " + ("Further audited context remains unavailable. " * 8)
+    hi = len(prefix) + len("(This observation is not admission.) ") + 2
+    extracted = b.first_sentences(body, lo=120, hi=hi)
+    assert extracted is not None
+    assert extracted.endswith("admission.)")
+    assert extracted in b.norm_ws(body)
+
+
 def test_small_corpus_fails_the_gate(repo):
     """Doctrine negative: a stub-sized corpus must be refused, not published."""
     splits, _, _ = _rows(repo)

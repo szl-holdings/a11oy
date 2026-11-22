@@ -157,9 +157,14 @@ def first_sentences(body, lo=120, hi=600):
         if len(flat) <= hi:
             return flat
         cut = flat[:hi]
-        end = max(cut.rfind(". "), cut.rfind(".) "), cut.rfind("; "))
+        # Preserve the closing parenthesis for sentences ending in ".) ".
+        # Truncating at the period alone turns a verbatim ANSWER into a
+        # substring that was never a complete sentence in the source.
+        end, width = max(((cut.rfind(". "), 1),
+                          (cut.rfind(".) "), 2),
+                          (cut.rfind("; "), 1)), key=lambda item: item[0])
         if end >= lo:
-            return cut[:end + 1].strip()
+            return cut[:end + width].strip()
     return None
 
 
