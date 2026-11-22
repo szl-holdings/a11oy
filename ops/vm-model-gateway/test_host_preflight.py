@@ -236,6 +236,15 @@ class HostPreflightTests(unittest.TestCase):
                           "gateway-audit-p256", "gateway-bearer.key"):
             self.assertNotIn(forbidden, script)
 
+    def test_isolation_flags_use_case_sensitive_powershell_matching(self):
+        # PowerShell -match accepts -i as -I; only -cmatch preserves the
+        # actual Python interpreter flag semantics.
+        script = h.WINDOWS_READBACK
+        for flag in ("I", "B"):
+            with self.subTest(flag=flag):
+                expression = rf"$argsText -cmatch '(?<!\S)-{flag}(?!\S)'"
+                self.assertIn(expression, script)
+
     def test_collector_unavailable_cannot_claim_structural(self):
         with mock.patch.object(h.sys, "platform", "win32"), \
                 mock.patch.object(h.subprocess, "run") as run:
