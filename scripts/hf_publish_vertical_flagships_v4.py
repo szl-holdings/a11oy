@@ -28,6 +28,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from types import ModuleType
@@ -57,6 +58,19 @@ SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SENTRA_FILES = ("app.py", "Dockerfile", "requirements.txt", "config.json", "index.html", "panels.html", "README.md")
 SENTRA_MAX_FILE_BYTES = 512 * 1024
 SENTRA_DOCTRINE_CHECKS = ("Banned-token scan (Doctrine v7 §1)", "overclaim / Governed surfaces are honest (Theorem U citation rule)")
+# GitHub protects a PR with BOTH kinds of checks, but only main-phase checks
+# exist on the protected main commit. Never substitute PR-head CI for main.
+# Unknown new contexts remain main-phase requirements until explicitly classified.
+SENTRA_PR_ONLY_CHECKS = (
+    "Product, GitHub, Hub, and proof topology",
+    "Protected base matches immutable HF repository",
+)
+SENTRA_MAIN_CHECKS = (
+    "Frontier model admission + HF estate honesty (pytest, offline)",
+    "Proof-to-Discovery engine (pytest, offline)",
+)
+SENTRA_CHECK_APP_ID = 15368  # the observed GitHub Actions App identity
+
 
 # Historical identifiers stay visible for receipt readers and protected
 # regression tests. They are documentation strings, not active topology.
@@ -567,36 +581,54 @@ def _sentra_source_admission() -> str:
                 or check["app_id"] <= 0 or check["context"] in required):
             raise SentraPublicationError("Required source-check authority is unavailable")
         required[check["context"]] = check["app_id"]
-    if set(policy.get("contexts") or ()) != set(required):
+    contexts = policy.get("contexts")
+    if (not isinstance(contexts, list) or len(contexts) != len(required)
+            or any(not isinstance(name, str) for name in contexts)
+            or set(contexts) != set(required)):
         raise SentraPublicationError("Required source-check policy is inconsistent")
-    if any(name in required and required[name] != 15368 for name in SENTRA_DOCTRINE_CHECKS):
+    # These PR-only checks MUST stay required and App-bound in branch protection,
+    # but are not expected to run on the already-merged protected main commit.
+    # Requiring them on main creates an impossible release gate; accepting a PR
+    # check-run as a main check would instead fabricate protected source evidence.
+    expected = set(SENTRA_PR_ONLY_CHECKS) | set(SENTRA_MAIN_CHECKS)
+    if not expected.issubset(required):
+        raise SentraPublicationError("Required PR/main source-check policy is incomplete")
+    if any(required[name] != SENTRA_CHECK_APP_ID for name in expected):
+        raise SentraPublicationError("Required source-check App identity is inconsistent")
+    main_required = {name: app for name, app in required.items()
+                     if name not in SENTRA_PR_ONLY_CHECKS}
+    if any(name in main_required and main_required[name] != SENTRA_CHECK_APP_ID
+           for name in SENTRA_DOCTRINE_CHECKS):
         raise SentraPublicationError("Doctrine source-check authority is inconsistent")
-    required.update({name: 15368 for name in SENTRA_DOCTRINE_CHECKS})
+    main_required.update({name: SENTRA_CHECK_APP_ID for name in SENTRA_DOCTRINE_CHECKS})
+
     commit = _sentra_github_json(f"/repos/szl-holdings/a11oy/commits/{revision}")
     signature = commit.get("commit", {}).get("verification") or {}
     if commit.get("sha") != revision or signature.get("verified") is not True or signature.get("reason") != "valid":
         raise SentraPublicationError("Sentra source signature is unverified")
-    observed: dict[str, list[dict[str, Any]]] = {name: [] for name in required}
-    for page in range(1, 5):
+
+    # The repository generates hundreds of unrelated check-runs per main SHA.
+    # Query each trusted name individually (GitHub's check_name filter), bounded
+    # to one page and an exact App ID. A missing, overfull, stale or inconclusive
+    # check is never promoted to success, regardless of how other jobs ended.
+    for name, app_id in main_required.items():
+        encoded = urllib.parse.quote(name, safe="")
         payload = _sentra_github_json(
-            f"/repos/szl-holdings/a11oy/commits/{revision}/check-runs?filter=latest&per_page=100&page={page}")
+            f"/repos/szl-holdings/a11oy/commits/{revision}/check-runs"
+            f"?check_name={encoded}&filter=latest&per_page=100&page=1")
         total = payload.get("total_count")
         rows = payload.get("check_runs")
-        if type(total) is not int or not 0 <= total <= 400 or not isinstance(rows, list):
+        if (type(total) is not int or not 0 <= total <= 100
+                or not isinstance(rows, list) or len(rows) != total
+                or any(not isinstance(row, dict) or row.get("name") != name for row in rows)):
             raise SentraPublicationError("Source-check inventory is unavailable or unbounded")
-        for check in rows:
-            name = check.get("name")
-            if name in required and check.get("app", {}).get("id") == required[name]:
-                observed[name].append(check)
-        if page * 100 >= total:
-            break
-    if any(not rows or any(row.get("head_sha") != revision or row.get("status") != "completed"
-                           or row.get("conclusion") != "success" for row in rows)
-           for rows in observed.values()):
-        if any(not rows or any(row.get("status") != "completed" for row in rows)
-               for rows in observed.values()):
+        matching = [row for row in rows if isinstance(row.get("app"), dict)
+                    and row["app"].get("id") == app_id]
+        if not matching or any(row.get("status") != "completed" for row in matching):
             raise SentraChecksPending("Required exact-source checks are unresolved")
-        raise SentraPublicationError("Required exact-source checks are unresolved")
+        if any(row.get("head_sha") != revision or row.get("conclusion") != "success"
+               for row in matching):
+            raise SentraPublicationError("Required exact-source checks are unresolved")
     return revision
 
 
