@@ -81,8 +81,19 @@ const DEFAULT_POLICY: ReceiptPolicy = {
   nodes: ["local-operator"],
 };
 
+// RFC 8785 section 3.2.2.2: a lone surrogate (for example U+DEAD) is not valid
+// I-JSON, may break signatures across implementations, and "MUST cause a
+// compliant JCS implementation to terminate with an appropriate error".
+// JSON.stringify would otherwise emit it as an escaped \udead sequence and hash it.
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+function assertWellFormed(text: string): string {
+  if (LONE_SURROGATE.test(text)) throw new Error("canonicalJson: lone surrogate is not valid I-JSON (RFC 8785 3.2.2.2)");
+  return text;
+}
+
 function normaliseStrings(value: unknown): unknown {
-  if (typeof value === "string") return value.normalize("NFC");
+  if (typeof value === "string") return assertWellFormed(value).normalize("NFC");
   if (Array.isArray(value)) return value.map(normaliseStrings);
   if (value && typeof value === "object") {
     // Object.fromEntries defines every key as an own data property, as JSON.parse
@@ -95,7 +106,7 @@ function normaliseStrings(value: unknown): unknown {
     const entries: [string, unknown][] = [];
     const seen = new Set<string>();
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      const normalizedKey = key.normalize("NFC");
+      const normalizedKey = assertWellFormed(key).normalize("NFC");
       if (seen.has(normalizedKey)) throw new Error("canonicalJson: duplicate NFC key");
       seen.add(normalizedKey);
       entries.push([normalizedKey, normaliseStrings(child)]);

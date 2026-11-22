@@ -138,5 +138,38 @@ side by side with the ingestion surface.
   later promotes the node. Accepted receipts are stored byte-exact and
   atomically, and the receipt directory is pruned so only the newest
   contract-bounded set survives.
+- Freshness is enforced at ingest as well as on read. A receipt whose
+  `observed_at` is more than 30 s ahead of the Space clock, or older than the
+  freshness window (`A11OY_POOL_RECEIPT_MAX_AGE_S`, default 300 s), is refused
+  with `422 receipt outside freshness window` and is not stored; the minter
+  reports the refusal and exits non-zero. On read, a future-dated receipt
+  already on disk never outranks a current one for the same node.
 - Minter cadence must be at most half the freshness window (default 120 s for
   a 300 s window) so a single missed cycle cannot make the node appear stale.
+
+### Per-node attester keys (capability only)
+
+This is a verifier capability. No second node is claimed live or qualified by
+it; a node qualifies only when its own minter produces a fresh receipt.
+
+- Optional `A11OY_POOL_RECEIPT_TRUST_ROOTS` is a JSON list of at most 8 objects
+  with exactly `keyid`, `public_key_pem`, `sha256` and `node_ids`. Each key is
+  P-256 and pinned by the SHA-256 of its DER SubjectPublicKeyInfo, loaded the
+  same fail-closed way as the single key. `keyid` matches
+  `a11oy-pool-attester-<name>-v<n>` and `node_ids` lists the 1 to 16 nodes that
+  key may attest. The second node mints with `--key-id` set to its `keyid`.
+- A signature is checked only against the key its own `keyid` names, and a
+  receipt from a map key is refused (`422`) when its `node_id` is outside that
+  key's `node_ids`.
+- With the variable unset, behaviour is unchanged: the one key in
+  `A11OY_POOL_RECEIPT_PUBLIC_KEY_PEM` is accepted under
+  `a11oy-pool-attester-v1` and is **not bound to any node**, so it can attest
+  any declared node. That stays true alongside a map. To bind it, move it into
+  the map under a new `keyid` and unset the two single-key variables.
+- If the variable is set and anything in it is malformed (bad JSON, an extra or
+  missing field, a pin mismatch, a duplicate `keyid` or public key, the legacy
+  `keyid`), or the single key is configured but fails its pin, no receipt is
+  accepted from any key: ingest answers `503` and no node is promoted.
+- Known limit, not changed here: ingest pruning keeps one global newest-128
+  set across all nodes, so a frequently minting node can evict a quiet node's
+  receipts.
