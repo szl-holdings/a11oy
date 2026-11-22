@@ -14,7 +14,8 @@ Single integration point (mirrors szl_live_wires / szl_chaski):
 
 Routes added (per namespace `ns`):
   GET  /api/{ns}/v1/khipu-os/stats       — DAG stats: hot/archived/checkpoints/merkle root
-  GET  /api/{ns}/v1/khipu-os/verify      — random-sample self-verify (default 100 receipts)
+  GET  /api/{ns}/v1/khipu-os/verify      — read-only recompute; mints no receipt (audit receipt
+                                           is minted by the tick)
   POST /api/{ns}/v1/khipu-os/checkpoint  — take a Merkle checkpoint, return signed DSSE envelope
   POST /api/{ns}/v1/khipu-os/archive     — run the pruner (hot→cold projection; never deletes)
 
@@ -157,7 +158,8 @@ class KhipuOSDag:
         return len(self.children.get(rid, [])) > 0
 
     # ---- self-verify (random sample) ----
-    def verify(self, sample_n: int = 100, rng: Optional[random.Random] = None) -> Dict[str, Any]:
+    def verify(self, sample_n: int = 100, rng: Optional[random.Random] = None,
+               record: bool = True) -> Dict[str, Any]:
         with self._lock:
             rng = rng or random.Random()
             ids = list(self.hot.keys())
@@ -173,11 +175,16 @@ class KhipuOSDag:
                 if not hmac.compare_digest(expect, r.signature or ""):
                     bad.append({"id": rid, "kind": "signature_invalid"})
             ok = not bad
+            if not record:
+                # Read path: no receipt, no tamper event, so a GET cannot grow or re-root the DAG.
+                return {"ok": ok, "sampled": n, "bad": bad, "receipt": None,
+                        "recorded": False}
             if not ok:
                 self.tamper_events.append({"ts": time.time(), "bad": bad, "tripwire": "T22"})
             rec = self.add_receipt(self.space, "self_verify",
                                    {"sampled": n, "ok": ok, "bad_count": len(bad)})
-            return {"ok": ok, "sampled": n, "bad": bad, "receipt": rec.rid}
+            return {"ok": ok, "sampled": n, "bad": bad, "receipt": rec.rid,
+                    "recorded": True}
 
     # ---- self-checkpoint (Merkle + DSSE) ----
     def checkpoint(self, now: Optional[float] = None,
@@ -347,7 +354,7 @@ def register(app, ns: str = "a11oy") -> None:
 
     @app.get(base + "/verify")
     async def khipu_os_verify(sample: int = 100) -> "JSONResponse":
-        return JSONResponse(dag.verify(sample_n=int(sample)))
+        return JSONResponse(dag.verify(sample_n=int(sample), record=False))
 
     @app.post(base + "/checkpoint")
     async def khipu_os_checkpoint() -> "JSONResponse":
