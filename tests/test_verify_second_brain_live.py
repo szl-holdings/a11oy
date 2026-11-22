@@ -79,13 +79,13 @@ class FakeLiveA11oy:
                 "edge_count": 670,
             },
             "training_boundary": {
-                "raw_brain_nodes_observed": 9465,
+                "raw_brain_nodes_observed": 9484,
                 "raw_brain_nodes_admitted_to_gradients": 0,
             },
         }
         self.rag_status = {
             "built": True,
-            "brain_handle_plane": {"count": 9465},
+            "brain_handle_plane": {"count": 9484},
         }
         self.turns = {
             "Maskaq": self._turn(
@@ -392,10 +392,45 @@ def test_cryptographic_signature_tamper_is_rejected():
 
 def test_handle_plane_count_mismatch_is_rejected():
     live = FakeLiveA11oy()
-    live.rag_status["brain_handle_plane"]["count"] = 9463
-    with pytest.raises(verifier.VerificationError, match="expected 9465"):
+    live.rag_status["brain_handle_plane"]["count"] = 9483
+    with pytest.raises(verifier.VerificationError, match="expected 9484"):
         verifier.verify_live(
             "http://127.0.0.1:8765", client=live, now=lambda: FIXED_NOW)
+
+
+def test_raw_inventory_mismatch_rejected_independently():
+    live = FakeLiveA11oy()
+    live.second_brain["training_boundary"]["raw_brain_nodes_observed"] = 9465
+    with pytest.raises(verifier.VerificationError, match="raw-node inventory is not 9484"):
+        verifier.verify_live(
+            "http://127.0.0.1:8765", client=live, now=lambda: FIXED_NOW)
+
+
+def test_raw_inventory_expectation_is_pinned_to_immutable_ledger():
+    root = Path(__file__).resolve().parents[1]
+    release = json.loads(
+        (root / "model_release" / "szl-khipu-second-brain.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    boundary = release["brain_training_policy"]
+    attestation = boundary["current_inventory_evidence"]["m1_brain_ingest_ledger"]
+    ledger = (root / attestation["path"]).read_bytes()
+    assert hashlib.sha256(ledger).hexdigest() == attestation["file_sha256"]
+    rows = [json.loads(line) for line in ledger.splitlines()]
+    assert len(rows) == attestation["rows"]
+    node_ids: set[str] = set()
+    for row in rows:
+        node_id = row.get("node_id")
+        assert isinstance(node_id, str) and node_id and node_id not in node_ids
+        node_ids.add(node_id)
+        assert row.get("training_eligible") is False
+        assert row.get("training_decision") == "QUARANTINE"
+    assert len(node_ids) == attestation["rows"]
+    assert attestation["rows"] == boundary["raw_nodes_observed"]
+    assert attestation["rows"] == verifier.EXPECTED_RAW_BRAIN_NODE_COUNT
+    assert verifier.EXPECTED_BRAIN_HANDLE_COUNT == verifier.EXPECTED_RAW_BRAIN_NODE_COUNT
+    assert boundary["raw_nodes_admitted_to_gradients"] == 0
 
 
 def test_loopback_only_url_rejects_remote_and_embedded_credentials():

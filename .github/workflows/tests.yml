@@ -115,6 +115,7 @@ jobs:
           tests/test_rag_route_readonly.py
           tests/test_ayllu_model_binding.py
           tests/test_second_brain_release_schema.py
+          tests/test_verify_second_brain_live.py
           tests/test_forge_profile_runtime.py
           tests/test_model_catalog_observation.py
           tests/test_ayllu_routes.py
@@ -697,6 +698,7 @@ jobs:
           tests/test_attest_build_commit.py
           tests/test_attest_meter_evidence.py
           tests/test_runtime_contracts.py
+          tests/test_khipu_verify_tamper.py
           tests/test_monetized_surfaces.py
           tests/test_frontier_now_control_plane.py
           tests/test_holographic_static_route_runtime.py

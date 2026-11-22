@@ -4,7 +4,7 @@ import base64
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -52,7 +52,7 @@ def _payload(now: datetime, *, node_id: str = "omen-betterwithage") -> dict:
     }
 
 
-def _envelope(private_key, payload: dict) -> bytes:
+def _envelope(private_key, payload: dict, keyid: str = "a11oy-pool-attester-v1") -> bytes:
     body = szl_dsse.canonical_json(payload)
     signature = private_key.sign(
         szl_dsse.pae(contract.RECEIPT_PAYLOAD_TYPE, body),
@@ -61,7 +61,7 @@ def _envelope(private_key, payload: dict) -> bytes:
     envelope = {
         "payloadType": contract.RECEIPT_PAYLOAD_TYPE,
         "payload": base64.b64encode(body).decode("ascii"),
-        "signatures": [{"keyid": "a11oy-pool-attester-v1", "sig": base64.b64encode(signature).decode("ascii")}],
+        "signatures": [{"keyid": keyid, "sig": base64.b64encode(signature).decode("ascii")}],
     }
     return json.dumps(envelope).encode("utf-8")
 
@@ -208,3 +208,93 @@ def test_storage_is_pruned_to_the_contract_selection_window(client, trust_root):
     names = [item.name for item in root.glob("*.dsse.json")]
     assert len(names) == contract._MAX_RECEIPTS
     assert all(ingest._RECEIPT_NAME_RE.match(name) for name in names)
+
+
+def test_future_dated_receipt_is_refused_without_storage(client, trust_root):
+    private, root = trust_root
+    raw = _envelope(private, _payload(datetime.now(timezone.utc) + timedelta(hours=1)))
+    response = _post(client, raw)
+    assert response.status_code == 422
+    assert response.json()["error"] == "receipt outside freshness window"
+    assert list(root.iterdir()) == []
+
+
+def test_stale_receipt_is_refused_without_storage(client, trust_root):
+    private, root = trust_root
+    max_age = contract._freshness_seconds()
+    raw = _envelope(private, _payload(datetime.now(timezone.utc) - timedelta(seconds=max_age + 60)))
+    response = _post(client, raw)
+    assert response.status_code == 422
+    assert response.json()["error"] == "receipt outside freshness window"
+    assert list(root.iterdir()) == []
+
+
+@pytest.mark.parametrize("offset_s", [10, -(contract._freshness_seconds() - 30)])
+def test_receipt_inside_freshness_window_is_accepted(client, trust_root, offset_s):
+    private, root = trust_root
+    raw = _envelope(private, _payload(datetime.now(timezone.utc) + timedelta(seconds=offset_s)))
+    assert _post(client, raw).status_code == 202
+    assert len(list(root.glob("*.dsse.json"))) == 1
+
+
+def test_refused_freshness_post_leaves_stored_receipt_untouched(client, trust_root):
+    private, root = trust_root
+    good = _envelope(private, _payload(datetime.now(timezone.utc)))
+    stored = root / _post(client, good).json()["stored_as"]
+    future = _envelope(private, _payload(datetime.now(timezone.utc) + timedelta(hours=1)))
+    assert _post(client, future).status_code == 422
+    assert [item.name for item in root.iterdir()] == [stored.name]
+    assert stored.read_bytes() == good
+
+
+_KEY_B = "a11oy-pool-attester-rtx-v1"
+
+
+@pytest.fixture()
+def second_root(monkeypatch, trust_root):
+    private = ec.generate_private_key(ec.SECP256R1())
+    public = private.public_key()
+    pem = public.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()
+    der = public.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    entry = {
+        "keyid": _KEY_B, "public_key_pem": pem, "sha256": hashlib.sha256(der).hexdigest(),
+        "node_ids": ["rtx-betterwithage"],
+    }
+    monkeypatch.setenv("A11OY_POOL_RECEIPT_TRUST_ROOTS", json.dumps([entry]))
+    return private, entry
+
+
+def test_second_attester_key_is_accepted_for_its_bound_node(client, trust_root, second_root):
+    legacy, root = trust_root
+    private, _ = second_root
+    raw = _envelope(private, _payload(datetime.now(timezone.utc), node_id="rtx-betterwithage"), _KEY_B)
+    response = _post(client, raw)
+    assert response.status_code == 202
+    assert response.json()["node_id"] == "rtx-betterwithage"
+    assert _post(client, _envelope(legacy, _payload(datetime.now(timezone.utc)))).status_code == 202
+    assert len(list(root.glob("*.dsse.json"))) == 2
+
+
+def test_second_attester_key_is_refused_for_an_unbound_node(client, trust_root, second_root):
+    _, root = trust_root
+    private, _ = second_root
+    raw = _envelope(private, _payload(datetime.now(timezone.utc), node_id="omen-betterwithage"), _KEY_B)
+    assert _post(client, raw).status_code == 422
+    assert list(root.iterdir()) == []
+
+
+def test_second_attester_key_without_map_is_refused(client, monkeypatch, trust_root, second_root):
+    _, root = trust_root
+    private, _ = second_root
+    monkeypatch.delenv("A11OY_POOL_RECEIPT_TRUST_ROOTS")
+    raw = _envelope(private, _payload(datetime.now(timezone.utc), node_id="rtx-betterwithage"), _KEY_B)
+    assert _post(client, raw).status_code == 422
+    assert list(root.iterdir()) == []
+
+
+def test_malformed_trust_root_map_refuses_even_the_legacy_key(client, monkeypatch, trust_root, second_root):
+    legacy, root = trust_root
+    _, entry = second_root
+    monkeypatch.setenv("A11OY_POOL_RECEIPT_TRUST_ROOTS", json.dumps([{**entry, "sha256": "0" * 64}]))
+    assert _post(client, _envelope(legacy, _payload(datetime.now(timezone.utc)))).status_code == 503
+    assert list(root.iterdir()) == []

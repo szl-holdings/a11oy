@@ -18,7 +18,7 @@ import stat
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -37,6 +37,11 @@ _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _MAX_RECEIPTS = 128
 _MAX_RECEIPT_BYTES = 256 * 1024
 _POOL_KEY_ID = "a11oy-pool-attester-v1"
+_RECEIPT_FUTURE_SKEW_S = 30
+_TRUST_ROOTS_ENV = "A11OY_POOL_RECEIPT_TRUST_ROOTS"
+_EXTRA_KEY_ID = re.compile(r"^a11oy-pool-attester-[a-z0-9-]{1,48}-v[0-9]+$")
+_MAX_EXTRA_TRUST_ROOTS = 8
+_MAX_BOUND_NODES = 16
 _POOL_ISSUER = "a11oy-pool-attester"
 _POOL_AUDIENCE = "a11oy-compute-pool"
 _POOL_PREDICATE = "szl.compute-pool.inference-qualification/v1"
@@ -246,15 +251,7 @@ def _valid_receipt_payload(payload: object) -> bool:
     )
 
 
-def _pool_verifier() -> Optional[Any]:
-    """Load the dedicated pool-attester key and verify its explicit pin.
-
-    The estate-wide receipt key is intentionally not accepted here: a pool
-    qualification receipt can change routing eligibility and therefore has a
-    narrower trust root.  Missing or malformed configuration fails closed.
-    """
-    raw = (os.environ.get("A11OY_POOL_RECEIPT_PUBLIC_KEY_PEM") or "").strip()
-    expected = (os.environ.get("A11OY_POOL_RECEIPT_PUBLIC_KEY_SHA256") or "").strip().lower()
+def _load_pinned_key(raw: str, expected: str) -> Optional[Any]:
     if not raw or not _HEX64.fullmatch(expected):
         return None
     try:
@@ -274,7 +271,82 @@ def _pool_verifier() -> Optional[Any]:
         return None
 
 
-def _verify_pool_envelope(envelope: object, public_key: Any) -> Optional[Dict[str, Any]]:
+def _pool_verifier() -> Optional[Any]:
+    """Load the dedicated pool-attester key and verify its explicit pin.
+
+    The estate-wide receipt key is intentionally not accepted here: a pool
+    qualification receipt can change routing eligibility and therefore has a
+    narrower trust root.  Missing or malformed configuration fails closed.
+    """
+    return _load_pinned_key(
+        (os.environ.get("A11OY_POOL_RECEIPT_PUBLIC_KEY_PEM") or "").strip(),
+        (os.environ.get("A11OY_POOL_RECEIPT_PUBLIC_KEY_SHA256") or "").strip().lower(),
+    )
+
+
+_TrustRoots = Dict[str, Tuple[Any, Optional[FrozenSet[str]]]]
+
+
+def _extra_trust_roots(raw: str) -> Optional[_TrustRoots]:
+    try:
+        entries = json.loads(raw)
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(entries, list) or not 0 < len(entries) <= _MAX_EXTRA_TRUST_ROOTS:
+        return None
+    roots: _TrustRoots = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {"keyid", "public_key_pem", "sha256", "node_ids"}:
+            return None
+        keyid, pem, pin, node_ids = entry["keyid"], entry["public_key_pem"], entry["sha256"], entry["node_ids"]
+        if not isinstance(keyid, str) or not _EXTRA_KEY_ID.fullmatch(keyid) or keyid == _POOL_KEY_ID or keyid in roots:
+            return None
+        if not isinstance(pem, str) or not isinstance(pin, str):
+            return None
+        if not isinstance(node_ids, list) or not 0 < len(node_ids) <= _MAX_BOUND_NODES:
+            return None
+        if any(not isinstance(n, str) or not n or n != n.strip() or len(n) > 128 for n in node_ids):
+            return None
+        if len(set(node_ids)) != len(node_ids):
+            return None
+        public_key = _load_pinned_key(pem.strip(), pin.strip().lower())
+        if public_key is None or not isinstance(public_key.curve, ec.SECP256R1):
+            return None
+        roots[keyid] = (public_key, frozenset(node_ids))
+    return roots
+
+
+def _pool_trust_roots() -> Optional[_TrustRoots]:
+    """Resolve keyid -> (public key, node_ids it may attest, or None for any).
+
+    With A11OY_POOL_RECEIPT_TRUST_ROOTS unset this is exactly the single
+    legacy key, unbound.  Once the map is set, any defect in it or in a
+    configured legacy key refuses every receipt, so a typo can never fall
+    back to the unbound root.
+    """
+    legacy_configured = any(
+        (os.environ.get(name) or "").strip()
+        for name in ("A11OY_POOL_RECEIPT_PUBLIC_KEY_PEM", "A11OY_POOL_RECEIPT_PUBLIC_KEY_SHA256")
+    )
+    legacy = _pool_verifier()
+    raw = (os.environ.get(_TRUST_ROOTS_ENV) or "").strip()
+    if not raw:
+        return {_POOL_KEY_ID: (legacy, None)} if legacy is not None else None
+    if legacy_configured and legacy is None:
+        return None
+    roots = _extra_trust_roots(raw)
+    if roots is None:
+        return None
+    if legacy is not None:
+        roots[_POOL_KEY_ID] = (legacy, None)
+    spki = {
+        key.public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+        for key, _ in roots.values()
+    }
+    return roots if len(spki) == len(roots) else None
+
+
+def _verify_pool_envelope(envelope: object, roots: _TrustRoots) -> Optional[Dict[str, Any]]:
     if not isinstance(envelope, dict) or envelope.get("payloadType") != RECEIPT_PAYLOAD_TYPE:
         return None
     payload_b64 = envelope.get("payload")
@@ -285,10 +357,15 @@ def _verify_pool_envelope(envelope: object, public_key: Any) -> Optional[Dict[st
         body = base64.b64decode(payload_b64, validate=True)
     except (ValueError, TypeError):
         return None
+    # The signature's own keyid picks the one key it is checked against, so a
+    # node-bound key can never be presented under the unbound legacy keyid.
     verified = False
+    bound: Optional[FrozenSet[str]] = None
     for signature in signatures:
-        if not isinstance(signature, dict) or signature.get("keyid") != _POOL_KEY_ID:
+        keyid = signature.get("keyid") if isinstance(signature, dict) else None
+        if not isinstance(keyid, str) or keyid not in roots:
             continue
+        public_key, node_ids = roots[keyid]
         try:
             encoded = signature.get("sig")
             if not isinstance(encoded, str):
@@ -299,6 +376,7 @@ def _verify_pool_envelope(envelope: object, public_key: Any) -> Optional[Dict[st
                 ec.ECDSA(hashes.SHA256()),
             )
             verified = True
+            bound = node_ids
             break
         except (InvalidSignature, ValueError, TypeError):
             continue
@@ -308,12 +386,16 @@ def _verify_pool_envelope(envelope: object, public_key: Any) -> Optional[Dict[st
         payload = json.loads(body)
     except (UnicodeDecodeError, json.JSONDecodeError):
         return None
-    return payload if _valid_receipt_payload(payload) else None
+    if not _valid_receipt_payload(payload):
+        return None
+    if bound is not None and payload["node_id"] not in bound:
+        return None
+    return payload
 
 
-def _verified_receipts() -> Dict[str, Dict[str, Any]]:
-    verifier = _pool_verifier()
-    if verifier is None:
+def _verified_receipts(now: datetime) -> Dict[str, Dict[str, Any]]:
+    roots = _pool_trust_roots()
+    if roots is None:
         return {}
     configured = (os.environ.get("A11OY_COMPUTE_POOL_RECEIPT_DIR") or "").strip()
     if not configured:
@@ -329,6 +411,10 @@ def _verified_receipts() -> Dict[str, Dict[str, Any]]:
         return {}
 
     accepted: Dict[str, Dict[str, Any]] = {}
+    # A future-dated receipt must never outrank a current one for the same
+    # node; it is kept only as a last resort so the node still reports
+    # DISCOVERED with the stale-or-future-dated reason.
+    future_only: Dict[str, Dict[str, Any]] = {}
     for candidate in candidates:
         raw = _read_regular_file(candidate, resolved_root)
         if raw is None:
@@ -337,19 +423,26 @@ def _verified_receipts() -> Dict[str, Dict[str, Any]]:
             envelope = json.loads(raw)
         except (UnicodeDecodeError, json.JSONDecodeError):
             continue
-        payload = _verify_pool_envelope(envelope, verifier)
+        payload = _verify_pool_envelope(envelope, roots)
         if payload is None:
             continue
         record = dict(payload)
         record["receipt_sha256"] = hashlib.sha256(raw).hexdigest()
         node_id = record["node_id"]
-        prior = accepted.get(node_id)
-        rank = (_iso(record["observed_at"]), record["receipt_sha256"])
+        observed = _iso(record["observed_at"])
+        if observed is None:
+            continue
+        future = (observed - now).total_seconds() > _RECEIPT_FUTURE_SKEW_S
+        bucket = future_only if future else accepted
+        prior = bucket.get(node_id)
+        rank = (observed, record["receipt_sha256"])
         prior_rank = (
             _iso(prior["observed_at"]), prior["receipt_sha256"]
         ) if prior else None
-        if prior is None or (rank[0] is not None and prior_rank is not None and rank > prior_rank):
-            accepted[node_id] = record
+        if prior is None or (prior_rank is not None and rank > prior_rank):
+            bucket[node_id] = record
+    for node_id, record in future_only.items():
+        accepted.setdefault(node_id, record)
     return accepted
 
 
@@ -364,7 +457,7 @@ def _receipt_summary(receipt: Optional[Dict[str, Any]], now: datetime, max_age_s
         )
     observed = _iso(receipt["observed_at"])
     age = (now - observed).total_seconds() if observed else float("inf")
-    fresh = -30 <= age <= max_age_s
+    fresh = -_RECEIPT_FUTURE_SKEW_S <= age <= max_age_s
     return ReceiptSummary(
         evidence_class=EvidenceClass.MEASURED,
         verified=True,
@@ -382,7 +475,7 @@ def build_compute_pool_contract(pool: Optional[Dict[str, Any]] = None, now: Opti
     pool = pool if pool is not None else szl_backend_hardening.probe_fabric_pool()
     generated = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     max_age = _freshness_seconds()
-    receipts = _verified_receipts()
+    receipts = _verified_receipts(generated)
     nodes: List[PoolNode] = []
     seen_node_ids: set[str] = set()
 
