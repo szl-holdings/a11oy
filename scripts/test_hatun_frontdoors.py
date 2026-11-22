@@ -35,6 +35,8 @@ FIXTURES = {
         {'id': 'LOCAL-FIXTURE-' + 'long-identifier-' * 7, 'title': 'LOCAL TEST FIXTURE ' + 'long-title-' * 9,
          'state': 'DECLARED', 'detail': 'LOCAL TEST FIXTURE; no execution or health evidence.',
          'source': 'LOCAL-TEST-FIXTURE/' + 'long-provenance-path/' * 14},
+        {'id': 'in-process-fixture', 'title': 'LOCAL TEST FIXTURE scoped trace', 'status': 'LIVE_IN_PROCESS',
+         'detail': 'LOCAL TEST FIXTURE; cross-Space broker NOT wired.', 'source': 'LOCAL TEST FIXTURE'},
         {'id': 'unknown-fixture', 'title': 'LOCAL TEST FIXTURE unknown state', 'state': 'UNRECOGNIZED',
          'source': 'LOCAL TEST FIXTURE'}]},
 }
@@ -107,7 +109,7 @@ def run(output, brand_dir=None):
             for path in PAGES:
                 mode['value'] = 'success'
                 page.goto(origin + path, wait_until='load')
-                page.wait_for_function("document.querySelector('#runtime-status')?.getAttribute('aria-busy')==='false'||document.querySelectorAll('.wire').length===2")
+                page.wait_for_function("document.querySelector('#runtime-status')?.getAttribute('aria-busy')==='false'||document.querySelectorAll('.wire').length===3")
                 page.keyboard.press('Tab')
                 check(path + ' first keyboard target is skip link', page.locator('.skip-link').evaluate('e=>e===document.activeElement'))
                 page.keyboard.press('Enter')
@@ -167,7 +169,10 @@ def run(output, brand_dir=None):
                     config = json.loads(page.locator('pre').inner_text())
                     check('sample client uses an absolute HTTPS target', config['mcpServers']['szl-a11oy']['args'][-1].startswith('https://'))
                 else:
-                    check('unknown wire state is not promoted', page.locator('.wire').nth(1).get_attribute('data-state') == 'UNAVAILABLE')
+                    check('in-process wire retains limited scope', page.locator('.wire').nth(1).get_attribute('data-state') == 'LIVE_IN_PROCESS' and
+                          page.locator('.wire').nth(1).locator('.wire-state').inner_text() == 'LIVE_IN_PROCESS' and
+                          'cross-Space broker NOT wired' in page.locator('.wire').nth(1).inner_text())
+                    check('unknown wire state is not promoted', page.locator('.wire').nth(2).get_attribute('data-state') == 'UNAVAILABLE')
                     check('Verify opens the human verifier', page.locator('.pathway').nth(2).get_attribute('href') == '/verify')
                 for value in ('error', 'stall'):
                     mode['value'] = value
