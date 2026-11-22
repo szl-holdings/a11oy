@@ -174,7 +174,7 @@ def mint_once(args: Any, private_key: Any) -> bool:
     envelope = canonical_json({
         "payloadType": RECEIPT_PAYLOAD_TYPE,
         "payload": base64.b64encode(body).decode("ascii"),
-        "signatures": [{"keyid": POOL_KEY_ID, "sig": base64.b64encode(signature).decode("ascii")}],
+        "signatures": [{"keyid": args.key_id, "sig": base64.b64encode(signature).decode("ascii")}],
     })
     ingest_token = _read_secret(args.ingest_token_file)
     status, raw = _http_json(
@@ -197,6 +197,7 @@ def main() -> int:
     parser.add_argument("--token-file", required=True, help="sovereign gateway bearer token file (serving path auth)")
     parser.add_argument("--ingest-token-file", required=True, help="Space ingestion bearer token file")
     parser.add_argument("--node-id", default="omen-betterwithage")
+    parser.add_argument("--key-id", default=POOL_KEY_ID, help="DSSE keyid the Space trust root expects for --key")
     parser.add_argument("--model", default="llama3.1:8b")
     parser.add_argument("--base-url", default="http://127.0.0.1:11436", help="sovereign serving-path base URL")
     parser.add_argument("--ingest-url", default="https://a-11-oy.com/api/a11oy/v1/compute-pool/receipts")
