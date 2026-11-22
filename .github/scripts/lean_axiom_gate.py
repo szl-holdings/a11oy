@@ -106,8 +106,13 @@ def main():
             bad.append(f"{p}: lean elaboration failed:\n{out[-2000:]}")
             continue
         seen = set()
-        for line in out.split("\n"):
-            m = re.match(r"'(.+)' depends on axioms: \[(.*)\]", line)
+        for line in out.splitlines():
+            # Lean 4 prefixes kernel reports with "path:line:col: info: ".
+            # Only full diagnostic reports count; warnings cannot attest proofs.
+            m = re.fullmatch(
+                r"(?:.*?:\d+:\d+: info: |info: )?'([^']+)' depends on axioms: \[([^\]]*)\]",
+                line.strip(),
+            )
             if m:
                 seen.add(m.group(1))
                 for a in [x.strip() for x in m.group(2).split(",") if x.strip()]:
@@ -115,7 +120,10 @@ def main():
                     if a not in ALLOWED:
                         bad.append(f"{p}: {m.group(1)} depends on {a}")
             else:
-                m = re.match(r"'(.+)' does not depend on any axioms", line)
+                m = re.fullmatch(
+                    r"(?:.*?:\d+:\d+: info: |info: )?'([^']+)' does not depend on any axioms",
+                    line.strip(),
+                )
                 if m:
                     seen.add(m.group(1))
         missing = sorted(set(names) - seen)
@@ -130,4 +138,5 @@ def main():
     print("GATE OK: no sorry/admit/axiom declarations; every declared theorem was kernel-reported and uses only", sorted(ALLOWED))
 
 
-main()
+if __name__ == "__main__":
+    main()
