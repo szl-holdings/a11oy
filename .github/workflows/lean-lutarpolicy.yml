@@ -35,6 +35,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Synthetic kernel diagnostic parser regressions (stdlib)
+        working-directory: .
+        run: python3 -m unittest discover -s .github/scripts -p 'test_lean_axiom_gate_diagnostics.py' -v
+
       - name: Install elan (pinned script, checksum verified)
         working-directory: .
         run: |
