@@ -366,9 +366,17 @@ def test_collector_rejects_identity_storage_authority_and_signature_failures(com
             if mutation == "fakesignature": value["bundle"]["observations"][0]["receipt"]["signatures"][0]["sig"] = "AA=="
         return httpx.Response(200, json=value)
     with FixtureHTTPClient(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception) as raised:
             collector.collect(client, c["context"], operator_token="" if mutation == "absentcredentials" else "fixture-only",
                               tenant="fixture-only", now=c["now"])
+    # The detector never accepts drift. It only narrows fixed-code diagnostics.
+    expected_drift = {
+        "lease": "BRACKET_STORAGE_CHECKPOINT_CHANGED",
+        "snapshot": "BRACKET_STORE_SNAPSHOTS_CHANGED",
+        "chain": "BRACKET_STORAGE_CHECKPOINT_CHANGED",
+    }
+    if mutation in expected_drift:
+        assert str(raised.value) == expected_drift[mutation]
     if mutation == "absentcredentials": assert calls == 0
     else: assert calls >= 3
 
