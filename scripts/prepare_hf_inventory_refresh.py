@@ -290,6 +290,7 @@ def validate_public_estate_candidate(observed: dict, report: dict) -> None:
     """
     import render_public_estate_alignment as alignment
     report['preparationStep']='PUBLIC_ESTATE_PREFLIGHT'
+    report['publicSpaceClassification']={'state':'SOURCE_REVIEW_REQUIRED'}
     try:
         contract=alignment.load_json(ROOT/'static/shared/public-estate-contract.v1.json')
         declared=set(alignment.topology_spaces(contract)) | set(alignment.inventory_only_spaces(contract))
@@ -300,7 +301,7 @@ def validate_public_estate_candidate(observed: dict, report: dict) -> None:
             'state':'SOURCE_REVIEW_REQUIRED',
         }
         alignment.validate(contract,observed)
-    except alignment.ContractError as exc:
+    except (alignment.ContractError, UnicodeError, KeyError, TypeError, AttributeError) as exc:
         raise PreparationError('public estate classification or policy contract requires source review') from exc
     report['publicSpaceClassification']['state']='VALIDATED'
 
@@ -362,12 +363,32 @@ def prepare(source: str, run_id: int, artifact_id: int, archive_digest: str, rep
         require(not old.get('inventory',{}).get(kind) or observed['inventory'][kind],
                 'empty replacement requires explicit inventory review')
     # Before the semantic shortcut, so no comparison can mask a governed move.
-    validate_governed_revision_candidate(old,observed,report)
-    if collector.semantic_manifest(old)==collector.semantic_manifest(observed):
+    # These three preflights only read source. Collect every review blocker before
+    # stopping so operators need not discover them through successive repair runs.
+    failures: list[tuple[str, PreparationError]] = []
+    try:
+        validate_governed_revision_candidate(old,observed,report)
+    except PreparationError as exc:
+        failures.append(('GOVERNED_REVISION_PREFLIGHT',exc))
+    if not failures and collector.semantic_manifest(old)==collector.semantic_manifest(observed):
         report.update(state='NO_SEMANTIC_REFRESH_REQUIRED',branchCreated=False); return
     report.update(candidateSha256=digest(candidate),inventoryObservedAt=observed['observedAt'],counts=observed['counts'])
-    validate_public_estate_candidate(observed,report)
-    validate_model_support_candidate(observed,report)
+    for step,validate in (
+        ('PUBLIC_ESTATE_PREFLIGHT',validate_public_estate_candidate),
+        ('INFERENCE_SUPPORT_PREFLIGHT',validate_model_support_candidate),
+    ):
+        try:
+            validate(observed,report)
+        except PreparationError as exc:
+            failures.append((step,exc))
+    report['sourceReview']={
+        'state':'SOURCE_REVIEW_REQUIRED' if failures else 'VALIDATED',
+        'failedSteps':[step for step,_ in failures],
+    }
+    if failures:
+        step,error=failures[0]
+        report.update(state='SOURCE_REVIEW_REQUIRED',preparationStep=step)
+        raise error
     report.update(preparationStep='VERIFY_ROLLING_BRANCH',branch=ROLLING)
     head=ref_head(ROLLING)
     if head is not None:

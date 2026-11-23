@@ -15,6 +15,7 @@ on:
     - .github/workflows/hf-sync.yml
     - .github/workflows/hf-vertical-drift.yml
     - .github/workflows/hf-vertical-services-v2-contract.yml
+    - .github/scripts/install_playwright_chromium.sh
     - deployments/vertical-forge/terra/**
     - scripts/_hf_publish_vertical_flagships_v4_impl_base.py
     - scripts/hf_existing_space_guard.py
@@ -57,6 +58,7 @@ on:
     - .github/workflows/hf-sync.yml
     - .github/workflows/hf-vertical-drift.yml
     - .github/workflows/hf-vertical-services-v2-contract.yml
+    - .github/scripts/install_playwright_chromium.sh
     - deployments/vertical-forge/terra/**
     - scripts/_hf_publish_vertical_flagships_v4_impl_base.py
     - scripts/hf_existing_space_guard.py
@@ -160,14 +162,35 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: "24"
+      - name: Identify the runner image for the Chromium package cache
+        id: chromium-image
+        run: |
+          echo "os=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "version=${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+      - name: Restore cached Chromium OS packages
+        id: chromium-debs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.chromium-image.outputs.os }}-vertical-v2-${{ steps.chromium-image.outputs.version }}-${{ hashFiles('.github/scripts/install_playwright_chromium.sh') }}
+          restore-keys: |
+            szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.chromium-image.outputs.os }}-vertical-v2-
       - name: Install isolated qualification tools
+        env:
+          SZL_PW_DEB_CACHE: ~/.cache/szl-chromium-debs
         shell: bash
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
           npm install --prefix "$RUNNER_TEMP/vertical-browser" --ignore-scripts --no-audit --no-fund playwright@1.62.0
-          "$RUNNER_TEMP/vertical-browser/node_modules/.bin/playwright" install --with-deps chromium
+          bash .github/scripts/install_playwright_chromium.sh "$RUNNER_TEMP/vertical-browser/node_modules/.bin/playwright"
           mkdir -p "$RUNNER_TEMP/vertical-observations"
+      - name: Save Chromium OS packages for later jobs
+        if: success() && steps.chromium-debs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: ${{ steps.chromium-debs.outputs.cache-primary-key }}
       - name: Qualify generated HTML with unavailable API fixtures
         shell: bash
         run: |
