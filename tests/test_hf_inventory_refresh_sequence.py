@@ -43,6 +43,7 @@ def bot_commit(sha, parents, *, author='github-actions[bot]', committer='web-flo
 class SequenceTests(unittest.TestCase):
     def run_case(self, **controls):
         self.calls=[]; self.methods=[]; self.report={}; mains=0
+        estate_preflight=M.validate_public_estate_candidate
         now=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
         value={'schemaVersion':2,'org':'SZLHOLDINGS','generatedBy':'scripts/audit_huggingface_ecosystem.py',
             'observedAt':now,'inventoryScope':{'visibility':'public-only','authenticated':False,'privateAssetsIncluded':False},
@@ -116,6 +117,11 @@ class SequenceTests(unittest.TestCase):
                 raise AssertionError(path)
             def preflight(observed,report):
                 report['preparationStep']='PUBLIC_ESTATE_PREFLIGHT'
+                if controls.get('malformed_topology'):
+                    from scripts import render_public_estate_alignment as alignment
+                    with patch.dict(sys.modules,{'render_public_estate_alignment':alignment}), \
+                            patch.object(alignment,'load_json',return_value={}):
+                        return estate_preflight(observed,report)
                 if controls.get('classification_fail'):
                     raise M.PreparationError('public estate classification or policy contract requires source review')
             def model_support_preflight(observed,report):
@@ -362,6 +368,62 @@ class SequenceTests(unittest.TestCase):
                 self.assertEqual(self.manifest_after,self.manifest_before)
                 self.assertFalse(any(body is not None for _,body in self.calls))
                 self.assertEqual(self.ref_writes(),[])
+
+    def test_all_source_review_blockers_are_reported_before_any_write(self):
+        with self.assertRaisesRegex(M.PreparationError,'governed Hugging Face revision changed'):
+            self.run_case(governed_change=True,classification_fail=True,model_support_mismatch=True)
+        self.assertEqual(self.report['sourceReview'],{
+            'state':'SOURCE_REVIEW_REQUIRED',
+            'failedSteps':['GOVERNED_REVISION_PREFLIGHT','PUBLIC_ESTATE_PREFLIGHT','INFERENCE_SUPPORT_PREFLIGHT'],
+        })
+        self.assertEqual(self.report['preparationStep'],'GOVERNED_REVISION_PREFLIGHT')
+        self.assertEqual(self.report['modelInferenceSupport']['state'],'SOURCE_REVIEW_REQUIRED')
+        self.assertEqual(self.manifest_after,self.manifest_before)
+        self.assertEqual(self.support_after,self.support_before)
+        self.assertEqual(self.writes(),[])
+        self.assertEqual(self.ref_writes(),[])
+        self.assertTrue(all(method=='GET' for method,_ in self.methods))
+
+    def test_malformed_topology_cannot_replace_the_first_governed_blocker(self):
+        with self.assertRaisesRegex(M.PreparationError,'governed Hugging Face revision changed'):
+            self.run_case(governed_change=True,malformed_topology=True,model_support_mismatch=True)
+        self.assertEqual(self.report['preparationStep'],'GOVERNED_REVISION_PREFLIGHT')
+        self.assertEqual(self.report['sourceReview']['failedSteps'],[
+            'GOVERNED_REVISION_PREFLIGHT','PUBLIC_ESTATE_PREFLIGHT','INFERENCE_SUPPORT_PREFLIGHT'])
+        self.assertEqual(self.report['publicSpaceClassification'],{'state':'SOURCE_REVIEW_REQUIRED'})
+        self.assertEqual(self.manifest_after,self.manifest_before)
+        self.assertEqual(self.writes(),[])
+
+    def test_failed_classification_does_not_hide_valid_model_coverage(self):
+        with self.assertRaises(M.PreparationError): self.run_case(classification_fail=True)
+        self.assertEqual(self.report['sourceReview'],{
+            'state':'SOURCE_REVIEW_REQUIRED','failedSteps':['PUBLIC_ESTATE_PREFLIGHT'],
+        })
+        self.assertEqual(self.report['governedRevisions']['state'],'VALIDATED')
+        self.assertEqual(self.report['modelInferenceSupport']['state'],'VALIDATED')
+        self.assertEqual(self.report['preparationStep'],'PUBLIC_ESTATE_PREFLIGHT')
+        self.assertEqual(self.writes(),[])
+
+    def test_governed_failure_cannot_take_no_change_shortcut_or_hide_other_blockers(self):
+        with self.assertRaises(M.PreparationError):
+            self.run_case(governed_change=True,same=True,model_support_mismatch=True)
+        self.assertEqual(self.report['sourceReview']['failedSteps'],
+                         ['GOVERNED_REVISION_PREFLIGHT','INFERENCE_SUPPORT_PREFLIGHT'])
+        self.assertEqual(self.manifest_after,self.manifest_before)
+        self.assertEqual(self.writes(),[])
+
+    def test_successful_source_review_retains_existing_branch_admission(self):
+        self.run_case()
+        self.assertEqual(self.report['sourceReview'],{'state':'VALIDATED','failedSteps':[]})
+        self.assertEqual(self.report['state'],'REVIEW_BRANCH_CREATED')
+        self.assertEqual(len(self.ref_writes()),1)
+
+    def test_same_semantics_retains_no_change_behavior_after_governed_validation(self):
+        self.run_case(same=True,classification_fail=True,model_support_mismatch=True)
+        self.assertEqual(self.report['state'],'NO_SEMANTIC_REFRESH_REQUIRED')
+        self.assertEqual(self.report['governedRevisions']['state'],'VALIDATED')
+        self.assertNotIn('sourceReview',self.report)
+        self.assertEqual(self.writes(),[])
 
     def test_empty_scope_replacement_needs_review(self):
         with self.assertRaises(M.PreparationError): self.run_case(empty=True)
