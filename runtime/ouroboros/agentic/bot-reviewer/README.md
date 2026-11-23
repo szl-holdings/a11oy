@@ -30,7 +30,7 @@ a detailed violation table.
 ## Install
 
 ```bash
-npm install
+npm ci --ignore-scripts --no-audit --no-fund
 ```
 
 ---
@@ -86,7 +86,11 @@ secret and injected automatically by the GitHub Actions workflow.
 
 Copy `.github-workflows/bot-reviewer.yml` to `.github/workflows/bot-reviewer.yml`
 in the target repository. The workflow file is pre-pinned to full SHAs for
-supply-chain integrity.
+supply-chain integrity. It is fail-closed by default. The copied workflow
+skips every job unless the target repository sets the Actions variable
+`SZL_BOT_REVIEWER_ENABLED` to exactly `true`, and it never runs for forked
+pull requests.
+
 
 Minimal pattern:
 
@@ -103,9 +107,9 @@ jobs:
       - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a
         with:
           node-version: "20"
-      - run: cd 12_agentic/bot-reviewer && npm install
+      - run: cd runtime/ouroboros/agentic/bot-reviewer && npm ci --ignore-scripts --no-audit --no-fund
       - run: |
-          npx tsx 12_agentic/bot-reviewer/src/reviewer.ts \
+          npx tsx runtime/ouroboros/agentic/bot-reviewer/src/reviewer.ts \
             $(git diff --name-only origin/${{ github.base_ref }}...HEAD)
         env:
           GITHUB_TOKEN: ${{ secrets.BOT_GITHUB_TOKEN }}
@@ -149,9 +153,12 @@ doctrine-clean if and only if every axis meets its threshold.
 5. **Add `BOT_GITHUB_TOKEN` secret** — in the target repo go to
    `Settings → Secrets and variables → Actions → New repository secret`,
    name it `BOT_GITHUB_TOKEN`, paste the PAT.
-6. **Copy the workflow file**:
+6. **Copy the workflow file**. Keep it inactive until the source, lockfile,
+   permissions and posting behavior have been reviewed.
+7. **Enable deliberately** — set the repository Actions variable
+   `SZL_BOT_REVIEWER_ENABLED` to `true` only after that review.
    ```bash
-   cp 12_agentic/bot-reviewer/.github-workflows/bot-reviewer.yml \
+   cp runtime/ouroboros/agentic/bot-reviewer/.github-workflows/bot-reviewer.yml \
       .github/workflows/bot-reviewer.yml
    git add .github/workflows/bot-reviewer.yml
    git commit -m "ci: add Doctrine V6 bot-reviewer workflow"
