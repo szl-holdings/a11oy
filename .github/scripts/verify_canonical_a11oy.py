@@ -757,7 +757,7 @@ def validate_verdict_evidence(
 
 
 def validate_state_store_status(payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Require observed ADR-0001 fencing and snapshots, not just a local path."""
+    """Require observed fencing and snapshots; release admission separately requires CLEAN."""
     def positive_integer(value: Any) -> bool:
         return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
@@ -774,6 +774,9 @@ def validate_state_store_status(payload: Mapping[str, Any]) -> dict[str, Any]:
     if (
         payload.get("schema") != "szl.a11oy-storage-status/v2"
         or payload.get("mode") != "FENCED"
+        or payload.get("mode_reason") is not None
+        or payload.get("claim") not in ("CLEAN", "FIRST_BOOT")
+        or (payload.get("claim") == "FIRST_BOOT" and payload.get("epoch") != 1)
         or payload.get("role") != "WRITER"
         or payload.get("writable") is not True
         or payload.get("unfenced") is not False
