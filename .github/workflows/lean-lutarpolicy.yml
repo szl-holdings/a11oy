@@ -1,0 +1,70 @@
+name: lean-lutarpolicy
+
+# Real Lean verification for formal/LutarPolicy (Lean 4.13.0; declares a Mathlib require but imports only core Init).
+# Compiles the project with `lake build` under the toolchain pinned in
+# lean-toolchain, then runs a fail-closed gate: any sorry/admit/axiom declaration,
+# or any theorem whose kernel axioms include sorryAx or anything beyond
+# propext / Classical.choice / Quot.sound, fails the job. This gate only adds
+# checks; it replaces nothing.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lean:
+    name: lake build + axiom gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: formal/LutarPolicy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Synthetic kernel diagnostic parser regressions (stdlib)
+        working-directory: .
+        run: python3 -m unittest discover -s .github/scripts -p 'test_lean_axiom_gate_diagnostics.py' -v
+
+      - name: Install elan (pinned script, checksum verified)
+        working-directory: .
+        run: |
+          # leanprover/elan commit 35628cce104e81a25514c4dcd224491351145818 (v4.2.2), same pin as lutar-lean.
+          ELAN_SHA=35628cce104e81a25514c4dcd224491351145818
+          EXPECTED=a620ff1641616222c8d37c54845492004bb84d6877cdbc944dd65c1aa685bf53
+          curl -sSfL "https://raw.githubusercontent.com/leanprover/elan/$ELAN_SHA/elan-init.sh" -o /tmp/elan-init.sh
+          echo "$EXPECTED  /tmp/elan-init.sh" | sha256sum -c
+          sh /tmp/elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Show pinned toolchain
+        run: |
+          cat lean-toolchain
+          lake --version
+
+      - name: lake build
+        run: lake build
+
+      - name: Sorry / axiom gate (kernel #print axioms for every theorem)
+        run: python3 ${{ github.workspace }}/.github/scripts/lean_axiom_gate.py . --exclude negative-fixtures
+
+      - name: Negative fixture must FAIL to compile (guard self-test)
+        run: |
+          if lake env lean negative-fixtures/RemovedDefaultDenialPremise.lean; then
+            echo "::error::negative fixture unexpectedly compiled - T1 premise guard is broken"
+            exit 1
+          fi
+          echo "negative fixture correctly rejected by the kernel"
