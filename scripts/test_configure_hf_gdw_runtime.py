@@ -116,9 +116,9 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
             return values
 
     api = CadenceApi()
-    # Writes go through the guarded GDW mutation owner (#3637); the release
-    # transport fixture applies each admitted POST to api.variables/api.writes.
-    kwargs, _fixture, _guard, requests, _writers = install_gdw_release_transport(monkeypatch, api)
+    # Every GDW write passes the release guard. Without this RELEASED fixture the
+    # real guard reads the live Space status and refuses an ACTIVE writer.
+    kwargs, fixture, guard, requests, writers = install_gdw_release_transport(monkeypatch, api)
     real_readback = config.await_readback
     sleeps = []
     monkeypatch.setattr(config, "await_readback", lambda api, **kwargs: real_readback(
@@ -129,13 +129,15 @@ def test_state_store_configure_corrects_cadence_and_waits_for_readback(monkeypat
         admissions.append(tuple(api.writes))
         return "a" * 40
 
-    report = config.configure(**{**kwargs, "main_reader": main_reader})
+    kwargs["main_reader"] = main_reader
+    report = config.configure(**kwargs)
     assert api.writes == [("A11OY_STATE_PERIODIC_SECONDS", "300")]
-    assert len(requests) == 1
-    # One protected-main check before any provider client (#2644), then a fresh
-    # check on each side of the guard admission for the single write (#3637);
-    # every one of them happens before the write lands.
+    # Entry read, then both sides of the release admission, all before the write.
     assert admissions == [(), (), ()]
+    assert len(requests) == 1 and fixture.reads == 2
+    assert writers[0].attempted == writers[0].acknowledged == ["A11OY_STATE_PERIODIC_SECONDS"]
+    assert report["state_store_admission"] == guard.summary
+    assert guard.summary["state"] == "RELEASED"
     assert report["variables_changed"] == ["A11OY_STATE_PERIODIC_SECONDS"]
     assert {"A11OY_STATE_DEBOUNCE_SECONDS", "A11OY_STATE_PERIODIC_SECONDS",
             "A11OY_STATE_ALERT_SECONDS"} <= set(report["variables_managed"])
