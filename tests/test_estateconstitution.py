@@ -131,6 +131,46 @@ def test_contract_unknown_label_from_the_wall_is_compliant_with_article_2():
     assert "UNKNOWN" in rep["honest_labels_vocabulary"]
 
 
+def test_declared_label_from_the_wall_is_compliant_with_article_2():
+    # DECLARED is asserted by the operator, never measured and never upgraded to MEASURED
+    # (EvidenceLabel.DECLARED in szl_quantum_utility.py). The wall accepts it as honest, so
+    # Article 2 must not re-flag it one layer up as a fabricated label.
+    surfaces = [{"id": "quantumutility", "status": "NATIVE-OK", "label": "DECLARED"}]
+    _install(_aggregate(surfaces=surfaces))
+    rep = ec.build_report(None, "a11oy")
+    art2 = _articles(rep)[2]
+    assert art2["result"] == ec.COMPLIANT, art2
+    assert art2["observed"]["out_of_vocabulary"] == []
+    assert art2["observed"]["labels_checked"] == 1
+    assert rep["verdict"] == ec.CONSTITUTIONAL, rep["verdict_reason"]
+    assert "DECLARED" in rep["honest_labels_vocabulary"]
+
+
+def test_non_vocabulary_label_still_violates_article_2_beside_declared():
+    # Accepting DECLARED must not widen the vocabulary: a fabricated label next to an honest
+    # DECLARED one is still the forbidden case and is the ONLY offender
+    # (Λ is Conjecture 1, never a theorem).
+    surfaces = [{"id": "quantumutility", "status": "NATIVE-OK", "label": "DECLARED"},
+                {"id": "fabricated", "status": "NATIVE-OK", "label": "TOTALLY-VERIFIED"}]
+    _install(_aggregate(surfaces=surfaces))
+    rep = ec.build_report(None, "a11oy")
+    art2 = _articles(rep)[2]
+    assert art2["result"] == ec.VIOLATED
+    assert rep["verdict"] == ec.IN_VIOLATION
+    assert art2["observed"]["out_of_vocabulary"] == [
+        {"surface": "fabricated", "observed": "TOTALLY-VERIFIED"}]
+    assert "TOTALLY-VERIFIED" not in ec.HONEST_LABELS
+
+
+def test_constitution_vocabulary_covers_every_honesty_wall_label():
+    # Drift guard: Article 2 reads the wall's per-surface labels by exact membership, so every
+    # token the wall accepts as honest must be accepted here too, or an honest surface is
+    # reported as a fabrication.
+    import szl_honestywall as hw
+    missing = sorted(set(hw.HONEST_LABELS) - set(ec.HONEST_LABELS))
+    assert missing == [], f"szl_estateconstitution.HONEST_LABELS lacks wall labels: {missing}"
+
+
 def test_wall_reported_label_vocabulary_violation_also_violates_article_2():
     # The wall's own label_in_honest_vocabulary violation rows are honoured verbatim — an adverse
     # row is never dropped (Λ is Conjecture 1, never a theorem).
