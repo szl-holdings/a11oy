@@ -63,6 +63,10 @@ def governed_changes(report: dict) -> list[str]:
 def describe(report: dict) -> str:
     message = (f"{printable(report.get('state'))} at {printable(report.get('preparationStep'))}: "
                f"{printable(report.get('reason'), 'no reason recorded')}")
+    review = report.get('sourceReview')
+    failed = review.get('failedSteps') if type(review) is dict else None
+    if type(failed) is list and failed:
+        message += '; source-review blockers: ' + ', '.join(printable(step) for step in failed)
     changes = governed_changes(report)
     if changes:
         message += '; governed changes: ' + ', '.join(changes)

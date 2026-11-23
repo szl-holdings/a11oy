@@ -44,3 +44,19 @@ not model inference or production authorization.
 Tests: `python tests/test_hf_public_inventory.py` (offline fixtures). The native
 release workflow also runs the existing release-vector controller tests and
 uploads both complete or failed evidence records under the original run/attempt.
+
+## Review diagnostics before branch preparation
+
+When a candidate needs source review, `prepare_hf_inventory_refresh.py` evaluates
+all three existing read-only preflights: governed revisions, public Space
+classification, and model inference-support coverage. The report keeps each
+preflight's evidence and adds `sourceReview.failedSteps` in that order. The
+primary failure reason and `preparationStep` remain the first blocked check;
+the GitHub annotation also names every blocked check. Malformed topology source
+produces a fixed source-review diagnostic, without disclosing raw parser details.
+
+Any failed preflight still stops before writing generated files, running the
+projection generators, creating Git objects, or moving a review ref. The
+no-semantic-change shortcut remains available only after governed revisions
+validate. Collecting the other diagnostics does not approve changed pins,
+classify an undeclared Space, infer missing model support, or authorize a runtime.
