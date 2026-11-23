@@ -302,7 +302,8 @@ def collection_payloads(c):
                 "created_at": stamp(c["now"] - timedelta(minutes=3)), "receipt_count": 6,
                 "last_receipt_sequence": 6, "chain_head": "2" * 64}},
         a.ORIGIN + "/api/a11oy/v1/storage/status": {
-            "schema": "szl.a11oy-storage-status/v2", "mode": "FENCED", "role": "WRITER", "writable": True,
+            "schema": "szl.a11oy-storage-status/v2", "mode": "FENCED", "claim": "CLEAN",
+            "mode_reason": None, "role": "WRITER", "writable": True,
             "unfenced": False, "alert": False, "pending_publish": [], "last_error": None, "epoch": 1,
             "lease": {"state": "ACTIVE", "sequence": 4, "heartbeat_age_s": 1},
             "stores": {name: {"kind": kind, "health": "OK", "blocked_code": None, "last_error_code": None,
