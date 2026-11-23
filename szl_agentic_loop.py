@@ -925,6 +925,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
     from starlette.routing import Route
     from starlette.responses import JSONResponse, HTMLResponse, Response
     from starlette.requests import Request
+    from starlette.concurrency import run_in_threadpool
 
     # In-memory chain of full runs (each run is itself a chained sub-ledger).
     _RUN_CHAIN = []  # list of {run_id, final_hash, prev_run_hash}
@@ -1518,10 +1519,12 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         except Exception as exc:
             rag = {"built": False, "state": "UNAVAILABLE", "honesty": type(exc).__name__}
         try:
+            from ayllu.backend import backend_status
             from ayllu.model_binding import second_brain_binding
-            brain = second_brain_binding(namespace=ns, rag_status=rag)
+            brain = second_brain_binding(
+                namespace=ns, backend_status=backend_status(), rag_status=rag)
         except Exception:
-            brain = {"state": rag.get("state") or "UNAVAILABLE",
+            brain = {"state": "UNAVAILABLE",
                      "ready_for_grounded_navigation": False}
         formulas = []
         try:
@@ -2012,8 +2015,9 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                             headers={"Cache-Control": "no-store"})
 
     async def _agent_mesh(request: Request):
-        return JSONResponse(_hatun_mesh_contract(),
-                            headers={"Cache-Control": "no-store"})
+        # Backend status performs bounded synchronous model-inventory reads.
+        mesh = await run_in_threadpool(_hatun_mesh_contract)
+        return JSONResponse(mesh, headers={"Cache-Control": "no-store"})
 
     async def _agent_governance_standards(request: Request):
         return JSONResponse(governance_standards_note())
