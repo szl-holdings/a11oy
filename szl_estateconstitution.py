@@ -86,10 +86,14 @@ except Exception:  # pragma: no cover - numpy is a core dep in this estate
 # UNKNOWN is listed in the public-estate contract truthVocabulary
 # (static/shared/public-estate-contract.v1.json) and never upgrades a claim; the honesty wall
 # reports it verbatim (e.g. a reachable-but-unverified sovereign node), so Article 2 must too.
+# DECLARED = asserted/stated by the operator, NOT measured and NOT proven; never upgraded to
+# MEASURED (mirrors EvidenceLabel.DECLARED in szl_quantum_utility.py). szl_honestywall accepts
+# it as honest, and Article 2 checks the wall's labels by exact membership, so without it here
+# an honest DECLARED surface would read as a fabricated label and force IN-VIOLATION.
 HONEST_LABELS = (
     "LIVE", "MEASURED", "MODELED", "SAMPLE", "SIMULATED", "CACHED", "PROVEN",
-    "CONJECTURE", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY", "HONEST-STUB",
-    "UNSIGNED-LOCAL", "UNKNOWN", "UNAVAILABLE",
+    "CONJECTURE", "DECLARED", "ROADMAP", "DEGRADED", "REPLAY", "STRUCTURAL-ONLY",
+    "HONEST-STUB", "UNSIGNED-LOCAL", "UNKNOWN", "UNAVAILABLE",
 )
 
 # This surface's own top label — a derived governance verdict, not a measurement.
