@@ -385,6 +385,8 @@ class TestStateStoreErrorLifecycle(unittest.TestCase):
         self.publication_failure()
         self.recover_publication()
         payload = self.healthy_envelope()
+        self.assertEqual(payload["claim"], "FIRST_BOOT")
+        self.assertEqual(payload["epoch"], 1)
         self.assertIsNotNone(payload["last_error_history"]["publish"]["recovered_at"])
         for change in (
             lambda item: item.pop("lease"),
