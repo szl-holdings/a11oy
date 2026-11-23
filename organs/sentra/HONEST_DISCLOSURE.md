@@ -14,17 +14,15 @@
 
 ## Immune Gate — Current Implementation (June 2026)
 
-### sentra immune v1 ( and )
+### legacy Sentra entrypoint (`organs/sentra/src/sentra_immune.py`)
 
-sentra immune v1 uses a 6-pattern keyword allowlist (DROP TABLE, rm -rf, <script, eval(, subprocess, ../../etc) with known bypasses. **Do not rely on v1 for production deny-by-default.**
+The historical six-pattern implementation was bypassable through uppercase
+variants, base64 encoding, Unicode compatibility characters, and threats
+outside its short list. The legacy boolean entrypoint now delegates every
+packet to the v2 deny-by-default engine. It returns deny on malformed input or
+unexpected verifier errors, and it adds the historical `action: inspect`
+default only for callers that used the old boolean API.
 
-Specifically, v1:
-- Is **NOT** deny-by-default — all inputs not matching 6 patterns are allowed through
-- Is **NOT** an 8-gate architecture — the UI description is aspirational product roadmap
-- Is **trivially bypassed** by uppercase variants (), base64 encoding, Unicode normalization, or any threat not in the 6-pattern list
-- Has no entropy check, no action schema validation, no replay protection, no payload digest verification
-
-This gap was identified in the June 2026 PhD AI Safety audit and is documented here per the honesty doctrine.
 
 ### sentra immune v2 ()
 
@@ -45,6 +43,6 @@ sentra immune v2 is in pilot — real 8 gates per the [AI Safety 7-day fix plan]
 - G8 authorization claim: validates format only; full Sigstore/DSSE verification is pending (CI not yet wired — PLACEHOLDER)
 - Rate-limit and nonce store are in-memory per-process; reset on container restart
 - v2 is pilot — not yet the production gate for all mesh traffic
-- v1 route is preserved unchanged (ADDITIVE)
+- legacy v1 callers now delegate to v2 and fail closed; the old six-pattern allowlist is no longer an authorization path
 
 Source:  · Doctrine v11 LOCKED 749/14/163 · SLSA L1 honest
