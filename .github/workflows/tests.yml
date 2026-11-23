@@ -480,6 +480,9 @@ jobs:
         run: python -m pytest -q tests/test_frontier_evidence_explorer.py
       - name: Verify witness refusal and fixture contracts
         run: python -m pytest -q tests/test_python_command_centre_witness.py
+      - name: Verify source-bound local presentation checkout is clean
+        run: git status --porcelain --untracked-files=all
+
       - name: Verify source-bound local presentation, not operational readiness
         run: >-
           python scripts/witness_python_command_centre.py
