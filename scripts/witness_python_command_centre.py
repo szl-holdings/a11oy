@@ -332,7 +332,8 @@ def observe(browser, fixture, route, width, javascript, output):
 
 def witness(expected, output, require_clean=False):
     source = source_identity(expected)
-    require(not require_clean or source["clean_source_claimed"], "clean source is required")
+    require(not require_clean or source["clean_source_claimed"],
+            "clean source is required: " + ", ".join(source.get("changed_paths", [])))
     require(importlib.metadata.version("playwright") == "1.62.0", "Playwright 1.62.0 is required")
     require(not output.exists() or (output.is_dir() and not any(output.iterdir())),
             "output directory must be new or empty")
