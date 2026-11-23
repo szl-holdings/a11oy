@@ -19,15 +19,17 @@ artifacts/a11oy-uds/build-attestations/
 .lake/build/
 # Local-only TestClient harness (patches /app paths to repo root; NOT shipped)
 _localtest.py
-# Runtime-persisted energy ledger (hash-chained receipts written at run time; NOT shipped)
+# Runtime-persisted energy ledger (hash-chained receipts written at run time)
 szl_energy_ledger.jsonl
 *.ledger.jsonl
-# Governed-brain write-back overlay (append-only receipts written at run time; NOT shipped)
+# Governed-brain write-back overlay (append-only receipts written at run time)
 .szl_brain_overlay.jsonl
 # Local council / approval runtime state created by focused tests and dev runs; never release.
 .a11oy-state/
 # Bounded pytest basetemp directories used when the OS temp root is sandbox-inaccessible.
 .pytest-*/
+# Pytest's repository-root cache is local test state and must not dirty source-bound witnesses.
+.pytest_cache/
 # Runtime energy-operator ledger/state (Dev 1) — persisted counts, never committed
 artifacts/energy_operator_ledger.json
 artifacts/energy_operator_ledger.json.tmp
@@ -41,7 +43,7 @@ khipu/**/*.ndjson
 
 # DEV A gap-closure (2026-06-30): reverse-imported SZLHOLDINGS/immune Space is a
 # Node app whose deployable IS its built dist/. Re-include this ONE governed snapshot
-# (see spaces/immune/PROVENANCE.md) while the repo-wide `dist/` ignore stays for real
+# (see spaces/immune/PROVENANCE.md) while the repo-wide dist/ ignore stays for real
 # local build output. The committed dist/data is the shipped SEED ledger; the live
 # Space appends to it at runtime, so live divergence there is expected runtime state.
 !spaces/immune/dist/
