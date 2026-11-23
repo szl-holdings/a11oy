@@ -16,6 +16,7 @@ RETAINED = "tests/fixtures/shared-source-payloads/retained-signing-ledger-202611
 SNOWFLAKE = ".github/shared-source-payloads/snowflake-account-host-boundary-20261102-v1.json"
 PROOF = ".github/shared-source-payloads/snowflake-proof-retention-20261103-v1.json"
 DSSE = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1.json"
+MESH_SHA256 = "b30b02886292d38b0d369d19314a24eec57bb499683ccfda57b62301cd6a6510"
 INSPECTION = ".github/shared-source-payloads/dsse-finite-reload-20261112-v1-f8ce1270f5d6.json"
 ANATOMY_INSPECTION = ".github/shared-source-payloads/dsse-finite-reload-inspection-20261116-v1.json"
 ANATOMY = ".github/shared-source-payloads/anatomy-observation-20261116-v1.json"
@@ -217,15 +218,18 @@ def _assert_current_shared_payload(root):
 
     manifest = json.loads((root / ACTIVE).read_bytes())
     assert manifest["schema"] == "szl-shared-source-payload/v1"
-    assert manifest["payload_id"] == "model-companion-boundary-20261117-v2"
+    assert manifest["payload_id"] == "hatun-observed-backend-20261116-v2"
     assert set(manifest["files"]) == set(model["files"]) | set(anatomy["files"]) | {
-        MODEL, ANATOMY,
+        MODEL, ANATOMY, "szl_agentic_loop.py",
     }
     assert manifest["files"][MODEL] == hashlib.sha256(model_raw).hexdigest()
     assert manifest["files"][ANATOMY] == hashlib.sha256(anatomy_raw).hexdigest()
     # Conserve both published parents. Current auth comes from the reviewed
     # anatomy parent; engine and companion test remain the reviewed model bytes.
-    # Only this combined history test has a new digest of its own.
+    # The mesh successor binds the observed optional backend boundary from the
+    # same generation; it does not extend any historical signature to this
+    # generation or claim deployment or model use.
+    assert manifest["files"]["szl_agentic_loop.py"] == MESH_SHA256
     for relative, expected in model["files"].items():
         if relative not in {"szl_operator_auth.py", "tests/test_replication_shared_payload.py"}:
             assert manifest["files"][relative] == expected
@@ -257,6 +261,7 @@ def test_current_shared_payload_manifest_matches_current_peer():
     "model_archive_bytes", "model_archive_bytes_and_digest", "missing_anatomy_entry",
     "missing_model_entry", "provenance_source_and_digest", "anatomy_auth_rollback",
     "model_predecessor_generation", "anatomy_predecessor_generation",
+    "mesh_source", "mesh_source_and_digest",
 ])
 def test_current_payload_rejects_tampering(tmp_path, change):
     manifest = json.loads((ROOT / ACTIVE).read_bytes())
@@ -277,6 +282,11 @@ def test_current_payload_rejects_tampering(tmp_path, change):
         manifest["payload_id"] = "snowflake-account-host-boundary-20261102-v1"
     elif change == "predecessor_generation":
         manifest["payload_id"] = "dsse-finite-reload-20261112-v1"
+    elif change in {"mesh_source", "mesh_source_and_digest"}:
+        source = tmp_path / "szl_agentic_loop.py"
+        source.write_bytes(source.read_bytes() + b"\n")
+        if change == "mesh_source_and_digest":
+            manifest["files"]["szl_agentic_loop.py"] = hashlib.sha256(source.read_bytes()).hexdigest()
     elif change == "model_predecessor_generation":
         manifest["payload_id"] = "model-companion-boundary-20261117-v1"
     elif change == "anatomy_predecessor_generation":
