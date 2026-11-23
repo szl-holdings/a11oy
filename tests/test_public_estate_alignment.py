@@ -59,7 +59,8 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 16)
+        self.assertEqual(len(topology), 17)
+        self.assertIn("SZLHOLDINGS/szl-science-gate-studio", topology)
         self.assertEqual(
             self.contract["supportingSystems"][0]["huggingFaceRepositories"],
             [],
@@ -83,7 +84,6 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                 "SZLHOLDINGS/szl-marketing",
                 "SZLHOLDINGS/szl-muhu-frontier",
                 "SZLHOLDINGS/szl-router-control",
-                "SZLHOLDINGS/szl-science-gate-studio",
                 "SZLHOLDINGS/the-grid",
                 "SZLHOLDINGS/truth-router",
             ],
