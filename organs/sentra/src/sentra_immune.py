@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from sentra_immune_v2 import sentra_inspect_v2
+try:
+    from sentra_immune_v2 import sentra_inspect_v2
+except ImportError:  # package-style imports in offline tests
+    from .sentra_immune_v2 import sentra_inspect_v2
 
 # Kept for callers that import the historical signature catalogue. The v2
 # scanner is authoritative and includes these plus additional patterns.
