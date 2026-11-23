@@ -177,6 +177,43 @@ def validate_current_export(export, context, *, now=None):
     return bundle, coverage
 
 
+def bracket_drift_reason(before, after):
+    """Classify an exact-bracket refusal without echoing evidence or IDs.
+
+    No differing state is accepted. This is only a fixed-code diagnostic
+    for the operator: storage progress is not independently witnessed
+    publication consistency, even when an epoch and a source are unchanged.
+    """
+    if before == after:
+        return None
+    known = {
+        "source_revision", "runtime_revision", "runtime_boot_id",
+        "storage_epoch", "storage_sequence", "store_snapshots",
+        "series_store_id", "series_chain_head", "series_receipt_count",
+        "series_last_sequence",
+    }
+    if (type(before) is not dict or type(after) is not dict
+            or set(before) != known or set(after) != known):
+        return "SOURCE_RUNTIME_OR_STORAGE_CHANGED"
+    groups = {
+        "IDENTITY": {"source_revision", "runtime_revision", "runtime_boot_id"},
+        "FENCE": {"storage_epoch", "series_store_id"},
+        "CHECKPOINT": {"storage_sequence", "series_chain_head",
+                       "series_receipt_count", "series_last_sequence"},
+        "SNAPSHOTS": {"store_snapshots"},
+    }
+    changed = {name for name in known if before[name] != after[name]}
+    involved = [group for group, names in groups.items() if changed & names]
+    if len(involved) != 1:
+        return "SOURCE_RUNTIME_OR_STORAGE_CHANGED"
+    return {
+        "IDENTITY": "BRACKET_RUNTIME_IDENTITY_CHANGED",
+        "FENCE": "BRACKET_STORAGE_FENCE_CHANGED",
+        "CHECKPOINT": "BRACKET_STORAGE_CHECKPOINT_CHANGED",
+        "SNAPSHOTS": "BRACKET_STORE_SNAPSHOTS_CHANGED",
+    }[involved[0]]
+
+
 def collect(client, context, *, operator_token, tenant, now=None):
     gate._context(context, context.source_revision)
     require(type(operator_token) is str and bool(operator_token) and type(tenant) is str and bool(tenant)
@@ -188,7 +225,8 @@ def collect(client, context, *, operator_token, tenant, now=None):
                         authorization=operator_token, tenant=tenant)
     bundle, coverage = validate_current_export(export, context, now=now)
     after = bracket(client, context)
-    require(before == after, "SOURCE_RUNTIME_OR_STORAGE_CHANGED")
+    drift = bracket_drift_reason(before, after)
+    require(drift is None, drift or "SOURCE_RUNTIME_OR_STORAGE_CHANGED")
     return bundle, {"schema": "szl.execution-readiness-collection/v1", "method": "GET_ONLY",
                     "collected_at": (now or datetime.now(timezone.utc)).isoformat().replace("+00:00", "Z"),
                     "bracket": before, "bundle_sha256": coverage["bundle_sha256"],
