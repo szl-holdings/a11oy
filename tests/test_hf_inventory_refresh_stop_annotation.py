@@ -112,6 +112,24 @@ class StopAnnotationFormatTests(unittest.TestCase):
             'source review required, no routine refresh branch; governed changes: '
             'model:EXAMPLE/governed-model (sha,lastModified), space:EXAMPLE/gated-space (presence)'))
 
+    def test_all_source_review_blockers_are_visible_before_governed_details(self):
+        value=governed_stop()
+        value['sourceReview']={'state':'SOURCE_REVIEW_REQUIRED','failedSteps':[
+            'GOVERNED_REVISION_PREFLIGHT','PUBLIC_ESTATE_PREFLIGHT','INFERENCE_SUPPORT_PREFLIGHT']}
+        line=self.render(value)
+        self.assertIn('; source-review blockers: GOVERNED_REVISION_PREFLIGHT, PUBLIC_ESTATE_PREFLIGHT, '
+                      'INFERENCE_SUPPORT_PREFLIGHT; governed changes:',line)
+        self.assertLessEqual(len(line),S.MAX_LINE)
+        self.assertEqual(line.count('::error '),1)
+
+    def test_source_review_steps_are_untrusted_and_type_checked(self):
+        line=self.render(report(sourceReview={'failedSteps':['A\n::warning::forged',7,'100%']}))
+        self.assertIn('source-review blockers: A%0A::warning::forged, UNRECORDED, 100%25',line)
+        self.assertNotIn('\n',line)
+        for review in (None,[],{'failedSteps':'X'},{'failedSteps':[]}):
+            with self.subTest(review=review):
+                self.assertNotIn('source-review blockers',self.render(report(sourceReview=review)))
+
     def test_report_written_by_the_real_prepare_main_is_understood(self):
         def stop(source, run_id, artifact_id, digest, value):
             value.update(preparationStep='PUBLIC_ESTATE_PREFLIGHT')
