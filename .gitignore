@@ -28,7 +28,7 @@ szl_energy_ledger.jsonl
 .a11oy-state/
 # Bounded pytest basetemp directories used when the OS temp root is sandbox-inaccessible.
 .pytest-*/
-# Pytest's repository-root cache is local test state and must not dirty source-bound witnesses.
+# Pytest's repository-root cache is local CI state and must not dirty source-bound witnesses.
 .pytest_cache/
 # Runtime energy-operator ledger/state (Dev 1) — persisted counts, never committed
 artifacts/energy_operator_ledger.json
