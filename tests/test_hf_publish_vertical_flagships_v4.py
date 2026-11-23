@@ -586,22 +586,32 @@ def sentra_wrapper(monkeypatch):
     return module
 
 
+def _sentra_check_path(name):
+    from urllib.parse import quote
+    return (f"/repos/szl-holdings/a11oy/commits/{_TX_SOURCE}/check-runs"
+            f"?check_name={quote(name, safe='')}&filter=latest&per_page=100&page=1")
+
+
 def _transaction_source_responses(module):
-    contexts = ("source-contract", *module.SENTRA_DOCTRINE_CHECKS)
-    return {
+    protected = (*module.SENTRA_PR_ONLY_CHECKS, *module.SENTRA_MAIN_CHECKS)
+    responses = {
         "/repos/szl-holdings/a11oy/branches/main": {
             "commit": {"sha": _TX_SOURCE}, "protected": True,
             "protection": {"enabled": True, "required_status_checks": {
-                "contexts": ["source-contract"],
-                "checks": [{"context": "source-contract", "app_id": 15368}]}},
+                "contexts": list(protected),
+                "checks": [{"context": name, "app_id": module.SENTRA_CHECK_APP_ID}
+                           for name in protected]}},
         },
         f"/repos/szl-holdings/a11oy/commits/{_TX_SOURCE}": {
             "sha": _TX_SOURCE, "commit": {"verification": {"verified": True, "reason": "valid"}}},
-        f"/repos/szl-holdings/a11oy/commits/{_TX_SOURCE}/check-runs?filter=latest&per_page=100&page=1": {
-            "total_count": len(contexts), "check_runs": [
-                {"name": name, "head_sha": _TX_SOURCE, "app": {"id": 15368},
-                 "status": "completed", "conclusion": "success"} for name in contexts]},
     }
+    for name in (*module.SENTRA_MAIN_CHECKS, *module.SENTRA_DOCTRINE_CHECKS):
+        responses[_sentra_check_path(name)] = {
+            "total_count": 1, "check_runs": [
+                {"name": name, "head_sha": _TX_SOURCE, "app": {"id": module.SENTRA_CHECK_APP_ID},
+                 "status": "completed", "conclusion": "success"}],
+        }
+    return responses
 
 
 @pytest.mark.parametrize("status", [401, 403])
@@ -631,7 +641,7 @@ def test_unresolved_source_never_admits(sentra_wrapper, monkeypatch, defect):
     responses = _transaction_source_responses(sentra_wrapper)
     branch = responses["/repos/szl-holdings/a11oy/branches/main"]
     signature = responses[f"/repos/szl-holdings/a11oy/commits/{_TX_SOURCE}"]["commit"]["verification"]
-    checks = responses[f"/repos/szl-holdings/a11oy/commits/{_TX_SOURCE}/check-runs?filter=latest&per_page=100&page=1"]
+    checks = responses[_sentra_check_path(sentra_wrapper.SENTRA_MAIN_CHECKS[0])]
     if defect == "moved": branch["commit"]["sha"] = _TX_PARENT
     elif defect == "unprotected": branch["protected"] = False
     elif defect == "missing-policy": branch["protection"] = {}
@@ -640,10 +650,43 @@ def test_unresolved_source_never_admits(sentra_wrapper, monkeypatch, defect):
     elif defect == "pending": checks["check_runs"][0]["status"] = "in_progress"
     elif defect == "wrong-head": checks["check_runs"][0]["head_sha"] = _TX_PARENT
     elif defect == "wrong-app": checks["check_runs"][0]["app"]["id"] = 1
-    elif defect == "missing-doctrine": checks["check_runs"].pop()
-    elif defect == "unbounded": checks["total_count"] = 401
+    elif defect == "missing-doctrine": responses[_sentra_check_path(sentra_wrapper.SENTRA_DOCTRINE_CHECKS[-1])] = {"total_count": 0, "check_runs": []}
+    elif defect == "unbounded": checks["total_count"] = 101
     monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
     with pytest.raises(sentra_wrapper.SentraPublicationError): sentra_wrapper._sentra_source_admission()
+
+
+
+# Regression for issue #3834: GitHub required-status-check contexts with null
+# app_id are NOT verified check authorities. Do not make the publisher accept
+# context-only results, including when check-runs themselves are successful.
+@pytest.mark.parametrize("untrusted_app_id", [None, True, False, "15368", 0, -1])
+def test_sentra_rejects_unbound_required_check_authority(
+        sentra_wrapper, monkeypatch, untrusted_app_id):
+    responses = _transaction_source_responses(sentra_wrapper)
+    branch = responses["/repos/szl-holdings/a11oy/branches/main"]
+    branch["protection"]["required_status_checks"]["checks"][0]["app_id"] = untrusted_app_id
+    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
+    with pytest.raises(sentra_wrapper.SentraPublicationError, match="Required source-check authority is unavailable"):
+        sentra_wrapper._sentra_source_admission()
+
+
+@pytest.mark.parametrize("defect", ["missing-required-check", "duplicate-required-context", "context-list-drift"])
+def test_sentra_rejects_required_context_inventory_mismatch(
+        sentra_wrapper, monkeypatch, defect):
+    responses = _transaction_source_responses(sentra_wrapper)
+    policy = responses["/repos/szl-holdings/a11oy/branches/main"]["protection"]["required_status_checks"]
+    if defect == "missing-required-check":
+        policy["checks"] = []
+    elif defect == "duplicate-required-context":
+        policy["checks"].append(dict(policy["checks"][0]))
+    else:
+        policy["contexts"].append("missing-exact-main-source-check")
+    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
+    with pytest.raises(sentra_wrapper.SentraPublicationError):
+        sentra_wrapper._sentra_source_admission()
+
+
 
 
 class _SentraFixtureApi:
@@ -842,16 +885,54 @@ def test_target_parent_changes_before_cas_has_zero_writes(sentra_transaction, mo
     assert api.commits == [] and api.forbidden_calls == []
 
 
-def test_source_check_pagination_preserves_required_authority(sentra_wrapper, monkeypatch):
+def test_named_main_checks_only_without_substituting_pr_ci(sentra_wrapper, monkeypatch):
     responses = _transaction_source_responses(sentra_wrapper)
-    first = f"/repos/szl-holdings/a11oy/commits/{_TX_SOURCE}/check-runs?filter=latest&per_page=100&page=1"
-    final = {"total_count": 103, "check_runs": responses[first]["check_runs"]}
-    responses[first] = {"total_count": 103, "check_runs": [
-        {"name": f"unrelated-{i}", "app": {"id": 15368}, "head_sha": _TX_SOURCE,
-         "status": "completed", "conclusion": "success"} for i in range(100)]}
-    responses[first.rsplit("&page=", 1)[0] + "&page=2"] = final
-    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
+    visited = []
+
+    def source(path):
+        visited.append(path)
+        return responses[path]
+
+    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", source)
     assert sentra_wrapper._sentra_source_admission() == _TX_SOURCE
+    for name in (*sentra_wrapper.SENTRA_MAIN_CHECKS, *sentra_wrapper.SENTRA_DOCTRINE_CHECKS):
+        assert _sentra_check_path(name) in visited
+    for name in sentra_wrapper.SENTRA_PR_ONLY_CHECKS:
+        assert _sentra_check_path(name) not in visited
+    assert not any("/check-runs?filter=latest" in path for path in visited)
+
+
+@pytest.mark.parametrize("name", ["Product, GitHub, Hub, and proof topology",
+                                  "Protected base matches immutable HF repository"])
+def test_missing_or_foreign_pr_only_policy_still_denies(sentra_wrapper, monkeypatch, name):
+    responses = _transaction_source_responses(sentra_wrapper)
+    policy = responses["/repos/szl-holdings/a11oy/branches/main"]["protection"]["required_status_checks"]
+    policy["checks"] = [check for check in policy["checks"] if check["context"] != name]
+    policy["contexts"].remove(name)
+    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
+    with pytest.raises(sentra_wrapper.SentraPublicationError, match="source-check policy is incomplete"):
+        sentra_wrapper._sentra_source_admission()
+
+
+def test_required_pr_only_app_identity_must_be_bound(sentra_wrapper, monkeypatch):
+    responses = _transaction_source_responses(sentra_wrapper)
+    policy = responses["/repos/szl-holdings/a11oy/branches/main"]["protection"]["required_status_checks"]
+    policy["checks"][0]["app_id"] = 47
+    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
+    with pytest.raises(sentra_wrapper.SentraPublicationError, match="App identity is inconsistent"):
+        sentra_wrapper._sentra_source_admission()
+
+
+def test_unknown_new_required_check_remains_main_gated(sentra_wrapper, monkeypatch):
+    responses = _transaction_source_responses(sentra_wrapper)
+    policy = responses["/repos/szl-holdings/a11oy/branches/main"]["protection"]["required_status_checks"]
+    policy["checks"].append({"context": "unreviewed-new-source-check", "app_id": 15368})
+    policy["contexts"].append("unreviewed-new-source-check")
+    responses[_sentra_check_path("unreviewed-new-source-check")] = {
+        "total_count": 0, "check_runs": []}
+    monkeypatch.setattr(sentra_wrapper, "_sentra_github_json", lambda path: responses[path])
+    with pytest.raises(sentra_wrapper.SentraChecksPending):
+        sentra_wrapper._sentra_source_admission()
 
 
 def test_immutable_readback_uses_canonical_space_route_and_bounded_body(sentra_wrapper, monkeypatch):
