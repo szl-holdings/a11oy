@@ -1,18 +1,34 @@
-"""SENTRA — immune system. White blood cells inspecting YAWAR packets.
+"""SENTRA immune compatibility entrypoint.
 
-Doctrine: preserves SENTRA's existing P9 cyber/threat-intel job.
-Doctrine: ≤10 SLOC. Returns True if packet passes inspection, False otherwise.
-
-Threat signatures (extend via sentra_signatures.json — codex-in-kernel pattern):
+The legacy six-pattern implementation was bypassable through encoding,
+Unicode compatibility characters, and unbounded action shapes. Production
+callers now pass through the deny-by-default v2 engine. The boolean return
+shape remains compatible with the historical Wire B callers.
 """
+
+from __future__ import annotations
+
+from typing import Any
+
+try:
+    from sentra_immune_v2 import sentra_inspect_v2
+except ImportError:  # package-style imports in offline tests
+    from .sentra_immune_v2 import sentra_inspect_v2
+
+# Kept for callers that import the historical signature catalogue. The v2
+# scanner is authoritative and includes these plus additional patterns.
 THREAT_KEYWORDS = ["DROP TABLE", "rm -rf", "<script", "eval(", "subprocess", "../../etc"]
 
-def sentra_inspect(packet: dict) -> bool:
-    """Return True if packet is clean, False if any threat signature detected."""
-    blob = str(packet).lower()
-    for sig in THREAT_KEYWORDS:                    # 1 — signature scan
-        if sig.lower() in blob:
-            return False                           # 2 — immune rejection
-    if len(blob) > 1_000_000:                      # 3 — size DoS guard
+
+def sentra_inspect(packet: dict[str, Any]) -> bool:
+    """Return True only when the v2 deny-by-default inspection allows a packet."""
+    if not isinstance(packet, dict):
         return False
-    return True                                    # 4 — packet clears
+    normalized = dict(packet)
+    normalized.setdefault("action", "inspect")
+    try:
+        verdict = sentra_inspect_v2(normalized)
+    except Exception:
+        # A malformed or unexpected packet must never become an allow.
+        return False
+    return verdict.get("allow") is True and verdict.get("verdict") == "allow"
