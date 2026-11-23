@@ -1276,7 +1276,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
              "python -I -B scripts/execute_acceptance_plan.py"),
             ("          A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n",
              "          A11OY_CODE_ADMIN_KEY: ${{ secrets.HF_TOKEN }}\n"),
-            ("canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
+            ("canonical-a11oy-passive-${{ github.run_id }}-current",
              "canonical-a11oy-passive-${{ github.run_id }}-1"),
             ("            ${{ runner.temp }}/execution-evidence/execution-observations.json\n",
              "            ${{ runner.temp }}/execution-evidence/execution-authority-pins.json\n"),
