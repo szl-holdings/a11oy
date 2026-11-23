@@ -869,6 +869,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Immutable attempt-scoped evidence is still published by readiness-verdict as
+      # canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}.
       - name: Download this exact run and attempt's passive evidence
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
