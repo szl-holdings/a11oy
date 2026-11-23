@@ -173,6 +173,18 @@ class PublicEstatePreflightTests(unittest.TestCase):
         self.assertNotIn('private diagnostic value',str(raised.exception))
         self.assertEqual(self.report['publicSpaceClassification']['state'],'SOURCE_REVIEW_REQUIRED')
 
+    def test_malformed_topology_is_a_sanitized_source_review_failure(self):
+        for contract in ({},{'fabric':None},{'fabric':[]},None):
+            with self.subTest(contract=contract), patch.object(self.alignment,'load_json',return_value=contract):
+                report={}
+                with self.assertRaisesRegex(M.PreparationError,'policy contract requires source review'):
+                    M.validate_public_estate_candidate(self.manifest,report)
+                self.assertEqual(report['publicSpaceClassification'],{'state':'SOURCE_REVIEW_REQUIRED'})
+        with patch.object(self.alignment,'load_json',side_effect=UnicodeError('private diagnostic value')):
+            with self.assertRaises(M.PreparationError) as raised:
+                M.validate_public_estate_candidate(self.manifest,{})
+        self.assertNotIn('private diagnostic value',str(raised.exception))
+
     def test_subprocess_stdout_and_stderr_remain_out_of_failure_receipt(self):
         result=subprocess.CompletedProcess([],1,stdout=b'private stdout',stderr=b'private stderr')
         with patch.object(M.subprocess,'run',return_value=result):

@@ -32,6 +32,7 @@ import math
 import re
 import threading
 import time
+import unicodedata
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -86,6 +87,7 @@ _ALLOWED_ACTION_PREFIXES: frozenset[str] = frozenset([
     "verify",
     "report",
     "read_",
+    "read",
     "get_",
     "list_",
     "fetch_",
@@ -100,6 +102,7 @@ _ALLOWED_ACTION_PREFIXES: frozenset[str] = frozenset([
 _NONCE_WINDOW_SECONDS: int = 300   # 5-minute nonce validity window
 _NONCE_MAX_SIZE: int = 10_000      # max nonces kept in memory
 _RATE_LIMIT_MAX: int = 100         # max requests per client per window
+_RATE_BUCKET_MAX_CLIENTS: int = 10_000  # bound distinct client buckets
 _RATE_WINDOW_SECONDS: int = 60     # rate limit window
 
 # ---------------------------------------------------------------------------
@@ -138,10 +141,12 @@ def _scan_value(
     if isinstance(v, str):
         if len(v) > MAX_FIELD_LEN:
             return False, "field_too_long", 0.0
-        # Scan raw value
-        blob = v
+        # Normalize compatibility characters before scanning so fullwidth
+        # and other Unicode presentation forms cannot bypass the patterns.
+        normalized = unicodedata.normalize("NFKC", v)
+        blob = normalized
         # Gate 4: decode base64 and rescan
-        decoded = _try_decode_b64(v)
+        decoded = _try_decode_b64(normalized)
         if decoded:
             blob = v + " " + decoded
         for pattern in _COMPILED:
@@ -261,7 +266,7 @@ def gate_digest(packet: dict) -> tuple[bool, str, float]:
 # ---------------------------------------------------------------------------
 
 _NONCE_STORE: dict[str, float] = {}   # nonce -> timestamp
-_RATE_BUCKETS: dict[str, list[float]] = collections.defaultdict(list)  # client_id -> [timestamps]
+_RATE_BUCKETS: dict[str, list[float]] = {}  # client_id -> [timestamps]
 _NONCE_LOCK = threading.Lock()
 
 
@@ -304,7 +309,13 @@ def gate_auth_ratelimit(packet: dict) -> tuple[bool, str, float]:
 
         # Rate limit per client_id
         client_id = str(packet.get("client_id", packet.get("agent", "anonymous")))[:128]
-        bucket = _RATE_BUCKETS[client_id]
+        if client_id not in _RATE_BUCKETS and len(_RATE_BUCKETS) >= _RATE_BUCKET_MAX_CLIENTS:
+            oldest = min(
+                _RATE_BUCKETS,
+                key=lambda key: max(_RATE_BUCKETS[key], default=0.0),
+            )
+            del _RATE_BUCKETS[oldest]
+        bucket = _RATE_BUCKETS.setdefault(client_id, [])
         # Evict old entries
         _RATE_BUCKETS[client_id] = [t for t in bucket if now - t < _RATE_WINDOW_SECONDS]
         if len(_RATE_BUCKETS[client_id]) >= _RATE_LIMIT_MAX:
