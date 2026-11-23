@@ -32,6 +32,7 @@ import math
 import re
 import threading
 import time
+import unicodedata
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -138,10 +139,12 @@ def _scan_value(
     if isinstance(v, str):
         if len(v) > MAX_FIELD_LEN:
             return False, "field_too_long", 0.0
-        # Scan raw value
-        blob = v
+        # Normalize compatibility characters before scanning so fullwidth
+        # and other Unicode presentation forms cannot bypass the patterns.
+        normalized = unicodedata.normalize("NFKC", v)
+        blob = normalized
         # Gate 4: decode base64 and rescan
-        decoded = _try_decode_b64(v)
+        decoded = _try_decode_b64(normalized)
         if decoded:
             blob = v + " " + decoded
         for pattern in _COMPILED:
