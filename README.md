@@ -1,6 +1,6 @@
 ---
-title: "a11oy — Command Center"
-emoji: "🛡️"
+title: "a11oy ΓÇö Command Center"
+emoji: "≡ƒ¢í∩╕Å"
 thumbnail: "https://a-11-oy.com/og-card.png"
 colorFrom: indigo
 colorTo: gray
@@ -9,7 +9,7 @@ source_repo: https://github.com/szl-holdings/a11oy
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: "a11oy source — product origin a-11-oy.com, proof a11oy.net"
+short_description: "a11oy source ΓÇö product origin a-11-oy.com, proof a11oy.net"
 tags:
   - governance
   - agentic-ai
@@ -28,8 +28,8 @@ datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 
 **Control before action. Evidence after.**
 
-Part of the [szl-holdings](https://github.com/szl-holdings) estate ·
-Product: [a-11-oy.com](https://a-11-oy.com) ·
+Part of the [szl-holdings](https://github.com/szl-holdings) estate ┬╖
+Product: [a-11-oy.com](https://a-11-oy.com) ┬╖
 Proof: [a11oy.net](https://a11oy.net)
 <!-- /szl:header -->
 
@@ -38,7 +38,7 @@ Proof: [a11oy.net](https://a11oy.net)
 <!-- Native identity: szl-brand@4309f6fce89179331b0b3ed8c99494e76c5be256; Orbit v2 icon. -->
 <p>
   <a href="https://github.com/szl-holdings">
-    <img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/4309f6fce89179331b0b3ed8c99494e76c5be256/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings — Orbit v2" width="32" height="32" />
+    <img src="https://raw.githubusercontent.com/szl-holdings/szl-brand/4309f6fce89179331b0b3ed8c99494e76c5be256/kit/logos/orbit-v2/suite/szl-icon-32.svg" alt="SZL Holdings ΓÇö Orbit v2" width="32" height="32" />
   </a>
 </p>
 
@@ -50,15 +50,15 @@ Inspect governed AI workflows, the policy that admits an action, and the evidenc
 
 **Stage:** Capability-specific checks required
 
-[**Explore Command Lab →**](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) · [**Build with the source →**](https://github.com/szl-holdings/a11oy) · [**Inspect exact source →**](https://github.com/szl-holdings/a11oy/blob/5e014855a274825f4d46ce91cb3396cabd20f99a/README.md)
+[**Explore Command Lab ΓåÆ**](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab) ┬╖ [**Build with the source ΓåÆ**](https://github.com/szl-holdings/a11oy) ┬╖ [**Inspect exact source ΓåÆ**](https://github.com/szl-holdings/a11oy/blob/5e014855a274825f4d46ce91cb3396cabd20f99a/README.md)
 
-[Open the application](https://a-11-oy.com) · [Current capability evidence](https://a-11-oy.com/api/a11oy/v1/honest) · [Proof registry](https://a11oy.net)
+[Open the application](https://a-11-oy.com) ┬╖ [Current capability evidence](https://a-11-oy.com/api/a11oy/v1/honest) ┬╖ [Proof registry](https://a11oy.net)
 
 ## Use limits
 
 - A running Space or successful HTTP response does not certify a capability or authorize an action.
 - Check current signing, storage and capability evidence before relying on an output.
-- Λ uniqueness remains Conjecture 1. The eight locked formulas do not establish general system correctness.
+- ╬¢ uniqueness remains Conjecture 1. The eight locked formulas do not establish general system correctness.
 
 <details>
 <summary>Technical documentation, original evidence and reproduction</summary>
@@ -66,11 +66,11 @@ Inspect governed AI workflows, the policy that admits an action, and the evidenc
 <!-- szl:preserved-source-body:start -->
 
 <!--
-  a11oy README lead · 2026-09-04 honest runtime URLs
+  a11oy README lead ┬╖ 2026-09-04 honest runtime URLs
   This repository is SOURCE for the product origin https://a-11-oy.com
   Proof lives at https://a11oy.net
   Never a11oy.com
-  receipts.in ≡ receipts.out
+  receipts.in Γëí receipts.out
   Canonical: lutar-lean Doctrine v11 count @ c7c0ba17 (not main); locked-8 in ProvedFormulas.lean @ 3a886349
   Honesty doctrine LOCKED. DCO + Conventional Commits.
 -->
@@ -85,12 +85,12 @@ Proof lives at [https://a11oy.net](https://a11oy.net).
 
 a11oy is a governed-AI Command Center: deny-by-default policy, trust
 ceiling 0.97, and a hash-chained receipt for every decision (DSSE signing
-PARTIAL — see Honest status). This tree is
+PARTIAL ΓÇö see Honest status). This tree is
 that system's source. It is not the proof registry.
 
 ## Invariant
 
-**receipts.in ≡ receipts.out**
+**receipts.in Γëí receipts.out**
 
 A governed action is admitted only as a signed receipt and leaves only
 as that same signed receipt. The two sides are identical. A mismatch
@@ -103,11 +103,11 @@ is a failed verification, not a display error.
 | Runtime location | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) |
 | Source | this repository |
 | Doctrine | v11 LOCKED |
-| Λ | Conjecture 1 — not a theorem; the unconditional form under A1–A5 is false ([status](https://github.com/szl-holdings/lutar-lean/blob/0970b2f1a5f98d748abe86fdb8f040229f8846e0/Lutar/Puriq/Formulas/F23_Uniqueness.lean)) |
+| ╬¢ | Conjecture 1 ΓÇö not a theorem; the unconditional form under A1ΓÇôA5 is false ([status](https://github.com/szl-holdings/lutar-lean/blob/0970b2f1a5f98d748abe86fdb8f040229f8846e0/Lutar/Puriq/Formulas/F23_Uniqueness.lean)) |
 | Kernel | `c7c0ba17` (Doctrine v11 count 749/14/163) |
-| Formulas | locked-8 (lutar-lean `ProvedFormulas.lean` @ `3a886349`, not present at `c7c0ba17`) · never authority |
+| Formulas | locked-8 (lutar-lean `ProvedFormulas.lean` @ `3a886349`, not present at `c7c0ba17`) ┬╖ never authority |
 | Trust ceiling | 0.97 |
-| SLSA | L1 source-declared · L2/L3 not established |
+| SLSA | L1 source-declared ┬╖ L2/L3 not established |
 | License | Apache-2.0 |
 
 ## Civilian evidence surface
@@ -151,9 +151,9 @@ Archive: [Warhacker v1.0.0](https://github.com/szl-holdings/a11oy/releases/tag/v
 
 The trust math behind a11oy is pinned in **Lean 4** and checked by a proof machine:
 
-- **8 formulas locked-proven** in lutar-lean [`Lutar/Puriq/Formulas/ProvedFormulas.lean` @ `3a886349`](https://github.com/szl-holdings/lutar-lean/blob/3a8863491f688956f2fae7796e31404d6b21c8a6/Lutar/Puriq/Formulas/ProvedFormulas.lean) (file added 2026-06-04, last changed 2026-06-10; not present at `c7c0ba17`). What they state: pure-function replay determinism (F1, `f x = f x`), acyclicity kept when backward-pointing edges are appended to a Khipu DAG (F4), FIFO drain order on a list-modelled queue (F7), integer add-then-subtract cancellation (F11), `Nat` distributivity (F12), RS(10,6) parity-count arithmetic (F18, `10 − 6 = 4`), `Nat` additive monotonicity (F19), and strictly increasing indices in a `List.range` sequence log (F22). They do not prove receipt-replay integrity or Reed–Solomon recovery. The Doctrine v11 figure 749/14/163 @ `c7c0ba17` is a separate count: its 163 counts `sorry` text including comments, and the 149 variant drops only lines that start with `--`, so neither is a count of open proof holes.
-- **Λ uniqueness = Conjecture 1, not a theorem.** Under axioms A1–A5 the unconditional statement is machine-checked false (counterexample [`maxAgg_ne_Lambda`](https://github.com/szl-holdings/lutar-lean/blob/0970b2f1a5f98d748abe86fdb8f040229f8846e0/Lutar/Round13/Lambda_Uniqueness.lean#L188)); it closes only under the declared axiom A6. Conditional uniqueness is proven axiom-free (Theorem U). We say both out loud.
-- **SLSA L1 source-declared · L2/L3 not established**. No government authorization or accreditation is claimed.
+- **8 formulas locked-proven** in lutar-lean [`Lutar/Puriq/Formulas/ProvedFormulas.lean` @ `3a886349`](https://github.com/szl-holdings/lutar-lean/blob/3a8863491f688956f2fae7796e31404d6b21c8a6/Lutar/Puriq/Formulas/ProvedFormulas.lean) (file added 2026-06-04, last changed 2026-06-10; not present at `c7c0ba17`). What they state: pure-function replay determinism (F1, `f x = f x`), acyclicity kept when backward-pointing edges are appended to a Khipu DAG (F4), FIFO drain order on a list-modelled queue (F7), integer add-then-subtract cancellation (F11), `Nat` distributivity (F12), RS(10,6) parity-count arithmetic (F18, `10 ΓêÆ 6 = 4`), `Nat` additive monotonicity (F19), and strictly increasing indices in a `List.range` sequence log (F22). They do not prove receipt-replay integrity or ReedΓÇôSolomon recovery. The Doctrine v11 figure 749/14/163 @ `c7c0ba17` is a separate count: its 163 counts `sorry` text including comments, and the 149 variant drops only lines that start with `--`, so neither is a count of open proof holes.
+- **╬¢ uniqueness = Conjecture 1, not a theorem.** Under axioms A1ΓÇôA5 the unconditional statement is machine-checked false (counterexample [`maxAgg_ne_Lambda`](https://github.com/szl-holdings/lutar-lean/blob/0970b2f1a5f98d748abe86fdb8f040229f8846e0/Lutar/Round13/Lambda_Uniqueness.lean#L188)); it closes only under the declared axiom A6. Conditional uniqueness is proven axiom-free (Theorem U). We say both out loud.
+- **SLSA L1 source-declared ┬╖ L2/L3 not established**. No government authorization or accreditation is claimed.
 
 Full proof library: **[szl-holdings/lutar-lean](https://github.com/szl-holdings/lutar-lean)**
 
@@ -167,7 +167,7 @@ gh attestation verify oci://ghcr.io/szl-holdings/a11oy:latest --repo szl-holding
 
 # Check live doctrine posture on the product apex (Space-backed as of 2026-09-04)
 curl -s https://a-11-oy.com/api/a11oy/v1/honest | jq .doctrine_lock.lambda
-# → "Conjecture 1" when the runtime answers that contract
+# ΓåÆ "Conjecture 1" when the runtime answers that contract
 ```
 
 ---
@@ -203,7 +203,7 @@ mount, Series-A registration fails closed instead of falling back to `/tmp`.
 The unified Khipu and energy ledgers use separate `/data/a11oy/*` paths.
 
 **Required HF Space secrets for full signing integrity:**
-- `SZL_COSIGN_PRIVATE_PEM` — canonical ECDSA P-256 private PEM shared by all
+- `SZL_COSIGN_PRIVATE_PEM` ΓÇö canonical ECDSA P-256 private PEM shared by all
   receipt surfaces. The deployment sets `A11OY_REQUIRE_PERSISTENT_SIGNING=1`,
   so an absent or malformed key disables signing instead of minting a
   replacement identity.
@@ -225,16 +225,16 @@ deployment still requires the canonical publisher and live readback.
 
 | Claim | Status |
 |---|---|
-| Signed receipts on every governed action | **UNKNOWN — the dated source record reports disagreement on 2026-10-20: `/healthz` signer ABSENT; `/api/a11oy/v1/signing-status` persistent key, HMAC real, non_repudiation true. Both named key `9926bf69b799ea66` (SHA-256 of the stripped `/cosign.pub` PEM text). That observation included no signed action envelope for independent verification.** |
-| 8 formulas locked-proven (Lean 4) | **LOCKED · lutar-lean `ProvedFormulas.lean` @ `3a886349` (not present at c7c0ba17)** |
-| Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
-| SLSA supply chain | **L1 source-declared · L2/L3 not established** |
-| Apex `/console` on a-11-oy.com | **REPORTED reachable 2026-09-04 · Space front** |
+| Signed receipts on every governed action | **UNKNOWN ΓÇö the dated source record reports disagreement on 2026-10-20: `/healthz` signer ABSENT; `/api/a11oy/v1/signing-status` persistent key, HMAC real, non_repudiation true. Both named key `9926bf69b799ea66` (SHA-256 of the stripped `/cosign.pub` PEM text). That observation included no signed action envelope for independent verification.** |
+| 8 formulas locked-proven (Lean 4) | **LOCKED ┬╖ lutar-lean `ProvedFormulas.lean` @ `3a886349` (not present at c7c0ba17)** |
+| ╬¢ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
+| SLSA supply chain | **L1 source-declared ┬╖ L2/L3 not established** |
+| Apex `/console` on a-11-oy.com | **REPORTED reachable 2026-09-04 ┬╖ Space front** |
 | HF custom domain `a-11-oy.com` | **REPORTED READY on 2026-09-04** (provider row; current state UNKNOWN here) |
 | `www.a-11-oy.com` | **REPORTED UNAVAILABLE to automated clients on 2026-10-20** (TLS completed; Cloudflare HTTP 403; current state UNKNOWN here) |
-| Government authorization / accreditation | **ROADMAP — none claimed** |
+| Government authorization / accreditation | **ROADMAP ΓÇö none claimed** |
 | EXECUTION guard | **ROADMAP** |
-| Atelier command centre and Python Grok route | **SOURCE PRESENT — [configuration and proof gates](https://github.com/szl-holdings/a11oy/blob/1b05d180bf41ee56163e72f0846be5ad6485bf10/docs/ATELIER_COMMAND_CENTRE.md); live inference not established** |
+| Atelier command centre and Python Grok route | **SOURCE PRESENT ΓÇö [configuration and proof gates](https://github.com/szl-holdings/a11oy/blob/1b05d180bf41ee56163e72f0846be5ad6485bf10/docs/ATELIER_COMMAND_CENTRE.md); live inference not established** |
 
 ---
 
@@ -251,7 +251,7 @@ python3 tools/commercial_release_gate.py # commercial truth gate: COMMERCIAL_LED
 python3 tools/demo_harness.py --conformance evidence/conformance/eu-ai-act-article-12.v1.yaml
 ```
 
-Exit codes when re-run on 2026-11-06: `docs_lexicon_gate.py` **0** — its
+Exit codes when re-run on 2026-11-06: `docs_lexicon_gate.py` **0** ΓÇö its
 finding list reached zero, so the `truth-gates` workflow now enforces it as a
 hard gate. `commercial_release_gate.py` **1**, which is intended: 22 of the 24
 raise-blocking COMMERCIAL_LEDGER rows are still `UNKNOWN` (the other two are
@@ -313,35 +313,88 @@ to its captured run.
 
 - [WILLAY API reference](https://github.com/szl-holdings/developers/blob/main/WILLAY_API.md) (archived repository, read-only)
 - [Governed run-loop recipe](https://github.com/szl-holdings/szl-cookbook/blob/main/recipes/02-willay-gated-turn.md) (archived repository, read-only)
-- [Proof library — lutar-lean](https://github.com/szl-holdings/lutar-lean)
-- [Associated research-program concept DOI — 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
-- [Existing formal-artifact record — 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
-- [A11oy software releases](https://github.com/szl-holdings/a11oy/releases) — the v1.1.0 software-version DOI stays `PENDING_ZENODO_READBACK` until Zenodo resolves the immutable release
-- [Canonical product surface](https://a-11-oy.com) · [runtime Space](https://szlholdings-a11oy.hf.space/) · [public proof registry `a11oy.net`](https://a11oy.net)
+- [Proof library ΓÇö lutar-lean](https://github.com/szl-holdings/lutar-lean)
+- [Associated research-program concept DOI ΓÇö 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
+- [Existing formal-artifact record ΓÇö 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
+- [A11oy software releases](https://github.com/szl-holdings/a11oy/releases) ΓÇö the v1.1.0 software-version DOI stays `PENDING_ZENODO_READBACK` until Zenodo resolves the immutable release
+- [Canonical product surface](https://a-11-oy.com) ┬╖ [runtime Space](https://szlholdings-a11oy.hf.space/) ┬╖ [public proof registry `a11oy.net`](https://a11oy.net)
 
 ---
 
 <div align="center">
-<sub>SZL Holdings · a11oy · Doctrine v11 LOCKED · Λ = Conjecture 1 · SLSA L1 source-declared · L2/L3 not established · Not affiliated with Defense Unicorns · No production authorization claimed · trust never 100%</sub>
+<sub>SZL Holdings ┬╖ a11oy ┬╖ Doctrine v11 LOCKED ┬╖ ╬¢ = Conjecture 1 ┬╖ SLSA L1 source-declared ┬╖ L2/L3 not established ┬╖ Not affiliated with Defense Unicorns ┬╖ No production authorization claimed ┬╖ trust never 100%</sub>
 </div>
 
 ---
 
-## ◇ Part of the SZL Holdings estate — *governed AI you can prove*
+## Γùç Part of the SZL Holdings estate ΓÇö *governed AI you can prove*
 
-One sovereign substrate, many organs — every decision carries a hash-chained, checkable receipt.
+One sovereign substrate, many organs ΓÇö every decision carries a hash-chained, checkable receipt.
 
-**[◇ SZL Atlas — the estate map](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab)** ·
-[🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
-[🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
-[🔀 SZL Router](https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live) ·
-[🪢 SZL Khipu](https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu) (Khipu not promoted: abstention 2/6 release blocker) ·
-[🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
-[🌊 yarqa](https://huggingface.co/spaces/SZLHOLDINGS/yarqa) ·
-[🤗 all Spaces](https://huggingface.co/SZLHOLDINGS)
+**[Γùç SZL Atlas ΓÇö the estate map](https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab)** ┬╖
+[≡ƒ¢í∩╕Å a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ┬╖
+[≡ƒªà killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ┬╖
+[≡ƒöÇ SZL Router](https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live) ┬╖
+[≡ƒ¬ó SZL Khipu](https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu) (Khipu not promoted: abstention 2/6 release blocker) ┬╖
+[≡ƒº¼ IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ┬╖
+[≡ƒîè yarqa](https://huggingface.co/spaces/SZLHOLDINGS/yarqa) ┬╖
+[≡ƒñù all Spaces](https://huggingface.co/SZLHOLDINGS)
 
-<sub>Doctrine v11 · Λ = Conjecture 1, never green · honest by design · public data only.</sub>
+<sub>Doctrine v11 ┬╖ ╬¢ = Conjecture 1, never green ┬╖ honest by design ┬╖ public data only.</sub>
 
 <!-- szl:preserved-source-body:end -->
 
 </details>
+
+<!-- cto-systemcard 2026-11-19 begin -->
+
+## System card (2026-11-19)
+
+Companion to the sections above (Use limits, Honest status, Truth gates). Added so the flagship states intended use, boundaries, architecture, and evidence limits in one place, aligned with estate doctrine and model/system-card practice.
+
+### Intended use
+
+- Demonstrating and verifying governed, provable AI: the product apex (a-11-oy.com) backed by the a11oy Space, with the civilian evidence surface at a11oy.net.
+- Emitting verifiable receipts into the persistent HF receipt storage so third parties can independently verify claims.
+- Public evidence only: public data, public verification.
+
+### Out-of-scope use
+
+- Not a general-purpose assistant or content generator, and not a decision maker over people.
+- The Lambda invariant is stated as Conjecture 1 and is never rendered green without proof; no one may cite this card as proof of Lambda.
+- Shared modules must not drift from the must-not-drift contract above; only verified copies are deployable.
+
+### Architecture (conceptual, not a deployment diagram)
+
+```mermaid
+flowchart LR
+  TOP["a-11-oy.com product apex"] -->|"Space-backed"| SPACE["a11oy Space, docker, port 7860"]
+  SPACE -->|"runtime API surfaces"| TGP["Truth gates"]
+  TGP -->|"answer state: Conjecture 1, never green"| WORLD["Civilian evidence surface, a11oy.net"]
+  SPACE -->|"receipts"| PMEM["Persistent receipt storage, HF Space"]
+  MESH["Khipu receipts mesh, Doctrine v11"] --> SPACE
+```
+
+### Evaluation and measured results
+
+- All positive claims on this card are MEASURED receipts or explicit conjectures; see Honest status, Truth gates, Verify it yourself, and the build attestation sections above.
+- The build attestation is independently verifiable from source.
+
+### Evaluation limitations
+
+- Lambda is a stated conjecture (Conjecture 1), not a proof presented to the reader.
+- Status surfaces are point-in-time; verify against live surfaces and receipts rather than screenshots or copies.
+- No synthetic benchmark scores are claimed on this card.
+
+### Ethical considerations
+
+- Fail-closed doctrine (v11): deny by default, honest UNKNOWN over fabricated green.
+- Civilian evidence surface: plain-language proof states for non-specialists.
+- Public data only; no personal data plumbing.
+
+### Deployment recommendations
+
+- Keep the Space pinned and shared modules in sync under the must-not-drift contract.
+- Promotions to the product apex are owner-gated per estate doctrine; no unreviewed auto-deploy.
+
+<!-- cto-systemcard 2026-11-19 end -->
