@@ -145,6 +145,7 @@
     "SZLHOLDINGS/szl-foundation-confirmation",
     "SZLHOLDINGS/szl-frontier",
     "SZLHOLDINGS/szl-model-inference-lab",
+    "SZLHOLDINGS/szl-science-gate-studio",
     "SZLHOLDINGS/vertical-services",
     "SZLHOLDINGS/wink-observatory"
   ],
@@ -242,13 +243,6 @@
     },
     {
       "id": "SZLHOLDINGS/szl-router-control",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/szl-science-gate-studio",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
       "disposition": "FOLD",
