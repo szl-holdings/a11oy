@@ -131,6 +131,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence/memory-covenant-v2
+          # Evidence is uploaded only when the job passes, so print it on failure.
+          trap 'status=$?; if [ "$status" -ne 0 ]; then for f in evidence/memory-covenant-v2/*.log; do echo "--- $f ---"; cat "$f"; done; fi' EXIT
           : > evidence/memory-covenant-v2/migration-apply.log
           git rev-parse HEAD > evidence/memory-covenant-v2/source-sha.txt
           sha256sum \
@@ -164,18 +166,24 @@ jobs:
           apply_migration migrations/20260811_memory_covenant_v2_security_hardening.sql
 
           echo '=== seed legacy/stale security state ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
-          # A delegate whose name is not known in advance: an exemption keyed
-          # to a fixture name cannot let this one keep ADMIN, INHERIT or SET.
-          hostile_delegate="a11oy_hostile_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"
+          # Seeded delegates can log in and are named by a random letter plus
+          # random hex, with no fixed prefix, so neither a fixture name nor a
+          # name pattern can exempt them from the sweep.
+          random_role() {
+            local letters=abcdefghijklmnopqrstuvwxyz
+            printf '%s%s' "${letters:$((RANDOM % 26)):1}" \
+              "$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+          }
+          hostile_delegate="$(random_role)"
           docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
-            -c "CREATE ROLE ${hostile_delegate} NOLOGIN" \
+            -c "CREATE ROLE ${hostile_delegate} LOGIN" \
             -c "GRANT a11oy_memory_app, a11oy_memory_worker TO ${hostile_delegate} WITH ADMIN OPTION" \
             | tee -a evidence/memory-covenant-v2/migration-apply.log
           docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
             <<'SQL' | tee -a evidence/memory-covenant-v2/migration-apply.log
-          CREATE ROLE a11oy_memory_stale_grantee NOLOGIN;
+          CREATE ROLE a11oy_memory_stale_grantee LOGIN;
           CREATE ROLE a11oy_memory_stale_parent NOLOGIN BYPASSRLS;
           CREATE ROLE a11oy_memory_stale_owner NOLOGIN;
           GRANT a11oy_memory_stale_parent
@@ -463,6 +471,86 @@ jobs:
             -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid IN ('a11oy_memory_app'::regrole, 'a11oy_memory_worker'::regrole) AND member = '${hostile_delegate}'::regrole AND NOT admin_option AND NOT inherit_option AND NOT set_option")"
           test "$hostile_delegate_swept_count" = "2"
 
+          echo '=== prove the lease guard requires an inherited worker role ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          # pg_has_role(..., 'MEMBER') is true for any membership row in
+          # PostgreSQL 16 and later, so the guard tests USAGE. The swept
+          # delegate gets EXECUTE through a path other than the worker role and
+          # a SET-only member can SET ROLE to it: the guard itself must refuse
+          # both, while a login that inherits the worker role still leases.
+          setonly_member="$(random_role)"
+          worker_login="$(random_role)"
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "GRANT EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer) TO ${hostile_delegate}" \
+            -c "CREATE ROLE ${setonly_member} LOGIN" \
+            -c "GRANT a11oy_memory_worker TO ${setonly_member} WITH INHERIT FALSE, SET TRUE" \
+            -c "CREATE ROLE ${worker_login} LOGIN" \
+            -c "GRANT a11oy_memory_worker TO ${worker_login}" \
+            -c "INSERT INTO public.memory_outbox (event_id, tenant_id, security_domain, memory_id, generation_id, event_type, payload_json) VALUES ('lease-guard-event', 'lease-guard-tenant', 'lease-guard-domain', 'lease-guard-memory', 'lease-guard-generation', 'INDEX_UPSERT', '{}'::jsonb)" \
+            | tee -a evidence/memory-covenant-v2/migration-apply.log
+          if docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+              psql -X -U "$hostile_delegate" -d memory_covenant -v ON_ERROR_STOP=1 \
+              -c 'SET ROLE a11oy_memory_worker' \
+              > evidence/memory-covenant-v2/swept-delegate-set-role.log 2>&1; then
+            echo 'a swept delegate could SET ROLE a11oy_memory_worker'
+            exit 1
+          fi
+          grep -F 'permission denied to set role "a11oy_memory_worker"' \
+            evidence/memory-covenant-v2/swept-delegate-set-role.log
+          if docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+              psql -X -U "$hostile_delegate" -d memory_covenant -v ON_ERROR_STOP=1 \
+              -c "SELECT count(*) FROM public.memory_lease_outbox('swept-delegate', 1, 30)" \
+              > evidence/memory-covenant-v2/swept-delegate-lease.log 2>&1; then
+            echo 'a swept delegate with EXECUTE passed the lease guard'
+            exit 1
+          fi
+          grep -F 'session user does not inherit a11oy_memory_worker' \
+            evidence/memory-covenant-v2/swept-delegate-lease.log
+          if docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+              psql -X -U "$setonly_member" -d memory_covenant -v ON_ERROR_STOP=1 \
+              -c 'SET ROLE a11oy_memory_worker' \
+              -c "SELECT count(*) FROM public.memory_lease_outbox('set-only-member', 1, 30)" \
+              > evidence/memory-covenant-v2/set-only-lease.log 2>&1; then
+            echo 'a SET-only member passed the lease guard'
+            exit 1
+          fi
+          grep -F 'session user does not inherit a11oy_memory_worker' \
+            evidence/memory-covenant-v2/set-only-lease.log
+          inherited_lease="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -XqAt -U "$worker_login" -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "SELECT event_id || ':' || lease_owner FROM public.memory_lease_outbox('inherited-worker', 1, 30)")"
+          test "$inherited_lease" = "lease-guard-event:inherited-worker"
+          # The SET-only row is the signature older sweeps left behind; the
+          # migrations and the acceptance refuse it until it is removed.
+          set +e
+          docker exec -i \
+            -e PGPASSWORD=postgres \
+            -e PGOPTIONS='-c search_path=memory_attacker,public' \
+            "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < migrations/20260820_memory_covenant_v2_postmerge_hardening.sql \
+            > evidence/memory-covenant-v2/set-only-refusal.log 2>&1
+          setonly_status=$?
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < tests/memory_covenant_acceptance.sql \
+            > evidence/memory-covenant-v2/set-only-acceptance-refusal.log 2>&1
+          setonly_acceptance_status=$?
+          set -e
+          test "$setonly_status" -ne 0
+          grep -F 'a capability-role membership grants SET without INHERIT; runtime logins must inherit' \
+            evidence/memory-covenant-v2/set-only-refusal.log
+          test "$setonly_acceptance_status" -ne 0
+          grep -F 'Memory Covenant capability membership grants SET without INHERIT' \
+            evidence/memory-covenant-v2/set-only-acceptance-refusal.log
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "DELETE FROM public.memory_outbox WHERE event_id = 'lease-guard-event'" \
+            -c "REVOKE EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer) FROM ${hostile_delegate}" \
+            -c "DROP ROLE ${setonly_member}" \
+            -c "DROP ROLE ${worker_login}" \
+            | tee -a evidence/memory-covenant-v2/migration-apply.log
+
           echo '=== prove revoked binding grant lacks durable provenance ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
           docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
@@ -529,6 +617,46 @@ jobs:
           do
             apply_migration "$migration"
           done
+
+          echo '=== prove capability-role database ownership fails closed ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          # Owning the database makes a capability role a member of
+          # pg_database_owner, which owns schema public; pg_auth_members does
+          # not show that path.
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c 'ALTER DATABASE memory_covenant OWNER TO a11oy_memory_app' \
+            | tee -a evidence/memory-covenant-v2/migration-apply.log
+          for migration in \
+            migrations/20260811_memory_covenant_v2_security_hardening.sql \
+            migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
+          do
+            ownership_log="evidence/memory-covenant-v2/database-owner-$(basename "$migration" .sql).log"
+            set +e
+            docker exec -i \
+              -e PGPASSWORD=postgres \
+              -e PGOPTIONS='-c search_path=memory_attacker,public' \
+              "$PG_CONTAINER" \
+              psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+              < "$migration" > "$ownership_log" 2>&1
+            ownership_status=$?
+            set -e
+            test "$ownership_status" -ne 0
+            grep -F 'a capability role owns the database or a schema' "$ownership_log"
+          done
+          set +e
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < tests/memory_covenant_acceptance.sql \
+            > evidence/memory-covenant-v2/database-owner-acceptance.log 2>&1
+          ownership_status=$?
+          set -e
+          test "$ownership_status" -ne 0
+          grep -F 'Memory Covenant capability role owns the database or a schema' \
+            evidence/memory-covenant-v2/database-owner-acceptance.log
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c 'ALTER DATABASE memory_covenant OWNER TO postgres' \
+            | tee -a evidence/memory-covenant-v2/migration-apply.log
 
       - name: Capture exact catalog evidence
         shell: bash
@@ -644,7 +772,6 @@ jobs:
           grep -F '"context_binding_rows": 0' evidence/memory-covenant-v2/acceptance.log
 
       - name: Upload immutable acceptance evidence
-        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: memory-covenant-v2-${{ github.run_id }}-${{ github.run_attempt }}
@@ -703,8 +830,9 @@ jobs:
           mkdir -p evidence/memory-covenant-v2-provider-owner
           log=evidence/memory-covenant-v2-provider-owner/provider-owner-apply.log
           echo '=== provider-owner (non-superuser) application ===' | tee "$log"
-          # Neon and similar providers give the project owner CREATEDB,
-          # CREATEROLE and BYPASSRLS but never the superuser attribute.
+          # A provider-style owner: LOGIN NOSUPERUSER CREATEDB CREATEROLE
+          # BYPASSRLS. For Neon and similar providers these attributes are
+          # MODELED, not read back from any provider.
           docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
             -c 'CREATE ROLE a11oy_memory_provider_owner LOGIN NOSUPERUSER CREATEDB CREATEROLE BYPASSRLS' \
@@ -756,9 +884,20 @@ jobs:
           set -euo pipefail
           ev=evidence/memory-covenant-v2-provider-owner
           log="$ev/provider-owner-refusals.log"
+          # Evidence is uploaded only when the job passes, so print it on failure.
+          trap 'status=$?; if [ "$status" -ne 0 ]; then for f in "$ev"/*.log; do echo "--- $f ---"; cat "$f"; done; fi' EXIT
+          base=migrations/20260811_memory_covenant_v2.sql
           hardening=migrations/20260811_memory_covenant_v2_security_hardening.sql
           corrective=migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
           echo '=== provider-owner convergence and fail-closed refusals ===' | tee "$log"
+          # Seeded delegates can log in and are named by a random letter plus
+          # random hex, with no fixed prefix, so neither a fixture name nor a
+          # name pattern can exempt them.
+          random_role() {
+            local letters=abcdefghijklmnopqrstuvwxyz
+            printf '%s%s' "${letters:$((RANDOM % 26)):1}" \
+              "$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
+          }
           as_postgres() {
             docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
               psql -X -U postgres -d memory_covenant_provider -v ON_ERROR_STOP=1 "$@"
@@ -772,85 +911,265 @@ jobs:
               -e PGPASSWORD=postgres \
               -e PGOPTIONS='-c search_path=memory_attacker,public' \
               "$PG_CONTAINER" \
-              psql -X -U "$1" -d memory_covenant_provider -v ON_ERROR_STOP=1 < "$2"
+              psql -X -U "$1" -d "${3:-memory_covenant_provider}" -v ON_ERROR_STOP=1 < "$2"
           }
           expect_refusal() {
             local principal="$1" migration="$2" message="$3" out="$4"
-            if apply_as "$principal" "$migration" > "$out" 2>&1; then
+            local database="${5:-memory_covenant_provider}"
+            if apply_as "$principal" "$migration" "$database" > "$out" 2>&1; then
               echo "expected a refusal that did not happen: ${message}" | tee -a "$log"
               exit 1
             fi
-            grep -F "$message" "$out" | tee -a "$log"
+            if ! grep -F "$message" "$out" | tee -a "$log"; then
+              echo "refused without the expected message: ${message}" | tee -a "$log"
+              exit 1
+            fi
+          }
+          # Every state refusal runs against the hardening and against the
+          # corrective alone, because existing installations apply only the
+          # corrective.
+          expect_state_refusal() {
+            local message="$1" name="$2" migration
+            for migration in "$hardening" "$corrective"; do
+              expect_refusal a11oy_memory_provider_owner "$migration" "$message" \
+                "$ev/refusal-${name}-$(basename "$migration" .sql).log"
+            done
+          }
+          expect_acceptance_refusal() {
+            local message="$1" out="$2"
+            if docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+                psql -X -U postgres -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+                < tests/memory_covenant_acceptance.sql > "$out" 2>&1; then
+              echo "the acceptance passed a state it must refuse: ${message}" | tee -a "$log"
+              exit 1
+            fi
+            if ! grep -F "$message" "$out" | tee -a "$log"; then
+              echo "the acceptance failed without the expected message: ${message}" | tee -a "$log"
+              exit 1
+            fi
+          }
+          count_deviations() {
+            as_postgres -qAt \
+              -c "SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker') AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolcanlogin OR rolreplication OR NOT rolinherit OR rolbypassrls)"
           }
 
           echo '--- attributes and delegations the owner can clear converge ---' | tee -a "$log"
           as_postgres \
             -c 'ALTER ROLE a11oy_memory_app LOGIN CREATEDB CREATEROLE NOINHERIT BYPASSRLS' \
             -c 'ALTER ROLE a11oy_memory_worker LOGIN CREATEROLE' | tee -a "$log"
-          owner_delegate="a11oy_owner_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"
+          owner_delegate="$(random_role)"
           as_owner \
-            -c "CREATE ROLE ${owner_delegate} NOLOGIN" \
+            -c "CREATE ROLE ${owner_delegate} LOGIN" \
             -c "GRANT a11oy_memory_worker TO ${owner_delegate} WITH ADMIN OPTION" | tee -a "$log"
           apply_as a11oy_memory_provider_owner "$hardening" | tee -a "$log"
           apply_as a11oy_memory_provider_owner "$corrective" | tee -a "$log"
-          provider_attribute_deviation_count="$(as_postgres -qAt \
-            -c "SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker') AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolcanlogin OR rolreplication OR NOT rolinherit OR rolbypassrls)")"
+          provider_attribute_deviation_count="$(count_deviations)"
           test "$provider_attribute_deviation_count" = "0"
           owner_delegate_swept_count="$(as_postgres -qAt \
             -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid = 'a11oy_memory_worker'::regrole AND member = '${owner_delegate}'::regrole AND NOT admin_option AND NOT inherit_option AND NOT set_option")"
           test "$owner_delegate_swept_count" = "1"
+          as_postgres \
+            -c 'ALTER ROLE a11oy_memory_app LOGIN CREATEDB CREATEROLE NOINHERIT BYPASSRLS' \
+            -c 'ALTER ROLE a11oy_memory_worker LOGIN CREATEROLE' | tee -a "$log"
+          apply_as a11oy_memory_provider_owner "$corrective" | tee -a "$log"
+          corrective_attribute_deviation_count="$(count_deviations)"
+          test "$corrective_attribute_deviation_count" = "0"
 
           echo '--- states this principal cannot clear abort the migration ---' | tee -a "$log"
           as_postgres -c 'ALTER ROLE a11oy_memory_worker SUPERUSER' | tee -a "$log"
-          expect_refusal a11oy_memory_provider_owner "$hardening" \
+          expect_state_refusal \
             'a11oy_memory_worker holds an attribute this migration principal cannot clear' \
-            "$ev/refusal-superuser-attribute.log"
+            superuser-attribute
           as_postgres -c 'ALTER ROLE a11oy_memory_worker NOSUPERUSER' | tee -a "$log"
 
-          foreign_delegate="a11oy_foreign_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"
+          foreign_delegate="$(random_role)"
           as_postgres \
-            -c "CREATE ROLE ${foreign_delegate} NOLOGIN" \
+            -c "CREATE ROLE ${foreign_delegate} LOGIN" \
             -c "GRANT a11oy_memory_app TO ${foreign_delegate} WITH ADMIN OPTION" | tee -a "$log"
-          expect_refusal a11oy_memory_provider_owner "$hardening" \
+          expect_state_refusal \
             'capability-role delegation survived the sweep; another grantor holds it' \
-            "$ev/refusal-foreign-delegation.log"
+            foreign-delegation
           as_postgres -c "DROP ROLE ${foreign_delegate}" | tee -a "$log"
 
           as_owner -c 'CREATE ROLE a11oy_memory_owner_parent NOLOGIN' | tee -a "$log"
           as_postgres -c 'GRANT a11oy_memory_owner_parent TO a11oy_memory_app' | tee -a "$log"
-          expect_refusal a11oy_memory_provider_owner "$hardening" \
+          expect_state_refusal \
             'a capability role still belongs to a parent role this principal could not revoke' \
-            "$ev/refusal-outbound-membership.log"
+            outbound-membership
           as_postgres -c 'DROP ROLE a11oy_memory_owner_parent' | tee -a "$log"
 
-          signature_delegate="a11oy_signature_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"
+          signature_delegate="$(random_role)"
           as_postgres \
-            -c "CREATE ROLE ${signature_delegate} NOLOGIN" \
+            -c "CREATE ROLE ${signature_delegate} LOGIN" \
             -c "GRANT a11oy_memory_worker TO ${signature_delegate} WITH INHERIT FALSE, SET FALSE, ADMIN FALSE" \
             | tee -a "$log"
           as_owner -c "GRANT a11oy_memory_worker TO ${signature_delegate} WITH INHERIT FALSE, SET TRUE" | tee -a "$log"
-          expect_refusal a11oy_memory_provider_owner "$hardening" \
+          expect_state_refusal \
             'a swept capability-role delegate keeps SET or INHERIT through another grant' \
-            "$ev/refusal-set-survivor.log"
+            set-survivor
           as_postgres -c "DROP ROLE ${signature_delegate}" | tee -a "$log"
+
+          # Older sweeps left a member with SET but neither INHERIT nor ADMIN.
+          setonly_member="$(random_role)"
+          as_owner \
+            -c "CREATE ROLE ${setonly_member} LOGIN" \
+            -c "GRANT a11oy_memory_worker TO ${setonly_member} WITH INHERIT FALSE, SET TRUE" \
+            | tee -a "$log"
+          expect_state_refusal \
+            'a capability-role membership grants SET without INHERIT; runtime logins must inherit' \
+            set-only-member
+          as_owner -c "DROP ROLE ${setonly_member}" | tee -a "$log"
+
+          # The end state of a grant raced into a migration: a delegate that
+          # held ADMIN when the migration started granted the worker role to a
+          # member, and the grant landed after the sweep had removed that
+          # delegate's ADMIN. The grant is made normally, so the member's row
+          # and its dependency on the grantor are real; a superuser then sets
+          # only the delegate's own row to the shape the sweep leaves.
+          raced_grantor="$(random_role)"
+          raced_member="$(random_role)"
+          as_owner \
+            -c "CREATE ROLE ${raced_grantor} LOGIN" \
+            -c "CREATE ROLE ${raced_member} LOGIN" \
+            -c "GRANT a11oy_memory_worker TO ${raced_grantor} WITH ADMIN OPTION" | tee -a "$log"
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U "$raced_grantor" -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+            -c "GRANT a11oy_memory_worker TO ${raced_member}" | tee -a "$log"
+          as_postgres \
+            -c "UPDATE pg_catalog.pg_auth_members SET admin_option = false, inherit_option = false, set_option = false WHERE roleid = 'a11oy_memory_worker'::regrole AND member = '${raced_grantor}'::regrole" \
+            | tee -a "$log"
+          raced_row_count="$(as_postgres -qAt \
+            -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid = 'a11oy_memory_worker'::regrole AND member = '${raced_member}'::regrole AND grantor = '${raced_grantor}'::regrole AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_auth_members AS authority WHERE authority.roleid = 'a11oy_memory_worker'::regrole AND authority.member = '${raced_grantor}'::regrole AND authority.admin_option)")"
+          test "$raced_row_count" = "1"
+          expect_state_refusal \
+            'a capability-role membership was granted by a role that no longer holds ADMIN on it' \
+            raced-grantor
+          expect_acceptance_refusal \
+            'Memory Covenant capability membership has a grantor without ADMIN' \
+            "$ev/refusal-raced-grantor-acceptance.log"
+          as_owner -c "DROP ROLE ${raced_member}" -c "DROP ROLE ${raced_grantor}" | tee -a "$log"
+
+          # Ownership is a privilege path that pg_auth_members does not show.
+          capability_schema="$(random_role)"
+          as_postgres -c "CREATE SCHEMA ${capability_schema} AUTHORIZATION a11oy_memory_app" | tee -a "$log"
+          expect_state_refusal 'a capability role owns the database or a schema' schema-owner
+          as_postgres -c "DROP SCHEMA ${capability_schema}" | tee -a "$log"
+          # The principal must still own schema public through the database
+          # owner, so it inherits the capability role that now owns the database.
+          as_owner -c 'GRANT a11oy_memory_app TO a11oy_memory_provider_owner WITH INHERIT TRUE' | tee -a "$log"
+          as_postgres -c 'ALTER DATABASE memory_covenant_provider OWNER TO a11oy_memory_app' | tee -a "$log"
+          expect_state_refusal 'a capability role owns the database or a schema' database-owner
+          as_postgres -c 'ALTER DATABASE memory_covenant_provider OWNER TO a11oy_memory_provider_owner' | tee -a "$log"
+          as_owner -c 'REVOKE a11oy_memory_app FROM a11oy_memory_provider_owner' | tee -a "$log"
 
           echo '--- principals that cannot see every row or do not own schema public ---' | tee -a "$log"
           as_postgres \
             -c 'CREATE ROLE a11oy_memory_unbypassed_principal LOGIN NOSUPERUSER CREATEDB CREATEROLE NOBYPASSRLS' \
             -c 'CREATE ROLE a11oy_memory_foreign_principal LOGIN NOSUPERUSER CREATEROLE BYPASSRLS' \
+            -c 'CREATE ROLE a11oy_memory_unbypassed_owner LOGIN NOSUPERUSER CREATEDB CREATEROLE NOBYPASSRLS' \
+            -c 'CREATE DATABASE memory_covenant_unbypassed OWNER a11oy_memory_unbypassed_owner' \
             | tee -a "$log"
-          for migration in "$hardening" "$corrective"; do
+          # Owning its own database, this principal meets the schema-ownership
+          # half of the precondition, so its refusal isolates row security.
+          unbypassed_owner_owns_public="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -XqAt -U a11oy_memory_unbypassed_owner -d memory_covenant_unbypassed -v ON_ERROR_STOP=1 \
+            -c "SELECT pg_catalog.pg_has_role(CURRENT_USER, nspowner, 'USAGE') FROM pg_catalog.pg_namespace WHERE nspname = 'public'")"
+          test "$unbypassed_owner_owns_public" = "t"
+          for migration in "$base" "$hardening" "$corrective"; do
             name="$(basename "$migration" .sql)"
             expect_refusal a11oy_memory_unbypassed_principal "$migration" \
               'the migration principal must bypass row security to check existing rows' \
               "$ev/refusal-row-security-${name}.log"
+            expect_refusal a11oy_memory_unbypassed_owner "$migration" \
+              'the migration principal must bypass row security to check existing rows' \
+              "$ev/refusal-row-security-database-owner-${name}.log" \
+              memory_covenant_unbypassed
             expect_refusal a11oy_memory_foreign_principal "$migration" \
               'the migration principal must own schema public' \
               "$ev/refusal-schema-owner-${name}.log"
           done
           as_postgres \
+            -c 'DROP DATABASE memory_covenant_unbypassed' \
             -c 'DROP ROLE a11oy_memory_unbypassed_principal' \
-            -c 'DROP ROLE a11oy_memory_foreign_principal' | tee -a "$log"
+            -c 'DROP ROLE a11oy_memory_foreign_principal' \
+            -c 'DROP ROLE a11oy_memory_unbypassed_owner' | tee -a "$log"
+
+          echo '--- an owner that sees every row meets a legacy cross-domain receipt ---' | tee -a "$log"
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant_provider -v ON_ERROR_STOP=1 \
+            <<'SQL' | tee -a "$log"
+          ALTER TABLE public.memory_query_audit
+            DROP CONSTRAINT memory_query_audit_tenant_domain_receipt_fkey;
+          ALTER TABLE public.memory_idempotency
+            DROP CONSTRAINT memory_idempotency_tenant_domain_receipt_fkey;
+          ALTER TABLE public.memory_receipts
+            DROP CONSTRAINT memory_receipts_tenant_domain_receipt_key;
+          ALTER TABLE public.memory_query_audit
+            ADD CONSTRAINT memory_query_audit_receipt_id_fkey
+            FOREIGN KEY (receipt_id) REFERENCES public.memory_receipts(receipt_id)
+            ON DELETE RESTRICT;
+          ALTER TABLE public.memory_idempotency
+            ADD CONSTRAINT memory_idempotency_receipt_id_fkey
+            FOREIGN KEY (receipt_id) REFERENCES public.memory_receipts(receipt_id)
+            ON DELETE RESTRICT;
+          INSERT INTO public.memory_receipts (
+              receipt_id,
+              tenant_id,
+              security_domain,
+              namespace,
+              seq,
+              prev_digest,
+              digest,
+              mode,
+              operation,
+              decision,
+              request_digest,
+              receipt_json
+          ) VALUES (
+              'legacy-cross-domain-receipt',
+              'legacy-tenant',
+              'legacy-domain-a',
+              'legacy-tenant:legacy-domain-a',
+              9223372036854770001,
+              repeat('0', 64),
+              repeat('4', 64),
+              'UNSIGNED-CONTENT-DIGEST',
+              'legacy-preflight',
+              'DENY',
+              repeat('5', 64),
+              jsonb_build_object(
+                  'receipt_id', 'legacy-cross-domain-receipt',
+                  'integrity', jsonb_build_object('digest', repeat('4', 64))
+              )
+          );
+          INSERT INTO public.memory_query_audit (
+              audit_id,
+              tenant_id,
+              security_domain,
+              receipt_id,
+              query_digest,
+              result_digest,
+              audit_json
+          ) VALUES (
+              'legacy-cross-domain-audit',
+              'legacy-tenant',
+              'legacy-domain-b',
+              'legacy-cross-domain-receipt',
+              repeat('6', 64),
+              repeat('7', 64),
+              jsonb_build_object(
+                  'audit_id', 'legacy-cross-domain-audit',
+                  'query_digest', repeat('6', 64),
+                  'result_digest', repeat('7', 64)
+              )
+          );
+          SQL
+          expect_refusal a11oy_memory_provider_owner "$corrective" \
+            'memory_query_audit contains a cross-domain receipt reference' \
+            "$ev/refusal-cross-domain-receipt.log"
+          as_postgres \
+            -c 'TRUNCATE TABLE public.memory_query_audit, public.memory_idempotency, public.memory_receipts CASCADE' \
+            | tee -a "$log"
 
           echo '--- every refusal rolled back; the owner re-applies cleanly ---' | tee -a "$log"
           apply_as a11oy_memory_provider_owner "$hardening" | tee -a "$log"
@@ -869,7 +1188,6 @@ jobs:
           grep -F '"context_binding_rows": 0' evidence/memory-covenant-v2-provider-owner/provider-owner-acceptance.log
 
       - name: Upload provider-owner evidence
-        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: memory-covenant-v2-provider-owner-${{ github.run_id }}-${{ github.run_attempt }}
