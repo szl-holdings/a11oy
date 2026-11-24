@@ -559,7 +559,17 @@ def test_dockerfile_uses_the_existing_grouped_copy_line():
     # (the image is near the buildkit layer ceiling; no new single-file layer).
     assert len(lines) == 1, lines
     assert lines[0].count(".py") > 5, "must ride the existing grouped COPY line"
-    assert "szl_estateconstitution.py szl_brainretro.py ./" in lines[0]
+    assert "COPY szl_brainretro.py ./" not in docker
+    assert docker.count("szl_brainretro.py") == 1
+    # Position is not pinned to the end of the line: #1535 appended szl_brainanswer.py
+    # after this module and later surfaces followed, and #3724 shows entries can also be
+    # inserted mid-line beside a sibling. The left-neighbour pin below is deliberate; a
+    # deliberate insertion between the two needs this test updated.
+    tokens = lines[0].split()
+    assert tokens.count("szl_brainretro.py") == 1, tokens
+    at = tokens.index("szl_brainretro.py")
+    assert tokens[at - 1] == "szl_estateconstitution.py", tokens[at - 1]
+    assert tokens[-1] == "./", tokens[-1]
 
 
 def test_serve_wiring_is_guarded_and_before_the_spa_catch_all():
