@@ -783,6 +783,10 @@ def runtime_health() -> dict[str, Any]:
 
 
 _ERROR_CODE_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+_CREDENTIAL_STATUS_CODES = {
+    401: "STORAGE_CREDENTIAL_REJECTED",
+    403: "STORAGE_ACCESS_FORBIDDEN",
+}
 
 
 def _error_code(exc: BaseException) -> str:
@@ -794,6 +798,12 @@ def _error_code(exc: BaseException) -> str:
         code = getattr(candidate, "code", None)
         if isinstance(code, str) and code and set(code) <= _ERROR_CODE_CHARS:
             return code[:80]
+    # A provider that refuses the credential is an operator fix (rotate or
+    # re-scope it), which a bare transport class name does not say.
+    for candidate in (exc, exc.__cause__):
+        status = getattr(getattr(candidate, "response", None), "status_code", None)
+        if type(status) is int and status in _CREDENTIAL_STATUS_CODES:
+            return _CREDENTIAL_STATUS_CODES[status]
     cause = exc.__cause__
     return type(cause if cause is not None else exc).__name__
 
