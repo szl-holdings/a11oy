@@ -545,7 +545,7 @@ def test_surface_id_and_registries_are_in_sync():
     assert 'id: "brainretro"' in shell
     assert "/static/3d/surfaces/brainretro.js" in shell
     assert js.is_file()
-    # appended LAST in both registries
+    # after estateconstitution in both registries; later brain surfaces were appended after it
     assert backend.rindex('"id": "brainretro"') > backend.rindex('"id": "estateconstitution"')
     assert shell.rindex('id: "brainretro"') > shell.rindex('id: "estateconstitution"')
 

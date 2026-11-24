@@ -417,7 +417,7 @@ def test_surface_follows_brainanswer_and_is_synced_across_all_three_places():
     html = (ROOT / "static" / "3d" / "holographic.html").read_text(encoding="utf-8")
     assert 'id: "brainlocal"' in html
     shell_ids = re.findall(r'\{\s*id\s*:\s*"([A-Za-z0-9_-]+)"', html)
-    assert shell_ids[at - 1:at + 1] == ["brainanswer", "brainlocal"], shell_ids[at - 1:at + 2]
+    assert shell_ids[at - 1:at + 1] == ["brainanswer", "brainlocal"], shell_ids[at - 1:at + 1]
     assert '/static/3d/surfaces/brainlocal.js' in html
     assert (ROOT / "static" / "3d" / "surfaces" / "brainlocal.js").exists()
 
