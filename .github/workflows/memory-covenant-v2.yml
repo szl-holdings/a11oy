@@ -167,8 +167,12 @@ jobs:
 
           echo '=== seed legacy/stale security state ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
           # Seeded delegates can log in and are named by a random letter plus
-          # random hex, with no fixed prefix, so neither a fixture name nor a
-          # name pattern can exempt them from the sweep.
+          # random hex, with no fixed prefix, so a sweep that skips a fixed
+          # fixture name or NOLOGIN roles still meets them. The names still
+          # follow a pattern, and this job cannot detect a migration edit keyed
+          # to CI-only state (a name pattern, the memory_attacker schema); the
+          # static contract refuses dynamic SQL and membership changes outside
+          # the pinned statements instead.
           random_role() {
             local letters=abcdefghijklmnopqrstuvwxyz
             printf '%s%s' "${letters:$((RANDOM % 26)):1}" \
@@ -891,8 +895,11 @@ jobs:
           corrective=migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
           echo '=== provider-owner convergence and fail-closed refusals ===' | tee "$log"
           # Seeded delegates can log in and are named by a random letter plus
-          # random hex, with no fixed prefix, so neither a fixture name nor a
-          # name pattern can exempt them.
+          # random hex, with no fixed prefix, so a sweep that skips a fixed
+          # fixture name or NOLOGIN roles still meets them. The names still
+          # follow a pattern, and this job cannot detect a migration edit keyed
+          # to CI-only state; the static contract refuses dynamic SQL and
+          # membership changes outside the pinned statements instead.
           random_role() {
             local letters=abcdefghijklmnopqrstuvwxyz
             printf '%s%s' "${letters:$((RANDOM % 26)):1}" \

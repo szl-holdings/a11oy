@@ -1515,6 +1515,514 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             )
             self.assert_contract_error(root, "database-owning principal without BYPASSRLS")
 
+    # Third review. Each test below is an edit that passed every static gate
+    # of the second-review commit.
+
+    PROVIDER_STEP = (
+        "      - name: Prove provider-owner convergence and fail-closed refusals\n"
+        "        shell: bash\n"
+    )
+    PROVIDER_JOB = (
+        "  provider-owner-acceptance:\n"
+        "    name: PostgreSQL 18 provider-owner (non-superuser) application\n"
+    )
+
+    def assert_any_contract_error(self, root: Path, *fragments: str) -> None:
+        errors = validator.validate(root)
+        self.assertTrue(
+            any(fragment in error for error in errors for fragment in fragments),
+            f"missing any of {fragments!r}; observed: {errors}",
+        )
+
+    def assert_workflow_edit_fails(self, anchor: str, insertion: str, *fragments: str) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(root / validator.WORKFLOW, anchor, anchor + insertion)
+            self.assert_any_contract_error(root, *fragments)
+
+    def test_workflow_continue_on_error_in_any_form_fails(self) -> None:
+        key_message = "must not contain a continue-on-error key"
+        unreadable = "outside the YAML subset this validator reads"
+        cases = (
+            (self.PROVIDER_STEP, "        continue-on-error: ${{ true }}\n", key_message),
+            (self.PROVIDER_JOB, "    continue-on-error: ${{ true }}\n", key_message),
+            (self.PROVIDER_STEP, "        continue-on-error: true\n", key_message),
+            (self.PROVIDER_STEP, "        Continue-On-Error: ${{ 1 }}\n", key_message),
+            (self.PROVIDER_STEP, "        continue-on-error : ${{ !false }}\n", key_message),
+            (self.PROVIDER_STEP, '        "continue-on-error": true\n', unreadable),
+            (self.PROVIDER_STEP, "        'continue-on-error': ${{ 1 }}\n", unreadable),
+            (self.PROVIDER_STEP, '        "continue-on-\\x65rror": true\n', unreadable),
+            (self.PROVIDER_STEP, "        env: {X: 1, continue-on-error: true}\n", unreadable),
+            (self.PROVIDER_STEP, "        !!str continue-on-error: true\n", unreadable),
+        )
+        for anchor, line, fragment in cases:
+            with self.subTest(line=line):
+                self.assert_workflow_edit_fails(anchor, line, fragment)
+
+    def test_workflow_yaml_alias_cannot_hide_a_key(self) -> None:
+        for key, value in (("if", "${{ false }}"), ("continue-on-error", "${{ true }}")):
+            with self.subTest(key=key):
+                self.assert_workflow_edit_fails(
+                    self.PROVIDER_STEP,
+                    f"        env:\n          GUARD: &cond {key}\n        *cond : {value}\n",
+                    "outside the YAML subset this validator reads",
+                )
+
+    def test_workflow_yaml_outside_the_subset_fails(self) -> None:
+        unreadable = "outside the YAML subset this validator reads"
+        for insertion in (
+            "        <<: {continue-on-error: true}\n",
+            "        ? continue-on-error\n        : true\n",
+            "        name2: !!bool true\n",
+            '        env:\n          A: "first line\n        continue-on-error: true"\n',
+            "        run: |2\n          echo\n",
+            "        run: |+\n          echo\n",
+            "---\n",
+        ):
+            with self.subTest(insertion=insertion):
+                self.assert_workflow_edit_fails(self.PROVIDER_STEP, insertion, unreadable)
+
+    def test_workflow_block_scalar_ends_where_yaml_ends_it(self) -> None:
+        # A key at the step's own indentation after a run: block is a key, not
+        # script text; a line indented past the block's first line is script.
+        anchor = "      - name: Reject whitespace defects\n        run: git diff --check\n"
+        self.assert_workflow_edit_fails(
+            anchor,
+            "        continue-on-error: ${{ true }}\n",
+            "must not contain a continue-on-error key",
+        )
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.WORKFLOW,
+                anchor,
+                "      - name: Reject whitespace defects\n"
+                "        run: |\n"
+                "          git diff --check\n"
+                "          echo 'timeout: 5'\n",
+            )
+            self.assertEqual(validator.validate(root), [])
+
+    def test_workflow_unreviewed_key_fails(self) -> None:
+        for anchor, insertion in (
+            (self.PROVIDER_JOB, "    defaults:\n      run:\n        shell: bash\n"),
+            (self.PROVIDER_JOB, "    container: ubuntu:24.04\n"),
+            (self.PROVIDER_STEP, "        working-directory: migrations\n"),
+            (self.PROVIDER_STEP, "        env:\n          BASH_ENV: scripts/env.sh\n"),
+        ):
+            with self.subTest(insertion=insertion):
+                self.assert_workflow_edit_fails(
+                    anchor, insertion, "is outside the reviewed key set"
+                )
+
+    def test_workflow_custom_shell_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.WORKFLOW,
+                self.PROVIDER_STEP,
+                self.PROVIDER_STEP.replace("shell: bash", "shell: true {0}"),
+            )
+            self.assert_contract_error(root, "steps must run with shell: bash")
+
+    def test_workflow_tab_fails(self) -> None:
+        self.assert_workflow_edit_fails(
+            self.PROVIDER_STEP, "        env:\n\t  X: 1\n", "must not contain a tab character"
+        )
+
+    @staticmethod
+    def splice_bytes(path: Path, anchor: bytes, insertion: bytes, *, before: bool = True) -> None:
+        raw = path.read_bytes()
+        if raw.count(anchor) != 1:
+            raise AssertionError(f"expected one fixture match for {anchor!r}")
+        index = raw.index(anchor) + (0 if before else len(anchor))
+        path.write_bytes(raw[:index] + insertion + raw[index:])
+
+    def test_nul_byte_fails_in_every_file(self) -> None:
+        # psql keeps a line only up to its first NUL and joins the next line,
+        # so the text after a NUL is code that the lexer read as a literal or
+        # a comment.
+        cases = (
+            (
+                validator.CORRECTIVE_MIGRATION,
+                b"COMMIT;",
+                b"SELECT 'covenant\x00' AS note;\n"
+                b"-- '; ALTER ROLE a11oy_memory_app BYPASSRLS; SELECT '1\n-- ';\n\n",
+            ),
+            (validator.HARDENING_MIGRATION, b"COMMIT;", b"-- note\x00 hidden\nSELECT 1;\n\n"),
+            (validator.BASE_MIGRATION, b"COMMIT;", b"SELECT 'x\x00';\n\n"),
+            (validator.ACCEPTANCE, b"\\set ON_ERROR_STOP on\n", b"-- \x00\n"),
+            (validator.WORKFLOW, b"jobs:\n", b"# \x00\n"),
+        )
+        for relative, anchor, insertion in cases:
+            with self.subTest(file=relative.as_posix()):
+                temp, root = self.make_fixture()
+                with temp:
+                    before = relative != validator.ACCEPTANCE
+                    self.splice_bytes(root / relative, anchor, insertion, before=before)
+                    self.assert_contract_error(
+                        root,
+                        f"control character U+0000 is forbidden: {relative.as_posix()}",
+                    )
+
+    def test_carriage_return_fails(self) -> None:
+        # psql passes text after a CR on a backslash-command line to that
+        # command, so a backtick there runs a shell command.
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            raw = path.read_bytes()
+            path.write_bytes(
+                raw.replace(
+                    b"\\set ON_ERROR_STOP on\n",
+                    b"\\set ON_ERROR_STOP on\r`id -un > /dev/null`\n",
+                    1,
+                )
+            )
+            self.assert_contract_error(root, "control character U+000D is forbidden")
+        for relative in (validator.BASE_MIGRATION, validator.WORKFLOW):
+            with self.subTest(crlf=relative.as_posix()):
+                temp, root = self.make_fixture()
+                with temp:
+                    path = root / relative
+                    path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+                    self.assert_contract_error(
+                        root, f"control character U+000D is forbidden: {relative.as_posix()}"
+                    )
+
+    def test_other_control_and_line_separator_characters_fail(self) -> None:
+        # YAML breaks lines at NEL, U+2028 and U+2029 as well as CR.
+        targets = (
+            (validator.CORRECTIVE_MIGRATION, b"COMMIT;", "-- {}\n"),
+            (validator.WORKFLOW, b"jobs:\n", "# {}\n"),
+        )
+        for character in ("\x0b", "\x0c", "\x1b", "\x7f", "\x85", "\u2028", "\u2029"):
+            for relative, anchor, comment in targets:
+                with self.subTest(character=hex(ord(character)), file=relative.name):
+                    temp, root = self.make_fixture()
+                    with temp:
+                        self.splice_bytes(
+                            root / relative, anchor, comment.format(character).encode()
+                        )
+                        self.assert_contract_error(
+                            root, f"control character U+{ord(character):04X} is forbidden"
+                        )
+
+    def test_tab_stays_legal_in_sql(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.CORRECTIVE_MIGRATION, "COMMIT;", "SELECT\t1;\n\nCOMMIT;"
+            )
+            self.assertEqual(validator.validate(root), [])
+
+    REGRANT_BLOCK = (
+        "DO $$\n"
+        "DECLARE\n"
+        "    m record;\n"
+        "BEGIN\n"
+        "    {open}"
+        "        FOR m IN\n"
+        "            SELECT cap.rolname AS c, who.rolname AS d\n"
+        "              FROM pg_catalog.pg_auth_members AS e\n"
+        "              JOIN pg_catalog.pg_roles AS cap ON cap.oid = e.roleid\n"
+        "              JOIN pg_catalog.pg_roles AS who ON who.oid = e.member\n"
+        "             WHERE cap.rolname LIKE 'a11oy\\_memory\\_%'\n"
+        "               AND NOT e.admin_option AND NOT e.inherit_option\n"
+        "               AND NOT e.set_option{filter}\n"
+        "        LOOP\n"
+        "            EXECUTE {statement};\n"
+        "        END LOOP;\n"
+        "    {close}"
+        "END;\n"
+        "$$;\n\n"
+    )
+
+    def regrant_block(self, statement: str, *, keyed: bool = True, filtered: bool = False) -> str:
+        return self.REGRANT_BLOCK.format(
+            open=(
+                "IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace\n"
+                "                   WHERE nspname = 'memory_attacker') THEN\n"
+                if keyed
+                else ""
+            ),
+            close="END IF;\n" if keyed else "",
+            filter=(
+                "\n               AND who.rolname !~ "
+                "'^([a-z][0-9a-f]{16}|a11oy_memory_stale_grantee)$'"
+                if filtered
+                else ""
+            ),
+            statement=statement,
+        )
+
+    POSITIONAL_REGRANT = (
+        "pg_catalog.format('GRANT %1$I TO %2$I WITH INHERIT TRUE, SET TRUE', m.c, m.d)"
+    )
+
+    def test_positional_format_membership_regrant_fails(self) -> None:
+        # Measured on PostgreSQL 18.6: this block, keyed to the CI-only schema,
+        # gave a swept delegate INHERIT and SET back on a provider database and
+        # let it lease every tenant's outbox, while all three CI jobs passed.
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.CORRECTIVE_MIGRATION,
+                "COMMIT;",
+                self.regrant_block(self.POSITIONAL_REGRANT) + "COMMIT;",
+            )
+            self.assert_contract_error(root, "corrective runs dynamic SQL outside the pinned statements")
+            self.assert_contract_error(root, "corrective role memberships change outside the pinned sweeps")
+            self.assert_contract_error(
+                root, "corrective a string literal outside the pinned statements begins with GRANT"
+            )
+
+    def test_name_pattern_regrant_in_both_migrations_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            block = self.regrant_block(self.POSITIONAL_REGRANT, keyed=False, filtered=True)
+            for relative in (validator.HARDENING_MIGRATION, validator.CORRECTIVE_MIGRATION):
+                self.replace_once(root / relative, "COMMIT;", block + "COMMIT;")
+            for label in ("hardening", "corrective"):
+                self.assert_contract_error(
+                    root, f"{label} runs dynamic SQL outside the pinned statements"
+                )
+
+    def test_dynamic_sql_without_a_grant_literal_fails(self) -> None:
+        for statement in (
+            "'GR' || 'ANT ' || pg_catalog.quote_ident(m.c) || ' TO ' || "
+            "pg_catalog.quote_ident(m.d) || ' WITH INHERIT TRUE, SET TRUE'",
+            "pg_catalog.format(pg_catalog.reverse('EURT TES ,EURT TIREHNI HTIW I%2$ OT I%1$ TNARG'), m.c, m.d)",
+            "pg_catalog.format('%s %I TO %I WITH INHERIT TRUE, SET TRUE', 'GRANT', m.c, m.d)",
+            "pg_catalog.convert_from(pg_catalog.decode('4752414e54', 'hex'), 'UTF8') || m.c",
+        ):
+            with self.subTest(statement=statement[:40]):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.CORRECTIVE_MIGRATION,
+                        "COMMIT;",
+                        self.regrant_block(statement) + "COMMIT;",
+                    )
+                    self.assert_contract_error(
+                        root, "corrective runs dynamic SQL outside the pinned statements"
+                    )
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.HARDENING_MIGRATION,
+                "COMMIT;",
+                "DO $$\nDECLARE\n    function text := 'SELECT 1';\nBEGIN\n"
+                "    EXECUTE function;\nEND;\n$$;\n\nCOMMIT;",
+            )
+            self.assert_contract_error(root, "hardening runs dynamic SQL outside the pinned statements")
+
+    def test_string_literal_beginning_with_grant_or_revoke_fails(self) -> None:
+        for literal in (
+            "' grant %1$I to %2$I'",
+            "'/* note */ REVOKE ADMIN OPTION FOR a FROM b'",
+            "'ALTER GROUP a ADD USER b'",
+        ):
+            with self.subTest(literal=literal):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.BASE_MIGRATION,
+                        "COMMIT;",
+                        f"SELECT {literal} AS template;\n\nCOMMIT;",
+                    )
+                    self.assert_contract_error(
+                        root, "base a string literal outside the pinned statements begins with GRANT"
+                    )
+
+    def test_static_membership_change_outside_the_sweeps_fails(self) -> None:
+        # A static grant of another role to a capability role, keyed to a
+        # role that exists only on the provider, after the assertion block.
+        for statement in (
+            "GRANT neondb_owner TO a11oy_memory_app",
+            "ALTER GROUP neondb_owner ADD USER a11oy_memory_app",
+            "REVOKE neondb_owner FROM a11oy_memory_worker",
+        ):
+            with self.subTest(statement=statement):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.CORRECTIVE_MIGRATION,
+                        "COMMIT;",
+                        "DO $$\nBEGIN\n    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles\n"
+                        "               WHERE rolname = 'neondb_owner') THEN\n"
+                        f"        {statement};\n    END IF;\nEND;\n$$;\n\nCOMMIT;",
+                    )
+                    self.assert_contract_error(
+                        root, "corrective role memberships change outside the pinned sweeps"
+                    )
+
+    def test_membership_and_dynamic_sql_detection(self) -> None:
+        def flat(sql: str) -> list:
+            return list(validator._flatten(validator._lex(sql)))
+
+        self.assertTrue(validator._changes_membership(flat("GRANT a TO b;")))
+        self.assertTrue(validator._changes_membership(flat("GRANT option TO b;")))
+        self.assertTrue(validator._changes_membership(flat("GRANT a TO \"ON\";")))
+        self.assertTrue(validator._changes_membership(flat("DO $$BEGIN REVOKE a FROM b; END$$;")))
+        # An ON after the body ends belongs to the CREATE FUNCTION, not to the
+        # GRANT inside the body.
+        self.assertTrue(
+            validator._changes_membership(
+                flat(
+                    "CREATE FUNCTION f() RETURNS void LANGUAGE sql "
+                    "AS $$GRANT a TO b$$ SET search_path = on;"
+                )
+            )
+        )
+        self.assertFalse(
+            validator._changes_membership(flat("GRANT EXECUTE ON FUNCTION f() TO b;"))
+        )
+        self.assertFalse(
+            validator._changes_membership(flat("GRANT SELECT ON t TO b WITH GRANT OPTION;"))
+        )
+        self.assertFalse(
+            validator._changes_membership(flat("REVOKE GRANT OPTION FOR SELECT ON t FROM b;"))
+        )
+
+        def dynamic(sql: str) -> bool:
+            statement = validator._top_level_statements(sql)[0]
+            return validator._runs_dynamic_sql(statement, flat(sql))
+
+        self.assertFalse(
+            dynamic("CREATE TRIGGER t BEFORE UPDATE ON x FOR EACH ROW EXECUTE FUNCTION f();")
+        )
+        self.assertFalse(dynamic("GRANT EXECUTE ON FUNCTION f() TO b;"))
+        self.assertTrue(dynamic("DO $$BEGIN EXECUTE function; END$$;"))
+        self.assertTrue(dynamic("DO $$BEGIN RETURN QUERY EXECUTE q; END$$;"))
+        self.assertTrue(dynamic("EXECUTE prepared_statement;"))
+
+    def test_unlexed_function_and_do_bodies_fail(self) -> None:
+        for statement in (
+            "DO 'BEGIN NULL; END';",
+            "DO LANGUAGE plpgsql $$BEGIN NULL; END$$;",
+            "CREATE FUNCTION public.memory_shadow() RETURNS integer LANGUAGE sql AS 'SELECT 1';",
+            "CREATE FUNCTION public.memory_shadow() RETURNS integer LANGUAGE c AS $$x$$;",
+            "CREATE FUNCTION public.memory_shadow() RETURNS integer LANGUAGE sql RETURN 1;",
+        ):
+            with self.subTest(statement=statement):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.CORRECTIVE_MIGRATION,
+                        "COMMIT;",
+                        statement + "\n\nCOMMIT;",
+                    )
+                    self.assert_contract_error(
+                        root, "corrective DO and function bodies must be $$-quoted plpgsql or sql"
+                    )
+
+    def test_escape_string_literal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.BASE_MIGRATION, "COMMIT;", "SELECT E'\\x47RANT';\n\nCOMMIT;"
+            )
+            self.assert_contract_error(root, "contains an E'' escape-string literal")
+
+    def test_client_encoding_change_fails(self) -> None:
+        for statement in (
+            "SET client_encoding = 'SJIS';",
+            "SET NAMES 'SJIS';",
+            "SELECT pg_catalog.set_config('client_encoding', 'SJIS', true);",
+        ):
+            for relative in (validator.HARDENING_MIGRATION, validator.ACCEPTANCE):
+                with self.subTest(statement=statement, file=relative.name):
+                    temp, root = self.make_fixture()
+                    with temp:
+                        path = root / relative
+                        if relative == validator.ACCEPTANCE:
+                            self.replace_once(
+                                path,
+                                "\\set ON_ERROR_STOP on\n",
+                                "\\set ON_ERROR_STOP on\n" + statement + "\n",
+                            )
+                        else:
+                            self.replace_once(path, "COMMIT;", statement + "\n\nCOMMIT;")
+                        self.assert_contract_error(root, "must not change the client encoding")
+
+    def test_copy_and_load_fail(self) -> None:
+        for statement in (
+            "COPY (SELECT 1) TO PROGRAM 'true';",
+            "LOAD 'auto_explain';",
+            "DO $$BEGIN COPY public.memory_outbox TO '/tmp/x'; END$$;",
+        ):
+            with self.subTest(statement=statement):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.HARDENING_MIGRATION, "COMMIT;", statement + "\n\nCOMMIT;"
+                    )
+                    self.assert_contract_error(root, "hardening must not run COPY or LOAD")
+
+    def test_ownership_passed_to_a_capability_role_fails(self) -> None:
+        for statement, label in (
+            ("ALTER TABLE public.memory_outbox OWNER TO a11oy_memory_app;", "ownership passed"),
+            ('ALTER DATABASE memory_covenant OWNER TO "a11oy_memory_worker";', "ownership passed"),
+            ("CREATE SCHEMA capability AUTHORIZATION a11oy_memory_app;", "ownership passed"),
+            ("REASSIGN OWNED BY CURRENT_USER TO a11oy_memory_app;", "ownership reassignment"),
+        ):
+            with self.subTest(statement=statement):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.CORRECTIVE_MIGRATION, "COMMIT;", statement + "\n\nCOMMIT;"
+                    )
+                    self.assert_contract_error(root, f"forbidden migration operation: {label}")
+
+    def test_pinned_dynamic_statements_are_required(self) -> None:
+        cases = (
+            (
+                validator.CORRECTIVE_MIGRATION,
+                "           AND NOT trigger.tgisinternal\n",
+                "           AND NOT trigger.tgisinternal\n"
+                "           AND trigger.tgname <> 'memory_receipts_append_only'\n",
+                "corrective pinned trigger sweep",
+            ),
+            (
+                validator.BASE_MIGRATION,
+                "        EXECUTE format(\n",
+                "        EXECUTE pg_catalog.format(\n",
+                "base pinned policy sweep",
+            ),
+            (
+                validator.CORRECTIVE_MIGRATION,
+                "            'ALTER TABLE public.%I DROP CONSTRAINT %I',\n",
+                "            'ALTER TABLE public.%I DROP CONSTRAINT IF EXISTS %I',\n",
+                "corrective pinned receipt foreign-key sweep",
+            ),
+        )
+        for relative, old, new, label in cases:
+            with self.subTest(label=label):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(root / relative, old, new)
+                    self.assert_contract_error(root, f"{label}: expected 1 exact copy")
+                    self.assert_any_contract_error(
+                        root, "runs dynamic SQL outside the pinned statements"
+                    )
+        # The schema, table and function ACL sweeps are pinned in both files.
+        temp, root = self.make_fixture()
+        with temp:
+            for relative in (validator.HARDENING_MIGRATION, validator.CORRECTIVE_MIGRATION):
+                text = (root / relative).read_text(encoding="utf-8")
+                (root / relative).write_text(
+                    text.replace(
+                        "           AND acl.grantee <> procedure.proowner\n",
+                        "           AND acl.grantee <> procedure.proowner\n"
+                        "           AND acl.privilege_type <> 'EXECUTE'\n",
+                        1,
+                    ),
+                    encoding="utf-8",
+                )
+            for label in ("hardening", "corrective"):
+                self.assert_contract_error(root, f"{label} pinned function ACL sweep")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -7,10 +7,12 @@
 merged provider-owner change (#3755, squash `8d604a5`) described in
 [`P2-2026-11-19-memory-covenant-provider-owner.md`](P2-2026-11-19-memory-covenant-provider-owner.md).
 
-**Disposition:** source fix prepared as one local commit and not pushed.
-Promotion still requires exact-head CI on all three Memory Covenant jobs, owner
-review, and the separate, owner-approved rehearsal on a disposable provider
-branch that the 2026-11-19 note requires. No provider database was contacted.
+**Disposition:** source fix prepared as two local commits, not pushed: the
+second-review commit `d910d2f8` and, on top of it, the fix for the third
+review of that commit (see *Third review of the local commit*). Promotion
+still requires exact-head CI on all three Memory Covenant jobs, owner review,
+and the separate, owner-approved rehearsal on a disposable provider branch
+that the 2026-11-19 note requires. No provider database was contacted.
 
 ## What the second review found, and what changed
 
@@ -40,7 +42,13 @@ branch that the 2026-11-19 note requires. No provider database was contacted.
    validator requires the precondition in all three files.
 3. **The validator now lexes SQL.** Regular-expression comment stripping is
    replaced by a lexer that follows PostgreSQL's scanner and psql's statement
-   splitter. It handles:
+   splitter. psql's input layer, which reads each line before the splitter
+   sees it, is not modelled. As first committed, the validator therefore
+   accepted characters at which psql reads a file differently (third review,
+   below): after a NUL, psql runs text that the lexer read as a literal or a
+   comment; after a CR on a backslash-command line, psql passes text that the
+   lexer read as SQL to that command. The validator now refuses every such
+   character. The lexer handles:
    - single-quoted strings with `''` escapes and `E''` strings with backslash
      escapes;
    - double-quoted identifiers and dollar quotes;
@@ -52,15 +60,21 @@ branch that the 2026-11-19 note requires. No provider database was contacted.
    text it saw before.
 
    The contract now rejects text whose meaning a token check cannot see:
+   - in all five files, NUL, CR, every other C0 control character except TAB
+     and LF, DEL, the C1 controls and U+2028/U+2029 (added after the third
+     review);
    - any tagged dollar quote (`$tag$`); the files use only `$$`;
    - psql meta-commands, except the acceptance's first line
      `\set ON_ERROR_STOP on`;
    - psql variable references, Unicode-escape literals and identifiers, and
      `BEGIN ATOMIC` bodies;
    - any mention of `standard_conforming_strings`, `backslash_quote` or
-     `escape_string_warning`, since the lexer assumes PostgreSQL's default.
+     `escape_string_warning`, since the lexer assumes PostgreSQL's default;
+   - `E''` escape strings and any change of the client encoding (added after
+     the third review).
 
-   Pins count only where the server runs them:
+   For files that pass those checks, pins count only where the server runs
+   them:
    - Whole statements (the precondition, the assertion block, the lease
      function and the acceptance's role DO block) count only as top-level
      statements.
@@ -74,10 +88,16 @@ branch that the 2026-11-19 note requires. No provider database was contacted.
    - a role-attribute column, or any use of the `observed` record;
    - `ALTER ROLE`, `ALTER USER` or `ALTER GROUP` on a capability role;
    - `CREATE ROLE`, `CREATE USER` or `CREATE GROUP`;
-   - a `GRANT` of a capability role, and any membership change built from a
-     format string (`GRANT %I TO`, `REVOKE %I FROM`);
+   - a `GRANT` of a capability role;
    - a role switch (`SET ROLE`, `SET SESSION AUTHORIZATION`, or `set_config`
      on `role`).
+
+   As first committed, the list also claimed to reject any membership change
+   built from a format string. The rule matched only a bare `%I`, `%L` or
+   `%s` placeholder directly after `GRANT` or `REVOKE`, so
+   `GRANT %1$I TO %2$I` passed (third review, below).
+   That class is now closed by a different rule: no dynamic SQL runs outside
+   the pinned statements.
 4. **CI coverage.**
    - **Provider-owner job:**
      - A principal that owns its own database but lacks `BYPASSRLS` is refused
@@ -112,6 +132,9 @@ branch that the 2026-11-19 note requires. No provider database was contacted.
      in. It is named by a random letter plus 16 random hex digits, with no
      fixed prefix. The fixture delegate `a11oy_memory_stale_grantee` keeps its
      name, because the acceptance checks it by name, and it can now log in.
+     This catches a sweep that skips a fixed fixture name or `NOLOGIN` roles.
+     It does not catch a filter keyed to the naming pattern, or to any other
+     state that exists only in CI; see *What the database jobs cannot detect*.
 5. **Lease guard and SET-only rows.**
    - `memory_lease_outbox` in the hardening and the corrective, the two files
      that define it, now tests `pg_has_role(session_user,
@@ -134,11 +157,120 @@ branch that the 2026-11-19 note requires. No provider database was contacted.
    - The validator rejects any `if:` key in
      `.github/workflows/memory-covenant-v2.yml`, in plain, quoted, escaped,
      tagged or flow-mapping form, and also merge keys and explicit `?` keys.
+     As first committed, a YAML alias could still supply an `if:` key, and
+     `continue-on-error` was matched only as the literal `continue-on-error:
+     true` (third review, below). The workflow is now read as a strict YAML
+     subset with a reviewed key set.
    - The two evidence-upload steps lost their `if: always()`, so evidence is
      now uploaded only when a job passes. On failure, the long steps print
      their evidence logs to the job log instead.
 8. **Documentation.** This note; the corrections to the 2026-11-19 note are
    marked there.
+
+## Third review of the local commit
+
+Independent reviewers read `d910d2f8` and raised three major findings. Each
+was reproduced before anything changed. None is rejected.
+
+1. **`continue-on-error` in any form (security).** The `if:` rejection did not
+   cover its sibling key.
+   - `continue-on-error: ${{ true }}` on a step or a job, a quoted key, and a
+     key supplied through a YAML alias all passed the validator. So did an
+     `if:` key supplied through an alias. (MEASURED, validator only: of nine
+     workflow edits tried, six passed `d910d2f8`.)
+   - That GitHub keeps a job green when a step whose `continue-on-error`
+     evaluates true fails is REASONED from GitHub's documentation, not run on
+     GitHub.
+   - Fix: the workflow is read as a strict YAML subset: plain keys, block
+     scalars opened by `|`, `|-`, `>` or `>-`, and one-line plain or quoted
+     values, `[a, b]` or `{}`. Anchors, aliases, tags, quoted, explicit and
+     merge keys, non-empty flow mappings and multi-line quoted values are
+     refused as unreadable, so every key GitHub reads is a key the scan sees.
+     `if` and `continue-on-error` are refused in any spelling. Any key outside
+     the reviewed set is refused, for example `defaults`, `container` or
+     `working-directory`.
+   - Found while fixing it: a step's `shell:` accepts a command template, and
+     `shell: true {0}` would run `true` instead of the step's script and exit 0
+     (REASONED from GitHub's documentation). Every `shell:` must now be
+     `bash`. Tab characters are refused as well.
+   - The earlier `if:` and `continue-on-error: true` patterns stay as a second
+     check.
+2. **NUL and CR reach psql differently (correctness).** psql reads each line
+   with `fgets`, keeps it only up to its first NUL and joins the next line, so
+   text that the lexer read as a comment or a literal runs.
+   - Reproduced (MEASURED; PostgreSQL 18.6 server, psql 16.15 client):
+     - A NUL probe ran its hidden `SELECT`, both from `-f` and from standard
+       input.
+     - Tree A3, rebuilt here from the reviewers' edit, hides an
+       `ALTER ROLE a11oy_memory_app BYPASSRLS` after a NUL in the corrective,
+       keyed to the absence of the CI-only schema `memory_attacker`. It passed the validator, and the
+       replay of all three jobs exited 0 at every step. On a provider-owned
+       database without that schema the corrective committed,
+       `a11oy_memory_app` gained `BYPASSRLS`, and a login bound to `tenant-a`
+       read both tenants' receipts after `SET ROLE a11oy_memory_app`.
+     - Tree A2 wraps the corrective's assertion block in a `$q$` literal after
+       a NUL. It committed with a foreign ADMIN delegation in place, which the
+       committed corrective refuses.
+     - A CR after `\set ON_ERROR_STOP on` makes psql pass the rest of that
+       line to `\set`, where a backtick ran a shell command.
+   - That psql 18, the client in CI's `postgres:18` image, behaves the same is
+     REASONED; only the 16.15 client was run.
+   - Fix: in all five files the validator refuses NUL, CR, every other C0
+     control character except TAB and LF, DEL, the C1 controls, and U+2028
+     and U+2029. YAML also breaks lines at NEL, U+2028 and U+2029. It also
+     refuses `E''` escape strings and any change of the client encoding,
+     after which psql would lex later lines in another encoding.
+3. **Dynamic membership changes and fixture-keyed edits (correctness).** The
+   format-string rule matched only `%I`, `%L` or `%s` directly after `GRANT`
+   or `REVOKE`, so `pg_catalog.format('GRANT %1$I TO %2$I WITH INHERIT TRUE,
+   SET TRUE', ...)` passed.
+   - Reproduced (MEASURED, PostgreSQL 18.6):
+     - Tree C appends that statement to the corrective, keyed to the absence
+       of `memory_attacker`. An ADMIN delegate granted by the provider owner
+       was swept and then given INHERIT and SET back. It leased both tenants'
+       outbox payloads, and later runs of the committed hardening, corrective
+       and acceptance passed.
+     - Tree C2 puts the same block in both migrations, filtered by the CI
+       fixture naming pattern instead of the schema. A delegate named
+       `ops_delegate` leased both tenants, and the replay of all three jobs
+       exited 0 at every step.
+   - Such a row cannot be told apart, in the catalog, from a runtime login
+     that the owner granted, so no check that runs in a database can catch
+     it. The fix is static: outside the pinned statements nothing may run
+     dynamic SQL.
+   - The nine statements that ran dynamic SQL without a pin are now pinned
+     whole, in each file that holds them: the policy, rewrite-rule, trigger
+     and receipt foreign-key sweeps, and the schema `CREATE`, table and column
+     ACL, and function ACL sweeps.
+   - In the three migrations, outside the pinned statements, the validator
+     now also rejects:
+     - any PL/pgSQL `EXECUTE` of a string;
+     - a `GRANT` or `REVOKE` with no `ON`, which is a membership change, and
+       `ALTER GROUP`;
+     - a string literal whose SQL begins with `GRANT`, `REVOKE` or
+       `ALTER GROUP`;
+     - a `DO` or function body that is not `$$`-quoted `plpgsql` or `sql`;
+     - `COPY` and `LOAD`.
+   - Anywhere in the migrations it also rejects ownership passed to a
+     capability role (`OWNER TO`, `AUTHORIZATION`) and `REASSIGN OWNED`.
+   - The format-string pattern now also matches positional, flagged and
+     width-bearing specifiers, as a second check.
+   - The claim that random delegate names stop a name pattern from exempting
+     delegates is withdrawn from the workflow comments, the validator comment
+     and this note.
+
+**What the database jobs cannot detect.** A migration edit keyed to state that
+exists only in CI behaves one way in CI and another on a provider. Examples of
+such state are the `memory_attacker` schema, the fixture naming pattern, the
+CI database names, and the absence of a provider's own roles. Any
+deterministic fixture naming is itself a pattern. The database jobs cannot detect such an
+edit; only the static rules and review can. The static rules now refuse
+dynamic SQL, membership changes, capability ownership and capability attribute
+changes outside the pinned statements, but they do not name every weakening.
+
+Each fix is pinned by unit tests: 23 new tests with 75 subtests. Against the
+validator of `d910d2f8` every new test fails, except the sanity test that keeps
+TAB legal in SQL.
 
 ## Operating constraints
 
@@ -210,21 +342,38 @@ branch that the 2026-11-19 note requires. No provider database was contacted.
   both notes. Nothing was read back from a provider.
 - **Static validator limits.** The validator is advisory against a deliberate
   edit:
-  - A statement built at run time from concatenated strings is still invisible
-    to it.
+  - Outside the pinned statements it refuses PL/pgSQL `EXECUTE` of a string
+    (since the third review). SQL that an extension already installed in a
+    target database runs from a string, for example through `dblink` or
+    `pg_cron`, is not detected.
+  - Unpinned static SQL keyed to CI-only state can still weaken something the
+    rules do not name; see *What the database jobs cannot detect*.
   - A pinned statement changed together with its pin passes by design.
-  - The database jobs remain the authority. Measured example: a coordinated
-    edit that re-admits a database owner without `BYPASSRLS`, applied to all
-    three migrations and to the validator's pin, passes the validator and the
-    unit tests. The provider-owner job then fails with *expected a refusal
-    that did not happen*.
+  - The workflow scan refuses the keys that let a failing check pass and any
+    shell other than `bash`. It does not prove that each `run:` script runs
+    its checks: an early `exit 0` in a script passes it. `uses:` references
+    are not pinned, because Renovate updates them. Workflow diffs need review.
+  - The database jobs remain the authority for the behaviour they exercise.
+    Measured example: a coordinated edit that re-admits a database owner
+    without `BYPASSRLS`, applied to all three migrations and to the
+    validator's pin, passes the validator and the unit tests. The
+    provider-owner job then fails with *expected a refusal that did not
+    happen*.
 
 ## Qualification (local, before any push)
+
+Every check below was run again on the final tree, after the third-review fix.
+That fix changed no SQL, and every PostgreSQL result matched the run on
+`d910d2f8`.
 
 | Check | Result |
 |---|---|
 | Static contract (`scripts/validate_memory_covenant_v2.py`) | PASS |
-| `python3 -m pytest -q tests/test_memory_covenant_v2.py tests/test_memory_covenant_exact_head_review.py` | 141 passed and 15 subtests passed: 138 contract tests (104 pre-existing, 34 new) and 3 exact-head review tests |
+| `python3 -m pytest -q tests/test_memory_covenant_v2.py tests/test_memory_covenant_exact_head_review.py` | 164 passed and 90 subtests passed: 161 contract tests (104 pre-existing, 34 added by `d910d2f8`, 23 added after the third review) and 3 exact-head review tests |
+| Third-review attack trees: 22 edits built from the reviewers' findings | `d910d2f8` passed 19 of them; each is now rejected by the validator |
+| Third-review runtime effects on PostgreSQL 18.6: NUL and CR probes, trees A2, A3, C and C2 | reproduced against `d910d2f8`'s files, as described in *Third review of the local commit* |
+| Replay of trees A3 and C2 with `d910d2f8`'s validator | every step of all three jobs exits 0 |
+| Third-review unit tests run against `d910d2f8`'s validator | every new test fails, except the sanity test that keeps TAB legal in SQL |
 | Normalization regression | lexer output byte-identical to the old normalization on the four pre-change files |
 | Second-review attacks V1 to V6, rebuilt on this tree with the reviewers' own generator | each rejected by the validator |
 | Second-review mutations R1, R2, R3, R5, M3, M5, D1, T1 and T2, applied to this tree | each rejected by the validator |
@@ -255,6 +404,14 @@ Exact-head hosted CI remains the promotion authority.
     floats, and that includes superuser updates to `pg_auth_members`, which the
     CI fixture relies on.
   - That GitHub reports a job skipped by `if:` as satisfying a required check.
+  - That GitHub keeps a job green when a step whose `continue-on-error`
+    evaluates true fails, and that a `shell:` template such as `true {0}`
+    replaces the step's shell command.
+  - That GitHub's YAML parser breaks lines at NEL, U+2028 and U+2029, and
+    that a change of client encoding lets psql's lexer read later bytes
+    differently. The validator refuses all of these without measuring them.
+  - That psql 18 keeps a line only up to its first NUL and passes text after
+    a CR to a backslash command, as the psql 16.15 client did here.
 - **MODELED:** the provider owner's attributes and Neon's
   one-cluster-per-branch layout.
 - **Not claimed:** that any provider database was migrated, that the

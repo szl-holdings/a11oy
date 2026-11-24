@@ -105,8 +105,11 @@ by such an owner:
   comment stripping cut lines at a `--` inside a string literal and did not
   nest block comments. A pinned statement copied into a literal or a comment
   still counted. The 2026-11-24 note replaces it with a lexer and counts pins
-  only where PostgreSQL runs them. The validator stays advisory against any
-  deliberate edit, not only dynamic SQL.)
+  only where PostgreSQL runs them. After that note's third review, it also
+  refuses the control characters, such as NUL and CR, at which psql reads a
+  file differently from the lexer, and it refuses dynamic SQL outside the
+  pinned statements. The validator stays advisory against any deliberate
+  edit; that note lists its limits.)
 - **CI.**
   - The superuser job seeds a delegate with a run-unique name and requires the
     corrective to strip ADMIN, INHERIT and SET.
