@@ -400,21 +400,34 @@ def test_manifest_coverage_ratchet_sees_brainlocal_as_native_ok():
         assert "brainlocal" in covered
 
 
-def test_surface_is_appended_last_and_synced_across_all_three_places():
+def _brainlocal_index(surfaces):
+    ids = [s["id"] for s in surfaces]
+    assert ids.count("brainlocal") == 1, ids
+    return ids.index("brainlocal")
+
+
+def test_surface_follows_brainanswer_and_is_synced_across_all_three_places():
+    # brainlocal was appended last in #1530; #1621 appended braincite after it and later
+    # brain surfaces followed, so "last" no longer holds. The left-neighbour pin is
+    # deliberate; a deliberate insertion between the two needs this test updated.
     import szl3d_holographic as holo
-    assert holo.SURFACES[-1]["id"] == "brainlocal"
-    assert holo.SURFACES[-1]["cat"] == "brain"
+    at = _brainlocal_index(holo.SURFACES)
+    assert holo.SURFACES[at - 1]["id"] == "brainanswer", holo.SURFACES[at - 1]["id"]
+    assert holo.SURFACES[at]["cat"] == "brain"
     html = (ROOT / "static" / "3d" / "holographic.html").read_text(encoding="utf-8")
     assert 'id: "brainlocal"' in html
+    shell_ids = re.findall(r'\{\s*id\s*:\s*"([A-Za-z0-9_-]+)"', html)
+    assert shell_ids[at - 1:at + 1] == ["brainanswer", "brainlocal"], shell_ids[at - 1:at + 2]
     assert '/static/3d/surfaces/brainlocal.js' in html
     assert (ROOT / "static" / "3d" / "surfaces" / "brainlocal.js").exists()
 
 
 def test_registry_titles_agree_between_backend_and_shell():
     import szl3d_holographic as holo
-    title = holo.SURFACES[-1]["title"]
+    title = holo.SURFACES[_brainlocal_index(holo.SURFACES)]["title"]
     html = (ROOT / "static" / "3d" / "holographic.html").read_text(encoding="utf-8")
-    assert json.dumps(title) in html
+    entry = next(ln for ln in html.splitlines() if 'id: "brainlocal"' in ln)
+    assert "title: " + json.dumps(title) in entry
 
 
 def test_dockerfile_and_serve_wiring_present():
