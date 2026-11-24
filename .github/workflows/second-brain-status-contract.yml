@@ -1,0 +1,31 @@
+name: Second Brain source and UI state contract
+
+# Only offline simulated responses. Never calls paid inference, user data, HF,
+# Cloudflare or release gates. HTTP reachability cannot certify model inference.
+on:
+  pull_request:
+    paths:
+      - "pages/second-brain.html"
+      - "tests/test_second_brain_live_status.cjs"
+      - ".github/workflows/second-brain-status-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  second-brain-live-status:
+    name: Inference and retrieval must remain independent
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Check source with offline browser fixtures
+        run: node --test tests/test_second_brain_live_status.cjs
