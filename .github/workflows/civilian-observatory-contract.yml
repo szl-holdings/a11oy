@@ -11,6 +11,7 @@ on:
       - "tests/browser_civilian_styles.py"
       - "scripts/build_civilian_manifest.py"
       - ".github/workflows/civilian-observatory-contract.yml"
+      - ".github/scripts/install_playwright_chromium.sh"
       - "serve.py"
       - "Dockerfile"
   push:
@@ -23,6 +24,7 @@ on:
       - "tests/browser_civilian_styles.py"
       - "scripts/build_civilian_manifest.py"
       - ".github/workflows/civilian-observatory-contract.yml"
+      - ".github/scripts/install_playwright_chromium.sh"
       - "serve.py"
       - "Dockerfile"
   workflow_dispatch:
@@ -76,7 +78,22 @@ jobs:
         run: npm run build
       - name: Require the checked-in UI to match its source build
         run: diff -qr web/civilian-observatory/dist/public civilian_observatory/static
+      - name: Identify the runner image for the Chromium package cache
+        id: chromium-image
+        run: |
+          echo "os=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "version=${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+      - name: Restore cached Chromium OS packages
+        id: chromium-debs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.chromium-image.outputs.os }}-civilian-${{ steps.chromium-image.outputs.version }}-${{ hashFiles('.github/scripts/install_playwright_chromium.sh') }}
+          restore-keys: |
+            szl-chromium-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.chromium-image.outputs.os }}-civilian-
       - name: Prepare the isolated Chromium regression environment
+        env:
+          SZL_PW_DEB_CACHE: ~/.cache/szl-chromium-debs
         shell: bash
         run: |
           set -euo pipefail
@@ -87,8 +104,14 @@ jobs:
           "$BROWSER_PYTHON" -m pip install --disable-pip-version-check "playwright==1.57.0" \
             2>&1 | tee "$EVIDENCE_DIR/setup.log"
           "$BROWSER_PYTHON" -m playwright --version 2>&1 | tee -a "$EVIDENCE_DIR/setup.log"
-          "$BROWSER_PYTHON" -m playwright install --with-deps chromium \
+          bash .github/scripts/install_playwright_chromium.sh "$BROWSER_PYTHON" -m playwright \
             2>&1 | tee -a "$EVIDENCE_DIR/setup.log"
+      - name: Save Chromium OS packages for later jobs
+        if: success() && steps.chromium-debs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/szl-chromium-debs
+          key: ${{ steps.chromium-debs.outputs.cache-primary-key }}
       - name: Exercise exact shipped styles with offline browser fixtures
         shell: bash
         env:
