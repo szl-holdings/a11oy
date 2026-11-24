@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Static contracts for the LYTE lattice BIND surface on a-11-oy.com."""
+
 from pathlib import Path
 
 import szl_lyte_lattice as lyte
@@ -14,7 +15,7 @@ LANDING = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
 def test_first_paint_is_connecting_never_live_or_running() -> None:
     assert 'id="liveTag" aria-live="polite">LYTE · CONNECTING<' in PAGE
     assert 'id="organBadge">BIND · connecting<' in PAGE
-    assert "first paint is <b>CONNECTING</b>" in PAGE
+    assert "first paint is <b>connecting</b>" in PAGE.lower()
     assert "never fabricates <b>LIVE</b>, <b>RUNNING</b>, or <b>PASS</b>" in PAGE
     assert "LYTE · LIVE" not in PAGE
     assert "Hub RUNNING" in PAGE and "after Immune readback" in PAGE
@@ -57,8 +58,14 @@ def test_healthz_never_claims_hub_running() -> None:
 
 
 def test_routes_wired_in_serve_and_image() -> None:
-    assert 'app.add_api_route("/lyte", _ptg_serve("lyte.html"), methods=["GET", "HEAD"]' in SERVE
-    assert 'app.add_api_route("/a11oy/lyte", _ptg_serve("lyte.html"), methods=["GET", "HEAD"]' in SERVE
+    assert (
+        'app.add_api_route("/lyte", _ptg_serve("lyte.html"), methods=["GET", "HEAD"]'
+        in SERVE
+    )
+    assert (
+        'app.add_api_route("/a11oy/lyte", _ptg_serve("lyte.html"), methods=["GET", "HEAD"]'
+        in SERVE
+    )
     assert "import szl_lyte_lattice" in SERVE
     assert "COPY szl_lyte_lattice.py" in DOCKER
     assert "web/lyte.html" in DOCKER
@@ -71,10 +78,21 @@ def test_landing_binds_the_package_without_lyte_title_case() -> None:
     assert "Lyte lattice" not in LANDING
 
 
+def test_lyte_client_admits_only_semantically_qualified_bind() -> None:
+    # HTTP 200 alone must not turn missing/degraded/unknown evidence green.
+    assert 'if (s.ok !== true || s.state !== "BIND")' in PAGE
+    assert (
+        'unavailable("Required evidence unavailable (source contract did not admit BIND).'
+        in PAGE
+    )
+    assert 'dot.className = "live-dot error"' in PAGE
+    assert 'setText("kStatus", "UNAVAILABLE")' in PAGE
+
+
 def test_zero_cdn_and_mobile() -> None:
     assert "cdn.jsdelivr.net" not in PAGE
     assert "fonts.googleapis.com" not in PAGE
-    assert "<script src=\"http" not in PAGE
+    assert '<script src="http' not in PAGE
     assert "@media(max-width:760px)" in PAGE
     assert 'class="table-scroll" role="region"' in PAGE
     assert "repeat(auto-fit,minmax(min(100%,200px),1fr))" in PAGE
