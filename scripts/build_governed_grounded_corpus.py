@@ -51,6 +51,12 @@ SECRET_RE = re.compile(r"(hf_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Z
 HEADING_RE = re.compile(r"^(#{1,4})\s+(.+?)\s*#*\s*$")
 LEAN_DECL_RE = re.compile(
     r"^(?:@\[[^\]\n]*\]\s*)?(?:(?:private|protected|noncomputable)\s+)*(theorem|lemma)\s+([A-Za-z_][\w.']*)", re.M)
+# Line-start Lean commands: the statement of a declaration cannot run past the next one.
+LEAN_COMMAND_RE = re.compile(
+    r"^(?:@\[[^\]\n]*\]\s*)?(?:(?:private|protected|noncomputable|unsafe|partial)\s+)*"
+    r"(?:(?:theorem|lemma|def|abbrev|instance|structure|inductive|class|example|axiom|opaque|namespace|section|end|"
+    r"open|variable|universe|macro|syntax|notation|attribute|set_option|mutual)\b|/--|#\w+)", re.M)
+LEAN_OPEN, LEAN_CLOSE = "([{\u27e8", ")]}\u27e9"
 BARE_LEADING_RE = re.compile(r"\bleading\b", re.I)
 MAX_CONTEXT = 2400
 MAX_PER_FILE = {"section": 10, "label": 8, "lean": 8}
@@ -213,11 +219,54 @@ def harvest_md(path, text, commit):
     return contexts, positives
 
 
+def lean_statement_end(text, start, limit):
+    """Index of the `:=` that ends the statement of the declaration at `start`, or -1.
+
+    A `:=` inside brackets is a binder default and one after `let` or `have` belongs to
+    that binding, so neither ends the statement. Comments and strings are skipped.
+    """
+    depth, pending, i = 0, 0, start
+    while i < limit:
+        two, c = text[i:i + 2], text[i]
+        if two == "--":
+            j = text.find("\n", i)
+            i = limit if j < 0 else j
+        elif two == "/-":
+            j = text.find("-/", i + 2)
+            i = limit if j < 0 else j + 2
+        elif c == '"':
+            i += 1
+            while i < limit and text[i] != '"':
+                i += 2 if text[i] == "\\" else 1
+            i += 1
+        elif two == ":=":
+            if depth == 0 and not pending:
+                return i
+            if depth == 0:
+                pending -= 1
+            i += 2
+        elif c in LEAN_OPEN:
+            depth, i = depth + 1, i + 1
+        elif c in LEAN_CLOSE:
+            depth, i = max(0, depth - 1), i + 1
+        elif c.isalpha() or c == "_":
+            j = i
+            while j < limit and (text[j].isalnum() or text[j] in "_.'!?"):
+                j += 1
+            if depth == 0 and text[i:j] in ("let", "have"):
+                pending += 1
+            i = j
+        else:
+            i += 1
+    return -1
+
+
 def harvest_lean(path, text, commit):
     contexts, positives = [], []
     decls = list(LEAN_DECL_RE.finditer(text))
     for i, m in enumerate(decls):
-        end = text.find(":=", m.start())
+        nxt = LEAN_COMMAND_RE.search(text, m.end())
+        end = lean_statement_end(text, m.start(), nxt.start() if nxt else len(text))
         if end < 0 or end - m.start() > 900:
             continue
         stmt = text[m.start():end].strip()

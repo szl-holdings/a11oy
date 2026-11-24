@@ -97,6 +97,28 @@ def test_lean_declarations_with_modifiers_are_found(repo):
     assert any("private lemma baz' (a b : Nat) : a + b = b + a" in a for a in lean)
 
 
+def test_lean_statement_ends_at_the_definitional_assignment():
+    """A `:=` in a `let`, a binder default or a structure literal does not end the statement."""
+    text = ("theorem with_let (a b : Nat) :\n    let s := a + b\n    s = b + a := by\n  omega\n\n"
+            "theorem with_default (n : Nat := 0) (p : P { x := n }) : n = n := rfl\n\n"
+            "-- note := not here\ntheorem after_comment : True := trivial\n")
+    _, positives = b.harvest_lean("T.lean", text, "0" * 40)
+    cores = {p["needle"]: p["core"] for p in positives}
+    assert cores["with_let"].endswith("s = b + a")
+    assert "let s := a + b" in cores["with_let"]
+    assert cores["with_default"].endswith(": n = n")
+    assert cores["after_comment"] == "theorem after_comment : True"
+
+
+def test_lean_statement_never_runs_into_the_next_declaration():
+    """A declaration with no `:=` of its own is skipped, not merged with the one after it."""
+    text = ("theorem by_cases : (n : Nat) -> n = n\n  | 0 => rfl\n  | _ + 1 => rfl\n\n"
+            "def helper : Nat := 3\n\n"
+            "theorem plain (n : Nat) : n = n := rfl\n")
+    _, positives = b.harvest_lean("T.lean", text, "0" * 40)
+    assert [p["needle"] for p in positives] == ["plain"]
+
+
 def test_sentence_extract_preserves_parenthesized_punctuation():
     prefix = ("Evidence remains source-bound across separate receipt paths and "
               "cannot be treated as a live deployment claim. ") * 2
