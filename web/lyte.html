@@ -239,28 +239,35 @@ code{font-family:var(--mono);color:var(--teal);}
     }
   }
 
+  function unavailable(noteText) {
+    connectionState(false);
+    setText("cBind", "UNAVAILABLE");
+    setText("cCert", "not certified");
+    setText("cHub", "UNAVAILABLE");
+    setText("cJoule", "UNAVAILABLE");
+    setText("cOcc", "UNAVAILABLE");
+    setText("cTrust", "false");
+    setText("kStatus", "UNAVAILABLE");
+    document.getElementById("bindNote").textContent = noteText;
+    paintCells(FALLBACK);
+  }
+
   async function loadStatus() {
     var result = await requestJSON(BASE + "/status");
-    var note = document.getElementById("bindNote");
     if (!result.ok || !result.data) {
-      connectionState(false);
-      setText("cBind", "UNAVAILABLE");
-      setText("cCert", "not certified");
-      setText("cHub", "UNAVAILABLE");
-      setText("cJoule", "UNAVAILABLE");
-      setText("cOcc", "UNAVAILABLE");
-      setText("cTrust", "false");
-      setText("kStatus", "UNAVAILABLE");
       var status = result.status == null ? "network error" : "HTTP " + result.status;
-      note.textContent = "Required evidence unavailable (" + status + "). Cite GitHub. Do not fabricate LIVE.";
-      paintCells(FALLBACK);
+      unavailable("Required evidence unavailable (" + status + "). Cite GitHub. Do not fabricate LIVE.");
       return;
     }
     var s = result.data;
-    var state = present(s.state) ? String(s.state).trim().toUpperCase() : "UNKNOWN";
-    if (state === "LIVE" || state === "RUNNING" || state === "PASS") {
-      state = "BIND";
+    // HTTP 200 or a claimed LIVE/RUNNING/PASS is not a qualified BIND state.
+    // Accept only the exact source-owned positive contract; unknowns stay red.
+    if (s.ok !== true || s.state !== "BIND") {
+      unavailable("Required evidence unavailable (source contract did not admit BIND). Cite GitHub. Do not fabricate LIVE.");
+      return;
     }
+    var state = "BIND";
+    var note = document.getElementById("bindNote");
     connectionState(true);
     setText("cBind", state === "BIND" ? "BIND package" : state);
     setText("cCert", "not certified");
