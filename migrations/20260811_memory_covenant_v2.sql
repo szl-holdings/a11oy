@@ -7,6 +7,37 @@ BEGIN;
 -- Never let a caller-controlled current schema redirect covenant objects.
 SET LOCAL search_path = pg_catalog, pg_temp;
 
+-- The migration principal must see every existing row and own schema public,
+-- the same precondition that opens the hardening and corrective migrations.
+-- Checking it here, before any other statement, keeps a principal those files
+-- refuse from committing this one alone: this file replaces the RLS helper and
+-- revokes PUBLIC EXECUTE on it, and only the hardening grants EXECUTE back.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS principal
+         WHERE principal.rolname = CURRENT_USER
+           AND (principal.rolsuper OR principal.rolbypassrls)
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'the migration principal must bypass row security to check existing rows';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS principal
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.nspname = 'public'
+         WHERE principal.rolname = CURRENT_USER
+           AND (principal.rolsuper
+                OR pg_catalog.pg_has_role(CURRENT_USER, namespace.nspowner, 'USAGE'))
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'the migration principal must own schema public';
+    END IF;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS public.memory_records (
     tenant_id text NOT NULL,
     security_domain text NOT NULL,

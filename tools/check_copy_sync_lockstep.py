@@ -826,19 +826,19 @@ REVIEWED_RUNTIME_CONFIG_JOB_SHA256 = "97e8984ca6c46878b548d7815c52ea5b3048a81d56
 # This exact post-deploy readiness job has no provider credential, verifies the
 # candidate at both literal reviewed origins, witnesses both routes in the
 # package-bound Chromium revision, and gates relock on success.
-REVIEWED_READINESS_VERDICT_JOB_SHA256 = "74e3eb9a62bf2720e4f7a844ca3341eb7998154a322e13a4212e16f64d736d75"
+REVIEWED_READINESS_VERDICT_JOB_SHA256 = "87482e3028be2e44063d1c9f2ba89a5fe39fbe60fc6ecb05f0eeea5485b33c98"
 # The relock job holds the provider read credential and consumes the readiness
 # verdict.  Bind its complete job body so an extra step, secret, permission, or
 # failure bypass cannot inherit that authority unnoticed.
-REVIEWED_RELOCK_JOB_SHA256 = "8debe2a787278449dc5a50a1e946169129179e5655d8eefac2a7fa3dc7cc6975"
+REVIEWED_RELOCK_JOB_SHA256 = "7ecd3eb7e956dc1d87af222b81841f600c0f058a69c8db1caf2584903d65c94b"
 # The separate collection job is authenticated only for the fixed GET export.
-REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "7590b85e303209c953e267aa5bd8b861e557e221674d26d5d32690440115db01"
+REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "239455a278adc2cd0909442a75b92911d9e0b428f11dd3b1bd12f743003043a3"
 # The GET-only handoff freezes independent expected context and authority pins.
 # Its manual verification branch excludes every provider configuration/deploy job.
 REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
-    ".github/scripts/admit_execution_handoff.py": "679adeb336dd8b9d6261eeaff6040069de4260a282bc2a0dde03d7f202502f4b",
+    ".github/scripts/admit_execution_handoff.py": "b97339b9436196dbd64d2134a63de85aa4ae88b8ac00b4dbb4787e8090a4ba3f",
     # The first source-admission gate imports this pure plan parser by a fixed path.
     # Its complete bytes are part of the reviewed deployment helper closure.
     "scripts/estate_repair_dispatch.py": "94bbbf48839e9d394264986255d87590e33a2b75aba3fd7d8d9a17b62e68982e",    ".github/scripts/collect_execution_readiness.py": "2b3c908690606ea782c76da1fadd7c2e3337bcf57ab4514bb9f5832c38d2dc61",
