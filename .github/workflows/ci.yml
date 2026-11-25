@@ -2,8 +2,11 @@ name: Docs CI
 
 # CI for showcase repos that ship documentation and metadata only.
 # Validates citation files, markdown, links, governance files, and runs
-# the secret scan. Path filters prevent unnecessary runs on asset-only
-# changes (e.g. social previews) so we don't churn cancelled runs.
+# the secret scan. Pushes to main keep a path filter so asset-only
+# changes (e.g. social previews) don't churn cancelled runs. Pull
+# requests run unconditionally: the branch rules require checks from
+# these jobs, and a path-filtered pull request never reports them, so
+# its merge stays blocked on "required status checks are expected".
 
 on:
   push:
@@ -16,12 +19,6 @@ on:
       - '.github/**'
   pull_request:
     branches: [main]
-    paths:
-      - '**.md'
-      - '**.cff'
-      - 'LICENSE'
-      - 'NOTICE'
-      - '.github/**'
 
 permissions:
   contents: read
