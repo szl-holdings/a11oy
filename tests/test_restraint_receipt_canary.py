@@ -155,6 +155,22 @@ def test_identity_drift_aborts_without_an_additional_post(fixture, url, field, a
     assert bounded.post_attempts == int(after)
 
 
+@pytest.mark.parametrize("after", [False, True])
+def test_hf_hub_and_runtime_agreement_cannot_replace_pinned_revision(fixture, after):
+    """Both HF revisions can agree yet differ from the operator-approved runtime pin."""
+    def change(server, request, status, result, headers):
+        posted = any(r.method == "POST" for r in server.calls)
+        if str(request.url) == canary.HF_INFO and posted == after:
+            result["sha"] = result["runtime"]["sha"] = "d" * 40
+        return status, result, headers
+
+    server, bounded, context = execute(fixture, change)
+    with pytest.raises(canary.CanaryBlocked, match="HF_IDENTITY_MISMATCH"):
+        canary.run_canary(bounded, context)
+    assert bounded.post_attempts == int(after)
+    assert [r.method for r in server.calls].count("POST") == int(after)
+
+
 @pytest.mark.parametrize("attack", ["signature", "payload", "wrong_task", "wrong_key", "reflected_token"])
 def test_invalid_signed_response_never_establishes_success(fixture, attack):
     context, _, signed, payload = fixture
