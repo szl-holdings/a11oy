@@ -10,7 +10,7 @@
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
-    "@vue/compiler-dom": "3.5.45",
+    "@vue/compiler-dom": "3.5.46",
     "esbuild": "^0.25.0",
     "markdown-it-mathjax3": "^5.2.0",
     "mermaid": "^12.3.0",
