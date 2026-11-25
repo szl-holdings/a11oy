@@ -838,7 +838,7 @@ REVIEWED_EXECUTION_READINESS_JOB_SHA256 = "239455a278adc2cd0909442a75b92911d9e0b
 REVIEWED_EXECUTION_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 REVIEWED_DEPLOY_HELPERS_SHA256 = {
     # Reviewed GET-only handoff, collection, public authority materialization and crypto closure.
-    ".github/scripts/admit_execution_handoff.py": "679adeb336dd8b9d6261eeaff6040069de4260a282bc2a0dde03d7f202502f4b",
+    ".github/scripts/admit_execution_handoff.py": "b97339b9436196dbd64d2134a63de85aa4ae88b8ac00b4dbb4787e8090a4ba3f",
     # The first source-admission gate imports this pure plan parser by a fixed path.
     # Its complete bytes are part of the reviewed deployment helper closure.
     "scripts/estate_repair_dispatch.py": "94bbbf48839e9d394264986255d87590e33a2b75aba3fd7d8d9a17b62e68982e",    ".github/scripts/collect_execution_readiness.py": "2b3c908690606ea782c76da1fadd7c2e3337bcf57ab4514bb9f5832c38d2dc61",
