@@ -5,9 +5,10 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import re
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, NamedTuple
 
 BASE_MIGRATION = Path("migrations/20260811_memory_covenant_v2.sql")
 HARDENING_MIGRATION = Path(
@@ -65,9 +66,10 @@ ROLE_ATTRIBUTES = (
     "NOBYPASSRLS",
 )
 # Existing capability roles converge one attribute at a time, and only when the
-# catalog shows a deviation. A provider-managed owner (Neon, for example) is
-# never a superuser, and PostgreSQL rejects any ALTER ROLE that names the
-# superuser attribute unless the caller is one, even to clear it.
+# catalog shows a deviation. A provider-managed owner is not expected to be a
+# superuser (for Neon this is MODELED, not read back), and PostgreSQL rejects
+# any ALTER ROLE that names the superuser attribute unless the caller is one,
+# even to clear it.
 ROLE_CONVERGENCE_STEPS = (
     ("rolsuper", "NOSUPERUSER", False),
     ("rolcreatedb", "NOCREATEDB", False),
@@ -85,23 +87,64 @@ INBOUND_CONVERGENCE_MESSAGE = (
 SET_SURVIVOR_MESSAGE = (
     "a swept capability-role delegate keeps SET or INHERIT through another grant"
 )
+SET_ONLY_MESSAGE = (
+    "a capability-role membership grants SET without INHERIT; runtime logins must inherit"
+)
+GRANTOR_MESSAGE = (
+    "a capability-role membership was granted by a role that no longer holds ADMIN on it"
+)
+OWNERSHIP_MESSAGE = "a capability role owns the database or a schema"
 ATTRIBUTE_CONVERGENCE_MESSAGE = "a capability role attribute did not converge"
 CONVERGENCE_MESSAGES = (
     OUTBOUND_CONVERGENCE_MESSAGE,
     INBOUND_CONVERGENCE_MESSAGE,
     SET_SURVIVOR_MESSAGE,
+    SET_ONLY_MESSAGE,
+    GRANTOR_MESSAGE,
+    OWNERSHIP_MESSAGE,
     ATTRIBUTE_CONVERGENCE_MESSAGE,
 )
 ROW_SECURITY_PRECONDITION_MESSAGE = (
     "the migration principal must bypass row security to check existing rows"
 )
 SCHEMA_OWNER_PRECONDITION_MESSAGE = "the migration principal must own schema public"
+PRINCIPAL_PRECONDITION_MESSAGES = (
+    ROW_SECURITY_PRECONDITION_MESSAGE,
+    SCHEMA_OWNER_PRECONDITION_MESSAGE,
+)
+LEASE_GUARD_MESSAGE = "session user does not inherit a11oy_memory_worker"
+ACCEPTANCE_SET_ONLY_MESSAGE = (
+    "Memory Covenant capability membership grants SET without INHERIT"
+)
+ACCEPTANCE_GRANTOR_MESSAGE = (
+    "Memory Covenant capability membership has a grantor without ADMIN"
+)
+ACCEPTANCE_OWNERSHIP_MESSAGE = (
+    "Memory Covenant capability role owns the database or a schema"
+)
+# psql runs the acceptance; this is the only psql meta-command it may use.
+ACCEPTANCE_PSQL_PREAMBLE = r"\set ON_ERROR_STOP on"
+# psql reads each line with fgets and keeps it only up to its first NUL, then
+# joins the next line; inside a backslash command it treats CR as a space, so
+# text after a CR becomes that command's arguments. YAML also breaks lines at
+# CR, NEL, U+2028 and U+2029. The lexer and the workflow scan split lines at LF
+# alone, so these files may hold no other control character and no Unicode
+# line separator. TAB stays legal in SQL, where psql and PostgreSQL read it as
+# whitespace.
+FORBIDDEN_CHARACTER = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]")
 
 # Security-critical statements are pinned whole. Substring tokens let an extra
 # predicate (for example a name-pattern exemption) slip into a WHERE clause
 # while every token still matches; a pinned statement changes only together
-# with this validator, in the same reviewed diff. Comments and whitespace are
-# normalized before comparison.
+# with this validator, in the same reviewed diff.
+#
+# Pins are compared token by token after lexing the SQL the way psql and
+# PostgreSQL do, so whitespace and comments do not matter. A copy inside a
+# string literal, a dollar-quoted literal, a function body or a comment is not
+# a statement and never counts. Whole statements count only as top-level
+# statements. Inner blocks count only inside the body of a top-level
+# DO $$ ... $$ statement, and the DO statements that hold them are pinned whole
+# as well, so no dead code or exception handler can be wrapped around them.
 PINNED_PRINCIPAL_PRECONDITION = """
 DO $$
 BEGIN
@@ -206,6 +249,38 @@ PINNED_INBOUND_SWEEP = """
         );
     END LOOP;
 """
+
+
+def _do_statement(declaration: str, *blocks: str) -> str:
+    """A DO statement whose whole body is the given declaration and blocks."""
+    return (
+        "DO $$\nDECLARE\n    "
+        + declaration
+        + "\nBEGIN\n"
+        + "".join(blocks)
+        + "END;\n$$;\n"
+    )
+
+
+def _role_convergence_statement(*roles: str) -> str:
+    return _do_statement(
+        "observed record;",
+        *(PINNED_ROLE_CONVERGENCE.format(role=role) for role in roles),
+    )
+
+
+# The hardening converges each capability role in its own DO statement; the
+# corrective converges both in one.
+ROLE_CONVERGENCE_LAYOUT = {
+    "hardening": (("a11oy_memory_app",), ("a11oy_memory_worker",)),
+    "corrective": (("a11oy_memory_app", "a11oy_memory_worker"),),
+}
+PINNED_OUTBOUND_SWEEP_STATEMENT = _do_statement(
+    "membership record;", PINNED_OUTBOUND_SWEEP
+)
+PINNED_INBOUND_SWEEP_STATEMENT = _do_statement(
+    "membership record;", PINNED_INBOUND_SWEEP
+)
 PINNED_CONVERGENCE_ASSERTIONS = """
 DO $$
 BEGIN
@@ -248,6 +323,61 @@ BEGIN
     END IF;
     IF EXISTS (
         SELECT 1
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS capability ON capability.oid = edge.roleid
+          JOIN pg_catalog.pg_roles AS holder ON holder.oid = edge.member
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND edge.set_option
+           AND NOT edge.inherit_option
+           AND NOT edge.admin_option
+           AND holder.rolname <> CURRENT_USER
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a capability-role membership grants SET without INHERIT; runtime logins must inherit';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS capability ON capability.oid = edge.roleid
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM pg_catalog.pg_roles AS grantor
+                WHERE grantor.oid = edge.grantor
+                  AND grantor.rolsuper
+           )
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM pg_catalog.pg_auth_members AS authority
+                WHERE authority.roleid = edge.roleid
+                  AND authority.member = edge.grantor
+                  AND authority.admin_option
+           )
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a capability-role membership was granted by a role that no longer holds ADMIN on it';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_catalog.pg_roles AS capability
+         WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND (EXISTS (
+                    SELECT 1
+                      FROM pg_catalog.pg_database AS owned_database
+                     WHERE owned_database.datname = pg_catalog.current_database()
+                       AND owned_database.datdba = capability.oid
+                )
+                OR EXISTS (
+                    SELECT 1
+                      FROM pg_catalog.pg_namespace AS owned_schema
+                     WHERE owned_schema.nspowner = capability.oid
+                ))
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE = '42501',
+          MESSAGE = 'a capability role owns the database or a schema';
+    END IF;
+    IF EXISTS (
+        SELECT 1
           FROM pg_catalog.pg_roles AS capability
          WHERE capability.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
            AND (capability.rolsuper OR capability.rolcreatedb
@@ -260,6 +390,395 @@ BEGIN
     END IF;
 END;
 $$;
+"""
+# MEMBER is true for any membership row in PostgreSQL 16 and later, including a
+# swept delegate's and a SET-only one, so the guard tests USAGE.
+PINNED_LEASE_GUARD = """
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='a11oy_memory_worker'
+    ) OR NOT pg_catalog.pg_has_role(
+        session_user,
+        'a11oy_memory_worker',
+        'USAGE'
+    ) THEN
+        RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='session user does not inherit a11oy_memory_worker';
+    END IF;
+"""
+PINNED_LEASE_FUNCTION = """
+CREATE OR REPLACE FUNCTION public.memory_lease_outbox(
+    p_worker_id text,
+    p_limit integer DEFAULT 25,
+    p_lease_seconds integer DEFAULT 30
+)
+RETURNS SETOF public.memory_outbox
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+    IF p_worker_id IS NULL OR p_worker_id = '' THEN
+        RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='worker id is required';
+    END IF;
+    IF p_limit IS NULL OR p_limit < 1 OR p_limit > 500
+       OR p_lease_seconds IS NULL OR p_lease_seconds < 1 OR p_lease_seconds > 3600 THEN
+        RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='worker lease bounds are invalid';
+    END IF;
+""" + PINNED_LEASE_GUARD + """
+    RETURN QUERY
+    WITH candidates AS (
+        SELECT event_id
+          FROM public.memory_outbox
+         WHERE status IN ('PENDING','RETRY','LEASED')
+           AND available_at <= pg_catalog.now()
+           AND (lease_expires_at IS NULL OR lease_expires_at <= pg_catalog.now())
+         ORDER BY available_at, event_id
+         FOR UPDATE SKIP LOCKED
+         LIMIT p_limit
+    )
+    UPDATE public.memory_outbox AS event
+       SET status='LEASED',
+           attempts=event.attempts + 1,
+           lease_owner=p_worker_id,
+           lease_expires_at=pg_catalog.now() + pg_catalog.make_interval(secs => p_lease_seconds),
+           updated_at=pg_catalog.now()
+      FROM candidates
+     WHERE event.event_id = candidates.event_id
+    RETURNING event.*;
+END;
+$$;
+"""
+# Dynamic SQL runs only inside pinned statements. Each top-level statement
+# that executes a string as SQL is pinned whole, so neither its template nor
+# the query that feeds it can change unless this validator changes with it.
+COVENANT_RELATION_LIST = """(
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )"""
+PINNED_BASE_POLICY_SWEEP = """
+DO $$
+DECLARE
+    policy_row record;
+BEGIN
+    FOR policy_row IN
+        SELECT c.relname AS table_name, p.polname AS policy_name
+          FROM pg_catalog.pg_policy AS p
+          JOIN pg_catalog.pg_class AS c ON c.oid = p.polrelid
+          JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public'
+           AND c.relname IN """ + COVENANT_RELATION_LIST + """
+    LOOP
+        EXECUTE format(
+            'DROP POLICY %I ON public.%I',
+            policy_row.policy_name,
+            policy_row.table_name
+        );
+    END LOOP;
+END;
+$$;
+"""
+PINNED_EARLY_POLICY_SWEEP = """
+DO $$
+DECLARE
+    policy_row record;
+BEGIN
+    FOR policy_row IN
+        SELECT relation.relname AS table_name, policy.polname AS policy_name
+          FROM pg_catalog.pg_policy AS policy
+          JOIN pg_catalog.pg_class AS relation ON relation.oid = policy.polrelid
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN """ + COVENANT_RELATION_LIST + """
+    LOOP
+        EXECUTE pg_catalog.format(
+            'DROP POLICY %I ON public.%I',
+            policy_row.policy_name,
+            policy_row.table_name
+        );
+    END LOOP;
+END;
+$$;
+"""
+PINNED_RULE_SWEEP = """
+DO $$
+DECLARE
+    rewrite_row record;
+BEGIN
+    FOR rewrite_row IN
+        SELECT relation.relname AS table_name, rewrite.rulename AS rule_name
+          FROM pg_catalog.pg_rewrite AS rewrite
+          JOIN pg_catalog.pg_class AS relation
+            ON relation.oid = rewrite.ev_class
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN """ + COVENANT_RELATION_LIST + """
+           AND rewrite.rulename <> '_RETURN'
+    LOOP
+        EXECUTE pg_catalog.format(
+            'DROP RULE %I ON public.%I',
+            rewrite_row.rule_name,
+            rewrite_row.table_name
+        );
+    END LOOP;
+END;
+$$;
+"""
+PINNED_TRIGGER_SWEEP = """
+DO $$
+DECLARE
+    trigger_row record;
+BEGIN
+    FOR trigger_row IN
+        SELECT relation.relname AS table_name, trigger.tgname AS trigger_name
+          FROM pg_catalog.pg_trigger AS trigger
+          JOIN pg_catalog.pg_class AS relation
+            ON relation.oid = trigger.tgrelid
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN """ + COVENANT_RELATION_LIST + """
+           AND NOT trigger.tgisinternal
+    LOOP
+        EXECUTE pg_catalog.format(
+            'DROP TRIGGER %I ON public.%I',
+            trigger_row.trigger_name,
+            trigger_row.table_name
+        );
+    END LOOP;
+END;
+$$;
+"""
+PINNED_RECEIPT_FOREIGN_KEY_SWEEP = """
+DO $$
+DECLARE
+    relationship record;
+BEGIN
+    FOR relationship IN
+        SELECT child.relname AS table_name, constraint_row.conname
+          FROM pg_catalog.pg_constraint AS constraint_row
+          JOIN pg_catalog.pg_class AS child ON child.oid = constraint_row.conrelid
+          JOIN pg_catalog.pg_namespace AS child_namespace
+            ON child_namespace.oid = child.relnamespace
+         WHERE constraint_row.contype = 'f'
+           AND constraint_row.confrelid = 'public.memory_receipts'::pg_catalog.regclass
+           AND child_namespace.nspname = 'public'
+           AND child.relname IN ('memory_query_audit', 'memory_idempotency')
+    LOOP
+        EXECUTE pg_catalog.format(
+            'ALTER TABLE public.%I DROP CONSTRAINT %I',
+            relationship.table_name,
+            relationship.conname
+        );
+    END LOOP;
+END;
+$$;
+"""
+PINNED_LATE_POLICY_SWEEP = """
+DO $$
+DECLARE
+    policy_row record;
+BEGIN
+    FOR policy_row IN
+        SELECT c.relname AS table_name, p.polname AS policy_name
+          FROM pg_catalog.pg_policy AS p
+          JOIN pg_catalog.pg_class AS c ON c.oid = p.polrelid
+          JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public'
+           AND c.relname IN """ + COVENANT_RELATION_LIST + """
+    LOOP
+        EXECUTE pg_catalog.format(
+            'DROP POLICY %I ON public.%I',
+            policy_row.policy_name,
+            policy_row.table_name
+        );
+    END LOOP;
+END;
+$$;
+"""
+PINNED_SCHEMA_CREATE_SWEEP = """
+DO $$
+DECLARE
+    grantee_oid oid;
+BEGIN
+    FOR grantee_oid IN
+        SELECT DISTINCT acl.grantee
+          FROM pg_catalog.pg_namespace AS namespace
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+              COALESCE(
+                  namespace.nspacl,
+                  pg_catalog.acldefault('n', namespace.nspowner)
+              )
+          ) AS acl
+         WHERE namespace.nspname = 'public'
+           AND acl.privilege_type = 'CREATE'
+           AND acl.grantee <> namespace.nspowner
+    LOOP
+        IF grantee_oid = 0 THEN
+            REVOKE CREATE ON SCHEMA public FROM PUBLIC CASCADE;
+        ELSE
+            EXECUTE pg_catalog.format(
+                'REVOKE CREATE ON SCHEMA public FROM %I CASCADE',
+                pg_catalog.pg_get_userbyid(grantee_oid)
+            );
+        END IF;
+    END LOOP;
+END;
+$$;
+"""
+PINNED_TABLE_ACL_SWEEP = """
+DO $$
+DECLARE
+    privilege_row record;
+BEGIN
+    FOR privilege_row IN
+        SELECT DISTINCT relation.relname AS table_name, acl.grantee
+          FROM pg_catalog.pg_class AS relation
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+              COALESCE(
+                  relation.relacl,
+                  pg_catalog.acldefault('r', relation.relowner)
+              )
+          ) AS acl
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN """ + COVENANT_RELATION_LIST + """
+           AND acl.grantee <> relation.relowner
+    LOOP
+        IF privilege_row.grantee = 0 THEN
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES ON TABLE public.%I FROM PUBLIC CASCADE',
+                privilege_row.table_name
+            );
+        ELSE
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES ON TABLE public.%I FROM %I CASCADE',
+                privilege_row.table_name,
+                pg_catalog.pg_get_userbyid(privilege_row.grantee)
+            );
+        END IF;
+    END LOOP;
+
+    FOR privilege_row IN
+        SELECT DISTINCT relation.relname AS table_name,
+                        attribute.attname AS column_name,
+                        acl.grantee
+          FROM pg_catalog.pg_class AS relation
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+          JOIN pg_catalog.pg_attribute AS attribute
+            ON attribute.attrelid = relation.oid
+          CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS acl
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN """ + COVENANT_RELATION_LIST + """
+           AND attribute.attnum > 0
+           AND NOT attribute.attisdropped
+           AND attribute.attacl IS NOT NULL
+           AND acl.grantee <> relation.relowner
+    LOOP
+        IF privilege_row.grantee = 0 THEN
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES (%I) ON TABLE public.%I FROM PUBLIC CASCADE',
+                privilege_row.column_name,
+                privilege_row.table_name
+            );
+        ELSE
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES (%I) ON TABLE public.%I FROM %I CASCADE',
+                privilege_row.column_name,
+                privilege_row.table_name,
+                pg_catalog.pg_get_userbyid(privilege_row.grantee)
+            );
+        END IF;
+    END LOOP;
+END;
+$$;
+"""
+# The %s placeholder takes a regprocedure rendered as text, which PostgreSQL
+# quotes; the pin keeps the query that produces it fixed.
+PINNED_FUNCTION_ACL_SWEEP = """
+DO $$
+DECLARE
+    privilege_row record;
+BEGIN
+    FOR privilege_row IN
+        SELECT DISTINCT procedure.oid::pg_catalog.regprocedure::text AS identity,
+                        acl.grantee
+          FROM pg_catalog.pg_proc AS procedure
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+              COALESCE(
+                  procedure.proacl,
+                  pg_catalog.acldefault('f', procedure.proowner)
+              )
+          ) AS acl
+         WHERE procedure.oid = ANY(ARRAY[
+                   'public.memory_touch_updated_at()'::pg_catalog.regprocedure,
+                   'public.memory_reject_mutation()'::pg_catalog.regprocedure,
+                   'public.a11oy_memory_context_matches(text,text)'::pg_catalog.regprocedure,
+                   'public.memory_lease_outbox(text,integer,integer)'::pg_catalog.regprocedure
+               ])
+           AND acl.grantee <> procedure.proowner
+    LOOP
+        IF privilege_row.grantee = 0 THEN
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES ON FUNCTION %s FROM PUBLIC CASCADE',
+                privilege_row.identity
+            );
+        ELSE
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES ON FUNCTION %s FROM %I CASCADE',
+                privilege_row.identity,
+                pg_catalog.pg_get_userbyid(privilege_row.grantee)
+            );
+        END IF;
+    END LOOP;
+END;
+$$;
+"""
+DYNAMIC_SQL_PINS = {
+    BASE_MIGRATION: (
+        (PINNED_BASE_POLICY_SWEEP, "policy sweep"),
+    ),
+    HARDENING_MIGRATION: (
+        (PINNED_SCHEMA_CREATE_SWEEP, "schema CREATE sweep"),
+        (PINNED_TABLE_ACL_SWEEP, "table and column ACL sweep"),
+        (PINNED_FUNCTION_ACL_SWEEP, "function ACL sweep"),
+    ),
+    CORRECTIVE_MIGRATION: (
+        (PINNED_EARLY_POLICY_SWEEP, "early policy sweep"),
+        (PINNED_RULE_SWEEP, "rewrite-rule sweep"),
+        (PINNED_TRIGGER_SWEEP, "trigger sweep"),
+        (PINNED_RECEIPT_FOREIGN_KEY_SWEEP, "receipt foreign-key sweep"),
+        (PINNED_LATE_POLICY_SWEEP, "late policy sweep"),
+        (PINNED_SCHEMA_CREATE_SWEEP, "schema CREATE sweep"),
+        (PINNED_TABLE_ACL_SWEEP, "table and column ACL sweep"),
+        (PINNED_FUNCTION_ACL_SWEEP, "function ACL sweep"),
+    ),
+}
+PINNED_ACCEPTANCE_ATTRIBUTE_ASSERTION = """
+    IF EXISTS (
+        SELECT 1
+          FROM pg_roles
+         WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND (
+               rolsuper
+               OR rolcreatedb
+               OR rolcreaterole
+               OR rolreplication
+               OR NOT rolinherit
+               OR rolbypassrls
+               OR rolcanlogin
+           )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant roles retain a privileged role attribute';
+    END IF;
 """
 PINNED_ACCEPTANCE_ADMIN_EXEMPTION = """
     IF EXISTS (
@@ -279,19 +798,590 @@ PINNED_ACCEPTANCE_ADMIN_EXEMPTION = """
         RAISE EXCEPTION 'Memory Covenant capability membership retained ADMIN OPTION';
     END IF;
 """
+PINNED_ACCEPTANCE_ROLE_ASSERTIONS = (
+    "DO $$\nBEGIN\n"
+    + PINNED_ACCEPTANCE_ATTRIBUTE_ASSERTION
+    + """
+    IF (
+        SELECT count(*)
+          FROM pg_roles
+         WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+    ) <> 2 THEN
+        RAISE EXCEPTION 'Memory Covenant roles are missing';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS edge
+         WHERE edge.member IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability role retained an inherited parent';
+    END IF;
+"""
+    + PINNED_ACCEPTANCE_ADMIN_EXEMPTION
+    + """
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS swept
+          JOIN pg_auth_members AS other
+            ON other.roleid = swept.roleid
+           AND other.member = swept.member
+         WHERE swept.roleid IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+           AND NOT swept.admin_option
+           AND NOT swept.inherit_option
+           AND NOT swept.set_option
+           AND (other.inherit_option OR other.set_option)
+    ) THEN
+        RAISE EXCEPTION 'A swept capability-role delegate keeps SET or INHERIT through another grant';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS edge
+         WHERE edge.roleid IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+           AND edge.set_option
+           AND NOT edge.inherit_option
+           AND NOT edge.admin_option
+           AND edge.member <> (
+               SELECT relation.relowner
+                 FROM pg_catalog.pg_class AS relation
+                WHERE relation.oid = 'public.memory_records'::pg_catalog.regclass
+           )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability membership grants SET without INHERIT';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS edge
+         WHERE edge.roleid IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM pg_roles AS grantor
+                WHERE grantor.oid = edge.grantor
+                  AND grantor.rolsuper
+           )
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM pg_auth_members AS authority
+                WHERE authority.roleid = edge.roleid
+                  AND authority.member = edge.grantor
+                  AND authority.admin_option
+           )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability membership has a grantor without ADMIN';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_database AS owned_database
+         WHERE owned_database.datname = current_database()
+           AND owned_database.datdba IN (
+               'a11oy_memory_app'::regrole,
+               'a11oy_memory_worker'::regrole
+           )
+    ) OR EXISTS (
+        SELECT 1
+          FROM pg_namespace AS owned_schema
+         WHERE owned_schema.nspowner IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability role owns the database or a schema';
+    END IF;
+END;
+$$;
+"""
+)
 ROLE_ATTRIBUTE_COLUMN = re.compile(
     r"\brol(?:super|createdb|createrole|canlogin|replication|inherit|bypassrls)\b",
     re.IGNORECASE,
 )
+SEEDED_DELEGATE_VARIABLES = (
+    "hostile_delegate",
+    "owner_delegate",
+    "foreign_delegate",
+    "signature_delegate",
+    "setonly_member",
+    "worker_login",
+    "raced_grantor",
+    "raced_member",
+)
+# YAML spellings of an if: key: plain, quoted, tagged or anchored keys, keys in
+# flow mappings, escaped double-quoted keys such as "\x69f", explicit "?" keys
+# and "<<" merge keys.
+WORKFLOW_IF_KEY = re.compile(
+    r"^[ \t]*(?:-[ \t]+)*(?:[!&]\S*[ \t]+)*[\"']?if[\"']?[ \t]*:(?:[ \t]|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+WORKFLOW_FLOW_IF_KEY = re.compile(
+    r"[{,\[][ \t]*(?:[!&]\S*[ \t]+)*[\"']?if[\"']?[ \t]*:",
+    re.IGNORECASE,
+)
+WORKFLOW_ESCAPED_KEY = re.compile(r"\"[^\"\n]*\\[^\"\n]*\"[ \t]*:(?:[ \t]|$)", re.MULTILINE)
+WORKFLOW_COMPLEX_KEY = re.compile(r"^[ \t]*(?:-[ \t]+)*\?(?:[ \t]|$)", re.MULTILINE)
+WORKFLOW_MERGE_KEY = re.compile(r"^[ \t]*(?:-[ \t]+)*<<[ \t]*:", re.MULTILINE)
+# The workflow is read as a strict YAML subset, so every key GitHub reads is a
+# key this scan sees: block mappings and sequences with plain keys; block
+# scalars opened by "key: |", "|-", ">" or ">-"; and one-line plain or quoted
+# values, "[a, b]" or "{}". Anchors, aliases, tags, quoted, explicit and merge
+# keys, non-empty flow mappings and multi-line quoted values are unreadable here
+# and refused. Keys outside the reviewed set are refused too: if:,
+# continue-on-error, defaults or container would let a failing check pass.
+WORKFLOW_KEY = r"[A-Za-z0-9_][A-Za-z0-9_.-]*"
+WORKFLOW_ENTRY = re.compile(rf"^ *(?:- +)*(?P<key>{WORKFLOW_KEY}) *:(?P<rest>(?: .*)?)$")
+WORKFLOW_ITEM = re.compile(r"^ *(?:- +)+(?P<rest>.*)$")
+WORKFLOW_BLOCK_INDICATORS = frozenset({"|", "|-", ">", ">-"})
+WORKFLOW_PLAIN_START = re.compile(r"[^\s\-?:,\[\]{}#&*!|>'\"%@`]")
+WORKFLOW_FLOW_SEQUENCE = re.compile(
+    r"\[ *(?:[A-Za-z0-9_./-]+(?: *, *[A-Za-z0-9_./-]+)*)? *\]"
+)
+WORKFLOW_ALLOWED_KEYS = frozenset(
+    {
+        "name", "on", "pull_request", "push", "workflow_dispatch", "branches",
+        "paths", "permissions", "contents", "concurrency", "group",
+        "cancel-in-progress", "jobs", "static-contract", "postgres-18-acceptance",
+        "provider-owner-acceptance", "needs", "runs-on", "timeout-minutes",
+        "services", "postgres", "image", "ports", "options", "env",
+        "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB", "EXPECTED_SOURCE_SHA",
+        "steps", "uses", "with", "egress-policy", "persist-credentials", "ref",
+        "python-version", "shell", "run", "path", "if-no-files-found",
+        "retention-days",
+    }
+)
+WORKFLOW_FORBIDDEN_KEYS = {
+    "if": "Memory Covenant workflow must not contain an if: key",
+    "continue-on-error": "Memory Covenant workflow must not contain a continue-on-error key",
+}
 
 
-def _without_comments(text: str) -> str:
-    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
-    return "\n".join(line.split("--", 1)[0] for line in text.splitlines())
+# --------------------------------------------------------------------------
+# SQL lexer.
+#
+# The rules follow PostgreSQL's scanner and psql's statement splitter:
+# standard strings with '' escapes; E'' strings with backslash escapes; B'',
+# X'' and N'' strings; double-quoted identifiers; dollar quotes ($$ or $tag$);
+# "--" comments only outside literals; nested /* */ comments; identifiers that
+# may contain "$"; and psql backslash meta-commands and :variable references,
+# which this contract rejects. Lexing assumes standard_conforming_strings=on,
+# PostgreSQL's default, and a UTF-8 client encoding; the contract rejects any
+# attempt to change either, and rejects E'' strings outright.
+#
+# psql's input layer, which reads lines before this splitter sees them, is not
+# modelled. FORBIDDEN_CHARACTER refuses every byte at which it differs (NUL,
+# CR and the other control characters), so the lexer's lines are psql's lines.
+# --------------------------------------------------------------------------
+
+
+class SqlLexError(ValueError):
+    """The text cannot be split the way psql and PostgreSQL would split it."""
+
+
+class Token(NamedTuple):
+    kind: str
+    text: str
+    tag: str = ""
+    body: str = ""
+
+
+SKIPPED_TOKENS = frozenset({"space", "comment"})
+SQL_WHITESPACE = frozenset(" \t\n\r\f\v")
+IDENT_START = re.compile(r"[A-Za-z_\u0080-\U0010ffff]")
+IDENT_REST = re.compile(r"[A-Za-z0-9_$\u0080-\U0010ffff]*")
+DOLLAR_DELIMITER = re.compile(
+    r"\$(?:[A-Za-z_\u0080-\U0010ffff][A-Za-z0-9_\u0080-\U0010ffff]*)?\$"
+)
+POSITIONAL_PARAMETER = re.compile(r"\$[0-9]+")
+NUMBER = re.compile(
+    r"0[xX][0-9A-Fa-f_]+|0[oO][0-7_]+|0[bB][01_]+"
+    r"|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9]+)?"
+)
+OPERATOR_CHARS = frozenset("+-*/<>=~!@#%^&|`?")
+# psql interpolates :name, :'name', :"name" and :{?name} outside literals.
+PSQL_VARIABLE = re.compile(
+    r":(?:[A-Za-z0-9_\u0080-\U0010ffff]+"
+    r"|'[A-Za-z0-9_\u0080-\U0010ffff]+'"
+    r"|\"[A-Za-z0-9_\u0080-\U0010ffff]+\""
+    r"|\{\?[A-Za-z0-9_\u0080-\U0010ffff]+\})"
+)
+
+
+def _scan_quoted(text: str, start: int, quote: str, *, backslash: bool) -> int:
+    index, length = start, len(text)
+    while index < length:
+        char = text[index]
+        if backslash and char == "\\":
+            index += 2
+            continue
+        if char == quote:
+            if text.startswith(quote, index + 1):
+                index += 2
+                continue
+            return index + 1
+        index += 1
+    raise SqlLexError(f"unterminated {quote} literal")
+
+
+def _is_ascii_digit(char: str) -> bool:
+    return "0" <= char <= "9"
+
+
+@functools.lru_cache(maxsize=None)
+def _lex(text: str) -> tuple[Token, ...]:
+    tokens: list[Token] = []
+    index, length = 0, len(text)
+    while index < length:
+        char = text[index]
+        follower = text[index + 1] if index + 1 < length else ""
+        if char in SQL_WHITESPACE:
+            end = index + 1
+            while end < length and text[end] in SQL_WHITESPACE:
+                end += 1
+            tokens.append(Token("space", text[index:end]))
+        elif text.startswith("--", index):
+            end = index + 2
+            while end < length and text[end] not in "\r\n":
+                end += 1
+            tokens.append(Token("comment", text[index:end]))
+        elif text.startswith("/*", index):
+            depth, end = 1, index + 2
+            while depth:
+                if end >= length:
+                    raise SqlLexError("unterminated block comment")
+                if text.startswith("/*", end):
+                    depth, end = depth + 1, end + 2
+                elif text.startswith("*/", end):
+                    depth, end = depth - 1, end + 2
+                else:
+                    end += 1
+            tokens.append(Token("comment", text[index:end]))
+        elif char in "eE" and follower == "'":
+            end = _scan_quoted(text, index + 2, "'", backslash=True)
+            tokens.append(Token("string", text[index:end]))
+        elif char in "bBxXnN" and follower == "'":
+            end = _scan_quoted(text, index + 2, "'", backslash=False)
+            tokens.append(Token("string", text[index:end]))
+        elif char in "uU" and follower == "&" and text[index + 2 : index + 3] in ("'", '"'):
+            end = _scan_quoted(text, index + 3, text[index + 2], backslash=False)
+            tokens.append(Token("unicode", text[index:end]))
+        elif char == "'":
+            end = _scan_quoted(text, index + 1, "'", backslash=False)
+            tokens.append(Token("string", text[index:end]))
+        elif char == '"':
+            end = _scan_quoted(text, index + 1, '"', backslash=False)
+            tokens.append(Token("identifier", text[index:end]))
+        elif char == "$":
+            delimiter = DOLLAR_DELIMITER.match(text, index)
+            parameter = POSITIONAL_PARAMETER.match(text, index)
+            if delimiter:
+                marker = delimiter.group(0)
+                close = text.find(marker, delimiter.end())
+                if close < 0:
+                    raise SqlLexError(f"unterminated dollar quote {marker}")
+                end = close + len(marker)
+                tokens.append(
+                    Token(
+                        "dollar",
+                        text[index:end],
+                        tag=marker[1:-1],
+                        body=text[delimiter.end() : close],
+                    )
+                )
+            elif parameter:
+                end = parameter.end()
+                tokens.append(Token("parameter", text[index:end]))
+            else:
+                end = index + 1
+                tokens.append(Token("punct", char))
+        elif IDENT_START.match(char):
+            match = IDENT_REST.match(text, index + 1)
+            end = match.end() if match else index + 1
+            tokens.append(Token("word", text[index:end]))
+        elif _is_ascii_digit(char) or (char == "." and _is_ascii_digit(follower)):
+            match = NUMBER.match(text, index)
+            end = match.end() if match and match.end() > index else index + 1
+            tokens.append(Token("number", text[index:end]))
+        elif char == "\\":
+            end = index
+            while end < length and text[end] not in "\r\n":
+                end += 1
+            tokens.append(Token("meta", text[index:end]))
+        elif char == ":":
+            if follower in (":", "="):
+                end = index + 2
+                tokens.append(Token("punct", text[index:end]))
+            elif PSQL_VARIABLE.match(text, index):
+                end = PSQL_VARIABLE.match(text, index).end()
+                tokens.append(Token("variable", text[index:end]))
+            else:
+                end = index + 1
+                tokens.append(Token("punct", char))
+        elif char in OPERATOR_CHARS:
+            end = index + 1
+            while (
+                end < length
+                and text[end] in OPERATOR_CHARS
+                and not text.startswith("--", end)
+                and not text.startswith("/*", end)
+            ):
+                end += 1
+            tokens.append(Token("operator", text[index:end]))
+        else:
+            end = index + 1
+            tokens.append(Token("punct", char))
+        index = end
+    return tuple(tokens)
+
+
+def _render(tokens: Iterable[Token], *, edges: bool = False) -> str:
+    """Collapse whitespace and comments to one space; keep literals verbatim."""
+    parts: list[str] = []
+    gap = False
+    for token in tokens:
+        if token.kind in SKIPPED_TOKENS:
+            gap = True
+            continue
+        if gap and (parts or edges):
+            parts.append(" ")
+        gap = False
+        if token.kind == "dollar":
+            marker = f"${token.tag}$"
+            parts.append(marker + _render(_lex(token.body), edges=True) + marker)
+        else:
+            parts.append(token.text)
+    if gap and edges and parts:
+        parts.append(" ")
+    return "".join(parts)
 
 
 def _normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", _without_comments(text)).strip()
+    return _render(_lex(text))
+
+
+def _signature(tokens: Iterable[Token]) -> tuple:
+    signature: list[tuple] = []
+    for token in tokens:
+        if token.kind in SKIPPED_TOKENS:
+            continue
+        if token.kind == "dollar":
+            signature.append(("dollar", token.tag, _signature(_lex(token.body))))
+        else:
+            signature.append((token.kind, token.text))
+    return tuple(signature)
+
+
+class Statement(NamedTuple):
+    tokens: tuple[Token, ...]
+    signature: tuple
+    text: str
+
+    @property
+    def do_body(self) -> tuple[Token, ...] | None:
+        """The lexed body of a plain DO $$ ... $$; statement, else None."""
+        significant = [t for t in self.tokens if t.kind not in SKIPPED_TOKENS]
+        if (
+            len(significant) == 3
+            and significant[0].kind == "word"
+            and significant[0].text.upper() == "DO"
+            and significant[1].kind == "dollar"
+            and significant[1].tag == ""
+            and significant[2].text == ";"
+        ):
+            return _lex(significant[1].body)
+        return None
+
+
+@functools.lru_cache(maxsize=None)
+def _top_level_statements(text: str) -> tuple[Statement, ...]:
+    """Split like psql: at ';' outside literals, comments and parentheses."""
+    statements: list[Statement] = []
+    current: list[Token] = []
+
+    def flush() -> None:
+        if any(token.kind not in SKIPPED_TOKENS for token in current):
+            statements.append(
+                Statement(tuple(current), _signature(current), _render(current))
+            )
+        current.clear()
+
+    depth = 0
+    for token in _lex(text):
+        if token.kind == "meta":
+            flush()
+            current.append(token)
+            flush()
+            continue
+        current.append(token)
+        if token.kind == "punct":
+            if token.text == "(":
+                depth += 1
+            elif token.text == ")":
+                depth = max(depth - 1, 0)
+            elif token.text == ";" and depth == 0:
+                flush()
+    flush()
+    return tuple(statements)
+
+
+@functools.lru_cache(maxsize=None)
+def _pinned_statement(pinned_sql: str) -> Statement:
+    statements = _top_level_statements(pinned_sql)
+    if len(statements) != 1:
+        raise ValueError("a pinned statement must be exactly one statement")
+    return statements[0]
+
+
+def _count_statement_pins(statements: Iterable[Statement], pinned_sql: str) -> int:
+    signature = _pinned_statement(pinned_sql).signature
+    return sum(1 for statement in statements if statement.signature == signature)
+
+
+def _statement_index(statements: tuple[Statement, ...], pinned_sql: str) -> int:
+    signature = _pinned_statement(pinned_sql).signature
+    for index, statement in enumerate(statements):
+        if statement.signature == signature:
+            return index
+    return -1
+
+
+def _count_body_pins(statements: Iterable[Statement], fragment_sql: str) -> int:
+    """Count a pinned block only inside the body of a top-level DO statement."""
+    needle = _signature(_lex(fragment_sql))
+    width = len(needle)
+    total = 0
+    for statement in statements:
+        body = statement.do_body
+        if body is None or not width:
+            continue
+        haystack = _signature(body)
+        total += sum(
+            1
+            for start in range(len(haystack) - width + 1)
+            if haystack[start : start + width] == needle
+        )
+    return total
+
+
+def _remainder(statements: Iterable[Statement], pinned: Iterable[str]) -> str:
+    """Every top-level statement except the pinned ones, as normalized text."""
+    excluded = {_pinned_statement(sql).signature for sql in pinned}
+    return " ".join(
+        statement.text for statement in statements if statement.signature not in excluded
+    )
+
+
+def _require_statement_pin(
+    statements: tuple[Statement, ...],
+    pinned_sql: str,
+    expected: int,
+    label: str,
+    errors: list[str],
+) -> None:
+    actual = _count_statement_pins(statements, pinned_sql)
+    if actual != expected:
+        errors.append(f"{label}: expected {expected} exact copy, found {actual}")
+
+
+def _require_body_pin(
+    statements: tuple[Statement, ...],
+    fragment_sql: str,
+    expected: int,
+    label: str,
+    errors: list[str],
+) -> None:
+    actual = _count_body_pins(statements, fragment_sql)
+    if actual != expected:
+        errors.append(
+            f"{label}: expected {expected} exact copy inside a top-level DO body, found {actual}"
+        )
+
+
+def _check_nested_literals(label: str, tokens: Iterable[Token], errors: list[str]) -> bool:
+    """Dollar-quoted bodies are code here: lex them and apply the same rules."""
+    clean = True
+    for token in tokens:
+        if token.kind == "dollar":
+            if token.tag:
+                errors.append(
+                    f"{label} uses a tagged dollar quote ${token.tag}$; only $$ is allowed"
+                )
+            try:
+                body = _lex(token.body)
+            except SqlLexError as exc:
+                errors.append(f"{label} has a dollar-quoted body that cannot be lexed: {exc}")
+                clean = False
+                continue
+            clean = _check_nested_literals(label, body, errors) and clean
+        elif token.kind == "meta":
+            errors.append(
+                f"{label} contains a psql meta-command: {token.text.strip()[:40]}"
+            )
+        elif token.kind == "unicode":
+            errors.append(f"{label} contains a Unicode-escape literal or identifier")
+        elif token.kind == "string" and token.text[:1] in ("e", "E"):
+            # A backslash escape can spell any text, so a check that reads the
+            # literal's characters would not see its value.
+            errors.append(f"{label} contains an E'' escape-string literal")
+    return clean
+
+
+def _validate_lexical(
+    label: str,
+    text: str,
+    errors: list[str],
+    *,
+    psql_preamble: str | None = None,
+) -> bool:
+    """Reject SQL whose meaning a token-level contract cannot see. False if unlexable."""
+    try:
+        tokens = _lex(text)
+    except SqlLexError as exc:
+        errors.append(f"{label} cannot be lexed: {exc}")
+        return False
+    significant = [token for token in tokens if token.kind not in SKIPPED_TOKENS]
+    nested: list[Token] = []
+    for position, token in enumerate(significant):
+        if token.kind == "meta":
+            if not (
+                psql_preamble is not None
+                and position == 0
+                and token.text.rstrip() == psql_preamble
+            ):
+                errors.append(
+                    f"{label} contains a psql meta-command: {token.text.strip()[:40]}"
+                )
+        elif token.kind == "variable":
+            errors.append(f"{label} contains a psql variable reference")
+        elif token.kind == "word" and token.text.upper() == "ATOMIC":
+            errors.append(f"{label} must not use BEGIN ATOMIC bodies")
+        else:
+            nested.append(token)
+    if not _check_nested_literals(label, nested, errors):
+        return False
+    if re.search(
+        r"standard_conforming_strings|backslash_quote|escape_string_warning",
+        _render(tokens),
+        re.IGNORECASE,
+    ):
+        errors.append(f"{label} must not change how string literals are lexed")
+    # psql lexes each later line in the new client encoding, where a
+    # multi-byte character can absorb the byte after it.
+    if re.search(
+        r"client_encoding|\bSET\s+(?:(?:SESSION|LOCAL)\s+)?NAMES\b",
+        _render(tokens),
+        re.IGNORECASE,
+    ):
+        errors.append(f"{label} must not change the client encoding")
+    return True
 
 
 def _read_utf8_file(root: Path, relative: Path, errors: list[str]) -> str:
@@ -310,10 +1400,19 @@ def _read_utf8_file(root: Path, relative: Path, errors: list[str]) -> str:
     if raw.startswith(b"\xef\xbb\xbf") or b"\xef\xbb\xbf" in raw:
         errors.append(f"UTF-8 BOM is forbidden: {relative.as_posix()}")
     try:
-        return raw.decode("utf-8")
+        text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         errors.append(f"invalid UTF-8 in {relative.as_posix()}: {exc}")
         return ""
+    forbidden = FORBIDDEN_CHARACTER.search(text)
+    if forbidden:
+        line = text.count("\n", 0, forbidden.start()) + 1
+        errors.append(
+            f"control character U+{ord(forbidden.group()):04X} is forbidden: "
+            f"{relative.as_posix()} line {line}"
+        )
+        return ""
+    return text
 
 
 def _require_count(
@@ -333,14 +1432,6 @@ def _require_count(
 def _require_token(token: str, text: str, label: str, errors: list[str]) -> None:
     if token.upper() not in text.upper():
         errors.append(f"missing {label}")
-
-
-def _require_pinned(
-    pinned_sql: str, normalized_sql: str, expected: int, label: str, errors: list[str]
-) -> None:
-    actual = normalized_sql.count(_normalize(pinned_sql))
-    if actual != expected:
-        errors.append(f"{label}: expected {expected} exact copy, found {actual}")
 
 
 def _statements(normalized_sql: str) -> Iterable[str]:
@@ -849,8 +1940,279 @@ def _validate_append_only(base: str, corrective: str, errors: list[str]) -> None
         )
 
 
+def _validate_principal_preamble(
+    statements: tuple[Statement, ...], label: str, errors: list[str]
+) -> None:
+    # The principal must see every row before any preflight or foreign-key
+    # validation runs under FORCE RLS, and must own schema public so the schema
+    # sweep cannot degrade to warnings. Both checks open the transaction, as the
+    # first statement after BEGIN and the safe search_path.
+    expected = _top_level_statements(
+        PINNED_TRANSACTION_PREAMBLE + PINNED_PRINCIPAL_PRECONDITION
+    )
+    opening = tuple(statement.signature for statement in statements[: len(expected)])
+    if opening != tuple(statement.signature for statement in expected):
+        errors.append(
+            f"{label} must open with the pinned migration-principal precondition"
+        )
+    _require_statement_pin(
+        statements,
+        PINNED_PRINCIPAL_PRECONDITION,
+        1,
+        f"{label} pinned migration-principal precondition",
+        errors,
+    )
+
+
+def _validate_remainder(remainder: str, label: str, errors: list[str]) -> None:
+    # Outside the pinned statements, nothing may read, assign or reuse role
+    # attributes, create a role, alter a capability role or grant one. One
+    # assignment to the observed record, or a reordered ALTER ROLE ...
+    # NOSUPERUSER, would otherwise pass every token check.
+    if ROLE_ATTRIBUTE_COLUMN.search(remainder):
+        errors.append(
+            f"{label} role-attribute columns appear outside the pinned statements"
+        )
+    if re.search(r"\bobserved\s*(?:\.|:=|=)|\bINTO\s+observed\b", remainder, re.IGNORECASE):
+        errors.append(
+            f"{label} the observed attribute record is used outside the pinned statements"
+        )
+    if re.search(
+        r"\bALTER\s+(?:ROLE|USER|GROUP)\s+\"?(?:a11oy_memory_app|a11oy_memory_worker)\b",
+        remainder,
+        re.IGNORECASE,
+    ):
+        errors.append(
+            f"{label} capability roles are altered outside the pinned convergence"
+        )
+    if re.search(r"\bCREATE\s+(?:ROLE|USER|GROUP)\b", remainder, re.IGNORECASE):
+        errors.append(f"{label} roles are created outside the pinned convergence")
+    if re.search(
+        r"\bGRANT\b(?:(?!\bON\b|\bTO\b|;).)*\b(?:a11oy_memory_app|a11oy_memory_worker)\b",
+        remainder,
+        re.IGNORECASE,
+    ):
+        errors.append(f"{label} capability roles are granted outside the pinned sweep")
+    # A format string names no role, so a regular expression on role names
+    # cannot see a dynamic membership change. Only the pinned sweeps make one.
+    # format() also takes positional, flagged and width-bearing specifiers
+    # such as %1$I, %-10s and %*2$I. _validate_dynamic_sql refuses every other
+    # dynamic route; this pattern remains as a second, textual check.
+    if re.search(
+        r"\b(?:GRANT|REVOKE)\s+(?:(?:ADMIN|INHERIT|SET)\s+OPTION\s+FOR\s+)?"
+        r"%(?:[0-9]+\$)?-?(?:[0-9]+|\*(?:[0-9]+\$)?)?[ILs]\s+(?:TO|FROM)\b",
+        remainder,
+        re.IGNORECASE,
+    ):
+        errors.append(f"{label} role memberships change outside the pinned sweeps")
+
+
+MIGRATION_LABELS = {
+    BASE_MIGRATION: "base",
+    HARDENING_MIGRATION: "hardening",
+    CORRECTIVE_MIGRATION: "corrective",
+}
+
+
+def _pinned_statements_for(path: Path) -> tuple[str, ...]:
+    dynamic = tuple(sql for sql, _ in DYNAMIC_SQL_PINS[path])
+    if path == BASE_MIGRATION:
+        return (PINNED_PRINCIPAL_PRECONDITION,) + dynamic
+    return (
+        PINNED_PRINCIPAL_PRECONDITION,
+        *(
+            _role_convergence_statement(*roles)
+            for roles in ROLE_CONVERGENCE_LAYOUT[MIGRATION_LABELS[path]]
+        ),
+        PINNED_OUTBOUND_SWEEP_STATEMENT,
+        PINNED_INBOUND_SWEEP_STATEMENT,
+        PINNED_CONVERGENCE_ASSERTIONS,
+        PINNED_LEASE_FUNCTION,
+    ) + dynamic
+
+
+def _flatten(tokens: Iterable[Token], depth: int = 0) -> Iterable[tuple[Token, int]]:
+    """Significant tokens, descending into dollar-quoted bodies, with their depth."""
+    for token in tokens:
+        if token.kind in SKIPPED_TOKENS:
+            continue
+        if token.kind == "dollar":
+            yield from _flatten(_lex(token.body), depth + 1)
+        else:
+            yield token, depth
+
+
+def _is_word(token: Token | None, *words: str) -> bool:
+    return token is not None and token.kind == "word" and token.text.upper() in words
+
+
+def _leading_words(statement: Statement, count: int) -> tuple[str, ...]:
+    words: list[str] = []
+    for token in statement.tokens:
+        if token.kind in SKIPPED_TOKENS:
+            continue
+        if token.kind != "word" or len(words) == count:
+            break
+        words.append(token.text.upper())
+    return tuple(words)
+
+
+def _creates_trigger(statement: Statement) -> bool:
+    words = _leading_words(statement, 5)
+    rest = words[1:] if words[:1] == ("CREATE",) else ()
+    if rest[:2] == ("OR", "REPLACE"):
+        rest = rest[2:]
+    if rest[:1] in (("CONSTRAINT",), ("EVENT",)):
+        rest = rest[1:]
+    return rest[:1] == ("TRIGGER",)
+
+
+def _runs_dynamic_sql(statement: Statement, flat: list[tuple[Token, int]]) -> bool:
+    trigger = _creates_trigger(statement)
+    for index, (token, depth) in enumerate(flat):
+        if not _is_word(token, "EXECUTE"):
+            continue
+        following = flat[index + 1][0] if index + 1 < len(flat) else None
+        # The EXECUTE privilege in GRANT or REVOKE is followed by ON or a comma;
+        # an expression that PL/pgSQL could run cannot start with either.
+        if _is_word(following, "ON") or (
+            following is not None and following.kind == "punct" and following.text == ","
+        ):
+            continue
+        if trigger and depth == 0 and _is_word(following, "FUNCTION", "PROCEDURE"):
+            continue
+        return True
+    return False
+
+
+def _changes_membership(flat: list[tuple[Token, int]]) -> bool:
+    """A GRANT or REVOKE with no ON in its own statement, or ALTER GROUP."""
+    for index, (token, depth) in enumerate(flat):
+        previous = flat[index - 1][0] if index else None
+        following = flat[index + 1][0] if index + 1 < len(flat) else None
+        if _is_word(token, "ALTER") and _is_word(following, "GROUP"):
+            return True
+        if not _is_word(token, "GRANT", "REVOKE"):
+            continue
+        if (
+            _is_word(token, "GRANT")
+            and _is_word(previous, "WITH", "REVOKE")
+            and _is_word(following, "OPTION")
+        ):
+            continue
+        # The statement ends at its semicolon or at the edge of the body that
+        # holds it; an ON beyond either belongs to another statement.
+        for later, later_depth in flat[index + 1 :]:
+            if later_depth != depth or (later.kind == "punct" and later.text == ";"):
+                return True
+            if _is_word(later, "ON"):
+                break
+        else:
+            return True
+    return False
+
+
+def _literal_changes_membership(token: Token) -> bool:
+    """A string literal whose SQL would begin with GRANT, REVOKE or ALTER GROUP."""
+    value = token.text[token.text.index("'") + 1 : -1].replace("''", "'")
+    try:
+        inner = [item for item in _lex(value) if item.kind not in SKIPPED_TOKENS]
+    except SqlLexError:
+        return (
+            re.match(r"\s*(?:GRANT|REVOKE|ALTER\s+GROUP)\b", value, re.IGNORECASE)
+            is not None
+        )
+    return bool(inner) and (
+        _is_word(inner[0], "GRANT", "REVOKE")
+        or (_is_word(inner[0], "ALTER") and len(inner) > 1 and _is_word(inner[1], "GROUP"))
+    )
+
+
+def _has_unlexed_body(statement: Statement) -> bool:
+    """A DO or function body that the lexer would read as a string, not code."""
+    words = _leading_words(statement, 4)
+    if words[:1] == ("DO",):
+        return statement.do_body is None
+    rest = words[1:] if words[:1] == ("CREATE",) else ()
+    if rest[:2] == ("OR", "REPLACE"):
+        rest = rest[2:]
+    if rest[:1] not in (("FUNCTION",), ("PROCEDURE",)):
+        return False
+    top = [token for token in statement.tokens if token.kind not in SKIPPED_TOKENS]
+    dollars = [index for index, token in enumerate(top) if token.kind == "dollar"]
+    languages = [
+        top[index + 1] for index, token in enumerate(top[:-1]) if _is_word(token, "LANGUAGE")
+    ]
+    return not (
+        len(dollars) == 1
+        and dollars[0] > 0
+        and _is_word(top[dollars[0] - 1], "AS")
+        and len(languages) == 1
+        and _is_word(languages[0], "PLPGSQL", "SQL")
+    )
+
+
+def _validate_dynamic_sql(migrations: dict[Path, str], errors: list[str]) -> None:
+    # Outside the pinned statements nothing may run SQL built at run time,
+    # change a role membership, or hide code where the lexer reads a string.
+    # A membership change that the pinned sweeps did not make cannot be told
+    # apart, in the catalog, from a runtime login the owner granted, so no
+    # check that runs in a database can catch one; only this static rule can.
+    for path, text in migrations.items():
+        label = MIGRATION_LABELS[path]
+        statements = _top_level_statements(text)
+        for pinned_sql, name in DYNAMIC_SQL_PINS[path]:
+            _require_statement_pin(statements, pinned_sql, 1, f"{label} pinned {name}", errors)
+        pinned_signatures = {
+            _pinned_statement(sql).signature for sql in _pinned_statements_for(path)
+        }
+        problems: set[str] = set()
+        for statement in statements:
+            if statement.signature in pinned_signatures:
+                continue
+            flat = list(_flatten(statement.tokens))
+            if _runs_dynamic_sql(statement, flat):
+                problems.add(f"{label} runs dynamic SQL outside the pinned statements")
+            if _changes_membership(flat):
+                problems.add(f"{label} role memberships change outside the pinned sweeps")
+            if any(
+                token.kind == "string" and _literal_changes_membership(token)
+                for token, _ in flat
+            ):
+                problems.add(
+                    f"{label} a string literal outside the pinned statements "
+                    "begins with GRANT or REVOKE"
+                )
+            if _has_unlexed_body(statement):
+                problems.add(
+                    f"{label} DO and function bodies must be $$-quoted plpgsql or sql"
+                )
+            if any(_is_word(token, "COPY", "LOAD") for token, _ in flat):
+                problems.add(f"{label} must not run COPY or LOAD")
+        errors.extend(sorted(problems))
+
+
+def _validate_base_principal(base: str, errors: list[str]) -> None:
+    statements = _top_level_statements(base)
+    _validate_principal_preamble(statements, "base", errors)
+    sql = _normalize(base)
+    for message in PRINCIPAL_PRECONDITION_MESSAGES:
+        _require_count(
+            r"\bRAISE\s+EXCEPTION\s+USING\s+ERRCODE\s*=\s*'42501'\s*,\s*"
+            rf"MESSAGE\s*=\s*'{re.escape(message)}'",
+            sql,
+            1,
+            f"base fail-closed convergence assertion ({message[:40]})",
+            errors,
+        )
+    _validate_remainder(
+        _remainder(statements, (PINNED_PRINCIPAL_PRECONDITION,)), "base", errors
+    )
+
+
 def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> None:
     sql = _normalize(sql_text)
+    statements = _top_level_statements(sql_text)
     attrs = r"\s+".join(ROLE_ATTRIBUTES)
     for role in ("a11oy_memory_app", "a11oy_memory_worker"):
         _require_count(
@@ -899,9 +2261,9 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
             f"{label} fail-closed superuser-attribute convergence for {role}",
             errors,
         )
-        _require_pinned(
+        _require_body_pin(
+            statements,
             PINNED_ROLE_CONVERGENCE.format(role=role),
-            sql,
             1,
             f"{label} pinned attribute convergence for {role}",
             errors,
@@ -1020,63 +2382,53 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
                 f"{label} membership convergence assertions must follow both sweeps"
             )
 
-    # The principal must see every row before any preflight or foreign-key
-    # validation runs under FORCE RLS, and must own schema public so the schema
-    # sweep cannot degrade to warnings. Both checks open the transaction.
-    if not sql.startswith(
-        _normalize(PINNED_TRANSACTION_PREAMBLE + PINNED_PRINCIPAL_PRECONDITION)
-    ):
-        errors.append(
-            f"{label} must open with the pinned migration-principal precondition"
-        )
-    _require_pinned(
-        PINNED_PRINCIPAL_PRECONDITION,
-        sql,
-        1,
-        f"{label} pinned migration-principal precondition",
-        errors,
+    _validate_principal_preamble(statements, label, errors)
+    role_statements = tuple(
+        _role_convergence_statement(*roles) for roles in ROLE_CONVERGENCE_LAYOUT[label]
     )
-    for pinned, name in (
+    for pinned in role_statements:
+        _require_statement_pin(
+            statements,
+            pinned,
+            1,
+            f"{label} pinned attribute convergence statement",
+            errors,
+        )
+    for fragment, name in (
         (PINNED_OUTBOUND_SWEEP, "outbound membership sweep"),
         (PINNED_INBOUND_SWEEP, "inbound delegation sweep"),
+    ):
+        _require_body_pin(statements, fragment, 1, f"{label} pinned {name}", errors)
+    for pinned, name in (
+        (PINNED_OUTBOUND_SWEEP_STATEMENT, "outbound membership sweep statement"),
+        (PINNED_INBOUND_SWEEP_STATEMENT, "inbound delegation sweep statement"),
         (PINNED_CONVERGENCE_ASSERTIONS, "membership and attribute convergence assertions"),
     ):
-        _require_pinned(pinned, sql, 1, f"{label} pinned {name}", errors)
-    if sql.find(_normalize(PINNED_CONVERGENCE_ASSERTIONS)) < sql.find(
-        _normalize(PINNED_INBOUND_SWEEP)
-    ):
+        _require_statement_pin(statements, pinned, 1, f"{label} pinned {name}", errors)
+    assertion_index = _statement_index(statements, PINNED_CONVERGENCE_ASSERTIONS)
+    sweep_indexes = (
+        _statement_index(statements, PINNED_OUTBOUND_SWEEP_STATEMENT),
+        _statement_index(statements, PINNED_INBOUND_SWEEP_STATEMENT),
+    )
+    if assertion_index >= 0 and any(index > assertion_index for index in sweep_indexes):
         errors.append(
             f"{label} membership convergence assertions must follow both sweeps"
         )
 
-    # Outside the pinned statements, nothing may read, assign or reuse role
-    # attributes, and nothing may alter a capability role. One assignment to
-    # the observed record, or a reordered ALTER ROLE ... NOSUPERUSER, would
-    # otherwise pass every token check.
-    remainder = sql
-    for pinned in (
-        PINNED_PRINCIPAL_PRECONDITION,
-        PINNED_ROLE_CONVERGENCE.format(role="a11oy_memory_app"),
-        PINNED_ROLE_CONVERGENCE.format(role="a11oy_memory_worker"),
-        PINNED_CONVERGENCE_ASSERTIONS,
-    ):
-        remainder = remainder.replace(_normalize(pinned), " ")
-    if ROLE_ATTRIBUTE_COLUMN.search(remainder):
-        errors.append(
-            f"{label} role-attribute columns appear outside the pinned statements"
-        )
-    if re.search(r"\bobserved\s*(?:\.|:=|=)|\bINTO\s+observed\b", remainder, re.IGNORECASE):
-        errors.append(
-            f"{label} the observed attribute record is used outside the pinned statements"
-        )
-    if re.search(
-        r"\bALTER\s+(?:ROLE|USER)\s+\"?(?:a11oy_memory_app|a11oy_memory_worker)\b",
-        remainder,
-        re.IGNORECASE,
-    ):
-        errors.append(
-            f"{label} capability roles are altered outside the pinned convergence"
-        )
+    _validate_remainder(
+        _remainder(
+            statements,
+            (
+                PINNED_PRINCIPAL_PRECONDITION,
+                *role_statements,
+                PINNED_OUTBOUND_SWEEP_STATEMENT,
+                PINNED_INBOUND_SWEEP_STATEMENT,
+                PINNED_CONVERGENCE_ASSERTIONS,
+            ),
+        ),
+        label,
+        errors,
+    )
     for table in ALL_COVENANT_TABLES:
         if sql.count(f"'{table}'") < 1:
             errors.append(f"{label} table ACL sweep omits {table}")
@@ -1199,7 +2551,16 @@ def _validate_worker_function(sql_text: str, label: str, errors: list[str]) -> N
         "bounded item limit": r"p_limit\s*<\s*1\s+OR\s+p_limit\s*>\s*500(?!\d)",
         "NULL lease duration rejection": r"p_lease_seconds\s+IS\s+NULL",
         "bounded lease duration": r"p_lease_seconds\s*<\s*1\s+OR\s+p_lease_seconds\s*>\s*3600(?!\d)",
-        "worker membership check": r"pg_catalog\.pg_has_role\s*\(\s*session_user\s*,\s*'a11oy_memory_worker'\s*,\s*'member'\s*\)",
+        # MEMBER is true for any membership row in PostgreSQL 16 and later, so
+        # only USAGE (privileges inherited from the worker role) admits a lease.
+        "worker inheritance check": (
+            r"IF\s+NOT\s+EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+pg_catalog\.pg_roles\s+"
+            r"WHERE\s+rolname\s*=\s*'a11oy_memory_worker'\s*\)\s+OR\s+NOT\s+"
+            r"pg_catalog\.pg_has_role\s*\(\s*session_user\s*,\s*'a11oy_memory_worker'\s*,\s*"
+            r"'USAGE'\s*\)\s+THEN\s+RAISE\s+EXCEPTION\s+USING\s+ERRCODE\s*=\s*'42501'\s*,\s*"
+            r"MESSAGE\s*=\s*'session user does not inherit a11oy_memory_worker'\s*;\s*"
+            r"END\s+IF\s*;"
+        ),
         "schema-bound outbox": r"\bFROM\s+public\.memory_outbox\b",
         "locked candidate selection": r"FOR\s+UPDATE\s+SKIP\s+LOCKED",
         "request limit": r"LIMIT\s+p_limit",
@@ -1212,6 +2573,17 @@ def _validate_worker_function(sql_text: str, label: str, errors: list[str]) -> N
     for requirement, pattern in required.items():
         if re.search(pattern, body, re.IGNORECASE) is None:
             errors.append(f"{label} memory_lease_outbox missing {requirement}")
+    if re.search(r"pg_has_role\s*\([^;]*?'member'", body, re.IGNORECASE):
+        errors.append(
+            f"{label} memory_lease_outbox must not admit a session user by MEMBER"
+        )
+    _require_statement_pin(
+        _top_level_statements(sql_text),
+        PINNED_LEASE_FUNCTION,
+        1,
+        f"{label} pinned bounded lease function",
+        errors,
+    )
 
 
 def _validate_schema_binding(migrations: dict[Path, str], errors: list[str]) -> None:
@@ -1239,10 +2611,107 @@ def _validate_forbidden_sql(migrations: dict[Path, str], errors: list[str]) -> N
         "RLS disablement": r"\bALTER\s+TABLE\s+(?:public\.)?memory_[a-z0-9_]+\s+DISABLE\s+ROW\s+LEVEL\s+SECURITY\b",
         "row_security off": r"\bSET\s+row_security\s*=\s*off\b",
         "extension installation": r"\bCREATE\s+EXTENSION\b",
+        # CURRENT_USER names the trusted principal in the precondition and in
+        # every OWNER TO; nothing may switch it mid-migration.
+        "role switch": (
+            r"\b(?:SET|RESET)\s+(?:(?:LOCAL|SESSION)\s+)?(?:ROLE|SESSION\s+AUTHORIZATION)\b"
+            r"|\bset_config\s*\(\s*'(?:role|session_authorization)'"
+        ),
+        # Ownership is a privilege path that pg_auth_members does not show, and
+        # a statement after the assertion block would never meet that check.
+        "ownership passed to a capability role": (
+            r"\b(?:OWNER\s+TO|AUTHORIZATION)\s+\"?(?:a11oy_memory_app|a11oy_memory_worker)\b"
+        ),
+        "ownership reassignment": r"\bREASSIGN\s+OWNED\b",
     }
     for label, pattern in forbidden.items():
         if re.search(pattern, sql, re.IGNORECASE):
             errors.append(f"forbidden migration operation: {label}")
+
+
+def _workflow_value(rest: str) -> str | None:
+    """A structure line's value without its comment, or None if unreadable here."""
+    value = rest.strip(" ")
+    if not value or value.startswith("#"):
+        return ""
+    head = value.split(" #", 1)[0].rstrip(" ")
+    if head in WORKFLOW_BLOCK_INDICATORS:
+        return head
+    if value[0] == "'":
+        whole = re.match(r"'(?:[^']|'')*'", value)
+    elif value[0] == '"':
+        whole = re.match(r'"[^"\\]*"', value)
+    elif value[0] == "[":
+        whole = WORKFLOW_FLOW_SEQUENCE.match(value)
+    elif value[0] == "{":
+        whole = re.match(r"\{ *\}", value)
+    elif WORKFLOW_PLAIN_START.match(value):
+        return None if ": " in head or head.endswith(":") else head
+    else:
+        return None
+    if whole is None:
+        return None
+    tail = value[whole.end() :].strip(" ")
+    return whole.group(0) if not tail or tail.startswith("#") else None
+
+
+def _validate_workflow_structure(text: str, errors: list[str]) -> None:
+    if "\t" in text:
+        errors.append("Memory Covenant workflow must not contain a tab character")
+    problems: list[str] = []
+    lines = text.split("\n")
+    index = 0
+    while index < len(lines):
+        number, line = index + 1, lines[index]
+        index += 1
+        if not line.strip(" ") or line.lstrip(" ").startswith("#"):
+            continue
+        unreadable = (
+            f"Memory Covenant workflow line {number} is outside the YAML subset "
+            "this validator reads"
+        )
+        entry = WORKFLOW_ENTRY.match(line)
+        if entry is None:
+            item = WORKFLOW_ITEM.match(line)
+            value = _workflow_value(item.group("rest")) if item else None
+            if value is None or value in WORKFLOW_BLOCK_INDICATORS:
+                problems.append(unreadable)
+            continue
+        key = entry.group("key")
+        value = _workflow_value(entry.group("rest"))
+        if value is None:
+            problems.append(unreadable)
+            continue
+        if key.lower() in WORKFLOW_FORBIDDEN_KEYS:
+            problems.append(WORKFLOW_FORBIDDEN_KEYS[key.lower()])
+        elif key not in WORKFLOW_ALLOWED_KEYS:
+            problems.append(
+                f"Memory Covenant workflow key {key!r} on line {number} is outside "
+                "the reviewed key set"
+            )
+        # A shell template such as "true {0}" would run something other than
+        # the step's script and exit 0.
+        if key == "shell" and value != "bash":
+            problems.append("Memory Covenant workflow steps must run with shell: bash")
+        if value not in WORKFLOW_BLOCK_INDICATORS:
+            continue
+        # A block scalar's text is every following line that is blank or at
+        # least as indented as its first non-blank line, provided that line is
+        # indented past the key, which is how YAML ends one.
+        probe = index
+        while probe < len(lines) and not lines[probe].strip(" "):
+            probe += 1
+        if probe == len(lines):
+            continue
+        indent = len(lines[probe]) - len(lines[probe].lstrip(" "))
+        if indent <= entry.start("key"):
+            continue
+        while index < len(lines) and (
+            not lines[index].strip(" ")
+            or len(lines[index]) - len(lines[index].lstrip(" ")) >= indent
+        ):
+            index += 1
+    errors.extend(dict.fromkeys(problems))
 
 
 def _validate_workflow(text: str, errors: list[str]) -> None:
@@ -1419,8 +2888,8 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "provider-owner acceptance evidence": (
             "provider-owner-acceptance.log"
         ),
-        "run-unique hostile delegate": (
-            'hostile_delegate="a11oy_hostile_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"'
+        "randomly named hostile delegate": (
+            'hostile_delegate="$(random_role)"'
         ),
         "run-unique hostile delegate keeps neither ADMIN, INHERIT nor SET": (
             'test "$hostile_delegate_swept_count" = "2"'
@@ -1438,7 +2907,7 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
             'test "$owner_delegate_swept_count" = "1"'
         ),
         "expected refusals must fail the migration": (
-            'if apply_as "$principal" "$migration" > "$out" 2>&1; then'
+            'if apply_as "$principal" "$migration" "$database" > "$out" 2>&1; then'
         ),
         "superuser-attribute refusal": (
             "'a11oy_memory_worker holds an attribute this migration principal cannot clear'"
@@ -1451,14 +2920,145 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "refusals roll back and the owner re-applies": (
             "--- every refusal rolled back; the owner re-applies cleanly ---"
         ),
+        "lease-guard probe marker": (
+            "=== prove the lease guard requires an inherited worker role ==="
+        ),
+        "swept delegate refused by the lease guard": (
+            "evidence/memory-covenant-v2/swept-delegate-lease.log"
+        ),
+        "SET-only member refused by the lease guard": (
+            "evidence/memory-covenant-v2/set-only-lease.log"
+        ),
+        "lease guard refusal message": f"'{LEASE_GUARD_MESSAGE}'",
+        "inheriting worker login still leases": (
+            'test "$inherited_lease" = "lease-guard-event:inherited-worker"'
+        ),
+        "SET-only member refused by the migration": f"'{SET_ONLY_MESSAGE}'",
+        "SET-only member refused by the acceptance": f"'{ACCEPTANCE_SET_ONLY_MESSAGE}'",
+        "database-ownership marker": (
+            "=== prove capability-role database ownership fails closed ==="
+        ),
+        "capability role made the database owner": (
+            "ALTER DATABASE memory_covenant OWNER TO a11oy_memory_app"
+        ),
+        "ownership refused by the migrations": f"'{OWNERSHIP_MESSAGE}'",
+        "ownership refused by the acceptance": f"'{ACCEPTANCE_OWNERSHIP_MESSAGE}'",
+        "every state refusal also runs against the corrective alone": (
+            'for migration in "$hardening" "$corrective"; do\n'
+            '              expect_refusal a11oy_memory_provider_owner "$migration" "$message"'
+        ),
+        "corrective alone converges clearable deviations": (
+            'test "$corrective_attribute_deviation_count" = "0"'
+        ),
+        "SET-only member fixture": (
+            "GRANT a11oy_memory_worker TO ${setonly_member} WITH INHERIT FALSE, SET TRUE"
+        ),
+        "raced grant made by a delegate that held ADMIN": (
+            'psql -X -U "$raced_grantor" -d memory_covenant_provider -v ON_ERROR_STOP=1 \\\n'
+            '            -c "GRANT a11oy_memory_worker TO ${raced_member}"'
+        ),
+        "raced grantor reduced to the swept shape": (
+            "UPDATE pg_catalog.pg_auth_members SET admin_option = false, "
+            "inherit_option = false, set_option = false WHERE roleid = "
+            "'a11oy_memory_worker'::regrole AND member = '${raced_grantor}'::regrole"
+        ),
+        "raced end state present before the refusal": (
+            'test "$raced_row_count" = "1"'
+        ),
+        "raced grant refused by the migrations": f"'{GRANTOR_MESSAGE}'",
+        "raced grant refused by the acceptance": f"'{ACCEPTANCE_GRANTOR_MESSAGE}'",
+        "schema owned by a capability role": (
+            "CREATE SCHEMA ${capability_schema} AUTHORIZATION a11oy_memory_app"
+        ),
+        "provider database owned by a capability role": (
+            "ALTER DATABASE memory_covenant_provider OWNER TO a11oy_memory_app"
+        ),
+        "base migration refuses principals too": (
+            'for migration in "$base" "$hardening" "$corrective"; do'
+        ),
+        "database-owning principal without BYPASSRLS": (
+            "CREATE DATABASE memory_covenant_unbypassed OWNER a11oy_memory_unbypassed_owner"
+        ),
+        "database-owning principal owns schema public": (
+            'test "$unbypassed_owner_owns_public" = "t"'
+        ),
+        "database-owning principal refused for row security": (
+            '"$ev/refusal-row-security-database-owner-${name}.log" \\\n'
+            "              memory_covenant_unbypassed"
+        ),
+        "provider owner meets a legacy cross-domain receipt": (
+            'expect_refusal a11oy_memory_provider_owner "$corrective" \\\n'
+            "            'memory_query_audit contains a cross-domain receipt reference'"
+        ),
     }
     for label, token in required.items():
         _require_token(token, text, f"workflow {label}", errors)
+    _require_count(
+        r"^[ \t]*expect_state_refusal[ \t]+(?:\\$|')",
+        text,
+        8,
+        "workflow state refusals run against both migrations",
+        errors,
+        flags=re.MULTILINE,
+    )
+    _require_count(
+        re.escape("\"$(od -An -N8 -tx1 /dev/urandom | tr -d ' \\n')\""),
+        text,
+        2,
+        "workflow random delegate names in both database jobs",
+        errors,
+        flags=0,
+    )
+    _require_count(
+        re.escape("printf '%s%s' \"${letters:$((RANDOM % 26)):1}\""),
+        text,
+        2,
+        "workflow random first letter in both database jobs",
+        errors,
+        flags=0,
+    )
+    # Delegates are named at random and can log in, so a sweep that skips a
+    # fixed fixture name or NOLOGIN roles still meets them. The names still
+    # follow a pattern, and CI-only state is visible to the migrations, so a
+    # filter keyed to either passes these jobs; only _validate_dynamic_sql and
+    # the pins refuse such code.
+    for variable in SEEDED_DELEGATE_VARIABLES:
+        assignments = re.findall(rf"(?m)^[ \t]*{variable}=(.*)$", text)
+        if not assignments:
+            errors.append(f"workflow seeded delegate {variable} is missing")
+        for value in assignments:
+            if value.strip() != '"$(random_role)"':
+                errors.append(
+                    f"workflow seeded delegate {variable} must be named by random_role"
+                )
+        if not re.search(rf"\bCREATE\s+ROLE\s+\$\{{{variable}\}}\s+LOGIN\b", text):
+            errors.append(f"workflow seeded delegate {variable} must be able to log in")
+        if re.search(rf"\bCREATE\s+ROLE\s+\$\{{{variable}\}}\s+(?!LOGIN\b)", text):
+            errors.append(f"workflow seeded delegate {variable} must be able to log in")
+    if re.search(r"a11oy_[a-z_]*delegate_\$\{GITHUB_RUN_ID", text):
+        errors.append("workflow delegate names must not carry a fixed prefix")
+    # A job or step skipped by an if: condition reports as skipped, which can
+    # satisfy a required check, so this workflow carries no if: key at all. A
+    # step that continues on error leaves its job green when it fails. The
+    # structure scan finds these keys in any YAML spelling; the patterns below
+    # also run over block scalars.
+    _validate_workflow_structure(text, errors)
+    if_message = WORKFLOW_FORBIDDEN_KEYS["if"]
+    if if_message not in errors and (
+        WORKFLOW_IF_KEY.search(text)
+        or WORKFLOW_FLOW_IF_KEY.search(text)
+        or WORKFLOW_ESCAPED_KEY.search(text)
+        or WORKFLOW_COMPLEX_KEY.search(text)
+        or WORKFLOW_MERGE_KEY.search(text)
+    ):
+        errors.append(if_message)
     ordered_markers = (
         "=== forward corrective migration ===",
         "=== corrective-only acceptance ===",
+        "=== prove the lease guard requires an inherited worker role ===",
         "=== prove revoked binding grant lacks durable provenance ===",
         "=== full second pass ===",
+        "=== prove capability-role database ownership fails closed ===",
     )
     marker_positions = tuple(text.find(marker) for marker in ordered_markers)
     if any(position < 0 for position in marker_positions) or marker_positions != tuple(
@@ -1560,11 +3160,32 @@ def _validate_acceptance(text: str, errors: list[str]) -> None:
         ),
     ):
         _require_token(token, sql, label, errors)
-    _require_pinned(
+    for token, label in (
+        (ACCEPTANCE_SET_ONLY_MESSAGE, "acceptance SET-without-INHERIT membership assertion"),
+        (ACCEPTANCE_GRANTOR_MESSAGE, "acceptance grantor-holds-ADMIN assertion"),
+        (ACCEPTANCE_OWNERSHIP_MESSAGE, "acceptance capability-role ownership assertion"),
+    ):
+        _require_token(token, sql, label, errors)
+    statements = _top_level_statements(text)
+    _require_body_pin(
+        statements,
         PINNED_ACCEPTANCE_ADMIN_EXEMPTION,
-        sql,
         1,
         "acceptance ADMIN OPTION exemption limited to the covenant owner",
+        errors,
+    )
+    _require_body_pin(
+        statements,
+        PINNED_ACCEPTANCE_ATTRIBUTE_ASSERTION,
+        1,
+        "acceptance role-attribute assertion",
+        errors,
+    )
+    _require_statement_pin(
+        statements,
+        PINNED_ACCEPTANCE_ROLE_ASSERTIONS,
+        1,
+        "acceptance pinned role and membership assertions",
         errors,
     )
     _require_count(
@@ -1586,11 +3207,28 @@ def validate(root: Path | str = Path(".")) -> list[str]:
     acceptance = _read_utf8_file(root, ACCEPTANCE, errors)
     if any(not text for text in migrations.values()) or not workflow or not acceptance:
         return errors
+    # Every later check reads the lexer's view of the SQL. Text that psql and
+    # PostgreSQL would read differently is refused before any check trusts it.
+    lexable = [
+        _validate_lexical(relative.name, text, errors)
+        for relative, text in migrations.items()
+    ]
+    lexable.append(
+        _validate_lexical(
+            ACCEPTANCE.name,
+            acceptance,
+            errors,
+            psql_preamble=ACCEPTANCE_PSQL_PREAMBLE,
+        )
+    )
+    if not all(lexable):
+        return errors
 
     base = migrations[BASE_MIGRATION]
     hardening = migrations[HARDENING_MIGRATION]
     corrective = migrations[CORRECTIVE_MIGRATION]
     _validate_transactions(migrations, errors)
+    _validate_base_principal(base, errors)
     _validate_tables_and_rls(base, hardening, corrective, errors)
     _validate_context_binding(base, corrective, errors)
     _validate_receipt_relationships(base, corrective, errors)
@@ -1600,6 +3238,7 @@ def validate(root: Path | str = Path(".")) -> list[str]:
         _validate_worker_function(text, label, errors)
     _validate_schema_binding(migrations, errors)
     _validate_forbidden_sql(migrations, errors)
+    _validate_dynamic_sql(migrations, errors)
     _validate_workflow(workflow, errors)
     _validate_acceptance(acceptance, errors)
     return errors
