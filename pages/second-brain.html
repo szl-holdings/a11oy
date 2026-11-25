@@ -17,6 +17,8 @@ pre{white-space:pre-wrap;border:1px solid var(--line);padding:.75rem;font:12px u
 label{display:block;color:var(--muted);font-size:.8rem;margin:.8rem 0 .35rem}
 input[type=text]{width:100%;max-width:42rem;background:#061014;color:var(--fg);border:1px solid var(--line);padding:.65rem .7rem}
 button{background:transparent;color:var(--teal);border:1px solid var(--line);padding:.55rem .8rem;margin-top:.5rem;cursor:pointer}
+button:disabled{cursor:wait;opacity:.65}
+#runtime-status,#retrieval-status{border-left:3px solid var(--teal);padding:.6rem .8rem;color:var(--fg)}
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
@@ -28,12 +30,14 @@ button{background:transparent;color:var(--teal);border:1px solid var(--line);pad
 <p><a href="/command">Elite Console</a> / <a href="/command/constellation">Constellation</a> / <a href="/command/anatomy">Anatomy</a> / <a href="/api/a11oy/v1/formulas/selftest">Formulas selftest</a> / <a href="/brain">Hickok /brain</a></p>
 </header>
 <main>
-<canvas id="brain" width="1100" height="320" aria-label="Second brain"></canvas>
+<canvas id="brain" width="1100" height="320" aria-label="Second Brain evidence constellation (illustrative, not measured)">Second Brain evidence is also available in the text status below.</canvas>
+<p id="runtime-status" role="status" aria-live="polite" aria-atomic="true">Checking memory retrieval and inference independently…</p>
 <div class="row" id="chips"></div>
 <div class="row" id="membrane" aria-label="SOW membrane stations"></div>
 <label for="q">Retrieve (same-origin). A miss abstains. Nothing is invented LIVE.</label>
 <input id="q" type="text" value="second brain fold" autocomplete="off"/>
 <button id="go" type="button">Retrieve or abstain</button>
+<p id="retrieval-status" role="status" aria-live="polite" aria-atomic="true">No retrieval request made.</p>
 <ol id="handles"></ol>
 <pre id="raw">probing Lean-8 and brain capabilities</pre>
 </main>
@@ -46,6 +50,27 @@ const MISS={
   EXCEPTION:"no verified trigger fact",
   INVOICE:"no billed-vs-promised handle"
 };
+function classifyBrain(rag, model, capabilities){
+  // HTTP 200 is transport reachability, never model, retrieval, or release proof.
+  const r=(rag&&rag.ok&&rag.json&&typeof rag.json==="object")?rag.json:null;
+  const m=(model&&model.ok&&model.json&&typeof model.json==="object")?model.json:null;
+  const c=(capabilities&&capabilities.ok&&capabilities.json&&typeof capabilities.json==="object")?capabilities.json:null;
+  const profile=m&&m.profile&&typeof m.profile==="object"?m.profile:null;
+  const index=(r&&r.ok===true&&r.built===true&&r.brain_handle_plane&&
+    r.brain_handle_plane.state==="INDEXED_RETRIEVAL_ONLY")?"INDEXED_RETRIEVAL_ONLY":"UNAVAILABLE";
+  const modelState=(m&&typeof m.state==="string"&&/^[A-Z][A-Z0-9_]{0,63}$/.test(m.state))?m.state:"UNAVAILABLE";
+  const tagBound=Boolean(profile&&profile.exact_tag_observed===true&&
+    typeof profile.expected_model==="string"&&profile.expected_model.length>0&&
+    profile.served_model===profile.expected_model&&profile.artifact_binding!=="UNBOUND");
+  // Even positive backend-reported flags do not independently attest a real turn.
+  const grounded=(tagBound&&m.ready_for_grounded_navigation===true&&
+    m.live_grounded_turn_verified_this_request===true)?"BACKEND_REPORTED_ONLY":"NOT_VERIFIED";
+  const capability=(c&&typeof c.overall_status==="string"&&
+    /^(?:OPERATIONAL|PARTIALLY OPERATIONAL|MODELED|SIMULATED|EXPERIMENTAL|UNAVAILABLE)$/.test(c.overall_status))?
+    c.overall_status:"UNAVAILABLE";
+  return {index_state:index,model_state:modelState,grounded_state:grounded,
+    capability_state:capability,independent_attestation:false,production_admission:"NOT_ASSERTED"};
+}
 function emptyMembrane(){
   const membrane={};
   STATIONS.forEach(function(id){
@@ -54,14 +79,18 @@ function emptyMembrane(){
   return membrane;
 }
 async function load(url){
+  const abort=new AbortController(), timer=setTimeout(function(){abort.abort();},8000);
   try{
-    const r=await fetch(url,{cache:"no-store"});
+    const r=await fetch(url,{cache:"no-store",credentials:"same-origin",
+      redirect:"error",headers:{accept:"application/json"},signal:abort.signal});
     if(!r.ok)return {ok:false,status:r.status,json:null};
+    const ct=(r.headers.get("content-type")||"").split(";",1)[0].trim().toLowerCase();
+    if(ct!=="application/json")return {ok:false,status:r.status,json:null};
     const json=await r.json().catch(function(){return null});
-    if(!json||typeof json!=="object")return {ok:false,status:r.status,json:null};
+    if(!json||typeof json!=="object"||Array.isArray(json))return {ok:false,status:r.status,json:null};
     return {ok:true,status:r.status,json};
-  }
-  catch(e){return {ok:false,status:0,json:null};}
+  }catch(e){return {ok:false,status:0,json:null};}
+  finally{clearTimeout(timer);}
 }
 function chip(box, text){
   box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:text}));
@@ -74,29 +103,50 @@ function paintMembrane(box, membrane){
   });
 }
 (async function(){
-  const honest=await load("/api/a11oy/v1/honest");
-  const brain=await load("/api/a11oy/v1/brain/capabilities");
-  const formulas=await load("/api/a11oy/v1/formulas/selftest");
-  const mem=await load("/api/a11oy/v1/brain/membrane");
+  const [honest,brain,formulas,mem,rag,model,build]=await Promise.all([
+    load("/api/a11oy/v1/honest"),
+    load("/api/a11oy/v1/brain/capabilities"),
+    load("/api/a11oy/v1/formulas/selftest"),
+    load("/api/a11oy/v1/brain/membrane"),
+    load("/api/a11oy/code/rag/status"),
+    load("/api/a11oy/v1/ayllu/second-brain"),
+    load("/api/build-info")
+  ]);
   const box=document.getElementById("chips");
-  const ids=(honest.json&&honest.json.locked_formula_ids)||LOCKED;
-  const count=honest.json&&honest.json.locked_formula_count;
+  const observedIds=honest.json&&honest.json.locked_formula_ids;
+  const ids=(honest.ok&&honest.json.locked_formula_count===8&&
+    Array.isArray(observedIds)&&observedIds.length===LOCKED.length&&
+    observedIds.every(function(id,i){return id===LOCKED[i];}))?observedIds:[];
+  const count=ids.length===LOCKED.length?ids.length:null;
   const membrane=(mem.json&&mem.json.membrane)||emptyMembrane();
-  chip(box,"honest · "+(honest.ok?"REACHABLE":"UNAVAILABLE"));
-  chip(box,"brain · "+(brain.ok?"REACHABLE":"UNAVAILABLE"));
-  chip(box,"formulas · "+(formulas.ok?"REACHABLE":"UNAVAILABLE"));
-  chip(box,"locked_formula_count · "+(count===8?"8":"UNAVAILABLE"));
-  chip(box,"corpus · SZLHOLDINGS/szl-second-brain-inrepo");
-  chip(box,"minting · DENY");
-  chip(box,"china_oss · REPORTED");
-  chip(box,"hickok · DO NOT TOUCH");
+  const evidence=classifyBrain(rag,model,brain);
+  const buildRev=build.json&&build.json.build&&build.json.build.revision;
+  const source=(build.ok&&typeof buildRev==="string"&&/^[0-9a-f]{40}$/.test(buildRev))?
+    buildRev.slice(0,12):"UNAVAILABLE";
+  chip(box,"formula evidence · "+(count===8?"8 IDs observed":"UNAVAILABLE"));
+  chip(box,"retrieval · "+evidence.index_state);
+  chip(box,"model · "+evidence.model_state);
+  chip(box,"grounded turn · "+evidence.grounded_state);
+  chip(box,"capabilities · "+evidence.capability_state);
+  chip(box,"build source (self-reported) · "+source);
+  chip(box,"formulas endpoint · "+(formulas.ok?"HTTP REACHABLE":"UNAVAILABLE"));
+  chip(box,"corpus identity · SZLHOLDINGS/szl-second-brain-inrepo");
+  chip(box,"production admission · NOT ASSERTED");
   ids.forEach(function(id){chip(box,id);});
   paintMembrane(document.getElementById("membrane"), membrane);
+  document.getElementById("runtime-status").textContent=
+    "Retrieval: "+evidence.index_state+"; model: "+evidence.model_state+
+    "; grounded turn: "+evidence.grounded_state+
+    "; capability: "+evidence.capability_state+
+    ". This screen does not independently certify inference, signing, or production."+
+    (canvasAvailable?"":" Canvas unavailable; text evidence remains readable.");
   window.__probe={
-    locked_formula_count:count||null,
+    locked_formula_count:count,
     locked_formula_ids:ids,
-    brain_ok:brain.ok,
-    formulas_ok:formulas.ok,
+    brain_http_reachable:brain.ok,
+    formulas_http_reachable:formulas.ok,
+    evidence:evidence,
+    runtime_source_reported:source,
     lambda:"Conjecture 1",
     source:"szl-holdings/szl-formulas + szl-second-brain",
     public_corpus:"https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-inrepo",
@@ -111,10 +161,19 @@ function paintMembrane(box, membrane){
   document.getElementById("raw").textContent=JSON.stringify(window.__probe,null,2);
 })();
 async function retrieve(){
+  const action=document.getElementById("go");
+  const notice=document.getElementById("retrieval-status");
+  if(action.disabled)return;
   const q=(document.getElementById("q").value||"").trim()||"second brain fold";
-  const unc=await load("/api/a11oy/v1/brain/uncertainty?k=3&q="+encodeURIComponent(q));
-  const ans=await load("/api/a11oy/v1/brain/answer?q="+encodeURIComponent(q));
-  const mem=await load("/api/a11oy/v1/brain/membrane");
+  if(q.length>240){notice.textContent="ABSTAIN — query exceeds the 240-character request budget.";return;}
+  action.disabled=true;
+  notice.textContent="Requesting evidence handles; a miss remains ABSTAIN.";
+  try{
+  const [unc,ans,mem]=await Promise.all([
+    load("/api/a11oy/v1/brain/uncertainty?k=3&q="+encodeURIComponent(q)),
+    load("/api/a11oy/v1/brain/answer?q="+encodeURIComponent(q)),
+    load("/api/a11oy/v1/brain/membrane")
+  ]);
   const uj=unc.json||{};
   const aj=ans.json||{};
   const membrane=(mem.json&&mem.json.membrane)||emptyMembrane();
@@ -122,7 +181,10 @@ async function retrieve(){
   const out={
     query:q,
     uncertainty:{ok:unc.ok,label:uj.label||null,verdict:uj.verdict||null,abstain_recommended:uj.abstain_recommended,results_retrieved:uj.results_retrieved,uncertainty:uj.uncertainty},
-    handles:(uj.top_results||[]).map(function(r){return {id:r.id||null,title:r.title||null,score:r.score||null};}),
+    handles:(Array.isArray(uj.top_results)?uj.top_results.slice(0,8):[]).filter(function(r){
+      return r&&typeof r==="object";
+    }).map(function(r){return {id:typeof r.id==="string"?r.id.slice(0,120):null,
+      title:typeof r.title==="string"?r.title.slice(0,240):null,score:r.score??null};}),
     answer:{ok:ans.ok,label:aj.label||null,governed_verdict:aj.governed_verdict||null,answer:aj.answer===null?"ABSTAIN":aj.answer,reason:aj.governed_verdict_reason||null},
     membrane:membrane,
     miss:"ABSTAIN",
@@ -145,9 +207,17 @@ async function retrieve(){
     hl.appendChild(li);
   }
   document.getElementById("raw").textContent=JSON.stringify({probe:window.__probe||null,retrieve:out},null,2);
+  notice.textContent=out.handles.length+" evidence handle(s) returned; answer "+
+    (ans.ok?"observed with governed verdict":"UNAVAILABLE / ABSTAIN")+
+    ". This does not verify model training or signing.";
+  }finally{action.disabled=false;}
 }
 document.getElementById("go").addEventListener("click",retrieve);
-const c=document.getElementById("brain");const x=c.getContext("2d");let t=0;
+const c=document.getElementById("brain"),x=c.getContext("2d");
+const canvasAvailable=Boolean(x);
+const reduceMotion=typeof window.matchMedia==="function"&&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let t=0;
 function draw(){
   t+=0.012;const w=c.width,h=c.height;
   x.fillStyle="#070b0c";x.fillRect(0,0,w,h);
@@ -161,9 +231,9 @@ function draw(){
     x.fillStyle="#eaf6f9";x.font="12px ui-monospace,monospace";x.fillText(id,px+8,py+4);
   });
   x.fillStyle="#7ad0c6";x.font="13px sans-serif";x.fillText("Second brain",cx-42,cy-58);
-  requestAnimationFrame(draw);
+  if(!reduceMotion)requestAnimationFrame(draw);
 }
-draw();
+if(x)draw();
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>

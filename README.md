@@ -345,3 +345,56 @@ One sovereign substrate, many organs — every decision carries a hash-chained, 
 <!-- szl:preserved-source-body:end -->
 
 </details>
+
+<!-- cto-systemcard 2026-11-19 begin -->
+
+## System card (2026-11-19)
+
+Companion to the sections above (Use limits, Honest status, Truth gates). Added so the flagship states intended use, boundaries, architecture, and evidence limits in one place, aligned with estate doctrine and model/system-card practice.
+
+### Intended use
+
+- Demonstrating and verifying governed, provable AI: the product apex (a-11-oy.com) backed by the a11oy Space, with the civilian evidence surface at a11oy.net.
+- Emitting verifiable receipts into the persistent HF receipt storage so third parties can independently verify claims.
+- Public evidence only: public data, public verification.
+
+### Out-of-scope use
+
+- Not a general-purpose assistant or content generator, and not a decision maker over people.
+- The Lambda invariant is stated as Conjecture 1 and is never rendered green without proof; no one may cite this card as proof of Lambda.
+- Shared modules must not drift from the must-not-drift contract above; only verified copies are deployable.
+
+### Architecture (conceptual, not a deployment diagram)
+
+```mermaid
+flowchart LR
+  TOP["a-11-oy.com product apex"] -->|"Space-backed"| SPACE["a11oy Space, docker, port 7860"]
+  SPACE -->|"runtime API surfaces"| TGP["Truth gates"]
+  TGP -->|"answer state: Conjecture 1, never green"| WORLD["Civilian evidence surface, a11oy.net"]
+  SPACE -->|"receipts"| PMEM["Persistent receipt storage, HF Space"]
+  MESH["Khipu receipts mesh, Doctrine v11"] --> SPACE
+```
+
+### Evaluation and measured results
+
+- All positive claims on this card are MEASURED receipts or explicit conjectures; see Honest status, Truth gates, Verify it yourself, and the build attestation sections above.
+- The build attestation is independently verifiable from source.
+
+### Evaluation limitations
+
+- Lambda is a stated conjecture (Conjecture 1), not a proof presented to the reader.
+- Status surfaces are point-in-time; verify against live surfaces and receipts rather than screenshots or copies.
+- No synthetic benchmark scores are claimed on this card.
+
+### Ethical considerations
+
+- Fail-closed doctrine (v11): deny by default, honest UNKNOWN over fabricated green.
+- Civilian evidence surface: plain-language proof states for non-specialists.
+- Public data only; no personal data plumbing.
+
+### Deployment recommendations
+
+- Keep the Space pinned and shared modules in sync under the must-not-drift contract.
+- Promotions to the product apex are owner-gated per estate doctrine; no unreviewed auto-deploy.
+
+<!-- cto-systemcard 2026-11-19 end -->
