@@ -185,9 +185,10 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Memory Covenant capability role retained an inherited parent';
     END IF;
-    -- The covenant owner is the one exception: where no superuser exists (for
-    -- example on Neon), it must keep ADMIN to grant these roles to runtime
-    -- logins. It already owns every covenant relation and definer function.
+    -- The covenant owner is the one exception: where no superuser exists (a
+    -- provider-managed database; for Neon this is MODELED, not read back), it
+    -- must keep ADMIN to grant these roles to runtime logins. It already owns
+    -- every covenant relation and definer function.
     IF EXISTS (
         SELECT 1
           FROM pg_auth_members AS edge
@@ -223,6 +224,71 @@ BEGIN
            AND (other.inherit_option OR other.set_option)
     ) THEN
         RAISE EXCEPTION 'A swept capability-role delegate keeps SET or INHERIT through another grant';
+    END IF;
+    -- Runtime logins must INHERIT their capability role. A row with SET but
+    -- neither INHERIT nor ADMIN, other than the covenant owner's, is the
+    -- signature older sweeps left behind.
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS edge
+         WHERE edge.roleid IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+           AND edge.set_option
+           AND NOT edge.inherit_option
+           AND NOT edge.admin_option
+           AND edge.member <> (
+               SELECT relation.relowner
+                 FROM pg_catalog.pg_class AS relation
+                WHERE relation.oid = 'public.memory_records'::pg_catalog.regclass
+           )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability membership grants SET without INHERIT';
+    END IF;
+    -- Every membership row must name a superuser or a current ADMIN holder as
+    -- its grantor. A grant that a stale ADMIN holder issued while a migration
+    -- ran lands after that migration's COMMIT and is refused here.
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS edge
+         WHERE edge.roleid IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM pg_roles AS grantor
+                WHERE grantor.oid = edge.grantor
+                  AND grantor.rolsuper
+           )
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM pg_auth_members AS authority
+                WHERE authority.roleid = edge.roleid
+                  AND authority.member = edge.grantor
+                  AND authority.admin_option
+           )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability membership has a grantor without ADMIN';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_database AS owned_database
+         WHERE owned_database.datname = current_database()
+           AND owned_database.datdba IN (
+               'a11oy_memory_app'::regrole,
+               'a11oy_memory_worker'::regrole
+           )
+    ) OR EXISTS (
+        SELECT 1
+          FROM pg_namespace AS owned_schema
+         WHERE owned_schema.nspowner IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability role owns the database or a schema';
     END IF;
 END;
 $$;
@@ -556,9 +622,11 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM pg_roles WHERE rolname = 'a11oy_memory_stale_grantee'
     ) THEN
-        -- PostgreSQL 16+ pg_has_role(..., 'MEMBER') means SET ROLE, not the
-        -- membership row. Delegated members keep the row with ADMIN, INHERIT
-        -- and SET all false.
+        -- In PostgreSQL 16 and later pg_has_role(..., 'MEMBER') is true for
+        -- any membership row, even one with ADMIN, INHERIT and SET all false;
+        -- 'SET' tests SET ROLE and 'USAGE' tests inherited privileges. This
+        -- checks the seeded fixture delegate only: it keeps its rows with
+        -- ADMIN, INHERIT and SET all false.
         IF (
             SELECT count(*)
               FROM pg_auth_members AS edge

@@ -304,7 +304,7 @@ test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
 RUN_VERDICT = "${{ needs.execution-readiness.outputs.verdict }}"
 # Reviewed publisher 5f140bab: isolated identity attestation and exact-main gates.
 REVIEWED_DEPLOY_JOB_SHA256 = "472ec55d0cb1a4bfec47fd6053bedf5497c8dff2015482dc50ee2c6ebc34678d"
-REVIEWED_RELOCK_JOB_SHA256 = "8debe2a787278449dc5a50a1e946169129179e5655d8eefac2a7fa3dc7cc6975"
+REVIEWED_RELOCK_JOB_SHA256 = "7ecd3eb7e956dc1d87af222b81841f600c0f058a69c8db1caf2584903d65c94b"
 REVIEWED_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 
 
@@ -354,11 +354,17 @@ def assert_execution_evidence_contract(jobs, source):
     passive = jobs["readiness-verdict"]
     if "outputs" in passive:
         raise WorkflowContractError("passive evidence cannot grant execution coverage")
-    exact_step(passive["steps"][-1], {
+    exact_step(named_step(passive, "Upload immutable passive probe evidence"), {
         "name": "Upload immutable passive probe evidence", "uses": UPLOAD,
         "with": {"name": "canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
                  "path": "${{ env.VERDICT_PATH }}", "if-no-files-found": "error", "retention-days": "90"},
     }, "passive artifact allowlist")
+    exact_step(named_step(passive, "Maintain current passive evidence alias for reruns"), {
+        "name": "Maintain current passive evidence alias for reruns", "if": "always()", "uses": UPLOAD,
+        "with": {"name": "canonical-a11oy-passive-${{ github.run_id }}-current",
+                 "path": "${{ env.VERDICT_PATH }}", "if-no-files-found": "error",
+                 "overwrite": True, "retention-days": "90"},
+    }, "passive rerun artifact alias")
     execution = jobs["execution-readiness"]
     if execution.get("outputs") != {"verdict": "${{ steps.gate.outputs.verdict }}"}:
         raise WorkflowContractError("readiness verdict gate must hand its verdict to relock")
@@ -382,7 +388,7 @@ def assert_execution_evidence_contract(jobs, source):
         EXACT_CHECKOUT, PYTHON_312,
         {"name": "Download this exact run and attempt's passive evidence",
          "uses": "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
-         "with": {"name": "canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
+         "with": {"name": "canonical-a11oy-passive-${{ github.run_id }}-current",
                   "path": "${{ runner.temp }}/passive-evidence"}},
         {"name": "Install exact execution evidence verification clients",
          "run": 'python -I -m pip install --disable-pip-version-check '
@@ -404,6 +410,10 @@ def assert_execution_evidence_contract(jobs, source):
          "with": {"name": "canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}",
                   "path": "${{ runner.temp }}/execution-evidence/readiness-verdict.json\n${{ runner.temp }}/execution-evidence/execution-observations.json",
                   "if-no-files-found": "error", "retention-days": "90"}},
+        {"name": "Maintain current readiness evidence alias for reruns", "if": "always()", "uses": UPLOAD,
+         "with": {"name": "canonical-a11oy-readiness-${{ github.run_id }}-current",
+                  "path": "${{ runner.temp }}/execution-evidence/readiness-verdict.json\n${{ runner.temp }}/execution-evidence/execution-observations.json",
+                  "if-no-files-found": "error", "overwrite": True, "retention-days": "90"}},
         {"name": "Validate the source-bound verdict without a Space write", "id": "gate",
          "env": {"VERDICT_PATH": "${{ runner.temp }}/passive-evidence/readiness-verdict.json",
                  "EXECUTION_EVIDENCE_DIR": "${{ runner.temp }}/execution-evidence"},
@@ -588,7 +598,8 @@ def assert_deploy_path_contract(source):
                 "Witness the candidate in Chromium on both fixed origins",
                 "Require complete Platform candidate evidence",
                 "Upload secret-free Platform candidate evidence",
-                "Probe the exact canonical deployment", "Upload immutable passive probe evidence"]):
+                "Probe the exact canonical deployment", "Upload immutable passive probe evidence",
+                "Maintain current passive evidence alias for reruns"]):
         raise WorkflowContractError("readiness verdict must stay evidence-only")
     exact_step(readiness["steps"][3], {
         "name": "Verify the candidate on the canonical Space origin",
@@ -1265,7 +1276,7 @@ class DeployPathWorkflowTests(unittest.TestCase):
              "python -I -B scripts/execute_acceptance_plan.py"),
             ("          A11OY_CODE_ADMIN_KEY: ${{ secrets.A11OY_CODE_ADMIN_KEY }}\n",
              "          A11OY_CODE_ADMIN_KEY: ${{ secrets.HF_TOKEN }}\n"),
-            ("canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}",
+            ("canonical-a11oy-passive-${{ github.run_id }}-current",
              "canonical-a11oy-passive-${{ github.run_id }}-1"),
             ("            ${{ runner.temp }}/execution-evidence/execution-observations.json\n",
              "            ${{ runner.temp }}/execution-evidence/execution-authority-pins.json\n"),
