@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-11-25T02:33:28Z",
+  "observedAt": "2026-11-25T14:37:03Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 395,
+      "models": 401,
       "datasets": 174,
-      "spaces": 78,
+      "spaces": 75,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -1622,6 +1622,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/counsel-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/counsel-r1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/creativity-v2-trained",
       "repoType": "model",
       "stage": "inventory",
@@ -1699,6 +1709,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/dream-learner-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/finance-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/finance-r1"
       ]
     },
     {
@@ -1892,6 +1912,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/killinchu-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/killinchu-r1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/kimi-estate-ops",
       "repoType": "model",
       "stage": "inventory",
@@ -1919,6 +1949,18 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/lean-invariants-v2-trained"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lyte-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "stale-product-name-review"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/lyte-r1"
       ]
     },
     {
@@ -4142,6 +4184,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/sentra-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/sentra-r1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-block-kv",
       "repoType": "model",
       "stage": "inventory",
@@ -4649,6 +4701,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl1-experimental-massed-20261104"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/terra-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/terra-r1"
       ]
     },
     {
@@ -6674,26 +6736,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/immune",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/immune"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/immune-lattice",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/immune-lattice"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/khipu-hologram",
       "repoType": "space",
       "stage": "inventory",
@@ -6913,16 +6955,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/szl-constellation-staging",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation-staging"
       ]
     },
     {
