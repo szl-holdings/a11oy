@@ -200,7 +200,10 @@ def test_provider_report_and_requests_never_grant_model_authority(document, tmp_
     assert observed["providers"] == []
     assert observed["last_observed_providers"][0]["status"] == status
     assert observed["freshness"] == "STALE_OBSERVATION"
-    assert stale["summary"]["verified_submissions"] == 9
+    # 7 in-row verified submissions after the 2026-11-26 curated-core refresh:
+    # 12786 (KHIPU-R2), 12788 (v2-merged) and 12790 (WILLAY) moved to the
+    # unmatched prior-discussion list, so the stale-summary count is 7, not 9.
+    assert stale["summary"]["verified_submissions"] == 7
 
 
 def test_new_document_generation_does_not_renew_older_provider_observations(document, tmp_path):
