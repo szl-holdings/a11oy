@@ -47,14 +47,25 @@ def test_committed_source_matches_schema_inventory_and_actual_request_evidence(d
     assert all(r["inference"]["state"] == "NO_PROVIDER_MAPPING" for r in document["models"])
     requests = [request for row in document["models"] for request in row["support"]["requests"]]
     submitted = [r for r in requests if r["evidence_kind"] == "VERIFIED_SUBMISSION"]
-    # 10649 and 12788 belong to re-observed models (a11oy-v19-substrate and
-    # szl-receiptagent-qwen35-0.8b-v2-merged); since those repositories re-entered
-    # the public model namespace their prior discussions are recorded in the model
-    # rows themselves, so they are no longer unmatched prior discussions.
-    assert {r["discussion_number"] for r in submitted} == set(range(12781, 12791)) - {12788}
-    assert len([r for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION"]) == 6
+    # 2026-11-26 refresh: the estate curated the public model namespace down to the
+    # measured 40-model core. a11oy-v19-substrate and szl-receiptagent-qwen35-0.8b-v2-merged
+    # folded private again, so their prior discussions (10649, 12788) return to the
+    # unmatched list. KHIPU-R2 and WILLAY were renamed to khipu-abstain-retrain-1.5b-r2
+    # and willay-r1 (estate model-ops lap 2026-11-26); their verified submissions
+    # (12786, 12790) were recorded against the old ids and move to the unmatched list
+    # as prior discussions rather than being re-attributed to the renamed rows.
+    # szl-kernels re-entered the public namespace (2026-11-26T03:18Z), so its prior
+    # discussion (11166) is recorded in its model row again.
+    assert {r["discussion_number"] for r in submitted} == set(range(12781, 12791)) - {12786, 12788, 12790}
+    assert len([r for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION"]) == 2
     assert [(r["discussion_number"], r["model_id"]) for r in document["unmatched_prior_requests"]] == [
+        (10649, "SZLHOLDINGS/a11oy-v19-substrate"),
+        (10652, "SZLHOLDINGS/szl-governed-norm"),
+        (11021, "SZLHOLDINGS/szl-nemo"),
         (11072, "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"),
+        (12786, "SZLHOLDINGS/KHIPU-R2"),
+        (12788, "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2-merged"),
+        (12790, "SZLHOLDINGS/WILLAY"),
     ]
     assert all(r["model_revision"] is None for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION")
     assert collector.main(["--check"]) == 0
@@ -189,7 +200,10 @@ def test_provider_report_and_requests_never_grant_model_authority(document, tmp_
     assert observed["providers"] == []
     assert observed["last_observed_providers"][0]["status"] == status
     assert observed["freshness"] == "STALE_OBSERVATION"
-    assert stale["summary"]["verified_submissions"] == 9
+    # 7 in-row verified submissions after the 2026-11-26 curated-core refresh:
+    # 12786 (KHIPU-R2), 12788 (v2-merged) and 12790 (WILLAY) moved to the
+    # unmatched prior-discussion list, so the stale-summary count is 7, not 9.
+    assert stale["summary"]["verified_submissions"] == 7
 
 
 def test_new_document_generation_does_not_renew_older_provider_observations(document, tmp_path):

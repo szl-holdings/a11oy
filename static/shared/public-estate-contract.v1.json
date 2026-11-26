@@ -555,6 +555,13 @@
       "governedKeep": false,
       "disposition": "FOLD",
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receipt-constellation",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
     }
   ],
   "historicalBindings": [
