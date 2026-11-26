@@ -184,7 +184,7 @@ supervisor's signed lifecycle receipts and never establish readiness.
    bytes or select a target through an environment variable. Other launcher
    names, a missing sibling, or a symlink refuse startup. Before every attempt
    the bootstrap requires supervisor SHA-256
-   `360e1770c92100cff9db8d55cca3db2b64adb18cbe2bac38a987c7ebcf50dd80`.
+   `3070abfa1f71fbf7196c0fefe4dd9252b2d765c3087398e34e77d60bb4fb2f87`.
    Record both installed filenames and hashes in the installation receipt.
 3. Place the reviewed host-specific OpenSSH configuration at `ssh-config`. It must
    define `szl-massed-qualification`, require host-key checking, identify only the
