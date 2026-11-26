@@ -49,7 +49,7 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
         'SOURCE_REPOSITORY = "szl-holdings/lyte-services"',
         'def resolve_verified_source_tip()',
         'def require_current_source(revision: str)',
-        'EXPECTED_VERSION = "4.0.0"',
+        'EXPECTED_VERSION = "4.0.1"',
         'HF_REPOSITORY = "SZLHOLDINGS/lyte"',
         'ORIGIN = "https://szlholdings-lyte.hf.space"',
         'SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"',
