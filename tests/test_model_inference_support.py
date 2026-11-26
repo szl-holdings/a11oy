@@ -47,13 +47,13 @@ def test_committed_source_matches_schema_inventory_and_actual_request_evidence(d
     assert all(r["inference"]["state"] == "NO_PROVIDER_MAPPING" for r in document["models"])
     requests = [request for row in document["models"] for request in row["support"]["requests"]]
     submitted = [r for r in requests if r["evidence_kind"] == "VERIFIED_SUBMISSION"]
-    # 12788 belongs to the re-observed szl-receiptagent-qwen35-0.8b-v2-merged model; since the
-    # repository re-entered the public model namespace its prior discussion is recorded in the
-    # model row itself, so it is no longer an unmatched prior discussion.
+    # 10649 and 12788 belong to re-observed models (a11oy-v19-substrate and
+    # szl-receiptagent-qwen35-0.8b-v2-merged); since those repositories re-entered
+    # the public model namespace their prior discussions are recorded in the model
+    # rows themselves, so they are no longer unmatched prior discussions.
     assert {r["discussion_number"] for r in submitted} == set(range(12781, 12791)) - {12788}
-    assert len([r for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION"]) == 5
+    assert len([r for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION"]) == 6
     assert [(r["discussion_number"], r["model_id"]) for r in document["unmatched_prior_requests"]] == [
-        (10649, "SZLHOLDINGS/a11oy-v19-substrate"),
         (11072, "SZLHOLDINGS/SZL-Khipu-1.5B-BrainNavigator"),
     ]
     assert all(r["model_revision"] is None for r in requests if r["evidence_kind"] == "PRIOR_DISCUSSION")
