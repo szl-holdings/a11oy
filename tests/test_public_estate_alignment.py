@@ -116,6 +116,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                 "SZLHOLDINGS/szl-marketing-1-1",
                 "SZLHOLDINGS/szl-muhu-frontier",
                 "SZLHOLDINGS/szl-provenance-pitch",
+                "SZLHOLDINGS/szl-receipt-constellation",
                 "SZLHOLDINGS/szl-receipts-chain",
                 "SZLHOLDINGS/szl-research-council",
                 "SZLHOLDINGS/szl-router-control",
