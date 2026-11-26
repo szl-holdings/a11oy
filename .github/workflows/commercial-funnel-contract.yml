@@ -1,0 +1,33 @@
+name: Commercial buyer-journey contract (offline)
+
+# Source-only test. Never sends email, books a meeting, bills, logs in,
+# modifies Cloudflare, or performs even a public live GET in CI.
+on:
+  pull_request:
+    paths:
+      - scripts/audit_commercial_funnel.py
+      - tests/test_commercial_funnel.py
+      - .github/workflows/commercial-funnel-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-witness-contract:
+    name: GET-only commercial evidence refuses false revenue
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout reviewed candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up pinned Python interpreter
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Run bounded offline regression contracts
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -B -m unittest discover -s tests -p test_commercial_funnel.py -v

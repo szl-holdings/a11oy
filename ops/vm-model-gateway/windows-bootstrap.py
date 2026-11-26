@@ -14,7 +14,7 @@ import sys
 import time
 import uuid
 
-SUPERVISOR_SHA256 = "26f74a2a014b405ed97de779b1d67288693bc44bab68e48d4fccde5a015dfe62"
+SUPERVISOR_SHA256 = "3070abfa1f71fbf7196c0fefe4dd9252b2d765c3087398e34e77d60bb4fb2f87"
 MAX_ATTEMPTS = 4
 RETRY_SECONDS = 60
 CLEANUP_SECONDS = 15
@@ -23,6 +23,33 @@ LAYOUTS = {
     "windows-bootstrap.py": "windows-supervisor.py",
     "bootstrap.py": "supervisor.py",
 }
+
+
+REFUSAL_FAILURE_CODES = {
+    "Pinned source mismatch": "SOURCE_PIN_MISMATCH",
+    "Pinned SSH configuration mismatch": "SSH_CONFIG_PIN_MISMATCH",
+    "Existing listener preserved; startup refused": "EXISTING_LISTENER_PRESERVED",
+    "Invalid private gateway credential": "INVALID_GATEWAY_CREDENTIAL",
+}
+
+
+def classify_failure(stderr_path):
+    """Map the supervisor pinned refusal line to a fixed diagnostic code.
+
+    Refusal sentences are an exact-match contract of the pinned supervisor
+    (windows-supervisor.py / runtime_config.py); anything else - tracebacks,
+    raw exception text, numeric exits - stays unclassified and is never
+    emitted. These diagnostics are unsigned observations, never receipts.
+    """
+    try:
+        lines = [line.strip() for line in
+                 Path(stderr_path).read_text(encoding="utf-8", errors="replace").splitlines()]
+    except OSError:
+        return None
+    for line in lines:
+        if line in REFUSAL_FAILURE_CODES:
+            return REFUSAL_FAILURE_CODES[line]
+    return None
 
 
 class BootstrapBlocked(RuntimeError):
@@ -347,6 +374,15 @@ def recover(launcher, emit, *, attempt_factory=_OwnedAttempt, sleep=time.sleep):
             emit("closed", attempt=number, attempt_id=identity, exit_code=code, **cleanup)
         if code == 0:
             return 0
+
+        refusal_code = classify_failure(logs / (identity + "-supervisor.stderr"))
+        if refusal_code is not None:
+            # Deterministic refusals never spend retry budget: one classified,
+            # unsigned diagnostic record, then a hard stop (#3565 honesty port).
+            emit("refusal", attempt=number, attempt_id=identity,
+                 failure_code=refusal_code, signed=False,
+                 retries_remaining=MAX_ATTEMPTS - number)
+            return 1
         if number == MAX_ATTEMPTS:
             emit("budget_exhausted", attempts=MAX_ATTEMPTS)
             return 1

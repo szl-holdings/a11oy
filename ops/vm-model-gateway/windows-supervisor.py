@@ -24,7 +24,7 @@ SOURCE_REVISION = "four-file-sha256:" + hashlib.sha256(
 for rel, expected in EXPECTED.items():
  if hashlib.sha256((SOURCE / rel).read_bytes()).hexdigest() != expected:
   raise SystemExit("Pinned source mismatch")
-if hashlib.sha256((HOME / "ssh-config").read_bytes()).hexdigest() != "bc209019d9db2cbc56f1efbf55dfbc3b1aded51defcc60b3e5a88660dd8b96e8":
+if hashlib.sha256((HOME / "ssh-config").read_bytes()).hexdigest() != "1827d9dc981b32cf5f44e3856359b606b96a9886553d93380f9785e2c09a2714":
  raise SystemExit("Pinned SSH configuration mismatch")
 sys.path.insert(0,str(SOURCE / "ops" / "vm-model-gateway"))
 from runtime_config import LocalTransport

@@ -423,9 +423,10 @@ def register(app, ns: str = "a11oy") -> dict:
 
 
 # ---------------------------------------------------------------------------
-# No-server self-test — proves the recompute matches szl_khipu's real seal, that a
-# tampered chain is caught (verdict FAIL), that a bogus digest is NOT_FOUND, and
-# that no codename ever leaks. Banned tokens are reconstructed from char-codes so
+# No-server self-test — proves the recompute matches szl_khipu's real seal, that
+# mutating a body changes its seal, that a bogus digest is NOT_FOUND, and that no
+# codename ever leaks. The end-to-end FAIL verdict on a tampered chain is pinned by
+# tests/test_khipu_verify_tamper.py, not here. Banned tokens are reconstructed from char-codes so
 # this self-test does not itself trip the Doctrine banned-token grep gate.
 # ---------------------------------------------------------------------------
 def _selftest() -> dict:
@@ -460,8 +461,9 @@ def _selftest() -> dict:
     assert res_nf["digest_matches"] is None, res_nf
     out["not_found_honest"] = True
 
-    # 4) Tamper detection -> verdict FAIL naming the broken link. We tamper a COPY
-    #    of the chain by recomputing against a mutated body so the recompute differs.
+    # 4) Seal sensitivity: mutating a COPY of a body must change its seal. This
+    #    does not run verify_digest on a tampered chain; that FAIL verdict is
+    #    covered by tests/test_khipu_verify_tamper.py.
     body = {k: r2[k] for k in _BODY_FIELDS}
     body_tampered = dict(body)
     body_tampered["payload_digest"] = "0" * 64  # mutate -> seal no longer matches

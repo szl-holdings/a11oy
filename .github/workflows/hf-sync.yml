@@ -494,7 +494,7 @@ jobs:
       HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
         with:
           egress-policy: audit
 
@@ -829,6 +829,16 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: Maintain current passive evidence alias for reruns
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: canonical-a11oy-passive-${{ github.run_id }}-current
+          path: ${{ env.VERDICT_PATH }}
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 90
+
   execution-readiness:
     name: Collect and verify admitted execution evidence
     needs: [readiness-verdict, execution-handoff]
@@ -859,10 +869,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Immutable attempt-scoped evidence is still published by readiness-verdict as
+      # canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}.
       - name: Download this exact run and attempt's passive evidence
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: canonical-a11oy-passive-${{ github.run_id }}-${{ github.run_attempt }}
+          name: canonical-a11oy-passive-${{ github.run_id }}-current
           path: ${{ runner.temp }}/passive-evidence
 
       - name: Install exact execution evidence verification clients
@@ -901,6 +913,18 @@ jobs:
             ${{ runner.temp }}/execution-evidence/readiness-verdict.json
             ${{ runner.temp }}/execution-evidence/execution-observations.json
           if-no-files-found: error
+          retention-days: 90
+
+      - name: Maintain current readiness evidence alias for reruns
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: canonical-a11oy-readiness-${{ github.run_id }}-current
+          path: |
+            ${{ runner.temp }}/execution-evidence/readiness-verdict.json
+            ${{ runner.temp }}/execution-evidence/execution-observations.json
+          if-no-files-found: error
+          overwrite: true
           retention-days: 90
 
       # The same fail-closed verdict gate (lies, unreachable, throttled,
@@ -967,7 +991,7 @@ jobs:
       - name: Download this exact run and attempt's raw evidence
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}
+          name: canonical-a11oy-readiness-${{ github.run_id }}-current
           path: ${{ runner.temp }}/execution-evidence
 
       - name: Materialize independently configured public authority pins

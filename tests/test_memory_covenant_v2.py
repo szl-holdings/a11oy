@@ -324,7 +324,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.CORRECTIVE_MIGRATION
             self.replace_once(
                 path,
-                "GRANT %I TO %I WITH INHERIT FALSE, ADMIN FALSE",
+                "GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE",
                 "GRANT %I TO %I WITH INHERIT TRUE, ADMIN TRUE",
             )
             self.assert_contract_error(root, "delegated inbound inherit disable")
@@ -669,6 +669,1359 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.BASE_MIGRATION
             path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
             self.assert_contract_error(root, "UTF-8 BOM is forbidden")
+
+    # Provider-owner compatibility: a provider-managed owner is not expected to
+    # hold the superuser attribute (for Neon and similar providers this is
+    # MODELED, not read back), so every role change must be one a project
+    # owner can make, and every sweep must be proven rather than trusted.
+
+    def test_combined_superuser_alter_reintroduction_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "ALTER ROLE a11oy_memory_app NOSUPERUSER;",
+                "ALTER ROLE a11oy_memory_app NOSUPERUSER NOCREATEDB NOCREATEROLE "
+                "NOLOGIN NOREPLICATION INHERIT NOBYPASSRLS;",
+            )
+            self.assert_contract_error(root, "cannot run under a provider-managed owner")
+
+    def test_unguarded_attribute_convergence_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "IF observed.rolcreatedb THEN ALTER ROLE a11oy_memory_worker NOCREATEDB; END IF;",
+                "ALTER ROLE a11oy_memory_worker NOCREATEDB;",
+            )
+            self.assert_contract_error(
+                root, "guarded NOCREATEDB convergence for a11oy_memory_worker"
+            )
+
+    def test_superuser_attribute_branch_without_fail_closed_raise_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "RAISE EXCEPTION USING ERRCODE = '42501',\n"
+                "              MESSAGE = 'a11oy_memory_app holds an attribute this "
+                "migration principal cannot clear';",
+                "NULL;",
+            )
+            self.assert_contract_error(
+                root, "fail-closed superuser-attribute convergence for a11oy_memory_app"
+            )
+
+    def test_provider_owner_admin_exemption_widening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "           AND member.rolname <> CURRENT_USER\n    LOOP",
+                "           AND member.rolname <> CURRENT_USER OR TRUE\n    LOOP",
+            )
+            self.assert_contract_error(
+                root, "ADMIN retention limited to the migration principal"
+            )
+
+    def test_inbound_convergence_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "capability-role delegation survived the sweep; another grantor holds it",
+                "capability-role delegation state unchecked",
+            )
+            self.assert_contract_error(root, "inbound delegation convergence assertion")
+
+    def test_notice_only_convergence_assertion_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "RAISE EXCEPTION USING ERRCODE = '42501',\n"
+                "          MESSAGE = 'a capability role still belongs to a parent role "
+                "this principal could not revoke';",
+                "RAISE WARNING 'a capability role still belongs to a parent role "
+                "this principal could not revoke';",
+            )
+            self.assert_contract_error(root, "fail-closed convergence assertion")
+
+    def test_convergence_assertions_before_sweeps_fail(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            text = path.read_text(encoding="utf-8")
+            start = text.index("-- A principal that is not a superuser can revoke only")
+            end = text.index("$$;\n", start) + len("$$;\n")
+            block = text[start:end]
+            text = text[:start] + text[end:]
+            anchor = text.index("-- Capability roles must not inherit or SET ROLE")
+            path.write_text(text[:anchor] + block + "\n" + text[anchor:], encoding="utf-8")
+            self.assert_contract_error(root, "must follow both sweeps")
+
+    def test_acceptance_admin_exemption_widening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "           AND edge.admin_option\n"
+                "           AND edge.member <> (\n"
+                "               SELECT relation.relowner\n"
+                "                 FROM pg_catalog.pg_class AS relation\n"
+                "                WHERE relation.oid = 'public.memory_records'::pg_catalog.regclass",
+                "           AND edge.admin_option\n"
+                "           AND edge.member <> (\n"
+                "               SELECT relation.relowner\n"
+                "                 FROM pg_catalog.pg_class AS relation\n"
+                "                WHERE relation.relname LIKE 'memory_%'",
+            )
+            self.assert_contract_error(root, "exemption limited to the covenant owner")
+
+    def test_provider_owner_fixture_must_stay_non_superuser(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "CREATE ROLE a11oy_memory_provider_owner LOGIN NOSUPERUSER",
+                "CREATE ROLE a11oy_memory_provider_owner LOGIN SUPERUSER",
+            )
+            self.assert_contract_error(root, "non-superuser provider owner fixture")
+
+    # Review findings on the provider-owner change. Each test is one concrete
+    # edit that previously passed every static gate.
+
+    def test_attribute_read_without_row_lock_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(path, "        ALTER ROLE a11oy_memory_app NOCREATEROLE;\n", "")
+            self.assert_contract_error(
+                root, "catalog row lock before reading attributes of a11oy_memory_app"
+            )
+
+    def test_observed_record_assignment_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "         WHERE role.rolname = 'a11oy_memory_app';\n"
+                "        -- Name only the attributes that deviate.\n",
+                "         WHERE role.rolname = 'a11oy_memory_app';\n"
+                "        observed.rolbypassrls := observed.rolbypassrls AND observed.rolsuper;\n"
+                "        -- Name only the attributes that deviate.\n",
+            )
+            self.assert_contract_error(
+                root, "pinned attribute convergence for a11oy_memory_app"
+            )
+
+    def test_sweep_name_pattern_exemption_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "         WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')\n"
+                "           AND edge.admin_option\n",
+                "         WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')\n"
+                "           AND member.rolname NOT LIKE 'a11oy\\_memory\\_ops%'\n"
+                "           AND edge.admin_option\n",
+            )
+            self.assert_contract_error(root, "pinned inbound delegation sweep")
+
+    def test_assertion_name_pattern_exemption_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "           AND edge.admin_option\n"
+                "           AND holder.rolname <> CURRENT_USER\n",
+                "           AND edge.admin_option\n"
+                "           AND holder.rolname <> CURRENT_USER\n"
+                "           AND holder.rolname NOT LIKE 'a11oy\\_memory\\_ops%'\n",
+            )
+            self.assert_contract_error(
+                root, "pinned membership and attribute convergence assertions"
+            )
+
+    def test_acceptance_name_pattern_exemption_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "           AND edge.admin_option\n           AND edge.member <> (\n",
+                "           AND pg_get_userbyid(edge.member) NOT LIKE 'a11oy\\_memory\\_ops%'\n"
+                "           AND edge.admin_option\n           AND edge.member <> (\n",
+            )
+            self.assert_contract_error(root, "exemption limited to the covenant owner")
+
+    def test_reordered_superuser_alter_outside_convergence_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "-- Capability roles must not inherit or SET ROLE into any historical parent.\n",
+                "ALTER ROLE a11oy_memory_worker WITH NOLOGIN NOSUPERUSER;\n\n"
+                "-- Capability roles must not inherit or SET ROLE into any historical parent.\n",
+            )
+            self.assert_contract_error(
+                root, "capability roles are altered outside the pinned convergence"
+            )
+
+    def test_alter_user_form_outside_convergence_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "-- Capability roles must not inherit or SET ROLE into any historical parent.\n",
+                "ALTER USER a11oy_memory_app NOSUPERUSER;\n\n"
+                "-- Capability roles must not inherit or SET ROLE into any historical parent.\n",
+            )
+            self.assert_contract_error(
+                root, "capability roles are altered outside the pinned convergence"
+            )
+
+    def test_swept_delegate_set_option_retention_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "'GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE',",
+                "'GRANT %I TO %I WITH INHERIT FALSE, ADMIN FALSE',",
+            )
+            self.assert_contract_error(root, "pinned inbound delegation sweep")
+
+    def test_set_survivor_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "a swept capability-role delegate keeps SET or INHERIT through another grant",
+                "a swept capability-role delegate state unchecked",
+            )
+            self.assert_contract_error(
+                root, "fail-closed convergence assertion (a swept capability-role"
+            )
+
+    def test_attribute_convergence_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "                OR capability.rolbypassrls)\n",
+                "                OR FALSE)\n",
+            )
+            self.assert_contract_error(
+                root, "pinned membership and attribute convergence assertions"
+            )
+
+    def test_row_security_precondition_weakening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "           AND (principal.rolsuper OR principal.rolbypassrls)\n",
+                "           AND (principal.rolsuper OR TRUE)\n",
+            )
+            self.assert_contract_error(root, "pinned migration-principal precondition")
+
+    def test_principal_precondition_must_open_the_transaction(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "SET LOCAL search_path = pg_catalog, pg_temp;\n",
+                "SET LOCAL search_path = pg_catalog, pg_temp;\nSELECT 1;\n",
+            )
+            self.assert_contract_error(
+                root, "must open with the pinned migration-principal precondition"
+            )
+
+    def test_acceptance_receipt_row_validity_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "A tenant/domain receipt reference does not resolve",
+                "tenant/domain receipt rows unchecked",
+            )
+            self.assert_contract_error(
+                root, "acceptance tenant/domain receipt row validity assertion"
+            )
+
+    def test_acceptance_set_survivor_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "A swept capability-role delegate keeps SET or INHERIT through another grant",
+                "swept delegate state unchecked",
+            )
+            self.assert_contract_error(
+                root, "acceptance swept-delegate SET or INHERIT survivor assertion"
+            )
+
+    def test_workflow_without_provider_refusals_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "=== provider-owner convergence and fail-closed refusals ===",
+                "=== provider-owner smoke ===",
+            )
+            self.assert_contract_error(root, "provider-owner refusal marker")
+
+    def test_workflow_refusal_that_tolerates_success_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                'if apply_as "$principal" "$migration" "$database" > "$out" 2>&1; then',
+                "if false; then",
+            )
+            self.assert_contract_error(root, "expected refusals must fail the migration")
+
+    def test_workflow_fixed_name_hostile_delegate_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                'hostile_delegate="$(random_role)"',
+                'hostile_delegate="a11oy_hostile_delegate_fixed"',
+            )
+            self.assert_contract_error(
+                root, "seeded delegate hostile_delegate must be named by random_role"
+            )
+
+    # Second review of the provider-owner change. The validator now lexes SQL
+    # the way psql and PostgreSQL do; each test below is an edit that passed
+    # every static gate when comments were stripped by regular expression.
+
+    def test_lexer_follows_postgresql_quoting_and_comments(self) -> None:
+        def kinds(sql: str) -> list[str]:
+            return [
+                token.kind
+                for token in validator._lex(sql)
+                if token.kind not in validator.SKIPPED_TOKENS
+            ]
+
+        self.assertEqual(kinds("SELECT 'a -- b''c' ;"), ["word", "string", "punct"])
+        self.assertEqual(kinds("SELECT E'a\\' -- b' ;"), ["word", "string", "punct"])
+        self.assertEqual(kinds('SELECT "x -- y" ;'), ["word", "identifier", "punct"])
+        self.assertEqual(kinds("/* a /* b */ c */ SELECT 1"), ["word", "number"])
+        self.assertEqual(kinds("SELECT a$$, $$x -- y$$"), ["word", "word", "punct", "dollar"])
+        self.assertEqual(kinds("SELECT 1::int"), ["word", "number", "punct", "word"])
+        with self.assertRaises(validator.SqlLexError):
+            validator._lex("/* /* */ SELECT 1")
+        with self.assertRaises(validator.SqlLexError):
+            validator._lex("SELECT 'unterminated")
+
+    def test_dashdash_inside_literal_cannot_hide_capability_alter(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "-- Revoke first so reapplication converges from stale additive ACLs.",
+                "SELECT 'roles / --';\n"
+                "ALTER ROLE a11oy_memory_app BYPASSRLS;\n"
+                "SELECT ' / normalized';\n\n"
+                "-- Revoke first so reapplication converges from stale additive ACLs.",
+            )
+            self.assert_contract_error(root, "corrective memory roles must never receive BYPASSRLS")
+            self.assert_contract_error(
+                root, "corrective capability roles are altered outside the pinned convergence"
+            )
+
+    def test_nested_block_comment_cannot_stand_in_for_the_precondition(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            text = path.read_text(encoding="utf-8")
+            start = text.index(
+                "DO $$\nBEGIN\n    IF NOT EXISTS (\n        SELECT 1\n"
+                "          FROM pg_catalog.pg_roles AS principal"
+            )
+            end = text.index("$$;\n", start) + len("$$;\n")
+            # Block comments nest, so everything up to "-- */" is one comment
+            # and PostgreSQL never runs the precondition.
+            path.write_text(
+                text[:start] + "/* /* */\n" + text[start:end] + "/* */\n-- */\n" + text[end:],
+                encoding="utf-8",
+            )
+            self.assert_contract_error(
+                root, "hardening must open with the pinned migration-principal precondition"
+            )
+            self.assert_contract_error(
+                root, "hardening pinned migration-principal precondition: expected 1 exact copy, found 0"
+            )
+
+    def test_pinned_sweep_copied_into_dollar_literal_does_not_count(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "         WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')\n"
+                "           AND edge.admin_option\n",
+                "         WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')\n"
+                "           AND member.rolname NOT LIKE 'z%'\n"
+                "           AND edge.admin_option\n",
+            )
+            self.replace_once(
+                path,
+                "COMMIT;",
+                "SELECT $$" + validator.PINNED_INBOUND_SWEEP + "$$ AS reviewed;\n\nCOMMIT;",
+            )
+            self.assert_contract_error(
+                root,
+                "corrective pinned inbound delegation sweep: expected 1 exact copy "
+                "inside a top-level DO body, found 0",
+            )
+
+    def test_pinned_assertions_copied_into_dollar_literal_do_not_count(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            text = path.read_text(encoding="utf-8")
+            start = text.index(
+                "DO $$\nBEGIN\n    IF EXISTS (\n        SELECT 1\n"
+                "          FROM pg_catalog.pg_auth_members AS edge\n"
+                "          JOIN pg_catalog.pg_roles AS capability ON capability.oid = edge.member"
+            )
+            end = text.index("$$;\n", start) + len("$$;\n")
+            body = text[start + len("DO $$") : end - len("$$;\n")]
+            path.write_text(
+                text[:start] + "SELECT $$" + body + "$$ AS reviewed;\n" + text[end:],
+                encoding="utf-8",
+            )
+            self.assert_contract_error(
+                root,
+                "hardening pinned membership and attribute convergence assertions: "
+                "expected 1 exact copy, found 0",
+            )
+
+    def test_tagged_dollar_quote_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            text = path.read_text(encoding="utf-8")
+            start = text.index(
+                "DO $$\nBEGIN\n    IF EXISTS (\n        SELECT 1\n"
+                "          FROM pg_catalog.pg_auth_members AS edge\n"
+                "          JOIN pg_catalog.pg_roles AS capability ON capability.oid = edge.member"
+            )
+            end = text.index("$$;\n", start) + len("$$;\n")
+            path.write_text(
+                text[:start]
+                + "SELECT $assertions$\n"
+                + text[start:end]
+                + "$assertions$ AS reviewed;\n"
+                + text[end:],
+                encoding="utf-8",
+            )
+            self.assert_contract_error(root, "uses a tagged dollar quote $assertions$")
+            self.assert_contract_error(
+                root,
+                "corrective pinned membership and attribute convergence assertions: "
+                "expected 1 exact copy, found 0",
+            )
+
+    def test_tagged_dollar_quote_in_acceptance_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(path, "ROLLBACK;", "SELECT $note$ reviewed $note$;\nROLLBACK;")
+            self.assert_contract_error(root, "uses a tagged dollar quote $note$")
+
+    def test_pinned_convergence_copied_into_function_body_does_not_count(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "        IF observed.rolbypassrls THEN ALTER ROLE a11oy_memory_app NOBYPASSRLS; END IF;\n",
+                "",
+            )
+            self.replace_once(
+                path,
+                "COMMIT;",
+                "CREATE OR REPLACE FUNCTION public.memory_reviewed_copy()\n"
+                "RETURNS void LANGUAGE plpgsql\n"
+                "SET search_path = pg_catalog, pg_temp\n"
+                "AS $$\nDECLARE\n    observed record;\nBEGIN\n"
+                + validator.PINNED_ROLE_CONVERGENCE.format(role="a11oy_memory_app")
+                + "END;\n$$;\n\nCOMMIT;",
+            )
+            self.assert_contract_error(
+                root,
+                "hardening pinned attribute convergence for a11oy_memory_app: expected 1 "
+                "exact copy inside a top-level DO body, found 0",
+            )
+
+    def test_dead_code_around_pinned_sweep_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "BEGIN\n    FOR membership IN\n        SELECT DISTINCT parent.rolname AS parent_role,",
+                "BEGIN\n    IF false THEN\n    FOR membership IN\n"
+                "        SELECT DISTINCT parent.rolname AS parent_role,",
+            )
+            self.replace_once(
+                path,
+                "            membership.capability_role\n        );\n    END LOOP;\nEND;\n$$;\n\n"
+                "-- Preserve inbound memberships.",
+                "            membership.capability_role\n        );\n    END LOOP;\n    END IF;\n"
+                "END;\n$$;\n\n-- Preserve inbound memberships.",
+            )
+            self.assert_contract_error(
+                root,
+                "hardening pinned outbound membership sweep statement: expected 1 exact copy, found 0",
+            )
+
+    def test_exception_handler_around_pinned_sweep_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "            membership.member_role\n        );\n    END LOOP;\nEND;\n$$;\n",
+                "            membership.member_role\n        );\n    END LOOP;\n"
+                "EXCEPTION WHEN OTHERS THEN\n    NULL;\nEND;\n$$;\n",
+            )
+            self.assert_contract_error(
+                root,
+                "corrective pinned inbound delegation sweep statement: expected 1 exact copy, found 0",
+            )
+
+    def test_identifier_dollar_suffix_is_not_a_dollar_quote(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            # PostgreSQL reads a$$ and b$$ as identifiers, so the ALTER between
+            # them runs; a lexer that saw a dollar quote there would hide it.
+            self.replace_once(
+                path,
+                "COMMIT;",
+                "SELECT 1 AS a$$;\nALTER ROLE a11oy_memory_app NOINHERIT;\nSELECT 1 AS b$$;\n\nCOMMIT;",
+            )
+            self.assert_contract_error(
+                root, "corrective capability roles are altered outside the pinned convergence"
+            )
+
+    def test_psql_meta_command_in_migration_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(path, "COMMIT;", "SELECT 'SELECT 1' \\gexec\n\nCOMMIT;")
+            self.assert_contract_error(root, "contains a psql meta-command")
+
+    def test_psql_meta_command_beyond_acceptance_preamble_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(path, "ROLLBACK;", "ROLLBACK;\n\\! true\n")
+            self.assert_contract_error(root, "contains a psql meta-command")
+
+    def test_psql_variable_reference_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(path, "COMMIT;", "SELECT :'covenant_role';\n\nCOMMIT;")
+            self.assert_contract_error(root, "contains a psql variable reference")
+
+    def test_unicode_escape_identifier_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "COMMIT;",
+                'ALTER ROLE U&"a11oy\\005fmemory\\005fapp" NOINHERIT;\n\nCOMMIT;',
+            )
+            self.assert_contract_error(root, "contains a Unicode-escape literal or identifier")
+
+    def test_string_lexing_change_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "COMMIT;",
+                "SET LOCAL standard_conforming_strings = off;\n\nCOMMIT;",
+            )
+            self.assert_contract_error(root, "must not change how string literals are lexed")
+
+    def test_base_without_principal_precondition_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            text = path.read_text(encoding="utf-8")
+            start = text.index(
+                "DO $$\nBEGIN\n    IF NOT EXISTS (\n        SELECT 1\n"
+                "          FROM pg_catalog.pg_roles AS principal"
+            )
+            end = text.index("$$;\n", start) + len("$$;\n")
+            path.write_text(text[:start] + text[end:], encoding="utf-8")
+            self.assert_contract_error(
+                root, "base must open with the pinned migration-principal precondition"
+            )
+            self.assert_contract_error(root, "base pinned migration-principal precondition")
+
+    def test_base_principal_precondition_weakening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "           AND (principal.rolsuper OR principal.rolbypassrls)\n",
+                "           AND (principal.rolsuper OR TRUE)\n",
+            )
+            self.assert_contract_error(root, "base pinned migration-principal precondition")
+
+    def test_lease_guard_member_regression_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "        'a11oy_memory_worker',\n        'USAGE'\n",
+                "        'a11oy_memory_worker',\n        'member'\n",
+            )
+            self.assert_contract_error(root, "hardening memory_lease_outbox missing worker inheritance check")
+            self.assert_contract_error(root, "must not admit a session user by MEMBER")
+            self.assert_contract_error(root, "hardening pinned bounded lease function")
+
+    def test_lease_guard_widening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "        'USAGE'\n    ) THEN\n",
+                "        'USAGE'\n    ) AND session_user <> 'a11oy_worker_ops' THEN\n",
+            )
+            self.assert_contract_error(root, "corrective memory_lease_outbox missing worker inheritance check")
+            self.assert_contract_error(root, "corrective pinned bounded lease function")
+
+    def test_new_convergence_assertions_cannot_be_weakened(self) -> None:
+        weakenings = (
+            (
+                validator.CORRECTIVE_MIGRATION,
+                "                  AND authority.admin_option\n",
+                "                  AND authority.admin_option IS NOT NULL\n",
+            ),
+            (
+                validator.HARDENING_MIGRATION,
+                "           AND edge.set_option\n"
+                "           AND NOT edge.inherit_option\n"
+                "           AND NOT edge.admin_option\n",
+                "           AND FALSE\n",
+            ),
+            (
+                validator.CORRECTIVE_MIGRATION,
+                "                     WHERE owned_schema.nspowner = capability.oid\n",
+                "                     WHERE owned_schema.nspowner = capability.oid\n"
+                "                       AND owned_schema.nspname = 'public'\n",
+            ),
+        )
+        for relative, old, new in weakenings:
+            with self.subTest(old=old):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(root / relative, old, new)
+                    self.assert_contract_error(
+                        root, "pinned membership and attribute convergence assertions"
+                    )
+
+    def test_new_convergence_messages_are_required(self) -> None:
+        for message in (
+            validator.SET_ONLY_MESSAGE,
+            validator.GRANTOR_MESSAGE,
+            validator.OWNERSHIP_MESSAGE,
+        ):
+            with self.subTest(message=message):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.HARDENING_MIGRATION, message, "state unchecked"
+                    )
+                    self.assert_contract_error(
+                        root, f"hardening fail-closed convergence assertion ({message[:40]})"
+                    )
+
+    def test_acceptance_attribute_assertion_weakening_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(path, "               OR rolbypassrls\n", "")
+            self.assert_contract_error(root, "acceptance role-attribute assertion")
+            self.assert_contract_error(root, "acceptance pinned role and membership assertions")
+
+    def test_acceptance_new_membership_assertions_are_required(self) -> None:
+        for message, label in (
+            (validator.ACCEPTANCE_SET_ONLY_MESSAGE, "acceptance SET-without-INHERIT membership assertion"),
+            (validator.ACCEPTANCE_GRANTOR_MESSAGE, "acceptance grantor-holds-ADMIN assertion"),
+            (validator.ACCEPTANCE_OWNERSHIP_MESSAGE, "acceptance capability-role ownership assertion"),
+        ):
+            with self.subTest(message=message):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(root / validator.ACCEPTANCE, message, "state unchecked")
+                    self.assert_contract_error(root, label)
+                    self.assert_contract_error(
+                        root, "acceptance pinned role and membership assertions"
+                    )
+
+    def test_capability_grant_outside_sweep_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path, "COMMIT;", "GRANT a11oy_memory_worker TO a11oy_memory_stale_owner;\n\nCOMMIT;"
+            )
+            self.assert_contract_error(
+                root, "corrective capability roles are granted outside the pinned sweep"
+            )
+
+    def test_role_creation_outside_convergence_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(path, "COMMIT;", "CREATE ROLE a11oy_memory_shadow NOLOGIN;\n\nCOMMIT;")
+            self.assert_contract_error(root, "hardening roles are created outside the pinned convergence")
+
+    def test_role_switch_in_migration_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(path, "COMMIT;", "SET LOCAL ROLE a11oy_memory_app;\n\nCOMMIT;")
+            self.assert_contract_error(root, "forbidden migration operation: role switch")
+
+    def test_workflow_if_condition_fails(self) -> None:
+        insertions = (
+            (
+                "  provider-owner-acceptance:\n"
+                "    name: PostgreSQL 18 provider-owner (non-superuser) application\n",
+                "    if: ${{ github.event_name == 'workflow_dispatch' }}\n",
+            ),
+            (
+                "      - name: Prove provider-owner convergence and fail-closed refusals\n",
+                "        if: ${{ false }}\n",
+            ),
+            ("      - name: Upload provider-owner evidence\n", "        if: always()\n"),
+            ("      - name: Upload provider-owner evidence\n", '        "if": always()\n'),
+            ("      - name: Upload provider-owner evidence\n", '        "\\x69f": always()\n'),
+            ("      - name: Upload provider-owner evidence\n", "        with: {if: false}\n"),
+        )
+        for anchor, line in insertions:
+            with self.subTest(line=line):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(root / validator.WORKFLOW, anchor, anchor + line)
+                    self.assert_contract_error(root, "must not contain an if: key")
+
+    def test_workflow_nologin_delegate_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                '-c "CREATE ROLE ${owner_delegate} LOGIN"',
+                '-c "CREATE ROLE ${owner_delegate} NOLOGIN"',
+            )
+            self.assert_contract_error(root, "seeded delegate owner_delegate must be able to log in")
+
+    def test_workflow_prefixed_delegate_name_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                'foreign_delegate="$(random_role)"',
+                'foreign_delegate="a11oy_foreign_delegate_${GITHUB_RUN_ID:-local}_${RANDOM}"',
+            )
+            self.assert_contract_error(
+                root, "seeded delegate foreign_delegate must be named by random_role"
+            )
+            self.assert_contract_error(root, "delegate names must not carry a fixed prefix")
+
+    def test_workflow_state_refusal_against_hardening_only_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                'for migration in "$hardening" "$corrective"; do\n'
+                '              expect_refusal a11oy_memory_provider_owner "$migration" "$message"',
+                'for migration in "$hardening"; do\n'
+                '              expect_refusal a11oy_memory_provider_owner "$migration" "$message"',
+            )
+            self.assert_contract_error(
+                root, "every state refusal also runs against the corrective alone"
+            )
+
+    def test_workflow_without_raced_grant_fixture_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(path, 'test "$raced_row_count" = "1"', ":")
+            self.assert_contract_error(root, "raced end state present before the refusal")
+
+    def test_workflow_without_base_refusals_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                'for migration in "$base" "$hardening" "$corrective"; do',
+                'for migration in "$hardening" "$corrective"; do',
+            )
+            self.assert_contract_error(root, "base migration refuses principals too")
+
+    def test_workflow_without_database_owning_unbypassed_principal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "CREATE DATABASE memory_covenant_unbypassed OWNER a11oy_memory_unbypassed_owner",
+                "CREATE DATABASE memory_covenant_unbypassed",
+            )
+            self.assert_contract_error(root, "database-owning principal without BYPASSRLS")
+
+    # Third review. Each test below is an edit that passed every static gate
+    # of the second-review commit.
+
+    PROVIDER_STEP = (
+        "      - name: Prove provider-owner convergence and fail-closed refusals\n"
+        "        shell: bash\n"
+    )
+    PROVIDER_JOB = (
+        "  provider-owner-acceptance:\n"
+        "    name: PostgreSQL 18 provider-owner (non-superuser) application\n"
+    )
+
+    def assert_any_contract_error(self, root: Path, *fragments: str) -> None:
+        errors = validator.validate(root)
+        self.assertTrue(
+            any(fragment in error for error in errors for fragment in fragments),
+            f"missing any of {fragments!r}; observed: {errors}",
+        )
+
+    def assert_workflow_edit_fails(self, anchor: str, insertion: str, *fragments: str) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(root / validator.WORKFLOW, anchor, anchor + insertion)
+            self.assert_any_contract_error(root, *fragments)
+
+    def test_workflow_continue_on_error_in_any_form_fails(self) -> None:
+        key_message = "must not contain a continue-on-error key"
+        unreadable = "outside the YAML subset this validator reads"
+        cases = (
+            (self.PROVIDER_STEP, "        continue-on-error: ${{ true }}\n", key_message),
+            (self.PROVIDER_JOB, "    continue-on-error: ${{ true }}\n", key_message),
+            (self.PROVIDER_STEP, "        continue-on-error: true\n", key_message),
+            (self.PROVIDER_STEP, "        Continue-On-Error: ${{ 1 }}\n", key_message),
+            (self.PROVIDER_STEP, "        continue-on-error : ${{ !false }}\n", key_message),
+            (self.PROVIDER_STEP, '        "continue-on-error": true\n', unreadable),
+            (self.PROVIDER_STEP, "        'continue-on-error': ${{ 1 }}\n", unreadable),
+            (self.PROVIDER_STEP, '        "continue-on-\\x65rror": true\n', unreadable),
+            (self.PROVIDER_STEP, "        env: {X: 1, continue-on-error: true}\n", unreadable),
+            (self.PROVIDER_STEP, "        !!str continue-on-error: true\n", unreadable),
+        )
+        for anchor, line, fragment in cases:
+            with self.subTest(line=line):
+                self.assert_workflow_edit_fails(anchor, line, fragment)
+
+    def test_workflow_yaml_alias_cannot_hide_a_key(self) -> None:
+        for key, value in (("if", "${{ false }}"), ("continue-on-error", "${{ true }}")):
+            with self.subTest(key=key):
+                self.assert_workflow_edit_fails(
+                    self.PROVIDER_STEP,
+                    f"        env:\n          GUARD: &cond {key}\n        *cond : {value}\n",
+                    "outside the YAML subset this validator reads",
+                )
+
+    def test_workflow_yaml_outside_the_subset_fails(self) -> None:
+        unreadable = "outside the YAML subset this validator reads"
+        for insertion in (
+            "        <<: {continue-on-error: true}\n",
+            "        ? continue-on-error\n        : true\n",
+            "        name2: !!bool true\n",
+            '        env:\n          A: "first line\n        continue-on-error: true"\n',
+            "        run: |2\n          echo\n",
+            "        run: |+\n          echo\n",
+            "---\n",
+        ):
+            with self.subTest(insertion=insertion):
+                self.assert_workflow_edit_fails(self.PROVIDER_STEP, insertion, unreadable)
+
+    def test_workflow_block_scalar_ends_where_yaml_ends_it(self) -> None:
+        # A key at the step's own indentation after a run: block is a key, not
+        # script text; a line indented past the block's first line is script.
+        anchor = "      - name: Reject whitespace defects\n        run: git diff --check\n"
+        self.assert_workflow_edit_fails(
+            anchor,
+            "        continue-on-error: ${{ true }}\n",
+            "must not contain a continue-on-error key",
+        )
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.WORKFLOW,
+                anchor,
+                "      - name: Reject whitespace defects\n"
+                "        run: |\n"
+                "          git diff --check\n"
+                "          echo 'timeout: 5'\n",
+            )
+            self.assertEqual(validator.validate(root), [])
+
+    def test_workflow_unreviewed_key_fails(self) -> None:
+        for anchor, insertion in (
+            (self.PROVIDER_JOB, "    defaults:\n      run:\n        shell: bash\n"),
+            (self.PROVIDER_JOB, "    container: ubuntu:24.04\n"),
+            (self.PROVIDER_STEP, "        working-directory: migrations\n"),
+            (self.PROVIDER_STEP, "        env:\n          BASH_ENV: scripts/env.sh\n"),
+        ):
+            with self.subTest(insertion=insertion):
+                self.assert_workflow_edit_fails(
+                    anchor, insertion, "is outside the reviewed key set"
+                )
+
+    def test_workflow_custom_shell_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.WORKFLOW,
+                self.PROVIDER_STEP,
+                self.PROVIDER_STEP.replace("shell: bash", "shell: true {0}"),
+            )
+            self.assert_contract_error(root, "steps must run with shell: bash")
+
+    def test_workflow_tab_fails(self) -> None:
+        self.assert_workflow_edit_fails(
+            self.PROVIDER_STEP, "        env:\n\t  X: 1\n", "must not contain a tab character"
+        )
+
+    @staticmethod
+    def splice_bytes(path: Path, anchor: bytes, insertion: bytes, *, before: bool = True) -> None:
+        raw = path.read_bytes()
+        if raw.count(anchor) != 1:
+            raise AssertionError(f"expected one fixture match for {anchor!r}")
+        index = raw.index(anchor) + (0 if before else len(anchor))
+        path.write_bytes(raw[:index] + insertion + raw[index:])
+
+    def test_nul_byte_fails_in_every_file(self) -> None:
+        # psql keeps a line only up to its first NUL and joins the next line,
+        # so the text after a NUL is code that the lexer read as a literal or
+        # a comment.
+        cases = (
+            (
+                validator.CORRECTIVE_MIGRATION,
+                b"COMMIT;",
+                b"SELECT 'covenant\x00' AS note;\n"
+                b"-- '; ALTER ROLE a11oy_memory_app BYPASSRLS; SELECT '1\n-- ';\n\n",
+            ),
+            (validator.HARDENING_MIGRATION, b"COMMIT;", b"-- note\x00 hidden\nSELECT 1;\n\n"),
+            (validator.BASE_MIGRATION, b"COMMIT;", b"SELECT 'x\x00';\n\n"),
+            (validator.ACCEPTANCE, b"\\set ON_ERROR_STOP on\n", b"-- \x00\n"),
+            (validator.WORKFLOW, b"jobs:\n", b"# \x00\n"),
+        )
+        for relative, anchor, insertion in cases:
+            with self.subTest(file=relative.as_posix()):
+                temp, root = self.make_fixture()
+                with temp:
+                    before = relative != validator.ACCEPTANCE
+                    self.splice_bytes(root / relative, anchor, insertion, before=before)
+                    self.assert_contract_error(
+                        root,
+                        f"control character U+0000 is forbidden: {relative.as_posix()}",
+                    )
+
+    def test_carriage_return_fails(self) -> None:
+        # psql passes text after a CR on a backslash-command line to that
+        # command, so a backtick there runs a shell command.
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            raw = path.read_bytes()
+            path.write_bytes(
+                raw.replace(
+                    b"\\set ON_ERROR_STOP on\n",
+                    b"\\set ON_ERROR_STOP on\r`id -un > /dev/null`\n",
+                    1,
+                )
+            )
+            self.assert_contract_error(root, "control character U+000D is forbidden")
+        for relative in (validator.BASE_MIGRATION, validator.WORKFLOW):
+            with self.subTest(crlf=relative.as_posix()):
+                temp, root = self.make_fixture()
+                with temp:
+                    path = root / relative
+                    path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+                    self.assert_contract_error(
+                        root, f"control character U+000D is forbidden: {relative.as_posix()}"
+                    )
+
+    def test_other_control_and_line_separator_characters_fail(self) -> None:
+        # YAML breaks lines at NEL, U+2028 and U+2029 as well as CR.
+        targets = (
+            (validator.CORRECTIVE_MIGRATION, b"COMMIT;", "-- {}\n"),
+            (validator.WORKFLOW, b"jobs:\n", "# {}\n"),
+        )
+        for character in ("\x0b", "\x0c", "\x1b", "\x7f", "\x85", "\u2028", "\u2029"):
+            for relative, anchor, comment in targets:
+                with self.subTest(character=hex(ord(character)), file=relative.name):
+                    temp, root = self.make_fixture()
+                    with temp:
+                        self.splice_bytes(
+                            root / relative, anchor, comment.format(character).encode()
+                        )
+                        self.assert_contract_error(
+                            root, f"control character U+{ord(character):04X} is forbidden"
+                        )
+
+    def test_tab_stays_legal_in_sql(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.CORRECTIVE_MIGRATION, "COMMIT;", "SELECT\t1;\n\nCOMMIT;"
+            )
+            self.assertEqual(validator.validate(root), [])
+
+    REGRANT_BLOCK = (
+        "DO $$\n"
+        "DECLARE\n"
+        "    m record;\n"
+        "BEGIN\n"
+        "    {open}"
+        "        FOR m IN\n"
+        "            SELECT cap.rolname AS c, who.rolname AS d\n"
+        "              FROM pg_catalog.pg_auth_members AS e\n"
+        "              JOIN pg_catalog.pg_roles AS cap ON cap.oid = e.roleid\n"
+        "              JOIN pg_catalog.pg_roles AS who ON who.oid = e.member\n"
+        "             WHERE cap.rolname LIKE 'a11oy\\_memory\\_%'\n"
+        "               AND NOT e.admin_option AND NOT e.inherit_option\n"
+        "               AND NOT e.set_option{filter}\n"
+        "        LOOP\n"
+        "            EXECUTE {statement};\n"
+        "        END LOOP;\n"
+        "    {close}"
+        "END;\n"
+        "$$;\n\n"
+    )
+
+    def regrant_block(self, statement: str, *, keyed: bool = True, filtered: bool = False) -> str:
+        return self.REGRANT_BLOCK.format(
+            open=(
+                "IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace\n"
+                "                   WHERE nspname = 'memory_attacker') THEN\n"
+                if keyed
+                else ""
+            ),
+            close="END IF;\n" if keyed else "",
+            filter=(
+                "\n               AND who.rolname !~ "
+                "'^([a-z][0-9a-f]{16}|a11oy_memory_stale_grantee)$'"
+                if filtered
+                else ""
+            ),
+            statement=statement,
+        )
+
+    POSITIONAL_REGRANT = (
+        "pg_catalog.format('GRANT %1$I TO %2$I WITH INHERIT TRUE, SET TRUE', m.c, m.d)"
+    )
+
+    def test_positional_format_membership_regrant_fails(self) -> None:
+        # Measured on PostgreSQL 18.6: this block, keyed to the CI-only schema,
+        # gave a swept delegate INHERIT and SET back on a provider database and
+        # let it lease every tenant's outbox, while all three CI jobs passed.
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.CORRECTIVE_MIGRATION,
+                "COMMIT;",
+                self.regrant_block(self.POSITIONAL_REGRANT) + "COMMIT;",
+            )
+            self.assert_contract_error(root, "corrective runs dynamic SQL outside the pinned statements")
+            self.assert_contract_error(root, "corrective role memberships change outside the pinned sweeps")
+            self.assert_contract_error(
+                root, "corrective a string literal outside the pinned statements begins with GRANT"
+            )
+
+    def test_name_pattern_regrant_in_both_migrations_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            block = self.regrant_block(self.POSITIONAL_REGRANT, keyed=False, filtered=True)
+            for relative in (validator.HARDENING_MIGRATION, validator.CORRECTIVE_MIGRATION):
+                self.replace_once(root / relative, "COMMIT;", block + "COMMIT;")
+            for label in ("hardening", "corrective"):
+                self.assert_contract_error(
+                    root, f"{label} runs dynamic SQL outside the pinned statements"
+                )
+
+    def test_dynamic_sql_without_a_grant_literal_fails(self) -> None:
+        for statement in (
+            "'GR' || 'ANT ' || pg_catalog.quote_ident(m.c) || ' TO ' || "
+            "pg_catalog.quote_ident(m.d) || ' WITH INHERIT TRUE, SET TRUE'",
+            "pg_catalog.format(pg_catalog.reverse('EURT TES ,EURT TIREHNI HTIW I%2$ OT I%1$ TNARG'), m.c, m.d)",
+            "pg_catalog.format('%s %I TO %I WITH INHERIT TRUE, SET TRUE', 'GRANT', m.c, m.d)",
+            "pg_catalog.convert_from(pg_catalog.decode('4752414e54', 'hex'), 'UTF8') || m.c",
+        ):
+            with self.subTest(statement=statement[:40]):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.CORRECTIVE_MIGRATION,
+                        "COMMIT;",
+                        self.regrant_block(statement) + "COMMIT;",
+                    )
+                    self.assert_contract_error(
+                        root, "corrective runs dynamic SQL outside the pinned statements"
+                    )
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.HARDENING_MIGRATION,
+                "COMMIT;",
+                "DO $$\nDECLARE\n    function text := 'SELECT 1';\nBEGIN\n"
+                "    EXECUTE function;\nEND;\n$$;\n\nCOMMIT;",
+            )
+            self.assert_contract_error(root, "hardening runs dynamic SQL outside the pinned statements")
+
+    def test_string_literal_beginning_with_grant_or_revoke_fails(self) -> None:
+        for literal in (
+            "' grant %1$I to %2$I'",
+            "'/* note */ REVOKE ADMIN OPTION FOR a FROM b'",
+            "'ALTER GROUP a ADD USER b'",
+        ):
+            with self.subTest(literal=literal):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.BASE_MIGRATION,
+                        "COMMIT;",
+                        f"SELECT {literal} AS template;\n\nCOMMIT;",
+                    )
+                    self.assert_contract_error(
+                        root, "base a string literal outside the pinned statements begins with GRANT"
+                    )
+
+    def test_static_membership_change_outside_the_sweeps_fails(self) -> None:
+        # A static grant of another role to a capability role, keyed to a
+        # role that exists only on the provider, after the assertion block.
+        for statement in (
+            "GRANT neondb_owner TO a11oy_memory_app",
+            "ALTER GROUP neondb_owner ADD USER a11oy_memory_app",
+            "REVOKE neondb_owner FROM a11oy_memory_worker",
+        ):
+            with self.subTest(statement=statement):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.CORRECTIVE_MIGRATION,
+                        "COMMIT;",
+                        "DO $$\nBEGIN\n    IF EXISTS (SELECT 1 FROM pg_catalog.pg_roles\n"
+                        "               WHERE rolname = 'neondb_owner') THEN\n"
+                        f"        {statement};\n    END IF;\nEND;\n$$;\n\nCOMMIT;",
+                    )
+                    self.assert_contract_error(
+                        root, "corrective role memberships change outside the pinned sweeps"
+                    )
+
+    def test_membership_and_dynamic_sql_detection(self) -> None:
+        def flat(sql: str) -> list:
+            return list(validator._flatten(validator._lex(sql)))
+
+        self.assertTrue(validator._changes_membership(flat("GRANT a TO b;")))
+        self.assertTrue(validator._changes_membership(flat("GRANT option TO b;")))
+        self.assertTrue(validator._changes_membership(flat("GRANT a TO \"ON\";")))
+        self.assertTrue(validator._changes_membership(flat("DO $$BEGIN REVOKE a FROM b; END$$;")))
+        # An ON after the body ends belongs to the CREATE FUNCTION, not to the
+        # GRANT inside the body.
+        self.assertTrue(
+            validator._changes_membership(
+                flat(
+                    "CREATE FUNCTION f() RETURNS void LANGUAGE sql "
+                    "AS $$GRANT a TO b$$ SET search_path = on;"
+                )
+            )
+        )
+        self.assertFalse(
+            validator._changes_membership(flat("GRANT EXECUTE ON FUNCTION f() TO b;"))
+        )
+        self.assertFalse(
+            validator._changes_membership(flat("GRANT SELECT ON t TO b WITH GRANT OPTION;"))
+        )
+        self.assertFalse(
+            validator._changes_membership(flat("REVOKE GRANT OPTION FOR SELECT ON t FROM b;"))
+        )
+
+        def dynamic(sql: str) -> bool:
+            statement = validator._top_level_statements(sql)[0]
+            return validator._runs_dynamic_sql(statement, flat(sql))
+
+        self.assertFalse(
+            dynamic("CREATE TRIGGER t BEFORE UPDATE ON x FOR EACH ROW EXECUTE FUNCTION f();")
+        )
+        self.assertFalse(dynamic("GRANT EXECUTE ON FUNCTION f() TO b;"))
+        self.assertTrue(dynamic("DO $$BEGIN EXECUTE function; END$$;"))
+        self.assertTrue(dynamic("DO $$BEGIN RETURN QUERY EXECUTE q; END$$;"))
+        self.assertTrue(dynamic("EXECUTE prepared_statement;"))
+
+    def test_unlexed_function_and_do_bodies_fail(self) -> None:
+        for statement in (
+            "DO 'BEGIN NULL; END';",
+            "DO LANGUAGE plpgsql $$BEGIN NULL; END$$;",
+            "CREATE FUNCTION public.memory_shadow() RETURNS integer LANGUAGE sql AS 'SELECT 1';",
+            "CREATE FUNCTION public.memory_shadow() RETURNS integer LANGUAGE c AS $$x$$;",
+            "CREATE FUNCTION public.memory_shadow() RETURNS integer LANGUAGE sql RETURN 1;",
+        ):
+            with self.subTest(statement=statement):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.CORRECTIVE_MIGRATION,
+                        "COMMIT;",
+                        statement + "\n\nCOMMIT;",
+                    )
+                    self.assert_contract_error(
+                        root, "corrective DO and function bodies must be $$-quoted plpgsql or sql"
+                    )
+
+    def test_escape_string_literal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            self.replace_once(
+                root / validator.BASE_MIGRATION, "COMMIT;", "SELECT E'\\x47RANT';\n\nCOMMIT;"
+            )
+            self.assert_contract_error(root, "contains an E'' escape-string literal")
+
+    def test_client_encoding_change_fails(self) -> None:
+        for statement in (
+            "SET client_encoding = 'SJIS';",
+            "SET NAMES 'SJIS';",
+            "SELECT pg_catalog.set_config('client_encoding', 'SJIS', true);",
+        ):
+            for relative in (validator.HARDENING_MIGRATION, validator.ACCEPTANCE):
+                with self.subTest(statement=statement, file=relative.name):
+                    temp, root = self.make_fixture()
+                    with temp:
+                        path = root / relative
+                        if relative == validator.ACCEPTANCE:
+                            self.replace_once(
+                                path,
+                                "\\set ON_ERROR_STOP on\n",
+                                "\\set ON_ERROR_STOP on\n" + statement + "\n",
+                            )
+                        else:
+                            self.replace_once(path, "COMMIT;", statement + "\n\nCOMMIT;")
+                        self.assert_contract_error(root, "must not change the client encoding")
+
+    def test_copy_and_load_fail(self) -> None:
+        for statement in (
+            "COPY (SELECT 1) TO PROGRAM 'true';",
+            "LOAD 'auto_explain';",
+            "DO $$BEGIN COPY public.memory_outbox TO '/tmp/x'; END$$;",
+        ):
+            with self.subTest(statement=statement):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.HARDENING_MIGRATION, "COMMIT;", statement + "\n\nCOMMIT;"
+                    )
+                    self.assert_contract_error(root, "hardening must not run COPY or LOAD")
+
+    def test_ownership_passed_to_a_capability_role_fails(self) -> None:
+        for statement, label in (
+            ("ALTER TABLE public.memory_outbox OWNER TO a11oy_memory_app;", "ownership passed"),
+            ('ALTER DATABASE memory_covenant OWNER TO "a11oy_memory_worker";', "ownership passed"),
+            ("CREATE SCHEMA capability AUTHORIZATION a11oy_memory_app;", "ownership passed"),
+            ("REASSIGN OWNED BY CURRENT_USER TO a11oy_memory_app;", "ownership reassignment"),
+        ):
+            with self.subTest(statement=statement):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(
+                        root / validator.CORRECTIVE_MIGRATION, "COMMIT;", statement + "\n\nCOMMIT;"
+                    )
+                    self.assert_contract_error(root, f"forbidden migration operation: {label}")
+
+    def test_pinned_dynamic_statements_are_required(self) -> None:
+        cases = (
+            (
+                validator.CORRECTIVE_MIGRATION,
+                "           AND NOT trigger.tgisinternal\n",
+                "           AND NOT trigger.tgisinternal\n"
+                "           AND trigger.tgname <> 'memory_receipts_append_only'\n",
+                "corrective pinned trigger sweep",
+            ),
+            (
+                validator.BASE_MIGRATION,
+                "        EXECUTE format(\n",
+                "        EXECUTE pg_catalog.format(\n",
+                "base pinned policy sweep",
+            ),
+            (
+                validator.CORRECTIVE_MIGRATION,
+                "            'ALTER TABLE public.%I DROP CONSTRAINT %I',\n",
+                "            'ALTER TABLE public.%I DROP CONSTRAINT IF EXISTS %I',\n",
+                "corrective pinned receipt foreign-key sweep",
+            ),
+        )
+        for relative, old, new, label in cases:
+            with self.subTest(label=label):
+                temp, root = self.make_fixture()
+                with temp:
+                    self.replace_once(root / relative, old, new)
+                    self.assert_contract_error(root, f"{label}: expected 1 exact copy")
+                    self.assert_any_contract_error(
+                        root, "runs dynamic SQL outside the pinned statements"
+                    )
+        # The schema, table and function ACL sweeps are pinned in both files.
+        temp, root = self.make_fixture()
+        with temp:
+            for relative in (validator.HARDENING_MIGRATION, validator.CORRECTIVE_MIGRATION):
+                text = (root / relative).read_text(encoding="utf-8")
+                (root / relative).write_text(
+                    text.replace(
+                        "           AND acl.grantee <> procedure.proowner\n",
+                        "           AND acl.grantee <> procedure.proowner\n"
+                        "           AND acl.privilege_type <> 'EXECUTE'\n",
+                        1,
+                    ),
+                    encoding="utf-8",
+                )
+            for label in ("hardening", "corrective"):
+                self.assert_contract_error(root, f"{label} pinned function ACL sweep")
 
 
 if __name__ == "__main__":

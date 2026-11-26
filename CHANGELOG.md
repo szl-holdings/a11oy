@@ -9,6 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - storage block names a rejected provider credential
+
+- The public GDW storage block (`/api/a11oy/healthz` rollup, `/readyz`, GDW
+  health) now reports `error_code` `STORAGE_CREDENTIAL_REJECTED` for a provider
+  HTTP 401 and `STORAGE_ACCESS_FORBIDDEN` for a 403, instead of the transport
+  class name. An explicit failure code still takes precedence. Readiness
+  semantics are unchanged: the block still answers 503.
+
+### Changed - compute-pool receipt ingest and khipu-os verify (breaking for some callers)
+
+- `POST /api/a11oy/v1/compute-pool/receipts` now refuses, with HTTP 422
+  "receipt outside freshness window", any receipt whose `observed_at` is more
+  than 30 s ahead of the server clock or older than the freshness window.
+  Nothing is stored. Migration: a minter that re-posts old envelopes, or runs
+  with a skewed clock, must re-mint with a current `observed_at`.
+- `GET /khipu-os/verify` no longer mints a signed receipt per request. It now
+  returns `receipt: null` and `recorded: false`. Migration: a caller that read
+  the receipt from this GET must stop relying on it; verification results are
+  unchanged.
+- Optional `A11OY_POOL_RECEIPT_TRUST_ROOTS` adds pool attester keys bound to
+  named nodes. Unset, behaviour is unchanged. No second node is claimed live.
+
+### Fixed - energy frontier tiles can become ready from real evidence
+
+- The Energy operator tile required a billable `measured_jobs` count that no NVML
+  host window can produce, and the Energy provenance tile was hard-coded
+  unsatisfied with no production writer. Both now gate on the runtime-verifiable
+  subset: a job bracketed by a verified NVML counter window, MEASURED only within
+  the `BOUNDED_METER_WINDOW` scope and, for the operator, only while the latest
+  window is younger than `A11OY_ENERGY_WINDOW_MAX_AGE_S` (default 900 s). Billable
+  per-job energy keeps its own label and stays unavailable without exclusive
+  attribution. Both counts are process-local and restart at zero.
+- The operator's completed-job stream appends hash-bound v2 entries to the energy
+  provenance chain, so a label cannot be promoted after append. Only jobs the
+  operator dispatched to its configured GPU nodes are recorded, and they carry no
+  joules estimate. v1 entries keep their encoding; the chain is bounded, and
+  entries are verified as they are evicted so tampering stays detected.
+- The operator reports a bounded `lung_probe` reason per node (no URL, host or
+  credential) and retries its lung-gated autostart (`A11OY_ENERGY_AUTOSTART_RETRY_S`,
+  default 300 s). An operator's explicit stop holds the retry off. The retry
+  thread is stopped at app shutdown. A retry still probing a lung finishes that
+  probe but cannot start the loop on its own; until it returns, another start in
+  the same process answers `start_in_progress` and is decided by that probe.
+- Contract: `docs/frontier-readiness-contract.md`, "Energy readiness: the
+  bounded-window scope". Gotcha: `KNOWN_GOTCHAS.md` section 10.
+
 ### Added - admit horizon: when an admitted claim lapses, and through which evidence
 
 - `szl_admit_horizon` (governance layer, stdlib, read-only, no route) analyses

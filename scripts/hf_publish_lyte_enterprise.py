@@ -42,7 +42,7 @@ SOURCE_REQUIRED_CHECKS = (
     "responsive-overflow", "bundle-budget", "container-build", "container-smoke",
     "source-binding",
 )
-EXPECTED_VERSION = "4.0.0"
+EXPECTED_VERSION = "4.0.1"
 HF_REPOSITORY = "SZLHOLDINGS/lyte"
 ORIGIN = "https://szlholdings-lyte.hf.space"
 SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"
@@ -79,7 +79,7 @@ class OutcomeUncertain(RuntimeError):
 class PublicationReplayHeld(RuntimeError):
     """A prior publication was reconciled; no phase may replay automatically."""
 
-# API version and package version are distinct. The current 4.0.0 application
+# API version and package version are distinct. The current 4.0.1 application
 # owns /api/lyte/v2; the removed v3 application must never be its smoke target.
 # Public metrics use the source-owned API alias, not a hosting ingress path.
 SMOKE_PATHS = (

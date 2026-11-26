@@ -20,7 +20,7 @@
 # --- Optional local-LLM path, installed ONLY when A11OY_REQUIRE_LOCAL_LLM=1 ---
 # Pulls diskcache>=5.6.1 transitively. diskcache 5.6.3 carries CVE-2025-69872
 # with NO upstream fix available. Scoped-accepted; see docs/DEPENDENCY_RISK_REGISTER.md
-llama-cpp-python==0.3.36
+llama-cpp-python==0.3.37
 
 # --- Additional requirements.txt declared deps ---
 # OpenTelemetry is now included through the canonical runtime pins above.

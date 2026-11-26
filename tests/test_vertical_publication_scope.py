@@ -66,19 +66,29 @@ def sentra_admission_transport(publisher, monkeypatch):
     monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
     monkeypatch.setenv("GITHUB_REPOSITORY", "szl-holdings/a11oy")
     monkeypatch.setenv("GITHUB_TOKEN", "fixture-only-github-token")
+    from urllib.parse import quote
     branch_path = "/repos/szl-holdings/a11oy/branches/main"
     commit_path = f"/repos/szl-holdings/a11oy/commits/{REVISION}"
-    checks_path = commit_path + "/check-runs?filter=latest&per_page=100&page=1"
-    required = ("fixture-native-check", *publisher.SENTRA_DOCTRINE_CHECKS)
-    rows = [{"name": name, "head_sha": REVISION, "app": {"id": 15368},
-             "status": "completed", "conclusion": "success"} for name in required]
+    protected_names = (*publisher.SENTRA_PR_ONLY_CHECKS, *publisher.SENTRA_MAIN_CHECKS)
+    exact_main_names = (*publisher.SENTRA_MAIN_CHECKS, *publisher.SENTRA_DOCTRINE_CHECKS)
     payloads = {
         branch_path: {"commit": {"sha": REVISION}, "protected": True, "protection": {
             "enabled": True, "required_status_checks": {
-                "contexts": [required[0]], "checks": [{"context": required[0], "app_id": 15368}]}}},
+                "contexts": list(protected_names),
+                "checks": [{"context": name, "app_id": publisher.SENTRA_CHECK_APP_ID}
+                           for name in protected_names]}}},
         commit_path: {"sha": REVISION, "commit": {"verification": {"verified": True, "reason": "valid"}}},
-        checks_path: {"total_count": len(rows), "check_runs": rows},
     }
+    check_paths = []
+    rows = []
+    for name in exact_main_names:
+        path = (commit_path + "/check-runs"
+                + f"?check_name={quote(name, safe='')}&filter=latest&per_page=100&page=1")
+        row = {"name": name, "head_sha": REVISION, "app": {"id": publisher.SENTRA_CHECK_APP_ID},
+               "status": "completed", "conclusion": "success"}
+        payloads[path] = {"total_count": 1, "check_runs": [row]}
+        check_paths.append(path)
+        rows.append(row)
     requests = []
     class Response:
         def __init__(self, payload): self.body = json.dumps(payload).encode()
@@ -101,7 +111,7 @@ def sentra_admission_transport(publisher, monkeypatch):
         return SimpleNamespace(open=urlopen)
     monkeypatch.setattr(publisher.urllib.request, "build_opener", opener)
     return SimpleNamespace(payloads=payloads, requests=requests,
-                           paths=[branch_path, commit_path, checks_path], rows=rows)
+                           paths=[branch_path, commit_path, *check_paths], rows=rows)
 
 
 @pytest.mark.parametrize("slug", ["terra", "sentra", "counsel"])
@@ -248,7 +258,7 @@ def test_dedicated_sentra_admission_rejects_bad_wire_evidence_before_renderer(
     publisher, monkeypatch, sentra_admission_transport, defect,
 ):
     transport = sentra_admission_transport
-    branch, commit, _ = transport.paths
+    branch, commit = transport.paths[:2]
     if defect == "moved-main": transport.payloads[branch]["commit"]["sha"] = "b" * 40
     elif defect == "unverified-signature":
         transport.payloads[commit]["commit"]["verification"]["verified"] = False
@@ -427,9 +437,9 @@ def test_sentra_admission_separates_pending_checks_from_failed_checks(
 
 
 def test_sentra_missing_required_check_is_pending(publisher, sentra_admission_transport):
-    sentra_admission_transport.rows.pop(0)
     payload = sentra_admission_transport.payloads[sentra_admission_transport.paths[2]]
-    payload["total_count"] = len(sentra_admission_transport.rows)
+    payload["check_runs"].clear()
+    payload["total_count"] = 0
     with pytest.raises(publisher.SentraChecksPending):
         publisher._sentra_source_admission()
 
