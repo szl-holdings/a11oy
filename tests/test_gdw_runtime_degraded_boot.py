@@ -333,3 +333,47 @@ def test_hf_sync_smoke_contract_fails_a_blocked_deploy():
                if path.startswith("/api/a11oy/healthz")
                and client.get(path).status_code != 200]
     assert failing == ["/api/a11oy/healthz"]
+
+
+class _Response:
+    def __init__(self, status_code):
+        self.status_code = status_code
+
+
+class _ProviderHTTPError(Exception):
+    def __init__(self, message, status_code):
+        super().__init__(message)
+        self.response = _Response(status_code)
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected"),
+    [
+        (401, "STORAGE_CREDENTIAL_REJECTED"),
+        (403, "STORAGE_ACCESS_FORBIDDEN"),
+        (500, "_ProviderHTTPError"),
+        (True, "_ProviderHTTPError"),
+        ("401", "_ProviderHTTPError"),
+    ],
+)
+def test_rejected_storage_credential_is_named_in_the_public_error_code(status_code, expected):
+    # 2026-11-24: the provider answered 401 on the evidence bucket at boot and
+    # the block only said HTTPStatusError, so the fix (rotate the credential)
+    # was not readable from /healthz.
+    try:
+        try:
+            raise _ProviderHTTPError("Client error for url", status_code)
+        except _ProviderHTTPError as cause:
+            raise _ProviderHTTPError("Client error for url", status_code) from cause
+    except _ProviderHTTPError as exc:
+        gdw_runtime._record_blocked(exc, phase="state_store")
+    block = gdw_runtime.storage_block()
+    assert block["error_code"] == expected
+    assert block["reason"] == "GDW_STORAGE_BLOCKED"
+
+
+def test_explicit_failure_code_wins_over_a_provider_status():
+    exc = _ProviderHTTPError("refused", 401)
+    exc.code = "STATE_STORE_GDW_UNRESTORABLE"
+    gdw_runtime._record_blocked(exc, phase="state_store")
+    assert gdw_runtime.storage_block()["error_code"] == "STATE_STORE_GDW_UNRESTORABLE"
