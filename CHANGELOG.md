@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - storage block names a rejected provider credential
+
+- The public GDW storage block (`/api/a11oy/healthz` rollup, `/readyz`, GDW
+  health) now reports `error_code` `STORAGE_CREDENTIAL_REJECTED` for a provider
+  HTTP 401 and `STORAGE_ACCESS_FORBIDDEN` for a 403, instead of the transport
+  class name. An explicit failure code still takes precedence. Readiness
+  semantics are unchanged: the block still answers 503.
+
 ### Changed - compute-pool receipt ingest and khipu-os verify (breaking for some callers)
 
 - `POST /api/a11oy/v1/compute-pool/receipts` now refuses, with HTTP 422
