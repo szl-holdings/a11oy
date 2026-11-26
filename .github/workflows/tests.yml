@@ -77,6 +77,7 @@ jobs:
           tests/test_combined_consumers.py tests/test_readiness_artifact.py
           tests/test_publish_readiness_verdict.py tests/test_canonical_a11oy_relock.py
           tests/test_execution_acceptance.py tests/test_hf_execution_handoff.py
+          tests/test_hf_execution_failure_receipt_canonical.py
           tests/test_living_anatomy_guardian_receipts.py tests/test_dockerfile_layer_budget.py
           tests/test_evidence_graph.py tests/test_evidence_receipts.py
           tests/test_evidence_receipt_routes.py tests/test_evidence_snapshot_contract.py
