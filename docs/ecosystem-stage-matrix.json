@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-11-19T07:31:17Z",
+  "observedAt": "2026-11-25T14:37:03Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 151,
-      "datasets": 99,
-      "spaces": 33,
+      "models": 401,
+      "datasets": 174,
+      "spaces": 75,
       "kernels": 14
     },
     "huggingFaceScope": {
@@ -780,6 +780,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/A11OY-MINI-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/A11OY-MINI-laptop-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/ChaskaLLM",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/ChaskaLLM"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/KHIPU-R2",
       "repoType": "model",
       "stage": "inventory",
@@ -960,6 +980,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF-laptop-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-GGUF-laptop-lora"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
       "repoType": "model",
       "stage": "inventory",
@@ -1017,6 +1047,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-v2-trained"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-Yachay-Nano",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-Yachay-Nano"
       ]
     },
     {
@@ -1090,6 +1130,18 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/SZLHOLDINGS",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "org-profile-duplicate-review"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZLHOLDINGS"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/TinyKhipu-Nano",
       "repoType": "model",
       "stage": "inventory",
@@ -1150,6 +1202,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/a11oy-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/a11oy-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "repoType": "model",
+      "stage": "generated-mirror",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/absrl-grpo-r1-candidate",
       "repoType": "model",
       "stage": "inventory",
@@ -1167,6 +1239,46 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r2-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/absrl-grpo-r3-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r3-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/absrl-grpo-r4-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r4-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/absrl-grpo-r5-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r5-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/absrl-grpo-r5b-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/absrl-grpo-r5b-candidate"
       ]
     },
     {
@@ -1227,6 +1339,36 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/ancient-math-v2-trained"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/backup-salad-flagship54-v2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/backup-salad-flagship54-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/backup-salad-physics-tutor-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/backup-salad-physics-tutor-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/backup-salad-world-science-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/backup-salad-world-science-r1"
       ]
     },
     {
@@ -1460,6 +1602,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/code-master-v2-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/code-master-v2-candidate"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/code-master-v3-fresh",
       "repoType": "model",
       "stage": "inventory",
@@ -1467,6 +1619,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/code-master-v3-fresh"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/counsel-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/counsel-r1"
       ]
     },
     {
@@ -1500,6 +1662,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/doctrine-math-r2-pilot",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/doctrine-math-r2-pilot"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/doctrine-v2-r2-trained",
       "repoType": "model",
       "stage": "inventory",
@@ -1530,6 +1702,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/dream-learner-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/dream-learner-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/finance-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/finance-r1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/forge-1.5b-v2-trained",
       "repoType": "model",
       "stage": "inventory",
@@ -1547,6 +1739,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/forge-v3"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/forge-v3-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/forge-v3-candidate"
       ]
     },
     {
@@ -1577,6 +1779,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/frontier-54-doctrine-math-r1-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-inference-meter",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/governed-inference-meter"
       ]
     },
     {
@@ -1617,6 +1829,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/khipu-abstain-1.5b-v2-trained"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-abstain-r3-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/khipu-abstain-r3-candidate"
       ]
     },
     {
@@ -1680,6 +1902,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/khipu-structure-v2-work",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/khipu-structure-v2-work"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/killinchu-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/killinchu-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/kimi-estate-ops",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/kimi-estate-ops"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/lean-inv-r1-v2-trained",
       "repoType": "model",
       "stage": "inventory",
@@ -1697,6 +1949,18 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/lean-invariants-v2-trained"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lyte-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "stale-product-name-review"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/lyte-r1"
       ]
     },
     {
@@ -1730,6 +1994,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/navigator-candidate_enterprise_20261104",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/navigator-candidate_enterprise_20261104"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/oac-clinical-transport-health-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-clinical-transport-health-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/oac-ops-health-v2",
       "repoType": "model",
       "stage": "inventory",
@@ -1747,6 +2031,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/oac-system-health-v3-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-system-health-v3-candidate"
       ]
     },
     {
@@ -1890,6 +2184,366 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/receiptagent_v1-candidate_enterprise_20261104",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/receiptagent_v1-candidate_enterprise_20261104"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/receiptagent_v3-candidate_enterprise_20261104",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/receiptagent_v3-candidate_enterprise_20261104"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-a11oy-mini-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-a11oy-mini-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-abst-curriculum-v2-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-abst-curriculum-v2-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-abstain-doctrine",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-abstain-doctrine"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-abstention-sft-v1-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-abstention-sft-v1-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-acoustic-governance-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-acoustic-governance-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-anatomy-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-anatomy-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ancient-math-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ancient-math-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-axiom-invariants-r3",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-axiom-invariants-r3"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-brain-navigator-r2-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-brain-navigator-r2-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-brain-v35",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-brain-v35"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-chaski-5050-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-chaski-5050-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-chaski-calib-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-chaski-calib-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-chaski-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-chaski-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-chaski-r2-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-chaski-r2-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-chaski-r4-mix1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-chaski-r4-mix1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-chaski-r4-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-chaski-r4-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-chaski-r4-r2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-chaski-r4-r2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-chaski-r4-r3",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-chaski-r4-r3"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-clinical-abstention-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-clinical-abstention-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-cram-sudoku-ext-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-cram-sudoku-ext-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-distill-sft-v1-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-distill-sft-v1-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-doctrine-dpo-r2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-doctrine-dpo-r2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-flagship54-khipu-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-flagship54-khipu-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-flagship54-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-flagship54-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-flagship55-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-flagship55-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-formula-proving-ground-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-formula-proving-ground-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-free-energy-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-free-energy-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-frontier-qwen-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-frontier-qwen-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-frontier-v4-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-frontier-v4-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-frontier-v5-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-frontier-v5-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-hatun24",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-hatun24"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-kamachikuna-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-kamachikuna-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-khipu-r2-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-khipu-r2-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-khipu-scholar-4b-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-khipu-scholar-4b-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/salad-khipu-scholar-v1",
       "repoType": "model",
       "stage": "inventory",
@@ -1910,6 +2564,1646 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/salad-killinchu-eye-detector-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-killinchu-eye-detector-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-lean-invariants-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-lean-invariants-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-lean-math-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-lean-math-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-lean-math-v2-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-lean-math-v2-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-lora-mistral7b-quant-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-lora-mistral7b-quant-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-lutar-axioms-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-lutar-axioms-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-measurement-honesty-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-measurement-honesty-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-muhu-methodology-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-muhu-methodology-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-papers-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-papers-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-pg54-codex-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-pg54-codex-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-pg54-hatun-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-pg54-hatun-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-pg54-khipu-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-pg54-khipu-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-pg54-lutar-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-pg54-lutar-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-pg54-yachay-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-pg54-yachay-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-physics-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-physics-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-physics-tutor-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-physics-tutor-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-prime-principle-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-prime-principle-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-provenance-native-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-provenance-native-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-puzzles-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-puzzles-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-quant",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-quant"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-quant-abstention-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-quant-abstention-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-quant-curriculum-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-quant-curriculum-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-rag-corpus-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-rag-corpus-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l10",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l10"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l100",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l100"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l101",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l101"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l102",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l102"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l103",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l103"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l104",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l104"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l105",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l105"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l106",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l106"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l107",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l107"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l108",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l108"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l109",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l109"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l11",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l11"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l110",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l110"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l111",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l111"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l112",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l112"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l113",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l113"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l114",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l114"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l115",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l115"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l116",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l116"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l117",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l117"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l118",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l118"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l119",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l119"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l120",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l120"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l121",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l121"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l122",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l122"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l123",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l123"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l124",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l124"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l125",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l125"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l126",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l126"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l127",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l127"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l128",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l128"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l129",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l129"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l13",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l13"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l130",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l130"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l131",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l131"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l132",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l132"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l133",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l133"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l134",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l134"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l14",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l14"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l19",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l19"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l20",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l20"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l21",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l21"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l22",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l22"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l23",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l23"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l24",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l24"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l25",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l25"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l26",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l26"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l27",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l27"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l28",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l28"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l29",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l29"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l3",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l3"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l30",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l30"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l31",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l31"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l32",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l32"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l33",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l33"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l34",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l34"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l35",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l35"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l36",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l36"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l37",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l37"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l38",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l38"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l39",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l39"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l4",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l4"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l40",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l40"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l41",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l41"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l42",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l42"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l43",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l43"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l44",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l44"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l45",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l45"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l46",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l46"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l47",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l47"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l48",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l48"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l49",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l49"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l5",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l5"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l50",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l50"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l51",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l51"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l52",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l52"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l53",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l53"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l54",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l54"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l55",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l55"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l56",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l56"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l57",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l57"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l58",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l58"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l59",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l59"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l6",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l6"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l60",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l60"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l61",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l61"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l62",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l62"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l63",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l63"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l64",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l64"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l65",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l65"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l66",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l66"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l67",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l67"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l68",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l68"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l69",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l69"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l7",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l7"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l70",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l70"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l71",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l71"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l72",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l72"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l73",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l73"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l74",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l74"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l75",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l75"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l76",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l76"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l77",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l77"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l78",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l78"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l79",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l79"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l8",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l8"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l80",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l80"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l81",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l81"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l82",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l82"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l83",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l83"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l84",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l84"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l85",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l85"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l86",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l86"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l87",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l87"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l88",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l88"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l89",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l89"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l9",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l9"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l90",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l90"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l91",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l91"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l92",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l92"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l93",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l93"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l94",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l94"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l95",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l95"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l96",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l96"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l97",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l97"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l98",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l98"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-ouro-l99",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-ouro-l99"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-ring-v4",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-ring-v4"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-secondbrain-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-secondbrain-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-szl-quant-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-szl-quant-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-verticals-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-verticals-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-vgl-puzzles-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-vgl-puzzles-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-willay-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-willay-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-world-science-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-world-science-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-worldscience",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-worldscience"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-x402-frontier-v2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-x402-frontier-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/salad-x402-protocol-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/salad-x402-protocol-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/sentra-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/sentra-r1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-block-kv",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-block-kv"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-blocked",
       "repoType": "model",
       "stage": "inventory",
@@ -1920,6 +4214,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-brain",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-brain"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-cram",
       "repoType": "model",
       "stage": "inventory",
@@ -1927,6 +4231,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl-cram"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-energy-attest",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-energy-attest"
       ]
     },
     {
@@ -1990,6 +4304,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-khipu-kernels",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-khipu-kernels"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-lambda-gate",
       "repoType": "model",
       "stage": "inventory",
@@ -1997,6 +4321,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl-lambda-gate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-maskmod",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-maskmod"
       ]
     },
     {
@@ -2027,6 +4361,66 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl-provctl"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provenance-native-v1-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-provenance-native-v1-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provenance-native-v2-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-provenance-native-v2-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provenance-native-v3-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-provenance-native-v3-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provenance-native-v4-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-provenance-native-v4-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provenance-native-v5-lora",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-provenance-native-v5-lora"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receipt-attn",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receipt-attn"
       ]
     },
     {
@@ -2140,6 +4534,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-authenticated"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-candidate",
       "repoType": "model",
       "stage": "inventory",
@@ -2170,6 +4574,56 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-nemo-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3-nemo-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-run-receipts",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-run-receipts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-specdecode",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-specdecode"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-training-scripts",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-training-scripts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-linear-development-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-linear-development-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora",
       "repoType": "model",
       "stage": "inventory",
@@ -2190,6 +4644,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-lora-study5-laptop-lora",
       "repoType": "model",
       "stage": "inventory",
@@ -2200,6 +4664,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-triage-qwen3.5-0.8b-nemo-candidate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-qwen3.5-0.8b-nemo-candidate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-triage-retrain",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-triage-retrain"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl1-experimental-estate-sft-v1",
       "repoType": "model",
       "stage": "inventory",
@@ -2207,6 +4691,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/SZLHOLDINGS/szl1-experimental-estate-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl1-experimental-massed-20261104",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl1-experimental-massed-20261104"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/terra-r1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/terra-r1"
       ]
     },
     {
@@ -2312,6 +4816,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/absrl-doubt-claude-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/absrl-doubt-claude-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/absrl-reward-pool-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/absrl-reward-pool-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/absrl-reward-pool-v2-1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/absrl-reward-pool-v2-1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/absrl-reward-squad2-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2372,6 +4906,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/anatomy-alive-harness",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/anatomy-alive-harness"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/anatomy-brain-datasets-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/anatomy-brain-datasets-corpus-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/ancient-math-reasoning-sft-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2389,6 +4943,36 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/axiom-invariant-corpus-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/axiom-invariant-corpus-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/axiom-invariant-corpus-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/axiom-invariants-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/axiom-invariants-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/axiom-invariants-sft-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/axiom-invariants-sft-v2"
       ]
     },
     {
@@ -2452,6 +5036,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/cookie-dpo-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/cookie-dpo-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/cram-sudoku-extreme",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2459,6 +5053,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/cram-sudoku-extreme"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/cram-sudoku-extreme-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/cram-sudoku-extreme-sft-v1"
       ]
     },
     {
@@ -2479,6 +5083,56 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/creativity-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/david-leads-data",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/david-leads-data"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/distill-runs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/distill-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-abstention-dpo-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/doctrine-abstention-dpo-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-abstention-dpo-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/doctrine-abstention-dpo-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-corpus-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/doctrine-corpus-v2"
       ]
     },
     {
@@ -2512,6 +5166,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/estate-knowledge-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/estate-knowledge-corpus-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/estate-receipts-index",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/estate-receipts-index"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/estate-release-cards",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2519,6 +5193,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/estate-release-cards"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/estate-telemetry",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/estate-telemetry"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/flagship55-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/flagship55-sft-v1"
       ]
     },
     {
@@ -2552,6 +5246,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/frontier-54-v2-receipts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/frontier-54-v2-receipts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/frontier-55-runs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/frontier-55-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/frontier-mix-v5-all-estates",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/frontier-mix-v5-all-estates"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/frontier-mix-v6-rebalanced",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2582,6 +5306,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/governed-distill-4b-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/governed-distill-4b-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-distill-4b-sft-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/governed-distill-4b-sft-v2"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/governed-distill-4b-sft-v3",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2602,6 +5346,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/governed-distill-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/governed-distill-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-grounded-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/governed-grounded-sft-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/governed-receipts-bench",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2609,6 +5373,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/governed-receipts-bench"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-sft-mix-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/governed-sft-mix-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/high-value-systems-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/high-value-systems-corpus-v1"
       ]
     },
     {
@@ -2642,6 +5426,106 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/khipu-heritage-eval-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-heritage-eval-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-scholar-eval-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-scholar-eval-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-scholar-runs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-scholar-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-scholars-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-scholars-corpus-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-scholars-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-scholars-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-scholars-sft-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-scholars-sft-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-structure-eval-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-structure-eval-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-structure-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-structure-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-structure-sft-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-structure-sft-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-structure-sft-v3",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-structure-sft-v3"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/khipu-v2-abstention-curriculum",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2649,6 +5533,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/khipu-v2-abstention-curriculum"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-yachay-research-v0",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/khipu-yachay-research-v0"
       ]
     },
     {
@@ -2682,6 +5576,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/lean-math-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/lean-math-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lean-math-sft-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/lean-math-sft-v2"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/lean-proof-corpus-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2712,6 +5626,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/legacy-archive",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/legacy-archive"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lutar-axioms-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/lutar-axioms-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/materials-frontier-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/materials-frontier-sft-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/measurement-honesty-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2739,6 +5683,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/model-bom"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/model-eval-receipts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/model-eval-receipts"
       ]
     },
     {
@@ -2832,6 +5786,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/provenance-native-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/provenance-native-corpus-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/proving-ground-54h-mesh",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/proving-ground-54h-mesh"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/puriq-market-data",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/puriq-market-data"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/quant-curriculum-v1",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2849,6 +5833,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/rag-corpus-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/rag-corpus-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/rag-corpus-v2"
       ]
     },
     {
@@ -2872,6 +5866,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/receipt-of-doubt-math-unanswerables-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/receipt-of-doubt-math-unanswerables-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/receipted-unsloth",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2892,6 +5896,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/ring-curriculum-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/ring-curriculum-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/ring-curriculum-v2",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/ring-curriculum-v2"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/ring-curriculum-v3",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2902,6 +5926,46 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/ring-ouro-curriculum-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/ring-ouro-curriculum-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/sorry-discharge-challenges-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/sorry-discharge-challenges-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/specialized-domains-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/specialized-domains-corpus-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/stack400-runs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/stack400-runs"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-1-doctrine-sft",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2909,6 +5973,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-1-doctrine-sft"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-agentic-reflex-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-agentic-reflex-v1"
       ]
     },
     {
@@ -2952,6 +6026,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-distill-abstention-v3-calib",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-distill-abstention-v3-calib"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-distill-v4-calib",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-distill-v4-calib"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-estate-graph",
       "repoType": "dataset",
       "stage": "inventory",
@@ -2959,6 +6053,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-estate-graph"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-evidence",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-evidence"
       ]
     },
     {
@@ -2982,6 +6086,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-frontier-openprob-mix-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-frontier-openprob-mix-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-frontier-sft-mix-v2",
       "repoType": "dataset",
       "stage": "inventory",
@@ -3002,6 +6116,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-frontier-sft-mix-v4",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-frontier-sft-mix-v4"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-lake",
       "repoType": "dataset",
       "stage": "inventory",
@@ -3019,6 +6143,46 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-marketing-factbase"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-open-problems-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-open-problems-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-org-infra",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-org-infra"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-papers-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-papers-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-quant-abstention-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-quant-abstention-sft-v1"
       ]
     },
     {
@@ -3059,6 +6223,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-inrepo"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-seismic-review-state",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-seismic-review-state"
       ]
     },
     {
@@ -3112,6 +6286,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/thesis-formula-index",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/thesis-formula-index"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/thesis-v18-formal-verification",
       "repoType": "dataset",
       "stage": "inventory",
@@ -3119,6 +6303,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/thesis-v18-formal-verification"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/training-ledger",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/training-ledger"
       ]
     },
     {
@@ -3152,6 +6346,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/unified-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/unified-corpus-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/unified-corpus-v2",
       "repoType": "dataset",
       "stage": "inventory",
@@ -3159,6 +6363,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/unified-corpus-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/vault-artifacts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/vault-artifacts"
       ]
     },
     {
@@ -3232,6 +6446,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/w29-runs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/w29-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/wave-logs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/wave-logs"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/why-we-lead",
       "repoType": "dataset",
       "stage": "inventory",
@@ -3272,6 +6506,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/x402-protocol-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/x402-protocol-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/yuyay-v3-axis-labels-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/yuyay-v3-axis-labels-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/README",
       "repoType": "space",
       "stage": "inventory",
@@ -3289,6 +6543,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/a11oy"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-factory",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/a11oy-factory"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/agents-studio",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/agents-studio"
       ]
     },
     {
@@ -3322,6 +6596,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/counsel-assurance",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/counsel-assurance"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/curation-atlas",
       "repoType": "space",
       "stage": "inventory",
@@ -3342,6 +6626,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/estate-gardener",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/estate-gardener"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/estate-holo",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/estate-holo"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/eternal-auditor",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/eternal-auditor"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/finance",
       "repoType": "space",
       "stage": "inventory",
@@ -3349,6 +6663,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/finance"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/foundation-confirmation-v2",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/foundation-confirmation-v2"
       ]
     },
     {
@@ -3362,6 +6686,56 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/frontier-showcase",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/frontier-showcase"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/gdw-frontier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/gdw-frontier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-agent-bench",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-receipt-verifier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/holographic-unify",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/holographic-unify"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/khipu-hologram",
       "repoType": "space",
       "stage": "inventory",
@@ -3369,6 +6743,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/khipu-hologram"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/khipu-playground",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/khipu-playground"
       ]
     },
     {
@@ -3382,6 +6766,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/khipu-yachay",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/khipu-yachay"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/killinchu",
       "repoType": "space",
       "stage": "inventory",
@@ -3389,6 +6783,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/living-anatomy",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/living-anatomy"
       ]
     },
     {
@@ -3414,6 +6818,66 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/measured-honesty-census",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/measured-honesty-census"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/newton-trust-upgrade",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/newton-trust-upgrade"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/nexus",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/nexus"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/oac-system-health-lab",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/oac-system-health-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/prove-it",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/prove-it"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/puriq-markets",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/puriq-markets"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/sentra",
       "repoType": "space",
       "stage": "inventory",
@@ -3424,6 +6888,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-atelier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-bench-suite",
       "repoType": "space",
       "stage": "inventory",
@@ -3431,6 +6905,26 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-bench-suite"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-brand-campaign",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-brand-campaign"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-chief-engineer",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-chief-engineer"
       ]
     },
     {
@@ -3474,6 +6968,46 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-cyber-shield",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-cyber-shield"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-dream-architect",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-dream-architect"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-energy-hologram",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-energy-hologram"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-energy-ledger",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-energy-ledger"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-forge-lab",
       "repoType": "space",
       "stage": "inventory",
@@ -3504,6 +7038,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-frontier-deck",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-frontier-deck"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-infra-warden",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-infra-warden"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-marketing",
       "repoType": "space",
       "stage": "inventory",
@@ -3511,6 +7075,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-marketing"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-marketing-1-1",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-marketing-1-1"
       ]
     },
     {
@@ -3534,6 +7108,36 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-provenance-pitch",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-provenance-pitch"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receipts-chain",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-receipts-chain"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-research-council",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-research-council"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-router-control",
       "repoType": "space",
       "stage": "inventory",
@@ -3554,6 +7158,46 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-second-brain",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-second-brain"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-seismic-review",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-seismic-review"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-typesafe-triage",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-typesafe-triage"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szlholdings-si",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szlholdings-si"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/terra",
       "repoType": "space",
       "stage": "inventory",
@@ -3564,6 +7208,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/terra-assurance",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/terra-assurance"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/the-grid",
       "repoType": "space",
       "stage": "inventory",
@@ -3571,6 +7225,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/the-grid"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/training-ledger-explorer",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/training-ledger-explorer"
       ]
     },
     {
@@ -3601,6 +7265,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/wink-observatory"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/yarqa",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/yarqa"
       ]
     },
     {
