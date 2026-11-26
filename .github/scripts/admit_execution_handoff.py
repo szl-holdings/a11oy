@@ -227,6 +227,21 @@ def read_failure(path):
     missing = report.get("missing_variables", [])
     require(type(missing) is list and all(name in CONTEXT_VARIABLES for name in missing),
             "FAILURE_REPORT_INVALID")
+    required = {"schema", "source_revision", "stage", "error", "context_frozen",
+                "execution_authorized", "export_collected", "provider_state_changed"}
+    keys = set(report)
+    require(keys == required or
+            (keys == required | {"missing_variables"}
+             and report["error"] == "EXECUTION_CONTEXT_REQUIRED"
+             and missing == [name for name in CONTEXT_VARIABLES if name in missing]),
+            "FAILURE_REPORT_INVALID")
+    source = report["source_revision"]
+    require(source is None or
+            (type(source) is str and SHA40.fullmatch(source) is not None),
+            "FAILURE_REPORT_INVALID")
+    # The producer owns the canonical bytes. A last-value-wins duplicate, extra
+    # member, NaN, or alternate serialization cannot become trusted evidence.
+    require(raw == canonical_failure(report), "FAILURE_REPORT_INVALID")
     return report
 
 
