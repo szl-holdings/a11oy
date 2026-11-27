@@ -391,7 +391,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: szl-holdings/.github
-          ref: c1e7720005706d2d4dccdb9f491547ec4e9bd6a8
+          ref: 0a4151293e39150a197a3324fe84faef2983652d
           path: .gdw-source-publisher
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0

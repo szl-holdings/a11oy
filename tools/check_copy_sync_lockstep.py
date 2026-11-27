@@ -802,7 +802,7 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
     # Reviewed reusable-hf-deploy controller that expands Dockerfile COPY
     # sources into the HF payload. A generic 40-hex pin proves immutability,
     # not this capability; additions require an explicit guard review.
-    "c1e7720005706d2d4dccdb9f491547ec4e9bd6a8",
+    "0a4151293e39150a197a3324fe84faef2983652d",
 })
 
 
@@ -964,7 +964,7 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
         "if": REVIEWED_DEPLOY_GATES["if"],
         "uses": (
             "szl-holdings/.github/.github/workflows/"
-            "reusable-hf-deploy.yml@c1e7720005706d2d4dccdb9f491547ec4e9bd6a8"
+            "reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d"
         ),
         "with": "",
         "secrets": "",
