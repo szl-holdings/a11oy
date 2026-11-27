@@ -40,7 +40,7 @@ env:
 jobs:
   build:
     name: Build image + SBOM (push on main + release)
-    environment: ${{ github.event_name == 'pull_request' && '' || 'production' }}
+    environment: ${{ github.event_name != 'pull_request' && 'production' || fromJSON('null') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
