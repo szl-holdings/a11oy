@@ -34,7 +34,7 @@ REPOSITORY = "szl-holdings/a11oy"
 RUNTIME_ROOT = "/app"
 PUBLISHER = {
     "repository": "szl-holdings/.github",
-    "revision": "0a4151293e39150a197a3324fe84faef2983652d",
+    "revision": "816b83265b2eb5e4b73f6dab21e67eb28d53381f",
     "script_path": ".github/scripts/hf_deploy_from_dockerfile.py",
     "script_sha256": "c536aed5d5d67d7904058a3f0df56d6821790be0a89465172e9a09c2622bb28d",
 }

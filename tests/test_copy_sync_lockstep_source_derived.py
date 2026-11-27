@@ -594,7 +594,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             self.reviewed_workflow + "\n" + escaped_relock))
         deploy = self.fixture_job("deploy")
         for header in ("    needs: " + self.deploy_needs + "\n", "    if: " + self.deploy_if + "\n",
-                       "    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d\n",
+                       "    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f\n",
                        "    <<: *hidden\n", "    continue-on-error: true\n",
                        "    ? continue-on-error\n    : true\n",
                        "    &bypass continue-on-error: true\n"):
@@ -702,7 +702,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -721,7 +721,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -744,7 +744,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
             """,
             """
             jobs:
@@ -769,7 +769,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -788,7 +788,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
               INERT_DEPLOY_EXAMPLE: |
                 jobs:
                   deploy:
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{ github.sha }}
@@ -813,7 +813,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                   - run: echo no-op
               deploy:
                 name: Deploy, source-bind, and attest exact surface
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -876,7 +876,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                     """
                     jobs:
                       deploy:
-                        uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                        uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                         with:
                     """
                 )
@@ -902,7 +902,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                 jobs:
                   deploy:
                     {condition_entry}
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{{{ github.sha }}}}
@@ -931,7 +931,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
                       - run: echo skipped
                   deploy:
                     {needs_entry}
-                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                     with:
                       hf-repo: SZLHOLDINGS/a11oy
                       ref: ${{{{ github.sha }}}}
@@ -954,7 +954,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -1013,7 +1013,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
@@ -1098,7 +1098,7 @@ class SourceDerivedCopySyncTests(unittest.TestCase):
             """
             jobs:
               deploy:
-                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@0a4151293e39150a197a3324fe84faef2983652d
+                uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f
                 with:
                   hf-repo: SZLHOLDINGS/a11oy
                   ref: ${{ github.sha }}
