@@ -35,6 +35,7 @@ permissions:
 jobs:
   provenance:
     name: Build artifact + attest SLSA provenance
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       id-token: write     # OIDC token -> Sigstore Fulcio keyless signing
@@ -136,6 +137,7 @@ jobs:
   # claim is unchanged (still Build L1).
   sign-receipts:
     name: Sign governance + Khipu receipts (Sigstore keyless)
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       id-token: write     # OIDC token -> Sigstore Fulcio keyless signing
