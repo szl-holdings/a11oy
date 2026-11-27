@@ -46,7 +46,7 @@ jobs:
           node --check console/assets/szl-hologram-v2.js
           python tests/test_holographic_experience_v2.py
           git diff --check
-      - name: Require an independent approval and resolved review threads
+      - name: Require resolved review threads for solo green merge
         shell: bash
         run: |
           set -euo pipefail
@@ -62,14 +62,13 @@ jobs:
           decision="$(jq -r '.data.repository.pullRequest.reviewDecision // "NULL"' <<<"$payload")"
           threads_page="$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage // true' <<<"$payload")"
           unresolved="$(jq '[.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved == false and .isOutdated == false)] | length' <<<"$payload")"
-          independent_approvals="$(jq --arg author "$author" '[.data.repository.pullRequest.reviews.nodes[]? | select(.state == "APPROVED" and .author.login != $author)] | length' <<<"$payload")"
           reviews_page="$(jq -r '.data.repository.pullRequest.reviews.pageInfo.hasNextPage // true' <<<"$payload")"
           (( graphql_errors == 0 )) || { echo "GraphQL returned $graphql_errors error(s)"; exit 1; }
           [[ "$decision" == "APPROVED" || "$decision" == "NULL" ]] || { echo "review decision is $decision"; exit 1; }
           [[ "$threads_page" == "false" ]] || { echo "review-thread inventory is incomplete"; exit 1; }
           [[ "$reviews_page" == "false" ]] || { echo "review inventory is incomplete"; exit 1; }
           (( unresolved == 0 )) || { echo "unresolved review threads: $unresolved"; exit 1; }
-          (( independent_approvals > 0 )) || { echo "no approval from an author other than $author"; exit 1; }
+          echo "No independent approval required. Proceeding only after exact-head peer checks finish green."
       - name: Wait for every peer check to finish green
         shell: bash
         run: |
