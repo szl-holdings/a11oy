@@ -174,3 +174,33 @@ class GeneratorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_published_tmp_manifest_is_preferred(tmp_path, monkeypatch):
+    """#3770: the publisher-generated /tmp selector wins over the placeholder."""
+    published = tmp_path / ".szl-release-manifest.json"
+    monkeypatch.delenv("SZL_RELEASE_MANIFEST_PATH", raising=False)
+    monkeypatch.setattr(srm, "PUBLISHED_MANIFEST_PATH", published)
+    assert srm.PUBLISHED_MANIFEST_NAME == ".szl-release-manifest.json"
+    assert srm.manifest_path().name == "release-manifest.json"
+    published.write_text('{"status": "GENERATED"}', encoding="utf-8")
+    assert srm.manifest_path() == published
+    monkeypatch.setenv("SZL_RELEASE_MANIFEST_PATH", str(tmp_path / "x.json"))
+    assert srm.manifest_path() == tmp_path / "x.json"
+
+
+def test_default_published_location_is_tmp_not_app_source():
+    assert srm.PUBLISHED_MANIFEST_PATH == srm.Path("/tmp/.szl-release-manifest.json")
+
+
+def test_tmp_placeholder_never_shadows_locally_generated_manifest(tmp_path, monkeypatch):
+    """Codex review: a /tmp placeholder falls back to release-manifest.json."""
+    published = tmp_path / ".szl-release-manifest.json"
+    monkeypatch.delenv("SZL_RELEASE_MANIFEST_PATH", raising=False)
+    monkeypatch.setattr(srm, "PUBLISHED_MANIFEST_PATH", published)
+    committed = srm.Path(srm.__file__).with_name(".szl-release-manifest.json").read_bytes()
+    published.write_bytes(committed)
+    assert srm.manifest_path() == srm.Path(srm.__file__).with_name("release-manifest.json")
+    # Malformed published bytes are surfaced, not silently replaced.
+    published.write_text("not json", encoding="utf-8")
+    assert srm.manifest_path() == published

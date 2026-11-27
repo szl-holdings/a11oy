@@ -50,6 +50,9 @@ RUNTIME_IDENTITY_COPY_ADDITIONS = {".szl-runtime-marker.json", "szl_runtime_iden
 # allowlist COUNT/SHA unchanged; subtract only these newly admitted bytes.
 RELEASE_MANIFEST_COPY_ADDITIONS = {
     "szl_release_manifest.py", "release-manifest.schema.json", "release-manifest.json",
+    # Publisher-generated copy, batched into the /tmp runtime-marker COPY (a
+    # derived selector, never /app source); parity authenticates it as derived.
+    ".szl-release-manifest.json",
 }
 
 # One adapter and one canonical package, with adjacent root COPY lines batched
@@ -200,24 +203,31 @@ def _copy_sources(instruction: str) -> list[str]:
 
 
 def test_release_manifest_sources_are_batched_once_at_the_original_root_path() -> None:
-    """The three new #3770 files do not consume a layer or weaken old hashes."""
-    assert len(RELEASE_MANIFEST_COPY_ADDITIONS) == 3
-    batches = [
-        instruction for _line, instruction in _logical_instructions()
-        if instruction.upper().startswith("COPY ")
-        and RELEASE_MANIFEST_COPY_ADDITIONS & set(_copy_sources(instruction))
-    ]
-    assert len(batches) == 1
-    sources = _copy_sources(batches[0])
-    assert RELEASE_MANIFEST_COPY_ADDITIONS <= set(sources)
+    """The four #3770 files do not consume a layer or weaken old hashes.
+
+    The three committed sources ride the root /app batch. The publisher-generated
+    copy rides the existing /tmp runtime-marker COPY: it is a derived selector,
+    so GDW installed-source equality never covers its deploy-time bytes.
+    """
+    assert len(RELEASE_MANIFEST_COPY_ADDITIONS) == 4
+    generated = ".szl-release-manifest.json"
+    source_files = RELEASE_MANIFEST_COPY_ADDITIONS - {generated}
+    copies = [instruction for _line, instruction in _logical_instructions()
+              if instruction.upper().startswith("COPY ")]
+    root = [row for row in copies if source_files & set(_copy_sources(row))]
+    assert len(root) == 1
+    sources = _copy_sources(root[0])
+    assert source_files <= set(sources) and generated not in sources
     assert len(sources) == len(set(sources))
     assert "szl_runtime_identity.py" in sources
-    assert shlex.split(batches[0])[-1] == "./"
+    assert shlex.split(root[0])[-1] == "./"
+    selector = [row for row in copies if generated in _copy_sources(row)]
+    assert len(selector) == 1
+    assert _copy_sources(selector[0]) == [".szl-runtime-marker.json", generated]
+    assert shlex.split(selector[0])[-1] == "/tmp/"
     for source in RELEASE_MANIFEST_COPY_ADDITIONS:
         assert (ROOT / source).is_file()
-        assert sum(source in _copy_sources(row)
-                   for _line, row in _logical_instructions()
-                   if row.upper().startswith("COPY ")) == 1
+        assert sum(source in _copy_sources(row) for row in copies) == 1
 
 
 def test_runtime_image_stays_below_docker_layer_depth_budget() -> None:

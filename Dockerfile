@@ -99,7 +99,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Pins live ONLY in requirements-runtime.txt (single source of truth; the audit
 # closure includes it with -r). Never re-list them inline here.
 COPY requirements-runtime.txt /tmp/requirements-runtime.txt
-COPY .szl-runtime-marker.json /tmp/.szl-runtime-marker.json
+# #3770: the publisher regenerates the release manifest at deploy time, so it is
+# a derived selector beside the runtime marker, never immutable /app source.
+COPY .szl-runtime-marker.json .szl-release-manifest.json /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements-runtime.txt
 
 # Canonical non-generative Nemo witness: exact immutable source revision,

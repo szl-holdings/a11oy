@@ -75,7 +75,7 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         encoding="utf-8"
     )
     for required in (
-        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36",
+        "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f",
         "ref: ${{ github.sha }}",
         "source-revision-variable: SZL_GIT_SHA",
         "source-revision-probe-path: /api/build-info",

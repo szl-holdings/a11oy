@@ -303,7 +303,7 @@ test -s "$PLATFORM_CANDIDATE_PRODUCT_REPORT"
 test -s "$PLATFORM_CANDIDATE_BROWSER_REPORT"'''
 RUN_VERDICT = "${{ needs.execution-readiness.outputs.verdict }}"
 # Reviewed publisher 5f140bab: isolated identity attestation and exact-main gates.
-REVIEWED_DEPLOY_JOB_SHA256 = "472ec55d0cb1a4bfec47fd6053bedf5497c8dff2015482dc50ee2c6ebc34678d"
+REVIEWED_DEPLOY_JOB_SHA256 = "e127459c58a84fcc6e89f5aec6ae4f93cd355b914bb19949d96bf98b6ac4ebce"
 REVIEWED_RELOCK_JOB_SHA256 = "7ecd3eb7e956dc1d87af222b81841f600c0f058a69c8db1caf2584903d65c94b"
 REVIEWED_HANDOFF_JOB_SHA256 = "7b0a748ea12b5cc3eb43d4238031138dfa3531fe51baa1236b96e1dc0ba531b9"
 

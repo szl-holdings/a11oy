@@ -55,6 +55,7 @@ permissions:
 jobs:
   build-sign-release:
     name: Build image, zarf create, sign, release
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       contents: write      # create release + upload assets
@@ -235,6 +236,7 @@ jobs:
   sign-receipts:
     name: Sign governance + Khipu receipts (Sigstore keyless)
     needs: build-sign-release
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       contents: write     # upload signed envelope to the founder-named release

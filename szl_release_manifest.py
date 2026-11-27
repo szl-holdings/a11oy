@@ -35,6 +35,14 @@ GATE_KIND = "szl.promotion-gate/v1"
 
 MANIFEST_PATH_ENV = "SZL_RELEASE_MANIFEST_PATH"
 DEFAULT_MANIFEST_NAME = "release-manifest.json"
+# The canonical publisher replaces only this dot-prefixed placeholder with the
+# GENERATED manifest at deploy time (szl-holdings/.github hf_deploy_from_dockerfile
+# --release-manifest-file). The committed release-manifest.json stays the
+# honest placeholder for constrained/local builds.
+PUBLISHED_MANIFEST_NAME = ".szl-release-manifest.json"
+# Installed beside the runtime marker under /tmp (derived selector, not /app
+# source), so GDW installed-source equality never covers publisher bytes.
+PUBLISHED_MANIFEST_PATH = Path("/tmp") / PUBLISHED_MANIFEST_NAME
 
 # Required runtime evidence per #3770 (owner directive 2026-11-19): the hosted
 # demo must not be promoted/routed when these are missing or UNKNOWN.
@@ -92,7 +100,24 @@ def manifest_path() -> Path:
     configured = (os.getenv(MANIFEST_PATH_ENV) or "").strip()
     if configured:
         return Path(configured)
+    if PUBLISHED_MANIFEST_PATH.is_file() and not _is_placeholder_file(PUBLISHED_MANIFEST_PATH):
+        return PUBLISHED_MANIFEST_PATH
     return Path(__file__).with_name(DEFAULT_MANIFEST_NAME)
+
+
+def _is_placeholder_file(path: Path) -> bool:
+    """True only for a readable JSON object whose status is the placeholder.
+
+    Local/constrained builds copy the committed placeholder to /tmp; it must not
+    shadow a release-manifest.json written by scripts/generate_release_manifest.py.
+    Unreadable or malformed published bytes are NOT treated as a placeholder, so
+    load_manifest() still surfaces them honestly instead of silently falling back.
+    """
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return False
+    return type(document) is dict and document.get("status") == _PLACEHOLDER_STATUS
 
 
 def _is_unknown(value: Any) -> bool:

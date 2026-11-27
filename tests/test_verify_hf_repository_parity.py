@@ -892,7 +892,8 @@ class DerivedDotCopyTests(unittest.TestCase):
     def test_current_dockerfile_has_all_guarded_hidden_sources(self):
         tree = {self.SECURITY: "a" * 40, self.PUBLISHER: "b" * 40,
                 ".github/workflows/hf-sync.yml": "c" * 40,
-                MODULE.RUNTIME_MARKER: "d" * 40, self.X402_MANIFEST: "e" * 40}
+                MODULE.RUNTIME_MARKER: "d" * 40, self.X402_MANIFEST: "e" * 40,
+                MODULE.RELEASE_MANIFEST: "f" * 40}
         self.assertEqual(MODULE.docker_dot_copy_paths((ROOT / "Dockerfile").read_text(), tree),
                          tuple(sorted(tree)))
 
@@ -1097,6 +1098,81 @@ class AuthenticatedDerivedMarkerTests(unittest.TestCase):
         self.assertEqual(observed["derived_artifacts"], [proof])
         self.assertEqual([item["path"] for item in observed["leading_dot_copies"]],
                          [".well-known/security.txt"])
+
+
+class DerivedReleaseManifestTests(unittest.TestCase):
+    """#3770: the publisher-generated manifest is re-derived, never trusted."""
+
+    GH = "a" * 40
+    HF = "b" * 40
+    PLACEHOLDER = (ROOT / ".szl-release-manifest.json").read_bytes()
+    DOCKERFILE = (b"FROM scratch\nARG A11OY_ALLOY_GGUF_REPO=SZLHOLDINGS/SZL-Khipu-1.5B-GGUF\n"
+                  b"ARG A11OY_ALLOY_GGUF_REV=" + b"d" * 40 + b"\n")
+
+    @staticmethod
+    def oid(body):
+        return MODULE.hashlib.sha1(f"blob {len(body)}\0".encode() + body).hexdigest()
+
+    def generated(self, **runtime_overrides):
+        runtime = {
+            "served_frontend_sha256": MODULE.hashlib.sha256(b"<html/>").hexdigest(),
+            "api_contract_sha256": MODULE.hashlib.sha256(b"# contract").hexdigest(),
+            "model_identity": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF@" + "d" * 40,
+            "deployment_identity": f"{HF_REPO}@{self.GH}",
+        }
+        runtime.update(runtime_overrides)
+        doc = {"kind": "szl.release-manifest/v1", "status": "GENERATED",
+               "release_id": "a11oy-" + self.GH[:12], "generated_at": "UNKNOWN",
+               "source": {"git_commit": self.GH, "git_ref": "refs/heads/main"},
+               "runtime": runtime, "api_contract_source": "docs/api-contract.md",
+               "honesty": {"never_hardcoded": True, "missing_values_stay_unknown": True}}
+        return MODULE.json.dumps(doc, indent=2, sort_keys=True).encode() + b"\n"
+
+    def run_verify(self, published, placeholder=None):
+        gh_files = {MODULE.RELEASE_MANIFEST: placeholder or self.PLACEHOLDER,
+                    "Dockerfile": self.DOCKERFILE, "console/index.html": b"<html/>",
+                    "docs/api-contract.md": b"# contract"}
+        tree = {path: self.oid(body) for path, body in gh_files.items()}
+        gh_prefix = f"https://raw.githubusercontent.com/{GITHUB_REPO}/{self.GH}/"
+        hf_prefix = f"https://huggingface.co/spaces/{HF_REPO}/resolve/{self.HF}/"
+
+        def opener(request, timeout):
+            url = request.full_url
+            if url.startswith(gh_prefix):
+                return io.BytesIO(gh_files[url.removeprefix(gh_prefix)])
+            self.assertEqual(url, hf_prefix + MODULE.RELEASE_MANIFEST)
+            return io.BytesIO(published)
+
+        return MODULE.verify_derived_release_manifest(
+            github_repo=GITHUB_REPO, github_ref=self.GH, hf_repo=HF_REPO, hf_ref=self.HF,
+            tree=tree, opener=opener)
+
+    def test_exact_regeneration_is_authenticated_as_derived(self):
+        proof = self.run_verify(self.generated())
+        self.assertEqual(proof["status"], "authenticated-derived")
+        self.assertEqual(proof["source_sha"], self.GH)
+
+    def test_any_value_drift_is_refused(self):
+        for override in ({"served_frontend_sha256": "1" * 64},
+                         {"model_identity": "SZLHOLDINGS/other@" + "d" * 40},
+                         {"deployment_identity": f"{HF_REPO}@{'c' * 40}"}):
+            with self.subTest(override=override), self.assertRaises(MODULE.ParityError):
+                self.run_verify(self.generated(**override))
+
+    def test_placeholder_on_space_or_non_placeholder_source_is_refused(self):
+        with self.assertRaises(MODULE.ParityError):
+            self.run_verify(self.PLACEHOLDER)
+        with self.assertRaises(MODULE.ParityError):
+            self.run_verify(self.generated(), placeholder=self.generated())
+
+    def test_publication_lag_is_named(self):
+        lagging = self.generated().replace(self.GH.encode(), b"c" * 40)
+        with self.assertRaisesRegex(MODULE.ParityError, "PUBLICATION_LAG|runtime values"):
+            self.run_verify(lagging)
+
+    def test_noncanonical_serialization_is_refused(self):
+        with self.assertRaisesRegex(MODULE.ParityError, "canonical serialization"):
+            self.run_verify(self.generated().replace(b"\n", b"\r\n"))
 
 
 if __name__ == "__main__":
