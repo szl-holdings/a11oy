@@ -31,34 +31,41 @@ def invoke_verification(tmp_path, workflow_ref, exit_code=0):
     )
     recorder.chmod(0o755)
     log = tmp_path / "args.json"
+    # Verify reads a non-empty bundle from COSIGN_BUNDLE (CI writes this
+    # artifact). The fixture supplies one so the argument contract can run
+    # offline; it does not mint or check a live signature.
+    bundle = tmp_path / "cosign-bundle.json"
+    bundle.write_text("{}", encoding="utf-8")
     # No runner credentials or network are needed by this command-argument test.
     env = {"PATH": str(tmp_path) + os.pathsep + os.defpath,
-           "ARGV_LOG": str(log), "VERIFY_EXIT": str(exit_code)}
+           "ARGV_LOG": str(log), "VERIFY_EXIT": str(exit_code),
+           "COSIGN_BUNDLE": str(bundle)}
     if workflow_ref is not None:
         env["GITHUB_WORKFLOW_REF"] = workflow_ref
     result = subprocess.run(["/bin/bash", "-c", script], env=env,
                             capture_output=True, text=True, timeout=5)
-    return result, json.loads(log.read_text()) if log.exists() else None
+    return result, json.loads(log.read_text()) if log.exists() else None, bundle
 
 
 @pytest.mark.parametrize("tag", ["v1.2.3", "v1.2.3-rc.1", "v1.2.3+build.5"])
 def test_release_verification_requires_exact_workflow_and_tag(tmp_path, tag):
     ref = f"szl-holdings/a11oy/.github/workflows/cosign.yml@refs/tags/{tag}"
-    result, argv = invoke_verification(tmp_path, ref)
+    result, argv, bundle = invoke_verification(tmp_path, ref)
     assert result.returncode == 0, result.stderr
-    assert argv == ["verify", "--certificate-identity=https://github.com/" + ref,
+    assert argv == ["verify", "--bundle", str(bundle),
+                    "--certificate-identity=https://github.com/" + ref,
                     "--certificate-oidc-issuer=https://token.actions.githubusercontent.com", IMAGE]
 
 
 @pytest.mark.parametrize("workflow_ref", [None, ""])
 def test_missing_workflow_identity_fails_before_cosign(tmp_path, workflow_ref):
-    result, argv = invoke_verification(tmp_path, workflow_ref)
+    result, argv, _bundle = invoke_verification(tmp_path, workflow_ref)
     assert result.returncode != 0
     assert argv is None
 
 
 def test_verification_failure_is_not_masked(tmp_path):
     ref = "szl-holdings/a11oy/.github/workflows/cosign.yml@refs/tags/v1.2.3"
-    result, argv = invoke_verification(tmp_path, ref, exit_code=7)
+    result, argv, _bundle = invoke_verification(tmp_path, ref, exit_code=7)
     assert result.returncode == 7
     assert argv[-1] == IMAGE

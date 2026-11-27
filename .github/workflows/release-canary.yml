@@ -1,0 +1,260 @@
+# Staged rollout 1% -> 10% -> 50% -> 100% with gated promotion and auto-rollback.
+# Live apply runs only on workflow_dispatch from protected main, after confirm
+# is true, with environment: release on each promotion job. A merge of this
+# file does not shift traffic, publish, sign or deploy. Until a canary backend
+# is configured, apply fails closed rather than simulating success.
+name: release-canary
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/release-canary.yml
+      - .github/scripts/release_canary_controller.py
+  workflow_dispatch:
+    inputs:
+      canary_ref:
+        description: Canary revision to promote
+        required: true
+        type: string
+      stable_ref:
+        description: Stable revision to keep as the rollback target
+        required: true
+        type: string
+      expected_source_sha:
+        description: Exact protected main SHA this canary may apply
+        required: true
+        type: string
+      confirm_staged_rollout:
+        description: Authorize this staged rollout (required true)
+        required: true
+        type: boolean
+        default: false
+      metrics_dir:
+        description: Directory of per-stage metrics JSON files (metrics-1.json, ...)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a11oy-release-canary
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout pull-request source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Run fail-closed canary contract
+        run: python3 -I -B .github/scripts/release_canary_controller.py self-check
+
+  admit:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CONFIRM: ${{ inputs.confirm_staged_rollout }}
+      EXPECTED_SOURCE: ${{ inputs.expected_source_sha }}
+      REF_PROTECTED: ${{ github.ref_protected }}
+    steps:
+      - name: Admit dispatch on protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = szl-holdings/a11oy
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$REF_PROTECTED" = true
+          test "$CONFIRM" = true
+          test "$EXPECTED_SOURCE" = "$GITHUB_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq 'select(.protected == true) | .commit.sha')" = "$GITHUB_SHA"
+      - name: Checkout admitted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Record unused canary state (nothing applied)
+        run: |
+          mkdir -p "$RUNNER_TEMP"
+          printf '{"version":1,"applied":false,"applied_percent":0}\n' > "$RUNNER_TEMP/canary-state.json"
+      - name: Upload canary state
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: canary-state
+          path: ${{ runner.temp }}/canary-state.json
+          if-no-files-found: error
+
+  stage-1:
+    needs: admit
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout admitted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Apply canary weight and analyze
+        env:
+          STAGE_PERCENT: "1"
+          CANARY_REF: ${{ inputs.canary_ref }}
+          STABLE_REF: ${{ inputs.stable_ref }}
+          METRICS_DIR: ${{ inputs.metrics_dir }}
+        run: |
+          set -euo pipefail
+          python3 -I -B .github/scripts/release_canary_controller.py apply \
+            --percent "$STAGE_PERCENT" \
+            --canary-ref "$CANARY_REF" \
+            --stable-ref "$STABLE_REF"
+          python3 -I -B .github/scripts/release_canary_controller.py analyze \
+            --percent "$STAGE_PERCENT" \
+            --metrics "${METRICS_DIR}/metrics-${STAGE_PERCENT}.json"
+
+  stage-10:
+    needs: stage-1
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout admitted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Apply canary weight and analyze
+        env:
+          STAGE_PERCENT: "10"
+          CANARY_REF: ${{ inputs.canary_ref }}
+          STABLE_REF: ${{ inputs.stable_ref }}
+          METRICS_DIR: ${{ inputs.metrics_dir }}
+        run: |
+          set -euo pipefail
+          python3 -I -B .github/scripts/release_canary_controller.py apply \
+            --percent "$STAGE_PERCENT" \
+            --canary-ref "$CANARY_REF" \
+            --stable-ref "$STABLE_REF"
+          python3 -I -B .github/scripts/release_canary_controller.py analyze \
+            --percent "$STAGE_PERCENT" \
+            --metrics "${METRICS_DIR}/metrics-${STAGE_PERCENT}.json"
+
+  stage-50:
+    needs: stage-10
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout admitted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Apply canary weight and analyze
+        env:
+          STAGE_PERCENT: "50"
+          CANARY_REF: ${{ inputs.canary_ref }}
+          STABLE_REF: ${{ inputs.stable_ref }}
+          METRICS_DIR: ${{ inputs.metrics_dir }}
+        run: |
+          set -euo pipefail
+          python3 -I -B .github/scripts/release_canary_controller.py apply \
+            --percent "$STAGE_PERCENT" \
+            --canary-ref "$CANARY_REF" \
+            --stable-ref "$STABLE_REF"
+          python3 -I -B .github/scripts/release_canary_controller.py analyze \
+            --percent "$STAGE_PERCENT" \
+            --metrics "${METRICS_DIR}/metrics-${STAGE_PERCENT}.json"
+
+  stage-100:
+    needs: stage-50
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout admitted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Apply canary weight and analyze
+        env:
+          STAGE_PERCENT: "100"
+          CANARY_REF: ${{ inputs.canary_ref }}
+          STABLE_REF: ${{ inputs.stable_ref }}
+          METRICS_DIR: ${{ inputs.metrics_dir }}
+        run: |
+          set -euo pipefail
+          python3 -I -B .github/scripts/release_canary_controller.py apply \
+            --percent "$STAGE_PERCENT" \
+            --canary-ref "$CANARY_REF" \
+            --stable-ref "$STABLE_REF"
+          python3 -I -B .github/scripts/release_canary_controller.py analyze \
+            --percent "$STAGE_PERCENT" \
+            --metrics "${METRICS_DIR}/metrics-${STAGE_PERCENT}.json"
+
+  rollback:
+    needs: [admit, stage-1, stage-10, stage-50, stage-100]
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.admit.result == 'success' && (needs.stage-1.result == 'failure' || needs.stage-10.result == 'failure' || needs.stage-50.result == 'failure' || needs.stage-100.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout admitted source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Download canary state
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: canary-state
+          path: ${{ runner.temp }}
+      - name: Auto-rollback to stable
+        env:
+          STABLE_REF: ${{ inputs.stable_ref }}
+        run: |
+          set -euo pipefail
+          python3 -I -B .github/scripts/release_canary_controller.py rollback \
+            --stable-ref "$STABLE_REF" \
+            --state "${RUNNER_TEMP}/canary-state.json"
