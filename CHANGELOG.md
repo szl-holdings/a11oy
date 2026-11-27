@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - public Hugging Face inventory snapshot (2026-11-26)
+
+- Regenerated `docs/huggingface-ecosystem-manifest.json` from the official
+  anonymous collector (`scripts/audit_huggingface_ecosystem.py`) at
+  9:51:54 PM ET on 26 November 2026. Public counts are now 72 models,
+  174 datasets, 76 Spaces (75 listed Spaces plus the reserved
+  `SZLHOLDINGS/README` org card), and 14 kernels. Datasets, Spaces and
+  kernels are unchanged in membership; 35 public models were added and
+  three previously tracked models are no longer in the anonymous public
+  API (`SZL-Forge-1.5B-ReceiptAgent`, `SZL-Khipu-1.5B`,
+  `brain-navigator-r2`; each returned HTTP 401 unauthenticated). No
+  keepers were added. Space classifications and the non-public treatment
+  of `SZLHOLDINGS/immune` were already on `main` and are unchanged.
+  Derived views (stage matrix, org cards, pre-training projection) were
+  regenerated. `docs/model-inference-support.json` was not rewritten;
+  inventory coverage for the new and removed model IDs still needs source
+  review.
+
 ### Fixed - storage block names a rejected provider credential
 
 - The public GDW storage block (`/api/a11oy/healthz` rollup, `/readyz`, GDW
