@@ -16,7 +16,7 @@ This Acceptable Use Policy ("AUP") applies to anyone who uses, hosts, integrates
 
 The Services are intended for lawful work: research, software development, evaluation, and operational assistance, subject to the limits in this policy and to any product-specific restrictions (for example, a model card, license, or access gate).
 
-SZL products are designed to refuse or abstain when a request is out of scope, ungrounded, or unsafe. Attempting to defeat that restraint is not an intended use.
+SZL products aim to refuse or abstain when a request is out of scope, ungrounded, or unsafe; how well each model does this is reported on its model card. Attempting to defeat that restraint is not an intended use.
 
 ## 3. Prohibited uses
 
