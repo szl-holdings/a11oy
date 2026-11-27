@@ -179,10 +179,10 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
       <div class="price">$2,500<small>per month · launch pricing</small></div>
       <ul>
         <li>Everything in Community</li>
-        <li>Evidence-plane sidecar for your agent stack</li>
-        <li>Hash-chained receipt ledger — append-only, tamper-evident</li>
-        <li>10 controls mapped to ISO/IEC 42001, EU AI Act &amp; NIST AI RMF</li>
-        <li>Auditor export bundle</li>
+        <li>Evidence-plane sidecar for your agent stack (in design / pilot-scoped)</li>
+        <li>Hash-chained receipt ledger — append-only, tamper-evident (offline verifier available today; hosted ledger service in design / pilot-scoped)</li>
+        <li>10 controls mapped to ISO/IEC 42001, EU AI Act &amp; NIST AI RMF (in design / pilot-scoped; no independent review yet)</li>
+        <li>Auditor export bundle (in design / pilot-scoped)</li>
       </ul>
       <div class="cta"><a class="btn" href="mailto:hello@a-11-oy.com?subject=a11oy%20Team%20plan">Start a conversation</a></div>
     </div>
@@ -208,7 +208,7 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
       <div class="price">Custom<small>Annual contract · your hardware</small></div>
       <ul>
         <li>Everything in Team</li>
-        <li>Own-metal mesh deployment</li>
+        <li>Own-metal mesh deployment (in design / pilot-scoped)</li>
         <li>Hardware-key signing — your keys, your signing root</li>
         <li>Air-gap / UDS deployment target (not yet demonstrated at a customer site)</li>
         <li>Support and response terms written into the signed agreement</li>
@@ -245,36 +245,36 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
           <tr>
             <th scope="row">Evidence-plane sidecar</th>
             <td data-label="Community" class="no">—</td>
-            <td data-label="Team" class="yes">Yes</td>
-            <td data-label="Pilot" class="yes">Yes</td>
-            <td data-label="Enterprise" class="yes">Yes</td>
+            <td data-label="Team" class="partial">In design / pilot-scoped</td>
+            <td data-label="Pilot" class="partial">In design / pilot-scoped</td>
+            <td data-label="Enterprise" class="partial">In design / pilot-scoped</td>
           </tr>
           <tr>
             <th scope="row">Hash-chained receipt ledger</th>
             <td data-label="Community" class="no">—</td>
-            <td data-label="Team" class="yes">Yes</td>
-            <td data-label="Pilot" class="yes">Yes</td>
-            <td data-label="Enterprise" class="yes">Yes</td>
+            <td data-label="Team" class="partial">Offline verifier today; hosted ledger in design / pilot-scoped</td>
+            <td data-label="Pilot" class="partial">Offline verifier today; hosted ledger in design / pilot-scoped</td>
+            <td data-label="Enterprise" class="partial">Offline verifier today; hosted ledger in design / pilot-scoped</td>
           </tr>
           <tr>
             <th scope="row">Mapped controls (ISO/IEC 42001 · EU AI Act · NIST AI RMF)</th>
             <td data-label="Community" class="no">—</td>
-            <td data-label="Team" class="yes">10</td>
-            <td data-label="Pilot" class="yes">10, with evidence links</td>
+            <td data-label="Team" class="partial">In design / pilot-scoped (10 controls; no independent review yet)</td>
+            <td data-label="Pilot" class="partial">In design / pilot-scoped (10 controls; no independent review yet)</td>
             <td data-label="Enterprise" class="partial">Custom scope</td>
           </tr>
           <tr>
             <th scope="row">Auditor export bundle</th>
             <td data-label="Community" class="no">—</td>
-            <td data-label="Team" class="yes">Yes</td>
-            <td data-label="Pilot" class="yes">Yes</td>
-            <td data-label="Enterprise" class="yes">Yes</td>
+            <td data-label="Team" class="partial">In design / pilot-scoped</td>
+            <td data-label="Pilot" class="partial">In design / pilot-scoped</td>
+            <td data-label="Enterprise" class="partial">In design / pilot-scoped</td>
           </tr>
           <tr>
             <th scope="row">External adversarial review of the receipt claim</th>
             <td data-label="Community" class="no">—</td>
             <td data-label="Team" class="no">—</td>
-            <td data-label="Pilot" class="yes">Yes</td>
+            <td data-label="Pilot" class="partial">In design / pilot-scoped (reviewer not yet engaged)</td>
             <td data-label="Enterprise" class="partial">On request</td>
           </tr>
           <tr>
@@ -282,21 +282,21 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
             <td data-label="Community" class="no">—</td>
             <td data-label="Team" class="no">—</td>
             <td data-label="Pilot" class="no">—</td>
-            <td data-label="Enterprise" class="yes">Yes</td>
+            <td data-label="Enterprise" class="partial">In design / pilot-scoped</td>
           </tr>
           <tr>
             <th scope="row">Hardware-key signing (your signing root)</th>
             <td data-label="Community" class="no">—</td>
             <td data-label="Team" class="no">—</td>
             <td data-label="Pilot" class="no">—</td>
-            <td data-label="Enterprise" class="yes">Yes</td>
+            <td data-label="Enterprise" class="partial">In design / pilot-scoped</td>
           </tr>
           <tr>
             <th scope="row">Air-gap / UDS deployment</th>
             <td data-label="Community" class="no">—</td>
             <td data-label="Team" class="no">—</td>
             <td data-label="Pilot" class="no">—</td>
-            <td data-label="Enterprise" class="yes">Yes</td>
+            <td data-label="Enterprise" class="partial">In design / pilot-scoped</td>
           </tr>
           <tr>
             <th scope="row">Support</th>
@@ -320,7 +320,11 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
     </div>
   </section>
 
-<!-- szl:x402-per-call:begin generated by szl-gov tools/pricing_catalog.py from pricing/catalog.yaml sha256=e0f6fb4017042a7ed91b14afc795fb95316e1167611c6b441b9be235eae61cec; do not edit by hand -->
+  <div class="compare wrap">
+    <p class="sub" style="margin:0 0 10px"><b>Note (2026-11-19):</b> several gateway rules were enabled or disabled on 2026-11-19 and the per-call table below has not been regenerated since. The HTTP 402 response from the gateway is authoritative for what a path charges.</p>
+  </div>
+
+  <!-- szl:x402-per-call:begin generated by szl-gov tools/pricing_catalog.py from pricing/catalog.yaml sha256=e0f6fb4017042a7ed91b14afc795fb95316e1167611c6b441b9be235eae61cec; do not edit by hand -->
   <section class="compare wrap" id="per-call-prices">
     <h2>Per-call API prices (x402)</h2>
     <p class="sub">A few machine endpoints answer an unpaid request with HTTP 402 and an x402 payment request, paid in USDC on Base. These are the paths the Cloudflare gateway charges, generated from the estate's canonical price catalog. Prices as of 2026-11-06 16:27 UTC. Machine-readable copy: <a href="/.well-known/x402-pricing.json">/.well-known/x402-pricing.json</a>.</p>
