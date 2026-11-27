@@ -1,0 +1,91 @@
+name: Solo Green Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: read-all
+
+concurrency:
+  group: solo-green-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  green-merge:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'stephenlutar2-hash' &&
+      startsWith(github.head_ref, 'solo/') &&
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+      pull-requests: write
+      statuses: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      SELF_RUN_ID: ${{ github.run_id }}
+    steps:
+      - name: Wait for every peer check to finish green
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import time
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = os.environ["HEAD_SHA"]
+          self_run = f"/actions/runs/{os.environ['SELF_RUN_ID']}"
+          allowed = {"success", "neutral", "skipped"}
+
+          def api(path):
+              return json.loads(subprocess.check_output(["gh", "api", path], text=True))
+
+          for _ in range(180):
+              checks = api(f"repos/{repo}/commits/{sha}/check-runs?per_page=100").get("check_runs", [])
+              peers = [row for row in checks if self_run not in str(row.get("details_url") or "")]
+              bad = [
+                  row for row in peers
+                  if row.get("status") == "completed" and row.get("conclusion") not in allowed
+              ]
+              if bad:
+                  compact = [
+                      {
+                          "name": row.get("name"),
+                          "conclusion": row.get("conclusion"),
+                          "url": row.get("html_url"),
+                      }
+                      for row in bad
+                  ]
+                  raise SystemExit("peer check failure: " + json.dumps(compact, sort_keys=True))
+
+              pending = [row for row in peers if row.get("status") != "completed"]
+              status = api(f"repos/{repo}/commits/{sha}/status")
+              bad_status = [
+                  row for row in status.get("statuses", [])
+                  if row.get("state") in {"error", "failure"}
+              ]
+              if bad_status:
+                  raise SystemExit(
+                      "legacy status failure: " + json.dumps(bad_status, sort_keys=True)[:4000]
+                  )
+
+              if peers and not pending and status.get("state") != "pending":
+                  print(f"All {len(peers)} peer checks completed green.")
+                  break
+
+              time.sleep(10)
+          else:
+              raise SystemExit("timed out waiting for a stable green check set")
+          PY
+
+      - name: Squash merge exact green head
+        run: |
+          gh pr merge "$PR_NUMBER"             --repo "$GITHUB_REPOSITORY"             --squash             --delete-branch             --match-head-commit "$HEAD_SHA"
