@@ -1,10 +1,12 @@
 # Acceptable Use Policy
 
-**Products covered:** A11oy (https://a-11-oy.com), Hatun MCP, and SZL Holdings models and datasets published under SZLHOLDINGS.
+**Products covered:** A11oy (https://a-11-oy.com), Hatun MCP, and SZL models and datasets published under the SZLHOLDINGS Hugging Face organization.
 
-**Effective:** This policy becomes effective when it is published on a-11-oy.com. Until then it is a draft in source control only.
+**Status:** Draft. This policy becomes effective when it is published on a-11-oy.com. Until then it is a source-control draft only.
 
 **Security contact:** security@a-11-oy.com
+
+This is the only security contact listed in this policy.
 
 ## 1. What this policy covers
 
@@ -12,7 +14,7 @@ This Acceptable Use Policy ("AUP") applies to anyone who uses, hosts, integrates
 
 ## 2. Intended use
 
-The Services are intended for lawful, governed work: research, software development, evaluation, and operational assistance, subject to the limits in this policy and to any product-specific restrictions (for example, a model card, license, or access gate).
+The Services are intended for lawful work: research, software development, evaluation, and operational assistance, subject to the limits in this policy and to any product-specific restrictions (for example, a model card, license, or access gate).
 
 SZL products are designed to refuse or abstain when a request is out of scope, ungrounded, or unsafe. Attempting to defeat that restraint is not an intended use.
 
@@ -29,7 +31,7 @@ You may not use the Services, or any output from them, to:
 7. Harass, threaten, dox, or otherwise target a person, or to commit fraud, scams, or impersonation.
 8. Collect, infer, or publish sensitive personal data about others without a lawful basis and, where required, their knowledge.
 9. Train, fine-tune, or evaluate a model on private or customer data except where you have the right to use that data and the use stays within the published product limits.
-10. Misrepresent SZL outputs as measured, signed, audited, certified, or officially approved when they are not.
+10. Describe SZL outputs as measured, signed, audited, or officially approved when the published evidence does not support that description.
 
 This list is not exhaustive. A use that is clearly harmful or abusive may still violate this policy even if it is not named above.
 
@@ -45,7 +47,7 @@ Preferred intake, when it is available, is also the private **Security → Repor
 
 ## 6. Enforcement
 
-SZL may investigate suspected violations, may require a model or product to abstain or go offline, and may suspend or terminate access. We may report illegal activity to the relevant authority. Enforcement decisions will be recorded internally; we do not promise a public explanation in every case.
+SZL may investigate suspected violations, may require a model or product to abstain or go offline, and may suspend or terminate access. We may report illegal activity to the relevant authority. Enforcement decisions will be recorded internally. We do not promise a public explanation in every case, and this policy does not create a service-level commitment.
 
 ## 7. Changes
 
@@ -54,6 +56,6 @@ We may update this policy. The published page on a-11-oy.com is the current publ
 ## 8. Contact
 
 - Security and vulnerability reports: security@a-11-oy.com
-- This policy: https://a-11-oy.com/static/aup.html
+- This policy, once published: https://a-11-oy.com/static/aup.html
 
 Drafted 27 November 2026, America/New_York. Public contact domain: a-11-oy.com.
