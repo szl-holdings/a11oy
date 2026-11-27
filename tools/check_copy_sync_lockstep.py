@@ -802,7 +802,7 @@ SOURCE_DERIVED_CONTROLLER_REVISIONS = frozenset({
     # Reviewed reusable-hf-deploy controller that expands Dockerfile COPY
     # sources into the HF payload. A generic 40-hex pin proves immutability,
     # not this capability; additions require an explicit guard review.
-    "5f140bab8adb64fe25252d8832b67b1f43a56c36",
+    "816b83265b2eb5e4b73f6dab21e67eb28d53381f",
 })
 
 
@@ -895,6 +895,11 @@ REVIEWED_DEPLOY_INPUTS = {
     "restart-space": "${{ needs.preflight.outputs.restart_required == 'true' }}",
     "source-revision-variable": "SZL_GIT_SHA",
     "source-revision-probe-path": "/api/build-info",
+    # #3770 publisher-generated release manifest (exact reviewed values).
+    "release-manifest-file": ".szl-release-manifest.json",
+    "release-served-artifact": "console/index.html",
+    "release-api-contract": "docs/api-contract.md",
+    "release-model-identity-args": "A11OY_ALLOY_GGUF_REPO@A11OY_ALLOY_GGUF_REV",
     "smoke-paths": '["/","/api/livez","/api/build-info","/api/a11oy/v1/honest","/api/a11oy/healthz","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/holographic","/holographic/","/static/3d/holographic.html","/assets/brain-frontier-v7.css","/assets/brain-frontier-v7.js","/assets/brain-frontier-v7.json","/static/landing-honest-bind.js","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0","/preview/platform-a11oy/","/preview/platform-a11oy/source.json"]',
 }
 REVIEWED_DEPLOY_SECRETS = {
@@ -959,7 +964,7 @@ def job_has_source_derived_deploy_contract(block_lines, job_indent, *,
         "if": REVIEWED_DEPLOY_GATES["if"],
         "uses": (
             "szl-holdings/.github/.github/workflows/"
-            "reusable-hf-deploy.yml@5f140bab8adb64fe25252d8832b67b1f43a56c36"
+            "reusable-hf-deploy.yml@816b83265b2eb5e4b73f6dab21e67eb28d53381f"
         ),
         "with": "",
         "secrets": "",
