@@ -53,6 +53,7 @@ permissions:
 jobs:
   build-and-sign:
     name: Build tar.zst, sign, upload
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       contents: write      # upload release assets

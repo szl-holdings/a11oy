@@ -43,6 +43,7 @@ permissions:
 jobs:
   publish:
     name: Build + publish to GitHub Packages
+    environment: pypi
     runs-on: ubuntu-latest
     permissions:
       contents: read

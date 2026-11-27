@@ -27,6 +27,7 @@ concurrency:
 jobs:
   publish:
     name: Publish Space + nano checkpoints
+    environment: hf
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
