@@ -38,7 +38,7 @@ PUBLISHER = {
     "script_path": ".github/scripts/hf_deploy_from_dockerfile.py",
     "script_sha256": "c536aed5d5d67d7904058a3f0df56d6821790be0a89465172e9a09c2622bb28d",
 }
-MAX_PUBLISHER_BYTES = 96 * 1024  # exact SHA/hash pin remains mandatory
+MAX_PUBLISHER_BYTES = 128 * 1024  # exact SHA/hash pin remains mandatory
 MAX_MANIFEST_BYTES = 384 * 1024
 MAX_FILES = 2048
 MAX_PYTHON_PATHS = 4096

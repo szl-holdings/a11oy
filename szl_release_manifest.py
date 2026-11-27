@@ -35,7 +35,7 @@ GATE_KIND = "szl.promotion-gate/v1"
 
 MANIFEST_PATH_ENV = "SZL_RELEASE_MANIFEST_PATH"
 DEFAULT_MANIFEST_NAME = "release-manifest.json"
-# The canonical publisher replaces only this leading-dot placeholder with the
+# The canonical publisher replaces only this dot-prefixed placeholder with the
 # GENERATED manifest at deploy time (szl-holdings/.github hf_deploy_from_dockerfile
 # --release-manifest-file). The committed release-manifest.json stays the
 # honest placeholder for constrained/local builds.

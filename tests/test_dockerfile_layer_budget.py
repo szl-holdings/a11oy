@@ -50,7 +50,7 @@ RUNTIME_IDENTITY_COPY_ADDITIONS = {".szl-runtime-marker.json", "szl_runtime_iden
 # allowlist COUNT/SHA unchanged; subtract only these newly admitted bytes.
 RELEASE_MANIFEST_COPY_ADDITIONS = {
     "szl_release_manifest.py", "release-manifest.schema.json", "release-manifest.json",
-    # Publisher-generated copy (leading dot so parity authenticates it as derived).
+    # Publisher-generated copy (dot-prefixed so parity authenticates it as derived).
     ".szl-release-manifest.json",
 }
 
