@@ -99,7 +99,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Pins live ONLY in requirements-runtime.txt (single source of truth; the audit
 # closure includes it with -r). Never re-list them inline here.
 COPY requirements-runtime.txt /tmp/requirements-runtime.txt
-COPY .szl-runtime-marker.json /tmp/.szl-runtime-marker.json
+# #3770: the publisher regenerates the release manifest at deploy time, so it is
+# a derived selector beside the runtime marker, never immutable /app source.
+COPY .szl-runtime-marker.json .szl-release-manifest.json /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements-runtime.txt
 
 # Canonical non-generative Nemo witness: exact immutable source revision,
@@ -192,7 +194,7 @@ COPY model_release/m1/ ./model_release/m1/
 # layer; exact source allowlists and historical digests remain separately frozen.
 # PR builds load the image into the Docker daemon for smoke testing; an
 # instruction-per-file layout exceeded the daemon's maximum layer depth.
-COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py a11oy_cpu_lab_contract.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py szl_release_manifest.py release-manifest.schema.json release-manifest.json .szl-release-manifest.json ./
+COPY szl_runtime_identity.py szl_signing_state.py szl_master_workcell.py a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_html_injection.py szl_release_identity.py zenodo-readback.json szl_provider_http.py a11oy_cpu_lab_contract.py szl_readiness_artifact.py szl_execution_readiness.py observer_runtime.py observer_adapters.py native_readbacks.py szl_release_manifest.py release-manifest.schema.json release-manifest.json ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.

@@ -40,6 +40,9 @@ DEFAULT_MANIFEST_NAME = "release-manifest.json"
 # --release-manifest-file). The committed release-manifest.json stays the
 # honest placeholder for constrained/local builds.
 PUBLISHED_MANIFEST_NAME = ".szl-release-manifest.json"
+# Installed beside the runtime marker under /tmp (derived selector, not /app
+# source), so GDW installed-source equality never covers publisher bytes.
+PUBLISHED_MANIFEST_PATH = Path("/tmp") / PUBLISHED_MANIFEST_NAME
 
 # Required runtime evidence per #3770 (owner directive 2026-11-19): the hosted
 # demo must not be promoted/routed when these are missing or UNKNOWN.
@@ -97,9 +100,8 @@ def manifest_path() -> Path:
     configured = (os.getenv(MANIFEST_PATH_ENV) or "").strip()
     if configured:
         return Path(configured)
-    published = Path(__file__).with_name(PUBLISHED_MANIFEST_NAME)
-    if published.is_file():
-        return published
+    if PUBLISHED_MANIFEST_PATH.is_file():
+        return PUBLISHED_MANIFEST_PATH
     return Path(__file__).with_name(DEFAULT_MANIFEST_NAME)
 
 

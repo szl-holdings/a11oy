@@ -295,3 +295,28 @@ def test_generated_identity_selector_is_exactly_scoped_outside_source_catalog():
         changed["build_inputs"][-1][key] = replacement
         with pytest.raises(source.SourceBlocked):
             source.validate_manifest(changed, "b" * 40)
+
+
+def test_release_manifest_selector_classifies_only_the_committed_placeholder():
+    """#3770: generated manifest bytes stay outside the installed-source catalog."""
+    value = manifest()
+    marker = b'{"schema":"szl.runtime-source-marker/unavailable"}\n'
+    value["build_inputs"].append({
+        "stage": "runtime", "destination": "/tmp/.szl-runtime-marker.json",
+        "scope": "RUNTIME_IDENTITY_SELECTOR", "source_path": ".szl-runtime-marker.json",
+        "size": len(marker), "sha256": hashlib.sha256(marker).hexdigest()})
+    placeholder = (Path(source.__file__).resolve().parent / ".szl-release-manifest.json").read_bytes()
+    assert len(placeholder) == source.RELEASE_MANIFEST_PLACEHOLDER_SIZE
+    assert hashlib.sha256(placeholder).hexdigest() == source.RELEASE_MANIFEST_PLACEHOLDER_SHA256
+    selector = {"stage": "runtime", "destination": "/tmp/.szl-release-manifest.json",
+                "scope": "RELEASE_MANIFEST_SELECTOR", "source_path": ".szl-release-manifest.json",
+                "size": len(placeholder), "sha256": hashlib.sha256(placeholder).hexdigest()}
+    value["build_inputs"].append(selector)
+    assert source.validate_manifest(value, "b" * 40)["build_inputs"][-1] == selector
+    for key, replacement in [("destination", "/app/.szl-release-manifest.json"),
+                             ("source_path", "release-manifest.json"),
+                             ("scope", "RUNTIME_IDENTITY_SELECTOR"), ("sha256", "e" * 64), ("size", 999)]:
+        changed = json.loads(json.dumps(value))
+        changed["build_inputs"][-1][key] = replacement
+        with pytest.raises(source.SourceBlocked):
+            source.validate_manifest(changed, "b" * 40)

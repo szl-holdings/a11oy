@@ -176,20 +176,18 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def test_published_leading_dot_manifest_is_preferred(tmp_path, monkeypatch):
-    """#3770: the publisher-generated copy wins over the committed placeholder."""
-    import importlib
-    import shutil
-    module_dir = tmp_path / "pkg"
-    module_dir.mkdir()
-    shutil.copy(srm.__file__, module_dir / "szl_release_manifest.py")
+def test_published_tmp_manifest_is_preferred(tmp_path, monkeypatch):
+    """#3770: the publisher-generated /tmp selector wins over the placeholder."""
+    published = tmp_path / ".szl-release-manifest.json"
     monkeypatch.delenv("SZL_RELEASE_MANIFEST_PATH", raising=False)
-    monkeypatch.syspath_prepend(str(module_dir))
-    spec = importlib.util.spec_from_file_location("_srm_copy", module_dir / "szl_release_manifest.py")
-    copy = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(copy)
-    assert copy.manifest_path().name == "release-manifest.json"
-    (module_dir / ".szl-release-manifest.json").write_text("{}", encoding="utf-8")
-    assert copy.manifest_path().name == ".szl-release-manifest.json"
+    monkeypatch.setattr(srm, "PUBLISHED_MANIFEST_PATH", published)
+    assert srm.PUBLISHED_MANIFEST_NAME == ".szl-release-manifest.json"
+    assert srm.manifest_path().name == "release-manifest.json"
+    published.write_text("{}", encoding="utf-8")
+    assert srm.manifest_path() == published
     monkeypatch.setenv("SZL_RELEASE_MANIFEST_PATH", str(tmp_path / "x.json"))
-    assert copy.manifest_path() == tmp_path / "x.json"
+    assert srm.manifest_path() == tmp_path / "x.json"
+
+
+def test_default_published_location_is_tmp_not_app_source():
+    assert srm.PUBLISHED_MANIFEST_PATH == srm.Path("/tmp/.szl-release-manifest.json")

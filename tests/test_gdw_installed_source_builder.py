@@ -145,6 +145,29 @@ def test_generated_selector_has_one_explicit_non_source_destination():
         derive(files, sources=[*SOURCES, ".szl-runtime-marker.json"])
 
 
+def test_release_manifest_selector_is_a_non_source_tmp_build_input():
+    """#3770: the publisher-generated manifest is never /app installed source."""
+    marker = b'{"schema":"szl.runtime-source-marker/unavailable"}\n'
+    release = (ROOT / ".szl-release-manifest.json").read_bytes()
+    docker = DOCKER.replace(
+        "WORKDIR /app\n", "WORKDIR /app\nCOPY .szl-runtime-marker.json .szl-release-manifest.json /tmp/\n")
+    files = source_files(docker)
+    files[".szl-runtime-marker.json"] = marker
+    files[".szl-release-manifest.json"] = release
+    sources = [*SOURCES, ".szl-runtime-marker.json", ".szl-release-manifest.json"]
+    report = derive(files, sources=sources)
+    assert report["build_inputs"][-1] == {
+        "stage": "runtime", "destination": "/tmp/.szl-release-manifest.json",
+        "scope": "RELEASE_MANIFEST_SELECTOR", "source_path": ".szl-release-manifest.json",
+        "size": len(release), "sha256": hashlib.sha256(release).hexdigest()}
+    assert not any(row["source_path"] == ".szl-release-manifest.json" for row in report["installed_files"])
+    files["Dockerfile"] = docker.replace(
+        "COPY .szl-runtime-marker.json .szl-release-manifest.json /tmp/",
+        "COPY .szl-runtime-marker.json /tmp/\nCOPY .szl-release-manifest.json /tmp/other.json").encode()
+    with pytest.raises(builder.InstalledSourceError, match="UNQUALIFIED_BUILD_INPUT_DESTINATION"):
+        derive(files, sources=sources)
+
+
 def test_json_and_continued_copy_keep_the_same_destination_contract():
     docker = DOCKER.replace("COPY assets/ ./static/", 'COPY ["assets/", "./static/"]')
     assert any(row["path"] == "static/page.html" for row in derive(source_files(docker))["installed_files"])
