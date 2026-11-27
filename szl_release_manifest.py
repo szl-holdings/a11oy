@@ -35,6 +35,11 @@ GATE_KIND = "szl.promotion-gate/v1"
 
 MANIFEST_PATH_ENV = "SZL_RELEASE_MANIFEST_PATH"
 DEFAULT_MANIFEST_NAME = "release-manifest.json"
+# The canonical publisher replaces only this leading-dot placeholder with the
+# GENERATED manifest at deploy time (szl-holdings/.github hf_deploy_from_dockerfile
+# --release-manifest-file). The committed release-manifest.json stays the
+# honest placeholder for constrained/local builds.
+PUBLISHED_MANIFEST_NAME = ".szl-release-manifest.json"
 
 # Required runtime evidence per #3770 (owner directive 2026-11-19): the hosted
 # demo must not be promoted/routed when these are missing or UNKNOWN.
@@ -92,6 +97,9 @@ def manifest_path() -> Path:
     configured = (os.getenv(MANIFEST_PATH_ENV) or "").strip()
     if configured:
         return Path(configured)
+    published = Path(__file__).with_name(PUBLISHED_MANIFEST_NAME)
+    if published.is_file():
+        return published
     return Path(__file__).with_name(DEFAULT_MANIFEST_NAME)
 
 

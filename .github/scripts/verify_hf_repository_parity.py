@@ -52,6 +52,15 @@ PROTECTED_CANDIDATE_INPUTS = (
 RUNTIME_MARKER = ".szl-runtime-marker.json"
 RUNTIME_PLACEHOLDER = b'{"schema":"szl.runtime-source-marker/unavailable"}\n'
 RUNTIME_SIGNER = "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml"
+# #3770: the canonical publisher replaces only this committed placeholder with
+# a GENERATED release manifest. Every value is re-derived here from immutable
+# GitHub bytes; it is reported as derived, never as source-byte equality.
+RELEASE_MANIFEST = ".szl-release-manifest.json"
+RELEASE_MANIFEST_KIND = "szl.release-manifest/v1"
+RELEASE_SERVED_ARTIFACT = "console/index.html"
+RELEASE_API_CONTRACT = "docs/api-contract.md"
+RELEASE_MODEL_ARGS = ("A11OY_ALLOY_GGUF_REPO", "A11OY_ALLOY_GGUF_REV")
+RELEASE_MAX_BYTES = 64 * 1024
 
 
 class ParityError(RuntimeError):
@@ -618,6 +627,74 @@ def verify_derived_runtime_marker(*, github_repo, github_ref, hf_repo, hf_ref, t
             "run_attempt": marker["run_attempt"]}
 
 
+def _strict_release_document(raw: bytes) -> dict:
+    def pairs(items):
+        out = {}
+        for key, value in items:
+            if key in out:
+                raise ParityError("release manifest has duplicate keys")
+            out[key] = value
+        return out
+    try:
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=pairs)
+    except (UnicodeDecodeError, ValueError):
+        raise ParityError("release manifest is not strict JSON") from None
+    if not isinstance(value, dict) or value.get("kind") != RELEASE_MANIFEST_KIND:
+        raise ParityError("release manifest kind mismatch")
+    return value
+
+
+def _dockerfile_arg_default(dockerfile: str, name: str) -> str:
+    values = set()
+    for line in dockerfile.splitlines():
+        match = re.fullmatch(rf"ARG\s+{re.escape(name)}=(\S+)", line.strip())
+        if match:
+            values.add(match.group(1).strip("\"'"))
+    values.discard("")
+    if len(values) != 1:
+        raise ParityError(f"release model ARG {name} is not a single pinned default")
+    return values.pop()
+
+
+def verify_derived_release_manifest(*, github_repo, github_ref, hf_repo, hf_ref, tree, opener):
+    """Re-derive every GENERATED release-manifest value from immutable bytes."""
+    if not SHA_RE.fullmatch(github_ref) or not SHA_RE.fullmatch(hf_ref):
+        raise ParityError("release manifest requires exact canonical revisions")
+    source_root = f"https://raw.githubusercontent.com/{github_repo}/{github_ref}/"
+    placeholder = _read_url(source_root + RELEASE_MANIFEST, opener=opener, max_bytes=RELEASE_MAX_BYTES)
+    require_blob_bytes(RELEASE_MANIFEST, placeholder, tree.get(RELEASE_MANIFEST))
+    if _strict_release_document(placeholder).get("status") != "PLACEHOLDER_UNTIL_CI_GENERATED":
+        raise ParityError("release manifest source is not the committed placeholder")
+    raw = _read_url(f"https://huggingface.co/spaces/{hf_repo}/resolve/{hf_ref}/{RELEASE_MANIFEST}",
+                    opener=opener, max_bytes=RELEASE_MAX_BYTES)
+    document = _strict_release_document(raw)
+    if json.dumps(document, indent=2, sort_keys=True).encode() + b"\n" != raw:
+        raise ParityError("release manifest is not the publisher's canonical serialization")
+    if document.get("status") != "GENERATED":
+        raise ParityError("published release manifest is not GENERATED")
+    source = document.get("source") if isinstance(document.get("source"), dict) else {}
+    if source.get("git_commit") != github_ref:
+        raise ParityError(
+            "PUBLICATION_LAG: release manifest git_commit="
+            f"{source.get('git_commit')} does not equal protected github_ref={github_ref}")
+    dockerfile = _read_url(source_root + "Dockerfile", opener=opener).decode("utf-8")
+    served = _read_url(source_root + RELEASE_SERVED_ARTIFACT, opener=opener)
+    require_blob_bytes(RELEASE_SERVED_ARTIFACT, served, tree.get(RELEASE_SERVED_ARTIFACT))
+    contract = _read_url(source_root + RELEASE_API_CONTRACT, opener=opener)
+    require_blob_bytes(RELEASE_API_CONTRACT, contract, tree.get(RELEASE_API_CONTRACT))
+    expected = {
+        "served_frontend_sha256": hashlib.sha256(served).hexdigest(),
+        "api_contract_sha256": hashlib.sha256(contract).hexdigest(),
+        "model_identity": "@".join(_dockerfile_arg_default(dockerfile, n) for n in RELEASE_MODEL_ARGS),
+        "deployment_identity": f"{hf_repo}@{github_ref}",
+    }
+    if document.get("runtime") != expected:
+        raise ParityError("release manifest runtime values differ from immutable source derivation")
+    return {"path": RELEASE_MANIFEST, "sha256": hashlib.sha256(raw).hexdigest(),
+            "status": "authenticated-derived", "source_sha": github_ref,
+            "derivation": "release-manifest-recomputed-from-source"}
+
+
 def verify_docker_dot_copies(
     *, github_repo: str, github_ref: str, hf_repo: str, hf_ref: str,
     tree: dict[str, str], opener: Callable[..., Any] = urllib.request.urlopen,
@@ -634,6 +711,13 @@ def verify_docker_dot_copies(
     for path in paths:
         if path == RUNTIME_MARKER:
             proof = verify_derived_runtime_marker(
+                github_repo=github_repo, github_ref=github_ref, hf_repo=hf_repo, hf_ref=hf_ref,
+                tree=tree, opener=opener)
+            verified[path] = proof["sha256"]
+            if derived_artifacts is not None:
+                derived_artifacts[path] = proof
+        elif path == RELEASE_MANIFEST:
+            proof = verify_derived_release_manifest(
                 github_repo=github_repo, github_ref=github_ref, hf_repo=hf_repo, hf_ref=hf_ref,
                 tree=tree, opener=opener)
             verified[path] = proof["sha256"]

@@ -50,6 +50,8 @@ RUNTIME_IDENTITY_COPY_ADDITIONS = {".szl-runtime-marker.json", "szl_runtime_iden
 # allowlist COUNT/SHA unchanged; subtract only these newly admitted bytes.
 RELEASE_MANIFEST_COPY_ADDITIONS = {
     "szl_release_manifest.py", "release-manifest.schema.json", "release-manifest.json",
+    # Publisher-generated copy (leading dot so parity authenticates it as derived).
+    ".szl-release-manifest.json",
 }
 
 # One adapter and one canonical package, with adjacent root COPY lines batched
@@ -200,8 +202,8 @@ def _copy_sources(instruction: str) -> list[str]:
 
 
 def test_release_manifest_sources_are_batched_once_at_the_original_root_path() -> None:
-    """The three new #3770 files do not consume a layer or weaken old hashes."""
-    assert len(RELEASE_MANIFEST_COPY_ADDITIONS) == 3
+    """The four #3770 files do not consume a layer or weaken old hashes."""
+    assert len(RELEASE_MANIFEST_COPY_ADDITIONS) == 4
     batches = [
         instruction for _line, instruction in _logical_instructions()
         if instruction.upper().startswith("COPY ")
