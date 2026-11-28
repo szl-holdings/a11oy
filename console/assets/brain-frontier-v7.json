@@ -1,6 +1,6 @@
 {
   "advisory_dag": {
-    "contract_digest": "af65922531f610e6757b5dab7c8368f7b831e0456241f19226c58f604df7ae8f",
+    "contract_digest": "44356be3708e750a6a07f436becb3aa68212ad6d27759f84e0cc198f5ba55766",
     "contracts": {
       "anchor_types": [
         "source"
@@ -57,7 +57,7 @@
       },
       "external_inputs": [
         "brain-candidates:sha256:3fb2cf2b7e55ecf179cf76e6afe97bcbbbd8fa645d1595bc0abb7440cf64e54a",
-        "ouroboros-controller:git:8259a239e3492fc0a02ec974d34033b33ce19ab0"
+        "ouroboros-controller:git:150511e17744e39f6c14b1498d2500a41c489495"
       ],
       "goal": "Inspect the source-bound Second Brain and existing Ouroboros advisory review composition. This MODELED topology grants no execution authority and makes no claim that its nodes ran.",
       "graph_id": "brain-frontier-review-3fb2cf2b7e55ecf179cf",
@@ -66,7 +66,7 @@
           "authority": "READ_ONLY",
           "consumes": [
             "brain-candidates:sha256:3fb2cf2b7e55ecf179cf76e6afe97bcbbbd8fa645d1595bc0abb7440cf64e54a",
-            "ouroboros-controller:git:8259a239e3492fc0a02ec974d34033b33ce19ab0"
+            "ouroboros-controller:git:150511e17744e39f6c14b1498d2500a41c489495"
           ],
           "control_after": [],
           "depends_on": [],
@@ -193,7 +193,7 @@
       "schema": "szl.governed-graph/v1"
     },
     "ok": true,
-    "plan_id": "ggp-af65922531f610e6757b",
+    "plan_id": "ggp-44356be3708e750a6a07",
     "schema": "szl.governed-graph.analysis/v1",
     "topology": {
       "control_edge_count": 0,
@@ -1317,9 +1317,9 @@
       "signature_verified": false
     },
     "freshness": {
-      "expires_at": "2026-11-27T06:56:45Z",
+      "expires_at": "2026-11-28T16:55:36Z",
       "max_age_seconds": 21600,
-      "observed_at": "2026-11-27T00:56:45Z"
+      "observed_at": "2026-11-28T10:55:36Z"
     },
     "observation": {
       "bounded": null,
@@ -1333,16 +1333,16 @@
       "terminated": null,
       "wall_ms": null
     },
-    "observation_sha256": "2c5b010a489e9edcd398018673778eefbf450b2aa0aeec4e1b70f41b7657afff",
-    "reason": "LATEST_REVIEW_FAILED",
+    "observation_sha256": "8158cc44923f7b70189bb899fef0c3848b70122e45849209247e8c9e0b976494",
+    "reason": "REVIEW_RECEIPT_REJECTED",
     "run": {
       "attempt": 1,
-      "conclusion": "failure",
-      "head_sha": "8259a239e3492fc0a02ec974d34033b33ce19ab0",
-      "id": 45919469086,
+      "conclusion": "success",
+      "head_sha": "150511e17744e39f6c14b1498d2500a41c489495",
+      "id": 46136894389,
       "status": "completed",
-      "updated_at": "2026-11-27T00:56:45Z",
-      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/45919469086"
+      "updated_at": "2026-11-28T10:55:36Z",
+      "url": "https://github.com/szl-holdings/szl-ouroboros/actions/runs/46136894389"
     },
     "schema": "szl.ouroboros.frontier-observation/v1",
     "source": {
@@ -1350,17 +1350,17 @@
       "candidate_file_sha256": "3fb2cf2b7e55ecf179cf76e6afe97bcbbbd8fa645d1595bc0abb7440cf64e54a",
       "candidate_set_sha256": "3fb2cf2b7e55ecf179cf76e6afe97bcbbbd8fa645d1595bc0abb7440cf64e54a",
       "controller_repository": "szl-holdings/szl-ouroboros",
-      "controller_revision": "8259a239e3492fc0a02ec974d34033b33ce19ab0",
+      "controller_revision": "150511e17744e39f6c14b1498d2500a41c489495",
       "second_brain_repository": "szl-holdings/szl-second-brain",
-      "second_brain_revision": "daf96f49cbca19c454ffbb4aafa0924d4a28b3d9",
+      "second_brain_revision": "edb96565c3b25da03550c6f87663b6fa0d90c095",
       "state_file_sha256": "5123f626bde1306b04c0d3b908597ba8285c52253e225fe7928f0a071f616ded",
       "workflow": ".github/workflows/codex-continuous-frontier.yml"
     },
-    "state": "FAILED"
+    "state": "REJECTED"
   },
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "5aa04440c156ae8496b6e7564d13b96afaede7427659126acafc4118d5deb465",
+  "snapshot_sha256": "4b19a42dab340e12208072568a819b9080911135dbaa29235f1dc02a3522e736",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
@@ -1375,14 +1375,14 @@
     "ouroboros": {
       "repository": "szl-holdings/szl-ouroboros",
       "review_workflow": ".github/workflows/codex-continuous-frontier.yml",
-      "revision": "8259a239e3492fc0a02ec974d34033b33ce19ab0"
+      "revision": "150511e17744e39f6c14b1498d2500a41c489495"
     },
     "second_brain": {
       "candidate_count": 144,
       "candidate_file_sha256": "3fb2cf2b7e55ecf179cf76e6afe97bcbbbd8fa645d1595bc0abb7440cf64e54a",
       "candidate_set_sha256": "3fb2cf2b7e55ecf179cf76e6afe97bcbbbd8fa645d1595bc0abb7440cf64e54a",
       "repository": "szl-holdings/szl-second-brain",
-      "revision": "daf96f49cbca19c454ffbb4aafa0924d4a28b3d9",
+      "revision": "edb96565c3b25da03550c6f87663b6fa0d90c095",
       "state_sha256": "5123f626bde1306b04c0d3b908597ba8285c52253e225fe7928f0a071f616ded"
     }
   },
